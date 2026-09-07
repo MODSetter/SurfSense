@@ -6,6 +6,11 @@ export type Citation = {
 }
 
 export type ChatStreamEvent =
+  | {
+      type: "accepted"
+      user_message_id: number
+      assistant_message_id: number
+    }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
   | { type: "error"; message: string }

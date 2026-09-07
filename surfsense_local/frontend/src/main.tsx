@@ -13,6 +13,10 @@ if (!root) {
   throw new Error("Missing application root")
 }
 
+if (window.surfsense?.platform === "darwin") {
+  document.documentElement.classList.add("electron-macos")
+}
+
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

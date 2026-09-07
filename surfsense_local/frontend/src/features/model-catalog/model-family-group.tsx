@@ -10,13 +10,15 @@ export function ModelFamilyGroup({
   const headingId = useId()
   return (
     <section className="flex flex-col gap-2" aria-labelledby={headingId}>
-      <h3
-        id={headingId}
-        className="text-sm font-medium text-muted-foreground"
-      >
+      <h3 id={headingId} className="text-sm font-medium text-muted-foreground">
         {family || "Other"}
       </h3>
-      <div className="grid gap-3 sm:grid-cols-2">{children}</div>
+      <ul
+        className="divide-y overflow-hidden rounded-xl border bg-card"
+        aria-label={`${family || "Other"} models`}
+      >
+        {children}
+      </ul>
     </section>
   )
 }

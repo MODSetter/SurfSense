@@ -76,6 +76,11 @@ async def test_a_message_streams_a_grounded_reply(
 
     events = await _send(client, thread_id, "what happened to revenue?")
 
+    accepted = events[0]
+    assert accepted["type"] == "accepted"
+    assert accepted["user_message_id"] > 0
+    assert accepted["assistant_message_id"] > 0
+
     deltas = [event["text"] for event in events if event["type"] == "delta"]
     assert "".join(deltas) == "Revenue climbed after the launch [1]."
 
@@ -84,6 +89,10 @@ async def test_a_message_streams_a_grounded_reply(
 
     stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
     assert [message["role"] for message in stored] == ["user", "assistant"]
+    assert [message["id"] for message in stored] == [
+        accepted["user_message_id"],
+        accepted["assistant_message_id"],
+    ]
     assert stored[1]["content"]["text"] == "Revenue climbed after the launch [1]."
     assert stored[1]["content"]["citations"]
 

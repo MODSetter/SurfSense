@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 
 import {
+  deleteDocument,
   listDocuments,
   readDocument,
   retryDocument,
@@ -34,11 +35,15 @@ function wait(milliseconds: number, signal: AbortSignal) {
 
 export function useSources(workspaceId: number) {
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([])
+  const [selectedDocumentIdSet, setSelectedDocumentIdSet] = useState(
+    () => new Set<number>()
+  )
   const [selectedDocument, setSelectedDocument] =
     useState<DocumentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [uploadOutcome, setUploadOutcome] = useState<UploadOutcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const listController = useRef<AbortController | null>(null)
@@ -215,12 +220,64 @@ export function useSources(workspaceId: number) {
     }
   }
 
+  const selectedDocumentIds = documents.flatMap((document) =>
+    document.status === "ready" && selectedDocumentIdSet.has(document.id)
+      ? [document.id]
+      : []
+  )
+
+  const setDocumentSelected = (documentId: number, selected: boolean) => {
+    setSelectedDocumentIdSet((current) => {
+      const next = new Set(current)
+      if (selected) {
+        next.add(documentId)
+      } else {
+        next.delete(documentId)
+      }
+      return next
+    })
+  }
+
+  const deleteSelected = async () => {
+    const ids = selectedDocumentIds
+    if (ids.length === 0 || isDeleting) {
+      return
+    }
+    setIsDeleting(true)
+    setError(null)
+    const results = await Promise.allSettled(
+      ids.map((documentId) => deleteDocument(workspaceId, documentId))
+    )
+    const deletedIds = new Set(
+      ids.filter((_id, index) => results[index].status === "fulfilled")
+    )
+    setDocuments((current) =>
+      current.filter((document) => !deletedIds.has(document.id))
+    )
+    setSelectedDocumentIdSet((current) => {
+      const next = new Set(current)
+      for (const id of deletedIds) {
+        next.delete(id)
+      }
+      return next
+    })
+    const failedCount = results.length - deletedIds.size
+    if (failedCount > 0) {
+      setError(
+        `${failedCount} selected source${failedCount === 1 ? "" : "s"} could not be deleted.`
+      )
+    }
+    setIsDeleting(false)
+  }
+
   return {
     documents,
+    selectedDocumentIds,
     selectedDocument,
     isLoading,
     isLoadingPreview,
     isUploading,
+    isDeleting,
     uploadOutcome,
     error,
     refresh,
@@ -231,6 +288,8 @@ export function useSources(workspaceId: number) {
       setIsLoadingPreview(false)
     },
     retry,
+    deleteSelected,
+    setDocumentSelected,
     upload,
     dismissUploadOutcome: () => setUploadOutcome(null),
   }

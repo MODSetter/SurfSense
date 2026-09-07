@@ -1,4 +1,4 @@
-import { requestJson } from "@/lib/api"
+import { requestJson, requestVoid } from "@/lib/api"
 
 export type DocumentStatus = "pending" | "processing" | "ready" | "failed"
 
@@ -51,6 +51,15 @@ export function retryDocument(
     `/workspaces/${workspaceId}/documents/${documentId}/retry`,
     { method: "POST", signal }
   )
+}
+
+export function deleteDocument(
+  workspaceId: number,
+  documentId: number
+): Promise<void> {
+  return requestVoid(`/workspaces/${workspaceId}/documents/${documentId}`, {
+    method: "DELETE",
+  })
 }
 
 export function uploadDocuments(

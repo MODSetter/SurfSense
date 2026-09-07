@@ -68,6 +68,7 @@ function createWindow(apiUrl: string): void {
     width: 1280,
     height: 800,
     show: false,
+    ...(process.platform === "darwin" && { titleBarStyle: "hiddenInset" }),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       additionalArguments: [`--surfsense-api-url=${apiUrl}`],

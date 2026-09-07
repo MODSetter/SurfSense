@@ -1,12 +1,13 @@
 import { useEffect, useRef } from "react"
 import {
   ArrowDownIcon,
-  ArrowUpIcon,
+  ArrowUp02Icon,
   BotIcon,
   ChevronDownIcon,
   CircleStopIcon,
   Settings2Icon,
-} from "lucide-react"
+} from "@/components/ui/icons"
+
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,
@@ -15,11 +16,11 @@ import {
 } from "@assistant-ui/react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { ModelSelection } from "@/features/model-selection/api"
 import type { WorkspaceDocument } from "@/features/sources/api"
+import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
 import { AssistantMessage, UserMessage } from "./message"
@@ -74,10 +75,10 @@ export function ThreadPanel({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <section
-        className="flex h-svh min-w-0 flex-col bg-background"
+        className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
       >
-        <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-5">
+        <header className="flex h-14 shrink-0 items-center border-b px-5">
           <h1
             ref={headingRef}
             tabIndex={-1}
@@ -85,19 +86,6 @@ export function ThreadPanel({
           >
             {thread?.title || "New chat"}
           </h1>
-          <button
-            type="button"
-            onClick={onModelSetup}
-            className="flex cursor-pointer items-center gap-2 rounded-lg px-1.5 py-1 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
-            title="Change model"
-            aria-label={`Model ${model.name} on ${model.provider}. Change model.`}
-          >
-            <Badge variant="outline">{model.name}</Badge>
-            <Badge variant={providerAvailable ? "secondary" : "destructive"}>
-              {providerAvailable ? model.provider : "Provider offline"}
-            </Badge>
-            <ChevronDownIcon className="size-3.5 text-muted-foreground" />
-          </button>
         </header>
 
         {error ? (
@@ -127,54 +115,51 @@ export function ThreadPanel({
             ) : null}
 
             {!isLoading ? (
-              <>
-                <ThreadPrimitive.Empty>
-                  <div className="m-auto flex max-w-md flex-col items-center px-8 py-20 text-center">
-                    <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
-                      <BotIcon className="size-5" />
-                    </div>
-                    <h2 className="font-heading text-xl font-medium">
-                      Ask this workspace
-                    </h2>
-                    <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                      Answers use the sources indexed in this workspace.
-                    </p>
-                  </div>
-                </ThreadPrimitive.Empty>
-                <ThreadPrimitive.Messages>
-                  {({ message }) =>
-                    message.role === "user" ? (
-                      <UserMessage />
-                    ) : (
-                      <AssistantMessage
-                        citations={citationsFrom(message)}
-                        documents={documents}
-                        onCitation={onCitation}
-                      />
-                    )
-                  }
-                </ThreadPrimitive.Messages>
-              </>
+              <ThreadPrimitive.Messages>
+                {({ message }) =>
+                  message.role === "user" ? (
+                    <UserMessage />
+                  ) : (
+                    <AssistantMessage
+                      citations={citationsFrom(message)}
+                      documents={documents}
+                      onCitation={onCitation}
+                    />
+                  )
+                }
+              </ThreadPrimitive.Messages>
             ) : null}
 
-            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-gradient-to-t from-background via-background to-transparent px-4 pt-10 pb-4">
+            <ThreadPrimitive.ViewportFooter
+              className={cn(
+                "absolute inset-x-0 z-20 px-4",
+                thread
+                  ? "bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-7 pb-2"
+                  : "top-1/2 -translate-y-1/2"
+              )}
+            >
               <div className="relative mx-auto max-w-3xl">
-                <ThreadPrimitive.ScrollToBottom asChild>
-                  <Button
-                    variant="outline"
-                    size="icon-sm"
-                    className="absolute -top-10 left-1/2 -translate-x-1/2 rounded-full bg-background"
-                    aria-label="Scroll to latest message"
-                  >
-                    <ArrowDownIcon />
-                  </Button>
-                </ThreadPrimitive.ScrollToBottom>
-                <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-card p-2 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
+                {thread ? (
+                  <ThreadPrimitive.ScrollToBottom asChild>
+                    <Button
+                      variant="outline"
+                      size="icon-sm"
+                      className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-full bg-background disabled:invisible"
+                      aria-label="Scroll to latest message"
+                    >
+                      <ArrowDownIcon />
+                    </Button>
+                  </ThreadPrimitive.ScrollToBottom>
+                ) : null}
+                <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
                   <ComposerPrimitive.Input
-                    className="max-h-44 min-h-12 flex-1 resize-none bg-transparent px-2 py-3 text-sm outline-none placeholder:text-muted-foreground"
+                    className={cn(
+                      "max-h-44 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
+                      thread ? "min-h-10" : "min-h-28"
+                    )}
                     placeholder={
                       providerAvailable
-                        ? "Ask about your sources…"
+                        ? "Ask SurfSense about anything"
                         : "Reconnect your model provider to send"
                     }
                     submitMode="enter"
@@ -185,10 +170,10 @@ export function ThreadPanel({
                     <ComposerPrimitive.Send asChild>
                       <Button
                         size="icon-lg"
-                        className="rounded-xl"
+                        className="mb-0.5 rounded-xl"
                         aria-label="Send message"
                       >
-                        <ArrowUpIcon />
+                        <ArrowUp02Icon />
                       </Button>
                     </ComposerPrimitive.Send>
                   ) : (
@@ -196,7 +181,7 @@ export function ThreadPanel({
                       <Button
                         size="icon-lg"
                         variant="secondary"
-                        className="rounded-xl"
+                        className="mb-0.5 rounded-xl"
                         aria-label="Stop generating"
                       >
                         <CircleStopIcon />
@@ -204,11 +189,26 @@ export function ThreadPanel({
                     </ComposerPrimitive.Cancel>
                   )}
                 </ComposerPrimitive.Root>
-                <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                  {providerAvailable
-                    ? `${model.name} runs locally. Check important answers.`
-                    : "Historical chats remain available while the provider is offline."}
-                </p>
+                <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
+                  <p className="min-w-0 text-left text-[11px] text-muted-foreground">
+                    {providerAvailable
+                      ? `${model.name} runs locally. Check important answers.`
+                      : "Historical chats remain available while the provider is offline."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={onModelSetup}
+                    className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
+                    title="Change model"
+                    aria-label={`Model ${model.name} on ${model.provider}. Change model.`}
+                  >
+                    <span>{model.name}</span>
+                    <span>
+                      {providerAvailable ? model.provider : "Provider offline"}
+                    </span>
+                    <ChevronDownIcon className="size-3" />
+                  </button>
+                </div>
               </div>
             </ThreadPrimitive.ViewportFooter>
           </ThreadPrimitive.Viewport>

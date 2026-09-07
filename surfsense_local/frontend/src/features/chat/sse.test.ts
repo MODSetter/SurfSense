@@ -18,7 +18,7 @@ describe("parseSseStream", () => {
   it("buffers frames split across arbitrary network chunks", async () => {
     const events = []
     const stream = chunkedStream([
-      'data: {"type":"del',
+      'data: {"type":"accepted","user_message_id":11,"assistant_message_id":12}\n\ndata: {"type":"del',
       'ta","text":"hel"}\n\ndata: {"type":"delta","text":"lo"}',
       '\n\ndata: {"type":"citations","items":[{"chunk_id":4,"document_id":2,',
       '"start_line":10,"end_line":12}]}\n\ndata: [DONE]\n\n',
@@ -29,6 +29,11 @@ describe("parseSseStream", () => {
     }
 
     expect(events).toEqual([
+      {
+        type: "accepted",
+        user_message_id: 11,
+        assistant_message_id: 12,
+      },
       { type: "delta", text: "hel" },
       { type: "delta", text: "lo" },
       {

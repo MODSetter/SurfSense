@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
-import { CircleAlertIcon, LayoutGridIcon, PlusIcon, XIcon } from "lucide-react"
+import {
+  CircleAlertIcon,
+  LayoutGridIcon,
+  PlusIcon,
+  XIcon,
+} from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -41,6 +46,7 @@ function WorkspaceDashboard({
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
+    selectedDocumentIds: sources.selectedDocumentIds,
     onCitations: handleCitations,
     onModelRequired,
   })
@@ -51,7 +57,7 @@ function WorkspaceDashboard({
   }
 
   return (
-    <>
+    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
       <ThreadList
         workspaceName={workspace.name}
         threads={chat.threads}
@@ -76,11 +82,13 @@ function WorkspaceDashboard({
       <SourcesPanel
         documents={sources.documents}
         citations={citations}
+        selectedDocumentIds={sources.selectedDocumentIds}
         selectedDocument={sources.selectedDocument}
         selectedCitation={selectedCitation}
         isLoading={sources.isLoading}
         isLoadingPreview={sources.isLoadingPreview}
         isUploading={sources.isUploading}
+        isDeleting={sources.isDeleting}
         uploadOutcome={sources.uploadOutcome}
         error={sources.error}
         onOpen={openSource}
@@ -89,6 +97,8 @@ function WorkspaceDashboard({
           sources.closePreview()
         }}
         onRetry={(id) => void sources.retry(id)}
+        onDeleteSelected={() => void sources.deleteSelected()}
+        onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
         onDismissUploadOutcome={sources.dismissUploadOutcome}
         studioSlot={
@@ -98,7 +108,7 @@ function WorkspaceDashboard({
           />
         }
       />
-    </>
+    </section>
   )
 }
 
@@ -169,7 +179,7 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-svh min-w-[1120px] grid-cols-[56px_minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] overflow-hidden">
+    <main className="relative grid h-svh min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
       <WorkspaceRail
         workspaces={workspaces.workspaces}
         activeWorkspaceId={workspaces.activeWorkspace.id}

@@ -91,6 +91,23 @@ def test_a_hit_carries_its_document_and_lines(
     assert hit.end_line is not None
 
 
+def test_retrieval_stays_within_selected_documents(
+    library: tuple[Session, int, dict],
+) -> None:
+    """An explicit source selection excludes every other document."""
+    session, workspace_id, ids = library
+
+    hits = retrieve(
+        session,
+        workspace_id,
+        "revenue",
+        document_ids=[ids["cat"]],
+    )
+
+    assert hits
+    assert {hit.document_id for hit in hits} == {ids["cat"]}
+
+
 def test_retrieval_stays_within_the_workspace(
     engine: Engine, real_model: object
 ) -> None:
@@ -108,9 +125,7 @@ def test_retrieval_stays_within_the_workspace(
         assert all(hit.document_id != theirs for hit in hits)
 
 
-def test_an_empty_workspace_returns_nothing(
-    engine: Engine, real_model: object
-) -> None:
+def test_an_empty_workspace_returns_nothing(engine: Engine, real_model: object) -> None:
     """A workspace with no documents ranks nothing, and does not error."""
     with create_session_factory(engine)() as session:
         workspace = Workspace(name="Empty")
@@ -124,3 +139,9 @@ def test_an_empty_query_returns_nothing(engine: Engine) -> None:
     """Short-circuits before the model, so it needs none on disk."""
     with create_session_factory(engine)() as session:
         assert retrieve(session, 1, "   ") == []
+
+
+def test_an_empty_document_selection_returns_nothing(engine: Engine) -> None:
+    """An explicit empty selection short-circuits before loading the model."""
+    with create_session_factory(engine)() as session:
+        assert retrieve(session, 1, "anything", document_ids=[]) == []
