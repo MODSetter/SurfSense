@@ -3,7 +3,7 @@ import {
   AlertCircleIcon,
   ArrowDownIcon as ArrowDownIconData,
   ArrowLeftIcon as ArrowLeftIconData,
-  ArrowUpIcon as ArrowUpIconData,
+  ArrowUp02Icon as ArrowUp02IconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
   CheckIcon as CheckIconData,
@@ -42,7 +42,7 @@ function createIcon(icon: IconData) {
 
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
 export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
-export const ArrowUpIcon = createIcon(ArrowUpIconData)
+export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
 export const BrainCircuitIcon = createIcon(BrainCircuitIconData)
 export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
