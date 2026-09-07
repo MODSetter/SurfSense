@@ -22,6 +22,7 @@ import {
   Loading03Icon,
   MessageSquareIcon as MessageSquareIconData,
   NotebookTextIcon as NotebookTextIconData,
+  PencilEdit02Icon as PencilEdit02IconData,
   PencilIcon as PencilIconData,
   PlusIcon as PlusIconData,
   RefreshCwIcon as RefreshCwIconData,
@@ -78,6 +79,7 @@ export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
 export const NotebookTextIcon = createIcon(NotebookTextIconData)
+export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const PencilIcon = createIcon(PencilIconData)
 export const PlusIcon = createIcon(PlusIconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)

@@ -3,8 +3,8 @@ import { useState, type FormEvent } from "react"
 import {
   EllipsisIcon,
   MessageSquareIcon,
+  PencilEdit02Icon,
   PencilIcon,
-  PlusIcon,
   Trash2Icon,
 } from "@/components/ui/icons"
 
@@ -126,7 +126,7 @@ export function ThreadList({
       <header className="space-y-3 border-b p-3">
         <h2 className="truncate px-1 text-sm font-semibold">{workspaceName}</h2>
         <Button className="w-full justify-start" onClick={onNewChat}>
-          <PlusIcon />
+          <PencilEdit02Icon />
           New chat
         </Button>
       </header>
