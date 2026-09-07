@@ -21,7 +21,8 @@ extraResources:
     to: backend/worker
   - from: ../frontend/dist
     to: frontend/dist
-  # ~66MB bge-small encoder: shipped so ingest and search work fully offline.
+  # ~66MB bge-small encoder plus the ~340MB Kokoro voice (build:model and
+  # build:voice stage both here), so ingest, search, and podcasts work offline.
   # The Docling parser (~1.6GB) is not shipped; it downloads on first PDF.
   - from: ../backend/models
     to: models

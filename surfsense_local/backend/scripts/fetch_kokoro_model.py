@@ -2,8 +2,9 @@
 
 `uv run scripts/fetch_kokoro_model.py` places it where the app reads it in
 development; pass a models root (`... models`) to stage it for an installer,
-which electron-builder then copies into resources/models. The engine itself
-(`kokoro-onnx`) is an optional dependency a podcast-shipping build adds.
+which electron-builder copies into resources/models next to the bge-small
+encoder. The engine (`kokoro-onnx`) is a normal dependency; only these ~340MB
+of weights are fetched separately rather than carried in the wheel.
 """
 
 import sys

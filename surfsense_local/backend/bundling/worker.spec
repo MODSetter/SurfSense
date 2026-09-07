@@ -8,7 +8,6 @@ string, which the analyser cannot follow.
 """
 
 import sys
-from importlib.util import find_spec
 
 from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs
 
@@ -37,19 +36,13 @@ for package in (
     "pptx",
     # fpdf2 ships its core-font metrics as package data, reached by path.
     "fpdf",
+    # Studio podcast: kokoro-onnx loads its ONNX model by path and phonemises
+    # through espeak data shipped as package files, neither visible to the
+    # analyser. espeakng_loader carries the espeak-ng-data; phonemizer is its g2p.
+    "kokoro_onnx",
+    "espeakng_loader",
+    "phonemizer",
 ):
-    pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
-    datas += pkg_datas
-    binaries += pkg_binaries
-    hiddenimports += pkg_hidden
-
-# Podcast is an optional build (`uv sync --extra podcast`). Its engine loads the
-# Kokoro ONNX model by path and phonemises through espeak data shipped as package
-# files, neither visible to the analyser. Collected only when the extra is
-# installed, so a default build skips this untouched and never carries the voice.
-for package in ("kokoro_onnx", "espeakng_loader", "phonemizer_fork", "phonemizer"):
-    if find_spec(package) is None:
-        continue
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas
     binaries += pkg_binaries

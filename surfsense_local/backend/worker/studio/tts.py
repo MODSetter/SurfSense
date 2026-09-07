@@ -67,12 +67,9 @@ def synthesize(turns: list[Turn]) -> bytes:
 
 @lru_cache(maxsize=1)
 def _engine() -> Any:
-    # Optional pack: the package rides in only when a build ships podcasts, so a
-    # missing import is a clear reason, not an import-time crash for every job.
-    try:
-        from kokoro_onnx import Kokoro  # pyright: ignore[reportMissingImports]
-    except ImportError as error:
-        raise RuntimeError("kokoro-onnx is not installed in this build") from error
+    # Imported here, not at module load: the phonemiser and onnxruntime are only
+    # paid for on the first podcast, and cached for the rest of the worker's life.
+    from kokoro_onnx import Kokoro
 
     directory = kokoro_dir()
     return Kokoro(str(directory / MODEL_FILE), str(directory / VOICES_FILE))

@@ -11,6 +11,9 @@ dependencies = [
     "fpdf2>=2.8.8",
     "httpx>=0.28.1",
     "huey>=3.3.4",
+    # The offline podcast voice (Studio). Rides the bundled onnxruntime; its ~340MB
+    # model is staged by scripts/fetch_kokoro_model.py, not carried in the wheel.
+    "kokoro-onnx>=0.4.9",
     "onnxruntime>=1.20",
     "pydantic-settings>=2.7.0",
     "python-docx>=1.2.0",
@@ -25,13 +28,6 @@ dependencies = [
     "uvicorn[standard]>=0.34.0",
     "xlsxwriter>=3.2.9",
 ]
-
-[project.optional-dependencies]
-# The offline podcast voice, so `worker/studio/tts.py` can synthesise. Optional:
-# only a build that ships podcasts installs it (`uv sync --extra podcast`) and
-# stages the model with scripts/fetch_kokoro_model.py; other builds fail the
-# format with a clear reason instead of carrying the engine.
-podcast = ["kokoro-onnx>=0.4.9"]
 
 [dependency-groups]
 dev = [

@@ -2602,6 +2602,7 @@ dependencies = [
     { name = "fpdf2" },
     { name = "httpx" },
     { name = "huey" },
+    { name = "kokoro-onnx" },
     { name = "onnxruntime" },
     { name = "pydantic-settings" },
     { name = "python-docx" },
@@ -2615,11 +2616,6 @@ dependencies = [
     { name = "torchvision", version = "0.29.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "xlsxwriter" },
-]
-
-[package.optional-dependencies]
-podcast = [
-    { name = "kokoro-onnx" },
 ]
 
 [package.dev-dependencies]
@@ -2639,7 +2635,7 @@ requires-dist = [
     { name = "fpdf2", specifier = ">=2.8.8" },
     { name = "httpx", specifier = ">=0.28.1" },
     { name = "huey", specifier = ">=3.3.4" },
-    { name = "kokoro-onnx", marker = "extra == 'podcast'", specifier = ">=0.4.9" },
+    { name = "kokoro-onnx", specifier = ">=0.4.9" },
     { name = "onnxruntime", specifier = ">=1.20" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },
     { name = "python-docx", specifier = ">=1.2.0" },
@@ -2654,7 +2650,6 @@ requires-dist = [
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
     { name = "xlsxwriter", specifier = ">=3.2.9" },
 ]
-provides-extras = ["podcast"]
 
 [package.metadata.requires-dev]
 dev = [
