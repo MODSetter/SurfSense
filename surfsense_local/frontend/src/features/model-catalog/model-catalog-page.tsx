@@ -102,12 +102,12 @@ function CatalogSection({
       {[...grouped(rows)].map(([family, familyRows]) => (
         <ModelFamilyGroup key={family} family={family}>
           {familyRows.map((row) => (
-            <div key={row.catalog_id}>
+            <li key={row.catalog_id}>
               {children(
                 row,
                 runtimeAvailable(catalog.runtime_status[row.runtime])
               )}
-            </div>
+            </li>
           ))}
         </ModelFamilyGroup>
       ))}
@@ -133,12 +133,16 @@ export function ModelCatalogPage({
 
   if (catalog.isPending) {
     return (
-      <div className="flex flex-col gap-3" aria-label="Scanning model catalog">
+      <div
+        className="flex flex-col gap-3"
+        role="status"
+        aria-label="Scanning model catalog"
+      >
         <p className="text-sm text-muted-foreground">
           Checking this computer for models that leave room for SurfSense.
         </p>
         {[0, 1, 2].map((item) => (
-          <Skeleton key={item} className="h-52 w-full rounded-xl" />
+          <Skeleton key={item} className="h-28 w-full rounded-xl" />
         ))}
       </div>
     )

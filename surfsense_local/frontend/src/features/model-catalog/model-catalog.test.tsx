@@ -108,9 +108,12 @@ describe("normalized model catalog", () => {
     const user = userEvent.setup()
 
     render(<ModelCatalogPage onSelected={onSelected} />)
-    await user.click(
-      await screen.findByRole("button", { name: "Download & Use" })
-    )
+    const action = await screen.findByRole("button", {
+      name: "Download",
+    })
+    expect(screen.getByRole("list", { name: "Qwen models" })).toBeTruthy()
+    expect(screen.getByRole("listitem")).toBeTruthy()
+    await user.click(action)
 
     await waitFor(() => expect(onSelected).toHaveBeenCalledOnce())
     const installCall = fetchMock.mock.calls.find(
@@ -150,9 +153,9 @@ describe("normalized model catalog", () => {
     render(<ModelCatalogPage />)
 
     const actions = await screen.findAllByRole("button", {
-      name: "Download & Use",
+      name: "Download",
     })
-    expect(screen.getByText("Unknown")).toBeTruthy()
+    expect(screen.queryByText("Parameters")).toBeNull()
     expect((actions[1] as HTMLButtonElement).disabled).toBe(true)
     await user.click(actions[0])
     expect(
@@ -241,9 +244,7 @@ describe("normalized model catalog", () => {
     const user = userEvent.setup()
     render(<ModelCatalogPage onSelected={onSelected} />)
 
-    await user.click(
-      await screen.findByRole("button", { name: "Download & Use" })
-    )
+    await user.click(await screen.findByRole("button", { name: "Download" }))
     await user.click(await screen.findByRole("button", { name: "Cancel" }))
 
     expect(
