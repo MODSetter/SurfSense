@@ -2,11 +2,10 @@ import { ThreadPrimitive } from "@assistant-ui/react"
 import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { ArrowDownIcon } from "@/components/ui/icons"
-import { cn } from "@/lib/utils"
 
 function ScrollToBottom() {
   return (
-    <ThreadPrimitive.ScrollToBottom asChild>
+    <ThreadPrimitive.ScrollToBottom behavior="smooth" asChild>
       <Button
         type="button"
         variant="outline"
@@ -28,29 +27,24 @@ export function ChatViewport({
   footer?: ReactNode
 }) {
   return (
-    <>
-      <ThreadPrimitive.Viewport
-        className={cn(
-          "relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4",
-          footer && "pb-8"
-        )}
-        style={{ scrollbarGutter: "stable" }}
-        autoScroll
-        scrollToBottomOnRunStart
-        scrollToBottomOnInitialize
-        scrollToBottomOnThreadSwitch
-        data-chat-viewport
-      >
-        {children}
-      </ThreadPrimitive.Viewport>
+    <ThreadPrimitive.Viewport
+      className="relative flex min-h-0 flex-1 flex-col overflow-y-auto px-4"
+      style={{ scrollbarGutter: "stable" }}
+      autoScroll
+      scrollToBottomOnRunStart
+      scrollToBottomOnInitialize
+      scrollToBottomOnThreadSwitch
+      data-chat-viewport
+    >
+      {children}
       {footer ? (
-        <div className="relative z-20 shrink-0 bg-gradient-to-t from-background via-background to-transparent px-4 pb-2">
+        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 z-20 -mx-4 mt-auto shrink-0 bg-gradient-to-t from-background via-background to-transparent px-4 pb-1">
           <div className="relative mx-auto w-full max-w-2xl">
             <ScrollToBottom />
             {footer}
           </div>
-        </div>
+        </ThreadPrimitive.ViewportFooter>
       ) : null}
-    </>
+    </ThreadPrimitive.Viewport>
   )
 }

@@ -125,7 +125,7 @@ describe("dashboard chat", () => {
         .getByRole("textbox", { name: "Message" })
         .closest('[data-composer-placement="bottom"]')
       expect(bottomComposer).toBeTruthy()
-      expect(bottomComposer?.closest("[data-chat-viewport]")).toBeNull()
+      expect(bottomComposer?.closest("[data-chat-viewport]")).toBeTruthy()
     })
 
     resolveCreate(
