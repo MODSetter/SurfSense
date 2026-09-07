@@ -69,7 +69,7 @@ function CitationLinks({
 
 export function UserMessage() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl justify-end px-6 py-3">
+    <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl justify-end px-6 py-3">
       <div className="max-w-[78%] rounded-2xl rounded-br-md bg-primary px-4 py-2.5 text-sm leading-6 whitespace-pre-wrap text-primary-foreground">
         <MessagePrimitive.Parts />
       </div>
@@ -87,7 +87,7 @@ export function AssistantMessage({
   onCitation: (citation: Citation) => void
 }) {
   return (
-    <MessagePrimitive.Root className="mx-auto w-full max-w-2xl px-6 py-4">
+    <MessagePrimitive.Root className="mx-auto w-full max-w-xl px-6 py-4">
       <div className="min-w-0 text-sm leading-7">
         <MessagePrimitive.Parts components={assistantMessageParts} />
       </div>

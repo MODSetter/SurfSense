@@ -53,11 +53,11 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
     view.status === "active" ? `thread:${view.threadId}` : view.status
 
   useEffect(() => {
-    if (view.status === "initializing" || view.status === "creating") {
+    if (conversationId === "initializing" || conversationId === "creating") {
       return
     }
     void aui.thread.composer().reset()
-  }, [aui, conversationId, view.status])
+  }, [aui, conversationId])
 
   return null
 }
