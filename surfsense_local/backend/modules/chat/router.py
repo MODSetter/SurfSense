@@ -17,6 +17,7 @@ from modules.chat.schemas import (
     MessageRead,
     ThreadCreate,
     ThreadRead,
+    ThreadUpdate,
 )
 from modules.chat.title import generate_title
 from modules.llm.models import ModelRole, SelectedModel
@@ -54,6 +55,16 @@ def list_threads(workspace: WorkspaceDep, session: SessionDep) -> Sequence[ChatT
         .where(ChatThread.workspace_id == workspace.id)
         .order_by(ChatThread.created_at.desc())
     ).all()
+
+
+@router.patch(
+    "/chat/threads/{thread_id}",
+    response_model=ThreadRead,
+    summary="Rename a chat thread",
+)
+def update_thread(thread: ThreadDep, payload: ThreadUpdate) -> ChatThread:
+    thread.title = payload.title
+    return thread
 
 
 @router.get(

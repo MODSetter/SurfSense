@@ -1,8 +1,9 @@
-import { useState } from "react"
+import { useState, type FormEvent } from "react"
 
 import {
   EllipsisIcon,
   MessageSquareIcon,
+  PencilIcon,
   PlusIcon,
   Trash2Icon,
 } from "@/components/ui/icons"
@@ -16,12 +17,21 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
@@ -29,24 +39,83 @@ import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
 
+function RenameChatDialog({
+  thread,
+  onClose,
+  onRename,
+}: {
+  thread: ChatThread
+  onClose: () => void
+  onRename: (id: number, title: string) => Promise<boolean>
+}) {
+  const [title, setTitle] = useState(thread.title || "New chat")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault()
+    const normalized = title.trim()
+    if (!normalized) return
+
+    setIsSubmitting(true)
+    if (await onRename(thread.id, normalized)) onClose()
+    setIsSubmitting(false)
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => !open && onClose()}>
+      <DialogContent>
+        <form onSubmit={(event) => void submit(event)}>
+          <DialogHeader>
+            <DialogTitle>Rename chat</DialogTitle>
+            <DialogDescription>
+              Choose a short name that identifies this conversation.
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            className="my-4"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            aria-label="Chat name"
+            maxLength={200}
+            autoFocus
+          />
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={!title.trim() || isSubmitting}>
+              {isSubmitting ? "Saving..." : "Rename"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 export function ThreadList({
   workspaceName,
   threads,
   activeThreadId,
+  autoNamingThreadId,
   isLoading,
   onNewChat,
   onSelect,
+  onRename,
   onDelete,
 }: {
   workspaceName: string
   threads: ChatThread[]
   activeThreadId: number | null
+  autoNamingThreadId: number | null
   isLoading: boolean
   onNewChat: () => void
   onSelect: (id: number) => void
+  onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
+  const [renaming, setRenaming] = useState<ChatThread | null>(null)
 
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-sidebar/60">
@@ -120,6 +189,16 @@ export function ThreadList({
                     >
                       <DropdownMenuGroup>
                         <DropdownMenuItem
+                          disabled={thread.id === autoNamingThreadId}
+                          onSelect={() => {
+                            setOpenDropdownId(null)
+                            setRenaming(thread)
+                          }}
+                        >
+                          <PencilIcon />
+                          Rename
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
                           variant="destructive"
                           onSelect={() => {
                             setOpenDropdownId(null)
@@ -138,6 +217,14 @@ export function ThreadList({
           })}
         </div>
       </ScrollArea>
+      {renaming ? (
+        <RenameChatDialog
+          key={renaming.id}
+          thread={renaming}
+          onClose={() => setRenaming(null)}
+          onRename={onRename}
+        />
+      ) : null}
     </aside>
   )
 }

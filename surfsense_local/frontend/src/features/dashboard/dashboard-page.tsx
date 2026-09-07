@@ -62,9 +62,11 @@ function WorkspaceDashboard({
         workspaceName={workspace.name}
         threads={chat.threads}
         activeThreadId={chat.activeThreadId}
+        autoNamingThreadId={chat.autoNamingThreadId}
         isLoading={chat.isLoadingThreads}
         onNewChat={chat.startNewChat}
         onSelect={chat.selectThread}
+        onRename={chat.rename}
         onDelete={chat.removeThread}
       />
       <ThreadPanel

@@ -36,6 +36,87 @@ beforeEach(() => {
 })
 
 describe("dashboard chat", () => {
+  it("renames a saved chat from the sidebar", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([thread])
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        if (
+          path === "/chat/threads/10" &&
+          init?.method === "PATCH" &&
+          typeof init.body === "string"
+        ) {
+          return Response.json({
+            ...thread,
+            title: JSON.parse(init.body).title,
+          })
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelRequired={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByRole("heading", { name: "Original title" })
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Original title" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Rename" }))
+    const input = screen.getByRole("textbox", { name: "Chat name" })
+    await user.clear(input)
+    await user.type(input, "Banking fees")
+    await user.click(screen.getByRole("button", { name: "Rename" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Banking fees" })
+    ).toBeTruthy()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/chat/threads/10",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ title: "Banking fees" }),
+      })
+    )
+  })
+
   it("keeps composer placement aligned with the conversation lifecycle", async () => {
     let resolveThreads!: (response: Response) => void
     let resolveCreate!: (response: Response) => void

@@ -13,6 +13,7 @@ import {
   deleteThread,
   listMessages,
   listThreads,
+  renameThread,
   streamMessage,
   type ChatMessage,
   type ChatThread,
@@ -132,6 +133,9 @@ export function useChatRuntime({
   )
   const [liveMessages, setLiveMessages] = useState<ChatMessage[] | null>(null)
   const [isRunning, setIsRunning] = useState(false)
+  const [autoNamingThreadId, setAutoNamingThreadId] = useState<number | null>(
+    null
+  )
   const [error, setError] = useState<string | null>(null)
   const streamController = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
@@ -175,6 +179,10 @@ export function useChatRuntime({
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
   })
+  const renameThreadMutation = useMutation({
+    mutationFn: ({ threadId, title }: { threadId: number; title: string }) =>
+      renameThread(threadId, title),
+  })
 
   useEffect(() => {
     if (!usesLiveMessages) {
@@ -194,6 +202,7 @@ export function useChatRuntime({
       setLiveMessages(null)
       setError(null)
       setIsRunning(false)
+      setAutoNamingThreadId(null)
       onCitations([])
     },
     [activeThreadId, onCitations, workspaceId]
@@ -214,6 +223,7 @@ export function useChatRuntime({
     setLiveMessages(null)
     setError(null)
     setIsRunning(false)
+    setAutoNamingThreadId(null)
     onCitations([])
   }, [onCitations, workspaceId])
 
@@ -232,6 +242,25 @@ export function useChatRuntime({
       }
     } catch (cause) {
       setError(messageFrom(cause))
+    }
+  }
+
+  const rename = async (threadId: number, title: string) => {
+    setError(null)
+    try {
+      const renamed = await renameThreadMutation.mutateAsync({
+        threadId,
+        title,
+      })
+      queryClient.setQueryData<ChatThread[]>(
+        chatKeys.threads(workspaceId),
+        (current = []) =>
+          current.map((thread) => (thread.id === renamed.id ? renamed : thread))
+      )
+      return true
+    } catch (cause) {
+      setError(messageFrom(cause))
+      return false
     }
   }
 
@@ -279,6 +308,7 @@ export function useChatRuntime({
           )
           queryClient.setQueryData(chatKeys.messages(thread.id), EMPTY_MESSAGES)
           setConversationView({ status: "active", threadId: thread.id })
+          setAutoNamingThreadId(thread.id)
           rememberThread(workspaceId, thread.id)
         }
 
@@ -336,6 +366,7 @@ export function useChatRuntime({
                   }) ?? null
               )
             } else if (event.type === "thread-title-update") {
+              setAutoNamingThreadId(null)
               queryClient.setQueryData<ChatThread[]>(
                 chatKeys.threads(workspaceId),
                 (current = []) =>
@@ -346,6 +377,7 @@ export function useChatRuntime({
                   )
               )
             } else if (event.type === "delta") {
+              setAutoNamingThreadId(null)
               const targetId = assistantId
               setLiveMessages(
                 (current) =>
@@ -426,6 +458,7 @@ export function useChatRuntime({
       } finally {
         if (requestVersion.current === version) {
           setIsRunning(false)
+          setAutoNamingThreadId(null)
         }
       }
     },
@@ -445,6 +478,7 @@ export function useChatRuntime({
   const cancel = useCallback(async () => {
     streamController.current?.abort()
     setIsRunning(false)
+    setAutoNamingThreadId(null)
   }, [])
 
   const isLoadingThreads = threadsQuery.isPending
@@ -476,8 +510,10 @@ export function useChatRuntime({
     isLoadingThreads,
     isLoadingMessages,
     isRunning,
+    autoNamingThreadId,
     selectThread,
     startNewChat,
+    rename,
     removeThread,
     clearError: () => setError(null),
   }

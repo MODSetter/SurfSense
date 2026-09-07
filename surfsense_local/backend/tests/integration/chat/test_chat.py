@@ -67,6 +67,24 @@ async def _send(client: AsyncClient, thread_id: int, text: str) -> list[dict]:
     return events
 
 
+async def test_a_thread_can_be_renamed(client: AsyncClient) -> None:
+    """A manual title is trimmed, persisted, and constrained at the API boundary."""
+    workspace = (await client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(client, workspace["id"])
+
+    renamed = await client.patch(
+        f"/chat/threads/{thread_id}", json={"title": "  Banking fees  "}
+    )
+
+    assert renamed.status_code == 200
+    assert renamed.json()["title"] == "Banking fees"
+    listed = (await client.get(f"/workspaces/{workspace['id']}/chat/threads")).json()
+    assert listed[0]["title"] == "Banking fees"
+    assert (
+        await client.patch(f"/chat/threads/{thread_id}", json={"title": "   "})
+    ).status_code == 422
+
+
 async def test_a_message_streams_a_grounded_reply(
     client: AsyncClient, engine: Engine, real_model: object, ollama_server: list[dict]
 ) -> None:

@@ -63,6 +63,19 @@ export function deleteThread(
   })
 }
 
+export function renameThread(
+  threadId: number,
+  title: string,
+  signal?: AbortSignal
+): Promise<ChatThread> {
+  return requestJson<ChatThread>(`/chat/threads/${threadId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+    signal,
+  })
+}
+
 export async function streamMessage(
   threadId: number,
   text: string,

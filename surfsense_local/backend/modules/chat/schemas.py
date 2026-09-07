@@ -18,6 +18,12 @@ class ThreadCreate(BaseModel):
     title: ThreadTitle = "New chat"
 
 
+class ThreadUpdate(BaseModel):
+    """Fields a client may change on an existing thread."""
+
+    title: ThreadTitle
+
+
 class ThreadRead(BaseModel):
     """A thread as the API returns it."""
 
