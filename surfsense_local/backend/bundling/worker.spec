@@ -34,6 +34,8 @@ for package in (
     # the analyser, so a frozen build would fail on the first Office artifact.
     "docx",
     "pptx",
+    # fpdf2 ships its core-font metrics as package data, reached by path.
+    "fpdf",
 ):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas

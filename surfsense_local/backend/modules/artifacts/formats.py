@@ -20,6 +20,7 @@ FORMATS: tuple[Format, ...] = (
     Format("pptx", "Slides"),
     Format("xlsx", "Spreadsheet"),
     Format("html", "Web page"),
+    Format("pdf", "PDF"),
     Format("mindmap", "Mind map"),
     Format("flashcards", "Flashcards"),
     Format("quiz", "Quiz"),

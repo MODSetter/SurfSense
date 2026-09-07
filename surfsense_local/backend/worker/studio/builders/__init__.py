@@ -2,6 +2,7 @@ from worker.studio.builders.docx import docx
 from worker.studio.builders.flashcards import flashcards
 from worker.studio.builders.html_doc import html_doc
 from worker.studio.builders.mindmap import mindmap
+from worker.studio.builders.pdf import pdf
 from worker.studio.builders.pptx import pptx
 from worker.studio.builders.quiz import quiz
 from worker.studio.builders.summary import summary
@@ -19,6 +20,7 @@ BUILDERS: dict[str, Builder] = {
         pptx,
         xlsx,
         html_doc,
+        pdf,
         mindmap,
         flashcards,
         quiz,

@@ -64,6 +64,16 @@ def test_office_formats_build_a_valid_container(key: str) -> None:
     assert "Arrival" in built.markdown or "Facts" in built.markdown
 
 
+def test_pdf_builds_a_real_pdf_with_the_source_title() -> None:
+    """A pdf artifact is a downloadable file starting with the PDF magic."""
+    raw = '{"title": "Cassini", "sections": [{"heading": "H", "paragraphs": ["P."]}]}'
+    built = BUILDERS["pdf"].build(raw, [])
+
+    assert built.primary is not None and built.primary.startswith(b"%PDF")
+    assert built.primary_mime == "application/pdf"
+    assert built.primary_filename == "cassini.pdf"
+
+
 def test_html_escapes_model_text_so_it_cannot_carry_a_script() -> None:
     """The model supplies text only; markup it sends is neutralised, not run."""
     raw = '{"title": "T", "sections": [{"heading": "H", "paragraphs": ["<script>x</script>"]}]}'
