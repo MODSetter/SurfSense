@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import json
 from collections.abc import AsyncIterator
 
@@ -88,38 +89,56 @@ class OllamaProvider:
             raise ValueError(f"install plan belongs to {plan.runtime}, not {self.name}")
         return self.pull(plan.model_name)
 
-    async def cleanup_partial_downloads(self) -> None:
+    async def cleanup_cancelled_download(self) -> None:
         models_dir = get_llm_settings().ollama_models_dir
         if models_dir is None:
             return
 
         blobs_dir = models_dir / "blobs"
         patterns = ("*-partial", "*-partial-*", "*.tmp")
-        # Ollama closes its writers asynchronously after the pull disconnects.
-        # Retry briefly for Windows, where an open file cannot be unlinked.
-        for attempt in range(5):
-            pending = {
+        referenced: set[str] | None = set()
+        try:
+            for path in (models_dir / "manifests").rglob("*"):
+                if not path.is_file():
+                    continue
+                manifest = json.loads(path.read_text())
+                entries = [manifest["config"], *manifest.get("layers", [])]
+                referenced.update(
+                    entry["digest"].replace(":", "-", 1) for entry in entries
+                )
+        except (OSError, KeyError, TypeError, json.JSONDecodeError):
+            # A bad manifest must not risk deleting a layer an installed model uses.
+            referenced = None
+
+        def cancelled_files():
+            files = {
                 path
                 for pattern in patterns
                 for path in blobs_dir.glob(pattern)
             }
+            if referenced is not None:
+                files.update(
+                    path
+                    for path in blobs_dir.glob("sha256-*")
+                    if path.name not in referenced
+                )
+            return files
+
+        # Ollama closes its writers asynchronously after the pull disconnects.
+        # Retry briefly for Windows, where an open file cannot be unlinked.
+        for attempt in range(5):
+            pending = cancelled_files()
             if not pending:
                 return
             for path in pending:
-                try:
+                with contextlib.suppress(PermissionError):
                     path.unlink(missing_ok=True)
-                except PermissionError:
-                    pass
             if attempt < 4:
                 await asyncio.sleep(0.1 * (attempt + 1))
 
-        remaining = [
-            path
-            for pattern in patterns
-            for path in blobs_dir.glob(pattern)
-        ]
+        remaining = cancelled_files()
         if remaining:
-            raise OSError("Ollama still has partial download files open")
+            raise OSError("Ollama still has cancelled download files open")
 
     def catalog(self) -> list[CatalogEntry]:
         return [

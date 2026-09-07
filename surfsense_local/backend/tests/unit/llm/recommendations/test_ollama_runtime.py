@@ -1,3 +1,4 @@
+import json
 from dataclasses import replace
 from pathlib import Path
 
@@ -73,21 +74,34 @@ async def test_ollama_rejects_another_runtimes_plan() -> None:
 async def test_cancel_cleanup_removes_only_partial_downloads(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Cancelling reclaims app-owned partial files without deleting shared blobs."""
+    """Cancelling reclaims partial and orphan files without deleting shared blobs."""
     blobs = tmp_path / "blobs"
     blobs.mkdir()
-    complete = blobs / "sha256-complete"
+    manifests = tmp_path / "manifests" / "registry.ollama.ai" / "library" / "qwen"
+    manifests.mkdir(parents=True)
+    referenced = blobs / "sha256-referenced"
+    orphan = blobs / "sha256-orphan"
     partials = [
         blobs / "sha256-first-partial",
         blobs / "sha256-first-partial-0",
         blobs / "sha256-second.tmp",
     ]
-    complete.write_bytes(b"keep")
+    referenced.write_bytes(b"keep")
+    orphan.write_bytes(b"discard")
     for partial in partials:
         partial.write_bytes(b"discard")
+    (manifests / "latest").write_text(
+        json.dumps(
+            {
+                "config": {"digest": "sha256:referenced"},
+                "layers": [],
+            }
+        )
+    )
     monkeypatch.setattr(get_llm_settings(), "ollama_models_dir", tmp_path)
 
-    await OllamaProvider("http://127.0.0.1:1").cleanup_partial_downloads()
+    await OllamaProvider("http://127.0.0.1:1").cleanup_cancelled_download()
 
-    assert complete.exists()
+    assert referenced.exists()
+    assert not orphan.exists()
     assert not any(partial.exists() for partial in partials)

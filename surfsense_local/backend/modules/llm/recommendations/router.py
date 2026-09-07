@@ -13,7 +13,7 @@ from modules.llm.recommendations.catalog import (
     UnknownCatalogIdError,
 )
 from modules.llm.recommendations.dependencies import CatalogServiceDep
-from modules.llm.recommendations.protocols import PartialDownloadCleaner
+from modules.llm.recommendations.protocols import CancelledDownloadCleaner
 from modules.llm.schemas import (
     InstallRequest,
     RecommendationCatalogRead,
@@ -129,9 +129,9 @@ async def install_model(
                 selection=selection,
             )
         except asyncio.CancelledError:
-            if isinstance(runtime, PartialDownloadCleaner):
+            if isinstance(runtime, CancelledDownloadCleaner):
                 try:
-                    await runtime.cleanup_partial_downloads()
+                    await runtime.cleanup_cancelled_download()
                 except OSError:
                     logger.exception("Could not remove cancelled model download")
             raise

@@ -37,7 +37,7 @@ export function ModelCard({
     (!row.can_install || row.fit === "too_tight" || !runtimeAvailable)
 
   return (
-    <li className="px-4 py-2.5 transition-colors hover:bg-muted/20">
+    <article className="px-4 py-2.5 transition-colors hover:bg-muted/20">
       <div className="flex min-h-10 items-center justify-between gap-4">
         <p className="min-w-0 truncate text-sm font-medium">
           {row.label}
@@ -92,6 +92,6 @@ export function ModelCard({
           ) : null}
         </div>
       ) : null}
-    </li>
+    </article>
   )
 }

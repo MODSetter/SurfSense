@@ -28,5 +28,5 @@ class LocalRuntime(Protocol):
 
 
 @runtime_checkable
-class PartialDownloadCleaner(Protocol):
-    async def cleanup_partial_downloads(self) -> None: ...
+class CancelledDownloadCleaner(Protocol):
+    async def cleanup_cancelled_download(self) -> None: ...
