@@ -4,7 +4,6 @@ import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
-from modules.artifacts.formats import FORMATS
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.workspaces.models import Workspace
@@ -26,7 +25,11 @@ def session(engine: Engine) -> Iterator[Session]:
 
 
 def make_artifact(
-    session: Session, *, source: str = "Saturn facts.", fmt: str = "summary"
+    session: Session,
+    *,
+    source: str = "Saturn facts.",
+    fmt: str = "summary",
+    prompt: str | None = None,
 ) -> Artifact:
     """A workspace with one ready source and a pending artifact over it."""
     workspace = Workspace(name="Saturn")
@@ -56,160 +59,71 @@ def make_artifact(
         document_id=document.id,
         workspace_id=workspace.id,
         format=fmt,
-        artifact_metadata={"source_document_ids": [source_doc.id], "prompt": None},
+        artifact_metadata={"source_document_ids": [source_doc.id], "prompt": prompt},
     )
     session.add(artifact)
     session.commit()
     return artifact
 
 
-def test_a_summary_becomes_ready_and_searchable(
+# Each format's test fakes only its one external model call. These helpers do
+# that faking and record what the model was sent, so a test can also check that
+# the user's prompt reached it.
+
+
+def _capture_model(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
+    """Stub the generation model to return `reply`, recording each system prompt.
+
+    Every builder and office format assembles its real prompt and calls
+    `run_model`, so recording here lets a test assert the user's focus reached it.
+    """
+    seen: list[str] = []
+
+    def fake(_session: object, system: str, _sources: object) -> str:
+        seen.append(system)
+        return reply
+
+    monkeypatch.setattr("worker.studio.generate.run_model", fake)
+    return seen
+
+
+def _capture_image(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Stub the OpenRouter image call (and its key gate), recording its content."""
+    seen: list[str] = []
+
+    def fake(_key: str, content: str) -> dict:
+        seen.append(content)
+        import base64
+
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
+        url = "data:image/png;base64," + base64.b64encode(png).decode()
+        return {"choices": [{"message": {"images": [{"image_url": {"url": url}}]}}]}
+
+    monkeypatch.setattr(
+        "worker.studio.media.visual.read_provider_key", lambda *a, **k: "key"
+    )
+    monkeypatch.setattr("worker.studio.media.visual._request_image", fake)
+    return seen
+
+
+def _one_file(artifact: Artifact, mime: str, magic: bytes) -> None:
+    """The artifact holds exactly one file of `mime` whose bytes start with `magic`."""
+    assert [file.mime_type for file in artifact.files] == [mime]
+    path = get_storage_settings().data_dir / artifact.files[0].storage_key
+    assert path.read_bytes().startswith(magic)
+
+
+# --- Builders: the model returns markdown/JSON, a builder renders the body. ---
+
+
+def test_summary_becomes_a_searchable_markdown_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """The model's markdown becomes the artifact's body and is indexed like a source."""
-    monkeypatch.setattr("worker.studio.generate.generate", lambda *a, **k: SUMMARY)
-    artifact = make_artifact(session)
-
-    run(artifact.id)
-
-    session.expire_all()
-    document = artifact.document
-    assert document.status is DocumentStatus.READY
-    assert document.title == "Cassini"
-    assert document.content == SUMMARY
-
-    keyword = session.scalar(
-        text("SELECT count(*) FROM chunks_fts WHERE chunks_fts MATCH 'Huygens'")
+    """Summary: the model's markdown is the body, indexed for search, with no file."""
+    seen = _capture_model(
+        monkeypatch, "# Cassini\n\nThe orbiter reached Saturn in 2004, carrying Huygens."
     )
-    assert keyword == 1
-
-
-# One canned model reply per format. Office formats get python source the runner
-# executes with the real library; builders and podcast get the JSON/markdown their
-# parser expects; visual formats are drawn by the image call faked below.
-_OFFICE_CODE = {
-    "docx": (
-        "from io import BytesIO\n"
-        "from docx import Document\n"
-        "d = Document()\n"
-        "d.add_heading('Cassini', 0)\n"
-        "d.add_paragraph('Reached Saturn in 2004.')\n"
-        "buf = BytesIO()\n"
-        "d.save(buf)\n"
-        "output_bytes = buf.getvalue()\n"
-    ),
-    "pptx": (
-        "from io import BytesIO\n"
-        "from pptx import Presentation\n"
-        "p = Presentation()\n"
-        "p.slides.add_slide(p.slide_layouts[6])\n"
-        "buf = BytesIO()\n"
-        "p.save(buf)\n"
-        "output_bytes = buf.getvalue()\n"
-    ),
-    "xlsx": (
-        "from io import BytesIO\n"
-        "import xlsxwriter\n"
-        "buf = BytesIO()\n"
-        "wb = xlsxwriter.Workbook(buf)\n"
-        "wb.add_worksheet().write(0, 0, 'Cassini')\n"
-        "wb.close()\n"
-        "output_bytes = buf.getvalue()\n"
-    ),
-    "pdf": (
-        "from io import BytesIO\n"
-        "from reportlab.pdfgen import canvas\n"
-        "buf = BytesIO()\n"
-        "c = canvas.Canvas(buf)\n"
-        "c.drawString(72, 720, 'Cassini')\n"
-        "c.showPage()\n"
-        "c.save()\n"
-        "output_bytes = buf.getvalue()\n"
-    ),
-}
-
-_BUILDER_RAW = {
-    "summary": "# Cassini\n\nReached Saturn in 2004.",
-    "html": '{"title": "Cassini", "sections": '
-    '[{"heading": "Mission", "paragraphs": ["Reached Saturn in 2004."]}]}',
-    "mindmap": '{"title": "Cassini", "nodes": '
-    '[{"label": "Mission", "children": [{"label": "2004"}]}]}',
-    "flashcards": '{"title": "Cassini", "cards": [{"front": "Arrival?", "back": "2004"}]}',
-    "quiz": '{"title": "Cassini", "questions": '
-    '[{"question": "Arrival?", "options": ["2004", "2010"], "answer": "2004"}]}',
-    "podcast": '{"title": "Cassini", "turns": '
-    '[{"speaker": "A", "text": "It reached Saturn in 2004."}, '
-    '{"speaker": "B", "text": "Remarkable."}]}',
-}
-
-_WAV = b"RIFF" + b"\x00" * 40  # stands in for Kokoro's output.
-
-
-def _openrouter_png() -> dict:
-    """An OpenRouter image reply carrying one PNG as a data URL."""
-    import base64
-
-    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
-    url = "data:image/png;base64," + base64.b64encode(png).decode()
-    return {"choices": [{"message": {"images": [{"image_url": {"url": url}}]}}]}
-
-
-def _fake_model(fmt: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Stub the one external model each format reaches for, nothing more."""
-    if fmt in _OFFICE_CODE:
-        monkeypatch.setattr(
-            "worker.studio.generate.run_model", lambda *a, **k: _OFFICE_CODE[fmt]
-        )
-    elif fmt in {"image", "infographic"}:
-        monkeypatch.setattr(
-            "worker.studio.media.visual.read_provider_key", lambda *a, **k: "key"
-        )
-        monkeypatch.setattr(
-            "worker.studio.media.visual._request_image", lambda *a, **k: _openrouter_png()
-        )
-    elif fmt == "podcast":
-        monkeypatch.setattr(
-            "worker.studio.generate.generate", lambda *a, **k: _BUILDER_RAW["podcast"]
-        )
-        monkeypatch.setattr(
-            "worker.studio.media.podcast.tts.synthesize", lambda turns: _WAV
-        )
-    else:
-        monkeypatch.setattr(
-            "worker.studio.generate.generate", lambda *a, **k: _BUILDER_RAW[fmt]
-        )
-
-
-# Formats whose deliverable is only the searchable body, with no file blob.
-_BODY_ONLY = {"summary", "mindmap", "flashcards", "quiz"}
-
-
-def _expected_file(fmt: str) -> tuple[str, bytes] | None:
-    """The (mime, leading magic bytes) one file should carry, or None for body-only."""
-    if fmt in _BODY_ONLY:
-        return None
-    if fmt in office.OFFICE:
-        magic = b"%PDF" if fmt == "pdf" else b"PK\x03\x04"
-        return office.OFFICE[fmt].mime, magic
-    return {
-        "html": ("text/html", b"<!doctype"),
-        "image": ("image/png", b"\x89PNG"),
-        "infographic": ("image/png", b"\x89PNG"),
-        "podcast": ("audio/wav", b"RIFF"),
-    }[fmt]
-
-
-@pytest.mark.parametrize("fmt", [f.key for f in FORMATS], ids=lambda k: k)
-def test_every_format_generates_to_ready(
-    fmt: str, session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """Each catalogue format runs its real builder/code to a ready artifact.
-
-    Only the model (and podcast TTS / image API) is faked; the builders, the
-    office code runner and persistence all run for real.
-    """
-    _fake_model(fmt, monkeypatch)
-    artifact = make_artifact(session, fmt=fmt)
+    artifact = make_artifact(session, fmt="summary", prompt="the arrival date")
 
     run(artifact.id)
 
@@ -217,16 +131,274 @@ def test_every_format_generates_to_ready(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    assert artifact.document.content  # every format sets a searchable body
+    assert artifact.document.title == "Cassini"
+    assert artifact.files == []
+    assert "the arrival date" in seen[0]  # the user's focus reached the model
+    keyword = session.scalar(
+        text("SELECT count(*) FROM chunks_fts WHERE chunks_fts MATCH 'Huygens'")
+    )
+    assert keyword == 1
 
-    expected = _expected_file(fmt)
-    if expected is None:
-        assert artifact.files == []
-        return
-    mime, magic = expected
-    assert [file.mime_type for file in artifact.files] == [mime]
-    path = get_storage_settings().data_dir / artifact.files[0].storage_key
-    assert path.read_bytes().startswith(magic)
+
+def test_html_becomes_a_self_contained_web_page(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Web page: the model's JSON sections render to one escaped HTML file."""
+    seen = _capture_model(
+        monkeypatch,
+        '{"title": "Cassini", "sections": '
+        '[{"heading": "Mission", "paragraphs": ["Reached Saturn in 2004."]}]}',
+    )
+    artifact = make_artifact(session, fmt="html", prompt="the mission timeline")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, "text/html", b"<!doctype")
+    assert "the mission timeline" in seen[0]
+
+
+def test_mindmap_becomes_a_nested_outline_body(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Mind map: the model's node tree becomes a nested markdown outline, no file."""
+    seen = _capture_model(
+        monkeypatch,
+        '{"title": "Cassini", "nodes": '
+        '[{"label": "Mission", "children": [{"label": "2004"}]}]}',
+    )
+    artifact = make_artifact(session, fmt="mindmap", prompt="key milestones")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    assert artifact.files == []
+    assert "- Mission" in artifact.document.content
+    assert "key milestones" in seen[0]
+
+
+def test_flashcards_become_a_study_list_body(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Flashcards: the model's front/back pairs render to a markdown list, no file."""
+    seen = _capture_model(
+        monkeypatch,
+        '{"title": "Cassini", "cards": [{"front": "Arrival?", "back": "2004"}]}',
+    )
+    artifact = make_artifact(session, fmt="flashcards", prompt="dates only")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    assert artifact.files == []
+    assert "Arrival?" in artifact.document.content
+    assert "dates only" in seen[0]
+
+
+def test_quiz_becomes_a_question_list_body(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Quiz: the model's multiple-choice questions render to a markdown body, no file."""
+    seen = _capture_model(
+        monkeypatch,
+        '{"title": "Cassini", "questions": '
+        '[{"question": "Arrival?", "options": ["2004", "2010"], "answer": "2004"}]}',
+    )
+    artifact = make_artifact(session, fmt="quiz", prompt="arrival facts")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    assert artifact.files == []
+    assert "Answer: 2004" in artifact.document.content
+    assert "arrival facts" in seen[0]
+
+
+# --- Office: the model writes library code the runner executes to a real file. ---
+
+_DOCX_CODE = (
+    "from io import BytesIO\n"
+    "from docx import Document\n"
+    "d = Document()\n"
+    "d.add_heading('Cassini', 0)\n"
+    "d.add_paragraph('Reached Saturn in 2004.')\n"
+    "buf = BytesIO()\n"
+    "d.save(buf)\n"
+    "output_bytes = buf.getvalue()\n"
+)
+
+_PPTX_CODE = (
+    "from io import BytesIO\n"
+    "from pptx import Presentation\n"
+    "p = Presentation()\n"
+    "p.slides.add_slide(p.slide_layouts[6])\n"
+    "buf = BytesIO()\n"
+    "p.save(buf)\n"
+    "output_bytes = buf.getvalue()\n"
+)
+
+_XLSX_CODE = (
+    "from io import BytesIO\n"
+    "import xlsxwriter\n"
+    "buf = BytesIO()\n"
+    "wb = xlsxwriter.Workbook(buf)\n"
+    "wb.add_worksheet().write(0, 0, 'Cassini')\n"
+    "wb.close()\n"
+    "output_bytes = buf.getvalue()\n"
+)
+
+_PDF_CODE = (
+    "from io import BytesIO\n"
+    "from reportlab.pdfgen import canvas\n"
+    "buf = BytesIO()\n"
+    "c = canvas.Canvas(buf)\n"
+    "c.drawString(72, 720, 'Cassini')\n"
+    "c.showPage()\n"
+    "c.save()\n"
+    "output_bytes = buf.getvalue()\n"
+)
+
+
+def test_docx_runs_generated_python_docx_code(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Document: the model's python-docx code runs to a real .docx (a zip)."""
+    seen = _capture_model(monkeypatch, _DOCX_CODE)
+    artifact = make_artifact(session, fmt="docx", prompt="a one-page brief")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, office.OFFICE["docx"].mime, b"PK\x03\x04")
+    assert "a one-page brief" in seen[0]
+
+
+def test_pptx_runs_generated_python_pptx_code(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Slides: the model's python-pptx code runs to a real .pptx (a zip)."""
+    seen = _capture_model(monkeypatch, _PPTX_CODE)
+    artifact = make_artifact(session, fmt="pptx", prompt="three slides")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, office.OFFICE["pptx"].mime, b"PK\x03\x04")
+    assert "three slides" in seen[0]
+
+
+def test_xlsx_runs_generated_xlsxwriter_code(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Spreadsheet: the model's XlsxWriter code runs to a real .xlsx (a zip)."""
+    seen = _capture_model(monkeypatch, _XLSX_CODE)
+    artifact = make_artifact(session, fmt="xlsx", prompt="one column")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, office.OFFICE["xlsx"].mime, b"PK\x03\x04")
+    assert "one column" in seen[0]
+
+
+def test_pdf_runs_generated_reportlab_code(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """PDF: the model's ReportLab code runs to a real .pdf."""
+    seen = _capture_model(monkeypatch, _PDF_CODE)
+    artifact = make_artifact(session, fmt="pdf", prompt="a cover page")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, office.OFFICE["pdf"].mime, b"%PDF")
+    assert "a cover page" in seen[0]
+
+
+# --- Media: audio synthesised offline, images drawn over a BYO key. ---
+
+
+def test_podcast_synthesizes_a_wav_from_the_transcript(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Podcast: the model writes a two-host transcript, Kokoro renders it to WAV."""
+    seen = _capture_model(
+        monkeypatch,
+        '{"title": "Cassini", "turns": '
+        '[{"speaker": "A", "text": "It reached Saturn in 2004."}, '
+        '{"speaker": "B", "text": "Remarkable."}]}',
+    )
+    monkeypatch.setattr(
+        "worker.studio.media.podcast.tts.synthesize", lambda turns: b"RIFF" + b"\x00" * 40
+    )
+    artifact = make_artifact(session, fmt="podcast", prompt="keep it short")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, "audio/wav", b"RIFF")
+    assert "keep it short" in seen[0]
+
+
+def test_image_draws_a_png_over_openrouter(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Image: a BYO OpenRouter model returns a PNG, stored as the primary file."""
+    seen = _capture_image(monkeypatch)
+    artifact = make_artifact(session, fmt="image", prompt="a bright poster")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, "image/png", b"\x89PNG")
+    assert "a bright poster" in seen[0]
+
+
+def test_infographic_draws_a_png_over_openrouter(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Infographic: the visual seam draws the summary as a PNG over OpenRouter."""
+    seen = _capture_image(monkeypatch)
+    artifact = make_artifact(session, fmt="infographic", prompt="the key figures")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY, (
+        artifact.document.error_message
+    )
+    _one_file(artifact, "image/png", b"\x89PNG")
+    assert "the key figures" in seen[0]
 
 
 def test_a_generation_failure_leaves_a_reason(
