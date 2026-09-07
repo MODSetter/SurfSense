@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.18",
+    "@assistant-ui/react-streamdown": "^0.3.13",
     "@fontsource-variable/instrument-sans": "^5.3.0",
     "@fontsource-variable/newsreader": "^5.3.0",
     "@fontsource/ibm-plex-mono": "^5.3.0",

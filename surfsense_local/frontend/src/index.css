@@ -5,6 +5,8 @@
 @import "@fontsource-variable/newsreader";
 @import "@fontsource/ibm-plex-mono/400.css";
 
+@source "../node_modules/streamdown/dist/*.js";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {

@@ -1,10 +1,27 @@
 import { FileTextIcon } from "@/components/ui/icons"
 import { MessagePrimitive } from "@assistant-ui/react"
+import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
 
 import { Button } from "@/components/ui/button"
 import type { WorkspaceDocument } from "@/features/sources/api"
 
 import type { Citation } from "./sse"
+
+function MarkdownText() {
+  return (
+    <StreamdownTextPrimitive
+      defer
+      linkSafety={{ enabled: true }}
+      security={{
+        allowedProtocols: ["http", "https", "mailto"],
+        allowedImagePrefixes: [],
+        allowDataImages: false,
+      }}
+    />
+  )
+}
+
+const assistantMessageParts = { Text: MarkdownText }
 
 function CitationLinks({
   citations,
@@ -65,8 +82,8 @@ export function AssistantMessage({
 }) {
   return (
     <MessagePrimitive.Root className="mx-auto w-full max-w-3xl px-6 py-4">
-      <div className="text-sm leading-7 whitespace-pre-wrap">
-        <MessagePrimitive.Parts />
+      <div className="min-w-0 text-sm leading-7">
+        <MessagePrimitive.Parts components={assistantMessageParts} />
       </div>
       <CitationLinks
         citations={citations}
