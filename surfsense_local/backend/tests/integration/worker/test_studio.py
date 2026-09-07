@@ -10,7 +10,7 @@ from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from worker.studio import persist, run
-from worker.studio.builders import Built
+from worker.studio.artifact import Built
 
 pytestmark = pytest.mark.integration
 
@@ -81,15 +81,23 @@ def test_a_summary_becomes_ready_and_searchable(
     assert keyword == 1
 
 
-def test_a_file_format_persists_a_downloadable_blob(
+def test_a_document_format_runs_generated_code_to_a_blob(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A docx job runs generate -> build -> persist: a real file plus indexed text."""
-    spec = (
-        '{"title": "Cassini", "sections": '
-        '[{"heading": "Arrival", "paragraphs": ["Reached Saturn in 2004."]}]}'
+    """A docx job runs the model's python-docx code in-process to a real file."""
+    generated = (
+        "from io import BytesIO\n"
+        "from docx import Document\n"
+        "d = Document()\n"
+        "d.add_heading('Cassini', 0)\n"
+        "d.add_paragraph('Reached Saturn in 2004.')\n"
+        "buf = BytesIO()\n"
+        "d.save(buf)\n"
+        "output_bytes = buf.getvalue()\n"
+        "title = 'Cassini'\n"
+        "summary = '# Cassini\\n\\nReached Saturn in 2004.'\n"
     )
-    monkeypatch.setattr("worker.studio.generate.generate", lambda *a, **k: spec)
+    monkeypatch.setattr("worker.studio.generate.run_model", lambda *a, **k: generated)
     artifact = make_artifact(session)
     artifact.format = "docx"
     session.commit()
@@ -98,6 +106,7 @@ def test_a_file_format_persists_a_downloadable_blob(
 
     session.expire_all()
     assert artifact.document.status is DocumentStatus.READY
+    assert artifact.document.title == "Cassini"
     assert len(artifact.files) == 1
     path = get_storage_settings().data_dir / artifact.files[0].storage_key
     assert path.read_bytes().startswith(b"PK\x03\x04")
@@ -106,14 +115,14 @@ def test_a_file_format_persists_a_downloadable_blob(
 def test_a_visual_format_routes_to_the_image_path(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """A format with no builder is drawn by the visual seam, not failed."""
+    """A visual format is drawn by the media seam's image model, not failed."""
     drawn = Built(
         title="Poster",
         markdown="# Poster",
         primary=b"\x89PNG bytes",
         primary_mime="image/png",
     )
-    monkeypatch.setattr("worker.studio.visual.render", lambda *a, **k: drawn)
+    monkeypatch.setattr("worker.studio.media.visual.render", lambda *a, **k: drawn)
     artifact = make_artifact(session)
     artifact.format = "image"
     session.commit()

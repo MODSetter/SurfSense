@@ -1,11 +1,11 @@
-"""The visual path routes to a BYO image model and stores the bytes it returns."""
+"""Media formats: a podcast synthesised offline, an image drawn by a BYO model."""
 
 import base64
 
 import pytest
 
-from worker.studio import visual
-from worker.studio.builders import Source
+from worker.studio.artifact import Source
+from worker.studio.media import podcast, visual
 
 pytestmark = pytest.mark.unit
 
@@ -42,3 +42,37 @@ def test_a_reply_with_no_image_is_an_error() -> None:
     """A text-only answer must fail the job, not save an empty file."""
     with pytest.raises(RuntimeError, match="no image"):
         visual._first_image({"choices": [{"message": {}}]})
+
+
+def test_podcast_voices_a_two_host_transcript(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The transcript is the searchable body; the synthesised WAV is the file."""
+    monkeypatch.setattr(
+        "worker.studio.media.podcast.tts.synthesize", lambda turns: b"RIFFfake"
+    )
+    raw = (
+        '{"title": "Saturn", "turns": [{"speaker": "A", "text": "Hi."}, '
+        '{"speaker": "B", "text": "Tell me more."}]}'
+    )
+    built = podcast.build(raw, [])
+
+    assert built.primary == b"RIFFfake"
+    assert built.primary_mime == "audio/wav"
+    assert built.primary_filename == "saturn.wav"
+    assert "**A:** Hi." in built.markdown
+    assert "**B:** Tell me more." in built.markdown
+
+
+def test_podcast_without_the_voice_pack_fails_clearly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A machine lacking Kokoro gets a clear reason, like the parser-pack path."""
+    monkeypatch.setattr(
+        "worker.studio.media.podcast.tts.missing_kokoro_files",
+        lambda: ["kokoro-v1.0.onnx"],
+    )
+    raw = '{"title": "T", "turns": [{"speaker": "A", "text": "Hi."}]}'
+
+    with pytest.raises(RuntimeError, match="Kokoro"):
+        podcast.build(raw, [])

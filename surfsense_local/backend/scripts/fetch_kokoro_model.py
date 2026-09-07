@@ -12,7 +12,12 @@ from pathlib import Path
 
 import httpx
 
-from worker.studio.tts import MODEL_DIR_NAME, MODEL_FILE, VOICES_FILE, kokoro_dir
+from worker.studio.media.podcast.tts import (
+    MODEL_DIR_NAME,
+    MODEL_FILE,
+    VOICES_FILE,
+    kokoro_dir,
+)
 
 # The maintained ONNX export and its packed voices.
 BASE = "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0"

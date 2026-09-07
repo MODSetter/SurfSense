@@ -7,7 +7,7 @@ from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
 from modules.documents.models import Document
 from shared.config import get_storage_settings
 from worker.ingestion import chunking, embedding, indexing
-from worker.studio.builders import Built
+from worker.studio.artifact import Built
 
 _EXTENSION = {
     "application/pdf": ".pdf",

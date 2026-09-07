@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document
-from worker.studio.builders import Source
+from worker.studio.artifact import Source
 
 # One job's grounding budget in characters. ponytail: a flat cap, not tokens,
 # and no ranking — fine for summarising a handful of local documents. Upgrade

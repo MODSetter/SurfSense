@@ -7,7 +7,7 @@ from modules.documents.models import DocumentStatus
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.notify import notify_artifact_updates
-from worker.studio import gather, generate, persist
+from worker.studio import gather, generate, media, office, persist
 from worker.studio.builders import BUILDERS
 
 logger = logging.getLogger(__name__)
@@ -42,15 +42,18 @@ def _generate(session: Session, artifact: Artifact) -> None:
         sources = gather.gather(session, meta.get("source_document_ids", []))
         prompt = meta.get("prompt")
 
+        # Route by family: office (model-written code), media (audio/visual), or
+        # a deterministic builder.
         builder = BUILDERS.get(artifact.format)
-        if builder is not None:
+        if artifact.format in office.OFFICE:
+            built = office.render(session, artifact.format, sources, prompt)
+        elif artifact.format in media.MEDIA:
+            built = media.render(session, artifact.format, sources, prompt)
+        elif builder is not None:
             raw = generate.generate(session, builder, sources, prompt)
             built = builder.build(raw, sources)
-        else:
-            # A visual format has no local builder: a BYO image model draws it.
-            from worker.studio import visual
-
-            built = visual.render(session, artifact.format, sources, prompt)
+        else:  # pragma: no cover - the invariant test rules this out
+            raise RuntimeError(f"no route for artifact format {artifact.format!r}")
 
         persist.persist(session, artifact, document, built)
 

@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.providers import get_provider
 from modules.llm.providers.types import Message
-from worker.studio.builders import Builder, Source
+from worker.studio.artifact import Source
+from worker.studio.builder import Builder
 
 
 class NoModelSelectedError(RuntimeError):
@@ -22,6 +23,16 @@ def generate(
     structured format); this only routes it through the chosen Generator and
     collects the stream the worker cannot await lazily.
     """
+    return run_model(session, builder.prompt(sources, prompt), sources)
+
+
+def run_model(session: Session, system: str, sources: list[Source]) -> str:
+    """Send one system prompt plus the grounding to the selected model.
+
+    The shared core of every Studio generation: the builder path passes a
+    builder's prompt, the code path passes its own. Both collect the stream the
+    worker cannot await lazily.
+    """
     selected = session.get(SelectedModel, ModelRole.GENERATION)
     if selected is None:
         raise NoModelSelectedError("no generation model selected")
@@ -30,7 +41,7 @@ def generate(
         raise NoModelSelectedError(f"unknown provider: {selected.provider}")
 
     messages = [
-        Message(role="system", content=builder.prompt(sources, prompt)),
+        Message(role="system", content=system),
         Message(role="user", content=_grounding(sources)),
     ]
     return asyncio.run(_collect(generator.chat(selected.name, messages)))

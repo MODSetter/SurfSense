@@ -5,18 +5,26 @@ import pytest
 from modules.artifacts.formats import FORMATS
 from worker.studio.builders import BUILDERS
 from worker.studio.builders.summary import build
-from worker.studio.builders.util import parse_json
+from worker.studio.media import MEDIA
+from worker.studio.office import OFFICE
+from worker.studio.text import parse_json
 
 pytestmark = pytest.mark.unit
 
-# Office formats are ZIP containers; every valid one starts with the ZIP magic.
-ZIP_MAGIC = b"PK\x03\x04"
 
+def test_every_format_routes_to_exactly_one_family() -> None:
+    """The catalog partitions across the three families the pipeline can route.
 
-def test_every_buildable_format_has_a_builder() -> None:
-    """The dependency-free catalog and the worker registry cannot drift apart."""
-    buildable = {fmt.key for fmt in FORMATS if not fmt.requires_key}
-    assert set(BUILDERS) == buildable
+    Every catalog key is a deterministic builder, a model-written office document,
+    or a media deliverable — with no key in two families and none left unrouted —
+    so the pipeline never meets a format it cannot produce.
+    """
+    families = (set(BUILDERS), set(OFFICE), set(MEDIA))
+    assert set().union(*families) == {fmt.key for fmt in FORMATS}
+    for first in families:
+        for second in families:
+            if first is not second:
+                assert first.isdisjoint(second)
 
 
 def test_a_summary_takes_its_title_from_the_first_h1() -> None:
@@ -45,35 +53,6 @@ def test_parse_json_rejects_a_non_object() -> None:
         parse_json("not json at all")
 
 
-@pytest.mark.parametrize("key", ["docx", "pptx", "xlsx"])
-def test_office_formats_build_a_valid_container(key: str) -> None:
-    """docx/pptx/xlsx are real Office files: a ZIP with the source text inside."""
-    specs = {
-        "docx": '{"title": "Cassini", "sections": '
-        '[{"heading": "Arrival", "paragraphs": ["Reached Saturn in 2004."]}]}',
-        "pptx": '{"title": "Cassini", "slides": '
-        '[{"title": "Arrival", "bullets": ["Reached Saturn in 2004."]}]}',
-        "xlsx": '{"title": "Cassini", "sheets": '
-        '[{"name": "Facts", "columns": ["Year"], "rows": [["2004"]]}]}',
-    }
-    built = BUILDERS[key].build(specs[key], [])
-
-    assert built.title == "Cassini"
-    assert built.primary is not None and built.primary.startswith(ZIP_MAGIC)
-    assert built.primary_filename and built.primary_filename.endswith(f".{key}")
-    assert "Arrival" in built.markdown or "Facts" in built.markdown
-
-
-def test_pdf_builds_a_real_pdf_with_the_source_title() -> None:
-    """A pdf artifact is a downloadable file starting with the PDF magic."""
-    raw = '{"title": "Cassini", "sections": [{"heading": "H", "paragraphs": ["P."]}]}'
-    built = BUILDERS["pdf"].build(raw, [])
-
-    assert built.primary is not None and built.primary.startswith(b"%PDF")
-    assert built.primary_mime == "application/pdf"
-    assert built.primary_filename == "cassini.pdf"
-
-
 def test_html_escapes_model_text_so_it_cannot_carry_a_script() -> None:
     """The model supplies text only; markup it sends is neutralised, not run."""
     raw = '{"title": "T", "sections": [{"heading": "H", "paragraphs": ["<script>x</script>"]}]}'
@@ -94,37 +73,6 @@ def test_mindmap_renders_a_nested_outline_and_no_file() -> None:
     assert "# Saturn" in built.markdown
     assert "- Rings" in built.markdown
     assert "  - Ice" in built.markdown
-
-
-def test_podcast_voices_a_two_host_transcript(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The transcript is the searchable body; the synthesised WAV is the file."""
-    monkeypatch.setattr("worker.studio.tts.synthesize", lambda turns: b"RIFFfake")
-    raw = (
-        '{"title": "Saturn", "turns": [{"speaker": "A", "text": "Hi."}, '
-        '{"speaker": "B", "text": "Tell me more."}]}'
-    )
-    built = BUILDERS["podcast"].build(raw, [])
-
-    assert built.primary == b"RIFFfake"
-    assert built.primary_mime == "audio/wav"
-    assert built.primary_filename == "saturn.wav"
-    assert "**A:** Hi." in built.markdown
-    assert "**B:** Tell me more." in built.markdown
-
-
-def test_podcast_without_the_voice_pack_fails_clearly(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A machine lacking Kokoro gets a clear reason, like the parser-pack path."""
-    monkeypatch.setattr(
-        "worker.studio.tts.missing_kokoro_files", lambda: ["kokoro-v1.0.onnx"]
-    )
-    raw = '{"title": "T", "turns": [{"speaker": "A", "text": "Hi."}]}'
-
-    with pytest.raises(RuntimeError, match="Kokoro"):
-        BUILDERS["podcast"].build(raw, [])
 
 
 def test_flashcards_and_quiz_project_to_readable_markdown() -> None:

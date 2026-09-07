@@ -1,5 +1,6 @@
-from worker.studio.builders.types import Builder, Built, Source
-from worker.studio.builders.util import as_list, as_text, parse_json
+from worker.studio.artifact import Built, Source
+from worker.studio.builder import Builder
+from worker.studio.text import as_list, as_text, parse_json
 
 _SCHEMA = (
     'Return only JSON, no prose: {"title": str, "questions": '

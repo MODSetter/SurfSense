@@ -1,3 +1,5 @@
+"""Text and JSON helpers shared by the generators, tolerant of loose model output."""
+
 import json
 import re
 from typing import Any

@@ -9,7 +9,11 @@ string, which the analyser cannot follow.
 
 import sys
 
-from PyInstaller.utils.hooks import collect_all, collect_dynamic_libs
+from PyInstaller.utils.hooks import (
+    collect_all,
+    collect_data_files,
+    collect_dynamic_libs,
+)
 
 sys.path.insert(0, SPECPATH)
 from common import BACKEND, database_inputs
@@ -29,13 +33,14 @@ for package in (
     # worker fails only when its first PDF initializes the layout model.
     "transformers",
     "torchvision",
-    # Studio builders: python-docx and python-pptx render from template .docx
-    # and .pptx files inside their packages, reached by path and invisible to
-    # the analyser, so a frozen build would fail on the first Office artifact.
+    # Studio document formats: the model writes python-docx/pptx/xlsxwriter/
+    # reportlab code (worker/studio/office/) that the worker runs, so none are
+    # imported statically anymore — the analyser cannot see them, and each also
+    # reaches package data by path (Office templates, reportlab core fonts).
     "docx",
     "pptx",
-    # fpdf2 ships its core-font metrics as package data, reached by path.
-    "fpdf",
+    "xlsxwriter",
+    "reportlab",
     # Studio podcast: kokoro-onnx loads its ONNX model by path and phonemises
     # through espeak data shipped as package files, neither visible to the
     # analyser. espeakng_loader carries the espeak-ng-data; phonemizer is its g2p.
@@ -49,6 +54,10 @@ for package in (
     hiddenimports += pkg_hidden
 
 binaries += collect_dynamic_libs("tokenizers")
+
+# The per-format SKILL.md files (worker/studio/office/*/) are read at import via
+# importlib.resources, so the analyser does not see them as source.
+datas += collect_data_files("worker.studio.office", includes=["**/*.md"])
 
 # Huey resolves a task by its name, so the module that registers it must be in.
 hiddenimports += ["modules.documents.tasks", "modules.artifacts.tasks"]

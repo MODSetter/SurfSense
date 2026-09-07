@@ -1,5 +1,6 @@
-from worker.studio.builders.types import Builder, Built, Source
-from worker.studio.builders.util import as_list, as_text, parse_json, slug
+from worker.studio.artifact import Built, Source
+from worker.studio.builder import Builder
+from worker.studio.text import as_list, as_text, parse_json, slug
 
 MIME = "audio/wav"
 
@@ -22,7 +23,7 @@ def prompt(_sources: list[Source], user_prompt: str | None) -> str:
 
 
 def build(raw: str, _sources: list[Source]) -> Built:
-    from worker.studio import tts
+    from worker.studio.media.podcast import tts
 
     spec = parse_json(raw)
     title = as_text(spec.get("title")) or "Podcast"
@@ -50,4 +51,4 @@ def build(raw: str, _sources: list[Source]) -> Built:
     )
 
 
-podcast = Builder(key="podcast", prompt=prompt, build=build)
+builder = Builder(key="podcast", prompt=prompt, build=build)

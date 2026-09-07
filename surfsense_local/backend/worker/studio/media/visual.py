@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from modules.llm.credentials import read_provider_key
 from shared.config import get_llm_settings
-from worker.studio.builders import Built, Source
+from worker.studio.artifact import Built, Source
 
 # Image generation runs for a while; auth is quick.
 TIMEOUT = httpx.Timeout(180.0, connect=5.0)
