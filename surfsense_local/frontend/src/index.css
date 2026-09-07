@@ -135,3 +135,25 @@
     @apply font-sans antialiased;
   }
 }
+
+.electron-macos body {
+  padding-top: 28px;
+}
+
+.electron-macos body::before {
+  position: fixed;
+  inset: 0 0 auto;
+  height: 28px;
+  background: var(--background);
+  content: "";
+  -webkit-app-region: drag;
+}
+
+.electron-macos #root,
+.electron-macos .h-svh {
+  height: calc(100svh - 28px);
+}
+
+.electron-macos .min-h-svh {
+  min-height: calc(100svh - 28px);
+}
