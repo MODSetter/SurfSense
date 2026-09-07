@@ -94,7 +94,6 @@ export function ThreadList({
                 </Button>
                 <div className="absolute inset-y-0 right-1 flex items-center">
                   <DropdownMenu
-                    modal={false}
                     open={openDropdownId === thread.id}
                     onOpenChange={(open) =>
                       setOpenDropdownId(open ? thread.id : null)

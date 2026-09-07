@@ -45,6 +45,7 @@ function WorkspaceDashboard({
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
+    selectedDocumentIds: sources.selectedDocumentIds,
     onCitations: handleCitations,
     onModelRequired,
   })
@@ -80,6 +81,7 @@ function WorkspaceDashboard({
       <SourcesPanel
         documents={sources.documents}
         citations={citations}
+        selectedDocumentIds={sources.selectedDocumentIds}
         selectedDocument={sources.selectedDocument}
         selectedCitation={selectedCitation}
         isLoading={sources.isLoading}
@@ -93,6 +95,7 @@ function WorkspaceDashboard({
           sources.closePreview()
         }}
         onRetry={(id) => void sources.retry(id)}
+        onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
         onDismissUploadOutcome={sources.dismissUploadOutcome}
       />

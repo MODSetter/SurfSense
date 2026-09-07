@@ -21,6 +21,7 @@ function SourceHarness() {
     <SourcesPanel
       documents={sources.documents}
       citations={[]}
+      selectedDocumentIds={sources.selectedDocumentIds}
       selectedDocument={null}
       selectedCitation={null}
       isLoading={sources.isLoading}
@@ -31,6 +32,7 @@ function SourceHarness() {
       onOpen={() => undefined}
       onBack={() => undefined}
       onRetry={(id) => void sources.retry(id)}
+      onSelectionChange={sources.setDocumentSelected}
       onUpload={(files) => void sources.upload(files)}
       onDismissUploadOutcome={sources.dismissUploadOutcome}
     />

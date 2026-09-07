@@ -34,6 +34,9 @@ function wait(milliseconds: number, signal: AbortSignal) {
 
 export function useSources(workspaceId: number) {
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([])
+  const [selectedDocumentIdSet, setSelectedDocumentIdSet] = useState(
+    () => new Set<number>()
+  )
   const [selectedDocument, setSelectedDocument] =
     useState<DocumentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -51,6 +54,7 @@ export function useSources(workspaceId: number) {
   )
 
   useEffect(() => {
+    setSelectedDocumentIdSet(new Set())
     const controller = new AbortController()
     listController.current = controller
     void listDocuments(workspaceId, controller.signal)
@@ -215,8 +219,27 @@ export function useSources(workspaceId: number) {
     }
   }
 
+  const selectedDocumentIds = documents.flatMap((document) =>
+    document.status === "ready" && selectedDocumentIdSet.has(document.id)
+      ? [document.id]
+      : []
+  )
+
+  const setDocumentSelected = (documentId: number, selected: boolean) => {
+    setSelectedDocumentIdSet((current) => {
+      const next = new Set(current)
+      if (selected) {
+        next.add(documentId)
+      } else {
+        next.delete(documentId)
+      }
+      return next
+    })
+  }
+
   return {
     documents,
+    selectedDocumentIds,
     selectedDocument,
     isLoading,
     isLoadingPreview,
@@ -231,6 +254,7 @@ export function useSources(workspaceId: number) {
       setIsLoadingPreview(false)
     },
     retry,
+    setDocumentSelected,
     upload,
     dismissUploadOutcome: () => setUploadOutcome(null),
   }

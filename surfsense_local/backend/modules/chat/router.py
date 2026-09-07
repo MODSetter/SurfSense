@@ -45,9 +45,7 @@ def create_thread(
     response_model=list[ThreadRead],
     summary="List chat threads",
 )
-def list_threads(
-    workspace: WorkspaceDep, session: SessionDep
-) -> Sequence[ChatThread]:
+def list_threads(workspace: WorkspaceDep, session: SessionDep) -> Sequence[ChatThread]:
     return session.scalars(
         select(ChatThread)
         .where(ChatThread.workspace_id == workspace.id)
@@ -109,7 +107,12 @@ async def send_message(
         .where(ChatMessage.chat_thread_id == thread.id)
         .order_by(ChatMessage.created_at)
     ).all()
-    hits = retrieve(session, thread.workspace_id, payload.text)
+    hits = retrieve(
+        session,
+        thread.workspace_id,
+        payload.text,
+        document_ids=payload.document_ids,
+    )
     context, citations = build_context(hits)
     messages = build_messages(context, history, payload.text)
 

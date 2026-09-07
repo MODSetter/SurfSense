@@ -34,7 +34,7 @@ beforeEach(() => {
 })
 
 describe("dashboard chat", () => {
-  it("creates a thread only on first send and streams without a model field", async () => {
+  it("creates a thread on first send and scopes retrieval to selected sources", async () => {
     let messageSent = false
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -135,6 +135,9 @@ describe("dashboard chat", () => {
 
     await screen.findByText("No chats yet")
     await user.click(screen.getByRole("button", { name: "New chat" }))
+    await user.click(
+      await screen.findByRole("checkbox", { name: "Select Guide.txt" })
+    )
     expect(
       fetchMock.mock.calls.filter(
         ([path, init]) =>
@@ -167,6 +170,7 @@ describe("dashboard chat", () => {
     )
     expect(JSON.parse(String(send?.[1]?.body))).toEqual({
       text: "What is indexed?",
+      document_ids: [20],
     })
   })
 

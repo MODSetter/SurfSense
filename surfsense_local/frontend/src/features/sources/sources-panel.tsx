@@ -11,6 +11,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Empty,
   EmptyDescription,
@@ -21,10 +22,10 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  type UploadOutcome,
-  type DocumentDetail,
-  type WorkspaceDocument,
+import type {
+  UploadOutcome,
+  DocumentDetail,
+  WorkspaceDocument,
 } from "./api"
 import type { Citation } from "@/features/chat/sse"
 import { Input } from "@/components/ui/input"
@@ -105,6 +106,77 @@ function SourceRow({
   )
 }
 
+function SelectableSourceRow({
+  document,
+  selected,
+  onOpen,
+  onRetry,
+  onSelectedChange,
+}: {
+  document: WorkspaceDocument
+  selected: boolean
+  onOpen: () => void
+  onRetry: () => void
+  onSelectedChange: (selected: boolean) => void
+}) {
+  const selectable = document.status === "ready"
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent",
+        selected && "bg-accent"
+      )}
+    >
+      <button
+        type="button"
+        className="flex min-w-0 flex-1 items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        onClick={onOpen}
+      >
+        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
+          {document.document_type === "NOTE" ? (
+            <NotebookTextIcon className="size-3.5" />
+          ) : (
+            <FileIcon className="size-3.5" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium">
+            {document.title}
+          </span>
+          <span className="mt-0.5 flex items-center gap-1.5">
+            <span className="text-[11px] text-muted-foreground">
+              {document.document_type === "NOTE" ? "Note" : "File"}
+            </span>
+            <Badge
+              variant={statusVariant[document.status]}
+              className="h-4 px-1.5 text-[10px]"
+            >
+              {document.status}
+            </Badge>
+          </span>
+        </span>
+      </button>
+      {document.status === "failed" ? (
+        <Button
+          size="icon-xs"
+          variant="ghost"
+          aria-label={`Retry ${document.title}`}
+          onClick={onRetry}
+        >
+          <RefreshCwIcon />
+        </Button>
+      ) : null}
+      <Checkbox
+        checked={selected}
+        disabled={!selectable}
+        aria-label={`Select ${document.title}`}
+        onCheckedChange={(checked) => onSelectedChange(checked === true)}
+      />
+    </div>
+  )
+}
+
 function DocumentPreview({
   document,
   citation,
@@ -169,6 +241,7 @@ function DocumentPreview({
 export function SourcesPanel({
   documents,
   citations,
+  selectedDocumentIds,
   selectedDocument,
   selectedCitation,
   isLoading,
@@ -179,11 +252,13 @@ export function SourcesPanel({
   onOpen,
   onBack,
   onRetry,
+  onSelectionChange,
   onUpload,
   onDismissUploadOutcome,
 }: {
   documents: WorkspaceDocument[]
   citations: Citation[]
+  selectedDocumentIds: number[]
   selectedDocument: DocumentDetail | null
   selectedCitation: Citation | null
   isLoading: boolean
@@ -194,6 +269,7 @@ export function SourcesPanel({
   onOpen: (documentId: number, citation?: Citation) => void
   onBack: () => void
   onRetry: (documentId: number) => void
+  onSelectionChange: (documentId: number, selected: boolean) => void
   onUpload: (files: File[]) => void
   onDismissUploadOutcome: () => void
 }) {
@@ -226,6 +302,7 @@ export function SourcesPanel({
     const document = documentById.get(citation.document_id)
     return document ? [{ document, citation, number: index + 1 }] : []
   })
+  const selectedDocumentIdSet = new Set(selectedDocumentIds)
 
   return (
     <aside
@@ -327,13 +404,17 @@ export function SourcesPanel({
               >
                 All sources
               </h3>
-              <div className="space-y-2">
+              <div className="flex flex-col gap-1">
                 {documents.map((document) => (
-                  <SourceRow
+                  <SelectableSourceRow
                     key={document.id}
                     document={document}
+                    selected={selectedDocumentIdSet.has(document.id)}
                     onOpen={() => onOpen(document.id)}
                     onRetry={() => onRetry(document.id)}
+                    onSelectedChange={(selected) =>
+                      onSelectionChange(document.id, selected)
+                    }
                   />
                 ))}
               </div>

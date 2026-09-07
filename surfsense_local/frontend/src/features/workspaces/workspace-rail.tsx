@@ -1,10 +1,5 @@
 import { useState, type FormEvent } from "react"
-import {
-  EllipsisIcon,
-  PencilIcon,
-  PlusIcon,
-  Trash2Icon,
-} from "@/components/ui/icons"
+import { PencilIcon, PlusIcon, Trash2Icon } from "@/components/ui/icons"
 
 import {
   AlertDialog,
@@ -19,6 +14,13 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuGroup,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -26,12 +28,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import {
@@ -153,59 +149,58 @@ export function WorkspaceRail({
           {workspaces.map((workspace) => {
             const selected = workspace.id === activeWorkspaceId
             return (
-              <div key={workspace.id} className="group relative flex w-full">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      size="icon-lg"
-                      variant="ghost"
-                      className={cn(
-                        "relative mx-auto rounded-xl",
-                        selected &&
-                          "bg-sidebar-accent text-sidebar-accent-foreground"
-                      )}
-                      aria-label={workspace.name}
-                      aria-current={selected ? "page" : undefined}
-                      onClick={() => onSelect(workspace.id)}
-                    >
-                      {selected ? (
-                        <span className="absolute -left-1.5 h-5 w-0.5 rounded-full bg-sidebar-primary" />
-                      ) : null}
-                      <Avatar className="size-7 rounded-lg">
-                        <AvatarFallback className="rounded-lg text-[10px] font-semibold">
-                          {workspaceMark(workspace.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">{workspace.name}</TooltipContent>
-                </Tooltip>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                      size="icon-xs"
-                      variant="ghost"
-                      className="absolute top-1.5 right-0 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
-                      aria-label={`Actions for ${workspace.name}`}
-                    >
-                      <EllipsisIcon />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent side="right" align="start">
-                    <DropdownMenuItem onSelect={() => setRenaming(workspace)}>
+              <ContextMenu key={workspace.id}>
+                <ContextMenuTrigger asChild>
+                  <div className="flex w-full">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon-lg"
+                          variant="ghost"
+                          className={cn(
+                            "relative mx-auto rounded-xl",
+                            selected &&
+                              "bg-sidebar-accent text-sidebar-accent-foreground"
+                          )}
+                          aria-label={workspace.name}
+                          aria-current={selected ? "page" : undefined}
+                          onClick={() => onSelect(workspace.id)}
+                        >
+                          {selected ? (
+                            <span className="absolute -left-1.5 h-5 w-0.5 rounded-full bg-sidebar-primary" />
+                          ) : null}
+                          <Avatar className="size-7 rounded-lg">
+                            <AvatarFallback className="rounded-lg text-[10px] font-semibold">
+                              {workspaceMark(workspace.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">
+                        {workspace.name}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                </ContextMenuTrigger>
+                <ContextMenuContent
+                  className="w-36"
+                  onCloseAutoFocus={(event) => event.preventDefault()}
+                >
+                  <ContextMenuGroup>
+                    <ContextMenuItem onSelect={() => setRenaming(workspace)}>
                       <PencilIcon />
                       Rename
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
+                    </ContextMenuItem>
+                    <ContextMenuItem
                       variant="destructive"
                       onSelect={() => setDeleting(workspace)}
                     >
                       <Trash2Icon />
                       Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+                    </ContextMenuItem>
+                  </ContextMenuGroup>
+                </ContextMenuContent>
+              </ContextMenu>
             )
           })}
         </div>

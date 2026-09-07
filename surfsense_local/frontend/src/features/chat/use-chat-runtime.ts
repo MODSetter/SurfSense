@@ -55,11 +55,13 @@ function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
 export function useChatRuntime({
   workspaceId,
   canSend,
+  selectedDocumentIds,
   onCitations,
   onModelRequired,
 }: {
   workspaceId: number
   canSend: boolean
+  selectedDocumentIds: number[]
   onCitations: (citations: Citation[]) => void
   onModelRequired: () => void
 }) {
@@ -223,40 +225,49 @@ export function useChatRuntime({
           },
         ])
 
-        await streamMessage(threadId, text, controller.signal, (event) => {
-          if (requestVersion.current !== version) {
-            return
-          }
-          if (event.type === "delta") {
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId
-                  ? {
-                      ...message,
-                      content: {
-                        ...message.content,
-                        text: (message.content.text ?? "") + event.text,
-                      },
-                    }
-                  : message
+        await streamMessage(
+          threadId,
+          text,
+          selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+          controller.signal,
+          (event) => {
+            if (requestVersion.current !== version) {
+              return
+            }
+            if (event.type === "delta") {
+              setMessages((current) =>
+                current.map((message) =>
+                  message.id === assistantId
+                    ? {
+                        ...message,
+                        content: {
+                          ...message.content,
+                          text: (message.content.text ?? "") + event.text,
+                        },
+                      }
+                    : message
+                )
               )
-            )
-          } else if (event.type === "citations") {
-            onCitations(event.items)
-            setMessages((current) =>
-              current.map((message) =>
-                message.id === assistantId
-                  ? {
-                      ...message,
-                      content: { ...message.content, citations: event.items },
-                    }
-                  : message
+            } else if (event.type === "citations") {
+              onCitations(event.items)
+              setMessages((current) =>
+                current.map((message) =>
+                  message.id === assistantId
+                    ? {
+                        ...message,
+                        content: {
+                          ...message.content,
+                          citations: event.items,
+                        },
+                      }
+                    : message
+                )
               )
-            )
-          } else if (event.type === "error") {
-            setError(event.message)
+            } else if (event.type === "error") {
+              setError(event.message)
+            }
           }
-        })
+        )
 
         if (requestVersion.current === version) {
           const canonical = await listMessages(threadId, controller.signal)
@@ -296,6 +307,7 @@ export function useChatRuntime({
       isRunning,
       onCitations,
       onModelRequired,
+      selectedDocumentIds,
       workspaceId,
     ]
   )
