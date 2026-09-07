@@ -60,6 +60,7 @@
 }
 
 :root {
+  --titlebar-height: 0px;
   --app-shell: #f3f2ee;
   --background: #f7f6f2;
   --foreground: #1e1e1e;
@@ -138,31 +139,34 @@
   }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
   }
   html {
     @apply font-sans antialiased;
   }
+  #root {
+    height: 100svh;
+  }
+}
+
+.electron-macos {
+  --titlebar-height: 28px;
 }
 
 .electron-macos body {
   background: var(--app-shell);
-  padding-top: 28px;
 }
 
 .electron-macos body::before {
   position: fixed;
   inset: 0 0 auto;
-  height: 28px;
+  height: var(--titlebar-height);
   background: var(--app-shell);
   content: "";
   -webkit-app-region: drag;
 }
 
-.electron-macos #root,
-.electron-macos .h-svh {
-  height: calc(100svh - 28px);
-}
-
-.electron-macos .min-h-svh {
-  min-height: calc(100svh - 28px);
+.electron-macos #root {
+  padding-top: var(--titlebar-height);
 }

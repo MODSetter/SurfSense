@@ -120,7 +120,7 @@ function WorkspacesEmpty({
   onCreate: (name: string) => Promise<boolean>
 }) {
   return (
-    <main className="flex h-svh items-center justify-center bg-background p-8">
+    <main className="flex h-full items-center justify-center bg-background p-8">
       <div className="flex max-w-sm flex-col items-center text-center">
         <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
           <LayoutGridIcon className="size-5" />
@@ -179,7 +179,7 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-svh min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+    <main className="relative grid h-full min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
       <WorkspaceRail
         workspaces={workspaces.workspaces}
         activeWorkspaceId={workspaces.activeWorkspace.id}
