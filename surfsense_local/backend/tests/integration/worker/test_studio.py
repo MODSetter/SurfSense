@@ -81,6 +81,28 @@ def test_a_summary_becomes_ready_and_searchable(
     assert keyword == 1
 
 
+def test_a_file_format_persists_a_downloadable_blob(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A docx job runs generate -> build -> persist: a real file plus indexed text."""
+    spec = (
+        '{"title": "Cassini", "sections": '
+        '[{"heading": "Arrival", "paragraphs": ["Reached Saturn in 2004."]}]}'
+    )
+    monkeypatch.setattr("worker.studio.generate.generate", lambda *a, **k: spec)
+    artifact = make_artifact(session)
+    artifact.format = "docx"
+    session.commit()
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY
+    assert len(artifact.files) == 1
+    path = get_storage_settings().data_dir / artifact.files[0].storage_key
+    assert path.read_bytes().startswith(b"PK\x03\x04")
+
+
 def test_a_generation_failure_leaves_a_reason(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

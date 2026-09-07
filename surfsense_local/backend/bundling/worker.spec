@@ -29,6 +29,11 @@ for package in (
     # worker fails only when its first PDF initializes the layout model.
     "transformers",
     "torchvision",
+    # Studio builders: python-docx and python-pptx render from template .docx
+    # and .pptx files inside their packages, reached by path and invisible to
+    # the analyser, so a frozen build would fail on the first Office artifact.
+    "docx",
+    "pptx",
 ):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas
@@ -38,7 +43,7 @@ for package in (
 binaries += collect_dynamic_libs("tokenizers")
 
 # Huey resolves a task by its name, so the module that registers it must be in.
-hiddenimports += ["modules.documents.tasks"]
+hiddenimports += ["modules.documents.tasks", "modules.artifacts.tasks"]
 
 a = Analysis(
     [str(BACKEND / "worker.py")],

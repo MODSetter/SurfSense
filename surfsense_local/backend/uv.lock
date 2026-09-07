@@ -2459,7 +2459,9 @@ dependencies = [
     { name = "huey" },
     { name = "onnxruntime" },
     { name = "pydantic-settings" },
+    { name = "python-docx" },
     { name = "python-multipart" },
+    { name = "python-pptx" },
     { name = "sqlalchemy" },
     { name = "sqlite-vec" },
     { name = "torch", version = "2.14.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
@@ -2467,6 +2469,7 @@ dependencies = [
     { name = "torchvision", version = "0.29.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "torchvision", version = "0.29.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
     { name = "uvicorn", extra = ["standard"] },
+    { name = "xlsxwriter" },
 ]
 
 [package.dev-dependencies]
@@ -2487,7 +2490,9 @@ requires-dist = [
     { name = "huey", specifier = ">=3.3.4" },
     { name = "onnxruntime", specifier = ">=1.20" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },
+    { name = "python-docx", specifier = ">=1.2.0" },
     { name = "python-multipart", specifier = ">=0.0.32" },
+    { name = "python-pptx", specifier = ">=1.0.2" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "sqlite-vec", specifier = ">=0.1.9" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.2" },
@@ -2495,6 +2500,7 @@ requires-dist = [
     { name = "torchvision", marker = "sys_platform != 'linux'", specifier = ">=0.17" },
     { name = "torchvision", marker = "sys_platform == 'linux'", specifier = ">=0.17", index = "https://download.pytorch.org/whl/cpu" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.34.0" },
+    { name = "xlsxwriter", specifier = ">=3.2.9" },
 ]
 
 [package.metadata.requires-dev]
