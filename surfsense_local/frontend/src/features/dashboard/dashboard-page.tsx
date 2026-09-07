@@ -63,11 +63,13 @@ function WorkspaceDashboard({
         threads={chat.threads}
         activeThreadId={chat.activeThreadId}
         autoNamingThreadId={chat.autoNamingThreadId}
+        animatingTitleThreadId={chat.animatingTitleThreadId}
         isLoading={chat.isLoadingThreads}
         onNewChat={chat.startNewChat}
         onSelect={chat.selectThread}
         onRename={chat.rename}
         onDelete={chat.removeThread}
+        onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <ThreadPanel
         runtime={chat.runtime}
@@ -78,9 +80,11 @@ function WorkspaceDashboard({
         error={chat.error}
         isLoading={chat.isLoadingMessages}
         isRunning={chat.isRunning}
+        animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
         providerAvailable={providerAvailable}
         onCitation={(citation) => openSource(citation.document_id, citation)}
         onModelSetup={onModelRequired}
+        onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <SourcesPanel
         documents={sources.documents}

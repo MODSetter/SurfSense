@@ -1,45 +1,62 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 
-function useTypewriter(text: string, placeholder = "New chat", speed = 35) {
-  const [displayed, setDisplayed] = useState(text)
-  const previous = useRef(text)
-
+function AnimatedText({
+  text,
+  onComplete,
+  speed = 35,
+}: {
+  text: string
+  onComplete?: () => void
+  speed?: number
+}) {
+  const [length, setLength] = useState(0)
   useEffect(() => {
-    const prior = previous.current
-    previous.current = text
-    if (
-      prior !== placeholder ||
-      text === placeholder ||
-      !text ||
-      window.matchMedia?.(REDUCED_MOTION_QUERY).matches
-    ) {
-      setDisplayed(text)
-      return
-    }
-
-    setDisplayed("")
-    let length = 0
+    let next = 0
     const interval = window.setInterval(() => {
-      length += 1
-      setDisplayed(text.slice(0, length))
-      if (length >= text.length) {
+      next += 1
+      setLength(next)
+      if (next >= text.length) {
         window.clearInterval(interval)
+        onComplete?.()
       }
     }, speed)
     return () => window.clearInterval(interval)
-  }, [placeholder, speed, text])
+  }, [onComplete, speed, text])
 
-  return displayed
+  return <span aria-hidden="true">{text.slice(0, length)}</span>
 }
 
-export function TypewriterText({ text }: { text: string }) {
-  const displayed = useTypewriter(text)
+function CompleteAnimation({ onComplete }: { onComplete?: () => void }) {
+  useEffect(() => {
+    onComplete?.()
+  }, [onComplete])
+  return null
+}
+
+export function TypewriterText({
+  text,
+  animate = false,
+  onComplete,
+}: {
+  text: string
+  animate?: boolean
+  onComplete?: () => void
+}) {
+  const reducedMotion =
+    window.matchMedia?.(REDUCED_MOTION_QUERY).matches ?? false
   return (
     <>
       <span className="sr-only">{text}</span>
-      <span aria-hidden="true">{displayed}</span>
+      {animate && !reducedMotion ? (
+        <AnimatedText text={text} onComplete={onComplete} />
+      ) : (
+        <span aria-hidden="true">{text}</span>
+      )}
+      {animate && reducedMotion ? (
+        <CompleteAnimation onComplete={onComplete} />
+      ) : null}
     </>
   )
 }

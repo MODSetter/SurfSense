@@ -72,9 +72,11 @@ export function ThreadPanel({
   error,
   isLoading,
   isRunning,
+  animateTitle,
   providerAvailable,
   onCitation,
   onModelSetup,
+  onTitleAnimationComplete,
 }: {
   runtime: AssistantRuntime
   thread: ChatThread | null
@@ -84,12 +86,16 @@ export function ThreadPanel({
   error: string | null
   isLoading: boolean
   isRunning: boolean
+  animateTitle: boolean
   providerAvailable: boolean
   onCitation: (citation: Citation) => void
   onModelSetup: () => void
+  onTitleAnimationComplete: () => void
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
   const threadId = thread?.id
+  const title =
+    view.status === "initializing" ? null : thread?.title || "New chat"
   const bottomComposer = view.status === "creating" || view.status === "active"
   const composer = (placement: "center" | "bottom") => (
     <ChatComposer
@@ -120,7 +126,15 @@ export function ThreadPanel({
             tabIndex={-1}
             className="min-w-0 truncate font-heading text-lg font-medium outline-none"
           >
-            <TypewriterText text={thread?.title || "New chat"} />
+            {title === null ? (
+              <Skeleton className="h-5 w-32" />
+            ) : (
+              <TypewriterText
+                text={title}
+                animate={animateTitle}
+                onComplete={onTitleAnimationComplete}
+              />
+            )}
           </h1>
         </header>
 

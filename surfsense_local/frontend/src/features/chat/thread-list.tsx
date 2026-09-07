@@ -98,21 +98,25 @@ export function ThreadList({
   threads,
   activeThreadId,
   autoNamingThreadId,
+  animatingTitleThreadId,
   isLoading,
   onNewChat,
   onSelect,
   onRename,
   onDelete,
+  onTitleAnimationComplete,
 }: {
   workspaceName: string
   threads: ChatThread[]
   activeThreadId: number | null
   autoNamingThreadId: number | null
+  animatingTitleThreadId: number | null
   isLoading: boolean
   onNewChat: () => void
   onSelect: (id: number) => void
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
+  onTitleAnimationComplete: () => void
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
@@ -161,7 +165,11 @@ export function ThreadList({
                   onClick={() => onSelect(thread.id)}
                 >
                   <span className="truncate">
-                    <TypewriterText text={title} />
+                    <TypewriterText
+                      text={title}
+                      animate={thread.id === animatingTitleThreadId}
+                      onComplete={onTitleAnimationComplete}
+                    />
                   </span>
                 </Button>
                 <div className="absolute inset-y-0 right-1 flex items-center">

@@ -21,7 +21,7 @@ describe("TypewriterText", () => {
     reducedMotion(false)
     const view = render(<TypewriterText text="New chat" />)
 
-    view.rerender(<TypewriterText text="Revenue Growth" />)
+    view.rerender(<TypewriterText text="Revenue Growth" animate />)
 
     const visual = view.container.querySelector('[aria-hidden="true"]')
     expect(visual?.textContent).toBe("")
@@ -40,10 +40,21 @@ describe("TypewriterText", () => {
     reducedMotion(true)
     const view = render(<TypewriterText text="New chat" />)
 
-    view.rerender(<TypewriterText text="Revenue Growth" />)
+    view.rerender(<TypewriterText text="Revenue Growth" animate />)
 
     expect(
       view.container.querySelector('[aria-hidden="true"]')?.textContent
     ).toBe("Revenue Growth")
+  })
+
+  it("shows database and manual titles without animation", () => {
+    reducedMotion(false)
+    const view = render(<TypewriterText text="Saved title" />)
+
+    view.rerender(<TypewriterText text="Renamed title" />)
+
+    expect(
+      view.container.querySelector('[aria-hidden="true"]')?.textContent
+    ).toBe("Renamed title")
   })
 })

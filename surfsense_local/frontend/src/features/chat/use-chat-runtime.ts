@@ -136,6 +136,9 @@ export function useChatRuntime({
   const [autoNamingThreadId, setAutoNamingThreadId] = useState<number | null>(
     null
   )
+  const [animatingTitleThreadId, setAnimatingTitleThreadId] = useState<
+    number | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const streamController = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
@@ -203,6 +206,7 @@ export function useChatRuntime({
       setError(null)
       setIsRunning(false)
       setAutoNamingThreadId(null)
+      setAnimatingTitleThreadId(null)
       onCitations([])
     },
     [activeThreadId, onCitations, workspaceId]
@@ -224,6 +228,7 @@ export function useChatRuntime({
     setError(null)
     setIsRunning(false)
     setAutoNamingThreadId(null)
+    setAnimatingTitleThreadId(null)
     onCitations([])
   }, [onCitations, workspaceId])
 
@@ -252,6 +257,7 @@ export function useChatRuntime({
         threadId,
         title,
       })
+      setAnimatingTitleThreadId(null)
       queryClient.setQueryData<ChatThread[]>(
         chatKeys.threads(workspaceId),
         (current = []) =>
@@ -367,6 +373,7 @@ export function useChatRuntime({
               )
             } else if (event.type === "thread-title-update") {
               setAutoNamingThreadId(null)
+              setAnimatingTitleThreadId(threadId)
               queryClient.setQueryData<ChatThread[]>(
                 chatKeys.threads(workspaceId),
                 (current = []) =>
@@ -481,6 +488,10 @@ export function useChatRuntime({
     setAutoNamingThreadId(null)
   }, [])
 
+  const finishTitleAnimation = useCallback(() => {
+    setAnimatingTitleThreadId(null)
+  }, [])
+
   const isLoadingThreads = threadsQuery.isPending
   const isLoadingMessages =
     activeThreadId !== null && !usesLiveMessages && messagesQuery.isPending
@@ -511,6 +522,8 @@ export function useChatRuntime({
     isLoadingMessages,
     isRunning,
     autoNamingThreadId,
+    animatingTitleThreadId,
+    finishTitleAnimation,
     selectThread,
     startNewChat,
     rename,
