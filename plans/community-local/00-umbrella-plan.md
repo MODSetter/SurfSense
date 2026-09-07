@@ -96,7 +96,7 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 
 ## Open items
 
-First Studio artifact type (summary vs podcast); model pack hosting (Phase 5 only); default workspace on first launch. **Done:** the freshness push — `GET /workspaces/{id}/events` (SSE fan-out to the renderer) and `POST /internal/events` (worker → API notify on row change) ship in `modules/events/`; the frontend still consumes it via `queryClient.invalidateQueries` (see the UI freshness decision).
+Model pack hosting (Phase 5 only); default workspace on first launch. **Studio resolved:** deterministic builders (LLM emits structured content, a trusted per-format function renders — no sandbox), a hybrid `create_artifact_job` service (explicit job now, agentic tool later), the cloud format set in feasibility sub-phases with visual formats gated to BYO OpenRouter, and Kokoro-82M bundled for offline podcasts — [`frontend/`](frontend/04-studio.md) · [`api/`](api/04-studio.md) · [`worker/`](worker/04-studio.md). **Done:** the freshness push — `GET /workspaces/{id}/events` (SSE fan-out to the renderer) and `POST /internal/events` (worker → API notify on row change) ship in `modules/events/`; the frontend still consumes it via `queryClient.invalidateQueries` (see the UI freshness decision).
 
 ## Copy sources
 
