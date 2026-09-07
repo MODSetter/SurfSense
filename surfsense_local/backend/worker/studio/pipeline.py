@@ -38,14 +38,20 @@ def _generate(session: Session, artifact: Artifact) -> None:
     notify_artifact_updates(artifact)
 
     try:
-        builder = BUILDERS.get(artifact.format)
-        if builder is None:
-            raise ValueError(f"no builder for format: {artifact.format}")
-
         meta = artifact.artifact_metadata or {}
         sources = gather.gather(session, meta.get("source_document_ids", []))
-        raw = generate.generate(session, builder, sources, meta.get("prompt"))
-        built = builder.build(raw, sources)
+        prompt = meta.get("prompt")
+
+        builder = BUILDERS.get(artifact.format)
+        if builder is not None:
+            raw = generate.generate(session, builder, sources, prompt)
+            built = builder.build(raw, sources)
+        else:
+            # A visual format has no local builder: a BYO image model draws it.
+            from worker.studio import visual
+
+            built = visual.render(session, artifact.format, sources, prompt)
+
         persist.persist(session, artifact, document, built)
 
         document.status = DocumentStatus.READY

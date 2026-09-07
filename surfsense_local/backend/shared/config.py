@@ -73,6 +73,9 @@ class LLMSettings(BaseSettings):
     # not here. Overridable only so tests can point at a stub.
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
+    # The image model Studio's visual formats call over OpenRouter (BYO key).
+    openrouter_image_model: str = "google/gemini-2.5-flash-image-preview"
+
     # The packaged app passes an absolute resource path. Development resolves
     # the command from PATH and degrades recommendations when it is absent.
     llmfit_path: Path = Path("llmfit")

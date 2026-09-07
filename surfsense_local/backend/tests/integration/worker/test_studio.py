@@ -103,6 +103,28 @@ def test_a_file_format_persists_a_downloadable_blob(
     assert path.read_bytes().startswith(b"PK\x03\x04")
 
 
+def test_a_visual_format_routes_to_the_image_path(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A format with no builder is drawn by the visual seam, not failed."""
+    drawn = Built(
+        title="Poster",
+        markdown="# Poster",
+        primary=b"\x89PNG bytes",
+        primary_mime="image/png",
+    )
+    monkeypatch.setattr("worker.studio.visual.render", lambda *a, **k: drawn)
+    artifact = make_artifact(session)
+    artifact.format = "image"
+    session.commit()
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY
+    assert artifact.files[0].mime_type == "image/png"
+
+
 def test_a_generation_failure_leaves_a_reason(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -25,6 +25,10 @@ FORMATS: tuple[Format, ...] = (
     Format("flashcards", "Flashcards"),
     Format("quiz", "Quiz"),
     Format("podcast", "Podcast"),
+    # Visual formats have no local builder — a BYO OpenRouter image model draws
+    # them — so they surface only when a key is set and never enter BUILDERS.
+    Format("image", "Image", requires_key=True),
+    Format("infographic", "Infographic", requires_key=True),
 )
 
 FORMATS_BY_KEY: dict[str, Format] = {fmt.key: fmt for fmt in FORMATS}
