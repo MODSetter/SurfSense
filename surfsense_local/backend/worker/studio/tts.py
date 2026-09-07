@@ -70,7 +70,7 @@ def _engine() -> Any:
     # Optional pack: the package rides in only when a build ships podcasts, so a
     # missing import is a clear reason, not an import-time crash for every job.
     try:
-        from kokoro_onnx import Kokoro
+        from kokoro_onnx import Kokoro  # pyright: ignore[reportMissingImports]
     except ImportError as error:
         raise RuntimeError("kokoro-onnx is not installed in this build") from error
 
