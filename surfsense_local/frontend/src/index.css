@@ -60,6 +60,7 @@
 }
 
 :root {
+  color-scheme: light;
   --titlebar-height: 0px;
   --app-shell: #f3f2ee;
   --background: #f7f6f2;
@@ -98,6 +99,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --app-shell: #101010;
   --background: #141414;
   --foreground: #e8e3da;
