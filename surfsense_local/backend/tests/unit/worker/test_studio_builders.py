@@ -96,6 +96,37 @@ def test_mindmap_renders_a_nested_outline_and_no_file() -> None:
     assert "  - Ice" in built.markdown
 
 
+def test_podcast_voices_a_two_host_transcript(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The transcript is the searchable body; the synthesised WAV is the file."""
+    monkeypatch.setattr("worker.studio.tts.synthesize", lambda turns: b"RIFFfake")
+    raw = (
+        '{"title": "Saturn", "turns": [{"speaker": "A", "text": "Hi."}, '
+        '{"speaker": "B", "text": "Tell me more."}]}'
+    )
+    built = BUILDERS["podcast"].build(raw, [])
+
+    assert built.primary == b"RIFFfake"
+    assert built.primary_mime == "audio/wav"
+    assert built.primary_filename == "saturn.wav"
+    assert "**A:** Hi." in built.markdown
+    assert "**B:** Tell me more." in built.markdown
+
+
+def test_podcast_without_the_voice_pack_fails_clearly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A machine lacking Kokoro gets a clear reason, like the parser-pack path."""
+    monkeypatch.setattr(
+        "worker.studio.tts.missing_kokoro_files", lambda: ["kokoro-v1.0.onnx"]
+    )
+    raw = '{"title": "T", "turns": [{"speaker": "A", "text": "Hi."}]}'
+
+    with pytest.raises(RuntimeError, match="Kokoro"):
+        BUILDERS["podcast"].build(raw, [])
+
+
 def test_flashcards_and_quiz_project_to_readable_markdown() -> None:
     """The searchable body carries the content, so both index and read plainly."""
     cards = BUILDERS["flashcards"].build(

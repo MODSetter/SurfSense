@@ -24,6 +24,7 @@ FORMATS: tuple[Format, ...] = (
     Format("mindmap", "Mind map"),
     Format("flashcards", "Flashcards"),
     Format("quiz", "Quiz"),
+    Format("podcast", "Podcast"),
 )
 
 FORMATS_BY_KEY: dict[str, Format] = {fmt.key: fmt for fmt in FORMATS}

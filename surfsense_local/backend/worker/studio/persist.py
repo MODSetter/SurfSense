@@ -13,6 +13,7 @@ _EXTENSION = {
     "application/pdf": ".pdf",
     "image/png": ".png",
     "audio/mpeg": ".mp3",
+    "audio/wav": ".wav",
     "text/html": ".html",
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document": ".docx",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation": ".pptx",

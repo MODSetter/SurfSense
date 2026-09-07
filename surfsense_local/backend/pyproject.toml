@@ -26,6 +26,13 @@ dependencies = [
     "xlsxwriter>=3.2.9",
 ]
 
+[project.optional-dependencies]
+# The offline podcast voice, so `worker/studio/tts.py` can synthesise. Optional:
+# only a build that ships podcasts installs it (`uv sync --extra podcast`) and
+# stages the model with scripts/fetch_kokoro_model.py; other builds fail the
+# format with a clear reason instead of carrying the engine.
+podcast = ["kokoro-onnx>=0.4.9"]
+
 [dependency-groups]
 dev = [
     "pyinstaller>=6.22.2",
