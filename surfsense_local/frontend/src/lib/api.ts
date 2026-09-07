@@ -19,6 +19,12 @@ function withBase(input: RequestInfo | URL): RequestInfo | URL {
     : input
 }
 
+// The absolute URL for a root-relative path, for an <a>/<img>/<audio> src that
+// the browser resolves itself instead of going through the fetch helper.
+export function apiUrl(path: string): string {
+  return apiBase + path
+}
+
 export class ApiError extends Error {
   readonly status: number
 
