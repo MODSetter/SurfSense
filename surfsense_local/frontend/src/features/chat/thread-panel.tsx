@@ -39,7 +39,7 @@ function citationsFrom(message: {
 function ThreadWelcome({ composer }: { composer: ReactNode }) {
   return (
     <div className="flex min-h-0 flex-1">
-      <div className="mx-auto grid h-full w-full max-w-3xl grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)] px-4">
+      <div className="mx-auto grid h-full w-full max-w-2xl grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)]">
         <div />
         {composer}
       </div>
@@ -141,7 +141,7 @@ export function ThreadPanel({
             footer={bottomComposer ? composer("bottom") : undefined}
           >
             {view.status === "initializing" || isLoading ? (
-              <div className="mx-auto w-full max-w-3xl space-y-4 p-6">
+              <div className="mx-auto w-full max-w-2xl space-y-4 p-6">
                 <Skeleton className="ml-auto h-16 w-2/3" />
                 <Skeleton className="h-24 w-4/5" />
               </div>
