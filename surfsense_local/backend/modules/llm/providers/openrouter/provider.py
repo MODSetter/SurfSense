@@ -55,12 +55,26 @@ class OpenRouterProvider:
             if _answers_text(entry)
         ]
 
-    async def chat(self, model: str, messages: list[Message]) -> AsyncIterator[str]:
+    async def chat(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning: bool | None = None,
+    ) -> AsyncIterator[str]:
         body = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": True,
         }
+        if max_tokens is not None:
+            body["max_tokens"] = max_tokens
+        if temperature is not None:
+            body["temperature"] = temperature
+        if reasoning is not None:
+            body["reasoning"] = {"enabled": reasoning}
         async with (
             self._client() as client,
             client.stream("POST", "/chat/completions", json=body) as reply,

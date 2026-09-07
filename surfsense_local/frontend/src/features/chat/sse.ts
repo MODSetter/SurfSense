@@ -11,6 +11,7 @@ export type ChatStreamEvent =
       user_message_id: number
       assistant_message_id: number
     }
+  | { type: "thread-title-update"; title: string }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
   | { type: "error"; message: string }

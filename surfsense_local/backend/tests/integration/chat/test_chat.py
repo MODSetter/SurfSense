@@ -81,6 +81,12 @@ async def test_a_message_streams_a_grounded_reply(
     assert accepted["user_message_id"] > 0
     assert accepted["assistant_message_id"] > 0
 
+    title = events[1]
+    assert title == {"type": "thread-title-update", "title": "Revenue Growth"}
+    assert (
+        next(event["type"] for event in events if event["type"] == "delta") == "delta"
+    )
+
     deltas = [event["text"] for event in events if event["type"] == "delta"]
     assert "".join(deltas) == "Revenue climbed after the launch [1]."
 
@@ -95,6 +101,11 @@ async def test_a_message_streams_a_grounded_reply(
     ]
     assert stored[1]["content"]["text"] == "Revenue climbed after the launch [1]."
     assert stored[1]["content"]["citations"]
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "Revenue Growth"
+    assert ollama_server[0]["think"] is False
+    assert ollama_server[0]["options"] == {"num_predict": 12, "temperature": 0}
+    assert "options" not in ollama_server[1]
 
 
 async def test_a_followup_carries_the_earlier_turn(
@@ -108,10 +119,38 @@ async def test_a_followup_carries_the_earlier_turn(
     ollama_server.clear()
     await _send(client, thread_id, "second question")
 
+    assert len(ollama_server) == 1
     sent = ollama_server[-1]["messages"]
     assert sent[0]["role"] == "system"
     assert sent[-1] == {"role": "user", "content": "second question"}
     assert "first question" in [message["content"] for message in sent]
+
+
+async def test_title_failure_does_not_block_the_answer(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    ollama_server: list[dict],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Naming is best effort; its failure must not consume or fail the chat turn."""
+
+    async def fail_title(*_args: object) -> None:
+        raise RuntimeError("title model failed")
+
+    monkeypatch.setattr("modules.chat.router.generate_title", fail_title)
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened?")
+
+    assert not any(event["type"] == "thread-title-update" for event in events)
+    assert (
+        "".join(event["text"] for event in events if event["type"] == "delta")
+        == "Revenue climbed after the launch [1]."
+    )
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "New chat"
 
 
 async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> None:

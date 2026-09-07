@@ -15,7 +15,7 @@ DocumentId = Annotated[int, Field(gt=0)]
 class ThreadCreate(BaseModel):
     """Fields a client supplies when opening a thread."""
 
-    title: ThreadTitle | None = None
+    title: ThreadTitle = "New chat"
 
 
 class ThreadRead(BaseModel):

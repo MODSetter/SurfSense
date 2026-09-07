@@ -36,10 +36,6 @@ function submittedText(message: AppendMessage) {
     .trim()
 }
 
-function threadTitle(text: string) {
-  return (text.split(/\r?\n/, 1)[0].trim() || "New chat").slice(0, 80)
-}
-
 const EMPTY_THREADS: ChatThread[] = []
 const EMPTY_MESSAGES: ChatMessage[] = []
 
@@ -267,7 +263,7 @@ export function useChatRuntime({
         if (threadId === null) {
           setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
-            title: threadTitle(text),
+            title: "New chat",
             signal: controller.signal,
           })
           if (requestVersion.current !== version) {
@@ -338,6 +334,16 @@ export function useChatRuntime({
                     }
                     return message
                   }) ?? null
+              )
+            } else if (event.type === "thread-title-update") {
+              queryClient.setQueryData<ChatThread[]>(
+                chatKeys.threads(workspaceId),
+                (current = []) =>
+                  current.map((thread) =>
+                    thread.id === threadId
+                      ? { ...thread, title: event.title }
+                      : thread
+                  )
               )
             } else if (event.type === "delta") {
               const targetId = assistantId

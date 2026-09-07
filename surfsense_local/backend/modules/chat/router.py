@@ -1,4 +1,5 @@
 import json
+import logging
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import asdict
 
@@ -17,12 +18,14 @@ from modules.chat.schemas import (
     ThreadCreate,
     ThreadRead,
 )
+from modules.chat.title import generate_title
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.providers import get_provider
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.search import retrieve
 
 router = APIRouter(tags=["chat"])
+logger = logging.getLogger(__name__)
 
 
 @router.post(
@@ -107,6 +110,9 @@ async def send_message(
         .where(ChatMessage.chat_thread_id == thread.id)
         .order_by(ChatMessage.created_at)
     ).all()
+    should_generate_title = (
+        not history and (thread.title or "").casefold() == "new chat"
+    )
     hits = retrieve(
         session,
         thread.workspace_id,
@@ -141,6 +147,20 @@ async def send_message(
                 "assistant_message_id": assistant_message.id,
             }
         )
+        if should_generate_title:
+            try:
+                title = await generate_title(generator, selected.name, payload.text)
+                if title:
+                    thread.title = title
+                    session.commit()
+                    yield _frame({"type": "thread-title-update", "title": title})
+            except Exception:
+                session.rollback()
+                logger.warning(
+                    "Chat title generation failed for thread %s",
+                    thread.id,
+                    exc_info=True,
+                )
         try:
             try:
                 async for delta in generator.chat(selected.name, messages):

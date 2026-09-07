@@ -24,6 +24,7 @@ import {
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
@@ -90,7 +91,9 @@ export function ThreadList({
                   aria-current={selected ? "page" : undefined}
                   onClick={() => onSelect(thread.id)}
                 >
-                  <span className="truncate">{title}</span>
+                  <span className="truncate">
+                    <TypewriterText text={title} />
+                  </span>
                 </Button>
                 <div className="absolute inset-y-0 right-1 flex items-center">
                   <DropdownMenu

@@ -11,6 +11,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/model-selection/api"
 import type { WorkspaceDocument } from "@/features/sources/api"
 
@@ -88,6 +89,7 @@ export function ThreadPanel({
   onModelSetup: () => void
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const threadId = thread?.id
   const bottomComposer = view.status === "creating" || view.status === "active"
   const composer = (placement: "center" | "bottom") => (
     <ChatComposer
@@ -100,10 +102,10 @@ export function ThreadPanel({
   )
 
   useEffect(() => {
-    if (thread) {
+    if (threadId !== undefined) {
       headingRef.current?.focus()
     }
-  }, [thread])
+  }, [threadId])
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -118,7 +120,7 @@ export function ThreadPanel({
             tabIndex={-1}
             className="min-w-0 truncate font-heading text-lg font-medium outline-none"
           >
-            {thread?.title || "New chat"}
+            <TypewriterText text={thread?.title || "New chat"} />
           </h1>
         </header>
 
