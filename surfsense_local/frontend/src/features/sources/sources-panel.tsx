@@ -207,7 +207,7 @@ export function SourcesPanel({
   if (selectedDocument) {
     return (
       <aside
-        className="flex h-svh min-w-0 flex-col bg-card/30"
+        className="flex h-full min-w-0 flex-col bg-card/30"
         aria-label="Source preview"
       >
         <DocumentPreview
@@ -229,7 +229,7 @@ export function SourcesPanel({
 
   return (
     <aside
-      className="flex h-svh min-w-0 flex-col bg-card/30"
+      className="flex h-full min-w-0 flex-col bg-card/30"
       aria-label="Workspace sources"
     >
       <header className="flex h-14 items-center justify-between border-b px-4">

@@ -55,7 +55,7 @@ function WorkspaceDashboard({
   }
 
   return (
-    <>
+    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
       <ThreadList
         workspaceName={workspace.name}
         threads={chat.threads}
@@ -96,7 +96,7 @@ function WorkspaceDashboard({
         onUpload={(files) => void sources.upload(files)}
         onDismissUploadOutcome={sources.dismissUploadOutcome}
       />
-    </>
+    </section>
   )
 }
 
@@ -167,7 +167,7 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-svh min-w-[1120px] grid-cols-[56px_minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] overflow-hidden">
+    <main className="relative grid h-svh min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
       <WorkspaceRail
         workspaces={workspaces.workspaces}
         activeWorkspaceId={workspaces.activeWorkspace.id}

@@ -74,7 +74,7 @@ export function ThreadPanel({
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <section
-        className="flex h-svh min-w-0 flex-col bg-background"
+        className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
       >
         <header className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-5">
