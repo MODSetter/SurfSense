@@ -233,7 +233,12 @@ function Viewer({
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 flex items-center gap-2">
-        <Button variant="ghost" size="icon-sm" aria-label="Back" onClick={onBack}>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label="Back"
+          onClick={onBack}
+        >
           <ArrowLeftIcon />
         </Button>
         <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
@@ -249,12 +254,30 @@ function Viewer({
         ))}
       </div>
       <ScrollArea className="min-h-0 flex-1 rounded-md border">
+        <Preview artifact={artifact} />
         <div className="prose prose-sm max-w-none p-4 text-sm leading-6 whitespace-pre-wrap">
           {artifact.content || "This artifact has no text body."}
         </div>
       </ScrollArea>
     </div>
   )
+}
+
+// Play audio and show images inline; other files stay download-only above.
+function Preview({ artifact }: { artifact: ArtifactDetail }) {
+  const primary = artifact.files.find((file) => file.role === "primary")
+  if (!primary) return null
+
+  const src = fileUrl(artifact.id, primary.role)
+  if (primary.mime_type.startsWith("audio/")) {
+    return <audio className="w-full p-4" controls src={src} />
+  }
+  if (primary.mime_type.startsWith("image/")) {
+    return (
+      <img className="mx-auto max-w-full p-4" alt={artifact.title} src={src} />
+    )
+  }
+  return null
 }
 
 export function StudioDialog({
