@@ -143,7 +143,7 @@ export function ThreadPanel({
               </>
             ) : null}
 
-            <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-2">
+            <ThreadPrimitive.ViewportFooter className="absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-background via-background to-transparent px-4 pt-7 pb-2">
               <div className="relative mx-auto max-w-3xl">
                 <ThreadPrimitive.ScrollToBottom asChild>
                   <Button
@@ -160,7 +160,7 @@ export function ThreadPanel({
                     className="max-h-44 min-h-10 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground"
                     placeholder={
                       providerAvailable
-                        ? "Ask about your sources…"
+                        ? "Ask SurfSense about anything"
                         : "Reconnect your model provider to send"
                     }
                     submitMode="enter"
@@ -171,7 +171,7 @@ export function ThreadPanel({
                     <ComposerPrimitive.Send asChild>
                       <Button
                         size="icon-lg"
-                        className="rounded-xl"
+                        className="mb-0.5 rounded-xl"
                         aria-label="Send message"
                       >
                         <ArrowUp02Icon />
@@ -182,7 +182,7 @@ export function ThreadPanel({
                       <Button
                         size="icon-lg"
                         variant="secondary"
-                        className="rounded-xl"
+                        className="mb-0.5 rounded-xl"
                         aria-label="Stop generating"
                       >
                         <CircleStopIcon />
