@@ -19,7 +19,6 @@ import {
   type ChatThread,
 } from "./api"
 import { chatKeys } from "./query-keys"
-import type { Citation } from "./sse"
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
@@ -66,13 +65,6 @@ function initialThreadId(workspaceId: number, threads: ChatThread[]) {
     // The newest thread below is a safe fallback.
   }
   return threads[0]?.id ?? null
-}
-
-function latestCitations(messages: ChatMessage[]) {
-  return (
-    [...messages].reverse().find((message) => message.role === "assistant")
-      ?.content.citations ?? []
-  )
 }
 
 function hasCanonicalTurn(
@@ -122,13 +114,11 @@ export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
-  onCitations,
   onModelRequired,
 }: {
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
-  onCitations: (citations: Citation[]) => void
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -191,12 +181,6 @@ export function useChatRuntime({
       renameThread(threadId, title),
   })
 
-  useEffect(() => {
-    if (!usesLiveMessages) {
-      onCitations(latestCitations(persistedMessages))
-    }
-  }, [onCitations, persistedMessages, usesLiveMessages])
-
   const selectThread = useCallback(
     (threadId: number) => {
       if (threadId === activeThreadId) {
@@ -211,9 +195,8 @@ export function useChatRuntime({
       setIsRunning(false)
       setAutoNamingThreadId(null)
       setAnimatingTitleThreadId(null)
-      onCitations([])
     },
-    [activeThreadId, onCitations, workspaceId]
+    [activeThreadId, workspaceId]
   )
 
   useEffect(() => {
@@ -233,8 +216,7 @@ export function useChatRuntime({
     setIsRunning(false)
     setAutoNamingThreadId(null)
     setAnimatingTitleThreadId(null)
-    onCitations([])
-  }, [onCitations, workspaceId])
+  }, [workspaceId])
 
   const removeThread = async (threadId: number) => {
     try {
@@ -405,7 +387,6 @@ export function useChatRuntime({
                   ) ?? null
               )
             } else if (event.type === "citations") {
-              onCitations(event.items)
               const targetId = assistantId
               setLiveMessages(
                 (current) =>
@@ -478,7 +459,6 @@ export function useChatRuntime({
       conversationView,
       createThreadMutation,
       isRunning,
-      onCitations,
       onModelRequired,
       queryClient,
       selectedDocumentIds,

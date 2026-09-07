@@ -20,7 +20,6 @@ function SourceHarness() {
   return (
     <SourcesPanel
       documents={sources.documents}
-      citations={[]}
       selectedDocumentIds={sources.selectedDocumentIds}
       selectedDocument={null}
       selectedCitation={null}

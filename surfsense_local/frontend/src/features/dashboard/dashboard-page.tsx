@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
@@ -34,22 +34,21 @@ function WorkspaceDashboard({
   providerAvailable: boolean
   onModelRequired: () => void
 }) {
-  const [citations, setCitations] = useState<Citation[]>([])
   const [selectedCitation, setSelectedCitation] = useState<Citation | null>(
     null
   )
   const sources = useSources(workspace.id)
-  const handleCitations = useCallback((next: Citation[]) => {
-    setCitations(next)
-    setSelectedCitation(null)
-  }, [])
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
     selectedDocumentIds: sources.selectedDocumentIds,
-    onCitations: handleCitations,
     onModelRequired,
   })
+
+  const closeSourcePreview = () => {
+    setSelectedCitation(null)
+    sources.closePreview()
+  }
 
   const openSource = (documentId: number, citation?: Citation) => {
     setSelectedCitation(citation ?? null)
@@ -65,10 +64,19 @@ function WorkspaceDashboard({
         autoNamingThreadId={chat.autoNamingThreadId}
         animatingTitleThreadId={chat.animatingTitleThreadId}
         isLoading={chat.isLoadingThreads}
-        onNewChat={chat.startNewChat}
-        onSelect={chat.selectThread}
+        onNewChat={() => {
+          closeSourcePreview()
+          chat.startNewChat()
+        }}
+        onSelect={(threadId) => {
+          if (threadId !== chat.activeThreadId) closeSourcePreview()
+          chat.selectThread(threadId)
+        }}
         onRename={chat.rename}
-        onDelete={chat.removeThread}
+        onDelete={async (threadId) => {
+          if (threadId === chat.activeThreadId) closeSourcePreview()
+          await chat.removeThread(threadId)
+        }}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <ThreadPanel
@@ -88,7 +96,6 @@ function WorkspaceDashboard({
       />
       <SourcesPanel
         documents={sources.documents}
-        citations={citations}
         selectedDocumentIds={sources.selectedDocumentIds}
         selectedDocument={sources.selectedDocument}
         selectedCitation={selectedCitation}

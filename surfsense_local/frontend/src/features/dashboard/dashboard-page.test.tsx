@@ -190,9 +190,7 @@ describe("dashboard chat", () => {
     )
 
     expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull()
-    expect(
-      screen.queryByRole("heading", { name: "New chat" })
-    ).toBeNull()
+    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
 
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
@@ -372,10 +370,7 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    expect(await screen.findByText("Used in answer")).toBeTruthy()
-    expect(
-      screen.getByRole("button", { name: "Source 1: Guide.txt" })
-    ).toBeTruthy()
+    expect(screen.queryByText("Used in answer")).toBeNull()
     resolveCanonical(Response.json([]))
     await screen.findByRole("button", { name: "Send message" })
     await waitFor(() => {

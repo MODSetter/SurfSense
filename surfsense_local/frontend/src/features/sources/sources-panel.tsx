@@ -31,7 +31,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import type { UploadOutcome, DocumentDetail, WorkspaceDocument } from "./api"
 import type { Citation } from "@/features/chat/sse"
@@ -45,73 +44,6 @@ const statusVariant = {
   ready: "secondary",
   failed: "destructive",
 } as const
-
-function SourceRow({
-  document,
-  citationNumber,
-  onOpen,
-  onRetry,
-}: {
-  document: WorkspaceDocument
-  citationNumber?: number
-  onOpen: () => void
-  onRetry: () => void
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-2.5">
-      <button
-        type="button"
-        className="flex w-full min-w-0 items-start gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        onClick={onOpen}
-      >
-        <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
-          {document.document_type === "NOTE" ? (
-            <NotebookTextIcon className="size-3.5" />
-          ) : (
-            <FileIcon className="size-3.5" />
-          )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="flex items-start justify-between gap-2">
-            <span className="line-clamp-2 text-sm font-medium">
-              {document.title}
-            </span>
-            {citationNumber ? (
-              <Badge variant="outline">[{citationNumber}]</Badge>
-            ) : null}
-          </span>
-          <span className="mt-1 flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground">
-              {document.document_type === "NOTE" ? "Note" : "File"}
-            </span>
-            <Badge
-              variant={statusVariant[document.status]}
-              className="h-4 px-1.5 text-[10px]"
-            >
-              {document.status}
-            </Badge>
-          </span>
-        </span>
-      </button>
-      {document.status !== "ready" && document.status !== "failed" ? (
-        <p className="mt-2 text-xs text-muted-foreground">
-          This source is not searchable until indexing finishes.
-        </p>
-      ) : null}
-      {document.status === "failed" ? (
-        <div className="mt-2 flex items-start justify-between gap-2">
-          <p className="text-xs text-destructive">
-            {document.error_message || "Indexing failed."}
-          </p>
-          <Button size="xs" variant="outline" onClick={onRetry}>
-            <RefreshCwIcon />
-            Retry
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  )
-}
 
 function SelectableSourceRow({
   document,
@@ -247,7 +179,6 @@ function DocumentPreview({
 
 export function SourcesPanel({
   documents,
-  citations,
   selectedDocumentIds,
   selectedDocument,
   selectedCitation,
@@ -267,7 +198,6 @@ export function SourcesPanel({
   studioSlot,
 }: {
   documents: WorkspaceDocument[]
-  citations: Citation[]
   selectedDocumentIds: number[]
   selectedDocument: DocumentDetail | null
   selectedCitation: Citation | null
@@ -309,13 +239,6 @@ export function SourcesPanel({
     )
   }
 
-  const documentById = new Map(
-    documents.map((document) => [document.id, document])
-  )
-  const citedDocuments = citations.flatMap((citation, index) => {
-    const document = documentById.get(citation.document_id)
-    return document ? [{ document, citation, number: index + 1 }] : []
-  })
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
 
   return (
@@ -392,28 +315,6 @@ export function SourcesPanel({
                   <Skeleton key={item} className="h-20 w-full" />
                 ))
               : null}
-            {!isLoading && citedDocuments.length > 0 ? (
-              <section aria-labelledby="used-in-answer">
-                <h3
-                  id="used-in-answer"
-                  className="mb-2 px-1 text-xs font-medium text-muted-foreground"
-                >
-                  Used in answer
-                </h3>
-                <div className="space-y-2">
-                  {citedDocuments.map(({ document, citation, number }) => (
-                    <SourceRow
-                      key={`${citation.chunk_id}-${number}`}
-                      document={document}
-                      citationNumber={number}
-                      onOpen={() => onOpen(document.id, citation)}
-                      onRetry={() => onRetry(document.id)}
-                    />
-                  ))}
-                </div>
-                <Separator className="my-4" />
-              </section>
-            ) : null}
             {!isLoading && documents.length > 0 ? (
               <section aria-labelledby="all-sources">
                 <div className="mb-2 flex min-h-7 items-center justify-between gap-2 px-1">
