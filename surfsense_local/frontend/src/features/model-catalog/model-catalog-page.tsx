@@ -1,5 +1,5 @@
 import { useId, useState, type ReactNode } from "react"
-import { CircleAlertIcon, RefreshCwIcon } from "lucide-react"
+import { CircleAlertIcon, RefreshCwIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -59,10 +59,9 @@ function hardwareSummary(hardware: HardwareProfile | null) {
   }
   const name = hardware.gpu_name ?? hardware.cpu_name
   const memory = hardware.total_ram_gb
-  const parts = [
-    name,
-    memory !== null ? `${memory} GB memory` : null,
-  ].filter(Boolean)
+  const parts = [name, memory !== null ? `${memory} GB memory` : null].filter(
+    Boolean
+  )
   return parts.length > 0 ? parts.join(" · ") : "Hardware profile analyzed"
 }
 
@@ -213,7 +212,9 @@ export function ModelCatalogPage({
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
         <div>
-          <p className="text-sm font-medium">{hardwareSummary(data.hardware)}</p>
+          <p className="text-sm font-medium">
+            {hardwareSummary(data.hardware)}
+          </p>
           <p className="text-xs text-muted-foreground">
             Estimates reserve resources for SurfSense and may vary by workload.
           </p>
@@ -298,8 +299,8 @@ export function ModelCatalogPage({
           <AlertDialogHeader>
             <AlertDialogTitle>Use a marginal-fit model?</AlertDialogTitle>
             <AlertDialogDescription>
-              This model may respond slowly or fail with long conversations.
-              You can cancel and choose a better-fitting model.
+              This model may respond slowly or fail with long conversations. You
+              can cancel and choose a better-fitting model.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

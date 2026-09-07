@@ -6,7 +6,7 @@ import {
   ChevronDownIcon,
   CircleStopIcon,
   Settings2Icon,
-} from "lucide-react"
+} from "@/components/ui/icons"
 import {
   AssistantRuntimeProvider,
   ComposerPrimitive,

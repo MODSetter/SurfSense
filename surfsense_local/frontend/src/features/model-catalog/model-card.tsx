@@ -1,4 +1,4 @@
-import { CheckIcon, DownloadIcon } from "lucide-react"
+import { CheckIcon, DownloadIcon } from "@/components/ui/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -21,10 +21,8 @@ const fitLabels = {
   unknown: "Unknown fit",
 } as const
 
-const value = (
-  amount: number | null,
-  format: (known: number) => string
-) => (amount === null ? "Unknown" : format(amount))
+const value = (amount: number | null, format: (known: number) => string) =>
+  amount === null ? "Unknown" : format(amount)
 
 const decimal = (amount: number) =>
   new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(amount)
@@ -119,7 +117,10 @@ export function ModelCard({
           <div>
             <dt className="text-muted-foreground">Memory</dt>
             <dd>
-              {value(row.memory_required_gb, (amount) => `${decimal(amount)} GB`)}
+              {value(
+                row.memory_required_gb,
+                (amount) => `${decimal(amount)} GB`
+              )}
             </dd>
           </div>
           <div>
@@ -137,9 +138,7 @@ export function ModelCard({
           <div>
             <dt className="text-muted-foreground">Usable context</dt>
             <dd>
-              {value(row.effective_context_length, (amount) =>
-                compact(amount)
-              )}
+              {value(row.effective_context_length, (amount) => compact(amount))}
             </dd>
           </div>
           <div>
@@ -161,7 +160,10 @@ export function ModelCard({
           </p>
         </details>
         {row.warnings.map((warning) => (
-          <p key={warning} className="text-xs text-amber-700 dark:text-amber-400">
+          <p
+            key={warning}
+            className="text-xs text-amber-700 dark:text-amber-400"
+          >
             {warning}
           </p>
         ))}
@@ -194,9 +196,7 @@ export function ModelCard({
             disabled={actionsDisabled || cannotInstall}
             onClick={() => onAction(row)}
           >
-            {!row.installed ? (
-              <DownloadIcon data-icon="inline-start" />
-            ) : null}
+            {!row.installed ? <DownloadIcon data-icon="inline-start" /> : null}
             {row.installed ? "Use" : "Download & Use"}
           </Button>
         )}

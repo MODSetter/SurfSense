@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
-import { CircleAlertIcon, LayoutGridIcon, PlusIcon, XIcon } from "lucide-react"
+import {
+  CircleAlertIcon,
+  LayoutGridIcon,
+  PlusIcon,
+  XIcon,
+} from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"

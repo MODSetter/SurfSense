@@ -1,4 +1,4 @@
-import { FileTextIcon } from "lucide-react"
+import { FileTextIcon } from "@/components/ui/icons"
 import { MessagePrimitive } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"

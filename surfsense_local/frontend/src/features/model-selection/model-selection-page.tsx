@@ -3,7 +3,7 @@ import {
   CheckIcon,
   CircleAlertIcon,
   RefreshCwIcon,
-} from "lucide-react"
+} from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -47,11 +47,7 @@ function LoadingModels() {
   )
 }
 
-function OfflineState({
-  message,
-}: {
-  message: string
-}) {
+function OfflineState({ message }: { message: string }) {
   return (
     <Alert variant="destructive">
       <CircleAlertIcon />

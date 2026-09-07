@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from "react"
-import { EllipsisIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react"
+import {
+  EllipsisIcon,
+  PencilIcon,
+  PlusIcon,
+  Trash2Icon,
+} from "@/components/ui/icons"
 
 import {
   AlertDialog,
