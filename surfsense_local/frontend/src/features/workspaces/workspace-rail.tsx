@@ -1,5 +1,10 @@
 import { useState, type FormEvent } from "react"
-import { PencilIcon, PlusIcon, Trash2Icon } from "@/components/ui/icons"
+import {
+  PencilIcon,
+  PlusIcon,
+  Settings2Icon,
+  Trash2Icon,
+} from "@/components/ui/icons"
 
 import {
   AlertDialog,
@@ -35,6 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { SettingsDialog } from "@/features/settings/settings-dialog"
 import { cn } from "@/lib/utils"
 
 import type { Workspace } from "./api"
@@ -138,10 +144,11 @@ export function WorkspaceRail({
   const [createOpen, setCreateOpen] = useState(false)
   const [renaming, setRenaming] = useState<Workspace | null>(null)
   const [deleting, setDeleting] = useState<Workspace | null>(null)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
     <nav
-      className="flex h-full flex-col items-center bg-sidebar py-3 text-sidebar-foreground"
+      className="flex h-full flex-col items-center bg-app-shell py-3 text-sidebar-foreground"
       aria-label="Workspaces"
     >
       <ScrollArea className="min-h-0 w-full flex-1">
@@ -221,6 +228,22 @@ export function WorkspaceRail({
         </div>
       </ScrollArea>
 
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            size="icon-lg"
+            variant="ghost"
+            className="rounded-xl"
+            aria-label="Open settings"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings2Icon />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="right">Settings</TooltipContent>
+      </Tooltip>
+
+      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <WorkspaceNameDialog
         key={`create-${createOpen}`}
         open={createOpen}

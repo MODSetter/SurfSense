@@ -22,6 +22,7 @@ import {
   LayoutGridIcon as LayoutGridIconData,
   Loading03Icon,
   MessageSquareIcon as MessageSquareIconData,
+  Moon02Icon as Moon02IconData,
   NotebookTextIcon as NotebookTextIconData,
   PencilEdit02Icon as PencilEdit02IconData,
   PencilIcon as PencilIconData,
@@ -32,6 +33,8 @@ import {
   SparklesIcon as SparklesIconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
+  Sun03Icon as Sun03IconData,
+  ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
   XIcon as XIconData,
 } from "@hugeicons/core-free-icons"
@@ -82,6 +85,7 @@ export const KeyRoundIcon = createIcon(KeyRoundIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
+export const MoonIcon = createIcon(Moon02IconData)
 export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const PencilIcon = createIcon(PencilIconData)
@@ -90,6 +94,8 @@ export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const SparklesIcon = createIcon(SparklesIconData)
+export const SunIcon = createIcon(Sun03IconData)
+export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(
   SquareDashedMousePointerIconData
 )
