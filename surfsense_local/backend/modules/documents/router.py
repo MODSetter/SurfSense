@@ -15,14 +15,17 @@ from modules.documents.schemas import (
     DocumentUpdate,
     DuplicateRead,
     NoteCreate,
+    RejectedUploadRead,
     UploadOutcome,
 )
 from modules.documents.storage import (
+    SUPPORTED_UPLOAD_SUFFIXES,
     StreamedUpload,
     original_path,
     stream_upload,
     suffix_of,
     title_of,
+    validate_upload,
 )
 from modules.documents.tasks import ingest_document
 from modules.workspaces.dependencies import WorkspaceDep
@@ -92,11 +95,35 @@ def upload_documents(
     storage = get_storage_settings()
     created: list[Document] = []
     duplicates: list[DuplicateRead] = []
+    rejected: list[RejectedUploadRead] = []
     accepted: list[tuple[Document, StreamedUpload, str]] = []
+    staged: list[StreamedUpload] = []
 
     try:
         for upload in files:
+            suffix = suffix_of(upload)
+            if suffix not in SUPPORTED_UPLOAD_SUFFIXES:
+                rejected.append(
+                    RejectedUploadRead(
+                        filename=title_of(upload),
+                        reason=f"{suffix or 'extensionless files'} are not supported",
+                    )
+                )
+                continue
+
             streamed = stream_upload(upload, storage.workspace_dir(workspace.id))
+            staged.append(streamed)
+            try:
+                mime_type = validate_upload(streamed.path, suffix)
+            except ValueError as failure:
+                streamed.path.unlink(missing_ok=True)
+                rejected.append(
+                    RejectedUploadRead(
+                        filename=title_of(upload),
+                        reason=str(failure),
+                    )
+                )
+                continue
 
             # Keyed on the bytes: the same report under two names is one
             # document, and two unrelated files both called report.pdf are two.
@@ -119,18 +146,18 @@ def upload_documents(
                 document_type=DocumentType.FILE,
                 dedup_key=streamed.digest,
                 document_metadata={
-                    "mime_type": upload.content_type,
+                    "mime_type": mime_type,
                     "size_bytes": streamed.size,
-                    "suffix": suffix_of(upload),
+                    "suffix": suffix,
                 },
             )
             session.add(document)
             # The file is stored under the id the database is about to assign.
             session.flush()
             created.append(document)
-            accepted.append((document, streamed, suffix_of(upload)))
+            accepted.append((document, streamed, suffix))
     except BaseException:
-        for _, streamed, _ in accepted:
+        for streamed in staged:
             streamed.path.unlink(missing_ok=True)
         raise
 
@@ -146,21 +173,12 @@ def upload_documents(
     for document, _, _ in accepted:
         ingest_document(document.id)
 
-    return UploadOutcome(created=created, duplicates=duplicates)
-
-
-@router.get(
-    "/{document_id}",
-    response_model=DocumentDetail,
-    summary="Read a document",
-)
-def read_document(document: DocumentDep) -> Document:
-    return document
+    return UploadOutcome(created=created, duplicates=duplicates, rejected=rejected)
 
 
 @router.patch(
     "/{document_id}",
-    response_model=DocumentDetail,
+    response_model=DocumentRead,
     summary="Edit a document",
 )
 def update_document(
@@ -190,7 +208,7 @@ def update_document(
 
 @router.post(
     "/{document_id}/retry",
-    response_model=DocumentDetail,
+    response_model=DocumentRead,
     summary="Requeue a failed document",
 )
 def retry_document(document: DocumentDep, session: SessionDep) -> Document:

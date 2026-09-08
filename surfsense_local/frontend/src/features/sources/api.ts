@@ -12,13 +12,46 @@ export type WorkspaceDocument = {
   updated_at: string
 }
 
-export type DocumentDetail = WorkspaceDocument & {
-  content: string | null
+// UX mirror of backend/modules/documents/storage.py UPLOAD_MIME_BY_SUFFIX.
+// Update both when supported formats change; the backend remains authoritative.
+// If formats become dynamic or change often, use a capabilities endpoint.
+export const SUPPORTED_SOURCE_EXTENSIONS = [
+  ".pdf",
+  ".docx",
+  ".pptx",
+  ".xlsx",
+  ".html",
+  ".htm",
+  ".csv",
+  ".md",
+  ".markdown",
+  ".txt",
+  ".text",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".tif",
+  ".tiff",
+  ".bmp",
+  ".webp",
+] as const
+
+export const SOURCE_FILE_ACCEPT = SUPPORTED_SOURCE_EXTENSIONS.join(",")
+
+const supportedSourceExtensions = new Set<string>(SUPPORTED_SOURCE_EXTENSIONS)
+
+export function isSupportedSourceFile(file: File): boolean {
+  const dot = file.name.lastIndexOf(".")
+  return (
+    dot >= 0 &&
+    supportedSourceExtensions.has(file.name.slice(dot).toLowerCase())
+  )
 }
 
 export type UploadOutcome = {
   created: WorkspaceDocument[]
   duplicates: { filename: string; document_id: number }[]
+  rejected: { filename: string; reason: string }[]
 }
 
 export function listDocuments(
@@ -31,23 +64,12 @@ export function listDocuments(
   )
 }
 
-export function readDocument(
-  workspaceId: number,
-  documentId: number,
-  signal?: AbortSignal
-): Promise<DocumentDetail> {
-  return requestJson<DocumentDetail>(
-    `/workspaces/${workspaceId}/documents/${documentId}`,
-    { signal }
-  )
-}
-
 export function retryDocument(
   workspaceId: number,
   documentId: number,
   signal?: AbortSignal
-): Promise<DocumentDetail> {
-  return requestJson<DocumentDetail>(
+): Promise<WorkspaceDocument> {
+  return requestJson<WorkspaceDocument>(
     `/workspaces/${workspaceId}/documents/${documentId}/retry`,
     { method: "POST", signal }
   )

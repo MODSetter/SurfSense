@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
@@ -17,7 +17,7 @@ import {
 } from "@/features/model-selection/api"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
-import type { Citation } from "@/features/chat/sse"
+import { StudioDialog } from "@/features/studio/studio-dialog"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
@@ -33,73 +33,78 @@ function WorkspaceDashboard({
   providerAvailable: boolean
   onModelRequired: () => void
 }) {
-  const [citations, setCitations] = useState<Citation[]>([])
-  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(
-    null
-  )
+  const [highlightedDocumentId, setHighlightedDocumentId] = useState<
+    number | null
+  >(null)
   const sources = useSources(workspace.id)
-  const handleCitations = useCallback((next: Citation[]) => {
-    setCitations(next)
-    setSelectedCitation(null)
-  }, [])
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
     selectedDocumentIds: sources.selectedDocumentIds,
-    onCitations: handleCitations,
     onModelRequired,
   })
 
-  const openSource = (documentId: number, citation?: Citation) => {
-    setSelectedCitation(citation ?? null)
-    void sources.openDocument(documentId)
-  }
-
   return (
-    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
+    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
       <ThreadList
         workspaceName={workspace.name}
         threads={chat.threads}
         activeThreadId={chat.activeThreadId}
+        autoNamingThreadId={chat.autoNamingThreadId}
+        animatingTitleThreadId={chat.animatingTitleThreadId}
         isLoading={chat.isLoadingThreads}
-        onNewChat={chat.startNewChat}
-        onSelect={chat.selectThread}
-        onDelete={chat.removeThread}
+        onNewChat={() => {
+          setHighlightedDocumentId(null)
+          chat.startNewChat()
+        }}
+        onSelect={(threadId) => {
+          if (threadId !== chat.activeThreadId) setHighlightedDocumentId(null)
+          chat.selectThread(threadId)
+        }}
+        onRename={chat.rename}
+        onDelete={async (threadId) => {
+          if (threadId === chat.activeThreadId) setHighlightedDocumentId(null)
+          await chat.removeThread(threadId)
+        }}
+        onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <ThreadPanel
         runtime={chat.runtime}
         thread={chat.activeThread}
+        view={chat.conversationView}
         model={selection}
         documents={sources.documents}
         error={chat.error}
         isLoading={chat.isLoadingMessages}
         isRunning={chat.isRunning}
+        animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
         providerAvailable={providerAvailable}
-        onCitation={(citation) => openSource(citation.document_id, citation)}
+        onCitation={(citation) =>
+          setHighlightedDocumentId(citation.document_id)
+        }
         onModelSetup={onModelRequired}
+        onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <SourcesPanel
         documents={sources.documents}
-        citations={citations}
         selectedDocumentIds={sources.selectedDocumentIds}
-        selectedDocument={sources.selectedDocument}
-        selectedCitation={selectedCitation}
+        highlightedDocumentId={highlightedDocumentId}
         isLoading={sources.isLoading}
-        isLoadingPreview={sources.isLoadingPreview}
         isUploading={sources.isUploading}
         isDeleting={sources.isDeleting}
-        uploadOutcome={sources.uploadOutcome}
         error={sources.error}
-        onOpen={openSource}
-        onBack={() => {
-          setSelectedCitation(null)
-          sources.closePreview()
-        }}
+        onOpen={(id) => void sources.openOriginal(id)}
+        onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
-        onDismissUploadOutcome={sources.dismissUploadOutcome}
+        studioSlot={
+          <StudioDialog
+            workspaceId={workspace.id}
+            documents={sources.documents}
+          />
+        }
       />
     </section>
   )
@@ -113,7 +118,7 @@ function WorkspacesEmpty({
   onCreate: (name: string) => Promise<boolean>
 }) {
   return (
-    <main className="flex h-svh items-center justify-center bg-background p-8">
+    <main className="flex h-full items-center justify-center bg-background p-8">
       <div className="flex max-w-sm flex-col items-center text-center">
         <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
           <LayoutGridIcon className="size-5" />
@@ -172,7 +177,7 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-svh min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+    <main className="relative grid h-full min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
       <WorkspaceRail
         workspaces={workspaces.workspaces}
         activeWorkspaceId={workspaces.activeWorkspace.id}

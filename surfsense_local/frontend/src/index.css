@@ -60,6 +60,8 @@
 }
 
 :root {
+  color-scheme: light;
+  --titlebar-height: 0px;
   --app-shell: #f3f2ee;
   --background: #f7f6f2;
   --foreground: #1e1e1e;
@@ -97,6 +99,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --app-shell: #101010;
   --background: #141414;
   --foreground: #e8e3da;
@@ -138,31 +141,94 @@
   }
   body {
     @apply bg-background text-foreground;
+    margin: 0;
+    padding: 0;
   }
   html {
     @apply font-sans antialiased;
   }
+  #root {
+    height: 100svh;
+  }
+}
+
+.electron-macos {
+  --titlebar-height: 28px;
 }
 
 .electron-macos body {
   background: var(--app-shell);
-  padding-top: 28px;
 }
 
 .electron-macos body::before {
   position: fixed;
   inset: 0 0 auto;
-  height: 28px;
+  height: var(--titlebar-height);
   background: var(--app-shell);
   content: "";
   -webkit-app-region: drag;
 }
 
-.electron-macos #root,
-.electron-macos .h-svh {
-  height: calc(100svh - 28px);
+.electron-macos #root {
+  padding-top: var(--titlebar-height);
 }
 
-.electron-macos .min-h-svh {
-  min-height: calc(100svh - 28px);
+[data-streamdown="code-block"] {
+  gap: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: calc(var(--radius) * 0.8);
+  background: var(--accent);
+  padding: 0;
+}
+
+[data-streamdown="code-block-header"] {
+  height: 2.5rem;
+  padding-inline: 1rem;
+  color: var(--accent-foreground);
+  font-weight: 600;
+}
+
+[data-streamdown="code-block-header"] > span {
+  margin-left: 0;
+}
+
+[data-streamdown="code-block-actions"] {
+  position: relative;
+  top: 0.25rem;
+  gap: 0.25rem;
+  border: 0;
+  background: transparent;
+  padding: 0 0.5rem;
+  backdrop-filter: none;
+}
+
+[data-streamdown="code-block-actions"] button {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: calc(var(--radius) * 0.6);
+  color: var(--accent-foreground);
+}
+
+[data-streamdown="code-block-actions"] button:hover {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+
+[data-streamdown="code-block-actions"] button:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: -2px;
+}
+
+[data-streamdown="code-block-body"] {
+  border: 0;
+  border-radius: 0;
+  background: var(--accent);
+}
+
+[data-streamdown="code-block-body"] pre {
+  background: transparent;
 }

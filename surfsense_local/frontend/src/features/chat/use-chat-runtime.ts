@@ -13,12 +13,12 @@ import {
   deleteThread,
   listMessages,
   listThreads,
+  renameThread,
   streamMessage,
   type ChatMessage,
   type ChatThread,
 } from "./api"
 import { chatKeys } from "./query-keys"
-import type { Citation } from "./sse"
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
@@ -34,10 +34,6 @@ function submittedText(message: AppendMessage) {
     .map((part) => part.text)
     .join("\n")
     .trim()
-}
-
-function threadTitle(text: string) {
-  return (text.split(/\r?\n/, 1)[0].trim() || "New chat").slice(0, 80)
 }
 
 const EMPTY_THREADS: ChatThread[] = []
@@ -71,13 +67,6 @@ function initialThreadId(workspaceId: number, threads: ChatThread[]) {
   return threads[0]?.id ?? null
 }
 
-function latestCitations(messages: ChatMessage[]) {
-  return (
-    [...messages].reverse().find((message) => message.role === "assistant")
-      ?.content.citations ?? []
-  )
-}
-
 function hasCanonicalTurn(
   messages: ChatMessage[],
   userMessageId: number,
@@ -91,21 +80,23 @@ function areLiveMessagesPersisted(
   liveMessages: ChatMessage[],
   persistedMessages: ChatMessage[]
 ) {
-  const persistedIds = new Set(
-    persistedMessages.map((message) => message.id)
-  )
+  const persistedIds = new Set(persistedMessages.map((message) => message.id))
   return liveMessages.every(
-    (message) =>
-      typeof message.id === "number" && persistedIds.has(message.id)
+    (message) => typeof message.id === "number" && persistedIds.has(message.id)
   )
 }
 
 function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
+  const value =
+    message.role === "assistant" ? message.completed_at : message.created_at
+  // SQLite stores CURRENT_TIMESTAMP in UTC but returns it without an offset.
+  const timestamp =
+    value && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? `${value}Z` : value
   return {
     id: String(message.id),
     role: message.role,
     content: [{ type: "text", text: message.content.text ?? "" }],
-    createdAt: new Date(message.created_at),
+    ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
     metadata: {
       custom: {
         citations: message.content.citations ?? [],
@@ -114,33 +105,56 @@ function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
   }
 }
 
+export type ConversationView =
+  | { status: "initializing" }
+  | { status: "new" }
+  | { status: "creating" }
+  | { status: "active"; threadId: number }
+
 export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
-  onCitations,
   onModelRequired,
 }: {
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
-  onCitations: (citations: Citation[]) => void
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
-  const [activeThreadId, setActiveThreadId] = useState<number | null>(null)
+  const [selectedView, setConversationView] = useState<ConversationView | null>(
+    null
+  )
   const [liveMessages, setLiveMessages] = useState<ChatMessage[] | null>(null)
   const [isRunning, setIsRunning] = useState(false)
+  const [autoNamingThreadId, setAutoNamingThreadId] = useState<number | null>(
+    null
+  )
+  const [animatingTitleThreadId, setAnimatingTitleThreadId] = useState<
+    number | null
+  >(null)
   const [error, setError] = useState<string | null>(null)
   const streamController = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
-  const initializedSelection = useRef(false)
 
   const threadsQuery = useQuery({
     queryKey: chatKeys.threads(workspaceId),
     queryFn: ({ signal }) => listThreads(workspaceId, signal),
   })
   const threads = threadsQuery.data ?? EMPTY_THREADS
+  const initialView = useMemo<ConversationView>(() => {
+    if (!threadsQuery.isSuccess) {
+      return { status: "initializing" }
+    }
+    const threadId = initialThreadId(workspaceId, threads)
+    return threadId === null
+      ? { status: "new" }
+      : { status: "active", threadId }
+  }, [threads, threadsQuery.isSuccess, workspaceId])
+  const conversationView = selectedView ?? initialView
+  const activeThreadId =
+    conversationView.status === "active" ? conversationView.threadId : null
 
   const messagesQuery = useQuery({
     queryKey: [...chatKeys.all, "messages", activeThreadId] as const,
@@ -157,35 +171,16 @@ export function useChatRuntime({
   const messages = usesLiveMessages ? liveMessages : persistedMessages
 
   const createThreadMutation = useMutation({
-    mutationFn: ({
-      title,
-      signal,
-    }: {
-      title: string
-      signal: AbortSignal
-    }) => createThread(workspaceId, title, signal),
+    mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
+      createThread(workspaceId, title, signal),
   })
   const deleteThreadMutation = useMutation({
     mutationFn: (threadId: number) => deleteThread(threadId),
   })
-
-  useEffect(() => {
-    if (!threadsQuery.isSuccess || initializedSelection.current) {
-      return
-    }
-    initializedSelection.current = true
-    const threadId = initialThreadId(workspaceId, threads)
-    setActiveThreadId(threadId)
-    if (threadId !== null) {
-      rememberThread(workspaceId, threadId)
-    }
-  }, [threads, threadsQuery.isSuccess, workspaceId])
-
-  useEffect(() => {
-    if (!usesLiveMessages) {
-      onCitations(latestCitations(persistedMessages))
-    }
-  }, [onCitations, persistedMessages, usesLiveMessages])
+  const renameThreadMutation = useMutation({
+    mutationFn: ({ threadId, title }: { threadId: number; title: string }) =>
+      renameThread(threadId, title),
+  })
 
   const selectThread = useCallback(
     (threadId: number) => {
@@ -194,14 +189,15 @@ export function useChatRuntime({
       }
       streamController.current?.abort()
       requestVersion.current += 1
-      setActiveThreadId(threadId)
+      setConversationView({ status: "active", threadId })
       rememberThread(workspaceId, threadId)
       setLiveMessages(null)
       setError(null)
       setIsRunning(false)
-      onCitations([])
+      setAutoNamingThreadId(null)
+      setAnimatingTitleThreadId(null)
     },
-    [activeThreadId, onCitations, workspaceId]
+    [activeThreadId, workspaceId]
   )
 
   useEffect(() => {
@@ -214,14 +210,14 @@ export function useChatRuntime({
   const startNewChat = useCallback(() => {
     streamController.current?.abort()
     requestVersion.current += 1
-    initializedSelection.current = true
-    setActiveThreadId(null)
+    setConversationView({ status: "new" })
     rememberThread(workspaceId, null)
     setLiveMessages(null)
     setError(null)
     setIsRunning(false)
-    onCitations([])
-  }, [onCitations, workspaceId])
+    setAutoNamingThreadId(null)
+    setAnimatingTitleThreadId(null)
+  }, [workspaceId])
 
   const removeThread = async (threadId: number) => {
     try {
@@ -241,10 +237,36 @@ export function useChatRuntime({
     }
   }
 
+  const rename = async (threadId: number, title: string) => {
+    setError(null)
+    try {
+      const renamed = await renameThreadMutation.mutateAsync({
+        threadId,
+        title,
+      })
+      setAnimatingTitleThreadId(null)
+      queryClient.setQueryData<ChatThread[]>(
+        chatKeys.threads(workspaceId),
+        (current = []) =>
+          current.map((thread) => (thread.id === renamed.id ? renamed : thread))
+      )
+      return true
+    } catch (cause) {
+      setError(messageFrom(cause))
+      return false
+    }
+  }
+
   const onNew = useCallback(
     async (appendMessage: AppendMessage) => {
       const text = submittedText(appendMessage)
-      if (!text || isRunning || !canSend) {
+      if (
+        !text ||
+        isRunning ||
+        !canSend ||
+        conversationView.status === "initializing" ||
+        conversationView.status === "creating"
+      ) {
         return
       }
 
@@ -255,13 +277,15 @@ export function useChatRuntime({
       setError(null)
       setIsRunning(true)
 
-      let threadId = activeThreadId
+      let threadId =
+        conversationView.status === "active" ? conversationView.threadId : null
       let userMessageId: number | null = null
       let assistantMessageId: number | null = null
       try {
         if (threadId === null) {
+          setConversationView({ status: "creating" })
           const thread = await createThreadMutation.mutateAsync({
-            title: threadTitle(text),
+            title: "New chat",
             signal: controller.signal,
           })
           if (requestVersion.current !== version) {
@@ -276,29 +300,32 @@ export function useChatRuntime({
             ]
           )
           queryClient.setQueryData(chatKeys.messages(thread.id), EMPTY_MESSAGES)
-          setActiveThreadId(thread.id)
+          setConversationView({ status: "active", threadId: thread.id })
+          setAutoNamingThreadId(thread.id)
           rememberThread(workspaceId, thread.id)
         }
 
-        const timestamp = new Date().toISOString()
         let userId: number | string = `optimistic-user-${version}`
         let assistantId: number | string = `optimistic-assistant-${version}`
         const currentMessages =
-          queryClient.getQueryData<ChatMessage[]>(chatKeys.messages(threadId)) ??
-          EMPTY_MESSAGES
+          queryClient.getQueryData<ChatMessage[]>(
+            chatKeys.messages(threadId)
+          ) ?? EMPTY_MESSAGES
         setLiveMessages([
           ...currentMessages,
           {
             id: userId,
             role: "user",
             content: { text },
-            created_at: timestamp,
+            created_at: null,
+            completed_at: null,
           },
           {
             id: assistantId,
             role: "assistant",
             content: { text: "", citations: [] },
-            created_at: timestamp,
+            created_at: null,
+            completed_at: null,
           },
         ])
 
@@ -320,47 +347,82 @@ export function useChatRuntime({
               assistantMessageId = nextAssistantId
               userId = nextUserId
               assistantId = nextAssistantId
-              setLiveMessages((current) =>
-                current?.map((message) => {
-                  if (message.id === previousUserId) {
-                    return { ...message, id: nextUserId }
-                  }
-                  if (message.id === previousAssistantId) {
-                    return { ...message, id: nextAssistantId }
-                  }
-                  return message
-                }) ?? null
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) => {
+                    if (message.id === previousUserId) {
+                      return {
+                        ...message,
+                        id: nextUserId,
+                        created_at: event.user_created_at,
+                      }
+                    }
+                    if (message.id === previousAssistantId) {
+                      return { ...message, id: nextAssistantId }
+                    }
+                    return message
+                  }) ?? null
+              )
+            } else if (event.type === "completed") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          completed_at: event.assistant_completed_at,
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "thread-title-update") {
+              setAutoNamingThreadId(null)
+              setAnimatingTitleThreadId(threadId)
+              queryClient.setQueryData<ChatThread[]>(
+                chatKeys.threads(workspaceId),
+                (current = []) =>
+                  current.map((thread) =>
+                    thread.id === threadId
+                      ? { ...thread, title: event.title }
+                      : thread
+                  )
+              )
+            } else if (
+              event.type === "citation-catalog" ||
+              event.type === "citations"
+            ) {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            citations: event.items,
+                          },
+                        }
+                      : message
+                  ) ?? null
               )
             } else if (event.type === "delta") {
+              setAutoNamingThreadId(null)
               const targetId = assistantId
-              setLiveMessages((current) =>
-                current?.map((message) =>
-                  message.id === targetId
-                    ? {
-                        ...message,
-                        content: {
-                          ...message.content,
-                          text: (message.content.text ?? "") + event.text,
-                        },
-                      }
-                    : message
-                ) ?? null
-              )
-            } else if (event.type === "citations") {
-              onCitations(event.items)
-              const targetId = assistantId
-              setLiveMessages((current) =>
-                current?.map((message) =>
-                  message.id === targetId
-                    ? {
-                        ...message,
-                        content: {
-                          ...message.content,
-                          citations: event.items,
-                        },
-                      }
-                    : message
-                ) ?? null
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            text: (message.content.text ?? "") + event.text,
+                          },
+                        }
+                      : message
+                  ) ?? null
               )
             } else if (event.type === "error") {
               setError(event.message)
@@ -381,11 +443,7 @@ export function useChatRuntime({
           })
           if (
             requestVersion.current === version &&
-            hasCanonicalTurn(
-              canonical,
-              userMessageId,
-              assistantMessageId
-            )
+            hasCanonicalTurn(canonical, userMessageId, assistantMessageId)
           ) {
             setLiveMessages(null)
           } else {
@@ -395,6 +453,9 @@ export function useChatRuntime({
           }
         }
       } catch (cause) {
+        if (threadId === null && requestVersion.current === version) {
+          setConversationView({ status: "new" })
+        }
         if (
           cause instanceof ApiError &&
           cause.status === 409 &&
@@ -411,15 +472,15 @@ export function useChatRuntime({
       } finally {
         if (requestVersion.current === version) {
           setIsRunning(false)
+          setAutoNamingThreadId(null)
         }
       }
     },
     [
-      activeThreadId,
       canSend,
+      conversationView,
       createThreadMutation,
       isRunning,
-      onCitations,
       onModelRequired,
       queryClient,
       selectedDocumentIds,
@@ -430,13 +491,16 @@ export function useChatRuntime({
   const cancel = useCallback(async () => {
     streamController.current?.abort()
     setIsRunning(false)
+    setAutoNamingThreadId(null)
+  }, [])
+
+  const finishTitleAnimation = useCallback(() => {
+    setAnimatingTitleThreadId(null)
   }, [])
 
   const isLoadingThreads = threadsQuery.isPending
   const isLoadingMessages =
-    activeThreadId !== null &&
-    !usesLiveMessages &&
-    messagesQuery.isPending
+    activeThreadId !== null && !usesLiveMessages && messagesQuery.isPending
   const queryError = threadsQuery.error ?? messagesQuery.error
   const runtime = useExternalStoreRuntime<ChatMessage>({
     messages,
@@ -455,6 +519,7 @@ export function useChatRuntime({
   return {
     runtime,
     threads,
+    conversationView,
     activeThread,
     activeThreadId,
     messages,
@@ -462,8 +527,12 @@ export function useChatRuntime({
     isLoadingThreads,
     isLoadingMessages,
     isRunning,
+    autoNamingThreadId,
+    animatingTitleThreadId,
+    finishTitleAnimation,
     selectThread,
     startNewChat,
+    rename,
     removeThread,
     clearError: () => setError(null),
   }

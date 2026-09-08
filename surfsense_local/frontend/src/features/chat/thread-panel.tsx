@@ -1,30 +1,26 @@
-import { useEffect, useRef } from "react"
-import {
-  ArrowDownIcon,
-  ArrowUp02Icon,
-  BotIcon,
-  ChevronDownIcon,
-  CircleStopIcon,
-  Settings2Icon,
-} from "@/components/ui/icons"
+import { useEffect, useRef, type ReactNode } from "react"
+import { BotIcon, Settings2Icon } from "@/components/ui/icons"
 
 import {
   AssistantRuntimeProvider,
-  ComposerPrimitive,
   ThreadPrimitive,
   type AssistantRuntime,
+  useAui,
 } from "@assistant-ui/react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/model-selection/api"
 import type { WorkspaceDocument } from "@/features/sources/api"
-import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
+import { ChatComposer } from "./chat-composer"
+import { ChatViewport } from "./chat-viewport"
 import { AssistantMessage, UserMessage } from "./message"
 import type { Citation } from "./sse"
+import type { ConversationView } from "./use-chat-runtime"
 
 function citationsFrom(message: {
   metadata?: { custom?: unknown }
@@ -41,39 +37,85 @@ function citationsFrom(message: {
   return []
 }
 
+function ThreadWelcome({ composer }: { composer: ReactNode }) {
+  return (
+    <div className="flex min-h-0 flex-1">
+      <div className="mx-auto grid h-full w-full max-w-2xl grid-rows-[minmax(0,1fr)_auto_minmax(0,1fr)]">
+        <div />
+        {composer}
+      </div>
+    </div>
+  )
+}
+
+function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
+  const aui = useAui()
+  const conversationId =
+    view.status === "active" ? `thread:${view.threadId}` : view.status
+
+  useEffect(() => {
+    if (conversationId === "initializing" || conversationId === "creating") {
+      return
+    }
+    void aui.thread.composer().reset()
+  }, [aui, conversationId])
+
+  return null
+}
+
 export function ThreadPanel({
   runtime,
   thread,
+  view,
   model,
   documents,
   error,
   isLoading,
   isRunning,
+  animateTitle,
   providerAvailable,
   onCitation,
   onModelSetup,
+  onTitleAnimationComplete,
 }: {
   runtime: AssistantRuntime
   thread: ChatThread | null
+  view: ConversationView
   model: ModelSelection
   documents: WorkspaceDocument[]
   error: string | null
   isLoading: boolean
   isRunning: boolean
+  animateTitle: boolean
   providerAvailable: boolean
   onCitation: (citation: Citation) => void
   onModelSetup: () => void
+  onTitleAnimationComplete: () => void
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
+  const threadId = thread?.id
+  const title =
+    view.status === "initializing" ? null : thread?.title || "New chat"
+  const bottomComposer = view.status === "creating" || view.status === "active"
+  const composer = (placement: "center" | "bottom") => (
+    <ChatComposer
+      placement={placement}
+      model={model}
+      isRunning={isRunning}
+      providerAvailable={providerAvailable}
+      onModelSetup={onModelSetup}
+    />
+  )
 
   useEffect(() => {
-    if (thread) {
+    if (threadId !== undefined) {
       headingRef.current?.focus()
     }
-  }, [thread])
+  }, [threadId])
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
+      <ComposerDraftLifecycle view={view} />
       <section
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
@@ -84,7 +126,15 @@ export function ThreadPanel({
             tabIndex={-1}
             className="min-w-0 truncate font-heading text-lg font-medium outline-none"
           >
-            {thread?.title || "New chat"}
+            {title === null ? (
+              <Skeleton className="h-5 w-32" />
+            ) : (
+              <TypewriterText
+                text={title}
+                animate={animateTitle}
+                onComplete={onTitleAnimationComplete}
+              />
+            )}
           </h1>
         </header>
 
@@ -103,18 +153,21 @@ export function ThreadPanel({
         ) : null}
 
         <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">
-          <ThreadPrimitive.Viewport
-            className="flex min-h-0 flex-1 flex-col overflow-y-auto"
-            autoScroll
+          <ChatViewport
+            footer={bottomComposer ? composer("bottom") : undefined}
           >
-            {isLoading ? (
-              <div className="mx-auto w-full max-w-3xl space-y-4 p-6">
+            {view.status === "initializing" || isLoading ? (
+              <div className="mx-auto w-full max-w-2xl space-y-4 p-6">
                 <Skeleton className="ml-auto h-16 w-2/3" />
                 <Skeleton className="h-24 w-4/5" />
               </div>
             ) : null}
 
-            {!isLoading ? (
+            {view.status === "new" ? (
+              <ThreadWelcome composer={composer("center")} />
+            ) : null}
+
+            {view.status === "active" && !isLoading ? (
               <ThreadPrimitive.Messages>
                 {({ message }) =>
                   message.role === "user" ? (
@@ -129,89 +182,7 @@ export function ThreadPanel({
                 }
               </ThreadPrimitive.Messages>
             ) : null}
-
-            <ThreadPrimitive.ViewportFooter
-              className={cn(
-                "absolute inset-x-0 z-20 px-4",
-                thread
-                  ? "bottom-0 bg-gradient-to-t from-background via-background to-transparent pt-7 pb-2"
-                  : "top-1/2 -translate-y-1/2"
-              )}
-            >
-              <div className="relative mx-auto max-w-3xl">
-                {thread ? (
-                  <ThreadPrimitive.ScrollToBottom asChild>
-                    <Button
-                      variant="outline"
-                      size="icon-sm"
-                      className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-full bg-background disabled:invisible"
-                      aria-label="Scroll to latest message"
-                    >
-                      <ArrowDownIcon />
-                    </Button>
-                  </ThreadPrimitive.ScrollToBottom>
-                ) : null}
-                <ComposerPrimitive.Root className="flex items-end gap-2 rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring/20">
-                  <ComposerPrimitive.Input
-                    className={cn(
-                      "max-h-44 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
-                      thread ? "min-h-10" : "min-h-28"
-                    )}
-                    placeholder={
-                      providerAvailable
-                        ? "Ask SurfSense about anything"
-                        : "Reconnect your model provider to send"
-                    }
-                    submitMode="enter"
-                    rows={1}
-                    aria-label="Message"
-                  />
-                  {!isRunning ? (
-                    <ComposerPrimitive.Send asChild>
-                      <Button
-                        size="icon-lg"
-                        className="mb-0.5 rounded-xl"
-                        aria-label="Send message"
-                      >
-                        <ArrowUp02Icon />
-                      </Button>
-                    </ComposerPrimitive.Send>
-                  ) : (
-                    <ComposerPrimitive.Cancel asChild>
-                      <Button
-                        size="icon-lg"
-                        variant="secondary"
-                        className="mb-0.5 rounded-xl"
-                        aria-label="Stop generating"
-                      >
-                        <CircleStopIcon />
-                      </Button>
-                    </ComposerPrimitive.Cancel>
-                  )}
-                </ComposerPrimitive.Root>
-                <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
-                  <p className="min-w-0 text-left text-[11px] text-muted-foreground">
-                    {providerAvailable
-                      ? `${model.name} runs locally. Check important answers.`
-                      : "Historical chats remain available while the provider is offline."}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={onModelSetup}
-                    className="flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
-                    title="Change model"
-                    aria-label={`Model ${model.name} on ${model.provider}. Change model.`}
-                  >
-                    <span>{model.name}</span>
-                    <span>
-                      {providerAvailable ? model.provider : "Provider offline"}
-                    </span>
-                    <ChevronDownIcon className="size-3" />
-                  </button>
-                </div>
-              </div>
-            </ThreadPrimitive.ViewportFooter>
-          </ThreadPrimitive.Viewport>
+          </ChatViewport>
         </ThreadPrimitive.Root>
       </section>
     </AssistantRuntimeProvider>

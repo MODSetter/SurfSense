@@ -25,7 +25,7 @@ def test_each_hit_becomes_a_numbered_source() -> None:
 
     assert '<source id="1" document="42" lines="1-4">body of 10</source>' in context
     assert '<source id="2" document="7" lines="9-20">body of 11</source>' in context
-    assert [(c.id, c.document_id, c.chunk_id) for c in citations] == [
+    assert [(c.source_id, c.document_id, c.chunk_id) for c in citations] == [
         (1, 42, 10),
         (2, 7, 11),
     ]

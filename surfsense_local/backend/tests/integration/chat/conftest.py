@@ -8,7 +8,7 @@ import pytest
 from shared.config import get_llm_settings
 
 # The reply the stub streams back, split so the route emits more than one delta.
-REPLY_DELTAS = ["Revenue ", "climbed after the launch [1]."]
+REPLY_DELTAS = ["Revenue ", "climbed after the launch [citation:1]."]
 
 # Each chat request the stub received, so a test can assert what the route sent.
 _REQUESTS: list[dict] = []
@@ -23,10 +23,15 @@ class StubOllamaChat(BaseHTTPRequestHandler):
             self.send_error(404)
             return
 
-        _REQUESTS.append(json.loads(raw))
+        request = json.loads(raw)
+        _REQUESTS.append(request)
+        deltas = (
+            ["Revenue ", "Growth"]
+            if request.get("options", {}).get("num_predict") == 12
+            else REPLY_DELTAS
+        )
         body = "".join(
-            json.dumps({"message": {"content": delta}}) + "\n"
-            for delta in REPLY_DELTAS
+            json.dumps({"message": {"content": delta}}) + "\n" for delta in deltas
         ).encode()
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))

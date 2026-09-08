@@ -60,40 +60,6 @@ async def test_the_list_omits_document_content(
     assert listed.json()[0]["title"] == "Kickoff"
 
 
-async def test_a_document_is_read_with_its_content(
-    client: AsyncClient, workspace_id: int
-) -> None:
-    """Opening a document is the one place the extracted text is wanted."""
-    created = await client.post(
-        f"/workspaces/{workspace_id}/documents",
-        json={"title": "Kickoff", "content": "agreed to ship"},
-    )
-
-    response = await client.get(
-        f"/workspaces/{workspace_id}/documents/{created.json()['id']}"
-    )
-
-    assert response.status_code == 200
-    assert response.json()["content"] == "agreed to ship"
-
-
-async def test_a_document_is_not_readable_through_another_workspace(
-    client: AsyncClient, workspace_id: int
-) -> None:
-    """The workspace in the path is the scope, not decoration on the url."""
-    created = await client.post(
-        f"/workspaces/{workspace_id}/documents",
-        json={"title": "Kickoff", "content": "secret"},
-    )
-    other = await client.post("/workspaces", json={"name": "Other"})
-
-    response = await client.get(
-        f"/workspaces/{other.json()['id']}/documents/{created.json()['id']}"
-    )
-
-    assert response.status_code == 404
-
-
 async def test_a_document_can_be_retitled(
     client: AsyncClient, workspace_id: int
 ) -> None:
@@ -110,7 +76,7 @@ async def test_a_document_can_be_retitled(
 
     assert response.status_code == 200
     assert response.json()["title"] == "Kickoff"
-    assert response.json()["content"] == "x"
+    assert "content" not in response.json()
 
 
 async def test_editing_a_note_sends_it_back_for_indexing(
@@ -129,7 +95,7 @@ async def test_editing_a_note_sends_it_back_for_indexing(
     )
 
     assert response.status_code == 200
-    assert response.json()["content"] == "second draft"
+    assert "content" not in response.json()
     assert response.json()["status"] == "pending"
 
 

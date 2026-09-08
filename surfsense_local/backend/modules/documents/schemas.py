@@ -51,6 +51,13 @@ class DuplicateRead(BaseModel):
     document_id: int
 
 
+class RejectedUploadRead(BaseModel):
+    """A file the ingestion pipeline cannot safely process."""
+
+    filename: str
+    reason: str
+
+
 class UploadOutcome(BaseModel):
     """One upload can be a dropped folder, so each file gets its own verdict.
 
@@ -60,3 +67,4 @@ class UploadOutcome(BaseModel):
 
     created: list[DocumentRead]
     duplicates: list[DuplicateRead]
+    rejected: list[RejectedUploadRead]

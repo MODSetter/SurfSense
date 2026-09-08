@@ -15,7 +15,13 @@ DocumentId = Annotated[int, Field(gt=0)]
 class ThreadCreate(BaseModel):
     """Fields a client supplies when opening a thread."""
 
-    title: ThreadTitle | None = None
+    title: ThreadTitle = "New chat"
+
+
+class ThreadUpdate(BaseModel):
+    """Fields a client may change on an existing thread."""
+
+    title: ThreadTitle
 
 
 class ThreadRead(BaseModel):
@@ -46,3 +52,4 @@ class MessageRead(BaseModel):
     role: MessageRole
     content: dict[str, Any]
     created_at: datetime
+    completed_at: datetime | None

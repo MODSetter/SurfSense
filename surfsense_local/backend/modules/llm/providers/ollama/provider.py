@@ -111,11 +111,7 @@ class OllamaProvider:
             referenced = None
 
         def cancelled_files():
-            files = {
-                path
-                for pattern in patterns
-                for path in blobs_dir.glob(pattern)
-            }
+            files = {path for pattern in patterns for path in blobs_dir.glob(pattern)}
             if referenced is not None:
                 files.update(
                     path
@@ -161,12 +157,32 @@ class OllamaProvider:
                 if line:
                     yield _progress(json.loads(line))
 
-    async def chat(self, model: str, messages: list[Message]) -> AsyncIterator[str]:
+    async def chat(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning: bool | None = None,
+    ) -> AsyncIterator[str]:
         body = {
             "model": model,
             "messages": [{"role": m.role, "content": m.content} for m in messages],
             "stream": True,
         }
+        if reasoning is not None:
+            body["think"] = reasoning
+        options = {
+            key: value
+            for key, value in (
+                ("num_predict", max_tokens),
+                ("temperature", temperature),
+            )
+            if value is not None
+        }
+        if options:
+            body["options"] = options
         async with (
             self._client() as client,
             client.stream("POST", "/api/chat", json=body) as reply,
