@@ -1,6 +1,11 @@
-import { useRef, useState, type ChangeEvent, type ReactNode } from "react"
 import {
-  ArrowLeftIcon,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react"
+import {
   EllipsisIcon,
   FileIcon,
   FilePlus2Icon,
@@ -38,12 +43,7 @@ import {
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  SOURCE_FILE_ACCEPT,
-  type DocumentDetail,
-  type WorkspaceDocument,
-} from "./api"
-import type { Citation } from "@/features/chat/sse"
+import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
@@ -51,13 +51,19 @@ import { cn } from "@/lib/utils"
 function SelectableSourceRow({
   document,
   selected,
+  highlighted,
+  rowRef,
   onOpen,
+  onReveal,
   onRetry,
   onSelectedChange,
 }: {
   document: WorkspaceDocument
   selected: boolean
+  highlighted: boolean
+  rowRef: (node: HTMLDivElement | null) => void
   onOpen: () => void
+  onReveal: () => void
   onRetry: () => void
   onSelectedChange: (selected: boolean) => void
 }) {
@@ -65,12 +71,15 @@ function SelectableSourceRow({
   const failed = document.status === "failed"
   const processing =
     document.status === "pending" || document.status === "processing"
+  const openable = ready && document.document_type === "FILE"
 
   return (
     <div
+      ref={rowRef}
+      aria-current={highlighted ? "true" : undefined}
       className={cn(
         "group/source flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 focus-within:bg-accent hover:bg-accent",
-        selected && "bg-accent"
+        highlighted && "bg-accent"
       )}
     >
       <span className="relative flex size-7 shrink-0 items-center justify-center">
@@ -124,9 +133,9 @@ function SelectableSourceRow({
       </span>
       <button
         type="button"
-        disabled={!ready}
+        disabled={!openable}
         className="min-w-0 flex-1 truncate rounded-sm text-left text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default"
-        onClick={ready ? onOpen : undefined}
+        onClick={openable ? onOpen : undefined}
       >
         {document.title}
       </button>
@@ -144,13 +153,18 @@ function SelectableSourceRow({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuGroup>
-            {ready ? (
+            {openable ? (
               <>
                 <DropdownMenuItem onSelect={onOpen}>Open</DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => onSelectedChange(!selected)}>
-                  {selected ? "Deselect" : "Select"}
+                <DropdownMenuItem onSelect={onReveal}>
+                  Show in folder
                 </DropdownMenuItem>
               </>
+            ) : null}
+            {ready ? (
+              <DropdownMenuItem onSelect={() => onSelectedChange(!selected)}>
+                {selected ? "Deselect" : "Select"}
+              </DropdownMenuItem>
             ) : null}
             {failed ? (
               <DropdownMenuItem onSelect={onRetry}>Retry</DropdownMenuItem>
@@ -165,79 +179,16 @@ function SelectableSourceRow({
   )
 }
 
-function DocumentPreview({
-  document,
-  citation,
-  onBack,
-}: {
-  document: DocumentDetail
-  citation: Citation | null
-  onBack: () => void
-}) {
-  const lines = (document.content ?? "").split("\n")
-  return (
-    <>
-      <header className="flex h-14 items-center gap-2 border-b px-3">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Back to sources"
-          onClick={onBack}
-        >
-          <ArrowLeftIcon />
-        </Button>
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold">
-          {document.title}
-        </h2>
-      </header>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="p-4">
-          {document.content ? (
-            <pre className="font-sans text-xs leading-6 whitespace-pre-wrap">
-              {lines.map((line, index) => {
-                const lineNumber = index + 1
-                const cited =
-                  citation?.start_line != null &&
-                  citation.end_line != null &&
-                  lineNumber >= citation.start_line &&
-                  lineNumber <= citation.end_line
-                return (
-                  <span
-                    key={lineNumber}
-                    id={cited ? `cited-line-${lineNumber}` : undefined}
-                    className={cn(
-                      "block",
-                      cited && "bg-chart-1/15 text-foreground"
-                    )}
-                  >
-                    {line || " "}
-                  </span>
-                )
-              })}
-            </pre>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No extracted text is available for this source.
-            </p>
-          )}
-        </div>
-      </ScrollArea>
-    </>
-  )
-}
-
 export function SourcesPanel({
   documents,
   selectedDocumentIds,
-  selectedDocument,
-  selectedCitation,
+  highlightedDocumentId,
   isLoading,
-  isLoadingPreview,
   isUploading,
   isDeleting,
   error,
   onOpen,
-  onBack,
+  onReveal,
   onRetry,
   onDeleteSelected,
   onSelectionChange,
@@ -246,15 +197,13 @@ export function SourcesPanel({
 }: {
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
-  selectedDocument: DocumentDetail | null
-  selectedCitation: Citation | null
+  highlightedDocumentId: number | null
   isLoading: boolean
-  isLoadingPreview: boolean
   isUploading: boolean
   isDeleting: boolean
   error: string | null
-  onOpen: (documentId: number, citation?: Citation) => void
-  onBack: () => void
+  onOpen: (documentId: number) => void
+  onReveal: (documentId: number) => void
   onRetry: (documentId: number) => void
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
@@ -262,6 +211,7 @@ export function SourcesPanel({
   studioSlot?: ReactNode
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
+  const sourceRows = useRef(new Map<number, HTMLDivElement>())
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
   const chooseFiles = () => fileInput.current?.click()
   const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
@@ -269,20 +219,12 @@ export function SourcesPanel({
     event.target.value = ""
   }
 
-  if (selectedDocument) {
-    return (
-      <aside
-        className="flex h-full min-w-0 flex-col bg-card/30"
-        aria-label="Source preview"
-      >
-        <DocumentPreview
-          document={selectedDocument}
-          citation={selectedCitation}
-          onBack={onBack}
-        />
-      </aside>
-    )
-  }
+  useEffect(() => {
+    if (highlightedDocumentId === null) return
+    sourceRows.current
+      .get(highlightedDocumentId)
+      ?.scrollIntoView({ block: "nearest" })
+  }, [highlightedDocumentId])
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
 
@@ -325,7 +267,7 @@ export function SourcesPanel({
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
-            {isLoading || isLoadingPreview
+            {isLoading
               ? [0, 1, 2].map((item) => (
                   <Skeleton key={item} className="h-20 w-full" />
                 ))
@@ -360,7 +302,13 @@ export function SourcesPanel({
                       key={document.id}
                       document={document}
                       selected={selectedDocumentIdSet.has(document.id)}
+                      highlighted={highlightedDocumentId === document.id}
+                      rowRef={(node) => {
+                        if (node) sourceRows.current.set(document.id, node)
+                        else sourceRows.current.delete(document.id)
+                      }}
                       onOpen={() => onOpen(document.id)}
+                      onReveal={() => onReveal(document.id)}
                       onRetry={() => onRetry(document.id)}
                       onSelectedChange={(selected) =>
                         onSelectionChange(document.id, selected)

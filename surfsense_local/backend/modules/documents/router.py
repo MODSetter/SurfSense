@@ -176,18 +176,9 @@ def upload_documents(
     return UploadOutcome(created=created, duplicates=duplicates, rejected=rejected)
 
 
-@router.get(
-    "/{document_id}",
-    response_model=DocumentDetail,
-    summary="Read a document",
-)
-def read_document(document: DocumentDep) -> Document:
-    return document
-
-
 @router.patch(
     "/{document_id}",
-    response_model=DocumentDetail,
+    response_model=DocumentRead,
     summary="Edit a document",
 )
 def update_document(
@@ -217,7 +208,7 @@ def update_document(
 
 @router.post(
     "/{document_id}/retry",
-    response_model=DocumentDetail,
+    response_model=DocumentRead,
     summary="Requeue a failed document",
 )
 def retry_document(document: DocumentDep, session: SessionDep) -> Document:

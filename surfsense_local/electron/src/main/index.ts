@@ -1,7 +1,8 @@
 import { join } from "node:path"
 
-import { app, BrowserWindow } from "electron"
+import { app, BrowserWindow, ipcMain, shell } from "electron"
 
+import { managedOriginalPath } from "./document-files.mts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { ollamaSpec } from "./sidecars/ollama.ts"
 import { exe } from "./sidecars/platform.ts"
@@ -13,20 +14,27 @@ import { loadWindowState, saveWindowState } from "./window-state.ts"
 const DEV_RENDERER_URL = "http://localhost:5173"
 
 let sidecars: Sidecars | null = null
+let mainWindow: BrowserWindow | null = null
 let shuttingDown = false
 
 function onSidecarCrash(name: string, code: number | null): void {
   process.stderr.write(`[main] sidecar ${name} crashed (code=${code})\n`)
   // best-effort: let the renderer show an error instead of hanging
-  BrowserWindow.getAllWindows()[0]?.webContents.send("sidecar:crashed", { name, code })
+  BrowserWindow.getAllWindows()[0]?.webContents.send("sidecar:crashed", {
+    name,
+    code,
+  })
 }
 
-async function bootSidecars(): Promise<string> {
+async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
   const apiPort = await getFreePort(host)
   // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
-  const dataDir = join(app.getPath("home"), packaged ? ".surfsense" : ".surfsense-dev")
+  const dataDir = join(
+    app.getPath("home"),
+    packaged ? ".surfsense" : ".surfsense-dev"
+  )
 
   const ctx: SidecarContext = {
     packaged,
@@ -53,14 +61,54 @@ async function bootSidecars(): Promise<string> {
 
   // ollamaSpec is null in dev (the developer runs their own `ollama serve`)
   const specs = [apiSpec(ctx), workerSpec(ctx), ollamaSpec(ctx)].filter(
-    (s): s is SidecarSpec => s !== null,
+    (s): s is SidecarSpec => s !== null
   )
   sidecars = startAll(specs, onSidecarCrash)
 
   // gate on the API only; fail fast if it dies during startup. Ollama is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
   await waitForHealth(host, apiPort, { child: sidecars.get("api") })
-  return `http://${host}:${apiPort}`
+  return { apiUrl: `http://${host}:${apiPort}`, dataDir }
+}
+
+function registerDocumentHandlers(dataDir: string): void {
+  const trusted = (sender: Electron.WebContents): boolean =>
+    mainWindow !== null && sender === mainWindow.webContents
+
+  ipcMain.handle("documents:open", async (event, workspaceId, documentId) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame
+    ) {
+      return "The source request did not come from the application."
+    }
+    try {
+      const path = await managedOriginalPath(dataDir, workspaceId, documentId)
+      return await shell.openPath(path)
+    } catch (error) {
+      return error instanceof Error
+        ? error.message
+        : "Couldn’t open the source."
+    }
+  })
+
+  ipcMain.handle("documents:reveal", async (event, workspaceId, documentId) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame
+    ) {
+      return "The source request did not come from the application."
+    }
+    try {
+      const path = await managedOriginalPath(dataDir, workspaceId, documentId)
+      shell.showItemInFolder(path)
+      return ""
+    } catch (error) {
+      return error instanceof Error
+        ? error.message
+        : "Couldn’t locate the source."
+    }
+  })
 }
 
 function createWindow(apiUrl: string): void {
@@ -73,6 +121,10 @@ function createWindow(apiUrl: string): void {
       preload: join(__dirname, "../preload/index.js"),
       additionalArguments: [`--surfsense-api-url=${apiUrl}`],
     },
+  })
+  mainWindow = win
+  win.on("closed", () => {
+    if (mainWindow === win) mainWindow = null
   })
 
   if (app.isPackaged) {
@@ -87,7 +139,9 @@ function createWindow(apiUrl: string): void {
   })
 
   if (app.isPackaged) {
-    void win.loadFile(join(app.getAppPath(), "..", "frontend", "dist", "index.html"))
+    void win.loadFile(
+      join(app.getAppPath(), "..", "frontend", "dist", "index.html")
+    )
   } else {
     void win.loadURL(DEV_RENDERER_URL)
   }
@@ -103,10 +157,12 @@ function main(): void {
   app
     .whenReady()
     .then(async () => {
-      const apiUrl = await bootSidecars()
-      createWindow(apiUrl)
+      const boot = await bootSidecars()
+      registerDocumentHandlers(boot.dataDir)
+      createWindow(boot.apiUrl)
       app.on("activate", () => {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow(apiUrl)
+        if (BrowserWindow.getAllWindows().length === 0)
+          createWindow(boot.apiUrl)
       })
     })
     .catch((err: unknown) => {

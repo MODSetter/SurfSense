@@ -33,6 +33,16 @@ beforeEach(() => {
     configurable: true,
     value: vi.fn(),
   })
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: vi.fn(),
+  })
+  vi.stubGlobal("surfsense", {
+    apiUrl: "",
+    platform: "darwin",
+    openDocument: vi.fn(async () => ""),
+    revealDocument: vi.fn(async () => ""),
+  })
 })
 
 describe("dashboard chat", () => {
@@ -283,18 +293,6 @@ describe("dashboard chat", () => {
             },
           ])
         }
-        if (path === "/workspaces/1/documents/20") {
-          return Response.json({
-            id: 20,
-            title: "Guide.txt",
-            document_type: "FILE",
-            status: "ready",
-            error_message: null,
-            content: "Grounded\nanswer",
-            created_at: "2026-09-05T00:00:00Z",
-            updated_at: "2026-09-05T00:00:00Z",
-          })
-        }
         if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
           return Response.json(
             {
@@ -391,12 +389,21 @@ describe("dashboard chat", () => {
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
     await user.click(
-      screen.getByRole("button", { name: "Open source 1: Guide.txt" })
+      screen.getByRole("button", { name: "Show source 1: Guide.txt" })
     )
+    const sourceButton = screen.getByRole("button", { name: "Guide.txt" })
+    expect(sourceButton.parentElement?.getAttribute("aria-current")).toBe(
+      "true"
+    )
+    expect(window.surfsense?.openDocument).not.toHaveBeenCalled()
+
+    await user.click(sourceButton)
+    expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
     expect(
-      await screen.findByRole("complementary", { name: "Source preview" })
-    ).toBeTruthy()
-    expect(screen.queryByText("Used in answer")).toBeNull()
+      fetchMock.mock.calls.some(
+        ([path]) => String(path) === "/workspaces/1/documents/20"
+      )
+    ).toBe(false)
     resolveCanonical(Response.json([]))
     await screen.findByRole("button", { name: "Send message" })
     await waitFor(() => {

@@ -12,10 +12,9 @@ export type WorkspaceDocument = {
   updated_at: string
 }
 
-export type DocumentDetail = WorkspaceDocument & {
-  content: string | null
-}
-
+// UX mirror of backend/modules/documents/storage.py UPLOAD_MIME_BY_SUFFIX.
+// Update both when supported formats change; the backend remains authoritative.
+// If formats become dynamic or change often, use a capabilities endpoint.
 export const SUPPORTED_SOURCE_EXTENSIONS = [
   ".pdf",
   ".docx",
@@ -65,23 +64,12 @@ export function listDocuments(
   )
 }
 
-export function readDocument(
-  workspaceId: number,
-  documentId: number,
-  signal?: AbortSignal
-): Promise<DocumentDetail> {
-  return requestJson<DocumentDetail>(
-    `/workspaces/${workspaceId}/documents/${documentId}`,
-    { signal }
-  )
-}
-
 export function retryDocument(
   workspaceId: number,
   documentId: number,
   signal?: AbortSignal
-): Promise<DocumentDetail> {
-  return requestJson<DocumentDetail>(
+): Promise<WorkspaceDocument> {
+  return requestJson<WorkspaceDocument>(
     `/workspaces/${workspaceId}/documents/${documentId}/retry`,
     { method: "POST", signal }
   )

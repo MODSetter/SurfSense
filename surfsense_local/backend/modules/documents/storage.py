@@ -19,6 +19,9 @@ READ_SIZE = 1024 * 1024
 # The only part of a client's filename allowed near a path.
 SAFE_SUFFIX = re.compile(r"\A\.[A-Za-z0-9]{1,16}\Z")
 
+# This is the upload authority. The frontend mirrors these suffixes only to
+# filter its native picker; update that mirror when this changes. If formats
+# become dynamic or change often, expose them through a capabilities endpoint.
 UPLOAD_MIME_BY_SUFFIX = {
     ".pdf": "application/pdf",
     ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",

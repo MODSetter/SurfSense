@@ -20,6 +20,7 @@
     "build:ollama": "node scripts/fetch-ollama.mjs",
     "build:llmfit": "node scripts/fetch-llmfit.mjs",
     "dist": "pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:ollama && pnpm build:llmfit && pnpm build && electron-builder",
+    "test": "node --test src/main/document-files.test.mts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:sidecars": "node scripts/check-sidecars.mjs",
     "check:llmfit": "node scripts/check-llmfit.mjs"

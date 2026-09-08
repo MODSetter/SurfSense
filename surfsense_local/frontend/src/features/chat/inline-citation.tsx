@@ -70,7 +70,7 @@ export function InlineCitation(props: Record<string, unknown>) {
           variant="ghost"
           size="xs"
           className="mx-0.5 inline-flex h-5 min-w-5 rounded-md bg-popover px-1.5 align-baseline text-[11px] text-popover-foreground hover:bg-popover hover:text-popover-foreground"
-          aria-label={`Open source ${sourceId}: ${title}`}
+          aria-label={`Show source ${sourceId}: ${title}`}
           onClick={() => context.onCitation(citation)}
         >
           {sourceId}

@@ -30,15 +30,13 @@ function SourceHarness() {
     <SourcesPanel
       documents={sources.documents}
       selectedDocumentIds={sources.selectedDocumentIds}
-      selectedDocument={null}
-      selectedCitation={null}
+      highlightedDocumentId={null}
       isLoading={sources.isLoading}
-      isLoadingPreview={false}
       isUploading={sources.isUploading}
       isDeleting={sources.isDeleting}
       error={sources.error}
-      onOpen={() => undefined}
-      onBack={() => undefined}
+      onOpen={(id) => void sources.openOriginal(id)}
+      onReveal={(id) => void sources.revealOriginal(id)}
       onRetry={(id) => void sources.retry(id)}
       onDeleteSelected={() => void sources.deleteSelected()}
       onSelectionChange={sources.setDocumentSelected}
@@ -57,6 +55,10 @@ beforeEach(() => {
       disconnect() {}
     }
   )
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: vi.fn(),
+  })
 })
 
 afterEach(() => {
@@ -90,15 +92,13 @@ describe("source upload", () => {
       <SourcesPanel
         documents={[ready, processing, failed]}
         selectedDocumentIds={[]}
-        selectedDocument={null}
-        selectedCitation={null}
+        highlightedDocumentId={ready.id}
         isLoading={false}
-        isLoadingPreview={false}
         isUploading={false}
         isDeleting={false}
         error={null}
         onOpen={vi.fn()}
-        onBack={vi.fn()}
+        onReveal={vi.fn()}
         onRetry={vi.fn()}
         onDeleteSelected={vi.fn()}
         onSelectionChange={vi.fn()}
@@ -121,6 +121,7 @@ describe("source upload", () => {
     const readyButton = screen.getByRole("button", { name: ready.title })
     expect(readyButton.className).toContain("truncate")
     expect(readyButton.parentElement?.className).toContain("overflow-hidden")
+    expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
   })
 
   it("uploads multipart files, reports duplicates, and polls until ready", async () => {

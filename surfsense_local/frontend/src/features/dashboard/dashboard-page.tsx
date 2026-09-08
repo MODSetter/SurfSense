@@ -18,7 +18,6 @@ import {
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
 import { StudioDialog } from "@/features/studio/studio-dialog"
-import type { Citation } from "@/features/chat/sse"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
@@ -34,9 +33,9 @@ function WorkspaceDashboard({
   providerAvailable: boolean
   onModelRequired: () => void
 }) {
-  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(
-    null
-  )
+  const [highlightedDocumentId, setHighlightedDocumentId] = useState<
+    number | null
+  >(null)
   const sources = useSources(workspace.id)
   const chat = useChatRuntime({
     workspaceId: workspace.id,
@@ -44,16 +43,6 @@ function WorkspaceDashboard({
     selectedDocumentIds: sources.selectedDocumentIds,
     onModelRequired,
   })
-
-  const closeSourcePreview = () => {
-    setSelectedCitation(null)
-    sources.closePreview()
-  }
-
-  const openSource = (documentId: number, citation?: Citation) => {
-    setSelectedCitation(citation ?? null)
-    void sources.openDocument(documentId)
-  }
 
   return (
     <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
@@ -65,16 +54,16 @@ function WorkspaceDashboard({
         animatingTitleThreadId={chat.animatingTitleThreadId}
         isLoading={chat.isLoadingThreads}
         onNewChat={() => {
-          closeSourcePreview()
+          setHighlightedDocumentId(null)
           chat.startNewChat()
         }}
         onSelect={(threadId) => {
-          if (threadId !== chat.activeThreadId) closeSourcePreview()
+          if (threadId !== chat.activeThreadId) setHighlightedDocumentId(null)
           chat.selectThread(threadId)
         }}
         onRename={chat.rename}
         onDelete={async (threadId) => {
-          if (threadId === chat.activeThreadId) closeSourcePreview()
+          if (threadId === chat.activeThreadId) setHighlightedDocumentId(null)
           await chat.removeThread(threadId)
         }}
         onTitleAnimationComplete={chat.finishTitleAnimation}
@@ -90,25 +79,22 @@ function WorkspaceDashboard({
         isRunning={chat.isRunning}
         animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
         providerAvailable={providerAvailable}
-        onCitation={(citation) => openSource(citation.document_id, citation)}
+        onCitation={(citation) =>
+          setHighlightedDocumentId(citation.document_id)
+        }
         onModelSetup={onModelRequired}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <SourcesPanel
         documents={sources.documents}
         selectedDocumentIds={sources.selectedDocumentIds}
-        selectedDocument={sources.selectedDocument}
-        selectedCitation={selectedCitation}
+        highlightedDocumentId={highlightedDocumentId}
         isLoading={sources.isLoading}
-        isLoadingPreview={sources.isLoadingPreview}
         isUploading={sources.isUploading}
         isDeleting={sources.isDeleting}
         error={sources.error}
-        onOpen={openSource}
-        onBack={() => {
-          setSelectedCitation(null)
-          sources.closePreview()
-        }}
+        onOpen={(id) => void sources.openOriginal(id)}
+        onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentSelected}

@@ -5,10 +5,8 @@ import {
   deleteDocument,
   isSupportedSourceFile,
   listDocuments,
-  readDocument,
   retryDocument,
   uploadDocuments,
-  type DocumentDetail,
   type WorkspaceDocument,
 } from "./api"
 
@@ -39,15 +37,11 @@ export function useSources(workspaceId: number) {
   const [selectedDocumentIdSet, setSelectedDocumentIdSet] = useState(
     () => new Set<number>()
   )
-  const [selectedDocument, setSelectedDocument] =
-    useState<DocumentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const listController = useRef<AbortController | null>(null)
-  const detailController = useRef<AbortController | null>(null)
   const uploadController = useRef<AbortController | null>(null)
   const pollController = useRef<AbortController | null>(null)
   const hasActiveIngestion = documents.some(
@@ -74,7 +68,6 @@ export function useSources(workspaceId: number) {
       })
     return () => {
       controller.abort()
-      detailController.current?.abort()
       uploadController.current?.abort()
       pollController.current?.abort()
     }
@@ -140,30 +133,34 @@ export function useSources(workspaceId: number) {
     }
   }
 
-  const openDocument = async (documentId: number) => {
-    detailController.current?.abort()
-    const controller = new AbortController()
-    detailController.current = controller
-    setIsLoadingPreview(true)
-    setError(null)
+  const runNativeDocumentAction = async (
+    title: string,
+    action: (() => Promise<string>) | undefined
+  ) => {
     try {
-      const detail = await readDocument(
-        workspaceId,
-        documentId,
-        controller.signal
-      )
-      if (detailController.current === controller) {
-        setSelectedDocument(detail)
-      }
+      const error = action
+        ? await action()
+        : "Native file access is unavailable."
+      if (error) throw new Error(error)
     } catch (cause) {
-      if (!isAbort(cause) && detailController.current === controller) {
-        setError(messageFrom(cause))
-      }
-    } finally {
-      if (detailController.current === controller) {
-        setIsLoadingPreview(false)
-      }
+      toast.error(title, { description: messageFrom(cause) })
     }
+  }
+
+  const openOriginal = (documentId: number) => {
+    const bridge = window.surfsense
+    return runNativeDocumentAction(
+      "Couldn’t open source",
+      bridge ? () => bridge.openDocument(workspaceId, documentId) : undefined
+    )
+  }
+
+  const revealOriginal = (documentId: number) => {
+    const bridge = window.surfsense
+    return runNativeDocumentAction(
+      "Couldn’t locate source",
+      bridge ? () => bridge.revealDocument(workspaceId, documentId) : undefined
+    )
   }
 
   const retry = async (documentId: number) => {
@@ -320,19 +317,13 @@ export function useSources(workspaceId: number) {
   return {
     documents,
     selectedDocumentIds,
-    selectedDocument,
     isLoading,
-    isLoadingPreview,
     isUploading,
     isDeleting,
     error,
     refresh,
-    openDocument,
-    closePreview: () => {
-      detailController.current?.abort()
-      setSelectedDocument(null)
-      setIsLoadingPreview(false)
-    },
+    openOriginal,
+    revealOriginal,
     retry,
     deleteSelected,
     setDocumentSelected,

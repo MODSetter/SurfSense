@@ -4,7 +4,15 @@ export type Health = {
 
 declare global {
   interface Window {
-    surfsense?: { apiUrl: string; platform: string }
+    surfsense?: {
+      apiUrl: string
+      platform: string
+      openDocument: (workspaceId: number, documentId: number) => Promise<string>
+      revealDocument: (
+        workspaceId: number,
+        documentId: number
+      ) => Promise<string>
+    }
   }
 }
 
@@ -38,11 +46,7 @@ export class ApiError extends Error {
 async function responseError(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json()
-    if (
-      typeof body === "object" &&
-      body !== null &&
-      "detail" in body
-    ) {
+    if (typeof body === "object" && body !== null && "detail" in body) {
       if (typeof body.detail === "string") {
         return body.detail
       }
@@ -57,7 +61,8 @@ async function responseError(response: Response): Promise<string> {
             ? body.detail.required
             : null
         const available =
-          "available" in body.detail && typeof body.detail.available === "number"
+          "available" in body.detail &&
+          typeof body.detail.available === "number"
             ? body.detail.available
             : null
         return required !== null && available !== null
