@@ -3,6 +3,7 @@ import { toast } from "sonner"
 
 import {
   deleteDocument,
+  isSupportedSourceFile,
   listDocuments,
   readDocument,
   retryDocument,
@@ -183,6 +184,17 @@ export function useSources(workspaceId: number) {
     if (files.length === 0) {
       return
     }
+    const supported = files.filter(isSupportedSourceFile)
+    const unsupported = files.filter((file) => !isSupportedSourceFile(file))
+    if (supported.length === 0) {
+      toast.error(`Couldn’t add your source${files.length === 1 ? "" : "s"}`, {
+        id: "source-upload-error",
+        description: `Unsupported file type: ${unsupported
+          .map((file) => file.name)
+          .join(", ")}`,
+      })
+      return
+    }
     uploadController.current?.abort()
     const controller = new AbortController()
     uploadController.current = controller
@@ -191,7 +203,7 @@ export function useSources(workspaceId: number) {
     try {
       const outcome = await uploadDocuments(
         workspaceId,
-        files,
+        supported,
         controller.signal
       )
       if (uploadController.current !== controller) {
@@ -216,6 +228,14 @@ export function useSources(workspaceId: number) {
         outcome.duplicates.length > 0
           ? `Already present: ${outcome.duplicates
               .map((duplicate) => duplicate.filename)
+              .join(", ")}`
+          : null,
+        unsupported.length > 0
+          ? `Not supported: ${unsupported.map((file) => file.name).join(", ")}`
+          : null,
+        outcome.rejected.length > 0
+          ? `Rejected: ${outcome.rejected
+              .map((rejection) => `${rejection.filename} (${rejection.reason})`)
               .join(", ")}`
           : null,
       ]

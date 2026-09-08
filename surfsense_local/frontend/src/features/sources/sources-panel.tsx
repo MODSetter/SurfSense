@@ -38,7 +38,11 @@ import {
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { DocumentDetail, WorkspaceDocument } from "./api"
+import {
+  SOURCE_FILE_ACCEPT,
+  type DocumentDetail,
+  type WorkspaceDocument,
+} from "./api"
 import type { Citation } from "@/features/chat/sse"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -294,6 +298,7 @@ export function SourcesPanel({
             ref={fileInput}
             type="file"
             multiple
+            accept={SOURCE_FILE_ACCEPT}
             className="sr-only"
             aria-label="Upload source files"
             disabled={isUploading}

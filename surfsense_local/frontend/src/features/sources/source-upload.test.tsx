@@ -144,6 +144,12 @@ describe("source upload", () => {
             {
               created: [pendingDocument],
               duplicates: [{ filename: "copy.txt", document_id: 7 }],
+              rejected: [
+                {
+                  filename: "broken.pdf",
+                  reason: "file contents do not match .pdf",
+                },
+              ],
             },
             { status: 201 }
           )
@@ -166,7 +172,10 @@ describe("source upload", () => {
     const file = new File(["local research"], "guide.txt", {
       type: "text/plain",
     })
-    await user.upload(screen.getByLabelText("Upload source files"), file)
+    const input = screen.getByLabelText("Upload source files")
+    expect(input.getAttribute("accept")).toContain(".pdf")
+    expect(input.getAttribute("accept")).toContain(".webp")
+    await user.upload(input, file)
 
     expect(await screen.findByText("guide.txt")).toBeTruthy()
     expect(
@@ -176,7 +185,8 @@ describe("source upload", () => {
       expect(toast.success).toHaveBeenCalledWith("1 source added", {
         id: "source-upload-outcome",
         description:
-          "Ingestion is running in the background. Already present: copy.txt",
+          "Ingestion is running in the background. Already present: copy.txt " +
+          "Rejected: broken.pdf (file contents do not match .pdf)",
       })
     )
 
@@ -197,7 +207,7 @@ describe("source upload", () => {
     )
   })
 
-  it("shows upload failures in a toast instead of the sources panel", async () => {
+  it("rejects unsupported selections before uploading", async () => {
     const fetchMock = vi.fn(
       async (_input: RequestInfo | URL, init?: RequestInit) => {
         if (init?.method === "POST") {
@@ -210,7 +220,7 @@ describe("source upload", () => {
       }
     )
     vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
+    const user = userEvent.setup({ applyAccept: false })
 
     render(<SourceHarness />)
     await screen.findByText("No sources yet")
@@ -222,8 +232,12 @@ describe("source upload", () => {
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Couldn’t add your source", {
         id: "source-upload-error",
-        description: "Unsupported file type",
+        description: "Unsupported file type: unsupported.exe",
       })
+    )
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      "/workspaces/1/documents/upload",
+      expect.anything()
     )
     expect(screen.queryByText("Source action failed")).toBeNull()
   })

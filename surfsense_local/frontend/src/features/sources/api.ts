@@ -16,9 +16,43 @@ export type DocumentDetail = WorkspaceDocument & {
   content: string | null
 }
 
+export const SUPPORTED_SOURCE_EXTENSIONS = [
+  ".pdf",
+  ".docx",
+  ".pptx",
+  ".xlsx",
+  ".html",
+  ".htm",
+  ".csv",
+  ".md",
+  ".markdown",
+  ".txt",
+  ".text",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".tif",
+  ".tiff",
+  ".bmp",
+  ".webp",
+] as const
+
+export const SOURCE_FILE_ACCEPT = SUPPORTED_SOURCE_EXTENSIONS.join(",")
+
+const supportedSourceExtensions = new Set<string>(SUPPORTED_SOURCE_EXTENSIONS)
+
+export function isSupportedSourceFile(file: File): boolean {
+  const dot = file.name.lastIndexOf(".")
+  return (
+    dot >= 0 &&
+    supportedSourceExtensions.has(file.name.slice(dot).toLowerCase())
+  )
+}
+
 export type UploadOutcome = {
   created: WorkspaceDocument[]
   duplicates: { filename: string; document_id: number }[]
+  rejected: { filename: string; reason: string }[]
 }
 
 export function listDocuments(
