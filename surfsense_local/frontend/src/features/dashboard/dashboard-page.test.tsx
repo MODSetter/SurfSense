@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -16,6 +22,7 @@ const workspace = {
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
@@ -388,14 +395,23 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    await user.click(
+    vi.useFakeTimers()
+    fireEvent.click(
       screen.getByRole("button", { name: "Show source 1: Guide.txt" })
     )
     const sourceButton = screen.getByRole("button", { name: "Guide.txt" })
     expect(sourceButton.parentElement?.getAttribute("aria-current")).toBe(
       "true"
     )
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "nearest",
+    })
     expect(window.surfsense?.openDocument).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(3000))
+    expect(sourceButton.parentElement?.getAttribute("aria-current")).toBeNull()
+    vi.useRealTimers()
 
     await user.click(sourceButton)
     expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)

@@ -167,9 +167,11 @@ describe("normalized model catalog", () => {
     expect(screen.queryByText("Parameters")).toBeNull()
     expect((actions[1] as HTMLButtonElement).disabled).toBe(true)
     await user.click(actions[0])
-    expect(
-      screen.getByRole("alertdialog", { name: "Use a marginal-fit model?" })
-    ).toBeTruthy()
+    const dialog = screen.getByRole("alertdialog", {
+      name: "Use a marginal-fit model?",
+    })
+    expect(dialog).toBeTruthy()
+    expect(dialog.className).toContain("select-none")
   })
 
   it("rescans through the explicit refresh endpoint", async () => {

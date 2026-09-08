@@ -88,8 +88,8 @@ function SelectableSourceRow({
       ref={rowRef}
       aria-current={highlighted ? "true" : undefined}
       className={cn(
-        "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
-        highlighted && "bg-sidebar-accent text-white",
+        "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
+        highlighted && "border-ring",
         dropdownOpen && "bg-muted dark:bg-muted/50"
       )}
     >
@@ -270,7 +270,7 @@ export function SourcesPanel({
     if (highlightedDocumentId === null) return
     sourceRows.current
       .get(highlightedDocumentId)
-      ?.scrollIntoView({ block: "nearest" })
+      ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
   }, [highlightedDocumentId])
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)

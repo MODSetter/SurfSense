@@ -121,6 +121,10 @@ describe("source upload", () => {
     expect(
       screen.getAllByRole("button", { name: /^Actions for / })
     ).toHaveLength(3)
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "nearest",
+    })
     const readyButton = screen.getByRole("button", { name: ready.title })
     const actionsButton = screen.getByRole("button", {
       name: `Actions for ${ready.title}`,
@@ -136,8 +140,11 @@ describe("source upload", () => {
     expect(readyButton.parentElement?.className).toContain(
       "dark:hover:bg-muted/50"
     )
-    expect(readyButton.parentElement?.className).toContain("bg-sidebar-accent")
-    expect(readyButton.parentElement?.className).toContain("text-white")
+    expect(readyButton.parentElement?.className).toContain("border-ring")
+    expect(readyButton.parentElement?.className).not.toContain(
+      "bg-sidebar-accent"
+    )
+    expect(readyButton.parentElement?.className).not.toContain("text-white")
     expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
     expect(
       readyButton.previousElementSibling

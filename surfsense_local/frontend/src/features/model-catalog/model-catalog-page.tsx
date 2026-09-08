@@ -302,7 +302,7 @@ export function ModelCatalogPage({
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="select-none">
           <AlertDialogHeader>
             <AlertDialogTitle>Use a marginal-fit model?</AlertDialogTitle>
             <AlertDialogDescription>
