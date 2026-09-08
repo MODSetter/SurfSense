@@ -34,11 +34,13 @@ describe("SettingsDialog", () => {
       </ThemeProvider>
     )
 
-    expect(screen.getByRole("heading", { name: "General" }).textContent).toBe(
-      "General"
-    )
+    expect(
+      screen.getByRole("heading", { name: "Appearance" }).textContent
+    ).toBe("Appearance")
 
-    await user.click(screen.getByRole("radio", { name: /^Dark/ }))
+    await user.click(
+      screen.getByRole("radio", { name: "Switch to dark theme" })
+    )
 
     expect(localStorage.getItem("theme")).toBe("dark")
     await waitFor(() =>

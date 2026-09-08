@@ -1,6 +1,5 @@
 import { useState, type ComponentType } from "react"
 
-import { useTheme } from "@/components/theme-provider"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -9,15 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  ComputerIcon,
-  MoonIcon,
-  Settings2Icon,
-  SunIcon,
-} from "@/components/ui/icons"
-import { Label } from "@/components/ui/label"
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Settings2Icon } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
+
+import { AppearanceToggle } from "./appearance-toggle"
 
 type SettingsSection = {
   id: string
@@ -26,76 +20,16 @@ type SettingsSection = {
   content: ComponentType
 }
 
-const APPEARANCES = [
-  {
-    value: "system",
-    label: "System",
-    description: "Match your device",
-    icon: ComputerIcon,
-  },
-  {
-    value: "light",
-    label: "Light",
-    description: "Always use light mode",
-    icon: SunIcon,
-  },
-  {
-    value: "dark",
-    label: "Dark",
-    description: "Always use dark mode",
-    icon: MoonIcon,
-  },
-] as const
-
-type Appearance = (typeof APPEARANCES)[number]["value"]
-
 function GeneralSettings() {
-  const { theme, setTheme } = useTheme()
-
   return (
-    <div className="p-7">
+    <div className="flex items-center justify-between gap-8 px-7 pt-14 pb-7">
       <div className="flex flex-col gap-1">
         <h3 className="text-sm font-medium">Appearance</h3>
         <p className="text-sm text-pretty text-muted-foreground">
           Choose how SurfSense looks on this device.
         </p>
       </div>
-      <RadioGroup
-        className="mt-5 grid grid-cols-3 gap-3"
-        value={theme}
-        onValueChange={(value) => setTheme(value as Appearance)}
-        aria-label="Appearance"
-      >
-        {APPEARANCES.map((option) => {
-          const Icon = option.icon
-          return (
-            <Label
-              key={option.value}
-              htmlFor={`theme-${option.value}`}
-              className={cn(
-                "relative flex min-h-32 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border bg-card p-4 text-center text-card-foreground shadow-xs transition-[border-color,box-shadow] hover:border-foreground/25 hover:shadow-sm",
-                theme === option.value &&
-                  "border-primary ring-2 ring-primary/15"
-              )}
-            >
-              <RadioGroupItem
-                id={`theme-${option.value}`}
-                value={option.value}
-                className="absolute top-3 right-3"
-              />
-              <span className="flex size-10 items-center justify-center rounded-lg bg-muted">
-                <Icon className="size-5" strokeWidth={1.5} />
-              </span>
-              <span className="flex min-w-0 flex-col gap-1.5">
-                <span>{option.label}</span>
-                <span className="text-xs leading-4 font-normal text-muted-foreground">
-                  {option.description}
-                </span>
-              </span>
-            </Label>
-          )
-        })}
-      </RadioGroup>
+      <AppearanceToggle />
     </div>
   )
 }
@@ -127,7 +61,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[min(640px,calc(100svh-2rem))] w-[min(1000px,calc(100vw-2rem))] max-w-none overflow-hidden rounded-2xl p-0 shadow-xl sm:max-w-none">
+      <DialogContent className="h-[640px] w-[1000px] max-w-none overflow-hidden rounded-2xl p-0 shadow-xl sm:max-w-none">
         <DialogHeader className="sr-only">
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
@@ -165,7 +99,7 @@ export function SettingsDialog({
             </nav>
           </aside>
 
-          <section className="min-w-0 overflow-y-auto bg-popover text-popover-foreground">
+          <section className="min-w-0 overflow-y-auto overscroll-contain bg-popover text-popover-foreground">
             <ActiveSection />
           </section>
         </div>
