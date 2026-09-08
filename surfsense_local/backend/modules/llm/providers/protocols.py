@@ -13,7 +13,15 @@ class Generator(Protocol):
 
     async def models(self) -> list[Model]: ...
 
-    def chat(self, model: str, messages: list[Message]) -> AsyncIterator[str]: ...
+    def chat(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning: bool | None = None,
+    ) -> AsyncIterator[str]: ...
 
 
 @runtime_checkable

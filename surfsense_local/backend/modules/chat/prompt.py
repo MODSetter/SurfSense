@@ -7,30 +7,32 @@ from shared.search import Hit
 # explicit rules and example matter most for the small local models this targets.
 INSTRUCTION = (
     "Answer the question using the sources in the context below.\n"
-    "- Cite each claim inline with the source's id in square brackets, like [1], "
+    "- Cite each claim inline with the source's id, exactly like [citation:1], "
     "and only cite a source that carries an id.\n"
     "- If the context does not hold the answer, say so, then answer from your own "
     "knowledge if you can.\n"
     "- Respond in the same language as the question.\n"
+    "- Label fenced code blocks with their language, such as python, typescript, "
+    "sql, or bash.\n"
     "- Do not repeat the source tags back in your answer.\n"
-    'Example: "The method raised efficiency by 20% [1]."'
+    'Example: "The method raised efficiency by 20% [citation:1]."'
 )
 
 # A chunk that contains these could otherwise close a source early and forge its
 # own, so its angle brackets are defanged before it goes between the tags.
 _TAGS = re.compile(r"</?(?:source|context)\b[^>]*>", re.IGNORECASE)
 
-# Fenced (```...```) and inline (`...`) code, so an ordinal inside an example or
-# `arr[1]` is never mistaken for a citation. Mirrors the frontend markdown.
+# Fenced (```...```) and inline (`...`) code, so citation-shaped examples remain
+# literal. Mirrors the frontend Markdown renderer.
 _CODE = re.compile(r"```[\s\S]*?```|`[^`\n]+`")
-_ORDINAL = re.compile(r"\[\s*(\d+)\s*\]")
+_CITATION = re.compile(r"\[citation:\s*(\d+)\s*\]")
 
 
 @dataclass(frozen=True)
 class Citation:
     """A source id the model may cite, resolved back to where it came from."""
 
-    id: int
+    source_id: int
     chunk_id: int
     document_id: int
     start_line: int | None
@@ -52,57 +54,45 @@ def build_context(hits: list[Hit]) -> tuple[str, list[Citation]]:
         for i, hit in enumerate(hits, start=1)
     ]
     sources = "\n".join(
-        f'<source id="{citation.id}" document="{citation.document_id}"'
+        f'<source id="{citation.source_id}" document="{citation.document_id}"'
         f' lines="{_lines(citation)}">{_defang(hit.content)}</source>'
         for citation, hit in zip(citations, hits, strict=True)
     )
     return f"{INSTRUCTION}\n\n<context>\n{sources}\n</context>", citations
 
 
-def normalize_citations(
+def resolve_citations(
     answer: str, citations: list[Citation]
 ) -> tuple[str, list[Citation]]:
-    """Resolve the answer's inline `[n]` against the sources it was given.
+    """Resolve inline citation tokens against the sources the model received.
 
-    An `[n]` that names a real source survives; one the model invented is dropped
-    rather than left pointing nowhere. The survivors are renumbered densely in
-    order of first appearance, so `[1]`, `[2]`, ... match the citations the UI
-    lists positionally. Ordinals inside code spans are left untouched.
+    Valid source ids remain stable so streamed and stored citations use the same
+    identity. Invented tokens are dropped rather than linked to the wrong source.
+    Citation-shaped text inside code remains literal.
     """
     if not answer:
         return answer, []
 
-    by_id = {citation.id: citation for citation in citations}
+    by_id = {citation.source_id: citation for citation in citations}
 
     order: list[int] = []
 
     def collect(span: str) -> str:
-        for match in _ORDINAL.finditer(span):
+        for match in _CITATION.finditer(span):
             cited = int(match.group(1))
             if cited in by_id and cited not in order:
                 order.append(cited)
         return span
 
     _outside_code(answer, collect)
-    renumbered = {old: new for new, old in enumerate(order, start=1)}
 
     def rewrite(span: str) -> str:
         def one(match: re.Match[str]) -> str:
-            new = renumbered.get(int(match.group(1)))
-            return f"[{new}]" if new is not None else ""
+            return match.group(0) if int(match.group(1)) in by_id else ""
 
-        return _ORDINAL.sub(one, span)
+        return _CITATION.sub(one, span)
 
-    used = [
-        Citation(
-            renumbered[old],
-            by_id[old].chunk_id,
-            by_id[old].document_id,
-            by_id[old].start_line,
-            by_id[old].end_line,
-        )
-        for old in order
-    ]
+    used = [by_id[source_id] for source_id in order]
     return _outside_code(answer, rewrite), used
 
 

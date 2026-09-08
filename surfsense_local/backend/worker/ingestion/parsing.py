@@ -8,7 +8,7 @@ from modules.documents.storage import original_path
 from shared.config import get_storage_settings
 
 # Already text: read off disk rather than round-trip through Docling.
-TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text", ""}
+TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text"}
 
 
 def markdown_for(document: Document) -> str:
@@ -50,5 +50,15 @@ def _converter() -> Any:
     options.do_table_structure = True
 
     return DocumentConverter(
-        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)}
+        allowed_formats=[
+            InputFormat.PDF,
+            InputFormat.DOCX,
+            InputFormat.PPTX,
+            InputFormat.XLSX,
+            InputFormat.HTML,
+            InputFormat.CSV,
+            InputFormat.MD,
+            InputFormat.IMAGE,
+        ],
+        format_options={InputFormat.PDF: PdfFormatOption(pipeline_options=options)},
     )

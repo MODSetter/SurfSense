@@ -33,9 +33,232 @@ beforeEach(() => {
     configurable: true,
     value: vi.fn(),
   })
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: vi.fn(),
+  })
+  vi.stubGlobal("surfsense", {
+    apiUrl: "",
+    platform: "darwin",
+    openDocument: vi.fn(async () => ""),
+    revealDocument: vi.fn(async () => ""),
+  })
 })
 
 describe("dashboard chat", () => {
+  it("renames a saved chat from the sidebar", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([thread])
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        if (
+          path === "/chat/threads/10" &&
+          init?.method === "PATCH" &&
+          typeof init.body === "string"
+        ) {
+          return Response.json({
+            ...thread,
+            title: JSON.parse(init.body).title,
+          })
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelRequired={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByRole("heading", { name: "Original title" })
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Original title" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Rename" }))
+    const input = screen.getByRole("textbox", { name: "Chat name" })
+    await user.clear(input)
+    await user.type(input, "Banking fees")
+    await user.click(screen.getByRole("button", { name: "Rename" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Banking fees" })
+    ).toBeTruthy()
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/chat/threads/10",
+      expect.objectContaining({
+        method: "PATCH",
+        body: JSON.stringify({ title: "Banking fees" }),
+      })
+    )
+  })
+
+  it("keeps composer placement aligned with the conversation lifecycle", async () => {
+    let resolveThreads!: (response: Response) => void
+    let resolveCreate!: (response: Response) => void
+    const threadsResponse = new Promise<Response>((resolve) => {
+      resolveThreads = resolve
+    })
+    const createResponse = new Promise<Response>((resolve) => {
+      resolveCreate = resolve
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return threadsResponse
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return createResponse
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z"}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([
+            {
+              id: 100,
+              role: "user",
+              content: { text: "Start a chat" },
+              created_at: "2026-09-05T00:00:00Z",
+              completed_at: null,
+            },
+            {
+              id: 101,
+              role: "assistant",
+              content: { text: "", citations: [] },
+              created_at: "2026-09-05T00:00:01Z",
+              completed_at: "2026-09-05T00:00:01Z",
+            },
+          ])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelRequired={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull()
+    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
+
+    resolveThreads(Response.json([]))
+    const input = await screen.findByRole("textbox", { name: "Message" })
+    expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
+    expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
+    expect(
+      screen.getByRole("region", { name: "Conversation" }).parentElement
+        ?.className
+    ).toContain("grid-rows-[minmax(0,1fr)]")
+
+    await user.type(input, "Start a chat")
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+    await waitFor(() => {
+      const bottomComposer = screen
+        .getByRole("textbox", { name: "Message" })
+        .closest('[data-composer-placement="bottom"]')
+      expect(bottomComposer).toBeTruthy()
+      expect(bottomComposer?.closest("[data-chat-viewport]")).toBeTruthy()
+    })
+
+    resolveCreate(
+      Response.json(
+        {
+          id: 10,
+          workspace_id: 1,
+          title: "Start a chat",
+          created_at: "2026-09-05T00:00:00Z",
+          updated_at: "2026-09-05T00:00:00Z",
+        },
+        { status: 201 }
+      )
+    )
+    await screen.findByRole("heading", { name: "Start a chat" })
+    await waitFor(() => {
+      expect(document.querySelectorAll("time")).toHaveLength(1)
+    })
+    expect(
+      screen
+        .getByRole("textbox", { name: "Message" })
+        .closest('[data-composer-placement="bottom"]')
+    ).toBeTruthy()
+
+    const activeInput = await screen.findByRole("textbox", { name: "Message" })
+    await screen.findByRole("button", { name: "Send message" })
+    await user.type(activeInput, "Discard this draft")
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+
+    await waitFor(() => {
+      const resetInput = screen.getByRole("textbox", { name: "Message" })
+      expect(
+        resetInput.closest('[data-composer-placement="center"]')
+      ).toBeTruthy()
+      expect((resetInput as HTMLTextAreaElement).value).toBe("")
+    })
+  })
+
   it("creates a thread on first send and scopes retrieval to selected sources", async () => {
     let messageSent = false
     let messageReads = 0
@@ -85,7 +308,7 @@ describe("dashboard chat", () => {
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           messageSent = true
           return new Response(
-            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101}\n\ndata: {"type":"delta","text":"Grounded "}\n\ndata: {"type":"delta","text":"answer"}\n\ndata: {"type":"citations","items":[{"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: [DONE]\n\n',
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"citation-catalog","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"delta","text":"Grounded answer [citation:1]"}\n\ndata: {"type":"citations","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z"}\n\ndata: [DONE]\n\n',
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
@@ -103,14 +326,16 @@ describe("dashboard chat", () => {
               role: "user",
               content: { text: "What is indexed?" },
               created_at: "2026-09-05T00:00:00Z",
+              completed_at: null,
             },
             {
               id: 101,
               role: "assistant",
               content: {
-                text: "Grounded answer",
+                text: "Grounded answer [citation:1]",
                 citations: [
                   {
+                    source_id: 1,
                     chunk_id: 30,
                     document_id: 20,
                     start_line: 1,
@@ -119,6 +344,7 @@ describe("dashboard chat", () => {
                 ],
               },
               created_at: "2026-09-05T00:00:01Z",
+              completed_at: "2026-09-05T00:00:01Z",
             },
           ])
         }
@@ -162,15 +388,28 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    expect(await screen.findByText("Used in answer")).toBeTruthy()
+    await user.click(
+      screen.getByRole("button", { name: "Show source 1: Guide.txt" })
+    )
+    const sourceButton = screen.getByRole("button", { name: "Guide.txt" })
+    expect(sourceButton.parentElement?.getAttribute("aria-current")).toBe(
+      "true"
+    )
+    expect(window.surfsense?.openDocument).not.toHaveBeenCalled()
+
+    await user.click(sourceButton)
+    expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
     expect(
-      screen.getByRole("button", { name: "Source 1: Guide.txt" })
-    ).toBeTruthy()
+      fetchMock.mock.calls.some(
+        ([path]) => String(path) === "/workspaces/1/documents/20"
+      )
+    ).toBe(false)
     resolveCanonical(Response.json([]))
     await screen.findByRole("button", { name: "Send message" })
     await waitFor(() => {
       expect(messageReads).toBe(2)
       expect(screen.getByText("Grounded answer")).toBeTruthy()
+      expect(document.querySelectorAll("time")).toHaveLength(2)
     })
     await waitFor(() => {
       expect(

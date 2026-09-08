@@ -1,6 +1,6 @@
 // Localhost networking helpers for bringing the API sidecar up: probe its
-// health, and (packaged only) pick a free port for it to bind.
-import { type ChildProcess } from "node:child_process"
+// health, and pick a free port for it to bind.
+import type { ChildProcess } from "node:child_process"
 import http from "node:http"
 import net from "node:net"
 
@@ -49,7 +49,7 @@ export async function waitForHealth(
   }
 }
 
-/** Ask the OS for an unused TCP port (packaged app; dev uses a fixed one). */
+/** Ask the OS for an unused TCP port. */
 export function getFreePort(host = "127.0.0.1"): Promise<number> {
   return new Promise((resolve, reject) => {
     const srv = net.createServer()

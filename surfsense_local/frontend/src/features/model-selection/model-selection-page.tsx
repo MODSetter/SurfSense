@@ -149,7 +149,7 @@ export function ModelSelectionPage({
   }
 
   return (
-    <main className="flex min-h-svh items-center justify-center bg-muted/30 p-4 sm:p-8">
+    <main className="flex min-h-full items-center justify-center bg-muted/30 p-4 sm:p-8">
       <div className="flex w-full max-w-4xl flex-col gap-4">
         <div className="flex items-center gap-2 px-1">
           <BrainCircuitIcon aria-hidden="true" className="size-5" />

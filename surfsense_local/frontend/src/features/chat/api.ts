@@ -19,7 +19,8 @@ export type ChatMessage = {
   id: number | string
   role: "user" | "assistant" | "system"
   content: MessageContent
-  created_at: string
+  created_at: string | null
+  completed_at: string | null
 }
 
 export function listThreads(
@@ -59,6 +60,19 @@ export function deleteThread(
 ): Promise<void> {
   return requestVoid(`/chat/threads/${threadId}`, {
     method: "DELETE",
+    signal,
+  })
+}
+
+export function renameThread(
+  threadId: number,
+  title: string,
+  signal?: AbortSignal
+): Promise<ChatThread> {
+  return requestJson<ChatThread>(`/chat/threads/${threadId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
     signal,
   })
 }

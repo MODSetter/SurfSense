@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import {
   deleteDocument,
+  isSupportedSourceFile,
   listDocuments,
-  readDocument,
   retryDocument,
   uploadDocuments,
-  type DocumentDetail,
-  type UploadOutcome,
   type WorkspaceDocument,
 } from "./api"
 
@@ -38,16 +37,11 @@ export function useSources(workspaceId: number) {
   const [selectedDocumentIdSet, setSelectedDocumentIdSet] = useState(
     () => new Set<number>()
   )
-  const [selectedDocument, setSelectedDocument] =
-    useState<DocumentDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [uploadOutcome, setUploadOutcome] = useState<UploadOutcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const listController = useRef<AbortController | null>(null)
-  const detailController = useRef<AbortController | null>(null)
   const uploadController = useRef<AbortController | null>(null)
   const pollController = useRef<AbortController | null>(null)
   const hasActiveIngestion = documents.some(
@@ -74,7 +68,6 @@ export function useSources(workspaceId: number) {
       })
     return () => {
       controller.abort()
-      detailController.current?.abort()
       uploadController.current?.abort()
       pollController.current?.abort()
     }
@@ -140,30 +133,34 @@ export function useSources(workspaceId: number) {
     }
   }
 
-  const openDocument = async (documentId: number) => {
-    detailController.current?.abort()
-    const controller = new AbortController()
-    detailController.current = controller
-    setIsLoadingPreview(true)
-    setError(null)
+  const runNativeDocumentAction = async (
+    title: string,
+    action: (() => Promise<string>) | undefined
+  ) => {
     try {
-      const detail = await readDocument(
-        workspaceId,
-        documentId,
-        controller.signal
-      )
-      if (detailController.current === controller) {
-        setSelectedDocument(detail)
-      }
+      const error = action
+        ? await action()
+        : "Native file access is unavailable."
+      if (error) throw new Error(error)
     } catch (cause) {
-      if (!isAbort(cause) && detailController.current === controller) {
-        setError(messageFrom(cause))
-      }
-    } finally {
-      if (detailController.current === controller) {
-        setIsLoadingPreview(false)
-      }
+      toast.error(title, { description: messageFrom(cause) })
     }
+  }
+
+  const openOriginal = (documentId: number) => {
+    const bridge = window.surfsense
+    return runNativeDocumentAction(
+      "Couldn’t open source",
+      bridge ? () => bridge.openDocument(workspaceId, documentId) : undefined
+    )
+  }
+
+  const revealOriginal = (documentId: number) => {
+    const bridge = window.surfsense
+    return runNativeDocumentAction(
+      "Couldn’t locate source",
+      bridge ? () => bridge.revealDocument(workspaceId, documentId) : undefined
+    )
   }
 
   const retry = async (documentId: number) => {
@@ -184,16 +181,26 @@ export function useSources(workspaceId: number) {
     if (files.length === 0) {
       return
     }
+    const supported = files.filter(isSupportedSourceFile)
+    const unsupported = files.filter((file) => !isSupportedSourceFile(file))
+    if (supported.length === 0) {
+      toast.error(`Couldn’t add your source${files.length === 1 ? "" : "s"}`, {
+        id: "source-upload-error",
+        description: `Unsupported file type: ${unsupported
+          .map((file) => file.name)
+          .join(", ")}`,
+      })
+      return
+    }
     uploadController.current?.abort()
     const controller = new AbortController()
     uploadController.current = controller
     setIsUploading(true)
-    setUploadOutcome(null)
     setError(null)
     try {
       const outcome = await uploadDocuments(
         workspaceId,
-        files,
+        supported,
         controller.signal
       )
       if (uploadController.current !== controller) {
@@ -208,10 +215,47 @@ export function useSources(workspaceId: number) {
           ...outcome.created,
         ]
       })
-      setUploadOutcome(outcome)
+      const count = outcome.created.length
+      const title =
+        count > 0
+          ? `${count} source${count === 1 ? "" : "s"} added`
+          : "No new sources added"
+      const description = [
+        count > 0 ? "Ingestion is running in the background." : null,
+        outcome.duplicates.length > 0
+          ? `Already present: ${outcome.duplicates
+              .map((duplicate) => duplicate.filename)
+              .join(", ")}`
+          : null,
+        unsupported.length > 0
+          ? `Not supported: ${unsupported.map((file) => file.name).join(", ")}`
+          : null,
+        outcome.rejected.length > 0
+          ? `Rejected: ${outcome.rejected
+              .map((rejection) => `${rejection.filename} (${rejection.reason})`)
+              .join(", ")}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+      const options = {
+        id: "source-upload-outcome",
+        description: description || undefined,
+      }
+      if (count > 0) {
+        toast.success(title, options)
+      } else {
+        toast.info(title, options)
+      }
     } catch (cause) {
       if (!isAbort(cause) && uploadController.current === controller) {
-        setError(messageFrom(cause))
+        toast.error(
+          `Couldn’t add your source${files.length === 1 ? "" : "s"}`,
+          {
+            id: "source-upload-error",
+            description: messageFrom(cause),
+          }
+        )
       }
     } finally {
       if (uploadController.current === controller) {
@@ -273,24 +317,16 @@ export function useSources(workspaceId: number) {
   return {
     documents,
     selectedDocumentIds,
-    selectedDocument,
     isLoading,
-    isLoadingPreview,
     isUploading,
     isDeleting,
-    uploadOutcome,
     error,
     refresh,
-    openDocument,
-    closePreview: () => {
-      detailController.current?.abort()
-      setSelectedDocument(null)
-      setIsLoadingPreview(false)
-    },
+    openOriginal,
+    revealOriginal,
     retry,
     deleteSelected,
     setDocumentSelected,
     upload,
-    dismissUploadOutcome: () => setUploadOutcome(null),
   }
 }

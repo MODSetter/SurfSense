@@ -67,6 +67,24 @@ async def _send(client: AsyncClient, thread_id: int, text: str) -> list[dict]:
     return events
 
 
+async def test_a_thread_can_be_renamed(client: AsyncClient) -> None:
+    """A manual title is trimmed, persisted, and constrained at the API boundary."""
+    workspace = (await client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(client, workspace["id"])
+
+    renamed = await client.patch(
+        f"/chat/threads/{thread_id}", json={"title": "  Banking fees  "}
+    )
+
+    assert renamed.status_code == 200
+    assert renamed.json()["title"] == "Banking fees"
+    listed = (await client.get(f"/workspaces/{workspace['id']}/chat/threads")).json()
+    assert listed[0]["title"] == "Banking fees"
+    assert (
+        await client.patch(f"/chat/threads/{thread_id}", json={"title": "   "})
+    ).status_code == 422
+
+
 async def test_a_message_streams_a_grounded_reply(
     client: AsyncClient, engine: Engine, real_model: object, ollama_server: list[dict]
 ) -> None:
@@ -80,12 +98,28 @@ async def test_a_message_streams_a_grounded_reply(
     assert accepted["type"] == "accepted"
     assert accepted["user_message_id"] > 0
     assert accepted["assistant_message_id"] > 0
+    assert accepted["user_created_at"]
+
+    catalog = events[1]
+    assert catalog["type"] == "citation-catalog"
+    assert len(catalog["items"]) == 1
+    assert catalog["items"][0]["source_id"] == 1
+    assert catalog["items"][0]["document_id"] == doc_id
+
+    title = events[2]
+    assert title == {"type": "thread-title-update", "title": "Revenue Growth"}
+    assert (
+        next(event["type"] for event in events if event["type"] == "delta") == "delta"
+    )
 
     deltas = [event["text"] for event in events if event["type"] == "delta"]
-    assert "".join(deltas) == "Revenue climbed after the launch [1]."
+    assert "".join(deltas) == "Revenue climbed after the launch [citation:1]."
 
     citations = next(event for event in events if event["type"] == "citations")
     assert any(cite["document_id"] == doc_id for cite in citations["items"])
+    assert citations["items"][0]["source_id"] == 1
+    completed = next(event for event in events if event["type"] == "completed")
+    assert completed["assistant_completed_at"]
 
     stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
     assert [message["role"] for message in stored] == ["user", "assistant"]
@@ -93,8 +127,17 @@ async def test_a_message_streams_a_grounded_reply(
         accepted["user_message_id"],
         accepted["assistant_message_id"],
     ]
-    assert stored[1]["content"]["text"] == "Revenue climbed after the launch [1]."
+    assert (
+        stored[1]["content"]["text"] == "Revenue climbed after the launch [citation:1]."
+    )
     assert stored[1]["content"]["citations"]
+    assert stored[0]["completed_at"] is None
+    assert stored[1]["completed_at"] == completed["assistant_completed_at"]
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "Revenue Growth"
+    assert ollama_server[0]["think"] is False
+    assert ollama_server[0]["options"] == {"num_predict": 12, "temperature": 0}
+    assert "options" not in ollama_server[1]
 
 
 async def test_a_followup_carries_the_earlier_turn(
@@ -108,10 +151,38 @@ async def test_a_followup_carries_the_earlier_turn(
     ollama_server.clear()
     await _send(client, thread_id, "second question")
 
+    assert len(ollama_server) == 1
     sent = ollama_server[-1]["messages"]
     assert sent[0]["role"] == "system"
     assert sent[-1] == {"role": "user", "content": "second question"}
     assert "first question" in [message["content"] for message in sent]
+
+
+async def test_title_failure_does_not_block_the_answer(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    ollama_server: list[dict],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Naming is best effort; its failure must not consume or fail the chat turn."""
+
+    async def fail_title(*_args: object) -> None:
+        raise RuntimeError("title model failed")
+
+    monkeypatch.setattr("modules.chat.router.generate_title", fail_title)
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened?")
+
+    assert not any(event["type"] == "thread-title-update" for event in events)
+    assert (
+        "".join(event["text"] for event in events if event["type"] == "delta")
+        == "Revenue climbed after the launch [citation:1]."
+    )
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "New chat"
 
 
 async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> None:

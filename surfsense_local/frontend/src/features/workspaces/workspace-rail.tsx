@@ -141,7 +141,7 @@ export function WorkspaceRail({
 
   return (
     <nav
-      className="flex h-svh flex-col items-center bg-sidebar py-3 text-sidebar-foreground"
+      className="flex h-full flex-col items-center bg-sidebar py-3 text-sidebar-foreground"
       aria-label="Workspaces"
     >
       <ScrollArea className="min-h-0 w-full flex-1">
@@ -203,23 +203,23 @@ export function WorkspaceRail({
               </ContextMenu>
             )
           })}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                size="icon-lg"
+                variant="ghost"
+                className="rounded-xl border border-dashed border-sidebar-border"
+                disabled={isMutating}
+                aria-label="Create workspace"
+                onClick={() => setCreateOpen(true)}
+              >
+                <PlusIcon />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">Create workspace</TooltipContent>
+          </Tooltip>
         </div>
       </ScrollArea>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon-lg"
-            variant="ghost"
-            className="mt-2 rounded-xl border border-dashed"
-            disabled={isMutating}
-            aria-label="Create workspace"
-            onClick={() => setCreateOpen(true)}
-          >
-            <PlusIcon />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right">Create workspace</TooltipContent>
-      </Tooltip>
 
       <WorkspaceNameDialog
         key={`create-${createOpen}`}

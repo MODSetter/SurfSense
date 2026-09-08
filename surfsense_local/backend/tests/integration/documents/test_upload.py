@@ -54,11 +54,11 @@ async def test_the_same_bytes_are_not_ingested_twice(
     """Embedding a document twice doubles the work and splits its citations."""
     first = await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
-        files={"files": ("report.pdf", b"identical", "application/pdf")},
+        files={"files": ("report.pdf", b"%PDF-identical", "application/pdf")},
     )
     second = await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
-        files={"files": ("renamed.pdf", b"identical", "application/pdf")},
+        files={"files": ("renamed.pdf", b"%PDF-identical", "application/pdf")},
     )
 
     assert second.status_code == 201
@@ -74,11 +74,11 @@ async def test_a_different_file_of_the_same_name_is_kept(
     """Cloud keys dedup on the filename, so report.pdf could be uploaded once, ever."""
     await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
-        files={"files": ("report.pdf", b"january", "application/pdf")},
+        files={"files": ("report.pdf", b"%PDF-january", "application/pdf")},
     )
     second = await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
-        files={"files": ("report.pdf", b"february", "application/pdf")},
+        files={"files": ("report.pdf", b"%PDF-february", "application/pdf")},
     )
 
     assert len(second.json()["created"]) == 1
@@ -93,7 +93,7 @@ async def test_the_same_file_is_kept_per_workspace(client: AsyncClient) -> None:
     for workspace in (first, second):
         response = await client.post(
             f"/workspaces/{workspace.json()['id']}/documents/upload",
-            files={"files": ("report.pdf", b"shared", "application/pdf")},
+            files={"files": ("report.pdf", b"%PDF-shared", "application/pdf")},
         )
 
         assert len(response.json()["created"]) == 1
@@ -105,19 +105,62 @@ async def test_a_batch_is_split_rather_than_rejected(
     """A dropped folder holding one known file must not lose the other three."""
     await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
-        files={"files": ("old.pdf", b"seen before", "application/pdf")},
+        files={"files": ("old.pdf", b"%PDF-seen before", "application/pdf")},
     )
 
     response = await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
         files=[
-            ("files", ("old.pdf", b"seen before", "application/pdf")),
-            ("files", ("new.pdf", b"never seen", "application/pdf")),
+            ("files", ("old.pdf", b"%PDF-seen before", "application/pdf")),
+            ("files", ("new.pdf", b"%PDF-never seen", "application/pdf")),
         ],
     )
 
     assert [document["title"] for document in response.json()["created"]] == ["new.pdf"]
     assert [entry["filename"] for entry in response.json()["duplicates"]] == ["old.pdf"]
+
+
+async def test_unsupported_and_mismatched_files_are_rejected_per_file(
+    client: AsyncClient, workspace_id: int, data_dir: Path
+) -> None:
+    """Only verified formats reach storage and the ingestion queue."""
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("notes.txt", b"research notes", "application/octet-stream")),
+            ("files", ("malware.exe", b"MZ", "application/pdf")),
+            ("files", ("fake.pdf", b"MZ", "application/pdf")),
+        ],
+    )
+
+    assert response.status_code == 201
+    assert [entry["title"] for entry in response.json()["created"]] == ["notes.txt"]
+    assert response.json()["rejected"] == [
+        {"filename": "malware.exe", "reason": ".exe are not supported"},
+        {
+            "filename": "fake.pdf",
+            "reason": "file contents do not match .pdf",
+        },
+    ]
+    assert [path.name for path in stored_files(data_dir)] == ["original.txt"]
+    assert len(huey.pending()) == 1
+
+
+async def test_server_records_verified_mime_not_the_clients_claim(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Multipart MIME is advisory; downloads use the server-owned type."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("notes.txt", b"research", "application/x-msdownload")},
+    )
+    document_id = created.json()["created"][0]["id"]
+
+    downloaded = await client.get(
+        f"/workspaces/{workspace_id}/documents/{document_id}/original"
+    )
+
+    assert downloaded.headers["content-type"].startswith("text/plain")
 
 
 async def test_one_batch_cannot_hold_the_same_file_twice(
@@ -127,8 +170,8 @@ async def test_one_batch_cannot_hold_the_same_file_twice(
     response = await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
         files=[
-            ("files", ("report.pdf", b"identical", "application/pdf")),
-            ("files", ("copy.pdf", b"identical", "application/pdf")),
+            ("files", ("report.pdf", b"%PDF-identical", "application/pdf")),
+            ("files", ("copy.pdf", b"%PDF-identical", "application/pdf")),
         ],
     )
 
@@ -163,7 +206,7 @@ async def test_a_filename_cannot_escape_the_data_directory(
     """The client names the file; only its extension is allowed near a path."""
     response = await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
-        files={"files": ("../../../../etc/passwd", b"root:x:0:0", "text/plain")},
+        files={"files": ("../../../../etc/report.txt", b"root:x:0:0", "text/plain")},
     )
 
     assert response.status_code == 201
@@ -174,7 +217,7 @@ async def test_a_filename_cannot_escape_the_data_directory(
         / str(workspace_id)
         / "documents"
         / str(response.json()["created"][0]["id"])
-        / "original"
+        / "original.txt"
     ]
 
 
@@ -249,7 +292,7 @@ async def test_a_deleted_workspace_takes_every_file(
     for name in ("a.pdf", "b.pdf"):
         await client.post(
             f"/workspaces/{workspace_id}/documents/upload",
-            files={"files": (name, name.encode(), "application/pdf")},
+            files={"files": (name, b"%PDF-" + name.encode(), "application/pdf")},
         )
 
     await client.delete(f"/workspaces/{workspace_id}")

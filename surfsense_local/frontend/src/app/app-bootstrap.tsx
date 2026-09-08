@@ -1,8 +1,8 @@
 import { lazy, Suspense, useEffect, useState } from "react"
-import { ServerOffIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { ServerOffIcon } from "@/components/ui/icons"
 import { Skeleton } from "@/components/ui/skeleton"
 import {
   getGenerationSelection,
@@ -46,7 +46,7 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
 
 function ShellSkeleton() {
   return (
-    <main className="grid h-svh min-w-[1120px] grid-cols-[56px_272px_minmax(520px,1fr)_320px] overflow-hidden">
+    <main className="grid h-full min-w-[1120px] grid-cols-[56px_272px_minmax(520px,1fr)_320px] overflow-hidden">
       <Skeleton className="h-full rounded-none" />
       <div className="space-y-4 border-r p-4">
         <Skeleton className="h-8 w-full" />
@@ -103,7 +103,7 @@ export function AppBootstrap() {
 
   if (state.status === "error") {
     return (
-      <main className="flex min-h-svh items-center justify-center bg-muted/30 p-8">
+      <main className="flex min-h-full items-center justify-center bg-muted/30 p-8">
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
           <AlertTitle>SurfSense Local could not start</AlertTitle>
