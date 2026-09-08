@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import {
   deleteDocument,
@@ -7,7 +8,6 @@ import {
   retryDocument,
   uploadDocuments,
   type DocumentDetail,
-  type UploadOutcome,
   type WorkspaceDocument,
 } from "./api"
 
@@ -44,7 +44,6 @@ export function useSources(workspaceId: number) {
   const [isLoadingPreview, setIsLoadingPreview] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
-  const [uploadOutcome, setUploadOutcome] = useState<UploadOutcome | null>(null)
   const [error, setError] = useState<string | null>(null)
   const listController = useRef<AbortController | null>(null)
   const detailController = useRef<AbortController | null>(null)
@@ -188,7 +187,6 @@ export function useSources(workspaceId: number) {
     const controller = new AbortController()
     uploadController.current = controller
     setIsUploading(true)
-    setUploadOutcome(null)
     setError(null)
     try {
       const outcome = await uploadDocuments(
@@ -208,10 +206,39 @@ export function useSources(workspaceId: number) {
           ...outcome.created,
         ]
       })
-      setUploadOutcome(outcome)
+      const count = outcome.created.length
+      const title =
+        count > 0
+          ? `${count} source${count === 1 ? "" : "s"} added`
+          : "No new sources added"
+      const description = [
+        count > 0 ? "Ingestion is running in the background." : null,
+        outcome.duplicates.length > 0
+          ? `Already present: ${outcome.duplicates
+              .map((duplicate) => duplicate.filename)
+              .join(", ")}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" ")
+      const options = {
+        id: "source-upload-outcome",
+        description: description || undefined,
+      }
+      if (count > 0) {
+        toast.success(title, options)
+      } else {
+        toast.info(title, options)
+      }
     } catch (cause) {
       if (!isAbort(cause) && uploadController.current === controller) {
-        setError(messageFrom(cause))
+        toast.error(
+          `Couldn’t add your source${files.length === 1 ? "" : "s"}`,
+          {
+            id: "source-upload-error",
+            description: messageFrom(cause),
+          }
+        )
       }
     } finally {
       if (uploadController.current === controller) {
@@ -278,7 +305,6 @@ export function useSources(workspaceId: number) {
     isLoadingPreview,
     isUploading,
     isDeleting,
-    uploadOutcome,
     error,
     refresh,
     openDocument,
@@ -291,6 +317,5 @@ export function useSources(workspaceId: number) {
     deleteSelected,
     setDocumentSelected,
     upload,
-    dismissUploadOutcome: () => setUploadOutcome(null),
   }
 }

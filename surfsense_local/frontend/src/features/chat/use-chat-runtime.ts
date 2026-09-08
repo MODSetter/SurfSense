@@ -369,6 +369,25 @@ export function useChatRuntime({
                       : thread
                   )
               )
+            } else if (
+              event.type === "citation-catalog" ||
+              event.type === "citations"
+            ) {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            citations: event.items,
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
             } else if (event.type === "delta") {
               setAutoNamingThreadId(null)
               const targetId = assistantId
@@ -381,22 +400,6 @@ export function useChatRuntime({
                           content: {
                             ...message.content,
                             text: (message.content.text ?? "") + event.text,
-                          },
-                        }
-                      : message
-                  ) ?? null
-              )
-            } else if (event.type === "citations") {
-              const targetId = assistantId
-              setLiveMessages(
-                (current) =>
-                  current?.map((message) =>
-                    message.id === targetId
-                      ? {
-                          ...message,
-                          content: {
-                            ...message.content,
-                            citations: event.items,
                           },
                         }
                       : message

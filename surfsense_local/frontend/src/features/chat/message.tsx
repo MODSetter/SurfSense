@@ -1,9 +1,4 @@
-import {
-  CheckIcon,
-  CopyIcon,
-  DownloadIcon,
-  FileTextIcon,
-} from "@/components/ui/icons"
+import { CheckIcon, CopyIcon, DownloadIcon } from "@/components/ui/icons"
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -13,6 +8,8 @@ import {
 import { StreamdownTextPrimitive } from "@assistant-ui/react-streamdown"
 import { code } from "@streamdown/code"
 import { createMathPlugin } from "@streamdown/math"
+import type { ComponentType } from "react"
+import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
@@ -24,6 +21,8 @@ import {
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
+import { preprocessCitationMarkdown } from "./citation-markdown"
+import { CitationProvider, InlineCitation } from "./inline-citation"
 import type { Citation } from "./sse"
 
 const streamdownPlugins = {
@@ -31,13 +30,24 @@ const streamdownPlugins = {
   math: createMathPlugin({ singleDollarTextMath: true }),
 }
 const streamdownIcons = { CheckIcon, CopyIcon, DownloadIcon }
+const citationComponents: Components = {
+  citation: InlineCitation as ComponentType<
+    Record<string, unknown> & ExtraProps
+  >,
+}
+const citationAllowedTags = {
+  citation: ["data-source-id"],
+}
 
 function MarkdownText() {
   return (
     <StreamdownTextPrimitive
       defer
+      allowedTags={citationAllowedTags}
+      components={citationComponents}
       icons={streamdownIcons}
       plugins={streamdownPlugins}
+      preprocess={preprocessCitationMarkdown}
       linkSafety={{ enabled: true }}
       security={{
         allowedProtocols: ["http", "https", "mailto"],
@@ -98,52 +108,11 @@ function MessageActions({
               </Button>
             </TooltipTrigger>
           </ActionBarPrimitive.Copy>
-          <TooltipContent>
-            {isCopied ? "Copied" : "Copy"}
-          </TooltipContent>
+          <TooltipContent>{isCopied ? "Copied" : "Copy"}</TooltipContent>
         </Tooltip>
       </ActionBarPrimitive.Root>
       {timestampRight ? timestamp : null}
     </div>
-  )
-}
-
-function CitationLinks({
-  citations,
-  documents,
-  onCitation,
-}: {
-  citations: Citation[]
-  documents: WorkspaceDocument[]
-  onCitation: (citation: Citation) => void
-}) {
-  if (citations.length === 0) {
-    return null
-  }
-  const titleById = new Map(
-    documents.map((document) => [document.id, document.title])
-  )
-  return (
-    <ul className="mt-3 flex flex-wrap gap-1.5" aria-label="Citations">
-      {citations.map((citation, index) => {
-        const title =
-          titleById.get(citation.document_id) ??
-          `Document ${citation.document_id}`
-        return (
-          <li key={citation.chunk_id}>
-            <Button
-              variant="outline"
-              size="xs"
-              aria-label={`Source ${index + 1}: ${title}`}
-              onClick={() => onCitation(citation)}
-            >
-              <FileTextIcon />
-              {index + 1}
-            </Button>
-          </li>
-        )
-      })}
-    </ul>
   )
 }
 
@@ -169,14 +138,15 @@ export function AssistantMessage({
 }) {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
-      <div className="w-full max-w-full min-w-0 text-sm leading-7">
-        <MessagePrimitive.Parts components={assistantMessageParts} />
-      </div>
-      <CitationLinks
+      <CitationProvider
         citations={citations}
         documents={documents}
         onCitation={onCitation}
-      />
+      >
+        <div className="w-full max-w-full min-w-0 text-sm leading-7">
+          <MessagePrimitive.Parts components={assistantMessageParts} />
+        </div>
+      </CitationProvider>
       <MessageActions hideWhenRunning timestampRight className="top-0.5" />
     </MessagePrimitive.Root>
   )

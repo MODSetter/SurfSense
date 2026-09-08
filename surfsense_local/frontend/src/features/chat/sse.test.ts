@@ -21,7 +21,8 @@ describe("parseSseStream", () => {
       'data: {"type":"accepted","user_message_id":11,"assistant_message_id":12}\n\ndata: {"type":"del',
       'ta","text":"hel"}\n\ndata: {"type":"thread-title-update","title":"Revenue Growth"}',
       '\n\ndata: {"type":"delta","text":"lo"}',
-      '\n\ndata: {"type":"citations","items":[{"chunk_id":4,"document_id":2,',
+      '\n\ndata: {"type":"citation-catalog","items":[{"source_id":1,"chunk_id":4,"document_id":2,',
+      '"start_line":10,"end_line":12}]}\n\ndata: {"type":"citations","items":[{"source_id":1,"chunk_id":4,"document_id":2,',
       '"start_line":10,"end_line":12}]}\n\ndata: [DONE]\n\n',
     ])
 
@@ -39,9 +40,22 @@ describe("parseSseStream", () => {
       { type: "thread-title-update", title: "Revenue Growth" },
       { type: "delta", text: "lo" },
       {
+        type: "citation-catalog",
+        items: [
+          {
+            source_id: 1,
+            chunk_id: 4,
+            document_id: 2,
+            start_line: 10,
+            end_line: 12,
+          },
+        ],
+      },
+      {
         type: "citations",
         items: [
           {
+            source_id: 1,
             chunk_id: 4,
             document_id: 2,
             start_line: 10,

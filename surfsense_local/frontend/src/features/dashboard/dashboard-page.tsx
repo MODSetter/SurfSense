@@ -103,7 +103,6 @@ function WorkspaceDashboard({
         isLoadingPreview={sources.isLoadingPreview}
         isUploading={sources.isUploading}
         isDeleting={sources.isDeleting}
-        uploadOutcome={sources.uploadOutcome}
         error={sources.error}
         onOpen={openSource}
         onBack={() => {
@@ -114,7 +113,6 @@ function WorkspaceDashboard({
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
-        onDismissUploadOutcome={sources.dismissUploadOutcome}
         studioSlot={
           <StudioDialog
             workspaceId={workspace.id}

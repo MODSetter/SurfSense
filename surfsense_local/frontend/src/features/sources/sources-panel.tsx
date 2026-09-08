@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent, type ReactNode } from "react"
 import {
   ArrowLeftIcon,
-  CheckCircle2Icon,
+  EllipsisIcon,
   FileIcon,
   FilePlus2Icon,
   NotebookTextIcon,
@@ -20,9 +20,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -32,18 +38,11 @@ import {
 } from "@/components/ui/empty"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
-import type { UploadOutcome, DocumentDetail, WorkspaceDocument } from "./api"
+import type { DocumentDetail, WorkspaceDocument } from "./api"
 import type { Citation } from "@/features/chat/sse"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
-
-const statusVariant = {
-  pending: "outline",
-  processing: "secondary",
-  ready: "secondary",
-  failed: "destructive",
-} as const
 
 function SelectableSourceRow({
   document,
@@ -58,60 +57,106 @@ function SelectableSourceRow({
   onRetry: () => void
   onSelectedChange: (selected: boolean) => void
 }) {
-  const selectable = document.status === "ready"
+  const ready = document.status === "ready"
+  const failed = document.status === "failed"
+  const processing =
+    document.status === "pending" || document.status === "processing"
 
   return (
     <div
       className={cn(
-        "flex items-center gap-2 rounded-lg px-2 py-1.5 hover:bg-accent",
+        "group/source flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 focus-within:bg-accent hover:bg-accent",
         selected && "bg-accent"
       )}
     >
+      <span className="relative flex size-7 shrink-0 items-center justify-center">
+        {ready ? (
+          <>
+            <span
+              className={cn(
+                "absolute inset-0 flex items-center justify-center text-muted-foreground transition-opacity duration-150",
+                selected
+                  ? "opacity-0"
+                  : "opacity-100 group-focus-within/source:opacity-0 group-hover/source:opacity-0"
+              )}
+            >
+              {document.document_type === "NOTE" ? (
+                <NotebookTextIcon />
+              ) : (
+                <FileIcon />
+              )}
+            </span>
+            <Checkbox
+              checked={selected}
+              aria-label={`Select ${document.title}`}
+              className={cn(
+                "absolute transition-opacity duration-150",
+                selected
+                  ? "opacity-100"
+                  : "pointer-events-none opacity-0 group-focus-within/source:pointer-events-auto group-focus-within/source:opacity-100 group-hover/source:pointer-events-auto group-hover/source:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+              )}
+              onClick={(event) => event.stopPropagation()}
+              onCheckedChange={(checked) => onSelectedChange(checked === true)}
+            />
+          </>
+        ) : null}
+        {processing ? (
+          <Spinner
+            className="text-muted-foreground"
+            aria-label={`Processing ${document.title}`}
+          />
+        ) : null}
+        {failed ? (
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            aria-label={`Retry ${document.title}`}
+            onClick={onRetry}
+          >
+            <RefreshCwIcon />
+          </Button>
+        ) : null}
+      </span>
       <button
         type="button"
-        className="flex min-w-0 flex-1 items-center gap-2 text-left outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
-        onClick={onOpen}
+        disabled={!ready}
+        className="min-w-0 flex-1 truncate rounded-sm text-left text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default"
+        onClick={ready ? onOpen : undefined}
       >
-        <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-muted">
-          {document.document_type === "NOTE" ? (
-            <NotebookTextIcon className="size-3.5" />
-          ) : (
-            <FileIcon className="size-3.5" />
-          )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium">
-            {document.title}
-          </span>
-          <span className="mt-0.5 flex items-center gap-1.5">
-            <span className="text-[11px] text-muted-foreground">
-              {document.document_type === "NOTE" ? "Note" : "File"}
-            </span>
-            <Badge
-              variant={statusVariant[document.status]}
-              className="h-4 px-1.5 text-[10px]"
-            >
-              {document.status}
-            </Badge>
-          </span>
-        </span>
+        {document.title}
       </button>
-      {document.status === "failed" ? (
-        <Button
-          size="icon-xs"
-          variant="ghost"
-          aria-label={`Retry ${document.title}`}
-          onClick={onRetry}
-        >
-          <RefreshCwIcon />
-        </Button>
-      ) : null}
-      <Checkbox
-        checked={selected}
-        disabled={!selectable}
-        aria-label={`Select ${document.title}`}
-        onCheckedChange={(checked) => onSelectedChange(checked === true)}
-      />
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            className="shrink-0"
+            aria-label={`Actions for ${document.title}`}
+          >
+            <EllipsisIcon />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuGroup>
+            {ready ? (
+              <>
+                <DropdownMenuItem onSelect={onOpen}>Open</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => onSelectedChange(!selected)}>
+                  {selected ? "Deselect" : "Select"}
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {failed ? (
+              <DropdownMenuItem onSelect={onRetry}>Retry</DropdownMenuItem>
+            ) : null}
+            {processing ? (
+              <DropdownMenuItem disabled>Processing</DropdownMenuItem>
+            ) : null}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
@@ -186,7 +231,6 @@ export function SourcesPanel({
   isLoadingPreview,
   isUploading,
   isDeleting,
-  uploadOutcome,
   error,
   onOpen,
   onBack,
@@ -194,7 +238,6 @@ export function SourcesPanel({
   onDeleteSelected,
   onSelectionChange,
   onUpload,
-  onDismissUploadOutcome,
   studioSlot,
 }: {
   documents: WorkspaceDocument[]
@@ -205,7 +248,6 @@ export function SourcesPanel({
   isLoadingPreview: boolean
   isUploading: boolean
   isDeleting: boolean
-  uploadOutcome: UploadOutcome | null
   error: string | null
   onOpen: (documentId: number, citation?: Citation) => void
   onBack: () => void
@@ -213,7 +255,6 @@ export function SourcesPanel({
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
   onUpload: (files: File[]) => void
-  onDismissUploadOutcome: () => void
   studioSlot?: ReactNode
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
@@ -271,39 +312,8 @@ export function SourcesPanel({
             </Button>
           </div>
         </header>
-        <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:h-full">
-          <div className="flex min-h-full flex-col gap-3 p-3">
-            {uploadOutcome ? (
-              <Alert>
-                <CheckCircle2Icon />
-                <AlertTitle>
-                  {uploadOutcome.created.length > 0
-                    ? `${uploadOutcome.created.length} source${uploadOutcome.created.length === 1 ? "" : "s"} added`
-                    : "No new sources added"}
-                </AlertTitle>
-                <AlertDescription>
-                  {uploadOutcome.created.length > 0 ? (
-                    <p>Ingestion is running in the background.</p>
-                  ) : null}
-                  {uploadOutcome.duplicates.length > 0 ? (
-                    <p>
-                      Already present:{" "}
-                      {uploadOutcome.duplicates
-                        .map((duplicate) => duplicate.filename)
-                        .join(", ")}
-                    </p>
-                  ) : null}
-                  <Button
-                    variant="link"
-                    size="xs"
-                    className="mt-1 h-auto p-0"
-                    onClick={onDismissUploadOutcome}
-                  >
-                    Dismiss
-                  </Button>
-                </AlertDescription>
-              </Alert>
-            ) : null}
+        <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block [&_[data-slot=scroll-area-viewport]>div]:h-full [&_[data-slot=scroll-area-viewport]>div]:w-full">
+          <div className="flex min-h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3">
             {error ? (
               <Alert variant="destructive">
                 <AlertTitle>Source action failed</AlertTitle>
@@ -316,7 +326,10 @@ export function SourcesPanel({
                 ))
               : null}
             {!isLoading && documents.length > 0 ? (
-              <section aria-labelledby="all-sources">
+              <section
+                className="w-full min-w-0 overflow-hidden"
+                aria-labelledby="all-sources"
+              >
                 <div className="mb-2 flex min-h-7 items-center justify-between gap-2 px-1">
                   <h3
                     id="all-sources"

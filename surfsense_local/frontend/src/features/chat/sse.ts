@@ -1,4 +1,5 @@
 export type Citation = {
+  source_id: number
   chunk_id: number
   document_id: number
   start_line: number | null
@@ -12,6 +13,7 @@ export type ChatStreamEvent =
       assistant_message_id: number
     }
   | { type: "thread-title-update"; title: string }
+  | { type: "citation-catalog"; items: Citation[] }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
   | { type: "error"; message: string }

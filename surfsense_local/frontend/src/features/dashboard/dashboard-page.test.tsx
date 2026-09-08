@@ -278,6 +278,18 @@ describe("dashboard chat", () => {
             },
           ])
         }
+        if (path === "/workspaces/1/documents/20") {
+          return Response.json({
+            id: 20,
+            title: "Guide.txt",
+            document_type: "FILE",
+            status: "ready",
+            error_message: null,
+            content: "Grounded\nanswer",
+            created_at: "2026-09-05T00:00:00Z",
+            updated_at: "2026-09-05T00:00:00Z",
+          })
+        }
         if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
           return Response.json(
             {
@@ -293,7 +305,7 @@ describe("dashboard chat", () => {
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           messageSent = true
           return new Response(
-            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101}\n\ndata: {"type":"delta","text":"Grounded "}\n\ndata: {"type":"delta","text":"answer"}\n\ndata: {"type":"citations","items":[{"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: [DONE]\n\n',
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101}\n\ndata: {"type":"citation-catalog","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"delta","text":"Grounded answer [citation:1]"}\n\ndata: {"type":"citations","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: [DONE]\n\n',
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
@@ -316,9 +328,10 @@ describe("dashboard chat", () => {
               id: 101,
               role: "assistant",
               content: {
-                text: "Grounded answer",
+                text: "Grounded answer [citation:1]",
                 citations: [
                   {
+                    source_id: 1,
                     chunk_id: 30,
                     document_id: 20,
                     start_line: 1,
@@ -370,6 +383,12 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
+    await user.click(
+      screen.getByRole("button", { name: "Open source 1: Guide.txt" })
+    )
+    expect(
+      await screen.findByRole("complementary", { name: "Source preview" })
+    ).toBeTruthy()
     expect(screen.queryByText("Used in answer")).toBeNull()
     resolveCanonical(Response.json([]))
     await screen.findByRole("button", { name: "Send message" })

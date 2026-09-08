@@ -8,7 +8,7 @@ import pytest
 from shared.config import get_llm_settings
 
 # The reply the stub streams back, split so the route emits more than one delta.
-REPLY_DELTAS = ["Revenue ", "climbed after the launch [1]."]
+REPLY_DELTAS = ["Revenue ", "climbed after the launch [citation:1]."]
 
 # Each chat request the stub received, so a test can assert what the route sent.
 _REQUESTS: list[dict] = []
