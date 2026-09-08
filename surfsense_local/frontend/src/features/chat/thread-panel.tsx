@@ -72,10 +72,12 @@ export function ThreadPanel({
   error,
   isLoading,
   isRunning,
+  isUploading,
   animateTitle,
   providerAvailable,
   onCitation,
   onModelSetup,
+  onUpload,
   onTitleAnimationComplete,
 }: {
   runtime: AssistantRuntime
@@ -86,10 +88,12 @@ export function ThreadPanel({
   error: string | null
   isLoading: boolean
   isRunning: boolean
+  isUploading: boolean
   animateTitle: boolean
   providerAvailable: boolean
   onCitation: (citation: Citation) => void
   onModelSetup: () => void
+  onUpload: (files: File[]) => void
   onTitleAnimationComplete: () => void
 }) {
   const headingRef = useRef<HTMLHeadingElement>(null)
@@ -102,8 +106,10 @@ export function ThreadPanel({
       placement={placement}
       model={model}
       isRunning={isRunning}
+      isUploading={isUploading}
       providerAvailable={providerAvailable}
       onModelSetup={onModelSetup}
+      onUpload={onUpload}
     />
   )
 

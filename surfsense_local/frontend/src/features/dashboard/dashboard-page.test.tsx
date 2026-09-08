@@ -213,8 +213,14 @@ describe("dashboard chat", () => {
 
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
+    const addSources = screen.getByRole("button", { name: "Add sources" })
     expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
+    expect(
+      addSources.closest('[data-composer-placement="center"]')
+    ).toBeTruthy()
+    expect(addSources.getAttribute("data-slot")).toBe("tooltip-trigger")
+    expect(addSources.className).not.toContain("-mr-1.5")
     expect(
       screen.getByRole("region", { name: "Conversation" }).parentElement
         ?.className
@@ -228,6 +234,14 @@ describe("dashboard chat", () => {
         .closest('[data-composer-placement="bottom"]')
       expect(bottomComposer).toBeTruthy()
       expect(bottomComposer?.closest("[data-chat-viewport]")).toBeTruthy()
+      expect(
+        screen
+          .getByRole("button", { name: "Add sources" })
+          .closest('[data-composer-placement="bottom"]')
+      ).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Add sources" }).className
+      ).toContain("-mr-1.5")
     })
 
     resolveCreate(

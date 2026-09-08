@@ -1,3 +1,4 @@
+import { useRef, type ChangeEvent } from "react"
 import { ComposerPrimitive } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
@@ -5,8 +6,15 @@ import {
   ArrowUp02Icon,
   ChevronDownIcon,
   CircleStopIcon,
+  PlusIcon,
 } from "@/components/ui/icons"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { ModelSelection } from "@/features/model-selection/api"
+import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
 function ModelButton({
@@ -70,18 +78,69 @@ function ComposerAction({
   )
 }
 
+function AddSourcesButton({
+  isUploading,
+  onUpload,
+  className,
+}: {
+  isUploading: boolean
+  onUpload: (files: File[]) => void
+  className?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const upload = (event: ChangeEvent<HTMLInputElement>) => {
+    onUpload(Array.from(event.target.files ?? []))
+    event.target.value = ""
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={SOURCE_FILE_ACCEPT}
+        className="sr-only"
+        aria-label="Add source files"
+        disabled={isUploading}
+        onChange={upload}
+      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            size="icon-lg"
+            variant="ghost"
+            className={cn("rounded-xl", className)}
+            disabled={isUploading}
+            aria-label="Add sources"
+            onClick={() => inputRef.current?.click()}
+          >
+            <PlusIcon className="size-5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Add sources</TooltipContent>
+      </Tooltip>
+    </>
+  )
+}
+
 export function ChatComposer({
   placement,
   model,
   isRunning,
+  isUploading,
   providerAvailable,
   onModelSetup,
+  onUpload,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection
   isRunning: boolean
+  isUploading: boolean
   providerAvailable: boolean
   onModelSetup: () => void
+  onUpload: (files: File[]) => void
 }) {
   return (
     <div
@@ -94,6 +153,13 @@ export function ChatComposer({
           placement === "bottom" && "flex items-end gap-2"
         )}
       >
+        {placement === "bottom" ? (
+          <AddSourcesButton
+            isUploading={isUploading}
+            onUpload={onUpload}
+            className="-mr-1.5 mb-0.5"
+          />
+        ) : null}
         <ComposerPrimitive.Input
           className={cn(
             "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
@@ -113,14 +179,21 @@ export function ChatComposer({
           aria-label="Message"
         />
         {placement === "center" ? (
-          <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
-            <ModelButton
-              model={model}
-              onModelSetup={onModelSetup}
-              className="h-9 rounded-xl px-3 text-sm"
+          <>
+            <AddSourcesButton
+              isUploading={isUploading}
+              onUpload={onUpload}
+              className="absolute bottom-2 left-1.5"
             />
-            <ComposerAction isRunning={isRunning} />
-          </div>
+            <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
+              <ModelButton
+                model={model}
+                onModelSetup={onModelSetup}
+                className="h-9 rounded-xl px-3 text-sm"
+              />
+              <ComposerAction isRunning={isRunning} />
+            </div>
+          </>
         ) : (
           <ComposerAction isRunning={isRunning} className="mb-0.5" />
         )}

@@ -105,10 +105,12 @@ function WorkspaceDashboard({
         error={chat.error}
         isLoading={chat.isLoadingMessages}
         isRunning={chat.isRunning}
+        isUploading={sources.isUploading}
         animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
         providerAvailable={providerAvailable}
         onCitation={(citation) => highlightDocument(citation.document_id)}
         onModelSetup={onModelRequired}
+        onUpload={(files) => void sources.upload(files)}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <SourcesPanel
