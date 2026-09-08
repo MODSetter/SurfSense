@@ -46,8 +46,8 @@ export function ModelCard({
     (!row.can_install || row.fit === "too_tight" || !runtimeAvailable)
 
   return (
-    <article className="px-4 py-2.5 transition-colors hover:bg-muted/20">
-      <div className="flex min-h-10 items-center justify-between gap-4">
+    <article className="px-3 py-2 transition-colors hover:bg-muted/20">
+      <div className="flex min-h-9 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <p className="truncate text-sm font-medium">{row.label}</p>
           <Badge

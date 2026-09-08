@@ -64,6 +64,19 @@ afterEach(() => {
 })
 
 describe("model selection", () => {
+  it("keeps page actions outside the scrollable model panel", async () => {
+    vi.stubGlobal("fetch", installApi(true))
+    render(<ModelSelectionPage />)
+
+    const panel = await screen.findByRole("tabpanel")
+    const continueButton = screen.getByRole("button", { name: "Continue" })
+
+    expect(screen.getByRole("main").className).toContain("overflow-hidden")
+    expect(screen.getByRole("main").className).toContain("select-none")
+    expect(panel.className).toContain("overflow-y-auto")
+    expect(panel.contains(continueButton)).toBe(false)
+  })
+
   it("continues with an already validated selection without writing", async () => {
     const fetchMock = installApi(true)
     vi.stubGlobal("fetch", fetchMock)

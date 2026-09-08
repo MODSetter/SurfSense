@@ -1,9 +1,9 @@
 import {
-  BrainCircuitIcon,
   CheckIcon,
   CircleAlertIcon,
   RefreshCwIcon,
 } from "@/components/ui/icons"
+import surfSenseLogo from "@/surfsense-logo.svg"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -149,19 +149,26 @@ export function ModelSelectionPage({
   }
 
   return (
-    <main className="flex min-h-full items-center justify-center bg-muted/30 p-4 sm:p-8">
-      <div className="flex w-full max-w-4xl flex-col gap-4">
-        <div className="flex items-center gap-2 px-1">
-          <BrainCircuitIcon aria-hidden="true" className="size-5" />
-          <span className="font-heading text-sm font-medium">
-            SurfSense Local
-          </span>
+    <main className="flex h-full min-h-0 select-none items-center overflow-hidden bg-muted/30 p-3 sm:p-6">
+      <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
+        <div className="flex items-center justify-center gap-2 px-1">
+          <span
+            aria-hidden="true"
+            className="size-8 bg-foreground"
+            style={{
+              maskImage: `url(${surfSenseLogo})`,
+              maskPosition: "center",
+              maskRepeat: "no-repeat",
+              maskSize: "contain",
+            }}
+          />
+          <span className="font-heading text-lg font-medium">SurfSense</span>
         </div>
 
-        <Card className="[--card-spacing:--spacing(6)]">
+        <Card className="min-h-0 flex-1">
           <CardHeader>
             <CardTitle>
-              <h1 className="text-xl text-balance">Choose your AI model</h1>
+              <h1 className="text-lg text-balance">Choose your AI model</h1>
             </CardTitle>
             <CardDescription className="max-w-lg text-pretty">
               Run a local model for full privacy, or bring your own OpenRouter
@@ -169,7 +176,7 @@ export function ModelSelectionPage({
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="flex flex-col gap-4">
+          <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
             {state.status === "loading" ? <LoadingModels /> : null}
 
             {state.status === "api-unavailable" ? (
@@ -190,7 +197,7 @@ export function ModelSelectionPage({
             ) : null}
 
             {state.status === "ready" ? (
-              <Tabs defaultValue={defaultTab}>
+              <Tabs className="min-h-0 flex-1 gap-3" defaultValue={defaultTab}>
                 <TabsList>
                   <TabsTrigger value="local">
                     <span
@@ -213,11 +220,18 @@ export function ModelSelectionPage({
                     </TabsTrigger>
                   ))}
                 </TabsList>
-                <TabsContent value="local">
+                <TabsContent
+                  className="min-h-0 overflow-y-auto overscroll-contain"
+                  value="local"
+                >
                   <ModelCatalogPage onSelected={onSelected} />
                 </TabsContent>
                 {remoteProviders.map((provider) => (
-                  <TabsContent key={provider.name} value={provider.name}>
+                  <TabsContent
+                    key={provider.name}
+                    className="min-h-0 overflow-y-auto overscroll-contain"
+                    value={provider.name}
+                  >
                     <ProviderTab
                       provider={provider}
                       models={state.models.filter(

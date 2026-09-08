@@ -92,12 +92,12 @@ function CatalogSection({
     return null
   }
   return (
-    <section className="flex flex-col gap-3" aria-labelledby={headingId}>
+    <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>
       <div>
-        <h2 id={headingId} className="font-heading text-base font-medium">
+        <h2 id={headingId} className="font-heading text-sm font-medium">
           {title}
         </h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {[...grouped(rows)].map(([family, familyRows]) => (
         <ModelFamilyGroup key={family} family={family}>
@@ -213,7 +213,7 @@ export function ModelCatalogPage({
   )
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
         <div>
           <p className="text-sm font-medium">
