@@ -11,12 +11,10 @@ import { cn } from "@/lib/utils"
 
 function ModelButton({
   model,
-  providerAvailable,
   onModelSetup,
   className,
 }: {
   model: ModelSelection
-  providerAvailable: boolean
   onModelSetup: () => void
   className?: string
 }) {
@@ -29,10 +27,9 @@ function ModelButton({
         className
       )}
       title="Change model"
-      aria-label={`Model ${model.name} on ${model.provider}. Change model.`}
+      aria-label={`Model ${model.name}. Change model.`}
     >
       <span>{model.name}</span>
-      <span>{providerAvailable ? model.provider : "Provider offline"}</span>
       <ChevronDownIcon className="size-3" />
     </button>
   )
@@ -106,7 +103,9 @@ export function ChatComposer({
           )}
           placeholder={
             providerAvailable
-              ? "Ask SurfSense about anything"
+              ? placement === "center"
+                ? "Turn your sources into answers"
+                : "Follow up on this answer"
               : "Reconnect your model provider to send"
           }
           submitMode="enter"
@@ -117,7 +116,6 @@ export function ChatComposer({
           <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
             <ModelButton
               model={model}
-              providerAvailable={providerAvailable}
               onModelSetup={onModelSetup}
               className="h-9 rounded-xl px-3 text-sm"
             />
@@ -134,11 +132,7 @@ export function ChatComposer({
               ? `${model.name} runs locally. Check important answers.`
               : "Historical chats remain available while the provider is offline."}
           </p>
-          <ModelButton
-            model={model}
-            providerAvailable={providerAvailable}
-            onModelSetup={onModelSetup}
-          />
+          <ModelButton model={model} onModelSetup={onModelSetup} />
         </div>
       ) : null}
     </div>
