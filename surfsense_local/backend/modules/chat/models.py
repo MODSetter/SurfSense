@@ -47,5 +47,6 @@ class ChatMessage(Base):
     # Parts and citations travel together; only the UI interprets the shape.
     content: Mapped[dict[str, Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+    completed_at: Mapped[datetime | None]
 
     thread: Mapped[ChatThread] = relationship(back_populates="messages")

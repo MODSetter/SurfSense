@@ -81,6 +81,19 @@ function MessageActions({
 }) {
   const timestamp = <MessageTimestamp />
   const isCopied = useAuiState(({ message }) => message.isCopied)
+  const isRunning = useAuiState(
+    ({ message }) => message.status?.type === "running"
+  )
+  const hasText = useAuiState(({ message }) =>
+    message.content.some(
+      (part) => part.type === "text" && part.text.trim().length > 0
+    )
+  )
+
+  if (hideWhenRunning && (isRunning || !hasText)) {
+    return null
+  }
+
   return (
     <div
       className={cn(

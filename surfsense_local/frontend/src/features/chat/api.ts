@@ -19,7 +19,8 @@ export type ChatMessage = {
   id: number | string
   role: "user" | "assistant" | "system"
   content: MessageContent
-  created_at: string
+  created_at: string | null
+  completed_at: string | null
 }
 
 export function listThreads(

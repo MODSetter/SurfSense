@@ -98,6 +98,7 @@ async def test_a_message_streams_a_grounded_reply(
     assert accepted["type"] == "accepted"
     assert accepted["user_message_id"] > 0
     assert accepted["assistant_message_id"] > 0
+    assert accepted["user_created_at"]
 
     catalog = events[1]
     assert catalog["type"] == "citation-catalog"
@@ -117,6 +118,8 @@ async def test_a_message_streams_a_grounded_reply(
     citations = next(event for event in events if event["type"] == "citations")
     assert any(cite["document_id"] == doc_id for cite in citations["items"])
     assert citations["items"][0]["source_id"] == 1
+    completed = next(event for event in events if event["type"] == "completed")
+    assert completed["assistant_completed_at"]
 
     stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
     assert [message["role"] for message in stored] == ["user", "assistant"]
@@ -128,6 +131,8 @@ async def test_a_message_streams_a_grounded_reply(
         stored[1]["content"]["text"] == "Revenue climbed after the launch [citation:1]."
     )
     assert stored[1]["content"]["citations"]
+    assert stored[0]["completed_at"] is None
+    assert stored[1]["completed_at"] == completed["assistant_completed_at"]
     threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
     assert threads[0]["title"] == "Revenue Growth"
     assert ollama_server[0]["think"] is False

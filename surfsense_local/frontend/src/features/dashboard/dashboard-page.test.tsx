@@ -148,7 +148,7 @@ describe("dashboard chat", () => {
         }
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           return new Response(
-            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101}\n\ndata: [DONE]\n\n',
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z"}\n\ndata: [DONE]\n\n',
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
@@ -159,12 +159,14 @@ describe("dashboard chat", () => {
               role: "user",
               content: { text: "Start a chat" },
               created_at: "2026-09-05T00:00:00Z",
+              completed_at: null,
             },
             {
               id: 101,
               role: "assistant",
               content: { text: "", citations: [] },
               created_at: "2026-09-05T00:00:01Z",
+              completed_at: "2026-09-05T00:00:01Z",
             },
           ])
         }
@@ -224,6 +226,9 @@ describe("dashboard chat", () => {
       )
     )
     await screen.findByRole("heading", { name: "Start a chat" })
+    await waitFor(() => {
+      expect(document.querySelectorAll("time")).toHaveLength(1)
+    })
     expect(
       screen
         .getByRole("textbox", { name: "Message" })
@@ -305,7 +310,7 @@ describe("dashboard chat", () => {
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           messageSent = true
           return new Response(
-            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101}\n\ndata: {"type":"citation-catalog","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"delta","text":"Grounded answer [citation:1]"}\n\ndata: {"type":"citations","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: [DONE]\n\n',
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"citation-catalog","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"delta","text":"Grounded answer [citation:1]"}\n\ndata: {"type":"citations","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z"}\n\ndata: [DONE]\n\n',
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
@@ -323,6 +328,7 @@ describe("dashboard chat", () => {
               role: "user",
               content: { text: "What is indexed?" },
               created_at: "2026-09-05T00:00:00Z",
+              completed_at: null,
             },
             {
               id: 101,
@@ -340,6 +346,7 @@ describe("dashboard chat", () => {
                 ],
               },
               created_at: "2026-09-05T00:00:01Z",
+              completed_at: "2026-09-05T00:00:01Z",
             },
           ])
         }
@@ -395,6 +402,7 @@ describe("dashboard chat", () => {
     await waitFor(() => {
       expect(messageReads).toBe(2)
       expect(screen.getByText("Grounded answer")).toBeTruthy()
+      expect(document.querySelectorAll("time")).toHaveLength(2)
     })
     await waitFor(() => {
       expect(

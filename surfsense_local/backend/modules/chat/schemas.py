@@ -52,3 +52,4 @@ class MessageRead(BaseModel):
     role: MessageRole
     content: dict[str, Any]
     created_at: datetime
+    completed_at: datetime | None

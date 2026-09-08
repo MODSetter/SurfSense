@@ -2,6 +2,7 @@ import json
 import logging
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import asdict
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
@@ -147,15 +148,18 @@ async def send_message(
     # Do not hold a write transaction open while the model generates. The IDs
     # are also the stable identities the client uses throughout the stream.
     session.commit()
+    user_created_at = user_message.created_at.isoformat()
 
     async def stream() -> AsyncIterator[bytes]:
         parts: list[str] = []
         cited: list[dict] = []
+        assistant_completed_at: str | None = None
         yield _frame(
             {
                 "type": "accepted",
                 "user_message_id": user_message.id,
                 "assistant_message_id": assistant_message.id,
+                "user_created_at": user_created_at,
             }
         )
         yield _frame(
@@ -192,10 +196,19 @@ async def send_message(
             answer, used = resolve_citations("".join(parts), citations)
             cited = [asdict(citation) for citation in used]
             assistant_message.content = {"text": answer, "citations": cited}
+            assistant_message.completed_at = datetime.now(UTC)
             session.commit()
+            session.refresh(assistant_message, attribute_names=["completed_at"])
+            assistant_completed_at = assistant_message.completed_at.isoformat()
 
         if cited:
             yield _frame({"type": "citations", "items": cited})
+        yield _frame(
+            {
+                "type": "completed",
+                "assistant_completed_at": assistant_completed_at,
+            }
+        )
         yield _DONE
 
     return StreamingResponse(

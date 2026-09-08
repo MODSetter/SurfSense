@@ -11,11 +11,13 @@ export type ChatStreamEvent =
       type: "accepted"
       user_message_id: number
       assistant_message_id: number
+      user_created_at: string
     }
   | { type: "thread-title-update"; title: string }
   | { type: "citation-catalog"; items: Citation[] }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
+  | { type: "completed"; assistant_completed_at: string }
   | { type: "error"; message: string }
   | { type: "done" }
 

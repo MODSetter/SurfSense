@@ -87,15 +87,16 @@ function areLiveMessagesPersisted(
 }
 
 function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
+  const value =
+    message.role === "assistant" ? message.completed_at : message.created_at
   // SQLite stores CURRENT_TIMESTAMP in UTC but returns it without an offset.
-  const timestamp = /(?:Z|[+-]\d{2}:\d{2})$/i.test(message.created_at)
-    ? message.created_at
-    : `${message.created_at}Z`
+  const timestamp =
+    value && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? `${value}Z` : value
   return {
     id: String(message.id),
     role: message.role,
     content: [{ type: "text", text: message.content.text ?? "" }],
-    createdAt: new Date(timestamp),
+    ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
     metadata: {
       custom: {
         citations: message.content.citations ?? [],
@@ -304,7 +305,6 @@ export function useChatRuntime({
           rememberThread(workspaceId, thread.id)
         }
 
-        const timestamp = new Date().toISOString()
         let userId: number | string = `optimistic-user-${version}`
         let assistantId: number | string = `optimistic-assistant-${version}`
         const currentMessages =
@@ -317,13 +317,15 @@ export function useChatRuntime({
             id: userId,
             role: "user",
             content: { text },
-            created_at: timestamp,
+            created_at: null,
+            completed_at: null,
           },
           {
             id: assistantId,
             role: "assistant",
             content: { text: "", citations: [] },
-            created_at: timestamp,
+            created_at: null,
+            completed_at: null,
           },
         ])
 
@@ -349,13 +351,30 @@ export function useChatRuntime({
                 (current) =>
                   current?.map((message) => {
                     if (message.id === previousUserId) {
-                      return { ...message, id: nextUserId }
+                      return {
+                        ...message,
+                        id: nextUserId,
+                        created_at: event.user_created_at,
+                      }
                     }
                     if (message.id === previousAssistantId) {
                       return { ...message, id: nextAssistantId }
                     }
                     return message
                   }) ?? null
+              )
+            } else if (event.type === "completed") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          completed_at: event.assistant_completed_at,
+                        }
+                      : message
+                  ) ?? null
               )
             } else if (event.type === "thread-title-update") {
               setAutoNamingThreadId(null)

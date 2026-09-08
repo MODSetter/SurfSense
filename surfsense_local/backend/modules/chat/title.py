@@ -6,10 +6,13 @@ from modules.llm.providers.types import Message
 TITLE_PROMPT = """Write a 2-5 word noun-phrase title.
 Rewrite the request; do not copy it.
 Remove filler such as "tell me", "what's", "please", and "can you".
+Return plain text only: no quotes, slashes, Markdown, or explanation.
+For greetings and small talk, name the intent instead of repeating the words.
 
 Examples:
 "what's there in this chat?" -> Chat Content Overview
 "explain the refund policy" -> Refund Policy
+"hi bro" -> Casual Greeting
 
 Query: {user_query}
 Title:"""
