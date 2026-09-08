@@ -157,7 +157,7 @@ export function ModelSelectionPage({
         <div className="flex items-center justify-center gap-2 px-1">
           <span
             aria-hidden="true"
-            className="size-8 bg-foreground"
+            className="size-11 bg-foreground"
             style={{
               maskImage: `url(${surfSenseLogo})`,
               maskPosition: "center",
@@ -165,7 +165,7 @@ export function ModelSelectionPage({
               maskSize: "contain",
             }}
           />
-          <span className="font-heading text-lg font-medium">SurfSense</span>
+          <span className="font-heading text-2xl font-medium">SurfSense</span>
         </div>
 
         <Card className="min-h-0 flex-1">
