@@ -220,6 +220,9 @@ export function ModelCatalogPage({
             {hardwareSummary(data.hardware)}
           </p>
           <p className="text-xs text-muted-foreground">
+            Only models compatible with this computer are shown.
+          </p>
+          <p className="text-xs text-muted-foreground">
             Estimates reserve resources for SurfSense and may vary by workload.
           </p>
         </div>
@@ -251,16 +254,16 @@ export function ModelCatalogPage({
       ) : null}
 
       <CatalogSection
-        title="SurfSense Recommended"
-        description="Team-tested configurations ranked for this computer."
+        title="Best for this computer"
+        description="SurfSense-tested models ranked for your hardware."
         rows={recommended}
         catalog={data}
       >
         {card}
       </CatalogSection>
       <CatalogSection
-        title="Explore more models"
-        description="Other compatible configurations ranked by hardware fit."
+        title="More models"
+        description="Other compatible models, best fit first."
         rows={explore}
         catalog={data}
       >
