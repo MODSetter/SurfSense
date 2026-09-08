@@ -1,7 +1,6 @@
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-
-import { CheckCircle2Icon } from "@/components/ui/icons"
 import { useTheme } from "@/components/theme-provider"
+import { CheckCircle2Icon } from "@/components/ui/icons"
 
 function Toaster(props: ToasterProps) {
   const { theme } = useTheme()
@@ -10,7 +9,7 @@ function Toaster(props: ToasterProps) {
     <Sonner
       theme={theme}
       className="toaster group"
-      icons={{ success: <CheckCircle2Icon /> }}
+      icons={{ success: <CheckCircle2Icon className="size-4" /> }}
       style={
         {
           "--normal-bg": "var(--popover)",
