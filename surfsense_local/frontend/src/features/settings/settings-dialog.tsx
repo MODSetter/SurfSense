@@ -61,7 +61,7 @@ export function SettingsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="h-[640px] w-[1000px] max-w-none overflow-hidden rounded-2xl p-0 shadow-xl sm:max-w-none">
+      <DialogContent className="h-[640px] w-[1000px] max-w-none select-none overflow-hidden rounded-2xl p-0 shadow-xl sm:max-w-none">
         <DialogHeader className="sr-only">
           <DialogTitle>Settings</DialogTitle>
           <DialogDescription>
@@ -71,7 +71,7 @@ export function SettingsDialog({
 
         <div className="grid h-full grid-cols-[184px_minmax(0,1fr)]">
           <aside className="border-r bg-sidebar p-3 text-sidebar-foreground">
-            <p className="px-2 pt-2 pb-4 font-heading text-base font-medium">
+            <p className="px-2 pt-5 pb-3 text-xs font-medium text-muted-foreground">
               Settings
             </p>
             <nav className="flex flex-col gap-1" aria-label="Settings sections">
