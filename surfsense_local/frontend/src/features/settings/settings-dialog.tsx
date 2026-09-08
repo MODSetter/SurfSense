@@ -53,60 +53,50 @@ function GeneralSettings() {
   const { theme, setTheme } = useTheme()
 
   return (
-    <>
-      <header className="border-b px-7 py-5">
-        <h2 className="font-heading text-lg font-medium text-balance">
-          General
-        </h2>
-        <p className="mt-1 text-sm text-pretty text-muted-foreground">
-          Manage your SurfSense preferences.
+    <div className="p-7">
+      <div className="flex flex-col gap-1">
+        <h3 className="text-sm font-medium">Appearance</h3>
+        <p className="text-sm text-pretty text-muted-foreground">
+          Choose how SurfSense looks on this device.
         </p>
-      </header>
-      <div className="px-7 py-6">
-        <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium">Appearance</h3>
-          <p className="text-sm text-pretty text-muted-foreground">
-            Choose how SurfSense looks on this device.
-          </p>
-        </div>
-        <RadioGroup
-          className="mt-5 grid grid-cols-3 gap-3"
-          value={theme}
-          onValueChange={(value) => setTheme(value as Appearance)}
-          aria-label="Appearance"
-        >
-          {APPEARANCES.map((option) => {
-            const Icon = option.icon
-            return (
-              <Label
-                key={option.value}
-                htmlFor={`theme-${option.value}`}
-                className={cn(
-                  "relative flex min-h-32 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border bg-card p-4 text-center text-card-foreground shadow-xs transition-[border-color,box-shadow] hover:border-foreground/25 hover:shadow-sm",
-                  theme === option.value &&
-                    "border-primary ring-2 ring-primary/15"
-                )}
-              >
-                <RadioGroupItem
-                  id={`theme-${option.value}`}
-                  value={option.value}
-                  className="absolute top-3 right-3"
-                />
-                <span className="flex size-10 items-center justify-center rounded-lg bg-muted">
-                  <Icon className="size-5" strokeWidth={1.5} />
-                </span>
-                <span className="flex min-w-0 flex-col gap-1.5">
-                  <span>{option.label}</span>
-                  <span className="text-xs leading-4 font-normal text-muted-foreground">
-                    {option.description}
-                  </span>
-                </span>
-              </Label>
-            )
-          })}
-        </RadioGroup>
       </div>
-    </>
+      <RadioGroup
+        className="mt-5 grid grid-cols-3 gap-3"
+        value={theme}
+        onValueChange={(value) => setTheme(value as Appearance)}
+        aria-label="Appearance"
+      >
+        {APPEARANCES.map((option) => {
+          const Icon = option.icon
+          return (
+            <Label
+              key={option.value}
+              htmlFor={`theme-${option.value}`}
+              className={cn(
+                "relative flex min-h-32 cursor-pointer flex-col items-center justify-center gap-3 rounded-xl border bg-card p-4 text-center text-card-foreground shadow-xs transition-[border-color,box-shadow] hover:border-foreground/25 hover:shadow-sm",
+                theme === option.value &&
+                  "border-primary ring-2 ring-primary/15"
+              )}
+            >
+              <RadioGroupItem
+                id={`theme-${option.value}`}
+                value={option.value}
+                className="absolute top-3 right-3"
+              />
+              <span className="flex size-10 items-center justify-center rounded-lg bg-muted">
+                <Icon className="size-5" strokeWidth={1.5} />
+              </span>
+              <span className="flex min-w-0 flex-col gap-1.5">
+                <span>{option.label}</span>
+                <span className="text-xs leading-4 font-normal text-muted-foreground">
+                  {option.description}
+                </span>
+              </span>
+            </Label>
+          )
+        })}
+      </RadioGroup>
+    </div>
   )
 }
 
