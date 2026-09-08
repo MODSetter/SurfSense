@@ -15,7 +15,6 @@ describe("ThreadList", () => {
 
     render(
       <ThreadList
-        workspaceName="Workspace"
         threads={[
           {
             id: 1,
@@ -38,6 +37,7 @@ describe("ThreadList", () => {
     )
 
     const chatButton = screen.getByRole("button", { name: title })
+    const brand = screen.getByRole("heading", { name: "SurfSense" })
     const actionsButton = screen.getByRole("button", {
       name: `Actions for ${title}`,
     })
@@ -48,6 +48,10 @@ describe("ThreadList", () => {
       ?.querySelector(".overflow-x-hidden")
 
     expect(scrollContainer).toBeTruthy()
+    expect(brand.className).toContain("font-heading")
+    expect(brand.className).toContain("text-lg")
+    expect(brand.className).toContain("font-medium")
+    expect(brand.className).toContain("text-white")
     expect(chatButton.parentElement?.className).toContain("w-full")
     expect(chatButton.parentElement?.className).toContain("overflow-hidden")
     expect(chatButton.className).toContain("h-8")

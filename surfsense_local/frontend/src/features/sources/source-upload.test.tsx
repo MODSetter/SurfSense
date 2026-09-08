@@ -406,7 +406,19 @@ describe("source upload", () => {
     const user = userEvent.setup()
 
     render(<SourceHarness />)
-    await user.click(await screen.findByLabelText("Select first.txt"))
+    const firstCheckbox = await screen.findByLabelText("Select first.txt")
+    await user.click(firstCheckbox)
+    const firstRow = screen.getByRole("button", {
+      name: "first.txt",
+    }).parentElement
+    expect(firstRow?.className).toContain("bg-sidebar-accent")
+    expect(firstRow?.className).toContain("text-white")
+
+    await user.click(firstCheckbox)
+    expect(firstRow?.className).not.toContain("bg-sidebar-accent")
+    expect(firstRow?.className).not.toContain("text-white")
+
+    await user.click(firstCheckbox)
     await user.click(screen.getByLabelText("Select second.txt"))
     await user.click(screen.getByRole("button", { name: "Delete (2)" }))
 

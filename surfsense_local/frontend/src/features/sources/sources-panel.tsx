@@ -90,6 +90,7 @@ function SelectableSourceRow({
       className={cn(
         "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
         highlighted && "border-ring",
+        selected && "bg-sidebar-accent text-white",
         dropdownOpen && "bg-muted dark:bg-muted/50"
       )}
     >

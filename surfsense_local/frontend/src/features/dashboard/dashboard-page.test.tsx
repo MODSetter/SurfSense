@@ -483,9 +483,7 @@ describe("dashboard chat", () => {
     await screen.findByText("No chats yet")
     await user.click(screen.getByRole("button", { name: "Second Workspace" }))
 
-    expect(
-      await screen.findByRole("heading", { name: "Second Workspace" })
-    ).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "SurfSense" })).toBeTruthy()
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/workspaces/2/chat/threads",

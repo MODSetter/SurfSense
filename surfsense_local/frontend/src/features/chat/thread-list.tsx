@@ -93,7 +93,6 @@ function RenameChatDialog({
 }
 
 export function ThreadList({
-  workspaceName,
   threads,
   activeThreadId,
   autoNamingThreadId,
@@ -105,7 +104,6 @@ export function ThreadList({
   onDelete,
   onTitleAnimationComplete,
 }: {
-  workspaceName: string
   threads: ChatThread[]
   activeThreadId: number | null
   autoNamingThreadId: number | null
@@ -123,7 +121,9 @@ export function ThreadList({
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background">
       <header className="space-y-3 border-b p-3">
-        <h2 className="truncate px-1 text-sm font-semibold">{workspaceName}</h2>
+        <h2 className="truncate px-1 font-heading text-lg font-medium text-white">
+          SurfSense
+        </h2>
         <Button className="w-full justify-start" onClick={onNewChat}>
           <PencilEdit02Icon />
           New chat
