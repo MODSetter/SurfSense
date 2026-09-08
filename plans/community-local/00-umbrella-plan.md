@@ -2,6 +2,8 @@
 
 > Airgapped, local-first NotebookLM-style desktop app (Community SKU).
 
+> **Pivot (Sep 2026):** this app is now *the* SurfSense product and the hosted SaaS is being sunset. Business decisions, licensing, cloud-to-local migration, the three cross-team contracts, owners, and the launch runbook live in [`00d-pivot-plan.md`](00d-pivot-plan.md). It adds a Phase 6 to the local app (import, license module, egress panel, keychain, auto-update), specified there under Workstream A. The out-of-scope list below still holds for this codebase: scrapers and MCP stay hosted and are reached at T+7 through a thin client; Stripe stays in the portal.
+
 **Three workstreams** — pick a folder and work through phases in order:
 
 | Workstream | Folder | Owns |
@@ -26,8 +28,9 @@ Same phase number = integrate together.
 | **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
 | **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
 | **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05-model-recommendations.md`](api/05-model-recommendations.md) + [`05-packaging.md`](api/05-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
+| **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | — (import reuses `ingest_document`) |
 
-**Demo:** phase 3 all streams. **Ship:** phase 5.
+**Demo:** phase 3 all streams. **Ship:** phase 6 = SurfSense v1.0.0.
 
 ◐ started · ✓ done · unmarked not begun. Built: a Vite + shadcn shell reading
 `/health`, the whole API surface for workspaces and documents — migrations,
