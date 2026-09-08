@@ -169,6 +169,10 @@
   -webkit-app-region: drag;
 }
 
+.electron-macos body:has([data-model-selection-page])::before {
+  background: color-mix(in oklab, var(--muted) 30%, transparent);
+}
+
 .electron-macos #root {
   padding-top: var(--titlebar-height);
 }

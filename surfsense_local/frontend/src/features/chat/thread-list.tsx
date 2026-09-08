@@ -122,7 +122,7 @@ export function ThreadList({
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
 
   return (
-    <aside className="flex h-full min-w-0 flex-col border-r bg-sidebar/60">
+    <aside className="flex h-full min-w-0 flex-col border-r bg-background">
       <header className="space-y-3 border-b p-3">
         <h2 className="truncate px-1 text-sm font-semibold">{workspaceName}</h2>
         <Button className="w-full justify-start" onClick={onNewChat}>

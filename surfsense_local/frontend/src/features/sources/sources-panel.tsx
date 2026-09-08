@@ -272,7 +272,7 @@ export function SourcesPanel({
   return (
     <>
       <aside
-        className="flex h-full min-w-0 flex-col bg-card/30"
+        className="flex h-full min-w-0 flex-col border-l bg-background"
         aria-label="Workspace sources"
       >
         <header className="flex h-14 items-center justify-between border-b px-4">

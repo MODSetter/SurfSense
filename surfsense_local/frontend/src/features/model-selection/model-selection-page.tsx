@@ -149,7 +149,10 @@ export function ModelSelectionPage({
   }
 
   return (
-    <main className="flex h-full min-h-0 select-none items-center overflow-hidden bg-muted/30 p-3 sm:p-6">
+    <main
+      data-model-selection-page
+      className="flex h-full min-h-0 select-none items-center overflow-hidden bg-muted/30 p-3 sm:p-6"
+    >
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
         <div className="flex items-center justify-center gap-2 px-1">
           <span
