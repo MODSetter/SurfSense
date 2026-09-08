@@ -32,7 +32,6 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
@@ -130,8 +129,8 @@ export function ThreadList({
           New chat
         </Button>
       </header>
-      <ScrollArea className="min-h-0 flex-1">
-        <div className="space-y-1 p-2">
+      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+        <div className="w-full max-w-full min-w-0 space-y-1 p-2">
           {isLoading
             ? [0, 1, 2, 3].map((item) => (
                 <Skeleton key={item} className="h-11 w-full" />
@@ -154,17 +153,28 @@ export function ThreadList({
             const selected = thread.id === activeThreadId
             const title = thread.title || "New chat"
             return (
-              <div key={thread.id} className="group relative">
+              <div
+                key={thread.id}
+                className="group relative w-full min-w-0 overflow-hidden rounded-md"
+              >
                 <Button
                   variant="ghost"
                   className={cn(
-                    "h-auto w-full min-w-0 justify-start px-2.5 py-2.5 pr-10 font-normal",
-                    selected && "bg-sidebar-accent font-medium"
+                    "h-8 w-full min-w-0 justify-start overflow-hidden px-2 py-1.5 text-sm font-normal group-hover:bg-muted active:!translate-y-0 dark:group-hover:bg-muted/50",
+                    selected &&
+                      "bg-sidebar-accent text-white group-hover:text-white hover:text-white",
+                    openDropdownId === thread.id && "bg-muted dark:bg-muted/50"
                   )}
                   aria-current={selected ? "page" : undefined}
                   onClick={() => onSelect(thread.id)}
                 >
-                  <span className="truncate">
+                  <span
+                    className={cn(
+                      "sidebar-row-title-fade sidebar-row-title-fade-focus-within min-w-0 flex-1 overflow-hidden text-left whitespace-nowrap",
+                      openDropdownId === thread.id &&
+                        "sidebar-row-title-fade-actions"
+                    )}
+                  >
                     <TypewriterText
                       text={title}
                       animate={thread.id === animatingTitleThreadId}
@@ -172,7 +182,7 @@ export function ThreadList({
                     />
                   </span>
                 </Button>
-                <div className="absolute inset-y-0 right-1 flex items-center">
+                <div className="absolute inset-y-0 right-0 flex items-center rounded-r-md py-1 pr-1">
                   <DropdownMenu
                     open={openDropdownId === thread.id}
                     onOpenChange={(open) =>
@@ -183,7 +193,7 @@ export function ThreadList({
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        className="opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:bg-accent data-[state=open]:opacity-100"
+                        className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
                         aria-label={`Actions for ${title}`}
                       >
                         <EllipsisIcon />
@@ -224,7 +234,7 @@ export function ThreadList({
             )
           })}
         </div>
-      </ScrollArea>
+      </div>
       {renaming ? (
         <RenameChatDialog
           key={renaming.id}

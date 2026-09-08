@@ -108,7 +108,8 @@ describe("source upload", () => {
       />
     )
 
-    expect(screen.getByLabelText(`Select ${ready.title}`)).toBeTruthy()
+    const readyCheckbox = screen.getByLabelText(`Select ${ready.title}`)
+    expect(readyCheckbox).toBeTruthy()
     expect(screen.queryByLabelText("Select processing.pdf")).toBeNull()
     expect(screen.queryByLabelText("Select failed.pdf")).toBeNull()
     expect(
@@ -121,9 +122,48 @@ describe("source upload", () => {
       screen.getAllByRole("button", { name: /^Actions for / })
     ).toHaveLength(3)
     const readyButton = screen.getByRole("button", { name: ready.title })
-    expect(readyButton.className).toContain("truncate")
+    const actionsButton = screen.getByRole("button", {
+      name: `Actions for ${ready.title}`,
+    })
+    expect(readyButton.className).not.toContain("truncate")
+    expect(readyButton.className).toContain("sidebar-row-title-fade")
     expect(readyButton.parentElement?.className).toContain("overflow-hidden")
+    expect(readyButton.parentElement?.className).toContain("h-8")
+    expect(readyButton.parentElement?.className).toContain("gap-1.5")
+    expect(readyButton.parentElement?.className).toContain("pl-1")
+    expect(readyButton.parentElement?.className).toContain("rounded-lg")
+    expect(readyButton.parentElement?.className).toContain("hover:bg-muted")
+    expect(readyButton.parentElement?.className).toContain(
+      "dark:hover:bg-muted/50"
+    )
+    expect(readyButton.parentElement?.className).toContain("bg-sidebar-accent")
+    expect(readyButton.parentElement?.className).toContain("text-white")
     expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
+    expect(
+      readyButton.previousElementSibling
+        ?.querySelector("svg")
+        ?.getAttribute("class")
+    ).toContain("size-4.5")
+    expect(readyCheckbox.className).not.toContain(
+      "group-focus-within/source:opacity-100"
+    )
+    expect(readyCheckbox.className).toContain("focus-visible:opacity-100")
+    expect(readyCheckbox.nextElementSibling?.className).toContain(
+      "peer-focus-visible:opacity-0"
+    )
+    expect(actionsButton.className).toContain("size-6")
+    expect(actionsButton.className).toContain("group-hover/source:opacity-100")
+    expect(actionsButton.className).not.toContain(
+      "group-focus-within/source:opacity-100"
+    )
+    expect(actionsButton.className).toContain("focus-visible:opacity-100")
+    expect(
+      screen.getByRole("heading", { name: "Sources" }).parentElement?.className
+    ).toContain("px-3")
+    expect(
+      screen.getByRole("heading", { name: "All sources" }).closest("section")
+        ?.parentElement?.className
+    ).toContain("p-2")
   })
 
   it("offers per-source delete but disables it while processing", async () => {
@@ -361,7 +401,7 @@ describe("source upload", () => {
     render(<SourceHarness />)
     await user.click(await screen.findByLabelText("Select first.txt"))
     await user.click(screen.getByLabelText("Select second.txt"))
-    await user.click(screen.getByRole("button", { name: "Delete 2" }))
+    await user.click(screen.getByRole("button", { name: "Delete (2)" }))
 
     expect(
       screen.getByRole("alertdialog", { name: "Delete 2 sources?" })

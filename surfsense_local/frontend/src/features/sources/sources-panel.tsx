@@ -46,7 +46,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
 import { Input } from "@/components/ui/input"
@@ -82,50 +81,52 @@ function SelectableSourceRow({
     document.status === "pending" || document.status === "processing"
   const processing = document.status === "processing"
   const openable = ready && document.document_type === "FILE"
+  const [dropdownOpen, setDropdownOpen] = useState(false)
 
   return (
     <div
       ref={rowRef}
       aria-current={highlighted ? "true" : undefined}
       className={cn(
-        "group/source flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-lg px-2 py-1.5 focus-within:bg-accent hover:bg-accent",
-        highlighted && "bg-accent"
+        "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
+        highlighted && "bg-sidebar-accent text-white",
+        dropdownOpen && "bg-muted dark:bg-muted/50"
       )}
     >
       <span className="relative flex size-7 shrink-0 items-center justify-center">
         {ready ? (
           <>
-            <span
-              className={cn(
-                "absolute inset-0 flex items-center justify-center text-muted-foreground transition-opacity duration-150",
-                selected
-                  ? "opacity-0"
-                  : "opacity-100 group-focus-within/source:opacity-0 group-hover/source:opacity-0"
-              )}
-            >
-              {document.document_type === "NOTE" ? (
-                <NotebookTextIcon />
-              ) : (
-                <FileIcon />
-              )}
-            </span>
             <Checkbox
               checked={selected}
               aria-label={`Select ${document.title}`}
               className={cn(
-                "absolute transition-opacity duration-150",
+                "peer absolute z-10 transition-opacity duration-150",
                 selected
                   ? "opacity-100"
-                  : "pointer-events-none opacity-0 group-focus-within/source:pointer-events-auto group-focus-within/source:opacity-100 group-hover/source:pointer-events-auto group-hover/source:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                  : "pointer-events-none opacity-0 group-hover/source:pointer-events-auto group-hover/source:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
               )}
               onClick={(event) => event.stopPropagation()}
               onCheckedChange={(checked) => onSelectedChange(checked === true)}
             />
+            <span
+              className={cn(
+                "pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground transition-opacity duration-150",
+                selected
+                  ? "opacity-0"
+                  : "opacity-100 group-hover/source:opacity-0 peer-focus-visible:opacity-0"
+              )}
+            >
+              {document.document_type === "NOTE" ? (
+                <NotebookTextIcon className="size-4.5" />
+              ) : (
+                <FileIcon className="size-4.5" />
+              )}
+            </span>
           </>
         ) : null}
         {ingesting ? (
           <Spinner
-            className="text-muted-foreground"
+            className="size-4.5 text-muted-foreground"
             aria-label={`Processing ${document.title}`}
           />
         ) : null}
@@ -137,75 +138,80 @@ function SelectableSourceRow({
             aria-label={`Retry ${document.title}`}
             onClick={onRetry}
           >
-            <RefreshCwIcon />
+            <RefreshCwIcon className="size-4.5" />
           </Button>
         ) : null}
       </span>
       <button
         type="button"
         disabled={!openable}
-        className="min-w-0 flex-1 truncate rounded-sm text-left text-sm font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default"
+        className={cn(
+          "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+          dropdownOpen && "sidebar-row-title-fade-actions"
+        )}
         onClick={openable ? onOpen : undefined}
       >
         {document.title}
       </button>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            className="shrink-0"
-            aria-label={`Actions for ${document.title}`}
-          >
-            <EllipsisIcon />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="min-w-40">
-          <DropdownMenuGroup>
-            {openable ? (
-              <>
-                <DropdownMenuItem onSelect={onOpen}>
-                  <ViewIcon />
-                  Open
-                </DropdownMenuItem>
-                <DropdownMenuItem onSelect={onReveal}>
-                  <FolderOpenIcon />
-                  Show in folder
-                </DropdownMenuItem>
-              </>
-            ) : null}
-            {ready ? (
-              <DropdownMenuItem onSelect={() => onSelectedChange(!selected)}>
-                {selected ? <XIcon /> : <SquareDashedMousePointerIcon />}
-                {selected ? "Deselect" : "Select"}
-              </DropdownMenuItem>
-            ) : null}
-            {failed ? (
-              <DropdownMenuItem onSelect={onRetry}>
-                <RefreshCwIcon />
-                Retry
-              </DropdownMenuItem>
-            ) : null}
-            {ingesting ? (
-              <DropdownMenuItem disabled>
-                <span className="flex animate-spin" aria-hidden="true">
-                  <Loader2Icon />
-                </span>
-                Processing
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem
-              variant="destructive"
-              disabled={processing || isDeleting}
-              onSelect={onDelete}
+      <div className="absolute inset-y-0 right-0 flex items-center pr-1">
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
+              aria-label={`Actions for ${document.title}`}
             >
-              <Trash2Icon />
-              Delete
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={8} className="min-w-40">
+            <DropdownMenuGroup>
+              {openable ? (
+                <>
+                  <DropdownMenuItem onSelect={onOpen}>
+                    <ViewIcon />
+                    Open
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={onReveal}>
+                    <FolderOpenIcon />
+                    Show in folder
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+              {ready ? (
+                <DropdownMenuItem onSelect={() => onSelectedChange(!selected)}>
+                  {selected ? <XIcon /> : <SquareDashedMousePointerIcon />}
+                  {selected ? "Deselect" : "Select"}
+                </DropdownMenuItem>
+              ) : null}
+              {failed ? (
+                <DropdownMenuItem onSelect={onRetry}>
+                  <RefreshCwIcon />
+                  Retry
+                </DropdownMenuItem>
+              ) : null}
+              {ingesting ? (
+                <DropdownMenuItem disabled>
+                  <span className="flex animate-spin" aria-hidden="true">
+                    <Loader2Icon />
+                  </span>
+                  Processing
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={processing || isDeleting}
+                onSelect={onDelete}
+              >
+                <Trash2Icon />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
   )
 }
@@ -275,7 +281,7 @@ export function SourcesPanel({
         className="flex h-full min-w-0 flex-col border-l bg-background"
         aria-label="Workspace sources"
       >
-        <header className="flex h-14 items-center justify-between border-b px-4">
+        <header className="flex h-14 items-center justify-between border-b px-3">
           <h2 className="text-sm font-semibold">Sources</h2>
           <Input
             ref={fileInput}
@@ -300,8 +306,8 @@ export function SourcesPanel({
             </Button>
           </div>
         </header>
-        <ScrollArea className="min-h-0 flex-1 [&_[data-slot=scroll-area-viewport]>div]:!block [&_[data-slot=scroll-area-viewport]>div]:h-full [&_[data-slot=scroll-area-viewport]>div]:w-full">
-          <div className="flex min-h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-3">
+        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
+          <div className="flex min-h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-2">
             {error ? (
               <Alert variant="destructive">
                 <AlertTitle>Source action failed</AlertTitle>
@@ -333,7 +339,7 @@ export function SourcesPanel({
                       onClick={() => setDeleteTarget("selected")}
                     >
                       <Trash2Icon data-icon="inline-start" />
-                      Delete {selectedDocumentIds.length}
+                      Delete ({selectedDocumentIds.length})
                     </Button>
                   ) : null}
                 </div>
@@ -375,7 +381,7 @@ export function SourcesPanel({
               </Empty>
             ) : null}
           </div>
-        </ScrollArea>
+        </div>
       </aside>
       <AlertDialog
         open={deleteTarget !== null}

@@ -177,6 +177,30 @@
   padding-top: var(--titlebar-height);
 }
 
+.sidebar-row-title-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 12px),
+    transparent
+  );
+  mask-image: linear-gradient(to right, black calc(100% - 12px), transparent);
+}
+
+.group:hover .sidebar-row-title-fade,
+.group:focus-within .sidebar-row-title-fade-focus-within,
+.sidebar-row-title-fade-actions {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 48px),
+    transparent calc(100% - 28px)
+  );
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - 48px),
+    transparent calc(100% - 28px)
+  );
+}
+
 [data-streamdown="code-block"] {
   gap: 0;
   overflow: visible;
