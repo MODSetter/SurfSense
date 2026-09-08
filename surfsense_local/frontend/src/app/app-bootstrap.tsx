@@ -3,7 +3,6 @@ import { lazy, Suspense, useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
-import { Skeleton } from "@/components/ui/skeleton"
 import {
   getGenerationSelection,
   type ModelSelection,
@@ -31,6 +30,9 @@ function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
 
+const ASCII_FRAMES = ["|", "/", "-", "\\"] as const
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
+
 async function fetchBootstrapState(): Promise<BootstrapState> {
   try {
     const selection = await getGenerationSelection()
@@ -44,25 +46,31 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
   }
 }
 
-function ShellSkeleton() {
+function GlobalLoader() {
+  const [frame, setFrame] = useState(0)
+
+  useEffect(() => {
+    if (window.matchMedia?.(REDUCED_MOTION_QUERY).matches) return
+
+    const interval = window.setInterval(
+      () => setFrame((current) => (current + 1) % ASCII_FRAMES.length),
+      120
+    )
+    return () => window.clearInterval(interval)
+  }, [])
+
   return (
-    <main className="grid h-full min-w-[1120px] grid-cols-[56px_272px_minmax(520px,1fr)_320px] overflow-hidden">
-      <Skeleton className="h-full rounded-none" />
-      <div className="space-y-4 border-r p-4">
-        <Skeleton className="h-8 w-full" />
-        <Skeleton className="h-12 w-full" />
-        <Skeleton className="h-12 w-full" />
-      </div>
-      <div className="space-y-4 border-r p-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-[65vh] w-full" />
-        <Skeleton className="h-24 w-full" />
-      </div>
-      <div className="space-y-4 p-4">
-        <Skeleton className="h-8 w-28" />
-        <Skeleton className="h-14 w-full" />
-        <Skeleton className="h-14 w-full" />
-      </div>
+    <main
+      className="flex h-full select-none items-center justify-center bg-app-shell"
+      role="status"
+      aria-label="Starting SurfSense"
+    >
+      <span
+        aria-hidden="true"
+        className="font-mono text-2xl text-foreground tabular-nums"
+      >
+        [{ASCII_FRAMES[frame]}]
+      </span>
     </main>
   )
 }
@@ -81,7 +89,7 @@ export function AppBootstrap() {
   }, [])
 
   if (state.status === "loading") {
-    return <ShellSkeleton />
+    return <GlobalLoader />
   }
 
   if (state.status === "model-required") {
@@ -126,7 +134,7 @@ export function AppBootstrap() {
   }
 
   return (
-    <Suspense fallback={<ShellSkeleton />}>
+    <Suspense fallback={<GlobalLoader />}>
       <DashboardPage
         selection={state.selection}
         initialWorkspaces={state.workspaces}
