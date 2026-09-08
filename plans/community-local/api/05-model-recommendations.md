@@ -161,7 +161,8 @@ manifest contains no hardware score and is not copied into SQLite.
 
 ## Catalog assembly
 
-For each llmfit generation model:
+SurfSense requests llmfit's complete compatible model set without a result
+count limit. For each llmfit generation model:
 
 1. Normalize its identity and score.
 2. Exclude embedding-only entries.
@@ -170,7 +171,13 @@ For each llmfit generation model:
 5. Overlay the curated-model manifest.
 6. Apply SurfSense's real context target and reserve memory for the OS,
    Electron, API, worker, parser, and fixed embedding model.
-7. Partition and rank:
+7. Enforce one catalog row per exact `(runtime, runtime_model)` target. An
+   explicit curated mapping wins over an external mapping. When external names
+   collide, show one row named with the exact runtime target and use the most
+   conservative colliding hardware estimate instead of guessing a catalog
+   identity. Record collisions once per scan in developer logs; they are not a
+   user-actionable recommendation warning.
+8. Partition and rank:
    - **Recommended:** exact manifest entry, verified install plan, and `perfect` or
      `good` fit;
    - **Explore:** remaining installable `perfect`, `good`, or `marginal`

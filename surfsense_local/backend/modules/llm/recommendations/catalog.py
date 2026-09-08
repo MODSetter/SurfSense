@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import secrets
 import shutil
 from dataclasses import replace
@@ -27,6 +28,7 @@ FIT_ORDER = {
     FitLevel.TOO_TIGHT: 3,
     FitLevel.UNKNOWN: 4,
 }
+LOGGER = logging.getLogger(__name__)
 
 
 class UnknownCatalogIdError(ValueError):
@@ -69,6 +71,7 @@ class CatalogService:
         self._scan_lock = asyncio.Lock()
         self._ids: dict[tuple[str, str], str] = {}
         self._plans: dict[str, tuple[LocalRuntime, ScoredModel, InstallPlan]] = {}
+        self._logged_collision_keys: set[tuple[str, str]] = set()
         self._install_locks = {runtime.name: asyncio.Lock() for runtime in runtimes}
 
     async def advisor_catalog(self, *, refresh: bool = False) -> AdvisorCatalog:
@@ -77,6 +80,7 @@ class CatalogService:
                 self._scan = None
                 self._ids.clear()
                 self._plans.clear()
+                self._logged_collision_keys.clear()
             if self._scan is None:
                 self._scan = await self._advisor.scan(self._max_context)
             return self._scan
@@ -135,6 +139,15 @@ class CatalogService:
         explore: list[CatalogRow] = []
         installed: list[CatalogRow] = []
         matched_installed: set[tuple[str, str]] = set()
+        resolved_by_key: dict[
+            tuple[str, str],
+            tuple[LocalRuntime, ScoredModel, InstallPlan, CuratedModel | None],
+        ] = {}
+        ambiguous_keys: set[tuple[str, str]] = set()
+        collisions_by_key: dict[
+            tuple[str, str],
+            list[tuple[LocalRuntime, ScoredModel, InstallPlan, CuratedModel | None]],
+        ] = {}
         self._plans.clear()
 
         for raw_model in scan.models:
@@ -147,6 +160,75 @@ class CatalogService:
                 continue
             runtime, plan = resolved
             key = (runtime.name, plan.model_name)
+            candidate = (runtime, model, plan, curated_model)
+            existing = resolved_by_key.get(key)
+            if existing is not None and existing[1].canonical_id != model.canonical_id:
+                collisions_by_key.setdefault(key, [existing]).append(candidate)
+            elif key in collisions_by_key and all(
+                item[1].canonical_id != model.canonical_id
+                for item in collisions_by_key[key]
+            ):
+                collisions_by_key[key].append(candidate)
+            if curated_model is not None:
+                if existing is not None and existing[3] is not None:
+                    if existing[1].canonical_id == model.canonical_id:
+                        continue
+                    resolved_by_key.pop(key)
+                    ambiguous_keys.add(key)
+                    continue
+                ambiguous_keys.discard(key)
+                resolved_by_key[key] = candidate
+                continue
+            if key in ambiguous_keys or (
+                existing is not None and existing[3] is not None
+            ):
+                continue
+            if existing is None:
+                resolved_by_key[key] = candidate
+                continue
+            if existing[1].canonical_id != model.canonical_id:
+                resolved_by_key.pop(key)
+                ambiguous_keys.add(key)
+
+        for key in tuple(ambiguous_keys):
+            candidates = collisions_by_key[key]
+            if any(candidate[3] is not None for candidate in candidates):
+                continue
+            runtime = candidates[0][0]
+            model = _runtime_target_model(key, candidates)
+            plan = await runtime.resolve(model)
+            if plan is None or (plan.runtime, plan.model_name) != key:
+                continue
+            resolved_by_key[key] = (runtime, model, plan, None)
+            ambiguous_keys.remove(key)
+
+        for key, candidates in collisions_by_key.items():
+            if key in self._logged_collision_keys:
+                continue
+            self._logged_collision_keys.add(key)
+            canonical_ids = {candidate[1].canonical_id for candidate in candidates}
+            resolved = resolved_by_key.get(key)
+            if key in ambiguous_keys or resolved is None:
+                LOGGER.warning(
+                    "Hiding ambiguous models %s for target %s:%s",
+                    ", ".join(sorted(canonical_ids)),
+                    *key,
+                )
+            elif resolved[3] is not None:
+                LOGGER.warning(
+                    "Keeping curated model %s over %s for target %s:%s",
+                    resolved[1].canonical_id,
+                    ", ".join(sorted(canonical_ids - {resolved[1].canonical_id})),
+                    *key,
+                )
+            else:
+                LOGGER.warning(
+                    "Representing ambiguous models %s as runtime target %s:%s",
+                    ", ".join(sorted(canonical_ids)),
+                    *key,
+                )
+
+        for key, (runtime, model, plan, curated_model) in resolved_by_key.items():
             is_installed = key in installed_by_key
             row = self._row(
                 model,
@@ -305,6 +387,41 @@ class CatalogService:
         if key not in self._ids:
             self._ids[key] = secrets.token_urlsafe(18)
         return self._ids[key]
+
+
+def _runtime_target_model(
+    key: tuple[str, str],
+    candidates: list[
+        tuple[LocalRuntime, ScoredModel, InstallPlan, CuratedModel | None]
+    ],
+) -> ScoredModel:
+    source = max(
+        (candidate[1] for candidate in candidates),
+        key=lambda model: (
+            FIT_ORDER[model.fit],
+            model.memory_required_gb or 0,
+            model.canonical_id,
+        ),
+    )
+    runtime, runtime_model = key
+    return replace(
+        source,
+        canonical_id=f"{runtime}:{runtime_model}",
+        family=runtime_model.split(":", 1)[0],
+        display_name=runtime_model,
+        publisher=None,
+        parameter_count=None,
+        params_b=None,
+        use_case=None,
+        score=None,
+        capability_ids=(),
+        license=None,
+        notes=(
+            *source.notes,
+            "Multiple catalog entries map to this exact runtime model.",
+        ),
+        ollama_name=runtime_model if runtime == "ollama" else None,
+    )
 
 
 def _is_embedding(model: ScoredModel) -> bool:
