@@ -144,6 +144,33 @@ async def test_a_deleted_document_takes_its_chunks(
         assert connection.execute(select(func.count()).select_from(Chunk)).scalar() == 0
 
 
+async def test_a_processing_document_cannot_be_deleted(
+    client: AsyncClient, workspace_id: int, engine: Engine
+) -> None:
+    """Deletion must not race the worker while it is writing indexed data."""
+    with engine.begin() as connection:
+        connection.execute(
+            insert(Document).values(
+                id=1,
+                workspace_id=workspace_id,
+                title="processing.pdf",
+                document_type=DocumentType.FILE,
+                status=DocumentStatus.PROCESSING,
+            )
+        )
+
+    response = await client.delete(f"/workspaces/{workspace_id}/documents/1")
+
+    assert response.status_code == 409
+    with engine.connect() as connection:
+        assert (
+            connection.scalar(
+                select(func.count()).select_from(Document).where(Document.id == 1)
+            )
+            == 1
+        )
+
+
 async def test_documents_are_filtered_by_type(
     client: AsyncClient, workspace_id: int, engine: Engine
 ) -> None:

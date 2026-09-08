@@ -9,9 +9,14 @@ import {
   EllipsisIcon,
   FileIcon,
   FilePlus2Icon,
+  FolderOpenIcon,
+  Loader2Icon,
   NotebookTextIcon,
   RefreshCwIcon,
+  SquareDashedMousePointerIcon,
   Trash2Icon,
+  ViewIcon,
+  XIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -56,6 +61,8 @@ function SelectableSourceRow({
   onOpen,
   onReveal,
   onRetry,
+  onDelete,
+  isDeleting,
   onSelectedChange,
 }: {
   document: WorkspaceDocument
@@ -65,12 +72,15 @@ function SelectableSourceRow({
   onOpen: () => void
   onReveal: () => void
   onRetry: () => void
+  onDelete: () => void
+  isDeleting: boolean
   onSelectedChange: (selected: boolean) => void
 }) {
   const ready = document.status === "ready"
   const failed = document.status === "failed"
-  const processing =
+  const ingesting =
     document.status === "pending" || document.status === "processing"
+  const processing = document.status === "processing"
   const openable = ready && document.document_type === "FILE"
 
   return (
@@ -113,7 +123,7 @@ function SelectableSourceRow({
             />
           </>
         ) : null}
-        {processing ? (
+        {ingesting ? (
           <Spinner
             className="text-muted-foreground"
             aria-label={`Processing ${document.title}`}
@@ -151,27 +161,48 @@ function SelectableSourceRow({
             <EllipsisIcon />
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
+        <DropdownMenuContent align="end" className="min-w-40">
           <DropdownMenuGroup>
             {openable ? (
               <>
-                <DropdownMenuItem onSelect={onOpen}>Open</DropdownMenuItem>
+                <DropdownMenuItem onSelect={onOpen}>
+                  <ViewIcon />
+                  Open
+                </DropdownMenuItem>
                 <DropdownMenuItem onSelect={onReveal}>
+                  <FolderOpenIcon />
                   Show in folder
                 </DropdownMenuItem>
               </>
             ) : null}
             {ready ? (
               <DropdownMenuItem onSelect={() => onSelectedChange(!selected)}>
+                {selected ? <XIcon /> : <SquareDashedMousePointerIcon />}
                 {selected ? "Deselect" : "Select"}
               </DropdownMenuItem>
             ) : null}
             {failed ? (
-              <DropdownMenuItem onSelect={onRetry}>Retry</DropdownMenuItem>
+              <DropdownMenuItem onSelect={onRetry}>
+                <RefreshCwIcon />
+                Retry
+              </DropdownMenuItem>
             ) : null}
-            {processing ? (
-              <DropdownMenuItem disabled>Processing</DropdownMenuItem>
+            {ingesting ? (
+              <DropdownMenuItem disabled>
+                <span className="flex animate-spin" aria-hidden="true">
+                  <Loader2Icon />
+                </span>
+                Processing
+              </DropdownMenuItem>
             ) : null}
+            <DropdownMenuItem
+              variant="destructive"
+              disabled={processing || isDeleting}
+              onSelect={onDelete}
+            >
+              <Trash2Icon />
+              Delete
+            </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -190,6 +221,7 @@ export function SourcesPanel({
   onOpen,
   onReveal,
   onRetry,
+  onDelete,
   onDeleteSelected,
   onSelectionChange,
   onUpload,
@@ -205,6 +237,7 @@ export function SourcesPanel({
   onOpen: (documentId: number) => void
   onReveal: (documentId: number) => void
   onRetry: (documentId: number) => void
+  onDelete: (documentId: number) => void
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
   onUpload: (files: File[]) => void
@@ -212,7 +245,15 @@ export function SourcesPanel({
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
   const sourceRows = useRef(new Map<number, HTMLDivElement>())
-  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState<
+    WorkspaceDocument | "selected" | null
+  >(null)
+  const deleteCount =
+    deleteTarget === "selected"
+      ? selectedDocumentIds.length
+      : deleteTarget
+        ? 1
+        : 0
   const chooseFiles = () => fileInput.current?.click()
   const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
     onUpload(Array.from(event.target.files ?? []))
@@ -289,7 +330,7 @@ export function SourcesPanel({
                       size="xs"
                       variant="destructive"
                       disabled={isDeleting}
-                      onClick={() => setDeleteConfirmationOpen(true)}
+                      onClick={() => setDeleteTarget("selected")}
                     >
                       <Trash2Icon data-icon="inline-start" />
                       Delete {selectedDocumentIds.length}
@@ -310,6 +351,8 @@ export function SourcesPanel({
                       onOpen={() => onOpen(document.id)}
                       onReveal={() => onReveal(document.id)}
                       onRetry={() => onRetry(document.id)}
+                      onDelete={() => setDeleteTarget(document)}
+                      isDeleting={isDeleting}
                       onSelectedChange={(selected) =>
                         onSelectionChange(document.id, selected)
                       }
@@ -335,24 +378,32 @@ export function SourcesPanel({
         </ScrollArea>
       </aside>
       <AlertDialog
-        open={deleteConfirmationOpen}
-        onOpenChange={setDeleteConfirmationOpen}
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {selectedDocumentIds.length}{" "}
-              {selectedDocumentIds.length === 1 ? "source" : "sources"}?
+              Delete {deleteCount} {deleteCount === 1 ? "source" : "sources"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes the selected sources and their indexed
-              data.
+              {deleteTarget === "selected"
+                ? "This permanently deletes the selected sources and their indexed data."
+                : `This permanently deletes ${deleteTarget?.title ?? "this source"} and its indexed data.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction variant="destructive" onClick={onDeleteSelected}>
-              Delete sources
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleteTarget === "selected") onDeleteSelected()
+                else if (deleteTarget) onDelete(deleteTarget.id)
+              }}
+            >
+              Delete {deleteCount === 1 ? "source" : "sources"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

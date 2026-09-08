@@ -38,6 +38,7 @@ function SourceHarness() {
       onOpen={(id) => void sources.openOriginal(id)}
       onReveal={(id) => void sources.revealOriginal(id)}
       onRetry={(id) => void sources.retry(id)}
+      onDelete={(id) => void sources.deleteOne(id)}
       onDeleteSelected={() => void sources.deleteSelected()}
       onSelectionChange={sources.setDocumentSelected}
       onUpload={(files) => void sources.upload(files)}
@@ -100,6 +101,7 @@ describe("source upload", () => {
         onOpen={vi.fn()}
         onReveal={vi.fn()}
         onRetry={vi.fn()}
+        onDelete={vi.fn()}
         onDeleteSelected={vi.fn()}
         onSelectionChange={vi.fn()}
         onUpload={vi.fn()}
@@ -122,6 +124,93 @@ describe("source upload", () => {
     expect(readyButton.className).toContain("truncate")
     expect(readyButton.parentElement?.className).toContain("overflow-hidden")
     expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
+  })
+
+  it("offers per-source delete but disables it while processing", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <SourcesPanel
+        documents={[
+          pendingDocument,
+          {
+            ...pendingDocument,
+            id: 2,
+            title: "processing.pdf",
+            status: "processing",
+          },
+        ]}
+        selectedDocumentIds={[]}
+        highlightedDocumentId={null}
+        isLoading={false}
+        isUploading={false}
+        isDeleting={false}
+        error={null}
+        onOpen={vi.fn()}
+        onReveal={vi.fn()}
+        onRetry={vi.fn()}
+        onDelete={onDelete}
+        onDeleteSelected={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onUpload={vi.fn()}
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for processing.pdf" })
+    )
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Delete" })
+        .getAttribute("data-disabled")
+    ).not.toBeNull()
+    await user.keyboard("{Escape}")
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for guide.txt" })
+    )
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Delete" })
+        .getAttribute("data-disabled")
+    ).toBeNull()
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    await user.click(screen.getByRole("button", { name: "Delete source" }))
+
+    expect(onDelete).toHaveBeenCalledWith(pendingDocument.id)
+  })
+
+  it("permanently deletes one failed source after confirmation", async () => {
+    const failedDocument = {
+      ...pendingDocument,
+      title: "broken.pdf",
+      status: "failed" as const,
+    }
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === "DELETE"
+          ? new Response(null, { status: 204 })
+          : Response.json([failedDocument])
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<SourceHarness />)
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for broken.pdf" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    expect(
+      screen.getByRole("alertdialog", { name: "Delete 1 source?" })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete source" }))
+
+    await waitFor(() => expect(screen.queryByText("broken.pdf")).toBeNull())
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/workspaces/1/documents/7",
+      expect.objectContaining({ method: "DELETE" })
+    )
   })
 
   it("uploads multipart files, reports duplicates, and polls until ready", async () => {

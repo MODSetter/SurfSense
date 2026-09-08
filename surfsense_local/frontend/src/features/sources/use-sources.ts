@@ -282,6 +282,29 @@ export function useSources(workspaceId: number) {
     })
   }
 
+  const deleteOne = async (documentId: number) => {
+    if (isDeleting) {
+      return
+    }
+    setIsDeleting(true)
+    setError(null)
+    try {
+      await deleteDocument(workspaceId, documentId)
+      setDocuments((current) =>
+        current.filter((document) => document.id !== documentId)
+      )
+      setSelectedDocumentIdSet((current) => {
+        const next = new Set(current)
+        next.delete(documentId)
+        return next
+      })
+    } catch (cause) {
+      setError(messageFrom(cause))
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   const deleteSelected = async () => {
     const ids = selectedDocumentIds
     if (ids.length === 0 || isDeleting) {
@@ -325,6 +348,7 @@ export function useSources(workspaceId: number) {
     openOriginal,
     revealOriginal,
     retry,
+    deleteOne,
     deleteSelected,
     setDocumentSelected,
     upload,

@@ -17,6 +17,7 @@ import {
   FileAddIcon,
   FileIcon as FileIconData,
   FileTextIcon as FileTextIconData,
+  FolderOpenIcon as FolderOpenIconData,
   KeyRoundIcon as KeyRoundIconData,
   LayoutGridIcon as LayoutGridIconData,
   Loading03Icon,
@@ -29,7 +30,9 @@ import {
   ServerOffIcon as ServerOffIconData,
   Settings02Icon,
   SparklesIcon as SparklesIconData,
+  SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
+  ViewIcon as ViewIconData,
   XIcon as XIconData,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -74,6 +77,7 @@ export const EllipsisIcon = createIcon(EllipsisIconData)
 export const FileIcon = createIcon(FileIconData)
 export const FilePlus2Icon = createIcon(FileAddIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
+export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const KeyRoundIcon = createIcon(KeyRoundIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
@@ -86,5 +90,9 @@ export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const SparklesIcon = createIcon(SparklesIconData)
+export const SquareDashedMousePointerIcon = createIcon(
+  SquareDashedMousePointerIconData
+)
 export const Trash2Icon = createIcon(Delete02Icon)
+export const ViewIcon = createIcon(ViewIconData)
 export const XIcon = createIcon(XIconData)

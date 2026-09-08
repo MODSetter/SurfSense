@@ -4,7 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from api.dependencies import SessionDep
 from modules.documents.dependencies import DocumentDep
@@ -257,7 +257,18 @@ def delete_document(document: DocumentDep, session: SessionDep) -> Response:
     # beyond the database, and go after the commit a rollback would undo.
     directory = get_storage_settings().document_dir(document.workspace_id, document.id)
 
-    session.delete(document)
+    deleted = session.execute(
+        delete(Document).where(
+            Document.id == document.id,
+            Document.status != DocumentStatus.PROCESSING,
+        )
+    )
+    if deleted.rowcount == 0:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "a document cannot be deleted while it is processing",
+        )
     session.commit()
 
     shutil.rmtree(directory, ignore_errors=True)

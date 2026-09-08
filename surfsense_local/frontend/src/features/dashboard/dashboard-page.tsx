@@ -96,6 +96,10 @@ function WorkspaceDashboard({
         onOpen={(id) => void sources.openOriginal(id)}
         onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}
+        onDelete={(id) => {
+          if (id === highlightedDocumentId) setHighlightedDocumentId(null)
+          void sources.deleteOne(id)
+        }}
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
