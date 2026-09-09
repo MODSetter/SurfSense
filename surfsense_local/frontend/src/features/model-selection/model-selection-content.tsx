@@ -83,7 +83,7 @@ export function ModelSelectionContent({
         setActiveTab(provider)
       }}
     >
-      <TabsList>
+      <TabsList className="mx-55 w-auto">
         <TabsTrigger value="local">Local</TabsTrigger>
         <TabsTrigger value={OPENROUTER}>OpenRouter</TabsTrigger>
       </TabsList>

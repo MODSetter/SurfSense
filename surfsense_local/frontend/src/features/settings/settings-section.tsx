@@ -37,7 +37,7 @@ export function SettingsSection({
         ) : (
           <div
             data-slot="settings-section-content"
-            className="h-full min-h-0 overflow-hidden px-7 py-5"
+            className="h-full min-h-0 overflow-hidden px-7 pt-5"
           >
             <div className="h-full min-h-0">{children}</div>
           </div>
