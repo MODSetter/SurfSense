@@ -5,6 +5,7 @@ from sqlalchemy import Engine
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
 from shared.db import create_session_factory
+from shared.queue import huey
 
 pytestmark = pytest.mark.integration
 
@@ -153,3 +154,27 @@ async def test_an_artifact_can_be_deleted(
 
     gone = await client.get(f"/artifacts/{artifact_id}")
     assert gone.status_code == 404
+
+
+async def test_listing_puts_a_stranded_job_back_on_the_queue(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """A pending row with no Huey task is re-enqueued when Studio lists it."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+    huey.flush()
+    assert huey.pending_count() == 0
+
+    listed = await client.get(f"/workspaces/{workspace_id}/artifacts")
+    assert listed.json()[0]["id"] == artifact_id
+    assert listed.json()[0]["status"] == "pending"
+    assert [(job.name, job.args) for job in huey.pending()] == [
+        ("studio_job", (artifact_id,))
+    ]
+
+    await client.get(f"/workspaces/{workspace_id}/artifacts")
+    assert huey.pending_count() == 1
