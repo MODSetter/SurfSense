@@ -67,6 +67,49 @@ def test_code_that_raises_surfaces_the_reason(monkeypatch: pytest.MonkeyPatch) -
         office.render(None, "pptx", [], None)
 
 
+def test_render_retries_failed_code_then_keeps_the_fix(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A bad import is asked again; the next script that runs is what we store."""
+    replies = iter(
+        [
+            "from reportlab.lib.pagesMS import A4\noutput_bytes = b'nope'",
+            "output_bytes = b'%PDF-ok'\ntitle = 'Cassini'",
+        ]
+    )
+    seen: list[str] = []
+
+    def fake_model(_session: object, system: str, _sources: object) -> str:
+        seen.append(system)
+        return next(replies)
+
+    monkeypatch.setattr(generate, "run_model", fake_model)
+
+    built = office.render(None, "pdf", [], None)
+
+    assert built.primary == b"%PDF-ok"
+    assert len(seen) == 2
+    assert "pagesMS" in seen[1] or "failed" in seen[1].lower()
+
+
+def test_render_stops_after_three_code_failures(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Three broken scripts fail the job; a fourth is never requested."""
+    calls = 0
+
+    def fake_model(*_a: object, **_k: object) -> str:
+        nonlocal calls
+        calls += 1
+        return "raise ValueError('still broken')"
+
+    monkeypatch.setattr(generate, "run_model", fake_model)
+
+    with pytest.raises(RuntimeError, match="still broken"):
+        office.render(None, "pdf", [], None)
+    assert calls == 3
+
+
 def test_execute_times_out_a_hanging_script(monkeypatch: pytest.MonkeyPatch) -> None:
     """A script that never returns is killed by the timeout, not left to hang."""
     monkeypatch.setattr(runner, "TIMEOUT_SECONDS", 0.2)
