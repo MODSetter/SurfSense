@@ -16,8 +16,6 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     SURFSENSE_LOCAL_PORT: String(ctx.apiPort),
     SURFSENSE_LOCAL_DATA_DIR: ctx.dataDir,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
-    // Packaged: the parser pack is already in models/. A Hub fetch here would
-    // stall the only worker on first PDF.
     ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
     ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
     ...(ctx.ollamaModelsDir && {
