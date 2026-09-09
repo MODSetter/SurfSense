@@ -21,6 +21,7 @@ from modules.chat.schemas import (
     ThreadUpdate,
 )
 from modules.chat.title import generate_title
+from modules.llm.activity import ModelBusyError, model_activity
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.providers import get_provider
 from modules.workspaces.dependencies import WorkspaceDep
@@ -134,21 +135,30 @@ async def send_message(
     context, citations = build_context(hits)
     messages = build_messages(context, history, payload.text)
 
-    user_message = ChatMessage(
-        chat_thread_id=thread.id,
-        role=MessageRole.USER,
-        content={"text": payload.text},
-    )
-    assistant_message = ChatMessage(
-        chat_thread_id=thread.id,
-        role=MessageRole.ASSISTANT,
-        content={"text": "", "citations": []},
-    )
-    session.add_all((user_message, assistant_message))
-    # Do not hold a write transaction open while the model generates. The IDs
-    # are also the stable identities the client uses throughout the stream.
-    session.commit()
-    user_created_at = user_message.created_at.isoformat()
+    model_key = (selected.provider, selected.name)
+    try:
+        await model_activity.acquire_use(model_key)
+    except ModelBusyError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    try:
+        user_message = ChatMessage(
+            chat_thread_id=thread.id,
+            role=MessageRole.USER,
+            content={"text": payload.text},
+        )
+        assistant_message = ChatMessage(
+            chat_thread_id=thread.id,
+            role=MessageRole.ASSISTANT,
+            content={"text": "", "citations": []},
+        )
+        session.add_all((user_message, assistant_message))
+        # Do not hold a write transaction open while the model generates. The IDs
+        # are also the stable identities the client uses throughout the stream.
+        session.commit()
+        user_created_at = user_message.created_at.isoformat()
+    except Exception:
+        await model_activity.release_use(model_key)
+        raise
 
     async def stream() -> AsyncIterator[bytes]:
         parts: list[str] = []
@@ -212,7 +222,7 @@ async def send_message(
         yield _DONE
 
     return StreamingResponse(
-        stream(),
+        _release_model_after(stream(), model_key),
         media_type="text/event-stream",
         # Keep a proxy from buffering or caching a live stream into one late blob.
         headers={
@@ -221,6 +231,16 @@ async def send_message(
             "X-Accel-Buffering": "no",
         },
     )
+
+
+async def _release_model_after(
+    frames: AsyncIterator[bytes], key: tuple[str, str]
+) -> AsyncIterator[bytes]:
+    try:
+        async for frame in frames:
+            yield frame
+    finally:
+        await model_activity.release_use(key)
 
 
 def _frame(payload: dict) -> bytes:
