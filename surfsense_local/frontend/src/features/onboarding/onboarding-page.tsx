@@ -170,6 +170,7 @@ function ModelSetupStep({
               state={state}
               draftKey={draftKey}
               disabled={isSaving || isRefreshing}
+              installedFirst
               onSelect={select}
               onCatalogSelected={onComplete}
               onActiveProviderChange={setActiveProvider}
