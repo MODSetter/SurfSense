@@ -125,7 +125,7 @@
   --chart-3: #8e8a83;
   --chart-4: #5c5a56;
   --chart-5: #3b3b3b;
-  --sidebar: #101010;
+  --sidebar: #141414;
   --sidebar-foreground: #e8e3da;
   --sidebar-primary: #d1cfc0;
   --sidebar-primary-foreground: #363636;
@@ -169,8 +169,36 @@
   -webkit-app-region: drag;
 }
 
+.electron-macos body:has([data-model-selection-page])::before {
+  background: color-mix(in oklab, var(--muted) 30%, transparent);
+}
+
 .electron-macos #root {
   padding-top: var(--titlebar-height);
+}
+
+.sidebar-row-title-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 12px),
+    transparent
+  );
+  mask-image: linear-gradient(to right, black calc(100% - 12px), transparent);
+}
+
+.group:hover .sidebar-row-title-fade,
+.group:focus-within .sidebar-row-title-fade-focus-within,
+.sidebar-row-title-fade-actions {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 48px),
+    transparent calc(100% - 28px)
+  );
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - 48px),
+    transparent calc(100% - 28px)
+  );
 }
 
 [data-streamdown="code-block"] {

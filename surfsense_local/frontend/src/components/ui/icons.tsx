@@ -11,25 +11,33 @@ import {
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
   Copy01Icon,
+  CpuIcon as CpuIconData,
   Delete02Icon,
   DownloadIcon as DownloadIconData,
   EllipsisIcon as EllipsisIconData,
   FileAddIcon,
   FileIcon as FileIconData,
   FileTextIcon as FileTextIconData,
+  FolderOpenIcon as FolderOpenIconData,
   KeyRoundIcon as KeyRoundIconData,
   LayoutGridIcon as LayoutGridIconData,
   Loading03Icon,
   MessageSquareIcon as MessageSquareIconData,
+  Moon02Icon as Moon02IconData,
   NotebookTextIcon as NotebookTextIconData,
   PencilEdit02Icon as PencilEdit02IconData,
   PencilIcon as PencilIconData,
   PlusIcon as PlusIconData,
   RefreshCwIcon as RefreshCwIconData,
+  Search01Icon,
   ServerOffIcon as ServerOffIconData,
   Settings02Icon,
   SparklesIcon as SparklesIconData,
+  SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
+  Sun03Icon as Sun03IconData,
+  ComputerIcon as ComputerIconData,
+  ViewIcon as ViewIconData,
   XIcon as XIconData,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
@@ -69,22 +77,32 @@ export const ChevronRightIcon = createIcon(ChevronRightIconData)
 export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
+export const CpuIcon = createIcon(CpuIconData)
 export const DownloadIcon = createIcon(DownloadIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const FileIcon = createIcon(FileIconData)
 export const FilePlus2Icon = createIcon(FileAddIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
+export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const KeyRoundIcon = createIcon(KeyRoundIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
+export const MoonIcon = createIcon(Moon02IconData)
 export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const PencilIcon = createIcon(PencilIconData)
 export const PlusIcon = createIcon(PlusIconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
+export const SearchIcon = createIcon(Search01Icon)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const SparklesIcon = createIcon(SparklesIconData)
+export const SunIcon = createIcon(Sun03IconData)
+export const ComputerIcon = createIcon(ComputerIconData)
+export const SquareDashedMousePointerIcon = createIcon(
+  SquareDashedMousePointerIconData
+)
 export const Trash2Icon = createIcon(Delete02Icon)
+export const ViewIcon = createIcon(ViewIconData)
 export const XIcon = createIcon(XIconData)

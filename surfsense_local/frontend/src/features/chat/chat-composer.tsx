@@ -1,42 +1,18 @@
+import { useRef, type ChangeEvent } from "react"
 import { ComposerPrimitive } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
+import { ArrowUp02Icon, CircleStopIcon, PlusIcon } from "@/components/ui/icons"
 import {
-  ArrowUp02Icon,
-  ChevronDownIcon,
-  CircleStopIcon,
-} from "@/components/ui/icons"
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { ModelSelection } from "@/features/model-selection/api"
+import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
-function ModelButton({
-  model,
-  providerAvailable,
-  onModelSetup,
-  className,
-}: {
-  model: ModelSelection
-  providerAvailable: boolean
-  onModelSetup: () => void
-  className?: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onModelSetup}
-      className={cn(
-        "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none",
-        className
-      )}
-      title="Change model"
-      aria-label={`Model ${model.name} on ${model.provider}. Change model.`}
-    >
-      <span>{model.name}</span>
-      <span>{providerAvailable ? model.provider : "Provider offline"}</span>
-      <ChevronDownIcon className="size-3" />
-    </button>
-  )
-}
+import { ModelPicker } from "./model-picker"
 
 function ComposerAction({
   isRunning,
@@ -73,18 +49,71 @@ function ComposerAction({
   )
 }
 
+function AddSourcesButton({
+  isUploading,
+  onUpload,
+  className,
+}: {
+  isUploading: boolean
+  onUpload: (files: File[]) => void
+  className?: string
+}) {
+  const inputRef = useRef<HTMLInputElement>(null)
+  const upload = (event: ChangeEvent<HTMLInputElement>) => {
+    onUpload(Array.from(event.target.files ?? []))
+    event.target.value = ""
+  }
+
+  return (
+    <>
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={SOURCE_FILE_ACCEPT}
+        className="sr-only"
+        aria-label="Add source files"
+        disabled={isUploading}
+        onChange={upload}
+      />
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            type="button"
+            size="icon-lg"
+            variant="ghost"
+            className={cn("rounded-xl", className)}
+            disabled={isUploading}
+            aria-label="Add sources"
+            onClick={() => inputRef.current?.click()}
+          >
+            <PlusIcon className="size-5" />
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent side="top">Add sources</TooltipContent>
+      </Tooltip>
+    </>
+  )
+}
+
 export function ChatComposer({
   placement,
   model,
   isRunning,
+  isUploading,
   providerAvailable,
   onModelSetup,
+  onModelSelected,
+  onUpload,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection
   isRunning: boolean
+  isUploading: boolean
   providerAvailable: boolean
   onModelSetup: () => void
+  onModelSelected: (selection: ModelSelection) => void
+  onUpload: (files: File[]) => void
 }) {
   return (
     <div
@@ -97,6 +126,13 @@ export function ChatComposer({
           placement === "bottom" && "flex items-end gap-2"
         )}
       >
+        {placement === "bottom" ? (
+          <AddSourcesButton
+            isUploading={isUploading}
+            onUpload={onUpload}
+            className="-mr-1.5 mb-0.5"
+          />
+        ) : null}
         <ComposerPrimitive.Input
           className={cn(
             "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
@@ -106,7 +142,9 @@ export function ChatComposer({
           )}
           placeholder={
             providerAvailable
-              ? "Ask SurfSense about anything"
+              ? placement === "center"
+                ? "Turn your sources into answers"
+                : "Follow up on this answer"
               : "Reconnect your model provider to send"
           }
           submitMode="enter"
@@ -114,30 +152,37 @@ export function ChatComposer({
           aria-label="Message"
         />
         {placement === "center" ? (
-          <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
-            <ModelButton
-              model={model}
-              providerAvailable={providerAvailable}
-              onModelSetup={onModelSetup}
-              className="h-9 rounded-xl px-3 text-sm"
+          <>
+            <AddSourcesButton
+              isUploading={isUploading}
+              onUpload={onUpload}
+              className="absolute bottom-2 left-1.5"
             />
-            <ComposerAction isRunning={isRunning} />
-          </div>
+            <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
+              <ModelPicker
+                model={model}
+                onManageModels={onModelSetup}
+                onModelSelected={onModelSelected}
+                className="h-9 rounded-xl px-3 text-sm"
+              />
+              <ComposerAction isRunning={isRunning} />
+            </div>
+          </>
         ) : (
           <ComposerAction isRunning={isRunning} className="mb-0.5" />
         )}
       </ComposerPrimitive.Root>
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
-          <p className="min-w-0 text-left text-[11px] text-muted-foreground">
+          <p className="min-w-0 select-none text-left text-[11px] text-muted-foreground">
             {providerAvailable
-              ? `${model.name} runs locally. Check important answers.`
+              ? "SurfSense can make mistakes. Check important answers."
               : "Historical chats remain available while the provider is offline."}
           </p>
-          <ModelButton
+          <ModelPicker
             model={model}
-            providerAvailable={providerAvailable}
-            onModelSetup={onModelSetup}
+            onManageModels={onModelSetup}
+            onModelSelected={onModelSelected}
           />
         </div>
       ) : null}

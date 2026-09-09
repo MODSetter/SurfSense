@@ -15,7 +15,7 @@ from modules.llm.recommendations.types import (
 )
 
 LOGGER = logging.getLogger(__name__)
-MAX_OUTPUT_BYTES = 16 * 1024 * 1024
+MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 VERSION_PATTERN = re.compile(r"(\d+\.\d+\.\d+)")
 
 
@@ -89,7 +89,6 @@ class LlmfitAdvisor:
         ]
         if provider is not None:
             args.extend(("--providers", provider))
-        args.extend(("-n", "1000"))
         return await self._json(*args)
 
     async def _version(self) -> str:

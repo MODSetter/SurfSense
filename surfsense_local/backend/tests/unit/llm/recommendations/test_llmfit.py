@@ -29,6 +29,9 @@ if "--version" in sys.argv:
     print("llmfit 1.1.11")
 elif "system" in sys.argv:
     print({system!r})
+elif "-n" in sys.argv or "--limit" in sys.argv:
+    print("unexpected result limit", file=sys.stderr)
+    sys.exit(2)
 else:
     print({fit!r})
 """,
@@ -88,7 +91,7 @@ print("llmfit 1.1.11" if "--version" in sys.argv else "{not-json")
 """,
     )
 
-    result = await LlmfitAdvisor(executable, "1.1.11", 1).scan(8192)
+    result = await LlmfitAdvisor(executable, "1.1.11", 2).scan(8192)
 
     assert result.models == ()
     assert result.warnings[0].code == "invalid_output"

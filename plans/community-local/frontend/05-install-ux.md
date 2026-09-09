@@ -11,15 +11,38 @@ to know RAM budgets, quantization, Ollama tags, or GGUF files. Show exact
 SurfSense-tested configurations first, then other installable catalog entries,
 both ranked for the current computer.
 
-## Page
+## First-time setup
 
 The **Choose your AI model** page loads `GET /llm/catalog` and renders:
 
-1. **SurfSense Recommended** — exact configurations from the curated-model manifest
+1. **Best for this computer** — exact configurations from the curated-model manifest
    that fit this computer.
-2. **Explore more models** — remaining installable llmfit catalog entries.
+2. **More models** — remaining installable llmfit catalog entries.
 3. **Installed** — already available local models, including models that are no
    longer a good fit under the current policy.
+
+This full-page flow is only the startup gate when no generation model has been
+selected. Later model changes happen in **Settings → Models**.
+
+## Settings
+
+The workspace rail keeps the Settings button, while `DashboardPage` owns the
+dialog and its active section. The rail button opens General; a chat model error
+opens Models directly.
+
+The Models section reuses the catalog, provider, installation, and selection
+logic from first-time setup. It puts Installed models first, supports local and
+OpenRouter selection, and updates the dashboard's active selection immediately.
+It does not render the onboarding page or its Continue action.
+
+Every settings section uses the same fixed-header, scrollable-body, and optional
+fixed-footer shell. The dialog and its two-column grid constrain height with
+`min-height: 0`; the section body is the only vertical scroll owner.
+
+The composer model button opens a compact picker containing generation-capable
+installed models. Users can search that list and switch models directly. A
+separate **Manage models** action opens Settings → Models for downloads,
+provider configuration, and hardware rescans.
 
 Recommended entries are grouped visually by family (for example Qwen or Gemma),
 but each card remains an exact parameter/quantization/runtime configuration.

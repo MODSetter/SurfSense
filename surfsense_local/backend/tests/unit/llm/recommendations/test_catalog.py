@@ -134,6 +134,29 @@ def _manifest() -> CuratedModelsManifest:
     )
 
 
+def _qwen_1_7_manifest() -> CuratedModelsManifest:
+    return CuratedModelsManifest.model_validate(
+        {
+            "schema_version": 1,
+            "models": [
+                {
+                    "model_id": "Qwen/Qwen3-1.7B",
+                    "family": "Qwen3",
+                    "minimum_fit": "good",
+                    "minimum_context": 8192,
+                    "allowed_quantizations": ["Q4_K_M"],
+                    "artifacts": {
+                        "ollama": {
+                            "name": "qwen3:1.7b",
+                            "quantization": "Q4_K_M",
+                        }
+                    },
+                }
+            ],
+        }
+    )
+
+
 async def test_catalog_partitions_recommended_explore_and_embeddings() -> None:
     """Only exact policy matches become recommended; embeddings stay excluded."""
     other = _scored(
@@ -195,6 +218,93 @@ async def test_installed_models_are_authoritative_and_not_duplicated() -> None:
     assert result.recommended == ()
     assert len(result.installed) == 1
     assert result.installed[0].selected is True
+
+
+@pytest.mark.parametrize("curated_first", [False, True])
+async def test_curated_model_owns_a_colliding_runtime_target(
+    curated_first: bool,
+) -> None:
+    """The explicit Qwen policy wins regardless of llmfit result order."""
+    qwen_base = _scored(
+        canonical_id="Qwen/Qwen3-1.7B-Base",
+        display_name="Qwen3-1.7B-Base",
+        score=72.8,
+        ollama_name="qwen3:1.7b",
+    )
+    qwen_chat = _scored(
+        canonical_id="Qwen/Qwen3-1.7B",
+        display_name="Qwen3-1.7B",
+        score=69.2,
+        ollama_name=None,
+    )
+    models = (qwen_chat, qwen_base) if curated_first else (qwen_base, qwen_chat)
+    runtime = Runtime(
+        [InstalledModel("ollama", "qwen3:1.7b", ("completion",), "Q4_K_M")]
+    )
+    service = CatalogService(
+        Advisor(models),
+        [runtime],
+        _qwen_1_7_manifest(),
+        max_context=8192,
+        reserve_gb=2,
+    )
+
+    result = await service.catalog(selected=("ollama", "qwen3:1.7b"))
+
+    assert result.recommended == ()
+    assert result.explore == ()
+    assert [row.canonical_id for row in result.installed] == ["Qwen/Qwen3-1.7B"]
+    assert result.installed[0].selected is True
+    assert not any(
+        warning.code == "ambiguous_runtime_target" for warning in result.warnings
+    )
+
+
+async def test_ambiguous_non_curated_models_use_exact_runtime_target(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Conflicting names become one exact runtime-target row."""
+    instruct = _scored(
+        canonical_id="meta-llama/Llama-3.2-1B-Instruct",
+        display_name="Llama-3.2-1B-Instruct",
+        ollama_name="llama3.2:1b",
+    )
+    base = _scored(
+        canonical_id="meta-llama/Llama-3.2-1B",
+        display_name="Llama-3.2-1B",
+        ollama_name="llama3.2:1b",
+    )
+    service = CatalogService(
+        Advisor((instruct, base)),
+        [Runtime()],
+        CuratedModelsManifest(schema_version=1, models=[]),
+        max_context=8192,
+        reserve_gb=2,
+    )
+
+    with caplog.at_level("WARNING"):
+        result = await service.catalog(selected=None)
+        repeated = await service.catalog(selected=None)
+
+    assert result.recommended == ()
+    assert len(result.explore) == 1
+    assert result.explore[0].canonical_id == "ollama:llama3.2:1b"
+    assert result.explore[0].label == "llama3.2:1b"
+    assert result.explore[0].runtime_model == "llama3.2:1b"
+    assert result.installed == ()
+    assert result.warnings == ()
+    assert repeated.warnings == ()
+    _, resolved_model, plan = await service.preflight(result.explore[0].catalog_id)
+    assert resolved_model.canonical_id == "ollama:llama3.2:1b"
+    assert plan.model_name == "llama3.2:1b"
+    assert (
+        caplog.messages.count(
+            "Representing ambiguous models meta-llama/Llama-3.2-1B, "
+            "meta-llama/Llama-3.2-1B-Instruct as runtime target "
+            "ollama:llama3.2:1b"
+        )
+        == 1
+    )
 
 
 async def test_refresh_invalidates_opaque_install_ids() -> None:

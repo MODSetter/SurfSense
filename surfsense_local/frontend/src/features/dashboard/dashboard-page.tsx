@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
@@ -15,6 +15,10 @@ import {
   getProviders,
   type ModelSelection,
 } from "@/features/model-selection/api"
+import {
+  SettingsDialog,
+  type SettingsSectionId,
+} from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
 import { StudioDialog } from "@/features/studio/studio-dialog"
@@ -27,15 +31,18 @@ function WorkspaceDashboard({
   selection,
   providerAvailable,
   onModelRequired,
+  onModelSelected,
 }: {
   workspace: Workspace
   selection: ModelSelection
   providerAvailable: boolean
   onModelRequired: () => void
+  onModelSelected: (selection: ModelSelection) => void
 }) {
   const [highlightedDocumentId, setHighlightedDocumentId] = useState<
     number | null
   >(null)
+  const highlightTimeout = useRef<number | null>(null)
   const sources = useSources(workspace.id)
   const chat = useChatRuntime({
     workspaceId: workspace.id,
@@ -44,26 +51,53 @@ function WorkspaceDashboard({
     onModelRequired,
   })
 
+  const clearDocumentHighlight = () => {
+    if (highlightTimeout.current !== null) {
+      window.clearTimeout(highlightTimeout.current)
+      highlightTimeout.current = null
+    }
+    setHighlightedDocumentId(null)
+  }
+
+  const highlightDocument = (documentId: number) => {
+    if (highlightTimeout.current !== null) {
+      window.clearTimeout(highlightTimeout.current)
+    }
+    setHighlightedDocumentId(documentId)
+    highlightTimeout.current = window.setTimeout(() => {
+      setHighlightedDocumentId(null)
+      highlightTimeout.current = null
+    }, 3000)
+  }
+
+  useEffect(
+    () => () => {
+      if (highlightTimeout.current !== null) {
+        window.clearTimeout(highlightTimeout.current)
+      }
+    },
+    []
+  )
+
   return (
     <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
       <ThreadList
-        workspaceName={workspace.name}
         threads={chat.threads}
         activeThreadId={chat.activeThreadId}
         autoNamingThreadId={chat.autoNamingThreadId}
         animatingTitleThreadId={chat.animatingTitleThreadId}
         isLoading={chat.isLoadingThreads}
         onNewChat={() => {
-          setHighlightedDocumentId(null)
+          clearDocumentHighlight()
           chat.startNewChat()
         }}
         onSelect={(threadId) => {
-          if (threadId !== chat.activeThreadId) setHighlightedDocumentId(null)
+          if (threadId !== chat.activeThreadId) clearDocumentHighlight()
           chat.selectThread(threadId)
         }}
         onRename={chat.rename}
         onDelete={async (threadId) => {
-          if (threadId === chat.activeThreadId) setHighlightedDocumentId(null)
+          if (threadId === chat.activeThreadId) clearDocumentHighlight()
           await chat.removeThread(threadId)
         }}
         onTitleAnimationComplete={chat.finishTitleAnimation}
@@ -77,12 +111,13 @@ function WorkspaceDashboard({
         error={chat.error}
         isLoading={chat.isLoadingMessages}
         isRunning={chat.isRunning}
+        isUploading={sources.isUploading}
         animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
         providerAvailable={providerAvailable}
-        onCitation={(citation) =>
-          setHighlightedDocumentId(citation.document_id)
-        }
+        onCitation={(citation) => highlightDocument(citation.document_id)}
         onModelSetup={onModelRequired}
+        onModelSelected={onModelSelected}
+        onUpload={(files) => void sources.upload(files)}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
       <SourcesPanel
@@ -96,6 +131,10 @@ function WorkspaceDashboard({
         onOpen={(id) => void sources.openOriginal(id)}
         onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}
+        onDelete={(id) => {
+          if (id === highlightedDocumentId) clearDocumentHighlight()
+          void sources.deleteOne(id)
+        }}
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentSelected}
         onUpload={(files) => void sources.upload(files)}
@@ -143,14 +182,22 @@ function WorkspacesEmpty({
 export function DashboardPage({
   selection,
   initialWorkspaces,
-  onModelRequired,
+  onModelSelected,
 }: {
   selection: ModelSelection
   initialWorkspaces: Workspace[]
-  onModelRequired: () => void
+  onModelSelected: (selection: ModelSelection) => void
 }) {
   const workspaces = useWorkspaces(initialWorkspaces)
   const [providerAvailable, setProviderAvailable] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSectionId>("general")
+
+  const openSettings = (section: SettingsSectionId) => {
+    setSettingsSection(section)
+    setSettingsOpen(true)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -186,13 +233,22 @@ export function DashboardPage({
         onCreate={workspaces.create}
         onRename={workspaces.rename}
         onDelete={workspaces.remove}
+        onOpenSettings={() => openSettings("general")}
       />
       <WorkspaceDashboard
         key={workspaces.activeWorkspace.id}
         workspace={workspaces.activeWorkspace}
         selection={selection}
         providerAvailable={providerAvailable}
-        onModelRequired={onModelRequired}
+        onModelRequired={() => openSettings("models")}
+        onModelSelected={onModelSelected}
+      />
+      <SettingsDialog
+        open={settingsOpen}
+        section={settingsSection}
+        onOpenChange={setSettingsOpen}
+        onSectionChange={setSettingsSection}
+        onModelSelected={onModelSelected}
       />
       {workspaces.error ? (
         <Alert

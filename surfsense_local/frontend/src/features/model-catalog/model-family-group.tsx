@@ -9,8 +9,8 @@ export function ModelFamilyGroup({
 }) {
   const headingId = useId()
   return (
-    <section className="flex flex-col gap-2" aria-labelledby={headingId}>
-      <h3 id={headingId} className="text-sm font-medium text-muted-foreground">
+    <section className="flex flex-col gap-1.5" aria-labelledby={headingId}>
+      <h3 id={headingId} className="text-xs font-medium text-muted-foreground">
         {family || "Other"}
       </h3>
       <ul

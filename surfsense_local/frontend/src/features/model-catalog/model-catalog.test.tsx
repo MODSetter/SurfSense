@@ -111,6 +111,11 @@ describe("normalized model catalog", () => {
     const action = await screen.findByRole("button", {
       name: "Download",
     })
+    expect(screen.getByText("Best for this computer")).toBeTruthy()
+    expect(
+      screen.getByText("Only models compatible with this computer are shown.")
+    ).toBeTruthy()
+    expect(screen.getByText("Good fit")).toBeTruthy()
     expect(screen.getByRole("list", { name: "Qwen models" })).toBeTruthy()
     expect(screen.getByRole("listitem")).toBeTruthy()
     expect(screen.getByText("5.1 GB")).toBeTruthy()
@@ -156,12 +161,17 @@ describe("normalized model catalog", () => {
     const actions = await screen.findAllByRole("button", {
       name: "Download",
     })
+    expect(screen.getByText("More models")).toBeTruthy()
+    expect(screen.getByText("May be slow")).toBeTruthy()
+    expect(screen.getByText("Doesn't fit")).toBeTruthy()
     expect(screen.queryByText("Parameters")).toBeNull()
     expect((actions[1] as HTMLButtonElement).disabled).toBe(true)
     await user.click(actions[0])
-    expect(
-      screen.getByRole("alertdialog", { name: "Use a marginal-fit model?" })
-    ).toBeTruthy()
+    const dialog = screen.getByRole("alertdialog", {
+      name: "Use a marginal-fit model?",
+    })
+    expect(dialog).toBeTruthy()
+    expect(dialog.className).toContain("select-none")
   })
 
   it("rescans through the explicit refresh endpoint", async () => {

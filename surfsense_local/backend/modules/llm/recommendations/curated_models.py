@@ -43,6 +43,13 @@ class CuratedModelsManifest(BaseModel):
         ids = [model.model_id for model in self.models]
         if len(ids) != len(set(ids)):
             raise ValueError("duplicate model_id in curated-model manifest")
+        targets = [
+            ("ollama", model.artifacts.ollama.name)
+            for model in self.models
+            if model.artifacts.ollama is not None
+        ]
+        if len(targets) != len(set(targets)):
+            raise ValueError("duplicate runtime target in curated-model manifest")
         return self
 
 

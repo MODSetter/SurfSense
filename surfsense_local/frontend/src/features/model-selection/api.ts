@@ -43,6 +43,39 @@ export function getProviderModels(
   )
 }
 
+export async function getInstalledGenerationModels(
+  providers: Provider[],
+  signal?: AbortSignal
+): Promise<SelectableModel[]> {
+  const modelGroups = await Promise.all(
+    providers
+      .filter((provider) => provider.healthy)
+      .map(async (provider) => {
+        try {
+          const models = await getProviderModels(provider.name, signal)
+          return models
+            .filter(
+              (model) =>
+                model.installed && model.capabilities.includes("completion")
+            )
+            .map((model) => ({ ...model, provider: provider.name }))
+        } catch (error) {
+          if (signal?.aborted) {
+            throw error
+          }
+          return []
+        }
+      })
+  )
+  return modelGroups
+    .flat()
+    .toSorted(
+      (left, right) =>
+        left.provider.localeCompare(right.provider) ||
+        left.name.localeCompare(right.name)
+    )
+}
+
 export async function getGenerationSelection(
   signal?: AbortSignal
 ): Promise<ModelSelection | null> {

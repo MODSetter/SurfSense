@@ -92,12 +92,12 @@ function CatalogSection({
     return null
   }
   return (
-    <section className="flex flex-col gap-3" aria-labelledby={headingId}>
+    <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>
       <div>
-        <h2 id={headingId} className="font-heading text-base font-medium">
+        <h2 id={headingId} className="font-heading text-sm font-medium">
           {title}
         </h2>
-        <p className="text-sm text-muted-foreground">{description}</p>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
       {[...grouped(rows)].map(([family, familyRows]) => (
         <ModelFamilyGroup key={family} family={family}>
@@ -117,8 +117,10 @@ function CatalogSection({
 
 export function ModelCatalogPage({
   onSelected,
+  installedFirst = false,
 }: {
   onSelected?: (selection: ModelSelection) => void
+  installedFirst?: boolean
 }) {
   const {
     catalog,
@@ -213,11 +215,14 @@ export function ModelCatalogPage({
   )
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
         <div>
           <p className="text-sm font-medium">
             {hardwareSummary(data.hardware)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Only models compatible with this computer are shown.
           </p>
           <p className="text-xs text-muted-foreground">
             Estimates reserve resources for SurfSense and may vary by workload.
@@ -250,30 +255,42 @@ export function ModelCatalogPage({
         <p className="text-sm text-destructive">{messageFrom(rescan.error)}</p>
       ) : null}
 
+      {installedFirst ? (
+        <CatalogSection
+          title="Installed"
+          description="Local models already available on this computer."
+          rows={installed}
+          catalog={data}
+        >
+          {card}
+        </CatalogSection>
+      ) : null}
       <CatalogSection
-        title="SurfSense Recommended"
-        description="Team-tested configurations ranked for this computer."
+        title="Best for this computer"
+        description="SurfSense-tested models ranked for your hardware."
         rows={recommended}
         catalog={data}
       >
         {card}
       </CatalogSection>
       <CatalogSection
-        title="Explore more models"
-        description="Other compatible configurations ranked by hardware fit."
+        title="More models"
+        description="Other compatible models, best fit first."
         rows={explore}
         catalog={data}
       >
         {card}
       </CatalogSection>
-      <CatalogSection
-        title="Installed"
-        description="Local models already available on this computer."
-        rows={installed}
-        catalog={data}
-      >
-        {card}
-      </CatalogSection>
+      {!installedFirst ? (
+        <CatalogSection
+          title="Installed"
+          description="Local models already available on this computer."
+          rows={installed}
+          catalog={data}
+        >
+          {card}
+        </CatalogSection>
+      ) : null}
 
       {recommended.length + explore.length + installed.length === 0 ? (
         <Alert>
@@ -299,7 +316,7 @@ export function ModelCatalogPage({
           }
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="select-none">
           <AlertDialogHeader>
             <AlertDialogTitle>Use a marginal-fit model?</AlertDialogTitle>
             <AlertDialogDescription>

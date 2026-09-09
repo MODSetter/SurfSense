@@ -190,10 +190,15 @@ async def test_a_chat_only_provider_hides_the_catalog(
     assert (await client.get("/llm/providers/echo/catalog")).status_code == 409
 
 
-def _configure_llmfit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def _configure_llmfit(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    models: list[dict[str, object]] | None = None,
+) -> None:
     system = {"system": {"available_ram_gb": 16, "total_ram_gb": 16}}
     fit = {
-        "models": [
+        "models": models
+        or [
             {
                 "name": "Qwen/Qwen3-8B",
                 "provider": "Qwen",
@@ -225,6 +230,59 @@ def _configure_llmfit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     )
     executable.chmod(0o755)
     monkeypatch.setattr(get_llm_settings(), "llmfit_path", executable)
+    get_catalog_service.cache_clear()
+
+
+async def test_catalog_exposes_one_row_per_runtime_target(
+    client: AsyncClient,
+    ollama_server: str,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The API keeps the curated Qwen row when llmfit maps Base to the same tag."""
+    common = {
+        "provider": "Qwen",
+        "parameter_count": "1.7B",
+        "use_case": "general",
+        "fit_level": "perfect",
+        "runtime": "llamacpp",
+        "run_mode": "gpu",
+        "best_quant": "Q4_K_M",
+        "memory_required_gb": 2,
+        "memory_available_gb": 16,
+        "disk_size_gb": 2,
+        "effective_context_length": 8192,
+        "capability_ids": ["tool_use"],
+        "gguf_sources": [],
+    }
+    _configure_llmfit(
+        tmp_path,
+        monkeypatch,
+        [
+            {
+                **common,
+                "name": "Qwen/Qwen3-1.7B-Base",
+                "score": 72.8,
+                "ollama_name": "qwen3:1.7b",
+            },
+            {
+                **common,
+                "name": "Qwen/Qwen3-1.7B",
+                "score": 69.2,
+                "ollama_name": None,
+            },
+        ],
+    )
+
+    catalog = (await client.get("/llm/catalog")).json()
+
+    matching = [
+        row
+        for section in ("recommended", "explore", "installed")
+        for row in catalog[section]
+        if row["runtime_model"] == "qwen3:1.7b"
+    ]
+    assert [row["canonical_id"] for row in matching] == ["Qwen/Qwen3-1.7B"]
     get_catalog_service.cache_clear()
 
 

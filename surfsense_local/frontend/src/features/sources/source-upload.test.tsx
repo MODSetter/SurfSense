@@ -38,6 +38,7 @@ function SourceHarness() {
       onOpen={(id) => void sources.openOriginal(id)}
       onReveal={(id) => void sources.revealOriginal(id)}
       onRetry={(id) => void sources.retry(id)}
+      onDelete={(id) => void sources.deleteOne(id)}
       onDeleteSelected={() => void sources.deleteSelected()}
       onSelectionChange={sources.setDocumentSelected}
       onUpload={(files) => void sources.upload(files)}
@@ -100,13 +101,15 @@ describe("source upload", () => {
         onOpen={vi.fn()}
         onReveal={vi.fn()}
         onRetry={vi.fn()}
+        onDelete={vi.fn()}
         onDeleteSelected={vi.fn()}
         onSelectionChange={vi.fn()}
         onUpload={vi.fn()}
       />
     )
 
-    expect(screen.getByLabelText(`Select ${ready.title}`)).toBeTruthy()
+    const readyCheckbox = screen.getByLabelText(`Select ${ready.title}`)
+    expect(readyCheckbox).toBeTruthy()
     expect(screen.queryByLabelText("Select processing.pdf")).toBeNull()
     expect(screen.queryByLabelText("Select failed.pdf")).toBeNull()
     expect(
@@ -118,10 +121,143 @@ describe("source upload", () => {
     expect(
       screen.getAllByRole("button", { name: /^Actions for / })
     ).toHaveLength(3)
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "nearest",
+    })
     const readyButton = screen.getByRole("button", { name: ready.title })
-    expect(readyButton.className).toContain("truncate")
+    const actionsButton = screen.getByRole("button", {
+      name: `Actions for ${ready.title}`,
+    })
+    expect(readyButton.className).not.toContain("truncate")
+    expect(readyButton.className).toContain("sidebar-row-title-fade")
     expect(readyButton.parentElement?.className).toContain("overflow-hidden")
+    expect(readyButton.parentElement?.className).toContain("h-8")
+    expect(readyButton.parentElement?.className).toContain("gap-1.5")
+    expect(readyButton.parentElement?.className).toContain("pl-1")
+    expect(readyButton.parentElement?.className).toContain("rounded-lg")
+    expect(readyButton.parentElement?.className).toContain("hover:bg-muted")
+    expect(readyButton.parentElement?.className).toContain(
+      "dark:hover:bg-muted/50"
+    )
+    expect(readyButton.parentElement?.className).toContain("border-ring")
+    expect(readyButton.parentElement?.className).not.toContain(
+      "bg-sidebar-accent"
+    )
+    expect(readyButton.parentElement?.className).not.toContain("text-white")
     expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
+    expect(
+      readyButton.previousElementSibling
+        ?.querySelector("svg")
+        ?.getAttribute("class")
+    ).toContain("size-4.5")
+    expect(readyCheckbox.className).not.toContain(
+      "group-focus-within/source:opacity-100"
+    )
+    expect(readyCheckbox.className).toContain("focus-visible:opacity-100")
+    expect(readyCheckbox.nextElementSibling?.className).toContain(
+      "peer-focus-visible:opacity-0"
+    )
+    expect(actionsButton.className).toContain("size-6")
+    expect(actionsButton.className).toContain("group-hover/source:opacity-100")
+    expect(actionsButton.className).not.toContain(
+      "group-focus-within/source:opacity-100"
+    )
+    expect(actionsButton.className).toContain("focus-visible:opacity-100")
+    expect(
+      screen.getByRole("heading", { name: "Sources" }).parentElement?.className
+    ).toContain("px-3")
+    expect(
+      screen.getByRole("heading", { name: "All sources" }).closest("section")
+        ?.parentElement?.className
+    ).toContain("p-2")
+  })
+
+  it("offers per-source delete but disables it while processing", async () => {
+    const onDelete = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <SourcesPanel
+        documents={[
+          pendingDocument,
+          {
+            ...pendingDocument,
+            id: 2,
+            title: "processing.pdf",
+            status: "processing",
+          },
+        ]}
+        selectedDocumentIds={[]}
+        highlightedDocumentId={null}
+        isLoading={false}
+        isUploading={false}
+        isDeleting={false}
+        error={null}
+        onOpen={vi.fn()}
+        onReveal={vi.fn()}
+        onRetry={vi.fn()}
+        onDelete={onDelete}
+        onDeleteSelected={vi.fn()}
+        onSelectionChange={vi.fn()}
+        onUpload={vi.fn()}
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for processing.pdf" })
+    )
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Delete" })
+        .getAttribute("data-disabled")
+    ).not.toBeNull()
+    await user.keyboard("{Escape}")
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for guide.txt" })
+    )
+    expect(
+      screen
+        .getByRole("menuitem", { name: "Delete" })
+        .getAttribute("data-disabled")
+    ).toBeNull()
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    await user.click(screen.getByRole("button", { name: "Delete source" }))
+
+    expect(onDelete).toHaveBeenCalledWith(pendingDocument.id)
+  })
+
+  it("permanently deletes one failed source after confirmation", async () => {
+    const failedDocument = {
+      ...pendingDocument,
+      title: "broken.pdf",
+      status: "failed" as const,
+    }
+    const fetchMock = vi.fn(
+      async (_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === "DELETE"
+          ? new Response(null, { status: 204 })
+          : Response.json([failedDocument])
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<SourceHarness />)
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for broken.pdf" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    expect(
+      screen.getByRole("alertdialog", { name: "Delete 1 source?" })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete source" }))
+
+    await waitFor(() => expect(screen.queryByText("broken.pdf")).toBeNull())
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/workspaces/1/documents/7",
+      expect.objectContaining({ method: "DELETE" })
+    )
   })
 
   it("uploads multipart files, reports duplicates, and polls until ready", async () => {
@@ -270,9 +406,21 @@ describe("source upload", () => {
     const user = userEvent.setup()
 
     render(<SourceHarness />)
-    await user.click(await screen.findByLabelText("Select first.txt"))
+    const firstCheckbox = await screen.findByLabelText("Select first.txt")
+    await user.click(firstCheckbox)
+    const firstRow = screen.getByRole("button", {
+      name: "first.txt",
+    }).parentElement
+    expect(firstRow?.className).toContain("bg-sidebar-accent")
+    expect(firstRow?.className).toContain("text-white")
+
+    await user.click(firstCheckbox)
+    expect(firstRow?.className).not.toContain("bg-sidebar-accent")
+    expect(firstRow?.className).not.toContain("text-white")
+
+    await user.click(firstCheckbox)
     await user.click(screen.getByLabelText("Select second.txt"))
-    await user.click(screen.getByRole("button", { name: "Delete 2" }))
+    await user.click(screen.getByRole("button", { name: "Delete (2)" }))
 
     expect(
       screen.getByRole("alertdialog", { name: "Delete 2 sources?" })

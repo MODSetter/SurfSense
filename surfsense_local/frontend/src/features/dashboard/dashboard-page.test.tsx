@@ -1,7 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import {
+  act,
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
@@ -16,11 +23,20 @@ const workspace = {
 
 afterEach(() => {
   cleanup()
+  vi.useRealTimers()
   vi.unstubAllGlobals()
 })
 
 beforeEach(() => {
   localStorage.clear()
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  })
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -91,18 +107,20 @@ describe("dashboard chat", () => {
     const user = userEvent.setup()
 
     render(
-      <TooltipProvider>
-        <DashboardPage
-          selection={{
-            role: "generation",
-            provider: "ollama",
-            name: "llama3.2:1b",
-            updated_at: "2026-09-05T00:00:00Z",
-          }}
-          initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
-        />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            selection={{
+              role: "generation",
+              provider: "ollama",
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
     )
 
     await screen.findByRole("heading", { name: "Original title" })
@@ -125,6 +143,9 @@ describe("dashboard chat", () => {
         body: JSON.stringify({ title: "Banking fees" }),
       })
     )
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }))
+    expect(screen.getByRole("heading", { name: "Appearance" })).toBeTruthy()
   })
 
   it("keeps composer placement aligned with the conversation lifecycle", async () => {
@@ -196,7 +217,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -206,8 +227,14 @@ describe("dashboard chat", () => {
 
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
+    const addSources = screen.getByRole("button", { name: "Add sources" })
     expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
+    expect(
+      addSources.closest('[data-composer-placement="center"]')
+    ).toBeTruthy()
+    expect(addSources.getAttribute("data-slot")).toBe("tooltip-trigger")
+    expect(addSources.className).not.toContain("-mr-1.5")
     expect(
       screen.getByRole("region", { name: "Conversation" }).parentElement
         ?.className
@@ -221,6 +248,14 @@ describe("dashboard chat", () => {
         .closest('[data-composer-placement="bottom"]')
       expect(bottomComposer).toBeTruthy()
       expect(bottomComposer?.closest("[data-chat-viewport]")).toBeTruthy()
+      expect(
+        screen
+          .getByRole("button", { name: "Add sources" })
+          .closest('[data-composer-placement="bottom"]')
+      ).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Add sources" }).className
+      ).toContain("-mr-1.5")
     })
 
     resolveCreate(
@@ -364,7 +399,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -388,14 +423,23 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    await user.click(
+    vi.useFakeTimers()
+    fireEvent.click(
       screen.getByRole("button", { name: "Show source 1: Guide.txt" })
     )
     const sourceButton = screen.getByRole("button", { name: "Guide.txt" })
     expect(sourceButton.parentElement?.getAttribute("aria-current")).toBe(
       "true"
     )
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "nearest",
+    })
     expect(window.surfsense?.openDocument).not.toHaveBeenCalled()
+
+    act(() => vi.advanceTimersByTime(3000))
+    expect(sourceButton.parentElement?.getAttribute("aria-current")).toBeNull()
+    vi.useRealTimers()
 
     await user.click(sourceButton)
     expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
@@ -459,7 +503,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace, secondWorkspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -467,9 +511,7 @@ describe("dashboard chat", () => {
     await screen.findByText("No chats yet")
     await user.click(screen.getByRole("button", { name: "Second Workspace" }))
 
-    expect(
-      await screen.findByRole("heading", { name: "Second Workspace" })
-    ).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "SurfSense" })).toBeTruthy()
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
         "/workspaces/2/chat/threads",
@@ -490,6 +532,25 @@ describe("dashboard chat", () => {
           return Response.json([
             { name: "ollama", healthy: true, can_download: true },
           ])
+        }
+        if (path === "/llm/selection/generation") {
+          return Response.json({
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          })
+        }
+        if (path === "/llm/catalog") {
+          return Response.json({
+            hardware: null,
+            llmfit_version: "1.1.11",
+            recommended: [],
+            explore: [],
+            installed: [],
+            warnings: [],
+            runtime_status: {},
+          })
         }
         if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
           return Response.json([])
@@ -528,7 +589,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -542,6 +603,8 @@ describe("dashboard chat", () => {
 
     expect(await screen.findByText("Provider crashed")).toBeTruthy()
     expect(screen.getByText("Chat could not continue")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Model setup" }))
+    expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
   })
 
   it("aborts the active stream when stop is pressed", async () => {
@@ -603,7 +666,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
