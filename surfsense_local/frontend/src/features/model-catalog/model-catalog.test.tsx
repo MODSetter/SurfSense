@@ -1,10 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
+import { toast } from "sonner"
 
 import { render } from "@/test-utils"
 import { ModelCatalogPage } from "./model-catalog-page"
 import { parseNdjson, type CatalogRow, type ModelCatalog } from "./api"
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: vi.fn(),
+    info: vi.fn(),
+  },
+}))
 
 const row = (overrides: Partial<CatalogRow> = {}): CatalogRow => ({
   catalog_id: "opaque-qwen",
@@ -29,6 +37,7 @@ const row = (overrides: Partial<CatalogRow> = {}): CatalogRow => ({
   installed: false,
   selected: false,
   can_install: true,
+  can_delete: false,
   warnings: [],
   ...overrides,
 })
@@ -69,6 +78,7 @@ function stream(chunks: string[]) {
 
 afterEach(() => {
   cleanup()
+  vi.clearAllMocks()
   vi.unstubAllGlobals()
 })
 
@@ -174,6 +184,66 @@ describe("normalized model catalog", () => {
     expect(dialog.className).toContain("select-none")
   })
 
+  it("uses content-width separators between populated catalog sections", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          catalog({
+            explore: [row({ catalog_id: "explore", label: "Explore model" })],
+            installed: [
+              row({
+                catalog_id: "installed",
+                label: "Installed model",
+                installed: true,
+              }),
+            ],
+          })
+        )
+      )
+    )
+
+    render(<ModelCatalogPage installedFirst />)
+
+    await screen.findByText("Installed model")
+    const separators = document.querySelectorAll('[data-slot="separator"]')
+    expect(separators).toHaveLength(2)
+    for (const separator of separators) {
+      expect(separator.className).toContain("data-horizontal:w-full")
+      expect(separator.className).toContain("my-4")
+      expect(separator.className).not.toContain("mx-3")
+    }
+  })
+
+  it("shows install failures as a toast instead of inside the model row", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/llm/catalog") {
+          return Response.json(catalog())
+        }
+        return Response.json(
+          { detail: "The model could not be installed. Retry the download." },
+          { status: 500 }
+        )
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(await screen.findByRole("button", { name: "Download" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "The model could not be installed. Retry the download.",
+        { id: "model-install-error" }
+      )
+    )
+    expect(
+      screen.queryByText("The model could not be installed. Retry the download.")
+    ).toBeNull()
+  })
+
   it("rescans through the explicit refresh endpoint", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       void input
@@ -229,6 +299,57 @@ describe("normalized model catalog", () => {
     expect(screen.getByRole("button", { name: "Use" })).toBeTruthy()
   })
 
+  it("confirms deletion and reports when the selected model was removed", async () => {
+    const onModelUnavailable = vi.fn()
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/catalog") {
+        return Response.json(
+          catalog({
+            recommended: [],
+            installed: [
+              row({
+                installed: true,
+                selected: true,
+                can_delete: true,
+                label: "Qwen 3 8B",
+              }),
+            ],
+          })
+        )
+      }
+      if (path === "/llm/providers/ollama/models/qwen3%3A8b") {
+        return Response.json({
+          name: "qwen3:8b",
+          selection_cleared: true,
+        })
+      }
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <ModelCatalogPage
+        allowDelete
+        onModelUnavailable={onModelUnavailable}
+      />
+    )
+    const deleteButton = await screen.findByRole("button", {
+      name: "Delete Qwen 3 8B",
+    })
+    expect(deleteButton.getAttribute("data-variant")).toBe("destructive")
+    await user.click(deleteButton)
+    expect(
+      screen.getByText(
+        "This is your current model. Deleting it will require you to choose another model."
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete model" }))
+
+    await waitFor(() => expect(onModelUnavailable).toHaveBeenCalledOnce())
+  })
+
   it("cancels an in-flight install without selecting it", async () => {
     const onSelected = vi.fn()
     vi.stubGlobal(
@@ -258,9 +379,15 @@ describe("normalized model catalog", () => {
     await user.click(await screen.findByRole("button", { name: "Download" }))
     await user.click(await screen.findByRole("button", { name: "Cancel" }))
 
+    await waitFor(() =>
+      expect(toast.info).toHaveBeenCalledWith(
+        "Installation cancelled. You can retry.",
+        { id: "model-install-cancelled" }
+      )
+    )
     expect(
-      await screen.findByText("Installation cancelled. You can retry.")
-    ).toBeTruthy()
+      screen.queryByText("Installation cancelled. You can retry.")
+    ).toBeNull()
     expect(onSelected).not.toHaveBeenCalled()
   })
 })

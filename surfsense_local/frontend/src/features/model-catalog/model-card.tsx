@@ -1,4 +1,4 @@
-import { DownloadIcon } from "@/components/ui/icons"
+import { DownloadIcon, Trash2Icon } from "@/components/ui/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -24,6 +24,7 @@ export function ModelCard({
   runtimeAvailable,
   onAction,
   onCancel,
+  onDelete,
 }: {
   row: CatalogRow
   installState: InstallState
@@ -31,16 +32,11 @@ export function ModelCard({
   runtimeAvailable: boolean
   onAction: (row: CatalogRow) => void
   onCancel: () => void
+  onDelete?: (row: CatalogRow) => void
 }) {
   const isInstalling =
     installState.status === "installing" &&
     installState.catalogId === row.catalog_id
-  const rowResult =
-    installState.status !== "idle" &&
-    installState.status !== "installing" &&
-    installState.catalogId === row.catalog_id
-      ? installState
-      : null
   const cannotInstall =
     !row.installed &&
     (!row.can_install || row.fit === "too_tight" || !runtimeAvailable)
@@ -67,7 +63,7 @@ export function ModelCard({
             </span>
           ) : null}
         </div>
-        <div className="shrink-0">
+        <div className="flex shrink-0 items-center gap-1">
           {row.selected ? (
             <Button type="button" size="sm" variant="outline" disabled>
               In use
@@ -86,13 +82,22 @@ export function ModelCard({
               {row.installed ? "Use" : "Download"}
             </Button>
           )}
+          {row.can_delete && onDelete ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="destructive"
+              disabled={actionsDisabled}
+              aria-label={`Delete ${row.label}`}
+              onClick={() => onDelete(row)}
+            >
+              <Trash2Icon />
+            </Button>
+          ) : null}
         </div>
       </div>
 
-      {isInstalling ||
-      !runtimeAvailable ||
-      rowResult?.status === "error" ||
-      rowResult?.status === "cancelled" ? (
+      {isInstalling || !runtimeAvailable ? (
         <div className="mt-2 flex flex-col gap-2">
           {isInstalling ? (
             <InstallProgress event={installState.event} onCancel={onCancel} />
@@ -100,14 +105,6 @@ export function ModelCard({
           {!runtimeAvailable ? (
             <p className="text-xs text-destructive">
               The {row.runtime} runtime is unavailable.
-            </p>
-          ) : null}
-          {rowResult?.status === "error" ? (
-            <p className="text-xs text-destructive">{rowResult.message}</p>
-          ) : null}
-          {rowResult?.status === "cancelled" ? (
-            <p className="text-xs text-muted-foreground">
-              Installation cancelled. You can retry.
             </p>
           ) : null}
         </div>

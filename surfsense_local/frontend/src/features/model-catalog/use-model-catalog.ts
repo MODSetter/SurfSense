@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import {
+  deleteLocalModel,
   getModelCatalog,
   installCatalogModel,
   type CatalogRow,
@@ -22,8 +24,6 @@ export type InstallState =
       catalogId: string
       event: InstallEvent
     }
-  | { status: "cancelled"; catalogId: string }
-  | { status: "error"; catalogId: string; message: string }
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
@@ -34,7 +34,9 @@ function messageFrom(error: unknown) {
 }
 
 export function useModelCatalog(
-  onSelected?: (selection: ModelSelection) => void
+  onSelected?: (selection: ModelSelection) => void,
+  onModelUnavailable?: () => void,
+  onModelsChanged?: () => void
 ) {
   const queryClient = useQueryClient()
   const controller = useRef<AbortController | null>(null)
@@ -81,17 +83,17 @@ export function useModelCatalog(
       setInstallState({ status: "idle" })
       onSelected?.(selection)
     },
-    onError: (error, row) => {
+    onError: (error) => {
       controller.current = null
-      setInstallState(
-        isAbort(error)
-          ? { status: "cancelled", catalogId: row.catalog_id }
-          : {
-              status: "error",
-              catalogId: row.catalog_id,
-              message: messageFrom(error),
-            }
-      )
+      if (isAbort(error)) {
+        toast.info("Installation cancelled. You can retry.", {
+          id: "model-install-cancelled",
+        })
+        setInstallState({ status: "idle" })
+      } else {
+        toast.error(messageFrom(error), { id: "model-install-error" })
+        setInstallState({ status: "idle" })
+      }
     },
   })
 
@@ -110,6 +112,24 @@ export function useModelCatalog(
     },
   })
 
+  const deleteModel = useMutation({
+    mutationFn: (row: CatalogRow) =>
+      deleteLocalModel(row.runtime, row.runtime_model),
+    onSuccess: async (result) => {
+      if (result.selection_cleared) {
+        onModelUnavailable?.()
+      }
+      onModelsChanged?.()
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: catalogQueryKey }),
+        queryClient.invalidateQueries({ queryKey: selectionQueryKey }),
+        queryClient.invalidateQueries({
+          queryKey: ["installed-generation-models"],
+        }),
+      ])
+    },
+  })
+
   useEffect(() => () => controller.current?.abort(), [])
 
   return {
@@ -118,6 +138,7 @@ export function useModelCatalog(
     install,
     installState,
     cancelInstall: () => controller.current?.abort(),
+    deleteModel,
     selectInstalled,
   }
 }

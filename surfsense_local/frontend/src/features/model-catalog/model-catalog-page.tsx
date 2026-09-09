@@ -1,4 +1,4 @@
-import { useId, useState, type ReactNode } from "react"
+import { Fragment, useId, useState, type ReactNode } from "react"
 import { CircleAlertIcon, RefreshCwIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import { Separator } from "@/components/ui/separator"
 import type {
   CatalogRow,
   HardwareProfile,
@@ -116,9 +117,15 @@ function CatalogSection({
 }
 
 export function ModelCatalogPage({
+  allowDelete = false,
+  onModelUnavailable,
+  onModelsChanged,
   onSelected,
   installedFirst = false,
 }: {
+  allowDelete?: boolean
+  onModelUnavailable?: () => void
+  onModelsChanged?: () => void
   onSelected?: (selection: ModelSelection) => void
   installedFirst?: boolean
 }) {
@@ -128,10 +135,12 @@ export function ModelCatalogPage({
     install,
     installState,
     cancelInstall,
+    deleteModel,
     selectInstalled,
-  } = useModelCatalog(onSelected)
+  } = useModelCatalog(onSelected, onModelUnavailable, onModelsChanged)
   const [pendingConfirmation, setPendingConfirmation] =
     useState<CatalogRow | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<CatalogRow | null>(null)
 
   if (catalog.isPending) {
     return (
@@ -173,7 +182,45 @@ export function ModelCatalogPage({
   const recommended = unique(data.recommended)
   const explore = unique(data.explore)
   const installed = unique(data.installed)
-  const busy = install.isPending || selectInstalled.isPending
+  const sections = (
+    installedFirst
+      ? [
+          {
+            title: "Installed",
+            description: "Local models already available on this computer.",
+            rows: installed,
+          },
+          {
+            title: "Best for this computer",
+            description: "SurfSense-tested models ranked for your hardware.",
+            rows: recommended,
+          },
+          {
+            title: "More models",
+            description: "Other compatible models, best fit first.",
+            rows: explore,
+          },
+        ]
+      : [
+          {
+            title: "Best for this computer",
+            description: "SurfSense-tested models ranked for your hardware.",
+            rows: recommended,
+          },
+          {
+            title: "More models",
+            description: "Other compatible models, best fit first.",
+            rows: explore,
+          },
+          {
+            title: "Installed",
+            description: "Local models already available on this computer.",
+            rows: installed,
+          },
+        ]
+  ).filter((section) => section.rows.length > 0)
+  const busy =
+    install.isPending || selectInstalled.isPending || deleteModel.isPending
 
   const act = (row: CatalogRow) => {
     if (busy) {
@@ -211,8 +258,21 @@ export function ModelCatalogPage({
       runtimeAvailable={available}
       onAction={act}
       onCancel={cancelInstall}
+      onDelete={allowDelete ? setPendingDelete : undefined}
     />
   )
+
+  const confirmDelete = async () => {
+    if (!pendingDelete || deleteModel.isPending) {
+      return
+    }
+    try {
+      await deleteModel.mutateAsync(pendingDelete)
+      setPendingDelete(null)
+    } catch {
+      // The mutation error stays visible in the dialog.
+    }
+  }
 
   return (
     <div className="flex flex-col gap-5">
@@ -255,42 +315,14 @@ export function ModelCatalogPage({
         <p className="text-sm text-destructive">{messageFrom(rescan.error)}</p>
       ) : null}
 
-      {installedFirst ? (
-        <CatalogSection
-          title="Installed"
-          description="Local models already available on this computer."
-          rows={installed}
-          catalog={data}
-        >
-          {card}
-        </CatalogSection>
-      ) : null}
-      <CatalogSection
-        title="Best for this computer"
-        description="SurfSense-tested models ranked for your hardware."
-        rows={recommended}
-        catalog={data}
-      >
-        {card}
-      </CatalogSection>
-      <CatalogSection
-        title="More models"
-        description="Other compatible models, best fit first."
-        rows={explore}
-        catalog={data}
-      >
-        {card}
-      </CatalogSection>
-      {!installedFirst ? (
-        <CatalogSection
-          title="Installed"
-          description="Local models already available on this computer."
-          rows={installed}
-          catalog={data}
-        >
-          {card}
-        </CatalogSection>
-      ) : null}
+      {sections.map((section, index) => (
+        <Fragment key={section.title}>
+          {index > 0 ? <Separator className="my-4" /> : null}
+          <CatalogSection {...section} catalog={data}>
+            {card}
+          </CatalogSection>
+        </Fragment>
+      ))}
 
       {recommended.length + explore.length + installed.length === 0 ? (
         <Alert>
@@ -305,6 +337,11 @@ export function ModelCatalogPage({
       {selectInstalled.isError ? (
         <p className="text-sm text-destructive">
           {messageFrom(selectInstalled.error)}
+        </p>
+      ) : null}
+      {deleteModel.isError && pendingDelete === null ? (
+        <p className="text-sm text-destructive">
+          {messageFrom(deleteModel.error)}
         </p>
       ) : null}
 
@@ -328,6 +365,49 @@ export function ModelCatalogPage({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={confirm}>
               Continue anyway
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => {
+          if (!open && !deleteModel.isPending) {
+            setPendingDelete(null)
+          }
+        }}
+      >
+        <AlertDialogContent className="select-none">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {pendingDelete?.label}?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingDelete?.selected
+                ? "This is your current model. Deleting it will require you to choose another model."
+                : "This permanently removes the local model and its downloaded data from this computer."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {deleteModel.isError ? (
+            <p className="text-sm text-destructive">
+              {messageFrom(deleteModel.error)}
+            </p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteModel.isPending}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={deleteModel.isPending}
+              onClick={(event) => {
+                event.preventDefault()
+                void confirmDelete()
+              }}
+            >
+              {deleteModel.isPending ? (
+                <Spinner data-icon="inline-start" />
+              ) : null}
+              {deleteModel.isPending ? "Deleting..." : "Delete model"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
