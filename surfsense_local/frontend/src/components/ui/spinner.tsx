@@ -1,5 +1,5 @@
-import { cn } from "@/lib/utils"
 import { Loader2Icon } from "@/components/ui/icons"
+import { cn } from "@/lib/utils"
 
 function Spinner({
   className,

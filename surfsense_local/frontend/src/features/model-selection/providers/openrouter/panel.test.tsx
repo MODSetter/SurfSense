@@ -99,6 +99,7 @@ describe("openrouter provider", () => {
 
     render(<OnboardingPage onComplete={() => undefined} />)
 
+    await user.click(screen.getByRole("button", { name: "Next" }))
     await user.click(await screen.findByRole("tab", { name: /openrouter/i }))
 
     await user.type(
@@ -111,14 +112,10 @@ describe("openrouter provider", () => {
 
     const model = await screen.findByRole("radio", { name: /gpt-4o/i })
     await user.click(model)
-    expect(
-      screen.getByRole("button", { name: "Use this model" })
-    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Use this model" })).toBeTruthy()
 
     await user.click(screen.getByRole("tab", { name: "Local" }))
-    expect(
-      screen.queryByRole("button", { name: "Use this model" })
-    ).toBeNull()
+    expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
 
     await user.click(screen.getByRole("tab", { name: /openrouter/i }))
     await user.click(screen.getByRole("button", { name: "Use this model" }))

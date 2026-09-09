@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { render } from "@/test-utils"
@@ -61,9 +62,29 @@ afterEach(() => {
 describe("model onboarding", () => {
   it("keeps the local catalog direct when no remote provider exists", async () => {
     vi.stubGlobal("fetch", installApi())
+    const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
 
-    await screen.findByText("Only models compatible with this computer are shown.")
+    expect(
+      screen.getByRole("heading", { name: "Your research, ready to answer" })
+    ).toBeTruthy()
+    const firstProgress = screen.getByLabelText("Onboarding step 1 of 2")
+    expect(firstProgress.children[0]?.getAttribute("data-state")).toBe("active")
+    expect(firstProgress.children[1]?.getAttribute("data-state")).toBe(
+      "inactive"
+    )
+    await user.click(screen.getByRole("button", { name: "Next" }))
+
+    await screen.findByText(
+      "Only models compatible with this computer are shown."
+    )
+    const secondProgress = screen.getByLabelText("Onboarding step 2 of 2")
+    expect(secondProgress.children[0]?.getAttribute("data-state")).toBe(
+      "completed"
+    )
+    expect(secondProgress.children[1]?.getAttribute("data-state")).toBe(
+      "active"
+    )
     const page = screen.getByRole("main")
     const card = document.querySelector('[data-slot="card"]')
     const cardContent = document.querySelector('[data-slot="card-content"]')
@@ -80,8 +101,9 @@ describe("model onboarding", () => {
     expect(page.hasAttribute("data-onboarding-page")).toBe(true)
     expect(page.className).toContain("overflow-hidden")
     expect(card?.className).not.toContain("flex-1")
+    expect(card?.className).toContain("h-full")
     expect(card?.className).toContain("gap-0")
-    expect(cardContent?.className).not.toContain("flex-1")
+    expect(cardContent?.className).toContain("flex-1")
     expect(topShadow?.className).toContain("duration-100")
     expect(bottomShadow?.className).toContain("duration-100")
     expect(screen.queryByRole("tablist")).toBeNull()

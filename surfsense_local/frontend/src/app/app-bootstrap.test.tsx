@@ -14,7 +14,10 @@ afterEach(() => {
 describe("app bootstrap", () => {
   it("shows an animated ASCII loader while startup is pending", () => {
     vi.useFakeTimers()
-    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {}))
+    )
 
     render(
       <TooltipProvider>
@@ -61,8 +64,12 @@ describe("app bootstrap", () => {
     render(<AppBootstrap />)
 
     expect(
-      await screen.findByRole("heading", { name: "Choose your AI model" })
+      await screen.findByRole("heading", {
+        name: "Your research, ready to answer",
+      })
     ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Next" })).toBeTruthy()
+    expect(screen.queryByText("Choose your AI model")).toBeNull()
     expect(screen.getByRole("main").hasAttribute("data-onboarding-page")).toBe(
       true
     )
