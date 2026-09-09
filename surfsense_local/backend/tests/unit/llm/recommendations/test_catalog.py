@@ -218,6 +218,25 @@ async def test_installed_models_are_authoritative_and_not_duplicated() -> None:
     assert result.recommended == ()
     assert len(result.installed) == 1
     assert result.installed[0].selected is True
+    assert result.installed[0].can_delete is True
+
+
+async def test_embedding_only_installed_models_stay_out_of_generation_catalog() -> None:
+    """An external Ollama embedding model is not a chat model."""
+    runtime = Runtime(
+        [InstalledModel("ollama", "nomic-embed-text", ("embedding",), "F16")]
+    )
+    service = CatalogService(
+        Advisor(()),
+        [runtime],
+        _manifest(),
+        max_context=8192,
+        reserve_gb=2,
+    )
+
+    result = await service.catalog(selected=None)
+
+    assert result.installed == ()
 
 
 @pytest.mark.parametrize("curated_first", [False, True])

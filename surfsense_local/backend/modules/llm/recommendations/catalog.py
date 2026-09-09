@@ -251,7 +251,7 @@ class CatalogService:
                 explore.append(row)
 
         for key, local_model in installed_by_key.items():
-            if key in matched_installed:
+            if key in matched_installed or "completion" not in local_model.capabilities:
                 continue
             catalog_id = self._id(f"{key[0]}:{key[1]}", key[0])
             installed.append(
@@ -278,6 +278,7 @@ class CatalogService:
                     installed=True,
                     selected=selected == key,
                     can_install=False,
+                    can_delete=True,
                     warnings=("No current llmfit estimate is available.",),
                 )
             )
@@ -379,6 +380,7 @@ class CatalogService:
             installed=installed,
             selected=selected,
             can_install=can_install and model.fit is not FitLevel.TOO_TIGHT,
+            can_delete=installed,
             warnings=tuple(warnings),
         )
 

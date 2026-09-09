@@ -19,10 +19,10 @@ ProviderDep = Annotated[Generator, Depends(get_provider_or_404)]
 
 
 def get_store_or_409(provider: ProviderDep) -> ModelStore:
-    """The provider as a store, or a 409: a remote API cannot download."""
+    """The provider as a local store, or a conflict for a remote API."""
     if not isinstance(provider, ModelStore):
         raise HTTPException(
-            status.HTTP_409_CONFLICT, f"{provider.name} cannot download models"
+            status.HTTP_409_CONFLICT, f"{provider.name} does not manage local models"
         )
     return provider
 

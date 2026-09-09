@@ -3,11 +3,16 @@ from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import Engine
 
+from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm import providers as registry
+from modules.llm.activity import model_activity
 from modules.llm.providers.types import Message, Model
 from modules.llm.recommendations.dependencies import get_catalog_service
+from modules.workspaces.models import Workspace
 from shared.config import get_llm_settings
+from shared.db import create_session_factory
 
 pytestmark = pytest.mark.integration
 
@@ -97,6 +102,151 @@ async def test_the_selection_is_read_after_it_is_set(
 
     read = await client.get("/llm/selection/generation")
     assert read.json() == written.json()
+
+
+async def test_selecting_the_first_model_completes_onboarding(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """The first valid selection is the durable onboarding boundary."""
+    assert (await client.get("/llm/onboarding")).json() == {"completed": False}
+
+    await client.put(
+        "/llm/selection/generation",
+        json={"provider": "ollama", "name": "qwen3:1.7b"},
+    )
+
+    assert (await client.get("/llm/onboarding")).json() == {"completed": True}
+
+
+async def test_deleting_the_selected_local_model_clears_only_the_selection(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """Deleting the active model preserves completed onboarding."""
+    await client.put(
+        "/llm/selection/generation",
+        json={"provider": "ollama", "name": "qwen3:1.7b"},
+    )
+
+    deleted = await client.delete("/llm/providers/ollama/models/qwen3%3A1.7b")
+
+    assert deleted.status_code == 200
+    assert deleted.json() == {
+        "name": "qwen3:1.7b",
+        "selection_cleared": True,
+    }
+    assert (await client.get("/llm/selection/generation")).status_code == 404
+    assert (await client.get("/llm/onboarding")).json() == {"completed": True}
+    models = (await client.get("/llm/providers/ollama/models")).json()
+    assert [model["name"] for model in models] == ["qwen3:4b"]
+
+
+async def test_remote_models_cannot_be_deleted(client: AsyncClient) -> None:
+    """Remote provider entries do not represent local files."""
+    reply = await client.delete(
+        "/llm/providers/openrouter/models/anthropic%2Fclaude-3.5-sonnet"
+    )
+
+    assert reply.status_code == 409
+
+
+async def test_embedding_models_cannot_be_deleted_from_chat_management(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deletion is limited to local generation models."""
+
+    class EmbeddingStore:
+        name = "embedding-store"
+
+        async def health(self) -> bool:
+            return True
+
+        async def models(self) -> list[Model]:
+            return [Model("nomic-embed-text", True, ("embedding",))]
+
+        def catalog(self) -> list[object]:
+            return []
+
+        async def pull(self, name: str):
+            if False:  # pragma: no cover - makes this an async iterator
+                yield name
+
+        async def delete(self, name: str) -> None:  # pragma: no cover
+            raise AssertionError(f"must not delete {name}")
+
+        def chat(self, model: str, messages: list[Message]):  # pragma: no cover
+            raise NotImplementedError
+
+    monkeypatch.setitem(registry.REGISTRY, "embedding-store", EmbeddingStore)
+
+    reply = await client.delete(
+        "/llm/providers/embedding-store/models/nomic-embed-text"
+    )
+
+    assert reply.status_code == 409
+    assert (
+        reply.json()["detail"] == "model does not support generation: nomic-embed-text"
+    )
+
+
+async def test_a_model_in_use_cannot_be_deleted(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """Deletion cannot race an active generation."""
+    key = ("ollama", "qwen3:1.7b")
+    await model_activity.acquire_use(key)
+    try:
+        reply = await client.delete("/llm/providers/ollama/models/qwen3%3A1.7b")
+    finally:
+        await model_activity.release_use(key)
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"] == "model is currently in use"
+
+
+async def test_a_model_cannot_be_deleted_while_ollama_is_installing(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """One runtime mutation cannot overlap another."""
+    lock = get_catalog_service().install_lock("ollama")
+    await lock.acquire()
+    try:
+        reply = await client.delete("/llm/providers/ollama/models/qwen3%3A1.7b")
+    finally:
+        lock.release()
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"] == "ollama is currently installing a model"
+
+
+async def test_a_model_cannot_be_deleted_while_studio_is_generating(
+    client: AsyncClient, engine: Engine, ollama_server: str
+) -> None:
+    """The API sees model work running in the separate Studio worker."""
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(name="Studio")
+        session.add(workspace)
+        session.flush()
+        session.add(
+            Document(
+                workspace_id=workspace.id,
+                title="Running artifact",
+                document_type=DocumentType.ARTIFACT,
+                status=DocumentStatus.PROCESSING,
+                error_message=None,
+                content=None,
+                content_hash=None,
+                dedup_key=None,
+                document_metadata=None,
+            )
+        )
+        session.commit()
+
+    reply = await client.delete("/llm/providers/ollama/models/qwen3%3A1.7b")
+
+    assert reply.status_code == 409
+    assert (
+        reply.json()["detail"] == "a model cannot be deleted while Studio is generating"
+    )
 
 
 async def test_choosing_again_updates_in_place(
