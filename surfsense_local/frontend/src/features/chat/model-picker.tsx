@@ -27,6 +27,8 @@ import {
 import { cn } from "@/lib/utils"
 
 const installedModelsQueryKey = ["installed-generation-models"] as const
+export const modelControlButtonClassName =
+  "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
 
 export function ModelPicker({
   model,
@@ -89,12 +91,21 @@ export function ModelPicker({
   }, [])
 
   useEffect(() => {
-    if (visibleModels.length === 0) {
-      setScrollEdges({ top: false, bottom: false })
-      return
+    const frame = window.requestAnimationFrame(updateScrollEdges)
+    const results = resultsRef.current
+    if (typeof ResizeObserver === "undefined" || !results) {
+      return () => window.cancelAnimationFrame(frame)
     }
-    updateScrollEdges()
-  }, [updateScrollEdges, visibleModels.length])
+    const observer = new ResizeObserver(updateScrollEdges)
+    observer.observe(results)
+    if (results.firstElementChild) {
+      observer.observe(results.firstElementChild)
+    }
+    return () => {
+      window.cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
+  }, [updateScrollEdges])
 
   return (
     <DropdownMenu
@@ -110,7 +121,7 @@ export function ModelPicker({
         <button
           type="button"
           className={cn(
-            "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none",
+            modelControlButtonClassName,
             className
           )}
           title="Change model"
