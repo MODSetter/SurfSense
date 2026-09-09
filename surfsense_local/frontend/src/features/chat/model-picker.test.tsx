@@ -76,7 +76,7 @@ describe("composer model picker", () => {
       })
     )
     const search = await screen.findByRole("searchbox", {
-      name: "Search installed models",
+      name: "Search models",
     })
     const currentItem = await screen.findByRole("menuitemradio", {
       name: "llama3.2:1b",
@@ -94,6 +94,7 @@ describe("composer model picker", () => {
     const results = document.querySelector(
       '[data-slot="model-picker-results"]'
     ) as HTMLDivElement
+    expect(results.className).toContain("h-60")
     const topShadow = document.querySelector(
       '[data-slot="model-picker-shadow-top"]'
     )

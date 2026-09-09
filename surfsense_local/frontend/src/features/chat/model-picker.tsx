@@ -138,8 +138,8 @@ export function ModelPicker({
           <Input
             type="search"
             value={query}
-            placeholder="Search installed models"
-            aria-label="Search installed models"
+            placeholder="Search models"
+            aria-label="Search models"
             className="rounded-none border-0 bg-popover pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-popover"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -154,7 +154,7 @@ export function ModelPicker({
           <div
             ref={resultsRef}
             data-slot="model-picker-results"
-            className="relative h-64 select-none overflow-y-auto p-1"
+            className="relative h-60 select-none overflow-y-auto p-1"
             onScroll={updateScrollEdges}
           >
             <DropdownMenuGroup>

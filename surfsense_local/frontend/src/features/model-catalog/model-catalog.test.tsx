@@ -125,6 +125,14 @@ describe("normalized model catalog", () => {
     expect(
       screen.getByText("Only models compatible with this computer are shown.")
     ).toBeTruthy()
+    expect(
+      screen.queryByText(
+        "Estimates reserve resources for SurfSense and may vary by workload."
+      )
+    ).toBeNull()
+    expect(
+      screen.getByText("Apple M3").parentElement?.querySelector("svg")
+    ).toBeTruthy()
     expect(screen.getByText("Good fit")).toBeTruthy()
     expect(screen.getByRole("list", { name: "Qwen models" })).toBeTruthy()
     expect(screen.getByRole("listitem")).toBeTruthy()

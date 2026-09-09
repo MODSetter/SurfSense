@@ -1,5 +1,5 @@
 import { Fragment, useId, useState, type ReactNode } from "react"
-import { CircleAlertIcon, RefreshCwIcon } from "@/components/ui/icons"
+import { CircleAlertIcon, DotIcon, RefreshCwIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -56,14 +56,14 @@ function runtimeAvailable(status: RuntimeStatus | undefined) {
 
 function hardwareSummary(hardware: HardwareProfile | null) {
   if (!hardware) {
-    return "Hardware profile unavailable"
+    return ["Hardware profile unavailable"]
   }
   const name = hardware.gpu_name ?? hardware.cpu_name
   const memory = hardware.total_ram_gb
   const parts = [name, memory !== null ? `${memory} GB memory` : null].filter(
-    Boolean
+    (part): part is string => part !== null
   )
-  return parts.length > 0 ? parts.join(" · ") : "Hardware profile analyzed"
+  return parts.length > 0 ? parts : ["Hardware profile analyzed"]
 }
 
 function grouped(rows: CatalogRow[]) {
@@ -219,6 +219,7 @@ export function ModelCatalogPage({
           },
         ]
   ).filter((section) => section.rows.length > 0)
+  // Estimates reserve resources for SurfSense and may vary by workload.
   const busy =
     install.isPending || selectInstalled.isPending || deleteModel.isPending
 
@@ -278,14 +279,21 @@ export function ModelCatalogPage({
     <div className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
         <div>
-          <p className="text-sm font-medium">
-            {hardwareSummary(data.hardware)}
+          <p className="flex items-center text-sm font-medium">
+            {hardwareSummary(data.hardware).map((part, index) => (
+              <Fragment key={part}>
+                {index > 0 ? (
+                  <DotIcon
+                    aria-hidden="true"
+                    className="size-3 shrink-0 text-muted-foreground"
+                  />
+                ) : null}
+                <span>{part}</span>
+              </Fragment>
+            ))}
           </p>
           <p className="text-xs text-muted-foreground">
             Only models compatible with this computer are shown.
-          </p>
-          <p className="text-xs text-muted-foreground">
-            Estimates reserve resources for SurfSense and may vary by workload.
           </p>
         </div>
         <Button
