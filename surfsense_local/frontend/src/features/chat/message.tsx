@@ -18,11 +18,14 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
 import { preprocessCitationMarkdown } from "./citation-markdown"
-import { CitationProvider, InlineCitation } from "./inline-citation"
+import {
+  CitationProvider,
+  InlineCitation,
+  useCitationContext,
+} from "./inline-citation"
 import type { Citation } from "./sse"
 
 const streamdownPlugins = {
@@ -36,10 +39,11 @@ const citationComponents: Components = {
   >,
 }
 const citationAllowedTags = {
-  citation: ["data-source-id"],
+  citation: ["data-chunk-id"],
 }
 
 function MarkdownText() {
+  const citations = useCitationContext()?.citations ?? []
   return (
     <StreamdownTextPrimitive
       defer
@@ -47,7 +51,7 @@ function MarkdownText() {
       components={citationComponents}
       icons={streamdownIcons}
       plugins={streamdownPlugins}
-      preprocess={preprocessCitationMarkdown}
+      preprocess={(content) => preprocessCitationMarkdown(content, citations)}
       linkSafety={{ enabled: true }}
       security={{
         allowedProtocols: ["http", "https", "mailto"],
@@ -142,20 +146,14 @@ export function UserMessage() {
 
 export function AssistantMessage({
   citations,
-  documents,
   onCitation,
 }: {
   citations: Citation[]
-  documents: WorkspaceDocument[]
-  onCitation: (citation: Citation) => void
+  onCitation: (chunkId: number) => void
 }) {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
-      <CitationProvider
-        citations={citations}
-        documents={documents}
-        onCitation={onCitation}
-      >
+      <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
           <MessagePrimitive.Parts components={assistantMessageParts} />
         </div>

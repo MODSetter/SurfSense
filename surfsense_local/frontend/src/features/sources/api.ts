@@ -54,6 +54,35 @@ export type UploadOutcome = {
   rejected: { filename: string; reason: string }[]
 }
 
+export type DocumentChunk = {
+  id: number
+  content: string
+  position: number
+  start_line: number | null
+  end_line: number | null
+}
+
+export type DocumentByChunk = {
+  id: number
+  title: string
+  document_type: WorkspaceDocument["document_type"] | "ARTIFACT"
+  workspace_id: number
+  chunks: DocumentChunk[]
+  total_chunks: number
+  chunk_start_index: number
+}
+
+export function getDocumentByChunk(
+  workspaceId: number,
+  chunkId: number,
+  signal?: AbortSignal
+): Promise<DocumentByChunk> {
+  return requestJson<DocumentByChunk>(
+    `/workspaces/${workspaceId}/documents/by-chunk/${chunkId}?chunk_window=5`,
+    { signal }
+  )
+}
+
 export function listDocuments(
   workspaceId: number,
   signal?: AbortSignal

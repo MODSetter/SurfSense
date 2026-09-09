@@ -105,6 +105,8 @@ async def test_a_message_streams_a_grounded_reply(
     assert len(catalog["items"]) == 1
     assert catalog["items"][0]["source_id"] == 1
     assert catalog["items"][0]["document_id"] == doc_id
+    assert catalog["items"][0]["title"] == "note"
+    chunk_id = catalog["items"][0]["chunk_id"]
 
     title = events[2]
     assert title == {"type": "thread-title-update", "title": "Revenue Growth"}
@@ -113,13 +115,16 @@ async def test_a_message_streams_a_grounded_reply(
     )
 
     deltas = [event["text"] for event in events if event["type"] == "delta"]
-    assert "".join(deltas) == "Revenue climbed after the launch [citation:1]."
+    assert "".join(deltas) == "Revenue climbed after the launch [1]."
 
     citations = next(event for event in events if event["type"] == "citations")
     assert any(cite["document_id"] == doc_id for cite in citations["items"])
     assert citations["items"][0]["source_id"] == 1
     completed = next(event for event in events if event["type"] == "completed")
     assert completed["assistant_completed_at"]
+    assert (
+        completed["text"] == f"Revenue climbed after the launch [citation:{chunk_id}]."
+    )
 
     stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
     assert [message["role"] for message in stored] == ["user", "assistant"]
@@ -127,9 +132,7 @@ async def test_a_message_streams_a_grounded_reply(
         accepted["user_message_id"],
         accepted["assistant_message_id"],
     ]
-    assert (
-        stored[1]["content"]["text"] == "Revenue climbed after the launch [citation:1]."
-    )
+    assert stored[1]["content"]["text"] == completed["text"]
     assert stored[1]["content"]["citations"]
     assert stored[0]["completed_at"] is None
     assert stored[1]["completed_at"] == completed["assistant_completed_at"]
@@ -179,7 +182,7 @@ async def test_title_failure_does_not_block_the_answer(
     assert not any(event["type"] == "thread-title-update" for event in events)
     assert (
         "".join(event["text"] for event in events if event["type"] == "delta")
-        == "Revenue climbed after the launch [citation:1]."
+        == "Revenue climbed after the launch [1]."
     )
     threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
     assert threads[0]["title"] == "New chat"
