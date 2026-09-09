@@ -1,4 +1,5 @@
 import hashlib
+import logging
 import shutil
 
 from sqlalchemy.orm import Session
@@ -8,6 +9,8 @@ from modules.documents.models import Document
 from shared.config import get_storage_settings
 from worker.ingestion import chunking, embedding, indexing
 from worker.studio.artifact import Built
+
+logger = logging.getLogger(__name__)
 
 _EXTENSION = {
     "application/pdf": ".pdf",
@@ -31,7 +34,9 @@ def persist(
     """
     document.title = built.title
     document.content = built.markdown
+    logger.info("studio: persist artifact %s indexing", artifact.id)
     _index(session, document, built.markdown)
+    logger.info("studio: persist artifact %s writing files", artifact.id)
     _write_files(session, artifact, built)
 
 
