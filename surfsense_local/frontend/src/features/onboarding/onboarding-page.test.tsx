@@ -60,7 +60,32 @@ afterEach(() => {
 })
 
 describe("model onboarding", () => {
-  it("keeps the local catalog direct when no remote provider exists", async () => {
+  it("shows the model tabs and catalog skeleton while selection data loads", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => undefined))
+    )
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await user.click(screen.getByRole("button", { name: "Next" }))
+
+    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    expect(
+      screen.getByRole("status", { name: "Scanning model catalog" })
+    ).toBeTruthy()
+    expect(
+      document.querySelector('[data-slot="hardware-name-skeleton"]')
+    ).toBeTruthy()
+    expect(
+      document.querySelector('[data-slot="hardware-memory-skeleton"]')
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("status", { name: "Loading installed models" })
+    ).toBeNull()
+  })
+
+  it("keeps both provider tabs stable after model data loads", async () => {
     vi.stubGlobal("fetch", installApi())
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
@@ -106,7 +131,8 @@ describe("model onboarding", () => {
     expect(cardContent?.className).toContain("flex-1")
     expect(topShadow?.className).toContain("duration-100")
     expect(bottomShadow?.className).toContain("duration-100")
-    expect(screen.queryByRole("tablist")).toBeNull()
+    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
 

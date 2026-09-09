@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   getGenerationSelection,
-  getInstalledGenerationModels,
+  getProviderModels,
   getProviders,
   modelKey,
   setGenerationSelection,
@@ -20,6 +20,8 @@ export type ModelSelectionState =
       models: SelectableModel[]
       selection: ModelSelection | null
       staleSelection: boolean
+      modelsLoading: boolean
+      loadingProviders: string[]
     }
 
 type SaveState =
@@ -37,7 +39,8 @@ function isAbort(error: unknown) {
 }
 
 async function fetchSelectionState(
-  signal: AbortSignal
+  signal: AbortSignal,
+  onProgress: (state: ModelSelectionState) => void
 ): Promise<ModelSelectionState> {
   let providers: Provider[]
   let selection: ModelSelection | null
@@ -55,18 +58,61 @@ async function fetchSelectionState(
     return { status: "api-unavailable", message: messageFrom(error) }
   }
 
-  const models = await getInstalledGenerationModels(providers, signal)
-  const selectionIsCurrent =
-    selection !== null &&
-    models.some((model) => modelKey(model) === modelKey(selection))
+  let models: SelectableModel[] = []
+  const loadingProviders = new Set(
+    providers
+      .filter((provider) => provider.healthy)
+      .map((provider) => provider.name)
+  )
+  const nextState = (modelsLoading: boolean): ModelSelectionState => {
+    const sortedModels = models.toSorted(
+      (left, right) =>
+        left.provider.localeCompare(right.provider) ||
+        left.name.localeCompare(right.name)
+    )
+    const selectionIsCurrent =
+      selection !== null &&
+      sortedModels.some((model) => modelKey(model) === modelKey(selection))
 
-  return {
-    status: "ready",
-    providers,
-    models,
-    selection,
-    staleSelection: selection !== null && !selectionIsCurrent,
+    return {
+      status: "ready",
+      providers,
+      models: sortedModels,
+      selection,
+      staleSelection:
+        !modelsLoading && selection !== null && !selectionIsCurrent,
+      modelsLoading,
+      loadingProviders: [...loadingProviders],
+    }
   }
+
+  onProgress(nextState(loadingProviders.size > 0))
+  await Promise.all(
+    providers
+      .filter((provider) => provider.healthy)
+      .map(async (provider) => {
+        try {
+          const providerModels = await getProviderModels(provider.name, signal)
+          models = [
+            ...models,
+            ...providerModels
+              .filter(
+                (model) =>
+                  model.installed && model.capabilities.includes("completion")
+              )
+              .map((model) => ({ ...model, provider: provider.name })),
+          ]
+        } catch (error) {
+          if (signal.aborted) {
+            throw error
+          }
+        } finally {
+          loadingProviders.delete(provider.name)
+          onProgress(nextState(loadingProviders.size > 0))
+        }
+      })
+  )
+  return nextState(false)
 }
 
 export function useModelSelection() {
@@ -82,6 +128,9 @@ export function useModelSelection() {
   const acceptState = useCallback((next: ModelSelectionState) => {
     if (next.status === "ready") {
       setDraftKey((current) => {
+        if (next.modelsLoading) {
+          return current ?? (next.selection ? modelKey(next.selection) : null)
+        }
         if (
           current !== null &&
           next.models.some((model) => modelKey(model) === current)
@@ -103,15 +152,21 @@ export function useModelSelection() {
   useEffect(() => {
     const controller = new AbortController()
     loadController.current = controller
-    void fetchSelectionState(controller.signal)
+    const acceptProgress = (next: ModelSelectionState) => {
+      if (loadController.current === controller) {
+        acceptState(next)
+      }
+    }
+    void fetchSelectionState(controller.signal, acceptProgress)
       .then((next) => {
-        if (loadController.current === controller) {
-          acceptState(next)
-        }
+        acceptProgress(next)
       })
       .catch(() => undefined)
 
     return () => {
+      if (loadController.current === controller) {
+        loadController.current = null
+      }
       controller.abort()
       saveController.current?.abort()
     }
@@ -133,10 +188,13 @@ export function useModelSelection() {
     setSaveState({ status: "idle" })
 
     try {
-      const next = await fetchSelectionState(controller.signal)
-      if (loadController.current === controller) {
-        acceptState(next)
+      const acceptProgress = (next: ModelSelectionState) => {
+        if (loadController.current === controller) {
+          acceptState(next)
+        }
       }
+      const next = await fetchSelectionState(controller.signal, acceptProgress)
+      acceptProgress(next)
     } catch {
       // Aborted by a newer refresh or unmount.
     } finally {

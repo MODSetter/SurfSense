@@ -11,7 +11,6 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 import { modelKey, type SelectableModel } from "./api"
 
@@ -92,10 +91,6 @@ export function ModelList({
         <p className="text-sm text-muted-foreground">
           {needle ? "No models match your search." : "No models available yet."}
         </p>
-      ) : searchable ? (
-        <ScrollArea className="h-72">
-          <div className="pr-3">{radios}</div>
-        </ScrollArea>
       ) : (
         radios
       )}

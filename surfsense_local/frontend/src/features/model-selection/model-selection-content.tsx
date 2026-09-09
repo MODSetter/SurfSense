@@ -1,5 +1,8 @@
-import { useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { CircleAlertIcon } from "@/components/ui/icons"
+import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
 
@@ -7,8 +10,7 @@ import { modelKey, type ModelSelection } from "./api"
 import { ProviderTab } from "./provider-tab"
 import type { ModelSelectionState } from "./use-model-selection"
 
-const titleCase = (value: string) =>
-  value.charAt(0).toUpperCase() + value.slice(1)
+const OPENROUTER = "openrouter"
 
 export function ModelSelectionContent({
   allowDelete = false,
@@ -23,7 +25,7 @@ export function ModelSelectionContent({
   onActiveProviderChange,
   refresh,
 }: {
-  state: Extract<ModelSelectionState, { status: "ready" }>
+  state: Extract<ModelSelectionState, { status: "loading" | "ready" }>
   draftKey: string | null
   disabled: boolean
   installedFirst?: boolean
@@ -35,24 +37,36 @@ export function ModelSelectionContent({
   onActiveProviderChange?: (provider: string) => void
   refresh: (options?: { silent?: boolean }) => Promise<void>
 }) {
+  const readyState = state.status === "ready" ? state : null
+  const [activeTab, setActiveTab] = useState("local")
+  const userChangedTab = useRef(false)
+  const initializedTab = useRef(false)
   const persistedKey =
-    state.selection === null ? null : modelKey(state.selection)
-  const remoteProviders = state.providers.filter(
-    (provider) => provider.requires_key
+    readyState?.selection == null ? null : modelKey(readyState.selection)
+  const openRouterProvider = readyState?.providers.find(
+    (provider) => provider.name === OPENROUTER
   )
-  const defaultTab = remoteProviders.some(
-    (provider) => provider.name === state.selection?.provider
-  )
-    ? state.selection?.provider
-    : "local"
+  const selectedTab =
+    readyState?.selection?.provider === OPENROUTER ? OPENROUTER : "local"
 
   useEffect(() => {
-    onActiveProviderChange?.(defaultTab)
-  }, [defaultTab, onActiveProviderChange])
+    if (readyState === null || initializedTab.current) {
+      return
+    }
+    initializedTab.current = true
+    if (!userChangedTab.current) {
+      setActiveTab(selectedTab)
+    }
+  }, [readyState, selectedTab])
+
+  useEffect(() => {
+    onActiveProviderChange?.(activeTab)
+  }, [activeTab, onActiveProviderChange])
 
   const localCatalog = (
     <ModelCatalogPage
       allowDelete={allowDelete}
+      disabled={disabled || readyState === null}
       installedFirst={installedFirst}
       onModelUnavailable={onModelUnavailable}
       onModelsChanged={onModelsChanged}
@@ -60,42 +74,56 @@ export function ModelSelectionContent({
     />
   )
 
-  if (remoteProviders.length === 0) {
-    return localCatalog
-  }
-
   return (
     <Tabs
       className="min-h-0 gap-5"
-      defaultValue={defaultTab}
-      onValueChange={onActiveProviderChange}
+      value={activeTab}
+      onValueChange={(provider) => {
+        userChangedTab.current = true
+        setActiveTab(provider)
+      }}
     >
       <TabsList>
         <TabsTrigger value="local">Local</TabsTrigger>
-        {remoteProviders.map((provider) => (
-          <TabsTrigger key={provider.name} value={provider.name}>
-            {titleCase(provider.name)}
-          </TabsTrigger>
-        ))}
+        <TabsTrigger value={OPENROUTER}>OpenRouter</TabsTrigger>
       </TabsList>
 
       <TabsContent value="local">{localCatalog}</TabsContent>
 
-      {remoteProviders.map((provider) => (
-        <TabsContent key={provider.name} value={provider.name}>
+      <TabsContent value={OPENROUTER}>
+        {openRouterProvider ? (
           <ProviderTab
-            provider={provider}
-            models={state.models.filter(
-              (model) => model.provider === provider.name
+            provider={openRouterProvider}
+            models={(readyState?.models ?? []).filter(
+              (model) => model.provider === OPENROUTER
             )}
             draftKey={draftKey}
             persistedKey={persistedKey}
             onSelect={onSelect}
             disabled={disabled}
+            modelsLoading={
+              readyState?.loadingProviders.includes(OPENROUTER) ?? true
+            }
             refresh={refresh}
           />
-        </TabsContent>
-      ))}
+        ) : readyState === null ? (
+          <div
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+            role="status"
+          >
+            <Spinner />
+            Loading OpenRouter...
+          </div>
+        ) : (
+          <Alert variant="destructive">
+            <CircleAlertIcon />
+            <AlertTitle>OpenRouter unavailable</AlertTitle>
+            <AlertDescription>
+              The local backend did not return the OpenRouter provider.
+            </AlertDescription>
+          </Alert>
+        )}
+      </TabsContent>
     </Tabs>
   )
 }

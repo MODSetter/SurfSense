@@ -17,7 +17,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
 import { modelKey, type ModelSelection } from "@/features/model-selection/api"
@@ -95,20 +94,6 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   )
 }
 
-function LoadingModels() {
-  return (
-    <div
-      className="flex flex-col gap-2"
-      role="status"
-      aria-label="Loading installed models"
-    >
-      {[0, 1, 2].map((item) => (
-        <Skeleton key={item} className="h-16 w-full rounded-lg" />
-      ))}
-    </div>
-  )
-}
-
 function OfflineState({ message }: { message: string }) {
   return (
     <Alert variant="destructive">
@@ -137,7 +122,7 @@ function ModelSetupStep({
   })
   const { state, draftKey, saveState, isRefreshing, select, refresh, save } =
     useModelSelection()
-  const isReady = state.status === "ready"
+  const showsModelSelection = state.status !== "api-unavailable"
   const updateScrollEdges = useCallback(() => {
     const scrollArea = scrollRef.current
     if (!scrollArea) {
@@ -155,7 +140,7 @@ function ModelSetupStep({
   }, [])
 
   useEffect(() => {
-    if (!isReady) {
+    if (!showsModelSelection) {
       return
     }
     const frame = window.requestAnimationFrame(updateScrollEdges)
@@ -172,7 +157,7 @@ function ModelSetupStep({
       window.cancelAnimationFrame(frame)
       observer.disconnect()
     }
-  }, [isReady, updateScrollEdges])
+  }, [showsModelSelection, updateScrollEdges])
   const persistedKey =
     state.status === "ready" && state.selection !== null
       ? modelKey(state.selection)
@@ -223,11 +208,10 @@ function ModelSetupStep({
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-        {state.status === "loading" ? <LoadingModels /> : null}
         {state.status === "api-unavailable" ? (
           <OfflineState message={state.message} />
         ) : null}
-        {state.status === "ready" ? (
+        {showsModelSelection ? (
           <div className="relative flex min-h-0 flex-1">
             <div
               ref={scrollRef}
@@ -281,7 +265,7 @@ function ModelSetupStep({
           type="button"
           variant="outline"
           className="min-h-10"
-          disabled={isRefreshing || isSaving}
+          disabled={state.status !== "ready" || isRefreshing || isSaving}
           onClick={() => void refresh()}
         >
           {isRefreshing ? (

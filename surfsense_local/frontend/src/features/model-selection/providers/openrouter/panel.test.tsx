@@ -92,6 +92,62 @@ beforeEach(() => {
 })
 
 describe("openrouter provider", () => {
+  it("loads OpenRouter models without waiting for local models", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            {
+              name: "ollama",
+              healthy: true,
+              can_download: true,
+              requires_key: false,
+              configured: true,
+            },
+            {
+              name: "openrouter",
+              healthy: true,
+              can_download: false,
+              requires_key: true,
+              configured: true,
+            },
+          ])
+        }
+        if (path === "/llm/selection/generation") {
+          return Response.json({ detail: "no model chosen" }, { status: 404 })
+        }
+        if (path === "/llm/providers/ollama/models") {
+          return new Promise<Response>(() => undefined)
+        }
+        if (path === "/llm/providers/openrouter/models") {
+          return Response.json([
+            {
+              name: "openai/gpt-4o",
+              installed: true,
+              capabilities: ["completion"],
+            },
+          ])
+        }
+        if (path === "/llm/catalog") {
+          return new Promise<Response>(() => undefined)
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await user.click(screen.getByRole("button", { name: "Next" }))
+    await user.click(screen.getByRole("tab", { name: "OpenRouter" }))
+
+    expect(
+      await screen.findByText("Connected with your API key")
+    ).toBeTruthy()
+    expect(await screen.findByRole("radio", { name: /gpt-4o/i })).toBeTruthy()
+  })
+
   it("connects a key, then selects and saves a remote model", async () => {
     const fetchMock = installApi()
     vi.stubGlobal("fetch", fetchMock)

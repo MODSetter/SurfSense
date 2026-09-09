@@ -128,9 +128,30 @@ describe("SettingsDialog", () => {
 
     expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
     expect(screen.queryByText("Currently using")).toBeNull()
-    expect(screen.queryByRole("tablist")).toBeNull()
+    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
     expect(
       await screen.findByText("No local models are available")
     ).toBeTruthy()
+  })
+
+  it("shows the model tabs and catalog skeleton while selection data loads", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => undefined))
+    )
+    const user = userEvent.setup()
+
+    render(<SettingsHarness />)
+    await user.click(screen.getByRole("button", { name: "Models" }))
+
+    expect(screen.getByRole("heading", { name: "Models" })).toBeTruthy()
+    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    expect(
+      screen.getByRole("status", { name: "Scanning model catalog" })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("status", { name: "Loading model settings" })
+    ).toBeNull()
   })
 })

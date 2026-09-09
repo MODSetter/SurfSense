@@ -118,12 +118,14 @@ function CatalogSection({
 
 export function ModelCatalogPage({
   allowDelete = false,
+  disabled = false,
   onModelUnavailable,
   onModelsChanged,
   onSelected,
   installedFirst = false,
 }: {
   allowDelete?: boolean
+  disabled?: boolean
   onModelUnavailable?: () => void
   onModelsChanged?: () => void
   onSelected?: (selection: ModelSelection) => void
@@ -145,16 +147,40 @@ export function ModelCatalogPage({
   if (catalog.isPending) {
     return (
       <div
-        className="flex flex-col gap-3"
+        className="flex flex-col gap-5"
         role="status"
         aria-label="Scanning model catalog"
       >
-        <p className="text-sm text-muted-foreground">
-          Checking this computer for models that leave room for SurfSense.
-        </p>
-        {[0, 1, 2].map((item) => (
-          <Skeleton key={item} className="h-28 w-full rounded-xl" />
-        ))}
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
+          <div>
+            <div className="flex items-center">
+              <Skeleton
+                data-slot="hardware-name-skeleton"
+                className="h-5 w-14"
+              />
+              <DotIcon
+                aria-hidden="true"
+                className="size-3 shrink-0 text-muted-foreground"
+              />
+              <Skeleton
+                data-slot="hardware-memory-skeleton"
+                className="h-5 w-20"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Only models compatible with this computer are shown.
+            </p>
+          </div>
+          <Button type="button" size="sm" variant="outline" disabled>
+            <RefreshCwIcon data-icon="inline-start" />
+            Rescan hardware
+          </Button>
+        </div>
+        <div className="flex flex-col gap-3">
+          {[0, 1, 2].map((item) => (
+            <Skeleton key={item} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
       </div>
     )
   }
@@ -221,6 +247,7 @@ export function ModelCatalogPage({
   ).filter((section) => section.rows.length > 0)
   // Estimates reserve resources for SurfSense and may vary by workload.
   const busy =
+    disabled ||
     install.isPending || selectInstalled.isPending || deleteModel.isPending
 
   const act = (row: CatalogRow) => {

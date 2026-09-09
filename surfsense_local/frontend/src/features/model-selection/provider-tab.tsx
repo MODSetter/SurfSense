@@ -1,4 +1,4 @@
-import { type Provider, type SelectableModel } from "./api"
+import type { Provider, SelectableModel } from "./api"
 import { ModelList } from "./model-list"
 import { OpenRouterPanel } from "./providers/openrouter/panel"
 
@@ -9,6 +9,7 @@ export function ProviderTab({
   persistedKey,
   onSelect,
   disabled,
+  modelsLoading = false,
   refresh,
 }: {
   provider: Provider
@@ -17,6 +18,7 @@ export function ProviderTab({
   persistedKey: string | null
   onSelect: (key: string) => void
   disabled: boolean
+  modelsLoading?: boolean
   refresh: (options?: { silent?: boolean }) => Promise<void>
 }) {
   if (provider.requires_key) {
@@ -28,6 +30,7 @@ export function ProviderTab({
         persistedKey={persistedKey}
         onSelect={onSelect}
         disabled={disabled}
+        modelsLoading={modelsLoading}
         onChanged={() => refresh({ silent: true })}
       />
     )
