@@ -191,8 +191,7 @@ async def send_message(
                 # Surfaced as an event; the partial turn is still stored below.
                 yield _frame({"type": "error", "message": str(exc)})
         finally:
-            # Keep source ids stable across the stream and stored answer. Invented
-            # tokens are removed and never become clickable citations.
+            # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
             answer, used = resolve_citations("".join(parts), citations)
             cited = [asdict(citation) for citation in used]
             assistant_message.content = {"text": answer, "citations": cited}
@@ -207,6 +206,7 @@ async def send_message(
             {
                 "type": "completed",
                 "assistant_completed_at": assistant_completed_at,
+                "text": answer,
             }
         )
         yield _DONE

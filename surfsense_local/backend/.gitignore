@@ -8,5 +8,5 @@ __pycache__/
 /dist/
 /build/
 
-# Embedding model staged for packaging (scripts/fetch_embedding_model.py models)
+# Embedding, voice, and parser packs staged for packaging (scripts/fetch_*.py models)
 /models/

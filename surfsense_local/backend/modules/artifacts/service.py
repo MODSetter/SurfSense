@@ -9,7 +9,6 @@ from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from shared.queue import huey
 from modules.llm.credentials import read_provider_key
 from modules.llm.models import ModelRole, SelectedModel
 from modules.workspaces.models import Workspace
@@ -86,55 +85,6 @@ def create_artifact_job(
     studio_job(artifact.id)
     logger.info("studio: enqueued artifact %s format=%s", artifact.id, fmt.key)
     return artifact
-
-
-def enqueue_stranded_studio_jobs(
-    session: Session, *, include_processing: bool = False
-) -> None:
-    """Put leftover Studio rows back on the queue if Huey no longer has them.
-
-    The API commits the artifact, then enqueues. Huey pops a task when the
-    worker takes it. Delete, a worker death, or a failed enqueue leaves a
-    pending row and an empty queue — opening Studio or starting the worker
-    puts those ids back, once.
-    """
-    statuses = [DocumentStatus.PENDING]
-    if include_processing:
-        statuses.append(DocumentStatus.PROCESSING)
-
-    queued = _queued_studio_ids()
-    artifacts = session.scalars(
-        select(Artifact)
-        .join(Document, Document.id == Artifact.document_id)
-        .where(
-            Document.document_type == DocumentType.ARTIFACT,
-            Document.status.in_(statuses),
-        )
-        .order_by(Artifact.created_at.asc())
-    ).all()
-
-    to_run: list[int] = []
-    for artifact in artifacts:
-        if artifact.id in queued:
-            continue
-        if artifact.document.status is DocumentStatus.PROCESSING:
-            artifact.document.status = DocumentStatus.PENDING
-        to_run.append(artifact.id)
-    if not to_run:
-        return
-    session.commit()
-    for artifact_id in to_run:
-        studio_job(artifact_id)
-    logger.info("studio: requeued stranded artifacts %s", to_run)
-
-
-def _queued_studio_ids() -> set[int]:
-    ids: set[int] = set()
-    for job in (*huey.pending(), *huey.scheduled()):
-        if not job.name.endswith("studio_job") or not job.args:
-            continue
-        ids.add(job.args[0])
-    return ids
 
 
 def _resolve_sources(

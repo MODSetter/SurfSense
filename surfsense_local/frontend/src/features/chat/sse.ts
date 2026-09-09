@@ -4,6 +4,7 @@ export type Citation = {
   document_id: number
   start_line: number | null
   end_line: number | null
+  title?: string
 }
 
 export type ChatStreamEvent =
@@ -17,7 +18,7 @@ export type ChatStreamEvent =
   | { type: "citation-catalog"; items: Citation[] }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
-  | { type: "completed"; assistant_completed_at: string }
+  | { type: "completed"; assistant_completed_at: string; text?: string }
   | { type: "error"; message: string }
   | { type: "done" }
 

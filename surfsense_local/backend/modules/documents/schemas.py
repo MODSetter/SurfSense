@@ -44,6 +44,30 @@ class DocumentDetail(DocumentRead):
     content: str | None
 
 
+class ChunkRead(BaseModel):
+    """One passage of a document, as the citation panel shows it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    content: str
+    position: int
+    start_line: int | None
+    end_line: int | None
+
+
+class DocumentByChunkRead(BaseModel):
+    """A document plus the window of chunks around a cited passage."""
+
+    id: int
+    title: str
+    document_type: DocumentType
+    workspace_id: int
+    chunks: list[ChunkRead]
+    total_chunks: int
+    chunk_start_index: int
+
+
 class DuplicateRead(BaseModel):
     """A file already held in this workspace, byte for byte."""
 

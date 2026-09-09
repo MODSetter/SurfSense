@@ -1,11 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import {
-  act,
-  cleanup,
-  fireEvent,
-  screen,
-  waitFor,
-} from "@testing-library/react"
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ThemeProvider } from "@/components/theme-provider"
@@ -340,10 +334,29 @@ describe("dashboard chat", () => {
             { status: 201 }
           )
         }
+        if (path.includes("/documents/by-chunk/30")) {
+          return Response.json({
+            id: 20,
+            title: "Guide.txt",
+            document_type: "FILE",
+            workspace_id: 1,
+            chunks: [
+              {
+                id: 30,
+                content: "indexed passage",
+                position: 0,
+                start_line: 1,
+                end_line: 2,
+              },
+            ],
+            total_chunks: 1,
+            chunk_start_index: 0,
+          })
+        }
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           messageSent = true
           return new Response(
-            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"citation-catalog","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"delta","text":"Grounded answer [citation:1]"}\n\ndata: {"type":"citations","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z"}\n\ndata: [DONE]\n\n',
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"citation-catalog","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"delta","text":"Grounded answer [1]"}\n\ndata: {"type":"citations","items":[{"source_id":1,"chunk_id":30,"document_id":20,"start_line":1,"end_line":2}]}\n\ndata: {"type":"completed","assistant_completed_at":"2026-09-05T00:00:01Z","text":"Grounded answer [citation:30]"}\n\ndata: [DONE]\n\n',
             { headers: { "Content-Type": "text/event-stream" } }
           )
         }
@@ -367,7 +380,7 @@ describe("dashboard chat", () => {
               id: 101,
               role: "assistant",
               content: {
-                text: "Grounded answer [citation:1]",
+                text: "Grounded answer [citation:30]",
                 citations: [
                   {
                     source_id: 1,
@@ -423,26 +436,17 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    vi.useFakeTimers()
     fireEvent.click(
-      screen.getByRole("button", { name: "Show source 1: Guide.txt" })
+      screen.getByRole("button", { name: "View cited chunk 30" })
     )
-    const sourceButton = screen.getByRole("button", { name: "Guide.txt" })
-    expect(sourceButton.parentElement?.getAttribute("aria-current")).toBe(
-      "true"
-    )
-    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalledWith({
-      behavior: "smooth",
-      block: "nearest",
-    })
-    expect(window.surfsense?.openDocument).not.toHaveBeenCalled()
-
-    act(() => vi.advanceTimersByTime(3000))
-    expect(sourceButton.parentElement?.getAttribute("aria-current")).toBeNull()
-    vi.useRealTimers()
-
-    await user.click(sourceButton)
+    expect(await screen.findByText("indexed passage")).toBeTruthy()
+    expect(screen.getByText("Cited chunk")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Open" }))
     expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
+    await user.click(screen.getByRole("button", { name: "Close citation" }))
+    const sourceButton = await screen.findByRole("button", { name: "Guide.txt" })
+    await user.click(sourceButton)
+    expect(window.surfsense?.openDocument).toHaveBeenCalledTimes(2)
     expect(
       fetchMock.mock.calls.some(
         ([path]) => String(path) === "/workspaces/1/documents/20"

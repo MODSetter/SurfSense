@@ -14,11 +14,7 @@ from modules.artifacts.schemas import (
     FormatRead,
     StudioJobCreate,
 )
-from modules.artifacts.service import (
-    create_artifact_job,
-    enqueue_stranded_studio_jobs,
-    list_formats,
-)
+from modules.artifacts.service import create_artifact_job, list_formats
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
@@ -60,7 +56,6 @@ def create_studio_job(
 def list_artifacts(
     workspace: WorkspaceDep, session: SessionDep
 ) -> Sequence[ArtifactRead]:
-    enqueue_stranded_studio_jobs(session)
     artifacts = session.scalars(
         select(Artifact)
         .join(Document, Document.id == Artifact.document_id)

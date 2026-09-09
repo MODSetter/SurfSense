@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
@@ -8,6 +8,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { CitationPanel } from "@/features/chat/citation-panel"
 import { ThreadList } from "@/features/chat/thread-list"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
@@ -39,10 +40,7 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
-  const [highlightedDocumentId, setHighlightedDocumentId] = useState<
-    number | null
-  >(null)
-  const highlightTimeout = useRef<number | null>(null)
+  const [citationChunkId, setCitationChunkId] = useState<number | null>(null)
   const sources = useSources(workspace.id)
   const chat = useChatRuntime({
     workspaceId: workspace.id,
@@ -51,33 +49,7 @@ function WorkspaceDashboard({
     onModelRequired,
   })
 
-  const clearDocumentHighlight = () => {
-    if (highlightTimeout.current !== null) {
-      window.clearTimeout(highlightTimeout.current)
-      highlightTimeout.current = null
-    }
-    setHighlightedDocumentId(null)
-  }
-
-  const highlightDocument = (documentId: number) => {
-    if (highlightTimeout.current !== null) {
-      window.clearTimeout(highlightTimeout.current)
-    }
-    setHighlightedDocumentId(documentId)
-    highlightTimeout.current = window.setTimeout(() => {
-      setHighlightedDocumentId(null)
-      highlightTimeout.current = null
-    }, 3000)
-  }
-
-  useEffect(
-    () => () => {
-      if (highlightTimeout.current !== null) {
-        window.clearTimeout(highlightTimeout.current)
-      }
-    },
-    []
-  )
+  const closeCitation = () => setCitationChunkId(null)
 
   return (
     <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
@@ -88,16 +60,16 @@ function WorkspaceDashboard({
         animatingTitleThreadId={chat.animatingTitleThreadId}
         isLoading={chat.isLoadingThreads}
         onNewChat={() => {
-          clearDocumentHighlight()
+          closeCitation()
           chat.startNewChat()
         }}
         onSelect={(threadId) => {
-          if (threadId !== chat.activeThreadId) clearDocumentHighlight()
+          if (threadId !== chat.activeThreadId) closeCitation()
           chat.selectThread(threadId)
         }}
         onRename={chat.rename}
         onDelete={async (threadId) => {
-          if (threadId === chat.activeThreadId) clearDocumentHighlight()
+          if (threadId === chat.activeThreadId) closeCitation()
           await chat.removeThread(threadId)
         }}
         onTitleAnimationComplete={chat.finishTitleAnimation}
@@ -107,44 +79,49 @@ function WorkspaceDashboard({
         thread={chat.activeThread}
         view={chat.conversationView}
         model={selection}
-        documents={sources.documents}
         error={chat.error}
         isLoading={chat.isLoadingMessages}
         isRunning={chat.isRunning}
         isUploading={sources.isUploading}
         animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
         providerAvailable={providerAvailable}
-        onCitation={(citation) => highlightDocument(citation.document_id)}
+        onCitation={setCitationChunkId}
         onModelSetup={onModelRequired}
         onModelSelected={onModelSelected}
         onUpload={(files) => void sources.upload(files)}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
-      <SourcesPanel
-        documents={sources.documents}
-        selectedDocumentIds={sources.selectedDocumentIds}
-        highlightedDocumentId={highlightedDocumentId}
-        isLoading={sources.isLoading}
-        isUploading={sources.isUploading}
-        isDeleting={sources.isDeleting}
-        error={sources.error}
-        onOpen={(id) => void sources.openOriginal(id)}
-        onReveal={(id) => void sources.revealOriginal(id)}
-        onRetry={(id) => void sources.retry(id)}
-        onDelete={(id) => {
-          if (id === highlightedDocumentId) clearDocumentHighlight()
-          void sources.deleteOne(id)
-        }}
-        onDeleteSelected={() => void sources.deleteSelected()}
-        onSelectionChange={sources.setDocumentSelected}
-        onUpload={(files) => void sources.upload(files)}
-        studioSlot={
-          <StudioDialog
-            workspaceId={workspace.id}
-            documents={sources.documents}
-          />
-        }
-      />
+      {citationChunkId !== null ? (
+        <CitationPanel
+          workspaceId={workspace.id}
+          chunkId={citationChunkId}
+          onClose={closeCitation}
+          onOpen={(id) => void sources.openOriginal(id)}
+        />
+      ) : (
+        <SourcesPanel
+          documents={sources.documents}
+          selectedDocumentIds={sources.selectedDocumentIds}
+          highlightedDocumentId={null}
+          isLoading={sources.isLoading}
+          isUploading={sources.isUploading}
+          isDeleting={sources.isDeleting}
+          error={sources.error}
+          onOpen={(id) => void sources.openOriginal(id)}
+          onReveal={(id) => void sources.revealOriginal(id)}
+          onRetry={(id) => void sources.retry(id)}
+          onDelete={(id) => void sources.deleteOne(id)}
+          onDeleteSelected={() => void sources.deleteSelected()}
+          onSelectionChange={sources.setDocumentSelected}
+          onUpload={(files) => void sources.upload(files)}
+          studioSlot={
+            <StudioDialog
+              workspaceId={workspace.id}
+              documents={sources.documents}
+            />
+          }
+        />
+      )}
     </section>
   )
 }

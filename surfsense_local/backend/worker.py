@@ -15,6 +15,9 @@ def check_vision_runtime() -> None:
 
 
 if __name__ == "__main__":
+    import multiprocessing
+
+    multiprocessing.freeze_support()
     if sys.argv[1:] == ["--check-vision-runtime"]:
         check_vision_runtime()
     else:

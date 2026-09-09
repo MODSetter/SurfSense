@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 CANDIDATES = 20
 
 _WORD = re.compile(r"\w+")
-_COLUMNS = "c.id, c.document_id, c.content, c.start_line, c.end_line"
+_COLUMNS = "c.id, c.document_id, d.title, c.content, c.start_line, c.end_line"
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,7 @@ class Hit:
     start_line: int | None
     end_line: int | None
     score: float
+    title: str = ""
 
 
 def retrieve(
@@ -133,6 +134,7 @@ def _rank_by_similarity(
         f"SELECT {_COLUMNS}, "
         "vec_distance_cosine(v.embedding, :vector) AS distance "
         "FROM chunks c JOIN chunk_vectors v ON v.rowid = c.id "
+        "JOIN documents d ON d.id = c.document_id "
         "WHERE c.id IN :ids ORDER BY distance LIMIT :k"
     ).bindparams(bindparam("ids", expanding=True))
     rows = session.execute(
@@ -146,6 +148,7 @@ def _rank_by_similarity(
             start_line=row.start_line,
             end_line=row.end_line,
             score=1.0 - row.distance,
+            title=row.title,
         )
         for row in rows
     ]
