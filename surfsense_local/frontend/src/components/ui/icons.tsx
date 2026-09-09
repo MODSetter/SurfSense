@@ -29,6 +29,7 @@ import {
   PencilIcon as PencilIconData,
   PlusIcon as PlusIconData,
   RefreshCwIcon as RefreshCwIconData,
+  Search01Icon,
   ServerOffIcon as ServerOffIconData,
   Settings02Icon,
   SparklesIcon as SparklesIconData,
@@ -93,6 +94,7 @@ export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const PencilIcon = createIcon(PencilIconData)
 export const PlusIcon = createIcon(PlusIconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
+export const SearchIcon = createIcon(Search01Icon)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const SparklesIcon = createIcon(SparklesIconData)

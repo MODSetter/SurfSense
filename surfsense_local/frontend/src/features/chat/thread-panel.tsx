@@ -77,6 +77,7 @@ export function ThreadPanel({
   providerAvailable,
   onCitation,
   onModelSetup,
+  onModelSelected,
   onUpload,
   onTitleAnimationComplete,
 }: {
@@ -93,6 +94,7 @@ export function ThreadPanel({
   providerAvailable: boolean
   onCitation: (citation: Citation) => void
   onModelSetup: () => void
+  onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
   onTitleAnimationComplete: () => void
 }) {
@@ -109,6 +111,7 @@ export function ThreadPanel({
       isUploading={isUploading}
       providerAvailable={providerAvailable}
       onModelSetup={onModelSetup}
+      onModelSelected={onModelSelected}
       onUpload={onUpload}
     />
   )

@@ -2,12 +2,7 @@ import { useRef, type ChangeEvent } from "react"
 import { ComposerPrimitive } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
-import {
-  ArrowUp02Icon,
-  ChevronDownIcon,
-  CircleStopIcon,
-  PlusIcon,
-} from "@/components/ui/icons"
+import { ArrowUp02Icon, CircleStopIcon, PlusIcon } from "@/components/ui/icons"
 import {
   Tooltip,
   TooltipContent,
@@ -17,31 +12,7 @@ import type { ModelSelection } from "@/features/model-selection/api"
 import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
-function ModelButton({
-  model,
-  onModelSetup,
-  className,
-}: {
-  model: ModelSelection
-  onModelSetup: () => void
-  className?: string
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onModelSetup}
-      className={cn(
-        "flex shrink-0 cursor-pointer items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none",
-        className
-      )}
-      title="Change model"
-      aria-label={`Model ${model.name}. Change model.`}
-    >
-      <span>{model.name}</span>
-      <ChevronDownIcon className="size-3" />
-    </button>
-  )
-}
+import { ModelPicker } from "./model-picker"
 
 function ComposerAction({
   isRunning,
@@ -132,6 +103,7 @@ export function ChatComposer({
   isUploading,
   providerAvailable,
   onModelSetup,
+  onModelSelected,
   onUpload,
 }: {
   placement: "center" | "bottom"
@@ -140,6 +112,7 @@ export function ChatComposer({
   isUploading: boolean
   providerAvailable: boolean
   onModelSetup: () => void
+  onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
 }) {
   return (
@@ -186,9 +159,10 @@ export function ChatComposer({
               className="absolute bottom-2 left-1.5"
             />
             <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
-              <ModelButton
+              <ModelPicker
                 model={model}
-                onModelSetup={onModelSetup}
+                onManageModels={onModelSetup}
+                onModelSelected={onModelSelected}
                 className="h-9 rounded-xl px-3 text-sm"
               />
               <ComposerAction isRunning={isRunning} />
@@ -200,12 +174,16 @@ export function ChatComposer({
       </ComposerPrimitive.Root>
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
-          <p className="min-w-0 text-left text-[11px] text-muted-foreground">
+          <p className="min-w-0 select-none text-left text-[11px] text-muted-foreground">
             {providerAvailable
-              ? `${model.name} runs locally. Check important answers.`
+              ? "SurfSense can make mistakes. Check important answers."
               : "Historical chats remain available while the provider is offline."}
           </p>
-          <ModelButton model={model} onModelSetup={onModelSetup} />
+          <ModelPicker
+            model={model}
+            onManageModels={onModelSetup}
+            onModelSelected={onModelSelected}
+          />
         </div>
       ) : null}
     </div>

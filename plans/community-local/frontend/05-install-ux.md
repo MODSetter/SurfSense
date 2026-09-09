@@ -39,6 +39,11 @@ Every settings section uses the same fixed-header, scrollable-body, and optional
 fixed-footer shell. The dialog and its two-column grid constrain height with
 `min-height: 0`; the section body is the only vertical scroll owner.
 
+The composer model button opens a compact picker containing generation-capable
+installed models. Users can search that list and switch models directly. A
+separate **Manage models** action opens Settings → Models for downloads,
+provider configuration, and hardware rescans.
+
 Recommended entries are grouped visually by family (for example Qwen or Gemma),
 but each card remains an exact parameter/quantization/runtime configuration.
 Do not render every parameter size merely because its family is recommended.

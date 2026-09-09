@@ -31,11 +31,13 @@ function WorkspaceDashboard({
   selection,
   providerAvailable,
   onModelRequired,
+  onModelSelected,
 }: {
   workspace: Workspace
   selection: ModelSelection
   providerAvailable: boolean
   onModelRequired: () => void
+  onModelSelected: (selection: ModelSelection) => void
 }) {
   const [highlightedDocumentId, setHighlightedDocumentId] = useState<
     number | null
@@ -114,6 +116,7 @@ function WorkspaceDashboard({
         providerAvailable={providerAvailable}
         onCitation={(citation) => highlightDocument(citation.document_id)}
         onModelSetup={onModelRequired}
+        onModelSelected={onModelSelected}
         onUpload={(files) => void sources.upload(files)}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
@@ -238,6 +241,7 @@ export function DashboardPage({
         selection={selection}
         providerAvailable={providerAvailable}
         onModelRequired={() => openSettings("models")}
+        onModelSelected={onModelSelected}
       />
       <SettingsDialog
         open={settingsOpen}

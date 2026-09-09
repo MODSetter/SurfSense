@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
   getGenerationSelection,
-  getProviderModels,
+  getInstalledGenerationModels,
   getProviders,
   modelKey,
   setGenerationSelection,
@@ -39,8 +39,8 @@ function isAbort(error: unknown) {
 async function fetchSelectionState(
   signal: AbortSignal
 ): Promise<ModelSelectionState> {
-  let providers
-  let selection
+  let providers: Provider[]
+  let selection: ModelSelection | null
   try {
     const result = await Promise.all([
       getProviders(signal),
@@ -55,33 +55,7 @@ async function fetchSelectionState(
     return { status: "api-unavailable", message: messageFrom(error) }
   }
 
-  const healthyProviders = providers.filter((provider) => provider.healthy)
-  const modelGroups = await Promise.all(
-    healthyProviders.map(async (provider) => {
-      try {
-        const models = await getProviderModels(provider.name, signal)
-        return models
-          .filter(
-            (model) =>
-              model.installed && model.capabilities.includes("completion")
-          )
-          .map((model) => ({ ...model, provider: provider.name }))
-      } catch (error) {
-        if (isAbort(error)) {
-          throw error
-        }
-        // A failing provider yields an empty tab, not a dead screen.
-        return []
-      }
-    })
-  )
-  const models = modelGroups
-    .flat()
-    .toSorted(
-      (left, right) =>
-        left.provider.localeCompare(right.provider) ||
-        left.name.localeCompare(right.name)
-    )
+  const models = await getInstalledGenerationModels(providers, signal)
   const selectionIsCurrent =
     selection !== null &&
     models.some((model) => modelKey(model) === modelKey(selection))
