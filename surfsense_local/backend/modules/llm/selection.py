@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider
 
 
@@ -41,5 +41,7 @@ async def choose_model(
     else:
         selected.provider = provider_name
         selected.name = model_name
+    if session.get(OnboardingCompletion, 1) is None:
+        session.add(OnboardingCompletion())
     session.flush()
     return selected

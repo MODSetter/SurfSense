@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import func
+from sqlalchemy import CheckConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.db import Base, text_enum
@@ -9,6 +9,15 @@ from shared.db import Base, text_enum
 
 class ModelRole(enum.StrEnum):
     GENERATION = "generation"
+
+
+class OnboardingCompletion(Base):
+    __tablename__ = "onboarding_completion"
+    __table_args__ = (CheckConstraint("id = 1", name="singleton"),)
+
+    # Presence of this singleton row means model onboarding has finished.
+    id: Mapped[int] = mapped_column(primary_key=True, default=1)
+    completed_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
 
 class SelectedModel(Base):
