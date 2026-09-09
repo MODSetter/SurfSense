@@ -1,28 +1,28 @@
+import { useState } from "react"
+
 import { CircleAlertIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
 import { modelKey, type ModelSelection } from "@/features/model-selection/api"
-import { ProviderTab } from "@/features/model-selection/provider-tab"
+import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
 import { useModelSelection } from "@/features/model-selection/use-model-selection"
 
 import { SettingsSection } from "./settings-section"
-
-const titleCase = (value: string) =>
-  value.charAt(0).toUpperCase() + value.slice(1)
 
 const DESCRIPTION =
   "Download local models or choose the model SurfSense uses for new messages."
 
 export function ModelsSettings({
+  onModelUnavailable,
   onSelected,
 }: {
+  onModelUnavailable: () => void
   onSelected: (selection: ModelSelection) => void
 }) {
+  const [activeProvider, setActiveProvider] = useState("local")
   const { state, draftKey, saveState, select, refresh, save } =
     useModelSelection()
 
@@ -57,14 +57,15 @@ export function ModelsSettings({
   const persistedKey =
     state.selection === null ? null : modelKey(state.selection)
   const hasChanges = draftKey !== null && draftKey !== persistedKey
-  const remoteProviders = state.providers.filter(
-    (provider) => provider.requires_key
-  )
-  const defaultTab = remoteProviders.some(
-    (provider) => provider.name === state.selection?.provider
-  )
-    ? state.selection?.provider
-    : "local"
+  const draftProvider =
+    draftKey === null
+      ? null
+      : state.models.find((model) => modelKey(model) === draftKey)?.provider
+  const needsConfirmation =
+    activeProvider === draftProvider &&
+    state.providers.some(
+      (provider) => provider.name === draftProvider && provider.requires_key
+    )
   const isSaving = saveState.status === "saving"
 
   const saveSelection = async () => {
@@ -79,7 +80,7 @@ export function ModelsSettings({
       title="Models"
       description={DESCRIPTION}
       footer={
-        hasChanges ? (
+        hasChanges && needsConfirmation ? (
           <Button disabled={isSaving} onClick={() => void saveSelection()}>
             {isSaving ? <Spinner data-icon="inline-start" /> : null}
             {isSaving ? "Saving..." : "Use selected model"}
@@ -87,51 +88,25 @@ export function ModelsSettings({
         ) : undefined
       }
     >
-      {state.selection ? (
-        <p className="mb-4 text-xs text-muted-foreground">
-          Currently using{" "}
-          <span className="font-medium text-foreground">
-            {state.selection.name}
-          </span>
-        </p>
-      ) : null}
-
-      <Tabs defaultValue={defaultTab} className="gap-5">
-        <TabsList>
-          <TabsTrigger value="local">Local</TabsTrigger>
-          {remoteProviders.map((provider) => (
-            <TabsTrigger key={provider.name} value={provider.name}>
-              {titleCase(provider.name)}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        <TabsContent value="local">
-          <ModelCatalogPage
-            installedFirst
-            onSelected={(selection) => {
-              onSelected(selection)
-              void refresh({ silent: true })
-            }}
-          />
-        </TabsContent>
-
-        {remoteProviders.map((provider) => (
-          <TabsContent key={provider.name} value={provider.name}>
-            <ProviderTab
-              provider={provider}
-              models={state.models.filter(
-                (model) => model.provider === provider.name
-              )}
-              draftKey={draftKey}
-              persistedKey={persistedKey}
-              onSelect={select}
-              disabled={isSaving}
-              refresh={refresh}
-            />
-          </TabsContent>
-        ))}
-      </Tabs>
+      <ModelSelectionContent
+        allowDelete
+        state={state}
+        draftKey={draftKey}
+        disabled={isSaving}
+        installedFirst
+        onSelect={select}
+        onCatalogSelected={(selection) => {
+          onSelected(selection)
+          void refresh({ silent: true })
+        }}
+        onModelUnavailable={onModelUnavailable}
+        onModelsChanged={() => void refresh({ silent: true })}
+        onActiveProviderChange={setActiveProvider}
+        refresh={refresh}
+      />
+      <span className="sr-only" aria-live="polite">
+        {state.selection ? "" : "No chat model is selected."}
+      </span>
 
       {saveState.status === "error" ? (
         <p className="mt-3 text-sm text-destructive">{saveState.message}</p>

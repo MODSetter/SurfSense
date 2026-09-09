@@ -5,9 +5,13 @@ import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
 import {
   getGenerationSelection,
+  getInstalledGenerationModels,
+  getOnboardingStatus,
+  getProviders,
+  modelKey,
   type ModelSelection,
 } from "@/features/model-selection/api"
-import { ModelSelectionPage } from "@/features/model-selection/model-selection-page"
+import { OnboardingPage } from "@/features/onboarding/onboarding-page"
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
 const DashboardPage = lazy(() =>
@@ -18,10 +22,10 @@ const DashboardPage = lazy(() =>
 
 type BootstrapState =
   | { status: "loading" }
-  | { status: "model-required" }
+  | { status: "onboarding-required" }
   | {
       status: "ready"
-      selection: ModelSelection
+      selection: ModelSelection | null
       workspaces: Workspace[]
     }
   | { status: "error"; message: string }
@@ -35,12 +39,26 @@ const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 
 async function fetchBootstrapState(): Promise<BootstrapState> {
   try {
-    const selection = await getGenerationSelection()
-    if (!selection) {
-      return { status: "model-required" }
+    const onboarding = await getOnboardingStatus()
+    if (!onboarding.completed) {
+      return { status: "onboarding-required" }
     }
-    const workspaces = await listWorkspaces()
-    return { status: "ready", selection, workspaces }
+    const providersPromise = getProviders()
+    const selectionPromise = getGenerationSelection()
+    const workspacesPromise = listWorkspaces()
+    const providers = await providersPromise
+    const modelsPromise = getInstalledGenerationModels(providers)
+    const [selection, workspaces, models] = await Promise.all([
+      selectionPromise,
+      workspacesPromise,
+      modelsPromise,
+    ])
+    const currentSelection =
+      selection &&
+      models.some((model) => modelKey(model) === modelKey(selection))
+        ? selection
+        : null
+    return { status: "ready", selection: currentSelection, workspaces }
   } catch (error) {
     return { status: "error", message: messageFrom(error) }
   }
@@ -92,10 +110,10 @@ export function AppBootstrap() {
     return <GlobalLoader />
   }
 
-  if (state.status === "model-required") {
+  if (state.status === "onboarding-required") {
     return (
-      <ModelSelectionPage
-        onSelected={(selection) => {
+      <OnboardingPage
+        onComplete={(selection) => {
           setState({ status: "loading" })
           void listWorkspaces()
             .then((workspaces) =>
@@ -138,6 +156,13 @@ export function AppBootstrap() {
       <DashboardPage
         selection={state.selection}
         initialWorkspaces={state.workspaces}
+        onModelUnavailable={() =>
+          setState((current) =>
+            current.status === "ready"
+              ? { ...current, selection: null }
+              : current
+          )
+        }
         onModelSelected={(selection) =>
           setState((current) =>
             current.status === "ready" ? { ...current, selection } : current

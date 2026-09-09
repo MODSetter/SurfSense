@@ -169,7 +169,7 @@
   -webkit-app-region: drag;
 }
 
-.electron-macos body:has([data-model-selection-page])::before {
+.electron-macos body:has([data-onboarding-page])::before {
   background: color-mix(in oklab, var(--muted) 30%, transparent);
 }
 

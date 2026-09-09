@@ -1,6 +1,6 @@
 import { useState } from "react"
 
-import { CheckIcon, CircleAlertIcon, KeyRoundIcon } from "@/components/ui/icons"
+import { CheckIcon, CircleAlertIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -142,11 +142,7 @@ export function OpenRouterPanel({
           disabled={busy || key.trim() === ""}
           onClick={() => void connect()}
         >
-          {busy ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <KeyRoundIcon data-icon="inline-start" />
-          )}
+          {busy ? <Spinner data-icon="inline-start" /> : null}
           Connect
         </Button>
       </div>

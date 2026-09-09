@@ -1,8 +1,6 @@
-import {
-  CheckIcon,
-  CircleAlertIcon,
-  RefreshCwIcon,
-} from "@/components/ui/icons"
+import { useState } from "react"
+
+import { CheckIcon, CircleAlertIcon, RefreshCwIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -17,15 +15,9 @@ import {
 } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
-
-import { modelKey, type ModelSelection } from "./api"
-import { ProviderTab } from "./provider-tab"
-import { useModelSelection } from "./use-model-selection"
-
-const titleCase = (value: string) =>
-  value.charAt(0).toUpperCase() + value.slice(1)
+import { modelKey, type ModelSelection } from "@/features/model-selection/api"
+import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
+import { useModelSelection } from "@/features/model-selection/use-model-selection"
 
 function LoadingModels() {
   return (
@@ -56,54 +48,54 @@ function OfflineState({ message }: { message: string }) {
   )
 }
 
-export function ModelSelectionPage({
-  onSelected,
+export function OnboardingPage({
+  onComplete,
 }: {
-  onSelected?: (selection: ModelSelection) => void
+  onComplete: (selection: ModelSelection) => void
 }) {
+  const [activeProvider, setActiveProvider] = useState("local")
   const { state, draftKey, saveState, isRefreshing, select, refresh, save } =
     useModelSelection()
-
   const persistedKey =
     state.status === "ready" && state.selection !== null
       ? modelKey(state.selection)
       : null
   const hasChanges = draftKey !== null && draftKey !== persistedKey
-  const isSaving = saveState.status === "saving"
-  const providers = state.status === "ready" ? state.providers : []
-  const remoteProviders = providers.filter((provider) => provider.requires_key)
-  const canContinue =
+  const draftProvider =
+    state.status === "ready" && draftKey !== null
+      ? state.models.find((model) => modelKey(model) === draftKey)?.provider
+      : null
+  const needsConfirmation =
     state.status === "ready" &&
+    activeProvider === draftProvider &&
+    state.providers.some(
+      (provider) => provider.name === draftProvider && provider.requires_key
+    )
+  const isSaving = saveState.status === "saving"
+  const canContinue =
+    needsConfirmation &&
     draftKey !== null &&
     (!state.staleSelection || hasChanges)
-  const defaultTab =
-    state.status === "ready"
-      ? remoteProviders.some(
-          (provider) => provider.name === state.selection?.provider
-        )
-        ? state.selection?.provider
-        : "local"
-      : undefined
 
-  const handlePrimaryAction = async () => {
+  const complete = async () => {
     if (
       !hasChanges &&
       state.status === "ready" &&
       state.selection !== null &&
       !state.staleSelection
     ) {
-      onSelected?.(state.selection)
+      onComplete(state.selection)
       return
     }
     const selection = await save()
     if (selection) {
-      onSelected?.(selection)
+      onComplete(selection)
     }
   }
 
   return (
     <main
-      data-model-selection-page
+      data-onboarding-page
       className="flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
@@ -134,74 +126,21 @@ export function ModelSelectionPage({
 
           <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
             {state.status === "loading" ? <LoadingModels /> : null}
-
             {state.status === "api-unavailable" ? (
               <OfflineState message={state.message} />
             ) : null}
-
-            {state.status === "ready" && state.staleSelection ? (
-              <Alert>
-                <CircleAlertIcon />
-                <AlertTitle>
-                  Your previous model is no longer available
-                </AlertTitle>
-                <AlertDescription className="text-foreground">
-                  Refresh after reinstalling it, or explicitly choose another
-                  compatible model.
-                </AlertDescription>
-              </Alert>
-            ) : null}
-
             {state.status === "ready" ? (
-              <Tabs className="min-h-0 flex-1 gap-3" defaultValue={defaultTab}>
-                <TabsList>
-                  <TabsTrigger value="local">
-                    <span
-                      aria-hidden="true"
-                      className="size-1.5 rounded-full bg-green-500"
-                    />
-                    Local
-                  </TabsTrigger>
-                  {remoteProviders.map((provider) => (
-                    <TabsTrigger key={provider.name} value={provider.name}>
-                      <span
-                        aria-hidden="true"
-                        className={`size-1.5 rounded-full ${
-                          provider.healthy
-                            ? "bg-green-500"
-                            : "bg-muted-foreground/40"
-                        }`}
-                      />
-                      {titleCase(provider.name)}
-                    </TabsTrigger>
-                  ))}
-                </TabsList>
-                <TabsContent
-                  className="min-h-0 overflow-y-auto overscroll-contain"
-                  value="local"
-                >
-                  <ModelCatalogPage onSelected={onSelected} />
-                </TabsContent>
-                {remoteProviders.map((provider) => (
-                  <TabsContent
-                    key={provider.name}
-                    className="min-h-0 overflow-y-auto overscroll-contain"
-                    value={provider.name}
-                  >
-                    <ProviderTab
-                      provider={provider}
-                      models={state.models.filter(
-                        (model) => model.provider === provider.name
-                      )}
-                      draftKey={draftKey}
-                      persistedKey={persistedKey}
-                      onSelect={select}
-                      disabled={isSaving || isRefreshing}
-                      refresh={refresh}
-                    />
-                  </TabsContent>
-                ))}
-              </Tabs>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+                <ModelSelectionContent
+                  state={state}
+                  draftKey={draftKey}
+                  disabled={isSaving || isRefreshing}
+                  onSelect={select}
+                  onCatalogSelected={onComplete}
+                  onActiveProviderChange={setActiveProvider}
+                  refresh={refresh}
+                />
+              </div>
             ) : null}
 
             <div className="min-h-5 text-sm" aria-live="polite">
@@ -232,19 +171,21 @@ export function ModelSelectionPage({
               )}
               {isRefreshing ? "Refreshing..." : "Refresh"}
             </Button>
-            <Button
-              type="button"
-              className="min-h-10"
-              disabled={!canContinue || isSaving || isRefreshing}
-              onClick={() => void handlePrimaryAction()}
-            >
-              {isSaving ? <Spinner data-icon="inline-start" /> : null}
-              {isSaving
-                ? "Saving..."
-                : hasChanges
-                  ? "Use this model"
-                  : "Continue"}
-            </Button>
+            {needsConfirmation ? (
+              <Button
+                type="button"
+                className="min-h-10"
+                disabled={!canContinue || isSaving || isRefreshing}
+                onClick={() => void complete()}
+              >
+                {isSaving ? <Spinner data-icon="inline-start" /> : null}
+                {isSaving
+                  ? "Saving..."
+                  : hasChanges
+                    ? "Use this model"
+                    : "Continue"}
+              </Button>
+            ) : null}
           </CardFooter>
         </Card>
       </div>

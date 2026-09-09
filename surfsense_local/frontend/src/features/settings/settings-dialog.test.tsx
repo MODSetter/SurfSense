@@ -125,8 +125,8 @@ describe("SettingsDialog", () => {
     await user.click(screen.getByRole("button", { name: "Models" }))
 
     expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
-    expect(screen.getByText("Currently using")).toBeTruthy()
-    expect(screen.getByText("qwen3:1.7b")).toBeTruthy()
+    expect(screen.queryByText("Currently using")).toBeNull()
+    expect(screen.queryByRole("tablist")).toBeNull()
     expect(
       await screen.findByText("No local models are available")
     ).toBeTruthy()

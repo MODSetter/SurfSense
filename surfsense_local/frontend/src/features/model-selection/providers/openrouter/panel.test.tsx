@@ -3,7 +3,7 @@ import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
-import { ModelSelectionPage } from "../../model-selection-page"
+import { OnboardingPage } from "@/features/onboarding/onboarding-page"
 
 function installApi() {
   const state = { configured: false }
@@ -97,7 +97,7 @@ describe("openrouter provider", () => {
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
-    render(<ModelSelectionPage />)
+    render(<OnboardingPage onComplete={() => undefined} />)
 
     await user.click(await screen.findByRole("tab", { name: /openrouter/i }))
 
@@ -105,10 +105,22 @@ describe("openrouter provider", () => {
       screen.getByLabelText("OpenRouter API key"),
       "sk-or-test-key"
     )
-    await user.click(screen.getByRole("button", { name: "Connect" }))
+    const connect = screen.getByRole("button", { name: "Connect" })
+    expect(connect.querySelector("svg")).toBeNull()
+    await user.click(connect)
 
     const model = await screen.findByRole("radio", { name: /gpt-4o/i })
     await user.click(model)
+    expect(
+      screen.getByRole("button", { name: "Use this model" })
+    ).toBeTruthy()
+
+    await user.click(screen.getByRole("tab", { name: "Local" }))
+    expect(
+      screen.queryByRole("button", { name: "Use this model" })
+    ).toBeNull()
+
+    await user.click(screen.getByRole("tab", { name: /openrouter/i }))
     await user.click(screen.getByRole("button", { name: "Use this model" }))
 
     await screen.findByText("Model selection saved.")
