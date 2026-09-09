@@ -1,4 +1,6 @@
 import asyncio
+import logging
+import time
 from collections.abc import AsyncIterator
 
 from sqlalchemy.orm import Session
@@ -6,8 +8,11 @@ from sqlalchemy.orm import Session
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.providers import get_provider
 from modules.llm.providers.types import Message
+from shared.config import get_llm_settings
 from worker.studio.artifact import Source
 from worker.studio.builder import Builder
+
+logger = logging.getLogger(__name__)
 
 
 class NoModelSelectedError(RuntimeError):
@@ -44,7 +49,25 @@ def run_model(session: Session, system: str, sources: list[Source]) -> str:
         Message(role="system", content=system),
         Message(role="user", content=_grounding(sources)),
     ]
-    return asyncio.run(_collect(generator.chat(selected.name, messages)))
+    started = time.monotonic()
+    logger.info(
+        "studio: model %s/%s starting (%s source chars) url=%s",
+        selected.provider,
+        selected.name,
+        sum(len(source.content) for source in sources),
+        get_llm_settings().ollama_base_url
+        if selected.provider == "ollama"
+        else selected.provider,
+    )
+    reply = asyncio.run(_collect(generator.chat(selected.name, messages)))
+    logger.info(
+        "studio: model %s/%s returned %s chars in %.1fs",
+        selected.provider,
+        selected.name,
+        len(reply),
+        time.monotonic() - started,
+    )
+    return reply
 
 
 async def _collect(stream: AsyncIterator[str]) -> str:

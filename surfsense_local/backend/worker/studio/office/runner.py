@@ -8,8 +8,11 @@ sandbox runner.
 
 from __future__ import annotations
 
+import logging
 import re
 import threading
+
+logger = logging.getLogger(__name__)
 
 TIMEOUT_SECONDS = 120
 _FENCE = re.compile(r"```(?:python)?\s*(.*?)```", re.DOTALL)
@@ -32,10 +35,12 @@ def execute(code: str) -> dict:
         except BaseException as error:  # any failure becomes the job's
             failure.append(error)
 
+    logger.info("studio: office exec started (%ss cap)", TIMEOUT_SECONDS)
     thread = threading.Thread(target=target, daemon=True)
     thread.start()
     thread.join(TIMEOUT_SECONDS)
     if thread.is_alive():
+        logger.info("studio: office exec still running after %ss", TIMEOUT_SECONDS)
         raise RuntimeError(f"generated code did not finish within {TIMEOUT_SECONDS}s")
     if failure:
         error = failure[0]

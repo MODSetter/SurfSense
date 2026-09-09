@@ -88,4 +88,44 @@ describe("studio dialog", () => {
     })
     expect(await screen.findByText("pending")).toBeTruthy()
   })
+
+  it("shows the stored reason on a failed artifact", async () => {
+    const failedArtifact = {
+      ...pendingArtifact,
+      id: 11,
+      title: "Flashcards",
+      format: "flashcards",
+      status: "failed" as const,
+      error_message: "ConnectError: All connection attempts failed",
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "flashcards",
+              label: "Flashcards",
+              requires_key: false,
+              available: true,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") {
+          return Response.json([failedArtifact])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<StudioDialog workspaceId={1} documents={[readyDocument]} />)
+    await user.click(screen.getByRole("button", { name: "Studio" }))
+
+    expect(await screen.findByText("failed")).toBeTruthy()
+    expect(
+      screen.getByText("ConnectError: All connection attempts failed")
+    ).toBeTruthy()
+  })
 })

@@ -188,30 +188,38 @@ function Library({
         {artifacts.map((artifact) => (
           <div
             key={artifact.id}
-            className="flex items-center gap-2 rounded-md border p-2"
+            className="flex items-start gap-2 rounded-md border p-2"
           >
-            <button
-              type="button"
-              disabled={artifact.status !== "ready"}
-              onClick={() => onOpen(artifact.id)}
-              className="min-w-0 flex-1 cursor-pointer text-left disabled:cursor-default"
-            >
-              <span className="block truncate text-sm font-medium">
-                {artifact.title}
-              </span>
-              <span className="text-[11px] text-muted-foreground">
-                {labelOf(artifact.format)}
-              </span>
-            </button>
+            <div className="min-w-0 flex-1">
+              <button
+                type="button"
+                disabled={artifact.status !== "ready"}
+                onClick={() => onOpen(artifact.id)}
+                className="w-full cursor-pointer text-left disabled:cursor-default"
+              >
+                <span className="block truncate text-sm font-medium">
+                  {artifact.title}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {labelOf(artifact.format)}
+                </span>
+              </button>
+              {artifact.status === "failed" && artifact.error_message ? (
+                <p className="mt-1 text-[11px] text-pretty text-destructive">
+                  {artifact.error_message}
+                </p>
+              ) : null}
+            </div>
             <Badge
               variant={statusVariant[artifact.status]}
-              className="h-4 px-1.5 text-[10px]"
+              className="mt-0.5 h-4 shrink-0 px-1.5 text-[10px]"
             >
               {artifact.status}
             </Badge>
             <Button
               variant="ghost"
               size="icon-sm"
+              className="shrink-0"
               aria-label={`Delete ${artifact.title}`}
               onClick={() => onDelete(artifact.id)}
             >
@@ -254,12 +262,12 @@ function Viewer({
           </Button>
         ))}
       </div>
-      <ScrollArea className="min-h-0 flex-1 rounded-md border">
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
         <Preview artifact={artifact} />
         <div className="prose prose-sm max-w-none p-4 text-sm leading-6 whitespace-pre-wrap">
           {artifact.content || "This artifact has no text body."}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   )
 }
@@ -302,7 +310,7 @@ export function StudioDialog({
           Studio
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[85svh] flex-col sm:max-w-2xl">
+      <DialogContent className="flex max-h-[85svh] flex-col overflow-hidden sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>Studio</DialogTitle>
           <DialogDescription>
@@ -325,8 +333,8 @@ export function StudioDialog({
             <Skeleton className="h-24 w-full" />
           </div>
         ) : (
-          <ScrollArea className="min-h-0 flex-1">
-            <div className="space-y-5 pr-2">
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <div className="space-y-5 pr-1 pb-1">
               <Composer
                 documents={documents}
                 formats={studio.formats}
@@ -340,7 +348,7 @@ export function StudioDialog({
                 onDelete={(id) => void studio.remove(id)}
               />
             </div>
-          </ScrollArea>
+          </div>
         )}
       </DialogContent>
     </Dialog>

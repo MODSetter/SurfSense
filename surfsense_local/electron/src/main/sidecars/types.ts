@@ -27,7 +27,7 @@ export interface SidecarContext {
   hfHome?: string
   /** Packaged: absolute path to the pinned llmfit executable. */
   llmfitPath?: string
-  /** Packaged: the bundled Ollama's port, model dir, and URL for the API. */
+  /** Packaged: the bundled Ollama's port, model dir, and URL for API + worker. */
   ollamaPort?: number
   ollamaModelsDir?: string
   ollamaUrl?: string
