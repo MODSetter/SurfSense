@@ -1,4 +1,6 @@
 import io
+import logging
+import time
 import wave
 from dataclasses import dataclass
 from functools import lru_cache
@@ -12,6 +14,8 @@ from shared.config import get_storage_settings
 MODEL_FILE = "kokoro-v1.0.onnx"
 VOICES_FILE = "voices-v1.0.bin"
 MODEL_DIR_NAME = "kokoro"
+
+logger = logging.getLogger(__name__)
 
 SAMPLE_RATE = 24_000  # Kokoro's output rate.
 GAP_SECONDS = 0.35  # Silence between turns, so the two hosts do not run together.
@@ -53,15 +57,33 @@ def synthesize(turns: list[Turn]) -> bytes:
 
     import numpy as np
 
+    logger.info("studio: kokoro loading engine")
+    load_started = time.monotonic()
     kokoro = _engine()
+    logger.info("studio: kokoro engine ready in %.1fs", time.monotonic() - load_started)
     gap = np.zeros(int(SAMPLE_RATE * GAP_SECONDS), dtype=np.float32)
     chunks: list[Any] = []
-    for turn in turns:
+    for index, turn in enumerate(turns, start=1):
+        turn_started = time.monotonic()
+        logger.info(
+            "studio: kokoro turn %s/%s voice=%s %s chars",
+            index,
+            len(turns),
+            turn.voice,
+            len(turn.text),
+        )
         samples, _ = kokoro.create(turn.text, voice=turn.voice, speed=1.0, lang="en-us")
+        logger.info(
+            "studio: kokoro turn %s/%s done in %.1fs",
+            index,
+            len(turns),
+            time.monotonic() - turn_started,
+        )
         chunks.append(np.asarray(samples, dtype=np.float32))
         chunks.append(gap)
 
     audio = np.concatenate(chunks) if chunks else np.zeros(1, dtype=np.float32)
+    logger.info("studio: kokoro stitching wav (%s turns)", len(turns))
     return _wav(audio)
 
 
