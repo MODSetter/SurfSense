@@ -214,7 +214,8 @@ Returns:
 
 Each catalog row includes an opaque `catalog_id`, canonical model id, family,
 display label, fit, resource estimates, license, installed/selected state,
-and the chosen runtime name. It does not expose artifact URLs or local paths.
+the chosen runtime name, and a server-derived `can_delete` capability. It does
+not expose artifact URLs or local paths.
 `?refresh=true` invalidates the cached hardware/catalog scan.
 
 ### `POST /llm/install`
@@ -235,6 +236,22 @@ Keep `GET /llm/providers`, provider model inventory, and
 `GET/PUT /llm/selection/generation`. The provider-specific pull route may remain
 during migration, but the final frontend calls the normalized install route.
 
+### `GET /llm/onboarding`
+
+Returns whether the user has completed model onboarding. The first valid model
+selection creates the durable completion marker. Clearing or deleting a later
+selection does not reset onboarding.
+
+### `DELETE /llm/providers/{provider}/models/{model_name}`
+
+Deletes an installed local generation model through the runtime API. For
+Ollama, the adapter calls `DELETE /api/delete` with the exact model name and
+tag. The endpoint rejects remote providers, embedding-only models, active
+downloads, active chat streams, and deletion while the separate Studio worker
+is generating. If the deleted model is
+selected, the same transaction clears `SelectedModel` and reports
+`selection_cleared: true`.
+
 ## Failure behavior
 
 - llmfit missing, timed out, or malformed: return installed runtime models and
@@ -248,6 +265,8 @@ during migration, but the final frontend calls the normalized install route.
 - Insufficient disk: reject before download with required and available bytes.
 - Cancelled/interrupted pull: clean temporary state where the runtime permits
   it and never auto-select the incomplete model.
+- Deletion never edits runtime storage directly and never silently selects a
+  replacement model.
 
 ## Tests
 
@@ -260,6 +279,8 @@ during migration, but the final frontend calls the normalized install route.
   arbitrary renderer-supplied tag or URL.
 - Integration covers catalog → install progress → installed inventory →
   selection, with fake llmfit output and a stub runtime.
+- Deletion coverage includes exact Ollama payloads, remote/capability rejection,
+  active-operation conflicts, and selected-model cleanup.
 - Packaging smoke runs `llmfit --json system` on each clean target OS.
 
 ## Acceptance

@@ -11,7 +11,7 @@ to know RAM budgets, quantization, Ollama tags, or GGUF files. Show exact
 SurfSense-tested configurations first, then other installable catalog entries,
 both ranked for the current computer.
 
-## First-time setup
+## Onboarding
 
 The **Choose your AI model** page loads `GET /llm/catalog` and renders:
 
@@ -21,8 +21,9 @@ The **Choose your AI model** page loads `GET /llm/catalog` and renders:
 3. **Installed** — already available local models, including models that are no
    longer a good fit under the current policy.
 
-This full-page flow is only the startup gate when no generation model has been
-selected. Later model changes happen in **Settings → Models**.
+This full-page flow appears only until durable model onboarding is complete.
+Later model changes and recovery from a missing selection happen in
+**Settings → Models** without returning to onboarding.
 
 ## Settings
 
@@ -30,10 +31,17 @@ The workspace rail keeps the Settings button, while `DashboardPage` owns the
 dialog and its active section. The rail button opens General; a chat model error
 opens Models directly.
 
-The Models section reuses the catalog, provider, installation, and selection
-logic from first-time setup. It puts Installed models first, supports local and
+The onboarding page and Models settings use the same model-selection content:
+catalog, provider tabs, installation, refresh, and draft selection. Their shells
+remain separate. Settings puts Installed models first, supports local and
 OpenRouter selection, and updates the dashboard's active selection immediately.
-It does not render the onboarding page or its Continue action.
+It does not render onboarding branding or its Continue action.
+
+Installed local generation models expose Delete after confirmation. Deleting the
+selected model clears the backend selection but not onboarding completion. The
+dashboard remains available for reading chats and sources, disables sending,
+and links back to Models settings. OpenRouter and embedding-only models never
+show local deletion controls.
 
 Every settings section uses the same fixed-header, scrollable-body, and optional
 fixed-footer shell. The dialog and its two-column grid constrain height with
@@ -83,6 +91,9 @@ from real workloads.
   already installed.
 - A failed or cancelled install remains retryable and is never shown as
   selected.
+- **Delete** calls the backend's provider model endpoint. The renderer never
+  edits Ollama storage. Deletion is unavailable during installs or active
+  generation, and deleting the selected model never silently chooses another.
 
 ## States and degradation
 
@@ -119,6 +130,16 @@ src/features/model-catalog/
 ├── model-card.tsx
 ├── install-progress.tsx
 └── model-catalog.test.tsx
+
+src/features/model-selection/
+├── model-selection-content.tsx
+├── provider-tab.tsx
+├── use-model-selection.ts
+└── api.ts
+
+src/features/onboarding/
+├── onboarding-page.tsx
+└── onboarding-page.test.tsx
 ```
 
 TanStack Query owns catalog, installed inventory, and selection invalidation.

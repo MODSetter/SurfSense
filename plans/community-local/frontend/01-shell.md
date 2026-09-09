@@ -5,15 +5,17 @@
 
 ## Goal
 
-App opens with installed-model selection, then navigation and workspace screens.
-Phase 5 upgrades this route to the hardware-ranked install catalog specified in
+App opens with one-time model onboarding, then navigation and workspace screens.
+Phase 5 upgrades onboarding to the hardware-ranked install catalog specified in
 [`05-install-ux.md`](05-install-ux.md).
 The desktop shell, workspace bootstrap, assistant-ui runtime, and three-panel
 dashboard are specified in [`01-dashboard.md`](01-dashboard.md).
 
 ## Work
 
-- **First screen: local generation model selection.**
+- **Onboarding: initial generation model selection.**
+  - Show this full-screen surface only until backend onboarding completion.
+    Later missing-model recovery stays in the dashboard and Models settings.
   - Load `GET /llm/providers` and the existing
     `GET /llm/selection/generation`; a selection `404` means not configured,
     not a broken API.
@@ -52,11 +54,13 @@ Keep the feature local until a second screen needs shared client state:
 ```text
 src/
 ├── App.tsx
+├── features/onboarding/
+│   ├── onboarding-page.tsx
+│   └── onboarding-page.test.tsx
 ├── features/model-selection/
 │   ├── api.ts
 │   ├── use-model-selection.ts
-│   ├── model-selection-page.tsx
-│   └── model-selection.test.tsx
+│   └── model-selection-content.tsx
 ├── components/ui/             # shadcn primitives only
 └── lib/api.ts                 # shared JSON request/error handling
 ```
@@ -64,7 +68,9 @@ src/
 - `App.tsx` is composition only.
 - `features/model-selection/api.ts` owns exact HTTP contracts.
 - `use-model-selection.ts` owns load, refresh, draft, and save transitions.
-- `model-selection-page.tsx` owns accessible presentation and event wiring.
+- `onboarding-page.tsx` owns the one-time full-screen presentation and
+  completion action.
+- `model-selection-content.tsx` owns presentation shared with Models settings.
 - Model identity is `(provider, name)`, never the model name alone.
 - No global store, router data layer, React Query/SWR, or Electron API is needed
   for this screen.
