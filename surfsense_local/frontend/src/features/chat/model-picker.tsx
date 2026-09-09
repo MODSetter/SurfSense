@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -9,7 +9,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -42,6 +41,11 @@ export function ModelPicker({
 }) {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
+  const resultsRef = useRef<HTMLDivElement>(null)
+  const [scrollEdges, setScrollEdges] = useState({
+    top: false,
+    bottom: false,
+  })
   const installed = useQuery({
     queryKey: installedModelsQueryKey,
     queryFn: async ({ signal }) => {
@@ -69,6 +73,28 @@ export function ModelPicker({
   const visibleModels = (installed.data ?? []).filter((candidate) =>
     candidate.name.toLowerCase().includes(needle)
   )
+  const updateScrollEdges = useCallback(() => {
+    const results = resultsRef.current
+    if (!results) {
+      return
+    }
+    const top = results.scrollTop > 1
+    const bottom =
+      results.scrollTop + results.clientHeight < results.scrollHeight - 1
+    setScrollEdges((current) =>
+      current.top === top && current.bottom === bottom
+        ? current
+        : { top, bottom }
+    )
+  }, [])
+
+  useEffect(() => {
+    if (visibleModels.length === 0) {
+      setScrollEdges({ top: false, bottom: false })
+      return
+    }
+    updateScrollEdges()
+  }, [updateScrollEdges, visibleModels.length])
 
   return (
     <DropdownMenu
@@ -96,7 +122,7 @@ export function ModelPicker({
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="end" className="w-72 p-0">
-        <div className="relative border-b p-2">
+        <div className="relative p-2">
           <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
@@ -113,54 +139,74 @@ export function ModelPicker({
           />
         </div>
 
-        <div className="relative h-64 select-none overflow-y-auto p-1">
-          <DropdownMenuGroup>
-            <DropdownMenuLabel>Installed models</DropdownMenuLabel>
-            {installed.isPending ? (
-              <DropdownMenuLabel>Loading models…</DropdownMenuLabel>
-            ) : installed.isError ? (
-              <DropdownMenuLabel>
-                Could not load installed models
-              </DropdownMenuLabel>
-            ) : visibleModels.length > 0 ? (
-              <DropdownMenuRadioGroup
-                value={modelKey(model)}
-                onValueChange={(key) => selectModel.mutate(key)}
-              >
-                {visibleModels.map((candidate) => {
-                  const key = modelKey(candidate)
-                  const selected = key === modelKey(model)
-                  return (
-                    <DropdownMenuRadioItem
-                      key={key}
-                      value={key}
-                      disabled={selectModel.isPending}
-                      className={selected ? "pr-8" : "pr-1.5"}
-                    >
-                      <span
-                        className="sidebar-row-title-fade min-w-0 flex-1 overflow-hidden whitespace-nowrap"
+        <div className="relative">
+          <div
+            ref={resultsRef}
+            data-slot="model-picker-results"
+            className="relative h-64 select-none overflow-y-auto p-1"
+            onScroll={updateScrollEdges}
+          >
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Installed models</DropdownMenuLabel>
+              {installed.isPending ? (
+                <DropdownMenuLabel>Loading models…</DropdownMenuLabel>
+              ) : installed.isError ? (
+                <DropdownMenuLabel>
+                  Could not load installed models
+                </DropdownMenuLabel>
+              ) : visibleModels.length > 0 ? (
+                <DropdownMenuRadioGroup
+                  value={modelKey(model)}
+                  onValueChange={(key) => selectModel.mutate(key)}
+                >
+                  {visibleModels.map((candidate) => {
+                    const key = modelKey(candidate)
+                    const selected = key === modelKey(model)
+                    return (
+                      <DropdownMenuRadioItem
+                        key={key}
+                        value={key}
+                        disabled={selectModel.isPending}
+                        className={selected ? "pr-8" : "pr-1.5"}
                       >
-                        {candidate.name}
-                      </span>
-                    </DropdownMenuRadioItem>
-                  )
-                })}
-              </DropdownMenuRadioGroup>
-            ) : (
-              <DropdownMenuLabel
-                className={
-                  needle
-                    ? "absolute inset-0 flex items-center justify-center"
-                    : undefined
-                }
-              >
-                {needle ? "No matching models" : "No installed models"}
-              </DropdownMenuLabel>
+                        <span
+                          className="sidebar-row-title-fade min-w-0 flex-1 overflow-hidden whitespace-nowrap"
+                        >
+                          {candidate.name}
+                        </span>
+                      </DropdownMenuRadioItem>
+                    )
+                  })}
+                </DropdownMenuRadioGroup>
+              ) : (
+                <DropdownMenuLabel
+                  className={
+                    needle
+                      ? "absolute inset-0 flex items-center justify-center"
+                      : undefined
+                  }
+                >
+                  {needle ? "No matching models" : "No installed models"}
+                </DropdownMenuLabel>
+              )}
+            </DropdownMenuGroup>
+          </div>
+          <div
+            data-slot="model-picker-shadow-top"
+            className={cn(
+              "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-popover to-transparent transition-opacity duration-200 ease-out",
+              scrollEdges.top ? "opacity-100" : "opacity-0"
             )}
-          </DropdownMenuGroup>
+          />
+          <div
+            data-slot="model-picker-shadow-bottom"
+            className={cn(
+              "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-popover to-transparent transition-opacity duration-200 ease-out",
+              scrollEdges.bottom ? "opacity-100" : "opacity-0"
+            )}
+          />
         </div>
 
-        <DropdownMenuSeparator className="m-0" />
         <DropdownMenuGroup className="p-1">
           <DropdownMenuItem onSelect={onManageModels}>
             <Settings2Icon />

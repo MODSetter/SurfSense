@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ThemeProvider } from "@/components/theme-provider"
@@ -53,8 +53,31 @@ describe("SettingsDialog", () => {
     const scrollRegion = document.querySelector(
       '[data-slot="settings-section-scroll"]'
     )
+    const scrollArea = scrollRegion as HTMLDivElement
     expect(scrollRegion?.className).toContain("min-h-0")
     expect(scrollRegion?.className).toContain("overflow-y-auto")
+    const topShadow = document.querySelector(
+      '[data-slot="settings-section-shadow-top"]'
+    )
+    const bottomShadow = document.querySelector(
+      '[data-slot="settings-section-shadow-bottom"]'
+    )
+    Object.defineProperties(scrollRegion, {
+      clientHeight: { configurable: true, value: 400 },
+      scrollHeight: { configurable: true, value: 800 },
+      scrollTop: { configurable: true, value: 0, writable: true },
+    })
+    fireEvent.scroll(scrollArea)
+    await waitFor(() => {
+      expect(topShadow?.className).toContain("opacity-0")
+      expect(bottomShadow?.className).toContain("opacity-100")
+    })
+    scrollArea.scrollTop = 400
+    fireEvent.scroll(scrollArea)
+    await waitFor(() => {
+      expect(topShadow?.className).toContain("opacity-100")
+      expect(bottomShadow?.className).toContain("opacity-0")
+    })
 
     await user.click(
       screen.getByRole("radio", { name: "Switch to dark theme" })

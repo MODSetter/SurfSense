@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
@@ -91,6 +91,31 @@ describe("composer model picker", () => {
     expect(availableItem.lastElementChild?.className).toContain(
       "sidebar-row-title-fade"
     )
+    const results = document.querySelector(
+      '[data-slot="model-picker-results"]'
+    ) as HTMLDivElement
+    const topShadow = document.querySelector(
+      '[data-slot="model-picker-shadow-top"]'
+    )
+    const bottomShadow = document.querySelector(
+      '[data-slot="model-picker-shadow-bottom"]'
+    )
+    Object.defineProperties(results, {
+      clientHeight: { configurable: true, value: 256 },
+      scrollHeight: { configurable: true, value: 512 },
+      scrollTop: { configurable: true, value: 0, writable: true },
+    })
+    fireEvent.scroll(results)
+    await waitFor(() => {
+      expect(topShadow?.className).toContain("opacity-0")
+      expect(bottomShadow?.className).toContain("opacity-100")
+    })
+    results.scrollTop = 256
+    fireEvent.scroll(results)
+    await waitFor(() => {
+      expect(topShadow?.className).toContain("opacity-100")
+      expect(bottomShadow?.className).toContain("opacity-0")
+    })
     await user.type(search, "qwen")
 
     expect(
