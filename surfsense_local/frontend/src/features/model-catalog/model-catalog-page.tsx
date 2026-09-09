@@ -117,8 +117,10 @@ function CatalogSection({
 
 export function ModelCatalogPage({
   onSelected,
+  installedFirst = false,
 }: {
   onSelected?: (selection: ModelSelection) => void
+  installedFirst?: boolean
 }) {
   const {
     catalog,
@@ -253,6 +255,16 @@ export function ModelCatalogPage({
         <p className="text-sm text-destructive">{messageFrom(rescan.error)}</p>
       ) : null}
 
+      {installedFirst ? (
+        <CatalogSection
+          title="Installed"
+          description="Local models already available on this computer."
+          rows={installed}
+          catalog={data}
+        >
+          {card}
+        </CatalogSection>
+      ) : null}
       <CatalogSection
         title="Best for this computer"
         description="SurfSense-tested models ranked for your hardware."
@@ -269,14 +281,16 @@ export function ModelCatalogPage({
       >
         {card}
       </CatalogSection>
-      <CatalogSection
-        title="Installed"
-        description="Local models already available on this computer."
-        rows={installed}
-        catalog={data}
-      >
-        {card}
-      </CatalogSection>
+      {!installedFirst ? (
+        <CatalogSection
+          title="Installed"
+          description="Local models already available on this computer."
+          rows={installed}
+          catalog={data}
+        >
+          {card}
+        </CatalogSection>
+      ) : null}
 
       {recommended.length + explore.length + installed.length === 0 ? (
         <Alert>

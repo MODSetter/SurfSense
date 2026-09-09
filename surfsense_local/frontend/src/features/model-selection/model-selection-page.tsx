@@ -20,14 +20,8 @@ import { Spinner } from "@/components/ui/spinner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
 
-import {
-  modelKey,
-  type ModelSelection,
-  type Provider,
-  type SelectableModel,
-} from "./api"
-import { ModelList } from "./model-list"
-import { OpenRouterPanel } from "./providers/openrouter/panel"
+import { modelKey, type ModelSelection } from "./api"
+import { ProviderTab } from "./provider-tab"
 import { useModelSelection } from "./use-model-selection"
 
 const titleCase = (value: string) =>
@@ -59,47 +53,6 @@ function OfflineState({ message }: { message: string }) {
         </p>
       </AlertDescription>
     </Alert>
-  )
-}
-
-function ProviderTab({
-  provider,
-  models,
-  draftKey,
-  persistedKey,
-  onSelect,
-  disabled,
-  refresh,
-}: {
-  provider: Provider
-  models: SelectableModel[]
-  draftKey: string | null
-  persistedKey: string | null
-  onSelect: (key: string) => void
-  disabled: boolean
-  refresh: (options?: { silent?: boolean }) => Promise<void>
-}) {
-  if (provider.requires_key) {
-    return (
-      <OpenRouterPanel
-        provider={provider}
-        models={models}
-        draftKey={draftKey}
-        persistedKey={persistedKey}
-        onSelect={onSelect}
-        disabled={disabled}
-        onChanged={() => refresh({ silent: true })}
-      />
-    )
-  }
-  return (
-    <ModelList
-      models={models}
-      draftKey={draftKey}
-      persistedKey={persistedKey}
-      onSelect={onSelect}
-      disabled={disabled}
-    />
   )
 }
 
@@ -151,7 +104,7 @@ export function ModelSelectionPage({
   return (
     <main
       data-model-selection-page
-      className="flex h-full min-h-0 select-none items-center overflow-hidden bg-muted/30 p-3 sm:p-6"
+      className="flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
         <div className="flex items-center justify-center gap-2 px-1">

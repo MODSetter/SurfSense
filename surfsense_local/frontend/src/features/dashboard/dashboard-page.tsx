@@ -15,6 +15,10 @@ import {
   getProviders,
   type ModelSelection,
 } from "@/features/model-selection/api"
+import {
+  SettingsDialog,
+  type SettingsSectionId,
+} from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
 import { StudioDialog } from "@/features/studio/studio-dialog"
@@ -175,14 +179,22 @@ function WorkspacesEmpty({
 export function DashboardPage({
   selection,
   initialWorkspaces,
-  onModelRequired,
+  onModelSelected,
 }: {
   selection: ModelSelection
   initialWorkspaces: Workspace[]
-  onModelRequired: () => void
+  onModelSelected: (selection: ModelSelection) => void
 }) {
   const workspaces = useWorkspaces(initialWorkspaces)
   const [providerAvailable, setProviderAvailable] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsSection, setSettingsSection] =
+    useState<SettingsSectionId>("general")
+
+  const openSettings = (section: SettingsSectionId) => {
+    setSettingsSection(section)
+    setSettingsOpen(true)
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -218,13 +230,21 @@ export function DashboardPage({
         onCreate={workspaces.create}
         onRename={workspaces.rename}
         onDelete={workspaces.remove}
+        onOpenSettings={() => openSettings("general")}
       />
       <WorkspaceDashboard
         key={workspaces.activeWorkspace.id}
         workspace={workspaces.activeWorkspace}
         selection={selection}
         providerAvailable={providerAvailable}
-        onModelRequired={onModelRequired}
+        onModelRequired={() => openSettings("models")}
+      />
+      <SettingsDialog
+        open={settingsOpen}
+        section={settingsSection}
+        onOpenChange={setSettingsOpen}
+        onSectionChange={setSettingsSection}
+        onModelSelected={onModelSelected}
       />
       {workspaces.error ? (
         <Alert

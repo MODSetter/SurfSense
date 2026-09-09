@@ -61,7 +61,7 @@ function GlobalLoader() {
 
   return (
     <main
-      className="flex h-full select-none items-center justify-center bg-app-shell"
+      className="flex h-full items-center justify-center bg-app-shell select-none"
       role="status"
       aria-label="Starting SurfSense"
     >
@@ -138,7 +138,11 @@ export function AppBootstrap() {
       <DashboardPage
         selection={state.selection}
         initialWorkspaces={state.workspaces}
-        onModelRequired={() => setState({ status: "model-required" })}
+        onModelSelected={(selection) =>
+          setState((current) =>
+            current.status === "ready" ? { ...current, selection } : current
+          )
+        }
       />
     </Suspense>
   )

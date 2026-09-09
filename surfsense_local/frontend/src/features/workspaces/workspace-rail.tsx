@@ -40,7 +40,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { SettingsDialog } from "@/features/settings/settings-dialog"
 import { cn } from "@/lib/utils"
 
 import type { Workspace } from "./api"
@@ -132,6 +131,7 @@ export function WorkspaceRail({
   onCreate,
   onRename,
   onDelete,
+  onOpenSettings,
 }: {
   workspaces: Workspace[]
   activeWorkspaceId: number
@@ -140,11 +140,11 @@ export function WorkspaceRail({
   onCreate: (name: string) => Promise<boolean>
   onRename: (id: number, name: string) => Promise<boolean>
   onDelete: (id: number) => Promise<boolean>
+  onOpenSettings: () => void
 }) {
   const [createOpen, setCreateOpen] = useState(false)
   const [renaming, setRenaming] = useState<Workspace | null>(null)
   const [deleting, setDeleting] = useState<Workspace | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
     <nav
@@ -235,7 +235,7 @@ export function WorkspaceRail({
             variant="ghost"
             className="rounded-xl"
             aria-label="Open settings"
-            onClick={() => setSettingsOpen(true)}
+            onClick={onOpenSettings}
           >
             <Settings2Icon />
           </Button>
@@ -243,7 +243,6 @@ export function WorkspaceRail({
         <TooltipContent side="right">Settings</TooltipContent>
       </Tooltip>
 
-      <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
       <WorkspaceNameDialog
         key={`create-${createOpen}`}
         open={createOpen}

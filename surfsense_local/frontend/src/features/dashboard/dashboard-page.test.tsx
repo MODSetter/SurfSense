@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
@@ -28,6 +29,14 @@ afterEach(() => {
 
 beforeEach(() => {
   localStorage.clear()
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  })
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -98,18 +107,20 @@ describe("dashboard chat", () => {
     const user = userEvent.setup()
 
     render(
-      <TooltipProvider>
-        <DashboardPage
-          selection={{
-            role: "generation",
-            provider: "ollama",
-            name: "llama3.2:1b",
-            updated_at: "2026-09-05T00:00:00Z",
-          }}
-          initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
-        />
-      </TooltipProvider>
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            selection={{
+              role: "generation",
+              provider: "ollama",
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
     )
 
     await screen.findByRole("heading", { name: "Original title" })
@@ -132,6 +143,9 @@ describe("dashboard chat", () => {
         body: JSON.stringify({ title: "Banking fees" }),
       })
     )
+
+    await user.click(screen.getByRole("button", { name: "Open settings" }))
+    expect(screen.getByRole("heading", { name: "Appearance" })).toBeTruthy()
   })
 
   it("keeps composer placement aligned with the conversation lifecycle", async () => {
@@ -203,7 +217,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -385,7 +399,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -489,7 +503,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace, secondWorkspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -518,6 +532,25 @@ describe("dashboard chat", () => {
           return Response.json([
             { name: "ollama", healthy: true, can_download: true },
           ])
+        }
+        if (path === "/llm/selection/generation") {
+          return Response.json({
+            role: "generation",
+            provider: "ollama",
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          })
+        }
+        if (path === "/llm/catalog") {
+          return Response.json({
+            hardware: null,
+            llmfit_version: "1.1.11",
+            recommended: [],
+            explore: [],
+            installed: [],
+            warnings: [],
+            runtime_status: {},
+          })
         }
         if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
           return Response.json([])
@@ -556,7 +589,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -570,6 +603,8 @@ describe("dashboard chat", () => {
 
     expect(await screen.findByText("Provider crashed")).toBeTruthy()
     expect(screen.getByText("Chat could not continue")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Model setup" }))
+    expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
   })
 
   it("aborts the active stream when stop is pressed", async () => {
@@ -631,7 +666,7 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           }}
           initialWorkspaces={[workspace]}
-          onModelRequired={vi.fn()}
+          onModelSelected={vi.fn()}
         />
       </TooltipProvider>
     )
