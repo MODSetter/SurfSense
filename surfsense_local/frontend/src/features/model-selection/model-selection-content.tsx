@@ -76,7 +76,7 @@ export function ModelSelectionContent({
 
   return (
     <Tabs
-      className="min-h-0 gap-5"
+      className="h-full min-h-0 gap-5"
       value={activeTab}
       onValueChange={(provider) => {
         userChangedTab.current = true
@@ -88,9 +88,14 @@ export function ModelSelectionContent({
         <TabsTrigger value={OPENROUTER}>OpenRouter</TabsTrigger>
       </TabsList>
 
-      <TabsContent value="local">{localCatalog}</TabsContent>
+      <TabsContent value="local" className="min-h-0 overflow-hidden">
+        {localCatalog}
+      </TabsContent>
 
-      <TabsContent value={OPENROUTER}>
+      <TabsContent
+        value={OPENROUTER}
+        className="min-h-0 overflow-hidden"
+      >
         {openRouterProvider ? (
           <ProviderTab
             provider={openRouterProvider}

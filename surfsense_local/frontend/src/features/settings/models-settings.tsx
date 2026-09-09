@@ -27,7 +27,11 @@ export function ModelsSettings({
 
   if (state.status === "api-unavailable") {
     return (
-      <SettingsSection title="Models" description={DESCRIPTION}>
+      <SettingsSection
+        title="Models"
+        description={DESCRIPTION}
+        scrollable={false}
+      >
         <Alert variant="destructive">
           <CircleAlertIcon />
           <AlertTitle>Could not load model settings</AlertTitle>
@@ -64,6 +68,7 @@ export function ModelsSettings({
     <SettingsSection
       title="Models"
       description={DESCRIPTION}
+      scrollable={false}
       footer={
         hasChanges && needsConfirmation ? (
           <Button disabled={isSaving} onClick={() => void saveSelection()}>

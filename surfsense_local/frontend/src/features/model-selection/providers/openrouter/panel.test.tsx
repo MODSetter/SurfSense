@@ -167,6 +167,13 @@ describe("openrouter provider", () => {
     await user.click(connect)
 
     const model = await screen.findByRole("radio", { name: /gpt-4o/i })
+    const modelViewport = document.querySelector(
+      '[data-slot="scroll-shadow-viewport"]'
+    )
+    expect(modelViewport?.contains(model)).toBe(true)
+    expect(
+      modelViewport?.contains(screen.getByLabelText("Search models"))
+    ).toBe(false)
     await user.click(model)
     expect(screen.getByRole("button", { name: "Use this model" })).toBeTruthy()
 

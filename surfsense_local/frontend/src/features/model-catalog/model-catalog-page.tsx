@@ -13,6 +13,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
@@ -147,7 +148,7 @@ export function ModelCatalogPage({
   if (catalog.isPending) {
     return (
       <div
-        className="flex flex-col gap-5"
+        className="flex h-full min-h-0 flex-col gap-5"
         role="status"
         aria-label="Scanning model catalog"
       >
@@ -176,11 +177,13 @@ export function ModelCatalogPage({
             Rescan hardware
           </Button>
         </div>
-        <div className="flex flex-col gap-3">
-          {[0, 1, 2].map((item) => (
-            <Skeleton key={item} className="h-28 w-full rounded-xl" />
-          ))}
-        </div>
+        <ScrollShadow className="flex-1">
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((item) => (
+              <Skeleton key={item} className="h-28 w-full rounded-xl" />
+            ))}
+          </div>
+        </ScrollShadow>
       </div>
     )
   }
@@ -303,7 +306,7 @@ export function ModelCatalogPage({
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex h-full min-h-0 flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
         <div>
           <p className="flex items-center text-sm font-medium">
@@ -339,46 +342,52 @@ export function ModelCatalogPage({
         </Button>
       </div>
 
-      {data.warnings.map((warning) => (
-        <Alert key={warning.code}>
-          <CircleAlertIcon />
-          <AlertTitle>Recommendations are degraded</AlertTitle>
-          <AlertDescription>{warning.message}</AlertDescription>
-        </Alert>
-      ))}
-      {rescan.isError ? (
-        <p className="text-sm text-destructive">{messageFrom(rescan.error)}</p>
-      ) : null}
+      <ScrollShadow className="flex-1">
+        <div className="flex flex-col gap-5 pb-3">
+          {data.warnings.map((warning) => (
+            <Alert key={warning.code}>
+              <CircleAlertIcon />
+              <AlertTitle>Recommendations are degraded</AlertTitle>
+              <AlertDescription>{warning.message}</AlertDescription>
+            </Alert>
+          ))}
+          {rescan.isError ? (
+            <p className="text-sm text-destructive">
+              {messageFrom(rescan.error)}
+            </p>
+          ) : null}
 
-      {sections.map((section, index) => (
-        <Fragment key={section.title}>
-          {index > 0 ? <Separator className="my-4" /> : null}
-          <CatalogSection {...section} catalog={data}>
-            {card}
-          </CatalogSection>
-        </Fragment>
-      ))}
+          {sections.map((section, index) => (
+            <Fragment key={section.title}>
+              {index > 0 ? <Separator className="my-4" /> : null}
+              <CatalogSection {...section} catalog={data}>
+                {card}
+              </CatalogSection>
+            </Fragment>
+          ))}
 
-      {recommended.length + explore.length + installed.length === 0 ? (
-        <Alert>
-          <CircleAlertIcon />
-          <AlertTitle>No local models are available</AlertTitle>
-          <AlertDescription>
-            This computer has no compatible local configuration right now. You
-            can still use OpenRouter.
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      {selectInstalled.isError ? (
-        <p className="text-sm text-destructive">
-          {messageFrom(selectInstalled.error)}
-        </p>
-      ) : null}
-      {deleteModel.isError && pendingDelete === null ? (
-        <p className="text-sm text-destructive">
-          {messageFrom(deleteModel.error)}
-        </p>
-      ) : null}
+          {recommended.length + explore.length + installed.length === 0 ? (
+            <Alert>
+              <CircleAlertIcon />
+              <AlertTitle>No local models are available</AlertTitle>
+              <AlertDescription>
+                This computer has no compatible local configuration right now.
+                You can still use OpenRouter.
+              </AlertDescription>
+            </Alert>
+          ) : null}
+          {selectInstalled.isError ? (
+            <p className="text-sm text-destructive">
+              {messageFrom(selectInstalled.error)}
+            </p>
+          ) : null}
+          {deleteModel.isError && pendingDelete === null ? (
+            <p className="text-sm text-destructive">
+              {messageFrom(deleteModel.error)}
+            </p>
+          ) : null}
+        </div>
+      </ScrollShadow>
 
       <AlertDialog
         open={pendingConfirmation !== null}

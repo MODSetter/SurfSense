@@ -51,16 +51,14 @@ describe("SettingsDialog", () => {
       screen.getByRole("heading", { name: "Appearance" }).textContent
     ).toBe("Appearance")
     const scrollRegion = document.querySelector(
-      '[data-slot="settings-section-scroll"]'
+      '[data-slot="scroll-shadow-viewport"]'
     )
     const scrollArea = scrollRegion as HTMLDivElement
     expect(scrollRegion?.className).toContain("min-h-0")
     expect(scrollRegion?.className).toContain("overflow-y-auto")
-    const topShadow = document.querySelector(
-      '[data-slot="settings-section-shadow-top"]'
-    )
+    const topShadow = document.querySelector('[data-slot="scroll-shadow-top"]')
     const bottomShadow = document.querySelector(
-      '[data-slot="settings-section-shadow-bottom"]'
+      '[data-slot="scroll-shadow-bottom"]'
     )
     expect(topShadow?.className).toContain("duration-100")
     expect(bottomShadow?.className).toContain("duration-100")
@@ -130,6 +128,13 @@ describe("SettingsDialog", () => {
     expect(screen.queryByText("Currently using")).toBeNull()
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
+    expect(
+      document.querySelector('[data-slot="settings-section-content"]')
+        ?.className
+    ).toContain("overflow-hidden")
+    expect(
+      document.querySelector('[data-slot="scroll-shadow-viewport"]')?.className
+    ).toContain("overflow-y-auto")
     expect(
       await screen.findByText("No local models are available")
     ).toBeTruthy()

@@ -114,13 +114,11 @@ describe("model onboarding", () => {
     const card = document.querySelector('[data-slot="card"]')
     const cardContent = document.querySelector('[data-slot="card-content"]')
     const scrollArea = document.querySelector(
-      '[data-slot="onboarding-models-scroll"]'
+      '[data-slot="scroll-shadow-viewport"]'
     ) as HTMLDivElement
-    const topShadow = document.querySelector(
-      '[data-slot="onboarding-models-shadow-top"]'
-    )
+    const topShadow = document.querySelector('[data-slot="scroll-shadow-top"]')
     const bottomShadow = document.querySelector(
-      '[data-slot="onboarding-models-shadow-bottom"]'
+      '[data-slot="scroll-shadow-bottom"]'
     )
 
     expect(page.hasAttribute("data-onboarding-page")).toBe(true)
@@ -129,6 +127,7 @@ describe("model onboarding", () => {
     expect(card?.className).toContain("h-full")
     expect(card?.className).toContain("gap-0")
     expect(cardContent?.className).toContain("flex-1")
+    expect(scrollArea.className).toContain("overflow-y-auto")
     expect(topShadow?.className).toContain("duration-100")
     expect(bottomShadow?.className).toContain("duration-100")
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()

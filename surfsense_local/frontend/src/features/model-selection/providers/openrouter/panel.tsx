@@ -71,7 +71,7 @@ export function OpenRouterPanel({
 
   if (provider.configured && provider.healthy) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <CheckIcon className="size-4" />
@@ -98,14 +98,16 @@ export function OpenRouterPanel({
             Loading OpenRouter models...
           </div>
         ) : (
-          <ModelList
-            models={models}
-            draftKey={draftKey}
-            persistedKey={persistedKey}
-            onSelect={onSelect}
-            disabled={disabled}
-            searchable
-          />
+          <div className="min-h-0 flex-1">
+            <ModelList
+              models={models}
+              draftKey={draftKey}
+              persistedKey={persistedKey}
+              onSelect={onSelect}
+              disabled={disabled}
+              searchable
+            />
+          </div>
         )}
       </div>
     )

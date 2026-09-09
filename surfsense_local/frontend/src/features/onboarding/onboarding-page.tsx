@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useState } from "react"
 
 import {
   CheckIcon,
@@ -22,7 +22,6 @@ import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
 import { modelKey, type ModelSelection } from "@/features/model-selection/api"
 import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
 import { useModelSelection } from "@/features/model-selection/use-model-selection"
-import { cn } from "@/lib/utils"
 
 const ONBOARDING_STEPS = [1, 2] as const
 
@@ -115,49 +114,9 @@ function ModelSetupStep({
   onComplete: (selection: ModelSelection) => void
 }) {
   const [activeProvider, setActiveProvider] = useState("local")
-  const scrollRef = useRef<HTMLDivElement>(null)
-  const [scrollEdges, setScrollEdges] = useState({
-    top: false,
-    bottom: false,
-  })
   const { state, draftKey, saveState, isRefreshing, select, refresh, save } =
     useModelSelection()
   const showsModelSelection = state.status !== "api-unavailable"
-  const updateScrollEdges = useCallback(() => {
-    const scrollArea = scrollRef.current
-    if (!scrollArea) {
-      return
-    }
-    const top = scrollArea.scrollTop > 1
-    const bottom =
-      scrollArea.scrollTop + scrollArea.clientHeight <
-      scrollArea.scrollHeight - 1
-    setScrollEdges((current) =>
-      current.top === top && current.bottom === bottom
-        ? current
-        : { top, bottom }
-    )
-  }, [])
-
-  useEffect(() => {
-    if (!showsModelSelection) {
-      return
-    }
-    const frame = window.requestAnimationFrame(updateScrollEdges)
-    const scrollArea = scrollRef.current
-    if (typeof ResizeObserver === "undefined" || !scrollArea) {
-      return () => window.cancelAnimationFrame(frame)
-    }
-    const observer = new ResizeObserver(updateScrollEdges)
-    observer.observe(scrollArea)
-    if (scrollArea.firstElementChild) {
-      observer.observe(scrollArea.firstElementChild)
-    }
-    return () => {
-      window.cancelAnimationFrame(frame)
-      observer.disconnect()
-    }
-  }, [showsModelSelection, updateScrollEdges])
   const persistedKey =
     state.status === "ready" && state.selection !== null
       ? modelKey(state.selection)
@@ -212,36 +171,15 @@ function ModelSetupStep({
           <OfflineState message={state.message} />
         ) : null}
         {showsModelSelection ? (
-          <div className="relative flex min-h-0 flex-1">
-            <div
-              ref={scrollRef}
-              data-slot="onboarding-models-scroll"
-              className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
-              onScroll={updateScrollEdges}
-            >
-              <ModelSelectionContent
-                state={state}
-                draftKey={draftKey}
-                disabled={isSaving || isRefreshing}
-                onSelect={select}
-                onCatalogSelected={onComplete}
-                onActiveProviderChange={setActiveProvider}
-                refresh={refresh}
-              />
-            </div>
-            <div
-              data-slot="onboarding-models-shadow-top"
-              className={cn(
-                "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-card to-transparent transition-opacity duration-100 ease-out",
-                scrollEdges.top ? "opacity-100" : "opacity-0"
-              )}
-            />
-            <div
-              data-slot="onboarding-models-shadow-bottom"
-              className={cn(
-                "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-card to-transparent transition-opacity duration-100 ease-out",
-                scrollEdges.bottom ? "opacity-100" : "opacity-0"
-              )}
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <ModelSelectionContent
+              state={state}
+              draftKey={draftKey}
+              disabled={isSaving || isRefreshing}
+              onSelect={select}
+              onCatalogSelected={onComplete}
+              onActiveProviderChange={setActiveProvider}
+              refresh={refresh}
             />
           </div>
         ) : null}

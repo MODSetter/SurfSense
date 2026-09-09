@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -17,6 +17,7 @@ import {
   Settings2Icon,
 } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import {
   getInstalledGenerationModels,
   getProviders,
@@ -43,11 +44,6 @@ export function ModelPicker({
 }) {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
-  const resultsRef = useRef<HTMLDivElement>(null)
-  const [scrollEdges, setScrollEdges] = useState({
-    top: false,
-    bottom: false,
-  })
   const installed = useQuery({
     queryKey: installedModelsQueryKey,
     queryFn: async ({ signal }) => {
@@ -75,37 +71,6 @@ export function ModelPicker({
   const visibleModels = (installed.data ?? []).filter((candidate) =>
     candidate.name.toLowerCase().includes(needle)
   )
-  const updateScrollEdges = useCallback(() => {
-    const results = resultsRef.current
-    if (!results) {
-      return
-    }
-    const top = results.scrollTop > 1
-    const bottom =
-      results.scrollTop + results.clientHeight < results.scrollHeight - 1
-    setScrollEdges((current) =>
-      current.top === top && current.bottom === bottom
-        ? current
-        : { top, bottom }
-    )
-  }, [])
-
-  useEffect(() => {
-    const frame = window.requestAnimationFrame(updateScrollEdges)
-    const results = resultsRef.current
-    if (typeof ResizeObserver === "undefined" || !results) {
-      return () => window.cancelAnimationFrame(frame)
-    }
-    const observer = new ResizeObserver(updateScrollEdges)
-    observer.observe(results)
-    if (results.firstElementChild) {
-      observer.observe(results.firstElementChild)
-    }
-    return () => {
-      window.cancelAnimationFrame(frame)
-      observer.disconnect()
-    }
-  }, [updateScrollEdges])
 
   return (
     <DropdownMenu
@@ -150,13 +115,11 @@ export function ModelPicker({
           />
         </div>
 
-        <div className="relative">
-          <div
-            ref={resultsRef}
-            data-slot="model-picker-results"
-            className="relative h-60 select-none overflow-y-auto p-1"
-            onScroll={updateScrollEdges}
-          >
+        <ScrollShadow
+          className="h-60"
+          viewportClassName="select-none p-1"
+        >
+          <div data-slot="model-picker-results" className="relative min-h-full">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Installed models</DropdownMenuLabel>
               {installed.isPending ? (
@@ -202,21 +165,7 @@ export function ModelPicker({
               )}
             </DropdownMenuGroup>
           </div>
-          <div
-            data-slot="model-picker-shadow-top"
-            className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-popover to-transparent transition-opacity duration-100 ease-out",
-              scrollEdges.top ? "opacity-100" : "opacity-0"
-            )}
-          />
-          <div
-            data-slot="model-picker-shadow-bottom"
-            className={cn(
-              "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-popover to-transparent transition-opacity duration-100 ease-out",
-              scrollEdges.bottom ? "opacity-100" : "opacity-0"
-            )}
-          />
-        </div>
+        </ScrollShadow>
 
         <DropdownMenuGroup className="p-1">
           <DropdownMenuItem onSelect={onManageModels}>

@@ -92,14 +92,12 @@ describe("composer model picker", () => {
       "sidebar-row-title-fade"
     )
     const results = document.querySelector(
-      '[data-slot="model-picker-results"]'
+      '[data-slot="scroll-shadow-viewport"]'
     ) as HTMLDivElement
-    expect(results.className).toContain("h-60")
-    const topShadow = document.querySelector(
-      '[data-slot="model-picker-shadow-top"]'
-    )
+    expect(results.parentElement?.className).toContain("h-60")
+    const topShadow = document.querySelector('[data-slot="scroll-shadow-top"]')
     const bottomShadow = document.querySelector(
-      '[data-slot="model-picker-shadow-bottom"]'
+      '[data-slot="scroll-shadow-bottom"]'
     )
     expect(topShadow?.className).toContain("duration-100")
     expect(bottomShadow?.className).toContain("duration-100")
