@@ -205,14 +205,14 @@ export function ModelPicker({
           <div
             data-slot="model-picker-shadow-top"
             className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-popover to-transparent transition-opacity duration-200 ease-out",
+              "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-popover to-transparent transition-opacity duration-100 ease-out",
               scrollEdges.top ? "opacity-100" : "opacity-0"
             )}
           />
           <div
             data-slot="model-picker-shadow-bottom"
             className={cn(
-              "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-popover to-transparent transition-opacity duration-200 ease-out",
+              "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-popover to-transparent transition-opacity duration-100 ease-out",
               scrollEdges.bottom ? "opacity-100" : "opacity-0"
             )}
           />

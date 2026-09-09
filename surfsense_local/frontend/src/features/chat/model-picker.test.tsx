@@ -101,6 +101,8 @@ describe("composer model picker", () => {
     const bottomShadow = document.querySelector(
       '[data-slot="model-picker-shadow-bottom"]'
     )
+    expect(topShadow?.className).toContain("duration-100")
+    expect(bottomShadow?.className).toContain("duration-100")
     Object.defineProperties(results, {
       clientHeight: { configurable: true, value: 256 },
       scrollHeight: { configurable: true, value: 512 },

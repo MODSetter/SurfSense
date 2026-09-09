@@ -1,4 +1,4 @@
-import { cleanup, screen } from "@testing-library/react"
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { render } from "@/test-utils"
@@ -65,11 +65,38 @@ describe("model onboarding", () => {
 
     await screen.findByText("Only models compatible with this computer are shown.")
     const page = screen.getByRole("main")
+    const card = document.querySelector('[data-slot="card"]')
+    const cardContent = document.querySelector('[data-slot="card-content"]')
+    const scrollArea = document.querySelector(
+      '[data-slot="onboarding-models-scroll"]'
+    ) as HTMLDivElement
+    const topShadow = document.querySelector(
+      '[data-slot="onboarding-models-shadow-top"]'
+    )
+    const bottomShadow = document.querySelector(
+      '[data-slot="onboarding-models-shadow-bottom"]'
+    )
 
     expect(page.hasAttribute("data-onboarding-page")).toBe(true)
     expect(page.className).toContain("overflow-hidden")
+    expect(card?.className).not.toContain("flex-1")
+    expect(card?.className).toContain("gap-0")
+    expect(cardContent?.className).not.toContain("flex-1")
+    expect(topShadow?.className).toContain("duration-100")
+    expect(bottomShadow?.className).toContain("duration-100")
     expect(screen.queryByRole("tablist")).toBeNull()
     expect(screen.queryByRole("button", { name: "Continue" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
+
+    Object.defineProperties(scrollArea, {
+      clientHeight: { configurable: true, value: 200 },
+      scrollHeight: { configurable: true, value: 400 },
+      scrollTop: { configurable: true, value: 100, writable: true },
+    })
+    fireEvent.scroll(scrollArea)
+    await waitFor(() => {
+      expect(topShadow?.className).toContain("opacity-100")
+      expect(bottomShadow?.className).toContain("opacity-100")
+    })
   })
 })

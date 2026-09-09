@@ -62,6 +62,8 @@ describe("SettingsDialog", () => {
     const bottomShadow = document.querySelector(
       '[data-slot="settings-section-shadow-bottom"]'
     )
+    expect(topShadow?.className).toContain("duration-100")
+    expect(bottomShadow?.className).toContain("duration-100")
     Object.defineProperties(scrollRegion, {
       clientHeight: { configurable: true, value: 400 },
       scrollHeight: { configurable: true, value: 800 },

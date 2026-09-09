@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { CheckIcon, CircleAlertIcon, RefreshCwIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { modelKey, type ModelSelection } from "@/features/model-selection/api"
 import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
 import { useModelSelection } from "@/features/model-selection/use-model-selection"
+import { cn } from "@/lib/utils"
 
 function LoadingModels() {
   return (
@@ -54,8 +55,49 @@ export function OnboardingPage({
   onComplete: (selection: ModelSelection) => void
 }) {
   const [activeProvider, setActiveProvider] = useState("local")
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const [scrollEdges, setScrollEdges] = useState({
+    top: false,
+    bottom: false,
+  })
   const { state, draftKey, saveState, isRefreshing, select, refresh, save } =
     useModelSelection()
+  const isReady = state.status === "ready"
+  const updateScrollEdges = useCallback(() => {
+    const scrollArea = scrollRef.current
+    if (!scrollArea) {
+      return
+    }
+    const top = scrollArea.scrollTop > 1
+    const bottom =
+      scrollArea.scrollTop + scrollArea.clientHeight <
+      scrollArea.scrollHeight - 1
+    setScrollEdges((current) =>
+      current.top === top && current.bottom === bottom
+        ? current
+        : { top, bottom }
+    )
+  }, [])
+
+  useEffect(() => {
+    if (!isReady) {
+      return
+    }
+    const frame = window.requestAnimationFrame(updateScrollEdges)
+    const scrollArea = scrollRef.current
+    if (typeof ResizeObserver === "undefined" || !scrollArea) {
+      return () => window.cancelAnimationFrame(frame)
+    }
+    const observer = new ResizeObserver(updateScrollEdges)
+    observer.observe(scrollArea)
+    if (scrollArea.firstElementChild) {
+      observer.observe(scrollArea.firstElementChild)
+    }
+    return () => {
+      window.cancelAnimationFrame(frame)
+      observer.disconnect()
+    }
+  }, [isReady, updateScrollEdges])
   const persistedKey =
     state.status === "ready" && state.selection !== null
       ? modelKey(state.selection)
@@ -113,8 +155,8 @@ export function OnboardingPage({
           <span className="font-heading text-2xl font-medium">SurfSense</span>
         </div>
 
-        <Card className="min-h-0 flex-1">
-          <CardHeader>
+        <Card className="max-h-[calc(100%_-_3.5rem)] min-h-0 gap-0">
+          <CardHeader className="mb-(--card-spacing)">
             <CardTitle>
               <h1 className="text-lg text-balance">Choose your AI model</h1>
             </CardTitle>
@@ -124,36 +166,58 @@ export function OnboardingPage({
             </CardDescription>
           </CardHeader>
 
-          <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
+          <CardContent className="flex min-h-0 flex-col gap-3">
             {state.status === "loading" ? <LoadingModels /> : null}
             {state.status === "api-unavailable" ? (
               <OfflineState message={state.message} />
             ) : null}
             {state.status === "ready" ? (
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-                <ModelSelectionContent
-                  state={state}
-                  draftKey={draftKey}
-                  disabled={isSaving || isRefreshing}
-                  onSelect={select}
-                  onCatalogSelected={onComplete}
-                  onActiveProviderChange={setActiveProvider}
-                  refresh={refresh}
+              <div className="relative flex min-h-0 flex-1">
+                <div
+                  ref={scrollRef}
+                  data-slot="onboarding-models-scroll"
+                  className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+                  onScroll={updateScrollEdges}
+                >
+                  <ModelSelectionContent
+                    state={state}
+                    draftKey={draftKey}
+                    disabled={isSaving || isRefreshing}
+                    onSelect={select}
+                    onCatalogSelected={onComplete}
+                    onActiveProviderChange={setActiveProvider}
+                    refresh={refresh}
+                  />
+                </div>
+                <div
+                  data-slot="onboarding-models-shadow-top"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-card to-transparent transition-opacity duration-100 ease-out",
+                    scrollEdges.top ? "opacity-100" : "opacity-0"
+                  )}
+                />
+                <div
+                  data-slot="onboarding-models-shadow-bottom"
+                  className={cn(
+                    "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-card to-transparent transition-opacity duration-100 ease-out",
+                    scrollEdges.bottom ? "opacity-100" : "opacity-0"
+                  )}
                 />
               </div>
             ) : null}
 
-            <div className="min-h-5 text-sm" aria-live="polite">
-              {saveState.status === "saved" ? (
-                <span className="flex items-center gap-1.5">
-                  <CheckIcon aria-hidden="true" className="size-4" />
-                  Model selection saved.
-                </span>
-              ) : null}
-              {saveState.status === "error" ? (
-                <span className="text-destructive">{saveState.message}</span>
-              ) : null}
-            </div>
+            {saveState.status === "saved" || saveState.status === "error" ? (
+              <div className="text-sm" aria-live="polite">
+                {saveState.status === "saved" ? (
+                  <span className="flex items-center gap-1.5">
+                    <CheckIcon aria-hidden="true" className="size-4" />
+                    Model selection saved.
+                  </span>
+                ) : (
+                  <span className="text-destructive">{saveState.message}</span>
+                )}
+              </div>
+            ) : null}
           </CardContent>
 
           <CardFooter className="justify-between gap-3">
