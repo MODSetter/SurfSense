@@ -66,27 +66,21 @@ function OnboardingProgress({ step }: { step: number }) {
 
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
-    <Card className="w-full max-w-xl text-center">
-      <CardHeader>
+    <Card className="w-full max-w-xl overflow-visible bg-transparent text-center ring-0">
+      <CardHeader className="-translate-y-8">
         <CardTitle>
           <h1 className="text-xl text-balance">
-            Your research, ready to answer
+            Think across everything you have collected.
           </h1>
         </CardTitle>
         <CardDescription className="mx-auto max-w-md text-pretty">
-          Bring your sources together, ask questions across them, and turn what
-          you find into useful work from one focused workspace.
+          SurfSense turns scattered documents, notes, and sources into one
+          searchable workspace.
         </CardDescription>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-pretty text-muted-foreground">
-          SurfSense keeps your knowledge organized and gives you control over
-          the AI model used for every answer.
-        </p>
-      </CardContent>
-      <CardFooter className="justify-center">
+      <CardFooter className="justify-center border-t-0 bg-transparent">
         <Button type="button" className="min-h-10 px-6" onClick={onNext}>
-          Next
+          Start setting up
         </Button>
       </CardFooter>
     </Card>

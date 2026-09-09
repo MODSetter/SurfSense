@@ -139,7 +139,7 @@ describe("openrouter provider", () => {
     const user = userEvent.setup()
 
     render(<OnboardingPage onComplete={() => undefined} />)
-    await user.click(screen.getByRole("button", { name: "Next" }))
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
     await user.click(screen.getByRole("tab", { name: "OpenRouter" }))
 
     expect(
@@ -155,7 +155,7 @@ describe("openrouter provider", () => {
 
     render(<OnboardingPage onComplete={() => undefined} />)
 
-    await user.click(screen.getByRole("button", { name: "Next" }))
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
     await user.click(await screen.findByRole("tab", { name: /openrouter/i }))
 
     await user.type(

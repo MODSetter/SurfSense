@@ -65,10 +65,12 @@ describe("app bootstrap", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Your research, ready to answer",
+        name: "Think across everything you have collected.",
       })
     ).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Next" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Start setting up" })
+    ).toBeTruthy()
     expect(screen.queryByText("Choose your AI model")).toBeNull()
     expect(screen.getByRole("main").hasAttribute("data-onboarding-page")).toBe(
       true

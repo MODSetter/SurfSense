@@ -68,7 +68,7 @@ describe("model onboarding", () => {
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
 
-    await user.click(screen.getByRole("button", { name: "Next" }))
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(
@@ -91,14 +91,16 @@ describe("model onboarding", () => {
     render(<OnboardingPage onComplete={() => undefined} />)
 
     expect(
-      screen.getByRole("heading", { name: "Your research, ready to answer" })
+      screen.getByRole("heading", {
+        name: "Think across everything you have collected.",
+      })
     ).toBeTruthy()
     const firstProgress = screen.getByLabelText("Onboarding step 1 of 2")
     expect(firstProgress.children[0]?.getAttribute("data-state")).toBe("active")
     expect(firstProgress.children[1]?.getAttribute("data-state")).toBe(
       "inactive"
     )
-    await user.click(screen.getByRole("button", { name: "Next" }))
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
     await screen.findByText(
       "Only models compatible with this computer are shown."
