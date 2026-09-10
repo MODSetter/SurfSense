@@ -140,7 +140,7 @@ export function AppBootstrap() {
       <main className="flex min-h-full items-center justify-center bg-muted/30 p-8">
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
-          <AlertTitle>SurfSense Local could not start</AlertTitle>
+          <AlertTitle>SurfSense could not start</AlertTitle>
           <AlertDescription>
             <p>{state.message}</p>
             <Button

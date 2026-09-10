@@ -13,6 +13,15 @@ import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
+// Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
+const DATA_DIR = join(
+  app.getPath("home"),
+  app.isPackaged ? ".surfsense" : ".surfsense-dev"
+)
+// productName is "SurfSense", same as the legacy desktop app, so the default
+// userData would be shared with it. Users run both during migration.
+app.setPath("userData", join(DATA_DIR, "electron"))
+
 let sidecars: Sidecars | null = null
 let mainWindow: BrowserWindow | null = null
 let shuttingDown = false
@@ -30,11 +39,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
   const apiPort = await getFreePort(host)
-  // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
-  const dataDir = join(
-    app.getPath("home"),
-    packaged ? ".surfsense" : ".surfsense-dev"
-  )
+  const dataDir = DATA_DIR
 
   const ctx: SidecarContext = {
     packaged,
