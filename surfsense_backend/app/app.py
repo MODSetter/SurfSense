@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import gc
 import logging
+import os
 import time
 import uuid
 from collections import defaultdict
@@ -1214,7 +1215,11 @@ app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 @limiter.exempt
 async def health_check():
     """Lightweight liveness probe exempt from rate limiting."""
-    return {"status": "ok"}
+    return {
+        "status": "ok",
+        "sunset": os.getenv("SUNSET_MODE", "false").strip().lower() == "true",
+        "sunset_url": os.environ.get("SUNSET_URL", "https://surfsense.com/sunset"),
+    }
 
 
 @app.get("/ready", tags=["health"])

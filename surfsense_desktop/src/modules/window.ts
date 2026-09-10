@@ -3,6 +3,7 @@ import path from 'path';
 import { trackEvent } from './analytics';
 import { showErrorDialog } from './errors';
 import { getServerOrigin, getServerPort } from './server';
+import { getSunsetUrl } from './sunset';
 import { setActiveWorkspaceId } from './active-workspace';
 
 const isDev = !app.isPackaged;
@@ -77,7 +78,7 @@ export function createMainWindow(initialPath = '/dashboard'): BrowserWindow {
     mainWindow?.setTitle(WINDOW_TITLE);
   });
 
-  mainWindow.loadURL(`${getServerOrigin()}${initialPath}`);
+  mainWindow.loadURL(getSunsetUrl() ?? `${getServerOrigin()}${initialPath}`);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith(getServerOrigin())) {
