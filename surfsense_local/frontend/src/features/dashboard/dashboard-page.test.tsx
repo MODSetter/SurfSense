@@ -107,6 +107,7 @@ describe("dashboard chat", () => {
             selection={{
               role: "generation",
               provider: "ollama",
+              connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
             }}
@@ -207,6 +208,7 @@ describe("dashboard chat", () => {
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -408,6 +410,7 @@ describe("dashboard chat", () => {
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -503,6 +506,7 @@ describe("dashboard chat", () => {
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -541,6 +545,7 @@ describe("dashboard chat", () => {
           return Response.json({
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           })
@@ -589,6 +594,7 @@ describe("dashboard chat", () => {
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -666,6 +672,7 @@ describe("dashboard chat", () => {
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}

@@ -35,20 +35,24 @@ export function apiUrl(path: string): string {
 
 export class ApiError extends Error {
   readonly status: number
+  readonly code: string | null
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, code: string | null = null) {
     super(message)
     this.name = "ApiError"
     this.status = status
+    this.code = code
   }
 }
 
-async function responseError(response: Response): Promise<string> {
+async function responseError(
+  response: Response
+): Promise<{ message: string; code: string | null }> {
   try {
     const body: unknown = await response.json()
     if (typeof body === "object" && body !== null && "detail" in body) {
       if (typeof body.detail === "string") {
-        return body.detail
+        return { message: body.detail, code: null }
       }
       if (
         typeof body.detail === "object" &&
@@ -65,16 +69,27 @@ async function responseError(response: Response): Promise<string> {
           typeof body.detail.available === "number"
             ? body.detail.available
             : null
-        return required !== null && available !== null
-          ? `${body.detail.message} (${(required / 1e9).toFixed(1)} GB required, ${(available / 1e9).toFixed(1)} GB available)`
-          : body.detail.message
+        return {
+          message:
+            required !== null && available !== null
+              ? `${body.detail.message} (${(required / 1e9).toFixed(1)} GB required, ${(available / 1e9).toFixed(1)} GB available)`
+              : body.detail.message,
+          code:
+            "code" in body.detail && typeof body.detail.code === "string"
+              ? body.detail.code
+              : null,
+        }
       }
     }
   } catch {
     // The status text is the useful fallback for a non-JSON response.
   }
 
-  return response.statusText || `Request failed with status ${response.status}`
+  return {
+    message:
+      response.statusText || `Request failed with status ${response.status}`,
+    code: null,
+  }
 }
 
 export async function request(
@@ -83,7 +98,8 @@ export async function request(
 ): Promise<Response> {
   const response = await fetch(withBase(input), init)
   if (!response.ok) {
-    throw new ApiError(response.status, await responseError(response))
+    const error = await responseError(response)
+    throw new ApiError(response.status, error.message, error.code)
   }
   return response
 }

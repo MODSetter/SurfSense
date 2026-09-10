@@ -127,7 +127,7 @@ describe("SettingsDialog", () => {
     expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
     expect(screen.queryByText("Currently using")).toBeNull()
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
-    expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
+    expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
     expect(
       document.querySelector('[data-slot="settings-section-content"]')
         ?.className

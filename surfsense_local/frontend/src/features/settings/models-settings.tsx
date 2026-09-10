@@ -1,5 +1,3 @@
-import { useState } from "react"
-
 import { CircleAlertIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -21,7 +19,6 @@ export function ModelsSettings({
   onModelUnavailable: () => void
   onSelected: (selection: ModelSelection) => void
 }) {
-  const [activeProvider, setActiveProvider] = useState("local")
   const { state, draftKey, saveState, select, refresh, save } =
     useModelSelection()
 
@@ -45,16 +42,6 @@ export function ModelsSettings({
   const persistedKey =
     readyState?.selection == null ? null : modelKey(readyState.selection)
   const hasChanges = draftKey !== null && draftKey !== persistedKey
-  const draftProvider =
-    draftKey === null || readyState === null
-      ? null
-      : readyState.models.find((model) => modelKey(model) === draftKey)
-          ?.provider
-  const needsConfirmation =
-    activeProvider === draftProvider &&
-    (readyState?.providers ?? []).some(
-      (provider) => provider.name === draftProvider && provider.requires_key
-    )
   const isSaving = saveState.status === "saving"
 
   const saveSelection = async () => {
@@ -70,7 +57,7 @@ export function ModelsSettings({
       description={DESCRIPTION}
       scrollable={false}
       footer={
-        hasChanges && needsConfirmation ? (
+        hasChanges ? (
           <Button disabled={isSaving} onClick={() => void saveSelection()}>
             {isSaving ? <Spinner data-icon="inline-start" /> : null}
             {isSaving ? "Saving..." : "Use selected model"}
@@ -91,7 +78,6 @@ export function ModelsSettings({
         }}
         onModelUnavailable={onModelUnavailable}
         onModelsChanged={() => void refresh({ silent: true })}
-        onActiveProviderChange={setActiveProvider}
         refresh={refresh}
       />
       <span className="sr-only" aria-live="polite">

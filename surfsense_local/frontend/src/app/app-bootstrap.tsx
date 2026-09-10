@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
 import {
   getGenerationSelection,
-  getInstalledGenerationModels,
+  getConnectionModels,
   getOnboardingStatus,
-  getProviders,
-  modelKey,
+  getProviderModels,
   type ModelSelection,
 } from "@/features/model-selection/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
@@ -43,21 +42,30 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
     if (!onboarding.completed) {
       return { status: "onboarding-required" }
     }
-    const providersPromise = getProviders()
-    const selectionPromise = getGenerationSelection()
-    const workspacesPromise = listWorkspaces()
-    const providers = await providersPromise
-    const modelsPromise = getInstalledGenerationModels(providers)
-    const [selection, workspaces, models] = await Promise.all([
-      selectionPromise,
-      workspacesPromise,
-      modelsPromise,
+    const [selection, workspaces] = await Promise.all([
+      getGenerationSelection(),
+      listWorkspaces(),
     ])
-    const currentSelection =
-      selection &&
-      models.some((model) => modelKey(model) === modelKey(selection))
+    let currentSelection: ModelSelection | null = null
+    if (selection?.provider === "openai_compatible") {
+      const models =
+        selection.connection_id === null
+          ? []
+          : await getConnectionModels(selection.connection_id)
+      currentSelection = models.some((model) => model.name === selection.name)
         ? selection
         : null
+    } else if (selection) {
+      const models = await getProviderModels(selection.provider)
+      currentSelection = models.some(
+        (model) =>
+          model.installed &&
+          model.capabilities.includes("completion") &&
+          model.name === selection.name
+      )
+        ? selection
+        : null
+    }
     return { status: "ready", selection: currentSelection, workspaces }
   } catch (error) {
     return { status: "error", message: messageFrom(error) }

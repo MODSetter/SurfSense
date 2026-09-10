@@ -13,6 +13,7 @@ import { ThreadList } from "@/features/chat/thread-list"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import {
+  getConnectionModels,
   getProviders,
   type ModelSelection,
 } from "@/features/model-selection/api"
@@ -183,14 +184,21 @@ export function DashboardPage({
       return
     }
     const controller = new AbortController()
-    void getProviders(controller.signal)
-      .then((providers) => {
-        setProviderAvailable(
-          providers.some(
-            (provider) =>
-              provider.name === selection.provider && provider.healthy
+    const availability =
+      selection.provider === "openai_compatible" &&
+      selection.connection_id !== null
+        ? getConnectionModels(selection.connection_id, controller.signal).then(
+            (models) => models.some((model) => model.name === selection.name)
           )
-        )
+        : getProviders(controller.signal).then((providers) =>
+            providers.some(
+              (provider) =>
+                provider.name === selection.provider && provider.healthy
+            )
+          )
+    void availability
+      .then((available) => {
+        setProviderAvailable(available)
       })
       .catch(() => setProviderAvailable(false))
     return () => controller.abort()
