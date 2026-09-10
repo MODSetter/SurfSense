@@ -1,4 +1,5 @@
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
 from modules.llm.providers.types import CatalogEntry, DownloadProgress, Message, Model
@@ -22,6 +23,16 @@ class Generator(Protocol):
         temperature: float | None = None,
         reasoning: bool | None = None,
     ) -> AsyncIterator[str]: ...
+
+
+@dataclass(frozen=True)
+class GeneratedImage:
+    content: bytes
+    media_type: str
+
+
+class ImageGenerator(Protocol):
+    async def generate(self, model: str, prompt: str) -> GeneratedImage: ...
 
 
 @runtime_checkable
