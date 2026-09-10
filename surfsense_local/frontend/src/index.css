@@ -218,6 +218,7 @@
 
 .titlebar-controls-end {
   margin-inline-start: auto;
+  transform: translateY(2px);
   app-region: no-drag;
   -webkit-app-region: no-drag;
 }
