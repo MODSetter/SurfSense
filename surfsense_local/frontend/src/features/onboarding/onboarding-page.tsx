@@ -107,7 +107,6 @@ function ModelSetupStep({
 }: {
   onComplete: (selection: ModelSelection) => void
 }) {
-  const [activeProvider, setActiveProvider] = useState("local")
   const { state, draftKey, saveState, isRefreshing, select, refresh, save } =
     useModelSelection()
   const showsModelSelection = state.status !== "api-unavailable"
@@ -116,19 +115,9 @@ function ModelSetupStep({
       ? modelKey(state.selection)
       : null
   const hasChanges = draftKey !== null && draftKey !== persistedKey
-  const draftProvider =
-    state.status === "ready" && draftKey !== null
-      ? state.models.find((model) => modelKey(model) === draftKey)?.provider
-      : null
-  const needsConfirmation =
-    state.status === "ready" &&
-    activeProvider === draftProvider &&
-    state.providers.some(
-      (provider) => provider.name === draftProvider && provider.requires_key
-    )
   const isSaving = saveState.status === "saving"
   const canContinue =
-    needsConfirmation &&
+    state.status === "ready" &&
     draftKey !== null &&
     (!state.staleSelection || hasChanges)
 
@@ -155,8 +144,8 @@ function ModelSetupStep({
           <h1 className="text-lg text-balance">Choose your AI model</h1>
         </CardTitle>
         <CardDescription className="max-w-lg text-pretty">
-          Run a local model for full privacy, or bring your own OpenRouter key
-          for capable remote models.
+          Run a local model for full privacy, or connect an OpenAI-compatible
+          endpoint.
         </CardDescription>
       </CardHeader>
 
@@ -173,7 +162,6 @@ function ModelSetupStep({
               installedFirst
               onSelect={select}
               onCatalogSelected={onComplete}
-              onActiveProviderChange={setActiveProvider}
               refresh={refresh}
             />
           </div>
@@ -208,7 +196,7 @@ function ModelSetupStep({
           )}
           {isRefreshing ? "Refreshing..." : "Refresh"}
         </Button>
-        {needsConfirmation ? (
+        {state.status === "ready" && draftKey !== null ? (
           <Button
             type="button"
             className="min-h-10"

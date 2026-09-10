@@ -22,6 +22,11 @@ import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
@@ -73,23 +78,37 @@ function Composer({
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">Format</p>
         <div className="flex flex-wrap gap-2">
-          {formats.map((entry) => (
-            <Button
-              key={entry.key}
-              type="button"
-              size="sm"
-              variant={format === entry.key ? "default" : "outline"}
-              disabled={!entry.available}
-              title={
-                entry.available
-                  ? undefined
-                  : "Needs an OpenRouter key — set one in model settings"
-              }
-              onClick={() => setFormat(entry.key)}
-            >
-              {entry.label}
-            </Button>
-          ))}
+          {formats.map((entry) => {
+            const unavailableReason =
+              entry.unavailable_reason ??
+              `Needs a ${entry.requires_role?.replace("_", " ")} model`
+            return entry.available ? (
+              <Button
+                key={entry.key}
+                type="button"
+                size="sm"
+                variant={format === entry.key ? "default" : "outline"}
+                onClick={() => setFormat(entry.key)}
+              >
+                {entry.label}
+              </Button>
+            ) : (
+              <Tooltip key={entry.key}>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-disabled="true"
+                    className="cursor-not-allowed opacity-50"
+                  >
+                    {entry.label}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{unavailableReason}</TooltipContent>
+              </Tooltip>
+            )
+          })}
         </div>
       </div>
 

@@ -133,8 +133,8 @@ describe("model onboarding", () => {
     expect(topShadow?.className).toContain("duration-100")
     expect(bottomShadow?.className).toContain("duration-100")
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
-    expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull()
+    expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Continue" })).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
 
     Object.defineProperties(scrollArea, {
