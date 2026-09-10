@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import {
   EllipsisIcon,
@@ -47,6 +47,7 @@ function RenameChatDialog({
   onClose: () => void
   onRename: (id: number, title: string) => Promise<boolean>
 }) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState(thread.title || "New chat")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -62,7 +63,15 @@ function RenameChatDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          const input = inputRef.current
+          if (!input) return
+          input.focus()
+          input.select()
+        }}
+      >
         <form onSubmit={(event) => void submit(event)}>
           <DialogHeader>
             <DialogTitle>Rename chat</DialogTitle>
@@ -71,12 +80,12 @@ function RenameChatDialog({
             </DialogDescription>
           </DialogHeader>
           <Input
+            ref={inputRef}
             className="my-4"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             aria-label="Chat name"
             maxLength={200}
-            autoFocus
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
