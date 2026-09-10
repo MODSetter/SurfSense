@@ -141,6 +141,9 @@ describe("OpenAI-compatible connections", () => {
     await user.clear(searchInput)
 
     const fastModel = screen.getByText("shared-model").closest("li")
+    const unknownBadge = fastModel?.querySelector("[data-slot=badge]")
+    expect(unknownBadge?.textContent).toBe("Capability unknown")
+    expect(unknownBadge?.getAttribute("data-variant")).toBe("outline")
     const chatButton = fastModel?.querySelector("button")
     const imageButton = fastModel?.querySelectorAll("button")[1]
     if (!chatButton || !imageButton) throw new Error("model actions missing")
@@ -197,9 +200,28 @@ describe("OpenAI-compatible connections", () => {
           capabilities: ["completion"],
           capability_known: true,
         },
+        {
+          connection_id: 1,
+          connection_label: "Chat gateway",
+          name: "draw-model",
+          capabilities: ["image_generation"],
+          capability_known: true,
+        },
       ])
     )
     expect(await screen.findByText("shared-model")).toBeTruthy()
+    const chatBadge = screen
+      .getByText("shared-model")
+      .closest("li")
+      ?.querySelector("[data-slot=badge]")
+    expect(chatBadge?.textContent).toBe("Completion")
+    expect(chatBadge?.getAttribute("data-variant")).toBe("secondary")
+    const imageBadge = screen
+      .getByText("draw-model")
+      .closest("li")
+      ?.querySelector("[data-slot=badge]")
+    expect(imageBadge?.textContent).toBe("Image Generation")
+    expect(imageBadge?.getAttribute("data-variant")).toBe("default")
   })
 
   it("requires explicit Save anyway and names cleared roles", async () => {

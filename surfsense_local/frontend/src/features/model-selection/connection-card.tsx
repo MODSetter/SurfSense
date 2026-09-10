@@ -64,6 +64,16 @@ function supportsChat(model: ConnectionModel) {
   return model.capabilities.includes("completion")
 }
 
+function capabilityBadge(capability: string) {
+  if (capability === "completion") {
+    return { label: "Completion", variant: "secondary" } as const
+  }
+  if (capability === "image_generation") {
+    return { label: "Image Generation", variant: "default" } as const
+  }
+  return { label: capability, variant: "outline" } as const
+}
+
 type ModelFilter = "all" | "chat" | "image" | "unknown"
 
 export function ConnectionCard({
@@ -413,11 +423,14 @@ export function ConnectionCard({
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {model.capability_known ? (
-                            model.capabilities.map((capability) => (
-                              <Badge key={capability} variant="outline">
-                                {capability.replaceAll("_", " ")}
-                              </Badge>
-                            ))
+                            model.capabilities.map((capability) => {
+                              const badge = capabilityBadge(capability)
+                              return (
+                                <Badge key={capability} variant={badge.variant}>
+                                  {badge.label}
+                                </Badge>
+                              )
+                            })
                           ) : (
                             <Badge variant="outline">Capability unknown</Badge>
                           )}
