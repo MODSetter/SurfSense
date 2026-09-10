@@ -3,7 +3,9 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
-import { SourcesPanel } from "./sources-panel"
+import { TooltipProvider } from "@/components/ui/tooltip"
+
+import { SourcesAddButton, SourcesPanel } from "./sources-panel"
 import { useSources } from "./use-sources"
 
 vi.mock("sonner", () => ({
@@ -27,22 +29,28 @@ const pendingDocument = {
 function SourceHarness() {
   const sources = useSources(1)
   return (
-    <SourcesPanel
-      documents={sources.documents}
-      selectedDocumentIds={sources.selectedDocumentIds}
-      highlightedDocumentId={null}
-      isLoading={sources.isLoading}
-      isUploading={sources.isUploading}
-      isDeleting={sources.isDeleting}
-      error={sources.error}
-      onOpen={(id) => void sources.openOriginal(id)}
-      onReveal={(id) => void sources.revealOriginal(id)}
-      onRetry={(id) => void sources.retry(id)}
-      onDelete={(id) => void sources.deleteOne(id)}
-      onDeleteSelected={() => void sources.deleteSelected()}
-      onSelectionChange={sources.setDocumentSelected}
-      onUpload={(files) => void sources.upload(files)}
-    />
+    <TooltipProvider>
+      <SourcesPanel
+        documents={sources.documents}
+        selectedDocumentIds={sources.selectedDocumentIds}
+        highlightedDocumentId={null}
+        isLoading={sources.isLoading}
+        isDeleting={sources.isDeleting}
+        error={sources.error}
+        addAction={
+          <SourcesAddButton
+            isUploading={sources.isUploading}
+            onUpload={(files) => void sources.upload(files)}
+          />
+        }
+        onOpen={(id) => void sources.openOriginal(id)}
+        onReveal={(id) => void sources.revealOriginal(id)}
+        onRetry={(id) => void sources.retry(id)}
+        onDelete={(id) => void sources.deleteOne(id)}
+        onDeleteSelected={() => void sources.deleteSelected()}
+        onSelectionChange={sources.setDocumentSelected}
+      />
+    </TooltipProvider>
   )
 }
 
@@ -90,22 +98,22 @@ describe("source upload", () => {
     }
 
     render(
-      <SourcesPanel
-        documents={[ready, processing, failed]}
-        selectedDocumentIds={[]}
-        highlightedDocumentId={ready.id}
-        isLoading={false}
-        isUploading={false}
-        isDeleting={false}
-        error={null}
-        onOpen={vi.fn()}
-        onReveal={vi.fn()}
-        onRetry={vi.fn()}
-        onDelete={vi.fn()}
-        onDeleteSelected={vi.fn()}
-        onSelectionChange={vi.fn()}
-        onUpload={vi.fn()}
-      />
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[ready, processing, failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={ready.id}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+        />
+      </TooltipProvider>
     )
 
     const readyCheckbox = screen.getByLabelText(`Select ${ready.title}`)
@@ -115,9 +123,21 @@ describe("source upload", () => {
     expect(
       screen.getByRole("status", { name: "Processing processing.pdf" })
     ).toBeTruthy()
-    expect(
-      screen.getByRole("button", { name: "Retry failed.pdf" })
-    ).toBeTruthy()
+    const retryButton = screen.getByRole("button", {
+      name: "Ingestion failed. Retry failed.pdf",
+    })
+    expect(retryButton).toBeTruthy()
+    const retryIcons = retryButton.querySelectorAll("svg")
+    expect(retryIcons[0]?.getAttribute("class")).toContain("text-destructive")
+    expect(retryIcons[0]?.getAttribute("class")).toContain(
+      "group-hover/source:opacity-0"
+    )
+    expect(retryIcons[1]?.getAttribute("class")).toContain(
+      "text-muted-foreground"
+    )
+    expect(retryIcons[1]?.getAttribute("class")).toContain(
+      "group-hover/source:opacity-100"
+    )
     expect(
       screen.getAllByRole("button", { name: /^Actions for / })
     ).toHaveLength(3)
@@ -164,13 +184,6 @@ describe("source upload", () => {
       "group-focus-within/source:opacity-100"
     )
     expect(actionsButton.className).toContain("focus-visible:opacity-100")
-    expect(
-      screen.getByRole("heading", { name: "Sources" }).parentElement?.className
-    ).toContain("px-3")
-    expect(
-      screen.getByRole("heading", { name: "All sources" }).closest("section")
-        ?.parentElement?.className
-    ).toContain("p-2")
   })
 
   it("offers per-source delete but disables it while processing", async () => {
@@ -191,7 +204,6 @@ describe("source upload", () => {
         selectedDocumentIds={[]}
         highlightedDocumentId={null}
         isLoading={false}
-        isUploading={false}
         isDeleting={false}
         error={null}
         onOpen={vi.fn()}
@@ -200,7 +212,6 @@ describe("source upload", () => {
         onDelete={onDelete}
         onDeleteSelected={vi.fn()}
         onSelectionChange={vi.fn()}
-        onUpload={vi.fn()}
       />
     )
 

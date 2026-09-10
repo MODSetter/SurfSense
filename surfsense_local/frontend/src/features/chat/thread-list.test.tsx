@@ -45,13 +45,41 @@ describe("ThreadList", () => {
       chatButton.querySelector("[aria-hidden=true]")?.parentElement
     const scrollContainer = chatButton
       .closest("aside")
-      ?.querySelector(".overflow-x-hidden")
+      ?.querySelector('[data-slot="scroll-shadow-viewport"]')
 
     expect(scrollContainer).toBeTruthy()
+    const newChat = screen.getByRole("button", { name: "New chat" })
+    expect(newChat.getAttribute("data-variant")).toBe("ghost")
+    expect(newChat.closest("header")?.className).toContain("px-3")
+    expect(scrollContainer?.className).toContain("p-3")
+    const recents = screen.getByRole("button", { name: "Recents" })
+    expect(recents.tagName).toBe("BUTTON")
+    expect(recents.className).not.toContain("bg-muted")
+    expect(recents.className).toContain("text-muted-foreground")
+    expect(recents.className).toContain("hover:text-accent-foreground")
+    expect(recents.className).toContain("select-none")
+    expect(recents.getAttribute("aria-expanded")).toBe("true")
+    expect(recents.querySelector("svg")?.getAttribute("class")).toContain(
+      "opacity-0"
+    )
+    expect(recents.querySelector("svg")?.getAttribute("class")).toContain(
+      "group-hover:opacity-100"
+    )
+    expect(
+      chatButton
+        .closest("aside")
+        ?.querySelector('[data-slot="scroll-shadow-top"]')
+    ).toBeTruthy()
+    expect(
+      chatButton
+        .closest("aside")
+        ?.querySelector('[data-slot="scroll-shadow-bottom"]')
+    ).toBeTruthy()
     expect(brand.className).toContain("font-heading")
     expect(brand.className).toContain("text-lg")
     expect(brand.className).toContain("font-medium")
     expect(brand.className).toContain("text-foreground")
+    expect(brand.className).toContain("select-none")
     expect(chatButton.parentElement?.className).toContain("w-full")
     expect(chatButton.parentElement?.className).toContain("overflow-hidden")
     expect(chatButton.className).toContain("h-8")
@@ -78,5 +106,32 @@ describe("ThreadList", () => {
     expect(titleContainer?.className).toContain(
       "sidebar-row-title-fade-actions"
     )
+
+    await user.click(recents)
+    expect(recents.getAttribute("aria-expanded")).toBe("false")
+    expect(screen.queryByRole("button", { name: title })).toBeNull()
+  })
+
+  it("shows recents empty copy instead of the icon empty state", () => {
+    render(
+      <ThreadList
+        threads={[]}
+        activeThreadId={null}
+        autoNamingThreadId={null}
+        animatingTitleThreadId={null}
+        isLoading={false}
+        onNewChat={vi.fn()}
+        onSelect={vi.fn()}
+        onRename={vi.fn(async () => true)}
+        onDelete={vi.fn(async () => undefined)}
+        onTitleAnimationComplete={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "Recents" })).toBeTruthy()
+    expect(
+      screen.getByText("Start a conversation to see it here")
+    ).toBeTruthy()
+    expect(screen.queryByText("No chats yet")).toBeNull()
   })
 })

@@ -1,6 +1,6 @@
 import { useTheme } from "@/components/theme-provider"
 import { ComputerIcon, MoonIcon, SunIcon } from "@/components/ui/icons"
-import { cn } from "@/lib/utils"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 
 const THEME_OPTIONS = [
   { icon: ComputerIcon, value: "system", label: "system" },
@@ -15,16 +15,12 @@ export function AppearanceToggle() {
   )
 
   return (
-    <div
-      className="relative inline-flex items-center overflow-hidden rounded-md border bg-muted/80"
+    <SegmentedControl
+      count={THEME_OPTIONS.length}
+      selectedIndex={selectedIndex}
       role="radiogroup"
       aria-label="Appearance"
     >
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-y-0 left-0 size-7 rounded-md border border-input bg-accent shadow-sm transition-transform duration-300 ease-out motion-reduce:transition-none"
-        style={{ translate: `${selectedIndex * 1.75}rem` }}
-      />
       {THEME_OPTIONS.map((option) => {
         const Icon = option.icon
         const selected = theme === option.value
@@ -40,17 +36,12 @@ export function AppearanceToggle() {
               aria-label={`Switch to ${option.label} theme`}
               onChange={() => setTheme(option.value)}
             />
-            <span
-              className={cn(
-                "relative flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors peer-focus-visible:z-10 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:outline-none",
-                selected ? "text-accent-foreground" : "hover:text-foreground"
-              )}
-            >
+            <span className="relative flex size-7 items-center justify-center rounded-md peer-focus-visible:z-10 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:outline-none">
               <Icon className="size-3.5" strokeWidth={1.5} />
             </span>
           </label>
         )
       })}
-    </div>
+    </SegmentedControl>
   )
 }

@@ -79,6 +79,18 @@ function registerDocumentHandlers(dataDir: string): void {
   const trusted = (sender: Electron.WebContents): boolean =>
     mainWindow !== null && sender === mainWindow.webContents
 
+  ipcMain.handle("shell:titlebar-overlay", (event, overlay) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      mainWindow === null
+    ) {
+      return
+    }
+    if (overlay == null || typeof overlay !== "object") return
+    applyTitleBarOverlay(mainWindow, overlay)
+  })
+
   ipcMain.handle("documents:open", async (event, workspaceId, documentId) => {
     if (
       !trusted(event.sender) ||
@@ -115,12 +127,27 @@ function registerDocumentHandlers(dataDir: string): void {
   })
 }
 
+function applyTitleBarOverlay(
+  win: BrowserWindow,
+  overlay: { color?: string; symbolColor?: string }
+): void {
+  if (process.platform === "darwin") return
+  win.setTitleBarOverlay({
+    ...(typeof overlay.color === "string" ? { color: overlay.color } : {}),
+    ...(typeof overlay.symbolColor === "string"
+      ? { symbolColor: overlay.symbolColor }
+      : {}),
+  })
+}
+
 function createWindow(apiUrl: string): void {
   const savedState = app.isPackaged ? loadWindowState() : null
   const win = new BrowserWindow({
     ...(savedState?.bounds ?? { width: 1280, height: 800 }),
     show: false,
-    ...(process.platform === "darwin" && { titleBarStyle: "hiddenInset" }),
+    // https://www.electronjs.org/docs/latest/tutorial/custom-title-bar
+    titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
+    ...(process.platform !== "darwin" && { titleBarOverlay: true }),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       additionalArguments: [`--surfsense-api-url=${apiUrl}`],

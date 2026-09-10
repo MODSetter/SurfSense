@@ -1,17 +1,17 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react"
 
 import { cn } from "@/lib/utils"
 
-export function ScrollShadow({
-  children,
-  className,
-  viewportClassName,
-}: {
-  children: ReactNode
-  className?: string
-  viewportClassName?: string
-}) {
-  const viewportRef = useRef<HTMLDivElement>(null)
+export function useScrollShadowEdges(
+  viewportRef: RefObject<HTMLElement | null>
+) {
   const [edges, setEdges] = useState({ top: false, bottom: false })
   const updateEdges = useCallback(() => {
     const viewport = viewportRef.current
@@ -26,7 +26,7 @@ export function ScrollShadow({
         ? current
         : { top, bottom }
     )
-  }, [])
+  }, [viewportRef])
 
   useEffect(() => {
     const frame = window.requestAnimationFrame(updateEdges)
@@ -43,7 +43,46 @@ export function ScrollShadow({
       window.cancelAnimationFrame(frame)
       observer.disconnect()
     }
-  }, [updateEdges])
+  }, [updateEdges, viewportRef])
+
+  return { edges, updateEdges }
+}
+
+export function ScrollShadowEdge({
+  edge,
+  visible,
+  from = "from-card",
+}: {
+  edge: "top" | "bottom"
+  visible: boolean
+  from?: "from-card" | "from-background"
+}) {
+  return (
+    <div
+      data-slot={edge === "top" ? "scroll-shadow-top" : "scroll-shadow-bottom"}
+      className={cn(
+        "pointer-events-none absolute inset-x-0 z-10 h-3 to-transparent transition-opacity duration-100 ease-out",
+        edge === "top" ? "top-0 bg-gradient-to-b" : "bottom-0 bg-gradient-to-t",
+        from === "from-background" ? "from-background" : "from-card",
+        visible ? "opacity-100" : "opacity-0"
+      )}
+    />
+  )
+}
+
+export function ScrollShadow({
+  children,
+  className,
+  viewportClassName,
+  from,
+}: {
+  children: ReactNode
+  className?: string
+  viewportClassName?: string
+  from?: "from-card" | "from-background"
+}) {
+  const viewportRef = useRef<HTMLDivElement>(null)
+  const { edges, updateEdges } = useScrollShadowEdges(viewportRef)
 
   return (
     <div className={cn("relative min-h-0", className)}>
@@ -58,20 +97,8 @@ export function ScrollShadow({
       >
         {children}
       </div>
-      <div
-        data-slot="scroll-shadow-top"
-        className={cn(
-          "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-card to-transparent transition-opacity duration-100 ease-out",
-          edges.top ? "opacity-100" : "opacity-0"
-        )}
-      />
-      <div
-        data-slot="scroll-shadow-bottom"
-        className={cn(
-          "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-card to-transparent transition-opacity duration-100 ease-out",
-          edges.bottom ? "opacity-100" : "opacity-0"
-        )}
-      />
+      <ScrollShadowEdge edge="top" visible={edges.top} from={from} />
+      <ScrollShadowEdge edge="bottom" visible={edges.bottom} from={from} />
     </div>
   )
 }

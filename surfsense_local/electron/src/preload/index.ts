@@ -12,4 +12,8 @@ contextBridge.exposeInMainWorld("surfsense", {
     ipcRenderer.invoke("documents:open", workspaceId, documentId),
   revealDocument: (workspaceId: number, documentId: number): Promise<string> =>
     ipcRenderer.invoke("documents:reveal", workspaceId, documentId),
+  setTitleBarOverlay: (overlay: {
+    color: string
+    symbolColor: string
+  }): Promise<void> => ipcRenderer.invoke("shell:titlebar-overlay", overlay),
 })

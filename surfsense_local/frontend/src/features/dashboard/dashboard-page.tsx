@@ -3,11 +3,22 @@ import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
+  SidebarRightIcon,
   XIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  DETAIL_RAIL_WIDTH,
+  MAIN_RAIL_WIDTH,
+  SlideRail,
+} from "@/components/ui/slide-rail"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
 import { ThreadList } from "@/features/chat/thread-list"
 import { ThreadPanel } from "@/features/chat/thread-panel"
@@ -21,12 +32,42 @@ import {
   SettingsDialog,
   type SettingsSectionId,
 } from "@/features/settings/settings-dialog"
-import { SourcesPanel } from "@/features/sources/sources-panel"
+import {
+  SourcesAddButton,
+  SourcesPanel,
+} from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
-import { StudioDialog } from "@/features/studio/studio-dialog"
+import { ArtifactList } from "@/features/studio/artifact-list"
+import { ArtifactPanel } from "@/features/studio/artifact-panel"
+import { StudioPanel } from "@/features/studio/studio-panel"
+import { useStudio } from "@/features/studio/use-studio"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
+import { RightPanel, type RightTab } from "./right-panel"
+
+const SOURCES_PANEL_KEY = "sourcesPanel:v1"
+
+type Inspect =
+  | { kind: "citation"; chunkId: number }
+  | { kind: "artifact"; artifactId: number }
+  | null
+
+function readSourcesOpen() {
+  try {
+    return localStorage.getItem(SOURCES_PANEL_KEY) !== "collapsed"
+  } catch {
+    return true
+  }
+}
+
+function writeSourcesOpen(open: boolean) {
+  try {
+    localStorage.setItem(SOURCES_PANEL_KEY, open ? "open" : "collapsed")
+  } catch {
+    // Private browsing and full disks throw.
+  }
+}
 
 function WorkspaceDashboard({
   workspace,
@@ -41,8 +82,11 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
-  const [citationChunkId, setCitationChunkId] = useState<number | null>(null)
+  const [tab, setTab] = useState<RightTab>("sources")
+  const [inspect, setInspect] = useState<Inspect>(null)
+  const [sourcesOpen, setSourcesOpen] = useState(readSourcesOpen)
   const sources = useSources(workspace.id)
+  const studio = useStudio(workspace.id)
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
@@ -50,80 +94,169 @@ function WorkspaceDashboard({
     onModelRequired,
   })
 
-  const closeCitation = () => setCitationChunkId(null)
+  const closeInspect = () => setInspect(null)
+  const toggleSources = () => {
+    setSourcesOpen((open) => {
+      const next = !open
+      writeSourcesOpen(next)
+      return next
+    })
+  }
+  const openSources = () => {
+    setSourcesOpen(true)
+    writeSourcesOpen(true)
+  }
 
   return (
-    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
-      <ThreadList
-        threads={chat.threads}
-        activeThreadId={chat.activeThreadId}
-        autoNamingThreadId={chat.autoNamingThreadId}
-        animatingTitleThreadId={chat.animatingTitleThreadId}
-        isLoading={chat.isLoadingThreads}
-        onNewChat={() => {
-          closeCitation()
-          chat.startNewChat()
-        }}
-        onSelect={(threadId) => {
-          if (threadId !== chat.activeThreadId) closeCitation()
-          chat.selectThread(threadId)
-        }}
-        onRename={chat.rename}
-        onDelete={async (threadId) => {
-          if (threadId === chat.activeThreadId) closeCitation()
-          await chat.removeThread(threadId)
-        }}
-        onTitleAnimationComplete={chat.finishTitleAnimation}
-      />
-      <ThreadPanel
-        runtime={chat.runtime}
-        thread={chat.activeThread}
-        view={chat.conversationView}
-        model={selection}
-        error={chat.error}
-        isLoading={chat.isLoadingMessages}
-        isRunning={chat.isRunning}
-        isUploading={sources.isUploading}
-        animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
-        providerAvailable={providerAvailable}
-        onCitation={setCitationChunkId}
-        onModelSetup={onModelRequired}
-        onModelSelected={onModelSelected}
-        onUpload={(files) => void sources.upload(files)}
-        onTitleAnimationComplete={chat.finishTitleAnimation}
-      />
-      {citationChunkId !== null ? (
-        <CitationPanel
-          workspaceId={workspace.id}
-          chunkId={citationChunkId}
-          onClose={closeCitation}
-          onOpen={(id) => void sources.openOriginal(id)}
-        />
-      ) : (
-        <SourcesPanel
-          documents={sources.documents}
-          selectedDocumentIds={sources.selectedDocumentIds}
-          highlightedDocumentId={null}
-          isLoading={sources.isLoading}
-          isUploading={sources.isUploading}
-          isDeleting={sources.isDeleting}
-          error={sources.error}
-          onOpen={(id) => void sources.openOriginal(id)}
-          onReveal={(id) => void sources.revealOriginal(id)}
-          onRetry={(id) => void sources.retry(id)}
-          onDelete={(id) => void sources.deleteOne(id)}
-          onDeleteSelected={() => void sources.deleteSelected()}
-          onSelectionChange={sources.setDocumentSelected}
-          onUpload={(files) => void sources.upload(files)}
-          studioSlot={
-            <StudioDialog
-              workspaceId={workspace.id}
-              documents={sources.documents}
+    <>
+      <div className="titlebar-controls">
+        <div className="titlebar-controls-end">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="pointer-events-auto size-6 aria-expanded:bg-transparent"
+                aria-expanded={sourcesOpen}
+                aria-controls="workspace-right-panel"
+                aria-label={
+                  sourcesOpen ? "Hide right panel" : "Show right panel"
+                }
+                onClick={toggleSources}
+              >
+                <SidebarRightIcon />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" collisionPadding={8}>
+              {sourcesOpen ? "Hide right panel" : "Show right panel"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+      <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
+        <div className="flex h-full min-h-0 w-[272px] min-w-[232px] shrink-0 flex-col">
+          <ThreadList
+            threads={chat.threads}
+            activeThreadId={chat.activeThreadId}
+            autoNamingThreadId={chat.autoNamingThreadId}
+            animatingTitleThreadId={chat.animatingTitleThreadId}
+            isLoading={chat.isLoadingThreads}
+            onNewChat={() => {
+              closeInspect()
+              chat.startNewChat()
+            }}
+            onSelect={(threadId) => {
+              if (threadId !== chat.activeThreadId) closeInspect()
+              chat.selectThread(threadId)
+            }}
+            onRename={chat.rename}
+            onDelete={async (threadId) => {
+              if (threadId === chat.activeThreadId) closeInspect()
+              await chat.removeThread(threadId)
+            }}
+            onTitleAnimationComplete={chat.finishTitleAnimation}
+          />
+        </div>
+        <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+          <ThreadPanel
+            runtime={chat.runtime}
+            thread={chat.activeThread}
+            view={chat.conversationView}
+            model={selection}
+            error={chat.error}
+            isLoading={chat.isLoadingMessages}
+            isRunning={chat.isRunning}
+            isUploading={sources.isUploading}
+            animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
+            providerAvailable={providerAvailable}
+            onCitation={(chunkId) => {
+              openSources()
+              setInspect({ kind: "citation", chunkId })
+            }}
+            onModelSetup={onModelRequired}
+            onModelSelected={onModelSelected}
+            onUpload={(files) => void sources.upload(files)}
+            onTitleAnimationComplete={chat.finishTitleAnimation}
+            autoNamingThreadId={chat.autoNamingThreadId}
+            onRename={chat.rename}
+            onDelete={async (threadId) => {
+              if (threadId === chat.activeThreadId) closeInspect()
+              await chat.removeThread(threadId)
+            }}
+          />
+        </div>
+        <SlideRail
+          open={sourcesOpen}
+          side="end"
+          width={inspect ? DETAIL_RAIL_WIDTH : MAIN_RAIL_WIDTH}
+        >
+          <div id="workspace-right-panel" className="h-full min-h-0">
+            <RightPanel
+              inspect={
+                inspect?.kind === "citation" ? (
+                  <CitationPanel
+                    workspaceId={workspace.id}
+                    chunkId={inspect.chunkId}
+                    onClose={closeInspect}
+                    onOpen={(id) => void sources.openOriginal(id)}
+                  />
+                ) : inspect?.kind === "artifact" ? (
+                  <ArtifactPanel
+                    artifactId={inspect.artifactId}
+                    onClose={closeInspect}
+                  />
+                ) : null
+              }
+              tab={tab}
+              onTabChange={setTab}
+              studio={
+                <StudioPanel
+                  documents={sources.documents}
+                  formats={studio.formats}
+                  isLoading={studio.isLoading}
+                  isCreating={studio.isCreating}
+                  error={studio.error}
+                  onGenerate={studio.create}
+                />
+              }
+              sources={
+                <SourcesPanel
+                  documents={sources.documents}
+                  selectedDocumentIds={sources.selectedDocumentIds}
+                  highlightedDocumentId={null}
+                  isLoading={sources.isLoading}
+                  isDeleting={sources.isDeleting}
+                  error={sources.error}
+                  addAction={
+                    <SourcesAddButton
+                      isUploading={sources.isUploading}
+                      onUpload={(files) => void sources.upload(files)}
+                    />
+                  }
+                  onOpen={(id) => void sources.openOriginal(id)}
+                  onReveal={(id) => void sources.revealOriginal(id)}
+                  onRetry={(id) => void sources.retry(id)}
+                  onDelete={(id) => void sources.deleteOne(id)}
+                  onDeleteSelected={() => void sources.deleteSelected()}
+                  onSelectionChange={sources.setDocumentSelected}
+                />
+              }
+              artifacts={
+                <ArtifactList
+                  artifacts={studio.artifacts}
+                  onOpen={(artifactId) => {
+                    openSources()
+                    setInspect({ kind: "artifact", artifactId })
+                  }}
+                  onDelete={(artifactId) => void studio.remove(artifactId)}
+                />
+              }
             />
-          }
-        />
-      )}
-    </section>
+          </div>
+        </SlideRail>
+      </section>
+    </>
   )
 }
 
@@ -214,7 +347,7 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-full min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+    <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
       <WorkspaceRail
         workspaces={workspaces.workspaces}
         activeWorkspaceId={workspaces.activeWorkspace.id}

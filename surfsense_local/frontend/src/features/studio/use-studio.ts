@@ -5,9 +5,7 @@ import {
   deleteArtifact,
   listArtifacts,
   listFormats,
-  readArtifact,
   type Artifact,
-  type ArtifactDetail,
   type StudioFormat,
   type StudioJobCreate,
 } from "./api"
@@ -38,24 +36,17 @@ function wait(ms: number, signal: AbortSignal) {
   })
 }
 
-export function useStudio(workspaceId: number, open: boolean) {
+export function useStudio(workspaceId: number) {
   const [formats, setFormats] = useState<StudioFormat[]>([])
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
-  const [selected, setSelected] = useState<ArtifactDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pollController = useRef<AbortController | null>(null)
   const hasRunning = artifacts.some(isRunning)
 
-  // Loaded only while the dialog is open, and reloaded each time it reopens.
   useEffect(() => {
-    if (!open) {
-      return
-    }
     const controller = new AbortController()
-    // isLoading defaults to true, so the first open shows a skeleton; reopening
-    // keeps the last data on screen and refreshes it (stale-while-revalidate).
     void Promise.all([
       listFormats(workspaceId, controller.signal),
       listArtifacts(workspaceId, controller.signal),
@@ -76,12 +67,12 @@ export function useStudio(workspaceId: number, open: boolean) {
         }
       })
     return () => controller.abort()
-  }, [workspaceId, open])
+  }, [workspaceId])
 
   // While a job runs, poll the list until it settles — the same freshness path
   // the sources panel uses.
   useEffect(() => {
-    if (!open || !hasRunning) {
+    if (!hasRunning) {
       return
     }
     const controller = new AbortController()
@@ -109,7 +100,7 @@ export function useStudio(workspaceId: number, open: boolean) {
     })()
 
     return () => controller.abort()
-  }, [open, hasRunning, workspaceId])
+  }, [hasRunning, workspaceId])
 
   const create = async (job: StudioJobCreate) => {
     setIsCreating(true)
@@ -126,21 +117,11 @@ export function useStudio(workspaceId: number, open: boolean) {
     }
   }
 
-  const open_ = async (artifactId: number) => {
-    setError(null)
-    try {
-      setSelected(await readArtifact(artifactId))
-    } catch (cause) {
-      setError(messageFrom(cause))
-    }
-  }
-
   const remove = async (artifactId: number) => {
     setError(null)
     try {
       await deleteArtifact(artifactId)
       setArtifacts((current) => current.filter((a) => a.id !== artifactId))
-      setSelected((current) => (current?.id === artifactId ? null : current))
     } catch (cause) {
       setError(messageFrom(cause))
     }
@@ -149,13 +130,10 @@ export function useStudio(workspaceId: number, open: boolean) {
   return {
     formats,
     artifacts,
-    selected,
     isLoading,
     isCreating,
     error,
     create,
-    openArtifact: open_,
-    closeArtifact: () => setSelected(null),
     remove,
     clearError: () => setError(null),
   }
