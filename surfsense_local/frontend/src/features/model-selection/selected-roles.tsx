@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { DotIcon } from "@/components/ui/icons"
+import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   type Connection,
@@ -24,11 +25,13 @@ function Role({
   label,
   selection,
   connections,
+  loading,
   fallback,
 }: {
   label: string
   selection: ModelSelection | null
   connections: Connection[] | null
+  loading?: boolean
   fallback: string
 }) {
   const source = selection === null ? null : sourceOf(selection, connections)
@@ -36,8 +39,13 @@ function Role({
   return (
     <>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 items-center gap-1">
-        {selection === null ? (
+      <dd
+        className="flex min-w-0 items-center gap-1"
+        aria-busy={loading || undefined}
+      >
+        {loading ? (
+          <Skeleton className="h-5 w-20" />
+        ) : selection === null ? (
           <span className="text-muted-foreground">{fallback}</span>
         ) : (
           <>
@@ -104,19 +112,15 @@ export function SelectedRoles({
           label="Chat:"
           selection={generation}
           connections={connections}
-          fallback={generationLoading ? "Loading…" : "Not assigned"}
+          loading={generationLoading}
+          fallback="Not assigned"
         />
         <Role
           label="Image:"
           selection={state.status === "ready" ? state.image : null}
           connections={connections}
-          fallback={
-            state.status === "loading"
-              ? "Loading…"
-              : state.status === "error"
-                ? "Unavailable"
-                : "Not assigned"
-          }
+          loading={state.status === "loading"}
+          fallback={state.status === "error" ? "Unavailable" : "Not assigned"}
         />
       </dl>
     </section>

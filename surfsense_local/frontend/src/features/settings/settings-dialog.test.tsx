@@ -183,6 +183,9 @@ describe("SettingsDialog", () => {
     await user.click(screen.getByRole("button", { name: "Models" }))
 
     expect(screen.getByRole("heading", { name: "Models" })).toBeTruthy()
+    const roles = screen.getByRole("region", { name: "Models in use" })
+    expect(roles.querySelectorAll("[data-slot=skeleton]")).toHaveLength(2)
+    expect(screen.queryByText("Loading…")).toBeNull()
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(
       screen.getByRole("status", { name: "Scanning model catalog" })
