@@ -36,7 +36,7 @@ function Role({
   return (
     <>
       <dt className="text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 items-center gap-1.5">
+      <dd className="flex min-w-0 items-center gap-1">
         {selection === null ? (
           <span className="text-muted-foreground">{fallback}</span>
         ) : (
@@ -101,13 +101,13 @@ export function SelectedRoles({
     >
       <dl className="grid gap-x-3 gap-y-1.5 text-sm sm:grid-cols-[3.5rem_minmax(0,1fr)]">
         <Role
-          label="Chat"
+          label="Chat:"
           selection={generation}
           connections={connections}
           fallback={generationLoading ? "Loading…" : "Not assigned"}
         />
         <Role
-          label="Image"
+          label="Image:"
           selection={state.status === "ready" ? state.image : null}
           connections={connections}
           fallback={

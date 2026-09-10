@@ -35,7 +35,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
-import { DotIcon, SearchIcon } from "@/components/ui/icons"
+import { SearchIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
@@ -248,7 +248,7 @@ export function ConnectionCard({
                   Disconnect
                 </Button>
               </AlertDialogTrigger>
-              <AlertDialogContent>
+              <AlertDialogContent className="select-none">
                 <AlertDialogHeader>
                   <AlertDialogTitle>
                     Disconnect {connection.label}?
@@ -311,10 +311,8 @@ export function ConnectionCard({
         >
           <DialogHeader>
             <DialogTitle>Browse models</DialogTitle>
-            <DialogDescription className="flex min-w-0 items-center gap-1.5">
-              <span className="truncate">{connection.label}</span>
-              <DotIcon aria-hidden="true" className="size-3 shrink-0" />
-              <span>Models are loaded live from this connection.</span>
+            <DialogDescription className="truncate">
+              {connection.label}
             </DialogDescription>
           </DialogHeader>
 
@@ -333,7 +331,14 @@ export function ConnectionCard({
               <Button
                 type="button"
                 size="sm"
-                variant="outline"
+                disabled={disabled || !manualName.trim()}
+                onClick={() => setImageModel(manualModel())}
+              >
+                Assign as image
+              </Button>
+              <Button
+                type="button"
+                size="sm"
                 disabled={disabled || !manualName.trim()}
                 onClick={() => {
                   const model = manualModel()
@@ -347,15 +352,6 @@ export function ConnectionCard({
                 }}
               >
                 Use for chat
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={disabled || !manualName.trim()}
-                onClick={() => setImageModel(manualModel())}
-              >
-                Assign as image
               </Button>
             </div>
             <FieldDescription>
@@ -439,27 +435,9 @@ export function ConnectionCard({
                       <Button
                         type="button"
                         size="sm"
-                        variant="outline"
-                        aria-label={
-                          generationName === model.name
-                            ? "In use for chat"
-                            : "Use for chat"
+                        variant={
+                          imageName === model.name ? "outline" : "default"
                         }
-                        disabled={
-                          disabled ||
-                          generationName === model.name ||
-                          (model.capability_known && !supportsChat(model))
-                        }
-                        onClick={() => void assign("generation", model)}
-                      >
-                        {generationName === model.name
-                          ? "In use"
-                          : "Use for chat"}
-                      </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
                         aria-label={
                           imageName === model.name
                             ? "In use for image"
@@ -479,6 +457,28 @@ export function ConnectionCard({
                         {imageName === model.name
                           ? "In use"
                           : "Assign as image"}
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                          generationName === model.name ? "outline" : "default"
+                        }
+                        aria-label={
+                          generationName === model.name
+                            ? "In use for chat"
+                            : "Use for chat"
+                        }
+                        disabled={
+                          disabled ||
+                          generationName === model.name ||
+                          (model.capability_known && !supportsChat(model))
+                        }
+                        onClick={() => void assign("generation", model)}
+                      >
+                        {generationName === model.name
+                          ? "In use"
+                          : "Use for chat"}
                       </Button>
                     </li>
                   ))}

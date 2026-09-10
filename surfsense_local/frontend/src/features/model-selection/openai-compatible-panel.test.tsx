@@ -144,8 +144,8 @@ describe("OpenAI-compatible connections", () => {
     const unknownBadge = fastModel?.querySelector("[data-slot=badge]")
     expect(unknownBadge?.textContent).toBe("Capability unknown")
     expect(unknownBadge?.getAttribute("data-variant")).toBe("outline")
-    const chatButton = fastModel?.querySelector("button")
-    const imageButton = fastModel?.querySelectorAll("button")[1]
+    const imageButton = fastModel?.querySelector("button")
+    const chatButton = fastModel?.querySelectorAll("button")[1]
     if (!chatButton || !imageButton) throw new Error("model actions missing")
     await user.click(chatButton)
     await waitFor(() => expect(onGenerationSelected).toHaveBeenCalledOnce())
@@ -290,6 +290,11 @@ describe("OpenAI-compatible connections", () => {
     expect(
       screen.getByText("Chat and Image roles will be cleared.")
     ).toBeTruthy()
+    expect(
+      screen.getByText("Chat and Image roles will be cleared.").closest(
+        '[data-slot="alert-dialog-content"]'
+      )?.className
+    ).toContain("select-none")
     const confirm = screen.getAllByRole("button", { name: "Disconnect" }).at(-1)
     if (!confirm) throw new Error("disconnect confirmation missing")
     await user.click(confirm)
