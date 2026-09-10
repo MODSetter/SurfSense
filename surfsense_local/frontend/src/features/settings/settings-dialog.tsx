@@ -8,7 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { CpuIcon, Settings2Icon } from "@/components/ui/icons"
+import { CpuIcon, KeyRoundIcon, Settings2Icon } from "@/components/ui/icons"
+import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/model-selection/api"
@@ -24,7 +25,7 @@ type SettingsNavItem = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
-export type SettingsSectionId = "general" | "models"
+export type SettingsSectionId = "general" | "models" | "license"
 
 function GeneralSettings({
   onImported,
@@ -71,6 +72,11 @@ const SETTINGS_SECTIONS = [
     id: "models",
     label: "Models",
     icon: CpuIcon,
+  },
+  {
+    id: "license",
+    label: "License",
+    icon: KeyRoundIcon,
   },
 ] satisfies SettingsNavItem[]
 
@@ -145,6 +151,7 @@ export function SettingsDialog({
                 onSelected={onModelSelected}
               />
             ) : null}
+            {activeSection.id === "license" ? <LicenseSettings /> : null}
           </section>
         </div>
       </DialogContent>
