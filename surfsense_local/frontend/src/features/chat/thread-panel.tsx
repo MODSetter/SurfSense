@@ -181,7 +181,7 @@ export function ThreadPanel({
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
       >
-        <header className="flex h-14 shrink-0 items-center border-b px-5">
+        <header className="flex h-14 shrink-0 items-center px-5">
           {title === null ? (
             <Skeleton className="h-5 w-32" />
           ) : thread == null ? (

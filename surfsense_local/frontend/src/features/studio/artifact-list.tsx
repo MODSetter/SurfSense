@@ -34,6 +34,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -167,10 +168,10 @@ export function ArtifactList({
 
   return (
     <section
-      className="mt-2 w-full min-w-0 overflow-hidden"
+      className="flex h-full min-h-0 w-full min-w-0 flex-col"
       aria-labelledby="all-artifacts"
     >
-      <div className="mb-2 flex min-h-7 items-center px-1">
+      <div className="mb-2 flex min-h-7 shrink-0 items-center px-1">
         <h3
           id="all-artifacts"
           className="text-xs font-medium text-muted-foreground"
@@ -178,30 +179,32 @@ export function ArtifactList({
           All generated artifacts
         </h3>
       </div>
-      {artifacts.length === 0 ? (
-        <Empty className="min-h-0 border-0 px-2">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileTextIcon />
-            </EmptyMedia>
-            <EmptyTitle>No generated artifacts yet</EmptyTitle>
-            <EmptyDescription>
-              Artifacts generated in Studio will appear here.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <div className="flex flex-col gap-1">
-          {artifacts.map((artifact) => (
-            <ArtifactRow
-              key={artifact.id}
-              artifact={artifact}
-              onOpen={() => onOpen(artifact.id)}
-              onDelete={() => setDeleteTarget(artifact)}
-            />
-          ))}
-        </div>
-      )}
+      <ScrollShadow className="min-h-0 flex-1" from="from-background">
+        {artifacts.length === 0 ? (
+          <Empty className="min-h-0 border-0 px-2">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FileTextIcon />
+              </EmptyMedia>
+              <EmptyTitle>No generated artifacts yet</EmptyTitle>
+              <EmptyDescription>
+                Artifacts generated in Studio will appear here.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : (
+          <div className="flex flex-col gap-1">
+            {artifacts.map((artifact) => (
+              <ArtifactRow
+                key={artifact.id}
+                artifact={artifact}
+                onOpen={() => onOpen(artifact.id)}
+                onDelete={() => setDeleteTarget(artifact)}
+              />
+            ))}
+          </div>
+        )}
+      </ScrollShadow>
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {

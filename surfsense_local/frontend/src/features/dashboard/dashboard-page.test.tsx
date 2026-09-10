@@ -240,10 +240,31 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
     expect(addSources.getAttribute("data-slot")).toBe("tooltip-trigger")
     expect(addSources.className).not.toContain("-mr-1.5")
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    const viewport = conversation.querySelector("[data-chat-viewport]")
+    const topShadow = conversation.querySelector(
+      '[data-slot="scroll-shadow-top"]'
+    )
+    expect(conversation.parentElement?.className).toContain("flex-1")
+    expect(conversation.querySelector("header")?.className).not.toContain(
+      "border-b"
+    )
+    expect(topShadow).toBeTruthy()
     expect(
-      screen.getByRole("region", { name: "Conversation" }).parentElement
-        ?.className
-    ).toContain("flex-1")
+      conversation.querySelector('[data-slot="scroll-shadow-bottom"]')
+    ).toBeNull()
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 400 },
+      scrollHeight: { configurable: true, value: 800 },
+      scrollTop: { configurable: true, value: 0, writable: true },
+    })
+    fireEvent.scroll(viewport as HTMLElement)
+    expect(topShadow?.className).toContain("opacity-0")
+    ;(viewport as HTMLElement).scrollTop = 80
+    fireEvent.scroll(viewport as HTMLElement)
+    await waitFor(() => {
+      expect(topShadow?.className).toContain("opacity-100")
+    })
 
     await user.type(input, "Start a chat")
     await user.click(screen.getByRole("button", { name: "Send message" }))
@@ -872,17 +893,43 @@ describe("dashboard chat", () => {
     )
 
     expect(screen.getByRole("heading", { name: "Sources" })).toBeTruthy()
+    const sourcesPanel = screen.getByRole("complementary", {
+      name: "Workspace sources",
+    })
+    const sourcesScroll = sourcesPanel.querySelector(
+      '[data-state="active"] [data-slot="scroll-shadow-viewport"]'
+    )
+    expect(
+      sourcesScroll?.contains(screen.getByRole("heading", { name: "All sources" }))
+    ).toBe(false)
+    expect(
+      sourcesScroll?.contains(screen.getByRole("button", { name: "Add" }))
+    ).toBe(false)
+    expect(sourcesScroll).toBeTruthy()
     await user.click(screen.getByRole("tab", { name: "Artifacts" }))
     expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
     expect(
       screen.getByRole("heading", { name: "All generated artifacts" })
     ).toBeTruthy()
+    const artifactsPanel = screen.getByRole("complementary", {
+      name: "Workspace artifacts",
+    })
+    const artifactsScroll = artifactsPanel.querySelector(
+      '[data-state="active"] [data-slot="scroll-shadow-viewport"]'
+    )
+    const weeklySummary = await screen.findByRole("button", {
+      name: /^Weekly summary/,
+    })
+    expect(
+      artifactsScroll?.contains(
+        screen.getByRole("heading", { name: "All generated artifacts" })
+      )
+    ).toBe(false)
+    expect(artifactsScroll?.contains(weeklySummary)).toBe(true)
     expect(screen.queryByRole("heading", { name: "All sources" })).toBeNull()
     expect(screen.queryByRole("button", { name: "Add" })).toBeNull()
     expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
-    await user.click(
-      await screen.findByRole("button", { name: /^Weekly summary/ })
-    )
+    await user.click(weeklySummary)
     expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
     expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
     const rail = document.querySelector("[data-slot=slide-rail]")

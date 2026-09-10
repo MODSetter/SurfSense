@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from "react"
 
 import {
+  ChevronDownIcon,
   EllipsisIcon,
   MessageSquareIcon,
   PencilEdit02Icon,
@@ -32,6 +33,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
@@ -138,8 +140,20 @@ export function ThreadList({
           New chat
         </Button>
       </header>
-      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-        <div className="w-full max-w-full min-w-0 space-y-1 p-2">
+      <ScrollShadow
+        className="min-h-0 min-w-0 flex-1"
+        viewportClassName="overflow-x-hidden p-2"
+        from="from-background"
+      >
+        <div className="w-full max-w-full min-w-0 space-y-1">
+          {isLoading || threads.length > 0 ? (
+            <div className="group flex min-h-7 items-center gap-1 px-2">
+              <h3 className="text-xs font-medium text-muted-foreground">
+                Recents
+              </h3>
+              <ChevronDownIcon className="size-3 text-muted-foreground opacity-0 transition-opacity duration-100 group-hover:opacity-100" />
+            </div>
+          ) : null}
           {isLoading
             ? [0, 1, 2, 3].map((item) => (
                 <Skeleton key={item} className="h-11 w-full" />
@@ -243,7 +257,7 @@ export function ThreadList({
             )
           })}
         </div>
-      </div>
+      </ScrollShadow>
       {renaming ? (
         <RenameChatDialog
           key={renaming.id}

@@ -47,6 +47,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
 import { Input } from "@/components/ui/input"
@@ -319,7 +320,7 @@ export function SourcesPanel({
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
   const listHeader = (
-    <div className="mb-2 flex min-h-7 items-center justify-between gap-2 px-1">
+    <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2 px-1">
       <h3
         id="all-sources"
         className="text-xs font-medium text-muted-foreground"
@@ -351,68 +352,56 @@ export function SourcesPanel({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      {isLoading ? (
-        <section
-          className="mt-2 w-full min-w-0 overflow-hidden"
-          aria-labelledby="all-sources"
-        >
-          {listHeader}
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2].map((item) => (
-              <Skeleton key={item} className="h-20 w-full" />
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {!isLoading && documents.length > 0 ? (
-        <section
-          className="mt-2 w-full min-w-0 overflow-hidden"
-          aria-labelledby="all-sources"
-        >
-          {listHeader}
-          <div className="flex flex-col gap-1">
-            {documents.map((document) => (
-              <SelectableSourceRow
-                key={document.id}
-                document={document}
-                selected={selectedDocumentIdSet.has(document.id)}
-                highlighted={highlightedDocumentId === document.id}
-                rowRef={(node) => {
-                  if (node) sourceRows.current.set(document.id, node)
-                  else sourceRows.current.delete(document.id)
-                }}
-                onOpen={() => onOpen(document.id)}
-                onReveal={() => onReveal(document.id)}
-                onRetry={() => onRetry(document.id)}
-                onDelete={() => setDeleteTarget(document)}
-                isDeleting={isDeleting}
-                onSelectedChange={(selected) =>
-                  onSelectionChange(document.id, selected)
-                }
-              />
-            ))}
-          </div>
-        </section>
-      ) : null}
-      {!isLoading && documents.length === 0 ? (
-        <section
-          className="mt-2 w-full min-w-0 overflow-hidden"
-          aria-labelledby="all-sources"
-        >
-          {listHeader}
-          <Empty className="min-h-0 border-0 px-2">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <FilePlus2Icon />
-              </EmptyMedia>
-              <EmptyTitle>No sources yet</EmptyTitle>
-              <EmptyDescription>
-                Files and notes added to this workspace will appear here.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        </section>
-      ) : null}
+      <section
+        className="flex h-full min-h-0 w-full min-w-0 flex-col"
+        aria-labelledby="all-sources"
+      >
+        {listHeader}
+        <ScrollShadow className="min-h-0 flex-1" from="from-background">
+          {isLoading ? (
+            <div className="flex flex-col gap-3">
+              {[0, 1, 2].map((item) => (
+                <Skeleton key={item} className="h-20 w-full" />
+              ))}
+            </div>
+          ) : documents.length > 0 ? (
+            <div className="flex flex-col gap-1">
+              {documents.map((document) => (
+                <SelectableSourceRow
+                  key={document.id}
+                  document={document}
+                  selected={selectedDocumentIdSet.has(document.id)}
+                  highlighted={highlightedDocumentId === document.id}
+                  rowRef={(node) => {
+                    if (node) sourceRows.current.set(document.id, node)
+                    else sourceRows.current.delete(document.id)
+                  }}
+                  onOpen={() => onOpen(document.id)}
+                  onReveal={() => onReveal(document.id)}
+                  onRetry={() => onRetry(document.id)}
+                  onDelete={() => setDeleteTarget(document)}
+                  isDeleting={isDeleting}
+                  onSelectedChange={(selected) =>
+                    onSelectionChange(document.id, selected)
+                  }
+                />
+              ))}
+            </div>
+          ) : (
+            <Empty className="min-h-0 border-0 px-2">
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <FilePlus2Icon />
+                </EmptyMedia>
+                <EmptyTitle>No sources yet</EmptyTitle>
+                <EmptyDescription>
+                  Files and notes added to this workspace will appear here.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          )}
+        </ScrollShadow>
+      </section>
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {

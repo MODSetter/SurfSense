@@ -81,16 +81,14 @@ export function RightPanel({
             </TabsList>
           </SegmentedControl>
         </header>
-        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="flex min-h-full w-full min-w-0 flex-col gap-5 overflow-hidden p-2">
-            {studio}
-            <TabsContent value="sources" className="min-w-0">
-              {sources}
-            </TabsContent>
-            <TabsContent value="artifacts" className="min-w-0">
-              {artifacts}
-            </TabsContent>
-          </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-hidden p-2">
+          <div className="shrink-0">{studio}</div>
+          <TabsContent value="sources" className="min-h-0 min-w-0 flex-1">
+            {sources}
+          </TabsContent>
+          <TabsContent value="artifacts" className="min-h-0 min-w-0 flex-1">
+            {artifacts}
+          </TabsContent>
         </div>
       </Tabs>
     </aside>

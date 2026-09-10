@@ -45,9 +45,28 @@ describe("ThreadList", () => {
       chatButton.querySelector("[aria-hidden=true]")?.parentElement
     const scrollContainer = chatButton
       .closest("aside")
-      ?.querySelector(".overflow-x-hidden")
+      ?.querySelector('[data-slot="scroll-shadow-viewport"]')
 
     expect(scrollContainer).toBeTruthy()
+    const recents = screen.getByRole("heading", { name: "Recents" })
+    expect(recents.className).toContain("text-muted-foreground")
+    expect(recents.parentElement?.className).toContain("group")
+    expect(recents.nextElementSibling?.getAttribute("class")).toContain(
+      "opacity-0"
+    )
+    expect(recents.nextElementSibling?.getAttribute("class")).toContain(
+      "group-hover:opacity-100"
+    )
+    expect(
+      chatButton
+        .closest("aside")
+        ?.querySelector('[data-slot="scroll-shadow-top"]')
+    ).toBeTruthy()
+    expect(
+      chatButton
+        .closest("aside")
+        ?.querySelector('[data-slot="scroll-shadow-bottom"]')
+    ).toBeTruthy()
     expect(brand.className).toContain("font-heading")
     expect(brand.className).toContain("text-lg")
     expect(brand.className).toContain("font-medium")
