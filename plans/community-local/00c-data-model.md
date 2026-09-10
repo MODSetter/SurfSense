@@ -87,6 +87,7 @@ erDiagram
   documents ||--o{ chunks : indexed_as
   chat_threads ||--o{ chat_messages : contains
   documents ||--o| artifacts : optional_sidecar
+  provider_connections ||--o{ selected_models : selected_through
 
   workspaces {
     int id PK
@@ -131,6 +132,23 @@ erDiagram
     text role
     json content
     text created_at
+  }
+
+  provider_connections {
+    int id PK
+    text label
+    text provider
+    text base_url
+    text api_key
+    text updated_at
+  }
+
+  selected_models {
+    text role PK
+    text provider
+    int connection_id FK
+    text name
+    text updated_at
   }
 ```
 
@@ -220,20 +238,28 @@ ADR-0003 shape: the searchable body is a `Document` with `document_type = ARTIFA
 
 `artifact_files` keeps one immutable blob per role (`primary` \| `preview`), unique on `(artifact_id, role)` and on `storage_key`, with `CHECK size_bytes > 0`. Cloud's `storage_backend` is **omitted**: Local has one backend, `data/workspaces/{id}/artifacts/{id}/`.
 
-### `selected_models`
+### `provider_connections` / `selected_models`
 
-The chosen generation model, one row per `role` (the primary key, so choosing
-again updates in place). `provider` names an entry in the `modules/llm` registry
-(`ollama` for v1), `name` is that provider's model id (`qwen3:4b`). The offerable
-catalog, hardware profile, llmfit scores, install plans, and curated models are
-**not** stored. They are recomputed from the packaged llmfit catalog, current
-hardware, enabled runtime adapters, and versioned curated-model manifest. The selected
-row stores the runtime identity, not llmfit's canonical catalog id. Ships in the
-initial migration.
+`provider_connections` stores multiple named remote endpoint instances:
+`id`, `label`, `provider`, exact `base_url`, nullable `api_key`, and timestamps.
+The same provider (`openai_compatible`) may have many rows because organizations
+often expose separate vLLM or image endpoints. The key belongs to the connection,
+not to a model or provider type, and is never returned by the API. Phase 6 moves
+it behind the OS-backed connection secret store without changing connection
+identity.
 
-Phase 5 therefore adds no recommendation tables and no migration. Persisting
-fit estimates would make them stale after a hardware, llmfit, runtime, or policy
-update.
+`selected_models` stores one active model per `role`: `generation` or
+`image_generation`. `provider` chooses the runtime adapter, `name` is the exact
+model id, and nullable `connection_id` identifies the remote endpoint. Ollama
+uses no connection; an OpenAI-compatible selection requires one. The FK uses
+`ON DELETE CASCADE`, so disconnecting an endpoint clears only roles that use it.
+
+The offerable local catalog, remote `/models` responses, hardware profile,
+llmfit scores, install plans, capabilities, and curated models are **not**
+stored. Local recommendations are recomputed from the packaged inputs; remote
+inventory is fetched live. Persisting either would create synchronization work
+without improving inference. See
+[`api/05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md).
 
 ### Local-only
 
@@ -241,6 +267,7 @@ update.
 |---|---|
 | `app_settings` or `settings.json` | onboarding path, parser pack, opt-in model overrides |
 | `huey.db` | Huey queue |
+| `provider_connections` | named OpenAI-compatible endpoints and their connection-scoped secret |
 | `selected_models` | chosen model per role (above) |
 
 ## Tables not in Local scope
@@ -253,8 +280,9 @@ update.
 |---|---|
 | 1 | `workspaces`, `documents` (stub) |
 | 2 | `documents` ingest + `chunks` |
-| 3 | `chat_threads`, `chat_messages`, settings; `selected_models` already in initial migration |
+| 3 | `chat_threads`, `chat_messages`, settings; generation-only `selected_models` in initial migration |
 | 4 | `artifacts` (+ `ARTIFACT` documents) |
+| 5 | `provider_connections`; rebuild `selected_models` for connection identity and image role |
 
 ## Open items
 

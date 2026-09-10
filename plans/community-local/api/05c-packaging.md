@@ -15,7 +15,7 @@ Installers for Paths A / B / C.
   pointed at them; `scripts/fetch_embedding_model.py` fetches the same files for CI.
 - A pinned official llmfit executable plus the versioned curated-model
   manifest; normalized recommendation/install routes are specified in
-  [`05-model-recommendations.md`](05-model-recommendations.md).
+  [`05a-model-recommendations.md`](05a-model-recommendations.md).
 
 ## Files no import statement names
 
@@ -112,7 +112,7 @@ the artifact selected by the server-side install resolver.
 
 The generation model arrives in first-run setup with progress through the
 normalized catalog boundary
-([`05-model-recommendations.md`](05-model-recommendations.md)):
+([`05a-model-recommendations.md`](05a-model-recommendations.md)):
 
 - `GET /llm/system` — normalized local hardware and scan status.
 - `GET /llm/catalog` — hardware-ranked Recommended, Explore, and installed

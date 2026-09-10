@@ -61,22 +61,22 @@
 ## Generation model boundaries
 
 ```text
-llmfit model catalog + fit estimates
-                  │
-                  ▼
-          SurfSense adapter
-                  │ canonical, normalized models
-                  ▼
-      Curated models JSON + support policy
-                  │
-                  ▼
-       Runtime artifact resolver
-          ├── Ollama adapter ── pull tag ── chat
-          └── llama.cpp adapter (future) ── GGUF ── chat
+LOCAL                                      REMOTE
+llmfit catalogue + fit                    provider_connections
+        │                                           │
+        ▼                                           ▼
+SurfSense adapter + policy                live GET /models per endpoint
+        │                                           │
+        ▼                                           ▼
+runtime artifact resolver                 SelectedModel(connection_id, name)
+  ├── Ollama ── pull tag ── chat             ├── generation ── /chat/completions
+  └── llama.cpp (future) ── chat             └── image_generation ── /images/generations
 ```
 
 llmfit never handles a SurfSense chat request. It can disappear and an already
-installed model still answers through its runtime adapter.
+installed model still answers through its runtime adapter. Remote model lists
+are fetched live and never copied into SQLite. Two endpoints with the same model
+id remain distinct because selection identity includes the connection id.
 
 ## Chat vs Studio
 
@@ -87,4 +87,7 @@ CHAT
 STUDIO (button)
   pick artifact type → pick documents → optional prompt
     → retrieve (app) → LLM → builder → artifacts row + file
+
+  infographic → generation model → strict spec → deterministic SVG/HTML builder
+  image       → image_generation selection → /images/generations → artifact file
 ```

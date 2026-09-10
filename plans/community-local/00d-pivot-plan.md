@@ -31,7 +31,9 @@ Three workstreams, joined by three frozen contracts:
 
 **Pricing**
 - Self-build: free. Trial: 14 days. Individual: **$60/year**. Team: **$80/seat/year, 5-25 seats**, self-serve, delivered as **one shared key with `maxUsers = quantity`**. Enterprise: $80/seat/year, **$3,000 minimum**, invoiced.
-- Payments stay on **Stripe with Stripe Tax**. Hosted LLM inference is **dropped**; BYO key via the existing OpenRouter provider.
+- Payments stay on **Stripe with Stripe Tax**. SurfSense-hosted LLM inference is
+  **dropped**; users may configure multiple OpenAI-compatible endpoints with
+  optional connection-scoped keys.
 - Plugins are **flat-included and unlimited**. Usage is instrumented per license so a cap becomes a config change, but no cap ships.
 - Enterprise roadmap (all post-MVP): sandboxed artifact generation, priority support and SLA, SSO/SAML, on-prem license and plugin mirror for zero-egress networks (Keygen's self-hosted edition fits), local egress audit log.
 
@@ -44,7 +46,8 @@ Three workstreams, joined by three frozen contracts:
 
 **Artifacts**
 - Generation runs **on the user's machine, unsandboxed**; risk accepted, sandboxing sold to enterprise later.
-- In MVP: Summary, Mind map, Flashcards, Quiz, Interactive HTML, DOCX, XLSX, PPTX, PDF, Podcast, Infographics. **Video is out.**
+- In MVP: Summary, Mind map, Flashcards, Quiz, Interactive HTML, DOCX, XLSX,
+  PPTX, PDF, Podcast, Infographics, and Image. **Video is out.**
 - Contractors own Studio **end-to-end** (routes, worker job, UI, builders). Dev A reviews.
 
 **Hosted wind-down**
@@ -150,7 +153,7 @@ flowchart LR
   B3 --> B5
   B5 --> Announce[announcement email]
   B8[B8 broadcast tool] --> Announce
-  A9[A9 keychain] --> C6[C6 infographics]
+  A9[A9 keychain] --> C6[C6 image connection]
   A10[A10 egress panel] --> C6
   A4 --> C5[C5 podcast bundles]
   C1[C1 Studio skeleton] --> C2[C2 to C5 builders]
@@ -182,13 +185,17 @@ Ordered. Each step is independently shippable to `dev`.
 
 1. **Rename.** `productName: SurfSense`, `appId: com.surfsense.app` in [electron-builder.yml](../../surfsense_local/electron/electron-builder.yml). Update [README.md](../../surfsense_local/README.md).
 2. **Retire the legacy desktop updater before touching `v*` tags.** `surfsense_desktop` v0.0.39 polls GitHub Releases for anything newer; if SurfSense v1.0.0 lands under `v*`, every legacy client tries to install it. Ship v0.0.40 with the updater disabled and a sunset screen, wait for uptake, then delete [desktop-release.yml](../../.github/workflows/desktop-release.yml) and switch [release-local.yml](../../.github/workflows/release-local.yml) from `local-v*` to `v*`.
-3. **Bundle Docling.** [electron-builder.yml](../../surfsense_local/electron/electron-builder.yml) says the parser is not shipped and downloads on first PDF - on an airgapped machine that download fails, not slows. [api/05-packaging.md](api/05-packaging.md) already specifies the fix: `extraResources` under `models_dir`, `HF_HOME` already redirected in [parsing.py](../../surfsense_local/backend/worker/ingestion/parsing.py). Verify with networking disabled.
+3. **Bundle Docling.** [electron-builder.yml](../../surfsense_local/electron/electron-builder.yml) says the parser is not shipped and downloads on first PDF - on an airgapped machine that download fails, not slows. [api/05c-packaging.md](api/05c-packaging.md) already specifies the fix: `extraResources` under `models_dir`, `HF_HOME` already redirected in [parsing.py](../../surfsense_local/backend/worker/ingestion/parsing.py). Verify with networking disabled.
 4. **First real dry run.** No `local-v*` tag has ever been cut; [release-local.yml](../../.github/workflows/release-local.yml) has never executed for real. Run it via `workflow_dispatch` on all five targets now, before any feature depends on it. Expect signing, notarization, and size surprises.
 5. **Import.** The migration path for every existing user, so it is v1.0.0. New `modules/migration/` (not `import` - reserved word). `POST /migration/import` takes the contract-3 ZIP from an Electron file picker; nothing touches the network. It is a **bulk upload on the API side**, matching the layer boundary in the umbrella plan (upload stream + enqueue is the API's; parse, chunk, embed is the worker's): unpack in a background task, return 202 with the created workspace ids, create one local workspace per cloud workspace, write each markdown file through the existing [documents/storage.py](../../surfsense_local/backend/modules/documents/storage.py) path so it gets a `dedup_key`, store `folder_path`, `source`, and the cloud ids in `document_metadata` (local has no folder table, so the hierarchy is kept as data, not structure), and enqueue the **existing** `ingest_document` for each. Markdown is in `TEXT_SUFFIXES`, so Docling is skipped: this path is chunk and embed only, and a large account is minutes to an hour on a laptop, in the background. Progress is the per-document status the sources panel already shows (polling or SSE invalidation, whichever the frontend has) plus one summary row (workspaces, documents ready and processing). Threads from `chats.json` are inserted as ordinary local threads with title-only citations. Quitting mid-import is safe: re-running the same bundle skips every document the `dedup_key` index already knows and the persistent Huey queue finishes what was enqueued. Entry points: Settings and the empty-workspace state. Build against `contracts/export-sample/` from day one; do not wait for Dev B's real export.
 6. **Intel fallback.** If `macos-13` is unavailable, build x64 sidecars with an x64 Python under Rosetta on the `macos-14` job.
 7. **Auto-update.** `electron-updater`; `publish: github` already configured. Every user is offered every release; no license logic. This is also the T+7 plugin delivery path, so test v1.0.0 to a dummy v1.0.1 end to end before launch.
 8. **License module.** New `modules/license/`: import file, verify offline, persist, clock-rollback watermark (highest timestamp seen in SQLite; earlier clock marks the license untrusted), `GET /license/status`. Settings UI to drop or paste the file. Needs a real Keygen-signed test file, so the founder's Keygen account precedes it. The trial button is added at T+7.
-9. **Keychain.** `provider_credentials.api_key` is plaintext SQLite today. Move to Electron `safeStorage` through a typed preload method. One hand-written Alembic revision drops the plaintext column; no data migration, since nothing has shipped.
+9. **Keychain.** `provider_connections.api_key` is plaintext SQLite in the
+   Phase 5 connection schema. Move connection secrets behind Electron
+   `safeStorage` through a typed preload method. One hand-written Alembic
+   revision drops the plaintext column; no data migration, since nothing has
+   shipped.
 10. **Egress panel.** One toggle per destination - Keygen (activation), GitHub (updates), each BYO provider - all **off by default**, each showing its last call. This is the answer to "airgapped app with a plugin store" and an enterprise selling point. The scraper API toggle is added at T+7.
 11. **Review Studio PRs**, enforcing the rule in Workstream C.
 
@@ -218,7 +225,12 @@ Own [api/04-studio.md](api/04-studio.md), [worker/04-studio.md](worker/04-studio
 3. **Office builders.** DOCX, XLSX, PPTX via `python-docx`, `openpyxl`, `python-pptx` from a spec. Add hidden imports to `worker.spec` - PyInstaller only sees what `import` statements name. Download-only; no LibreOffice, so no rendered previews.
 4. **PDF** via Electron's `printToPDF`: worker renders HTML, API hands it to the main process over IPC, result stored as the artifact primary file. No extra dependency. The IPC method lives in `electron/`, which Dev A owns: submit it as a PR to Dev A.
 5. **Podcast.** LLM script, **Kokoro ONNX** TTS bundled in `extraResources`, **ffmpeg static binary** bundled for MP3 encoding. The `extraResources` entries are a PR to Dev A's `electron-builder.yml`, and both binaries go through Dev A's packaging dry run (A4).
-6. **Infographics.** BYO image-model key stored through the keychain path; enabled only when its egress toggle is on. Depends on A9 and A10, which is why it is last.
+6. **Infographics and Image.** Infographics use the selected generation model
+   for a strict spec and a deterministic SVG/HTML builder; they do not depend on
+   an image model. Image resolves the optional `image_generation` selection and
+   calls that connection's OpenAI-compatible `/images/generations` endpoint.
+   Its key uses the keychain path and the connection must be enabled in the
+   egress panel. Only the Image branch depends on A9 and A10.
 
 ## Launch gates
 

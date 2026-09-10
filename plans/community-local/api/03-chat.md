@@ -14,10 +14,14 @@ context, streams a cited answer from the selected model, and both turns persist.
 
 - **Retrieval** — `retrieve(session, workspace_id, query, top_k)` returns `Hit`s
   (chunk id, document id, content, line span, score).
-- **Provider** — `modules/llm/`: `SelectedModel` holds the chat model, the registry
-  hands back a `Generator`, and `Generator.chat(model, messages) -> AsyncIterator[str]`
-  already streams deltas. This phase reads the selection and turns that stream into
-  SSE with citations — it does not re-add a provider client.
+- **Provider** — `modules/llm/`: `SelectedModel` holds the chat model, the
+  selection resolver returns a `Generator`, and
+  `Generator.chat(model, messages) -> AsyncIterator[str]` streams deltas. In
+  Phase 5 that resolver can load a named OpenAI-compatible connection; chat
+  remains provider-blind. See
+  [`05b-openai-compatible-connections.md`](05b-openai-compatible-connections.md).
+  This phase reads the selection and turns that stream into SSE with citations
+  — it does not add a provider client.
 - **Tables** — `ChatThread` and `ChatMessage` exist in `0001`. `ChatMessage.content`
   is JSON: the answer text and its citations travel together, and only the UI reads
   the shape.
