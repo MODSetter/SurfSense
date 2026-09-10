@@ -38,7 +38,7 @@ import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
 
-function RenameChatDialog({
+export function RenameChatDialog({
   thread,
   onClose,
   onRename,
@@ -130,7 +130,7 @@ export function ThreadList({
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background">
       <header className="space-y-3 p-3">
-        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground">
+        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
           SurfSense
         </h2>
         <Button className="w-full justify-start" onClick={onNewChat}>

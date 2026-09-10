@@ -52,6 +52,7 @@ describe("ThreadList", () => {
     expect(brand.className).toContain("text-lg")
     expect(brand.className).toContain("font-medium")
     expect(brand.className).toContain("text-foreground")
+    expect(brand.className).toContain("select-none")
     expect(chatButton.parentElement?.className).toContain("w-full")
     expect(chatButton.parentElement?.className).toContain("overflow-hidden")
     expect(chatButton.className).toContain("h-8")

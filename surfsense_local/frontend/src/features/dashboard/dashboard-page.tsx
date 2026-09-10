@@ -178,6 +178,12 @@ function WorkspaceDashboard({
             onModelSelected={onModelSelected}
             onUpload={(files) => void sources.upload(files)}
             onTitleAnimationComplete={chat.finishTitleAnimation}
+            autoNamingThreadId={chat.autoNamingThreadId}
+            onRename={chat.rename}
+            onDelete={async (threadId) => {
+              if (threadId === chat.activeThreadId) closeInspect()
+              await chat.removeThread(threadId)
+            }}
           />
         </div>
         <SlideRail

@@ -41,7 +41,7 @@ export function RightPanel({
         className="h-full min-h-0 gap-0"
       >
         <header className="flex h-14 shrink-0 items-center gap-2 px-3">
-          <h2 className="font-heading text-lg font-medium">
+          <h2 className="font-heading text-base font-medium">
             {tab === "sources" ? "Sources" : "Artifacts"}
           </h2>
           <SegmentedControl

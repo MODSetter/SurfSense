@@ -1,5 +1,11 @@
-import { useEffect, useRef, type ReactNode } from "react"
-import { BotIcon, Settings2Icon } from "@/components/ui/icons"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import {
+  BotIcon,
+  ChevronDownIcon,
+  PencilIcon,
+  Settings2Icon,
+  Trash2Icon,
+} from "@/components/ui/icons"
 
 import {
   AssistantRuntimeProvider,
@@ -10,6 +16,15 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/model-selection/api"
@@ -77,6 +92,9 @@ export function ThreadPanel({
   onModelSelected,
   onUpload,
   onTitleAnimationComplete,
+  autoNamingThreadId,
+  onRename,
+  onDelete,
 }: {
   runtime: AssistantRuntime
   thread: ChatThread | null
@@ -93,11 +111,20 @@ export function ThreadPanel({
   onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
   onTitleAnimationComplete: () => void
+  autoNamingThreadId: number | null
+  onRename: (id: number, title: string) => Promise<boolean>
+  onDelete: (id: number) => Promise<void>
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null)
+  const titleButtonRef = useRef<HTMLButtonElement>(null)
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const ignoreMenuFocusRef = useRef(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState("")
   const threadId = thread?.id
   const title =
     view.status === "initializing" ? null : thread?.title || "New chat"
+  const canRename =
+    thread != null && thread.id !== autoNamingThreadId && !animateTitle
   const bottomComposer = view.status === "creating" || view.status === "active"
   const composer = (placement: "center" | "bottom") => (
     <ChatComposer
@@ -113,10 +140,39 @@ export function ThreadPanel({
   )
 
   useEffect(() => {
+    setEditing(false)
     if (threadId !== undefined) {
-      headingRef.current?.focus()
+      titleButtonRef.current?.focus()
     }
   }, [threadId])
+
+  useEffect(() => {
+    if (editing) {
+      const input = titleInputRef.current
+      if (!input) return
+      input.focus()
+      input.select()
+    }
+  }, [editing])
+
+  const startEditing = () => {
+    if (!canRename || title == null) return
+    setDraft(title)
+    setEditing(true)
+  }
+
+  const cancelEditing = () => {
+    setEditing(false)
+    setDraft(title ?? "")
+  }
+
+  const commitEditing = () => {
+    if (!thread || !editing) return
+    const next = draft.trim()
+    setEditing(false)
+    if (!next || next === (thread.title || "New chat")) return
+    void onRename(thread.id, next)
+  }
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -126,21 +182,100 @@ export function ThreadPanel({
         aria-label="Conversation"
       >
         <header className="flex h-14 shrink-0 items-center border-b px-5">
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="min-w-0 truncate font-heading text-lg font-medium outline-none"
-          >
-            {title === null ? (
-              <Skeleton className="h-5 w-32" />
-            ) : (
+          {title === null ? (
+            <Skeleton className="h-5 w-32" />
+          ) : thread == null ? (
+            <h1 className="min-w-0 truncate font-heading text-base font-medium">
               <TypewriterText
                 text={title}
                 animate={animateTitle}
                 onComplete={onTitleAnimationComplete}
               />
-            )}
-          </h1>
+            </h1>
+          ) : editing ? (
+            <Input
+              ref={titleInputRef}
+              value={draft}
+              maxLength={200}
+              aria-label="Chat name"
+              className="w-auto max-w-full font-heading text-base font-medium md:text-base"
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={commitEditing}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  commitEditing()
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault()
+                  cancelEditing()
+                }
+              }}
+            />
+          ) : (
+            <ButtonGroup aria-label="Chat">
+              <Button
+                ref={titleButtonRef}
+                type="button"
+                variant="ghost"
+                disabled={!canRename}
+                className="h-auto min-w-0 max-w-full px-1.5 py-0 font-heading text-base font-medium active:translate-y-0"
+                onClick={startEditing}
+              >
+                <span className="truncate">
+                  <TypewriterText
+                    text={title}
+                    animate={animateTitle}
+                    onComplete={onTitleAnimationComplete}
+                  />
+                </span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Chat options for ${title}`}
+                  >
+                    <ChevronDownIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-36"
+                  onCloseAutoFocus={(event) => {
+                    if (ignoreMenuFocusRef.current) {
+                      event.preventDefault()
+                      ignoreMenuFocusRef.current = false
+                    }
+                  }}
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      disabled={!canRename}
+                      onSelect={() => {
+                        ignoreMenuFocusRef.current = true
+                        startEditing()
+                      }}
+                    >
+                      <PencilIcon />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => {
+                        void onDelete(thread.id)
+                      }}
+                    >
+                      <Trash2Icon />
+                      Delete chat
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
+          )}
         </header>
 
         {error ? (

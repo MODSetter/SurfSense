@@ -1,5 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ThemeProvider } from "@/components/theme-provider"
@@ -57,7 +63,7 @@ beforeEach(() => {
 })
 
 describe("dashboard chat", () => {
-  it("renames a saved chat from the sidebar", async () => {
+  it("renames a saved chat from the conversation title", async () => {
     const thread = {
       id: 10,
       workspace_id: 1,
@@ -119,18 +125,20 @@ describe("dashboard chat", () => {
       </ThemeProvider>
     )
 
-    await screen.findByRole("heading", { name: "Original title" })
+    const conversation = screen.getByRole("region", { name: "Conversation" })
     await user.click(
-      screen.getByRole("button", { name: "Actions for Original title" })
+      await within(conversation).findByRole("button", {
+        name: "Original title",
+      })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Rename" }))
-    const input = screen.getByRole("textbox", { name: "Chat name" })
+    const input = within(conversation).getByRole("textbox", {
+      name: "Chat name",
+    })
     await user.clear(input)
-    await user.type(input, "Banking fees")
-    await user.click(screen.getByRole("button", { name: "Rename" }))
+    await user.type(input, "Banking fees{Enter}")
 
     expect(
-      await screen.findByRole("heading", { name: "Banking fees" })
+      await within(conversation).findByRole("button", { name: "Banking fees" })
     ).toBeTruthy()
     expect(fetchMock).toHaveBeenCalledWith(
       "/chat/threads/10",
@@ -267,7 +275,10 @@ describe("dashboard chat", () => {
         { status: 201 }
       )
     )
-    await screen.findByRole("heading", { name: "Start a chat" })
+    await within(screen.getByRole("region", { name: "Conversation" })).findByRole(
+      "button",
+      { name: "Start a chat" }
+    )
     await waitFor(() => {
       expect(document.querySelectorAll("time")).toHaveLength(1)
     })
