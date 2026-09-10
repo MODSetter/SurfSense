@@ -221,7 +221,7 @@ describe("OpenAI-compatible connections", () => {
       .closest("li")
       ?.querySelector("[data-slot=badge]")
     expect(imageBadge?.textContent).toBe("Image Generation")
-    expect(imageBadge?.getAttribute("data-variant")).toBe("default")
+    expect(imageBadge?.getAttribute("data-variant")).toBe("secondary")
   })
 
   it("requires explicit Save anyway and names cleared roles", async () => {

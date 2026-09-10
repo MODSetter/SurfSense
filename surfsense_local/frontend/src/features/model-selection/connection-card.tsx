@@ -69,7 +69,7 @@ function capabilityBadge(capability: string) {
     return { label: "Completion", variant: "secondary" } as const
   }
   if (capability === "image_generation") {
-    return { label: "Image Generation", variant: "default" } as const
+    return { label: "Image Generation", variant: "secondary" } as const
   }
   return { label: capability, variant: "outline" } as const
 }
