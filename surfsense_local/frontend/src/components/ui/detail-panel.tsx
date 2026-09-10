@@ -29,7 +29,7 @@ export function DetailPanel({
       className="flex h-full min-w-0 flex-col border-l bg-background"
       aria-label={ariaLabel}
     >
-      <div className="grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-3">
+      <div className="grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3">
         <p className="min-w-0 truncate text-sm text-muted-foreground">{title}</p>
         <div className="flex items-center gap-1">
           {actions}

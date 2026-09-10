@@ -4,7 +4,9 @@ import userEvent from "@testing-library/user-event"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 
+import { ArtifactList } from "./artifact-list"
 import { StudioPanel } from "./studio-panel"
+import { useStudio } from "./use-studio"
 
 const readyDocument = {
   id: 4,
@@ -28,13 +30,38 @@ const pendingArtifact = {
   updated_at: "2026-09-06T00:00:00Z",
 }
 
-function renderStudio(
-  documents: typeof readyDocument[] = [readyDocument],
-  onOpen = vi.fn()
-) {
+function StudioHarness({
+  documents = [readyDocument],
+}: {
+  documents?: (typeof readyDocument)[]
+}) {
+  const studio = useStudio(1)
+  return (
+    <>
+      <StudioPanel
+        documents={documents}
+        formats={studio.formats}
+        isLoading={studio.isLoading}
+        isCreating={studio.isCreating}
+        error={studio.error}
+        onGenerate={studio.create}
+      />
+      <ArtifactList
+        artifacts={studio.artifacts}
+        labelOf={(format) =>
+          studio.formats.find((entry) => entry.key === format)?.label ?? format
+        }
+        onOpen={vi.fn()}
+        onDelete={(id) => void studio.remove(id)}
+      />
+    </>
+  )
+}
+
+function renderStudio(documents: (typeof readyDocument)[] = [readyDocument]) {
   return render(
     <TooltipProvider>
-      <StudioPanel workspaceId={1} documents={documents} onOpen={onOpen} />
+      <StudioHarness documents={documents} />
     </TooltipProvider>
   )
 }
@@ -102,48 +129,13 @@ describe("studio panel", () => {
       format: "summary",
       document_ids: [4],
     })
-    expect(await screen.findByText("Generated artifacts")).toBeTruthy()
-    expect(await screen.findByText("pending")).toBeTruthy()
-  })
-
-  it("shows the stored reason on a failed artifact", async () => {
-    const failedArtifact = {
-      ...pendingArtifact,
-      id: 11,
-      title: "Flashcards",
-      format: "flashcards",
-      status: "failed" as const,
-      error_message: "ConnectError: All connection attempts failed",
-    }
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        const path = String(input)
-        if (path === "/workspaces/1/studio/formats") {
-          return Response.json([
-            {
-              key: "flashcards",
-              label: "Flashcards",
-              requires_role: "generation",
-              available: true,
-              unavailable_reason: null,
-            },
-          ])
-        }
-        if (path === "/workspaces/1/artifacts") {
-          return Response.json([failedArtifact])
-        }
-        return Response.json({ detail: "not found" }, { status: 404 })
-      })
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Summary" })).toBeNull()
     )
-
-    renderStudio()
-
-    expect(await screen.findByText("Generated artifacts")).toBeTruthy()
-    expect(await screen.findByText("failed")).toBeTruthy()
     expect(
-      screen.getByText("ConnectError: All connection attempts failed")
+      screen.getByRole("heading", { name: "All generated artifacts" })
     ).toBeTruthy()
+    expect(screen.getByText("pending")).toBeTruthy()
   })
 
   it("explains why an unavailable image format is disabled", async () => {
@@ -211,45 +203,5 @@ describe("studio panel", () => {
         name: "Generate an AI interactive quiz based on your sources",
       })
     ).toBeTruthy()
-  })
-
-  it("asks the rail to open a ready artifact", async () => {
-    const readyArtifact = {
-      ...pendingArtifact,
-      id: 12,
-      title: "Weekly summary",
-      status: "ready" as const,
-    }
-    const onOpen = vi.fn()
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        const path = String(input)
-        if (path === "/workspaces/1/studio/formats") {
-          return Response.json([
-            {
-              key: "summary",
-              label: "Summary",
-              requires_role: "generation",
-              available: true,
-              unavailable_reason: null,
-            },
-          ])
-        }
-        if (path === "/workspaces/1/artifacts") {
-          return Response.json([readyArtifact])
-        }
-        return Response.json({ detail: "not found" }, { status: 404 })
-      })
-    )
-    const user = userEvent.setup()
-
-    renderStudio([readyDocument], onOpen)
-
-    await user.click(
-      await screen.findByRole("button", { name: /^Weekly summary/ })
-    )
-    expect(onOpen).toHaveBeenCalledWith(12)
-    expect(screen.queryByRole("dialog", { name: "Weekly summary" })).toBeNull()
   })
 })

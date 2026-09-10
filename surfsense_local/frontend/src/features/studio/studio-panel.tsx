@@ -14,12 +14,10 @@ import {
   Presentation01Icon,
   Quiz01Icon,
   SparklesIcon,
-  Trash2Icon,
   Xls01Icon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -40,8 +38,7 @@ import {
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
-import type { Artifact, StudioFormat } from "./api"
-import { useStudio } from "./use-studio"
+import type { StudioFormat, StudioJobCreate } from "./api"
 
 const FORMAT_HINTS: Record<string, string> = {
   summary: "Generate an AI summary based on your sources",
@@ -72,13 +69,6 @@ const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   image: Image01Icon,
   infographic: ChartHistogramIcon,
 }
-
-const statusVariant = {
-  pending: "outline",
-  processing: "secondary",
-  ready: "secondary",
-  failed: "destructive",
-} as const
 
 function unavailableReason(entry: StudioFormat) {
   return (
@@ -205,76 +195,6 @@ function Composer({
   )
 }
 
-function Library({
-  artifacts,
-  labelOf,
-  onOpen,
-  onDelete,
-}: {
-  artifacts: Artifact[]
-  labelOf: (format: string) => string
-  onOpen: (id: number) => void
-  onDelete: (id: number) => void
-}) {
-  if (artifacts.length === 0) {
-    return null
-  }
-  return (
-    <section className="space-y-2" aria-labelledby="generated-artifacts">
-      <h3
-        id="generated-artifacts"
-        className="px-1 text-xs font-medium text-muted-foreground"
-      >
-        Generated artifacts
-      </h3>
-      <div className="space-y-1.5">
-        {artifacts.map((artifact) => (
-          <div
-            key={artifact.id}
-            className="flex items-start gap-2 rounded-md border p-2"
-          >
-            <div className="min-w-0 flex-1">
-              <button
-                type="button"
-                disabled={artifact.status !== "ready"}
-                onClick={() => onOpen(artifact.id)}
-                className="w-full cursor-pointer text-left disabled:cursor-default"
-              >
-                <span className="block truncate text-sm font-medium">
-                  {artifact.title}
-                </span>
-                <span className="text-[11px] text-muted-foreground">
-                  {labelOf(artifact.format)}
-                </span>
-              </button>
-              {artifact.status === "failed" && artifact.error_message ? (
-                <p className="mt-1 text-[11px] text-pretty text-destructive">
-                  {artifact.error_message}
-                </p>
-              ) : null}
-            </div>
-            <Badge
-              variant={statusVariant[artifact.status]}
-              className="mt-0.5 h-4 shrink-0 px-1.5 text-[10px]"
-            >
-              {artifact.status}
-            </Badge>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="shrink-0"
-              aria-label={`Delete ${artifact.title}`}
-              onClick={() => onDelete(artifact.id)}
-            >
-              <Trash2Icon />
-            </Button>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
-
 function FormatCard({
   entry,
   selected,
@@ -313,62 +233,57 @@ function FormatCard({
 }
 
 export function StudioPanel({
-  workspaceId,
   documents,
-  onOpen,
+  formats,
+  isLoading,
+  isCreating,
+  error,
+  onGenerate,
 }: {
-  workspaceId: number
   documents: WorkspaceDocument[]
-  onOpen: (artifactId: number) => void
+  formats: StudioFormat[]
+  isLoading: boolean
+  isCreating: boolean
+  error: string | null
+  onGenerate: (job: StudioJobCreate) => Promise<boolean>
 }) {
-  const studio = useStudio(workspaceId)
   const [format, setFormat] = useState<string | null>(null)
-  const selectedFormat = studio.formats.find((entry) => entry.key === format)
-  const labelOf = (key: string) =>
-    studio.formats.find((entry) => entry.key === key)?.label ?? key
+  const selectedFormat = formats.find((entry) => entry.key === format)
 
   return (
     <>
-      {studio.error ? (
+      {error ? (
         <Alert variant="destructive">
           <AlertTitle>Studio action failed</AlertTitle>
-          <AlertDescription>{studio.error}</AlertDescription>
+          <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 
-      {studio.isLoading ? (
+      {isLoading ? (
         <div className="grid grid-cols-3 gap-1.5">
           {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((item) => (
             <Skeleton key={item} className="h-16 w-full" />
           ))}
         </div>
       ) : (
-        <div className="flex flex-col gap-3">
-          <Library
-            artifacts={studio.artifacts}
-            labelOf={labelOf}
-            onOpen={onOpen}
-            onDelete={(id) => void studio.remove(id)}
-          />
-          <section className="space-y-2" aria-labelledby="studio-formats">
-            <h3
-              id="studio-formats"
-              className="px-1 text-xs font-medium text-muted-foreground"
-            >
-              Studio
-            </h3>
-            <div className="grid grid-cols-3 gap-1.5">
-              {studio.formats.map((entry) => (
-                <FormatCard
-                  key={entry.key}
-                  entry={entry}
-                  selected={format === entry.key}
-                  onSelect={() => setFormat(entry.key)}
-                />
-              ))}
-            </div>
-          </section>
-        </div>
+        <section className="space-y-2" aria-labelledby="studio-formats">
+          <h3
+            id="studio-formats"
+            className="px-1 text-xs font-medium text-muted-foreground"
+          >
+            Studio
+          </h3>
+          <div className="grid grid-cols-3 gap-1.5">
+            {formats.map((entry) => (
+              <FormatCard
+                key={entry.key}
+                entry={entry}
+                selected={format === entry.key}
+                onSelect={() => setFormat(entry.key)}
+              />
+            ))}
+          </div>
+        </section>
       )}
 
       <Dialog
@@ -390,9 +305,9 @@ export function StudioPanel({
                 key={selectedFormat.key}
                 format={selectedFormat.key}
                 documents={documents}
-                isCreating={studio.isCreating}
+                isCreating={isCreating}
                 onGenerate={(job) => {
-                  void studio.create(job).then((created) => {
+                  void onGenerate(job).then((created) => {
                     if (created) setFormat(null)
                   })
                 }}

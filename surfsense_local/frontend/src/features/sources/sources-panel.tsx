@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type ChangeEvent,
-  type ReactNode,
-} from "react"
+import { useEffect, useRef, useState, type ChangeEvent } from "react"
 import {
   Alert02Icon,
   EllipsisIcon,
@@ -232,12 +226,50 @@ function SelectableSourceRow({
   )
 }
 
+export function SourcesAddButton({
+  isUploading,
+  onUpload,
+}: {
+  isUploading: boolean
+  onUpload: (files: File[]) => void
+}) {
+  const fileInput = useRef<HTMLInputElement>(null)
+  const chooseFiles = () => fileInput.current?.click()
+  const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
+    onUpload(Array.from(event.target.files ?? []))
+    event.target.value = ""
+  }
+
+  return (
+    <>
+      <Input
+        ref={fileInput}
+        type="file"
+        multiple
+        accept={SOURCE_FILE_ACCEPT}
+        className="sr-only"
+        aria-label="Upload source files"
+        disabled={isUploading}
+        onChange={uploadSelectedFiles}
+      />
+      <Button
+        size="sm"
+        variant="outline"
+        disabled={isUploading}
+        onClick={chooseFiles}
+      >
+        {isUploading ? <Spinner /> : <FilePlus2Icon />}
+        {isUploading ? "Uploading..." : "Add"}
+      </Button>
+    </>
+  )
+}
+
 export function SourcesPanel({
   documents,
   selectedDocumentIds,
   highlightedDocumentId,
   isLoading,
-  isUploading,
   isDeleting,
   error,
   onOpen,
@@ -246,14 +278,11 @@ export function SourcesPanel({
   onDelete,
   onDeleteSelected,
   onSelectionChange,
-  onUpload,
-  studioSlot,
 }: {
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
   highlightedDocumentId: number | null
   isLoading: boolean
-  isUploading: boolean
   isDeleting: boolean
   error: string | null
   onOpen: (documentId: number) => void
@@ -262,10 +291,7 @@ export function SourcesPanel({
   onDelete: (documentId: number) => void
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
-  onUpload: (files: File[]) => void
-  studioSlot?: ReactNode
 }) {
-  const fileInput = useRef<HTMLInputElement>(null)
   const sourceRows = useRef(new Map<number, HTMLDivElement>())
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
@@ -276,12 +302,6 @@ export function SourcesPanel({
       : deleteTarget
         ? 1
         : 0
-  const chooseFiles = () => fileInput.current?.click()
-  const uploadSelectedFiles = (event: ChangeEvent<HTMLInputElement>) => {
-    onUpload(Array.from(event.target.files ?? []))
-    event.target.value = ""
-  }
-
   useEffect(() => {
     if (highlightedDocumentId === null) return
     sourceRows.current
@@ -293,111 +313,78 @@ export function SourcesPanel({
 
   return (
     <>
-      <aside
-        className="flex h-full min-w-0 flex-col border-l bg-background"
-        id="workspace-sources"
-        aria-label="Workspace sources"
-      >
-        <header className="flex h-14 items-center justify-between border-b px-3">
-          <h2 className="text-sm font-semibold">Sources</h2>
-          <Input
-            ref={fileInput}
-            type="file"
-            multiple
-            accept={SOURCE_FILE_ACCEPT}
-            className="sr-only"
-            aria-label="Upload source files"
-            disabled={isUploading}
-            onChange={uploadSelectedFiles}
-          />
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={isUploading}
-            onClick={chooseFiles}
-          >
-            {isUploading ? <Spinner /> : <FilePlus2Icon />}
-            {isUploading ? "Uploading..." : "Add"}
-          </Button>
-        </header>
-        <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-          <div className="flex min-h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-2">
-            {error ? (
-              <Alert variant="destructive">
-                <AlertTitle>Source action failed</AlertTitle>
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            ) : null}
-            {isLoading
-              ? [0, 1, 2].map((item) => (
-                  <Skeleton key={item} className="h-20 w-full" />
-                ))
-              : null}
-            {studioSlot}
-            {!isLoading && documents.length > 0 ? (
-              <section
-                className="w-full min-w-0 overflow-hidden"
-                aria-labelledby="all-sources"
+      {error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Source action failed</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      ) : null}
+      {isLoading
+        ? [0, 1, 2].map((item) => (
+            <Skeleton key={item} className="h-20 w-full" />
+          ))
+        : null}
+      {!isLoading && documents.length > 0 ? (
+        <section
+          className="w-full min-w-0 overflow-hidden"
+          aria-labelledby="all-sources"
+        >
+          <div className="mb-2 flex min-h-7 items-center justify-between gap-2 px-1">
+            <h3
+              id="all-sources"
+              className="text-xs font-medium text-muted-foreground"
+            >
+              All sources
+            </h3>
+            {selectedDocumentIds.length > 0 ? (
+              <Button
+                size="xs"
+                variant="destructive"
+                disabled={isDeleting}
+                onClick={() => setDeleteTarget("selected")}
               >
-                <div className="mb-2 flex min-h-7 items-center justify-between gap-2 px-1">
-                  <h3
-                    id="all-sources"
-                    className="text-xs font-medium text-muted-foreground"
-                  >
-                    All sources
-                  </h3>
-                  {selectedDocumentIds.length > 0 ? (
-                    <Button
-                      size="xs"
-                      variant="destructive"
-                      disabled={isDeleting}
-                      onClick={() => setDeleteTarget("selected")}
-                    >
-                      <Trash2Icon data-icon="inline-start" />
-                      Delete ({selectedDocumentIds.length})
-                    </Button>
-                  ) : null}
-                </div>
-                <div className="flex flex-col gap-1">
-                  {documents.map((document) => (
-                    <SelectableSourceRow
-                      key={document.id}
-                      document={document}
-                      selected={selectedDocumentIdSet.has(document.id)}
-                      highlighted={highlightedDocumentId === document.id}
-                      rowRef={(node) => {
-                        if (node) sourceRows.current.set(document.id, node)
-                        else sourceRows.current.delete(document.id)
-                      }}
-                      onOpen={() => onOpen(document.id)}
-                      onReveal={() => onReveal(document.id)}
-                      onRetry={() => onRetry(document.id)}
-                      onDelete={() => setDeleteTarget(document)}
-                      isDeleting={isDeleting}
-                      onSelectedChange={(selected) =>
-                        onSelectionChange(document.id, selected)
-                      }
-                    />
-                  ))}
-                </div>
-              </section>
-            ) : null}
-            {!isLoading && documents.length === 0 ? (
-              <Empty className="min-h-0 border-0 px-2">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <FilePlus2Icon />
-                  </EmptyMedia>
-                  <EmptyTitle>No sources yet</EmptyTitle>
-                  <EmptyDescription>
-                    Files and notes added to this workspace will appear here.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
+                <Trash2Icon data-icon="inline-start" />
+                Delete ({selectedDocumentIds.length})
+              </Button>
             ) : null}
           </div>
-        </div>
-      </aside>
+          <div className="flex flex-col gap-1">
+            {documents.map((document) => (
+              <SelectableSourceRow
+                key={document.id}
+                document={document}
+                selected={selectedDocumentIdSet.has(document.id)}
+                highlighted={highlightedDocumentId === document.id}
+                rowRef={(node) => {
+                  if (node) sourceRows.current.set(document.id, node)
+                  else sourceRows.current.delete(document.id)
+                }}
+                onOpen={() => onOpen(document.id)}
+                onReveal={() => onReveal(document.id)}
+                onRetry={() => onRetry(document.id)}
+                onDelete={() => setDeleteTarget(document)}
+                isDeleting={isDeleting}
+                onSelectedChange={(selected) =>
+                  onSelectionChange(document.id, selected)
+                }
+              />
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {!isLoading && documents.length === 0 ? (
+        <Empty className="min-h-0 border-0 px-2">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FilePlus2Icon />
+            </EmptyMedia>
+            <EmptyTitle>No sources yet</EmptyTitle>
+            <EmptyDescription>
+              Files and notes added to this workspace will appear here.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : null}
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {

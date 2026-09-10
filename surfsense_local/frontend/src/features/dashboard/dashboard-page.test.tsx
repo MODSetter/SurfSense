@@ -3,10 +3,7 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ThemeProvider } from "@/components/theme-provider"
-import {
-  DETAIL_RAIL_WIDTH,
-  MAIN_RAIL_WIDTH,
-} from "@/components/ui/slide-rail"
+import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
@@ -443,9 +440,8 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    fireEvent.click(
-      screen.getByRole("button", { name: "View cited chunk 30" })
-    )
+    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
     expect(await screen.findByText("indexed passage")).toBeTruthy()
     expect(screen.getByText("Cited chunk")).toBeTruthy()
     const rail = document.querySelector("[data-slot=slide-rail]")
@@ -455,7 +451,15 @@ describe("dashboard chat", () => {
     expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
     await user.click(screen.getByRole("button", { name: "Close citation" }))
     expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
-    const sourceButton = await screen.findByRole("button", { name: "Guide.txt" })
+    expect(
+      screen
+        .getByRole("tab", { name: "Artifacts" })
+        .getAttribute("aria-selected")
+    ).toBe("true")
+    await user.click(screen.getByRole("tab", { name: "Sources" }))
+    const sourceButton = await screen.findByRole("button", {
+      name: "Guide.txt",
+    })
     await user.click(sourceButton)
     expect(window.surfsense?.openDocument).toHaveBeenCalledTimes(2)
     expect(
@@ -758,13 +762,17 @@ describe("dashboard chat", () => {
       await screen.findByRole("complementary", { name: "Workspace sources" })
     ).toBeTruthy()
     expect(
-      screen.getByRole("button", { name: "Hide right panel" }).closest(".titlebar-controls")
+      screen
+        .getByRole("button", { name: "Hide right panel" })
+        .closest(".titlebar-controls")
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Hide right panel" }))
     expect(
       screen.queryByRole("complementary", { name: "Workspace sources" })
     ).toBeNull()
-    expect(screen.getByRole("button", { name: "Show right panel" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Show right panel" })
+    ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Show right panel" }))
     expect(
       screen.getByRole("complementary", { name: "Workspace sources" })
@@ -852,19 +860,29 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
+    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    expect(
+      screen.getByRole("heading", { name: "All generated artifacts" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("heading", { name: "All sources" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
     await user.click(
       await screen.findByRole("button", { name: /^Weekly summary/ })
     )
     expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
-    expect(
-      screen.getByRole("complementary", { name: "Artifact" })
-    ).toBeTruthy()
+    expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
     const rail = document.querySelector("[data-slot=slide-rail]")
     expect((rail as HTMLElement).style.width).toBe(`${DETAIL_RAIL_WIDTH}px`)
     await user.click(screen.getByRole("button", { name: "Close artifact" }))
     expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
     expect(
-      screen.getByRole("complementary", { name: "Workspace sources" })
+      screen.getByRole("complementary", { name: "Workspace artifacts" })
     ).toBeTruthy()
+    expect(
+      screen
+        .getByRole("tab", { name: "Artifacts" })
+        .getAttribute("aria-selected")
+    ).toBe("true")
   })
 })
