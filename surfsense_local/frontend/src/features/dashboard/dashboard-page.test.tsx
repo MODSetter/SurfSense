@@ -453,7 +453,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.click(screen.getByRole("button", { name: "New chat" }))
     await user.click(
       await screen.findByRole("checkbox", { name: "Select Guide.txt" })
@@ -560,7 +560,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.click(screen.getByRole("button", { name: "Second Workspace" }))
 
     expect(screen.getByRole("heading", { name: "SurfSense" })).toBeTruthy()
@@ -648,7 +648,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Fail safely"
@@ -726,7 +726,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Stop this"

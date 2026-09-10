@@ -260,7 +260,7 @@ export function SourcesAddButton({
         onChange={uploadSelectedFiles}
       />
       <Button
-        size="sm"
+        size="xs"
         variant="outline"
         disabled={isUploading}
         onClick={chooseFiles}
@@ -320,7 +320,7 @@ export function SourcesPanel({
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
   const listHeader = (
-    <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2 px-1">
+    <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2">
       <h3
         id="all-sources"
         className="text-xs font-medium text-muted-foreground"

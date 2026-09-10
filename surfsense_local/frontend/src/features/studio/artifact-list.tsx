@@ -171,7 +171,7 @@ export function ArtifactList({
       className="flex h-full min-h-0 w-full min-w-0 flex-col"
       aria-labelledby="all-artifacts"
     >
-      <div className="mb-2 flex min-h-7 shrink-0 items-center px-1">
+      <div className="mb-2 flex min-h-7 shrink-0 items-center">
         <h3
           id="all-artifacts"
           className="text-xs font-medium text-muted-foreground"

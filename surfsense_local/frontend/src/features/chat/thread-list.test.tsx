@@ -48,13 +48,21 @@ describe("ThreadList", () => {
       ?.querySelector('[data-slot="scroll-shadow-viewport"]')
 
     expect(scrollContainer).toBeTruthy()
-    const recents = screen.getByRole("heading", { name: "Recents" })
+    const newChat = screen.getByRole("button", { name: "New chat" })
+    expect(newChat.getAttribute("data-variant")).toBe("ghost")
+    expect(newChat.closest("header")?.className).toContain("px-2")
+    expect(scrollContainer?.className).toContain("p-2")
+    const recents = screen.getByRole("button", { name: "Recents" })
+    expect(recents.tagName).toBe("BUTTON")
+    expect(recents.className).not.toContain("bg-muted")
     expect(recents.className).toContain("text-muted-foreground")
-    expect(recents.parentElement?.className).toContain("group")
-    expect(recents.nextElementSibling?.getAttribute("class")).toContain(
+    expect(recents.className).toContain("hover:text-accent-foreground")
+    expect(recents.className).toContain("select-none")
+    expect(recents.getAttribute("aria-expanded")).toBe("true")
+    expect(recents.querySelector("svg")?.getAttribute("class")).toContain(
       "opacity-0"
     )
-    expect(recents.nextElementSibling?.getAttribute("class")).toContain(
+    expect(recents.querySelector("svg")?.getAttribute("class")).toContain(
       "group-hover:opacity-100"
     )
     expect(
@@ -98,5 +106,32 @@ describe("ThreadList", () => {
     expect(titleContainer?.className).toContain(
       "sidebar-row-title-fade-actions"
     )
+
+    await user.click(recents)
+    expect(recents.getAttribute("aria-expanded")).toBe("false")
+    expect(screen.queryByRole("button", { name: title })).toBeNull()
+  })
+
+  it("shows recents empty copy instead of the icon empty state", () => {
+    render(
+      <ThreadList
+        threads={[]}
+        activeThreadId={null}
+        autoNamingThreadId={null}
+        animatingTitleThreadId={null}
+        isLoading={false}
+        onNewChat={vi.fn()}
+        onSelect={vi.fn()}
+        onRename={vi.fn(async () => true)}
+        onDelete={vi.fn(async () => undefined)}
+        onTitleAnimationComplete={vi.fn()}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "Recents" })).toBeTruthy()
+    expect(
+      screen.getByText("Start a conversation to see it here")
+    ).toBeTruthy()
+    expect(screen.queryByText("No chats yet")).toBeNull()
   })
 })

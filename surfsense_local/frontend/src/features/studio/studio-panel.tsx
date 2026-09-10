@@ -291,7 +291,7 @@ export function StudioPanel({
         <section className="space-y-2" aria-labelledby="studio-formats">
           <h3
             id="studio-formats"
-            className="px-1 text-xs font-medium text-muted-foreground"
+            className="text-xs font-medium text-muted-foreground"
           >
             Studio
           </h3>
