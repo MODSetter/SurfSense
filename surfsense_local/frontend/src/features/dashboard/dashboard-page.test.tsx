@@ -3,6 +3,10 @@ import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import {
+  DETAIL_RAIL_WIDTH,
+  MAIN_RAIL_WIDTH,
+} from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
@@ -234,7 +238,7 @@ describe("dashboard chat", () => {
     expect(
       screen.getByRole("region", { name: "Conversation" }).parentElement
         ?.className
-    ).toContain("grid-rows-[minmax(0,1fr)]")
+    ).toContain("flex-1")
 
     await user.type(input, "Start a chat")
     await user.click(screen.getByRole("button", { name: "Send message" }))
@@ -444,9 +448,13 @@ describe("dashboard chat", () => {
     )
     expect(await screen.findByText("indexed passage")).toBeTruthy()
     expect(screen.getByText("Cited chunk")).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Open" }))
+    const rail = document.querySelector("[data-slot=slide-rail]")
+    expect(rail).toBeInstanceOf(HTMLElement)
+    expect((rail as HTMLElement).style.width).toBe(`${DETAIL_RAIL_WIDTH}px`)
+    await user.click(screen.getByRole("button", { name: "Open file" }))
     expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
     await user.click(screen.getByRole("button", { name: "Close citation" }))
+    expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
     const sourceButton = await screen.findByRole("button", { name: "Guide.txt" })
     await user.click(sourceButton)
     expect(window.surfsense?.openDocument).toHaveBeenCalledTimes(2)

@@ -9,7 +9,11 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { SlideRail } from "@/components/ui/slide-rail"
+import {
+  DETAIL_RAIL_WIDTH,
+  MAIN_RAIL_WIDTH,
+  SlideRail,
+} from "@/components/ui/slide-rail"
 import {
   Tooltip,
   TooltipContent,
@@ -36,6 +40,12 @@ import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 
 const SOURCES_PANEL_KEY = "sourcesPanel:v1"
+
+type RightView =
+  | { kind: "sources" }
+  | { kind: "citation"; chunkId: number }
+
+const SOURCES_VIEW: RightView = { kind: "sources" }
 
 function readSourcesOpen() {
   try {
@@ -66,7 +76,7 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
-  const [citationChunkId, setCitationChunkId] = useState<number | null>(null)
+  const [rightView, setRightView] = useState<RightView>(SOURCES_VIEW)
   const [sourcesOpen, setSourcesOpen] = useState(readSourcesOpen)
   const sources = useSources(workspace.id)
   const chat = useChatRuntime({
@@ -76,7 +86,7 @@ function WorkspaceDashboard({
     onModelRequired,
   })
 
-  const closeCitation = () => setCitationChunkId(null)
+  const showSources = () => setRightView(SOURCES_VIEW)
   const toggleSources = () => {
     setSourcesOpen((open) => {
       const next = !open
@@ -114,9 +124,8 @@ function WorkspaceDashboard({
           </Tooltip>
         </div>
       </div>
-      <section
-        className="my-2 mr-2 grid min-h-0 min-w-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_auto] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm"
-      >
+      <section className="my-2 mr-2 flex h-full min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
+      <div className="flex h-full min-h-0 w-[272px] min-w-[232px] shrink-0 flex-col">
       <ThreadList
         threads={chat.threads}
         activeThreadId={chat.activeThreadId}
@@ -124,20 +133,22 @@ function WorkspaceDashboard({
         animatingTitleThreadId={chat.animatingTitleThreadId}
         isLoading={chat.isLoadingThreads}
         onNewChat={() => {
-          closeCitation()
+          showSources()
           chat.startNewChat()
         }}
         onSelect={(threadId) => {
-          if (threadId !== chat.activeThreadId) closeCitation()
+          if (threadId !== chat.activeThreadId) showSources()
           chat.selectThread(threadId)
         }}
         onRename={chat.rename}
         onDelete={async (threadId) => {
-          if (threadId === chat.activeThreadId) closeCitation()
+          if (threadId === chat.activeThreadId) showSources()
           await chat.removeThread(threadId)
         }}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
+      </div>
+      <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
       <ThreadPanel
         runtime={chat.runtime}
         thread={chat.activeThread}
@@ -151,19 +162,26 @@ function WorkspaceDashboard({
         providerAvailable={providerAvailable}
         onCitation={(chunkId) => {
           openSources()
-          setCitationChunkId(chunkId)
+          setRightView({ kind: "citation", chunkId })
         }}
         onModelSetup={onModelRequired}
         onModelSelected={onModelSelected}
         onUpload={(files) => void sources.upload(files)}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
-      <SlideRail open={sourcesOpen} side="end" width={400}>
-        {citationChunkId !== null ? (
+      </div>
+      <SlideRail
+        open={sourcesOpen}
+        side="end"
+        width={
+          rightView.kind === "sources" ? MAIN_RAIL_WIDTH : DETAIL_RAIL_WIDTH
+        }
+      >
+        {rightView.kind === "citation" ? (
           <CitationPanel
             workspaceId={workspace.id}
-            chunkId={citationChunkId}
-            onClose={closeCitation}
+            chunkId={rightView.chunkId}
+            onClose={showSources}
             onOpen={(id) => void sources.openOriginal(id)}
           />
         ) : (
