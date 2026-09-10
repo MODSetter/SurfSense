@@ -213,7 +213,9 @@
 }
 
 .electron:not(.electron-macos) .titlebar-controls {
-  padding-inline-end: 0;
+  /* titlebar-area-width already excludes caption buttons; keep a gap so the
+     sources toggle is not flush against minimize. Same overlay on Linux. */
+  padding-inline-end: 0.75rem;
 }
 
 .titlebar-controls-end {
