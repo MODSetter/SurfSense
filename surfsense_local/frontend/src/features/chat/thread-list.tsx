@@ -124,7 +124,7 @@ export function ThreadList({
 
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background">
-      <header className="space-y-3 px-2 py-3">
+      <header className="space-y-3 px-3 py-3">
         <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
           SurfSense
         </h2>
@@ -139,7 +139,7 @@ export function ThreadList({
       </header>
       <ScrollShadow
         className="min-h-0 min-w-0 flex-1"
-        viewportClassName="overflow-x-hidden p-2"
+        viewportClassName="overflow-x-hidden p-3"
         from="from-background"
       >
         <div className="flex w-full max-w-full min-w-0 flex-col gap-1">

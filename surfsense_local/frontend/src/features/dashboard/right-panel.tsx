@@ -40,7 +40,7 @@ export function RightPanel({
         onValueChange={(value) => onTabChange(value as RightTab)}
         className="h-full min-h-0 gap-0"
       >
-        <header className="flex h-14 shrink-0 items-center gap-2 px-4">
+        <header className="flex h-14 shrink-0 items-center gap-2 px-3">
           <h2 className="font-heading text-base font-medium">
             {tab === "sources" ? "Sources" : "Artifacts"}
           </h2>
@@ -81,7 +81,7 @@ export function RightPanel({
             </TabsList>
           </SegmentedControl>
         </header>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-hidden px-4 py-2">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-hidden px-3 py-2">
           <div className="shrink-0">{studio}</div>
           <TabsContent value="sources" className="min-h-0 min-w-0 flex-1">
             {sources}
