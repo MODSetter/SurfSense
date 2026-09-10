@@ -30,10 +30,6 @@ function SourceHarness() {
   const sources = useSources(1)
   return (
     <TooltipProvider>
-      <SourcesAddButton
-        isUploading={sources.isUploading}
-        onUpload={(files) => void sources.upload(files)}
-      />
       <SourcesPanel
         documents={sources.documents}
         selectedDocumentIds={sources.selectedDocumentIds}
@@ -41,6 +37,12 @@ function SourceHarness() {
         isLoading={sources.isLoading}
         isDeleting={sources.isDeleting}
         error={sources.error}
+        addAction={
+          <SourcesAddButton
+            isUploading={sources.isUploading}
+            onUpload={(files) => void sources.upload(files)}
+          />
+        }
         onOpen={(id) => void sources.openOriginal(id)}
         onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}

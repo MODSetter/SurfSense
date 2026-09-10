@@ -1,19 +1,19 @@
 import { useState, type ComponentType } from "react"
 import {
-  BrowserIcon,
+  AiSearchLinesIcon,
   Cards01Icon,
   ChartHistogramIcon,
   CheckIcon,
   File02Icon,
   FileIcon,
-  FileTextIcon,
-  HierarchyIcon,
   Image01Icon,
+  NetworkIcon,
   Pdf01Icon,
   PodcastIcon,
-  Presentation01Icon,
-  Quiz01Icon,
+  Presentation02Icon,
+  Quiz02Icon,
   SparklesIcon,
+  WebDesign01Icon,
   Xls01Icon,
 } from "@/components/ui/icons"
 
@@ -56,15 +56,15 @@ const FORMAT_HINTS: Record<string, string> = {
 }
 
 const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  summary: FileTextIcon,
+  summary: AiSearchLinesIcon,
   docx: File02Icon,
-  pptx: Presentation01Icon,
+  pptx: Presentation02Icon,
   xlsx: Xls01Icon,
-  html: BrowserIcon,
+  html: WebDesign01Icon,
   pdf: Pdf01Icon,
-  mindmap: HierarchyIcon,
+  mindmap: NetworkIcon,
   flashcards: Cards01Icon,
-  quiz: Quiz01Icon,
+  quiz: Quiz02Icon,
   podcast: PodcastIcon,
   image: Image01Icon,
   infographic: ChartHistogramIcon,

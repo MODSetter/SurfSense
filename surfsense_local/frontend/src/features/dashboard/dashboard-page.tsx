@@ -204,12 +204,6 @@ function WorkspaceDashboard({
               }
               tab={tab}
               onTabChange={setTab}
-              sourcesAction={
-                <SourcesAddButton
-                  isUploading={sources.isUploading}
-                  onUpload={(files) => void sources.upload(files)}
-                />
-              }
               studio={
                 <StudioPanel
                   documents={sources.documents}
@@ -228,6 +222,12 @@ function WorkspaceDashboard({
                   isLoading={sources.isLoading}
                   isDeleting={sources.isDeleting}
                   error={sources.error}
+                  addAction={
+                    <SourcesAddButton
+                      isUploading={sources.isUploading}
+                      onUpload={(files) => void sources.upload(files)}
+                    />
+                  }
                   onOpen={(id) => void sources.openOriginal(id)}
                   onReveal={(id) => void sources.revealOriginal(id)}
                   onRetry={(id) => void sources.retry(id)}

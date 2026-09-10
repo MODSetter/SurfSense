@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type ReactNode,
+} from "react"
 import {
   Alert02Icon,
   EllipsisIcon,
@@ -272,6 +278,7 @@ export function SourcesPanel({
   isLoading,
   isDeleting,
   error,
+  addAction,
   onOpen,
   onReveal,
   onRetry,
@@ -285,6 +292,7 @@ export function SourcesPanel({
   isLoading: boolean
   isDeleting: boolean
   error: string | null
+  addAction?: ReactNode
   onOpen: (documentId: number) => void
   onReveal: (documentId: number) => void
   onRetry: (documentId: number) => void
@@ -310,6 +318,30 @@ export function SourcesPanel({
   }, [highlightedDocumentId])
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
+  const listHeader = (
+    <div className="mb-2 flex min-h-7 items-center justify-between gap-2 px-1">
+      <h3
+        id="all-sources"
+        className="text-xs font-medium text-muted-foreground"
+      >
+        All sources
+      </h3>
+      <div className="flex items-center gap-1">
+        {selectedDocumentIds.length > 0 ? (
+          <Button
+            size="xs"
+            variant="destructive"
+            disabled={isDeleting}
+            onClick={() => setDeleteTarget("selected")}
+          >
+            <Trash2Icon data-icon="inline-start" />
+            Delete ({selectedDocumentIds.length})
+          </Button>
+        ) : null}
+        {addAction}
+      </div>
+    </div>
+  )
 
   return (
     <>
@@ -319,35 +351,25 @@ export function SourcesPanel({
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
-      {isLoading
-        ? [0, 1, 2].map((item) => (
-            <Skeleton key={item} className="h-20 w-full" />
-          ))
-        : null}
-      {!isLoading && documents.length > 0 ? (
+      {isLoading ? (
         <section
-          className="w-full min-w-0 overflow-hidden"
+          className="mt-2 w-full min-w-0 overflow-hidden"
           aria-labelledby="all-sources"
         >
-          <div className="mb-2 flex min-h-7 items-center justify-between gap-2 px-1">
-            <h3
-              id="all-sources"
-              className="text-xs font-medium text-muted-foreground"
-            >
-              All sources
-            </h3>
-            {selectedDocumentIds.length > 0 ? (
-              <Button
-                size="xs"
-                variant="destructive"
-                disabled={isDeleting}
-                onClick={() => setDeleteTarget("selected")}
-              >
-                <Trash2Icon data-icon="inline-start" />
-                Delete ({selectedDocumentIds.length})
-              </Button>
-            ) : null}
+          {listHeader}
+          <div className="flex flex-col gap-3">
+            {[0, 1, 2].map((item) => (
+              <Skeleton key={item} className="h-20 w-full" />
+            ))}
           </div>
+        </section>
+      ) : null}
+      {!isLoading && documents.length > 0 ? (
+        <section
+          className="mt-2 w-full min-w-0 overflow-hidden"
+          aria-labelledby="all-sources"
+        >
+          {listHeader}
           <div className="flex flex-col gap-1">
             {documents.map((document) => (
               <SelectableSourceRow
@@ -373,17 +395,23 @@ export function SourcesPanel({
         </section>
       ) : null}
       {!isLoading && documents.length === 0 ? (
-        <Empty className="min-h-0 border-0 px-2">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FilePlus2Icon />
-            </EmptyMedia>
-            <EmptyTitle>No sources yet</EmptyTitle>
-            <EmptyDescription>
-              Files and notes added to this workspace will appear here.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
+        <section
+          className="mt-2 w-full min-w-0 overflow-hidden"
+          aria-labelledby="all-sources"
+        >
+          {listHeader}
+          <Empty className="min-h-0 border-0 px-2">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FilePlus2Icon />
+              </EmptyMedia>
+              <EmptyTitle>No sources yet</EmptyTitle>
+              <EmptyDescription>
+                Files and notes added to this workspace will appear here.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        </section>
       ) : null}
       <AlertDialog
         open={deleteTarget !== null}

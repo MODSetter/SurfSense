@@ -31,7 +31,7 @@ export function ArtifactList({
 }) {
   return (
     <section
-      className="w-full min-w-0 overflow-hidden"
+      className="mt-2 w-full min-w-0 overflow-hidden"
       aria-labelledby="all-artifacts"
     >
       <div className="mb-2 flex min-h-7 items-center px-1">
