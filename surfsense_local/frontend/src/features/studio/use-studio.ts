@@ -5,9 +5,7 @@ import {
   deleteArtifact,
   listArtifacts,
   listFormats,
-  readArtifact,
   type Artifact,
-  type ArtifactDetail,
   type StudioFormat,
   type StudioJobCreate,
 } from "./api"
@@ -41,7 +39,6 @@ function wait(ms: number, signal: AbortSignal) {
 export function useStudio(workspaceId: number) {
   const [formats, setFormats] = useState<StudioFormat[]>([])
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
-  const [selected, setSelected] = useState<ArtifactDetail | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -120,21 +117,11 @@ export function useStudio(workspaceId: number) {
     }
   }
 
-  const open_ = async (artifactId: number) => {
-    setError(null)
-    try {
-      setSelected(await readArtifact(artifactId))
-    } catch (cause) {
-      setError(messageFrom(cause))
-    }
-  }
-
   const remove = async (artifactId: number) => {
     setError(null)
     try {
       await deleteArtifact(artifactId)
       setArtifacts((current) => current.filter((a) => a.id !== artifactId))
-      setSelected((current) => (current?.id === artifactId ? null : current))
     } catch (cause) {
       setError(messageFrom(cause))
     }
@@ -143,13 +130,10 @@ export function useStudio(workspaceId: number) {
   return {
     formats,
     artifacts,
-    selected,
     isLoading,
     isCreating,
     error,
     create,
-    openArtifact: open_,
-    closeArtifact: () => setSelected(null),
     remove,
     clearError: () => setError(null),
   }

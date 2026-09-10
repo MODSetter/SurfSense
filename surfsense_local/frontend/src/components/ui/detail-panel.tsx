@@ -3,6 +3,7 @@ import type { ReactNode, Ref } from "react"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "@/components/ui/icons"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 
 export function DetailPanel({
   title,
@@ -11,6 +12,7 @@ export function DetailPanel({
   onClose,
   closeLabel,
   bodyRef,
+  flush = false,
   children,
 }: {
   title: string
@@ -19,6 +21,7 @@ export function DetailPanel({
   onClose: () => void
   closeLabel: string
   bodyRef?: Ref<HTMLDivElement>
+  flush?: boolean
   children: ReactNode
 }) {
   return (
@@ -46,7 +49,10 @@ export function DetailPanel({
       </div>
       <div
         ref={bodyRef}
-        className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
+        className={cn(
+          "min-h-0 flex-1",
+          flush ? "overflow-hidden" : "overflow-y-auto px-5 py-4"
+        )}
       >
         {children}
       </div>

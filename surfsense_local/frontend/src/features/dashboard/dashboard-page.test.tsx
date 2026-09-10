@@ -770,4 +770,101 @@ describe("dashboard chat", () => {
       screen.getByRole("complementary", { name: "Workspace sources" })
     ).toBeTruthy()
   })
+
+  it("opens a generated artifact in the detail rail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "summary",
+              label: "Summary",
+              requires_role: "generation",
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") {
+          return Response.json([
+            {
+              id: 12,
+              document_id: 4,
+              format: "summary",
+              generation: 1,
+              title: "Weekly summary",
+              status: "ready",
+              error_message: null,
+              created_at: "2026-09-06T00:00:00Z",
+              updated_at: "2026-09-06T00:00:00Z",
+            },
+          ])
+        }
+        if (path === "/artifacts/12") {
+          return Response.json({
+            id: 12,
+            document_id: 4,
+            format: "summary",
+            generation: 1,
+            title: "Weekly summary",
+            status: "ready",
+            error_message: null,
+            content: "Saturn is a gas giant.",
+            files: [],
+            created_at: "2026-09-06T00:00:00Z",
+            updated_at: "2026-09-06T00:00:00Z",
+          })
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(
+      await screen.findByRole("button", { name: /^Weekly summary/ })
+    )
+    expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
+    expect(
+      screen.getByRole("complementary", { name: "Artifact" })
+    ).toBeTruthy()
+    const rail = document.querySelector("[data-slot=slide-rail]")
+    expect((rail as HTMLElement).style.width).toBe(`${DETAIL_RAIL_WIDTH}px`)
+    await user.click(screen.getByRole("button", { name: "Close artifact" }))
+    expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
+    expect(
+      screen.getByRole("complementary", { name: "Workspace sources" })
+    ).toBeTruthy()
+  })
 })

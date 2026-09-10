@@ -34,6 +34,7 @@ import {
 } from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { ArtifactPanel } from "@/features/studio/artifact-panel"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
@@ -44,6 +45,7 @@ const SOURCES_PANEL_KEY = "sourcesPanel:v1"
 type RightView =
   | { kind: "sources" }
   | { kind: "citation"; chunkId: number }
+  | { kind: "artifact"; artifactId: number }
 
 const SOURCES_VIEW: RightView = { kind: "sources" }
 
@@ -184,6 +186,11 @@ function WorkspaceDashboard({
             onClose={showSources}
             onOpen={(id) => void sources.openOriginal(id)}
           />
+        ) : rightView.kind === "artifact" ? (
+          <ArtifactPanel
+            artifactId={rightView.artifactId}
+            onClose={showSources}
+          />
         ) : (
           <SourcesPanel
             documents={sources.documents}
@@ -204,6 +211,10 @@ function WorkspaceDashboard({
               <StudioPanel
                 workspaceId={workspace.id}
                 documents={sources.documents}
+                onOpen={(artifactId) => {
+                  openSources()
+                  setRightView({ kind: "artifact", artifactId })
+                }}
               />
             }
           />

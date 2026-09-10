@@ -1,11 +1,9 @@
 import { useState, type ComponentType } from "react"
 import {
-  ArrowLeftIcon,
   BrowserIcon,
   Cards01Icon,
   ChartHistogramIcon,
   CheckIcon,
-  DownloadIcon,
   File02Icon,
   FileIcon,
   FileTextIcon,
@@ -42,12 +40,7 @@ import {
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
-import {
-  fileUrl,
-  type Artifact,
-  type ArtifactDetail,
-  type StudioFormat,
-} from "./api"
+import type { Artifact, StudioFormat } from "./api"
 import { useStudio } from "./use-studio"
 
 const FORMAT_HINTS: Record<string, string> = {
@@ -319,70 +312,14 @@ function FormatCard({
   )
 }
 
-function Viewer({
-  artifact,
-  onBack,
-}: {
-  artifact: ArtifactDetail
-  onBack: () => void
-}) {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-2 flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label="Back"
-          onClick={onBack}
-        >
-          <ArrowLeftIcon />
-        </Button>
-        <h3 className="min-w-0 flex-1 truncate text-sm font-medium">
-          {artifact.title}
-        </h3>
-        {artifact.files.map((file) => (
-          <Button key={file.role} size="xs" variant="outline" asChild>
-            <a href={fileUrl(artifact.id, file.role)} download>
-              <DownloadIcon data-icon="inline-start" />
-              {file.role}
-            </a>
-          </Button>
-        ))}
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border">
-        <Preview artifact={artifact} />
-        <div className="prose prose-sm max-w-none p-4 text-sm leading-6 whitespace-pre-wrap">
-          {artifact.content || "This artifact has no text body."}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Play audio and show images inline; other files stay download-only above.
-function Preview({ artifact }: { artifact: ArtifactDetail }) {
-  const primary = artifact.files.find((file) => file.role === "primary")
-  if (!primary) return null
-
-  const src = fileUrl(artifact.id, primary.role)
-  if (primary.mime_type.startsWith("audio/")) {
-    // biome-ignore lint/a11y/useMediaCaption: The generated transcript is rendered directly below the player.
-    return <audio className="w-full p-4" controls src={src} />
-  }
-  if (primary.mime_type.startsWith("image/")) {
-    return (
-      <img className="mx-auto max-w-full p-4" alt={artifact.title} src={src} />
-    )
-  }
-  return null
-}
-
 export function StudioPanel({
   workspaceId,
   documents,
+  onOpen,
 }: {
   workspaceId: number
   documents: WorkspaceDocument[]
+  onOpen: (artifactId: number) => void
 }) {
   const studio = useStudio(workspaceId)
   const [format, setFormat] = useState<string | null>(null)
@@ -410,7 +347,7 @@ export function StudioPanel({
           <Library
             artifacts={studio.artifacts}
             labelOf={labelOf}
-            onOpen={(id) => void studio.openArtifact(id)}
+            onOpen={onOpen}
             onDelete={(id) => void studio.remove(id)}
           />
           <section className="space-y-2" aria-labelledby="studio-formats">
@@ -461,28 +398,6 @@ export function StudioPanel({
                 }}
               />
             </>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={studio.selected !== null}
-        onOpenChange={(open) => {
-          if (!open) studio.closeArtifact()
-        }}
-      >
-        <DialogContent className="flex max-h-[85svh] flex-col overflow-hidden sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>{studio.selected?.title ?? "Artifact"}</DialogTitle>
-            <DialogDescription className="sr-only">
-              Generated studio artifact
-            </DialogDescription>
-          </DialogHeader>
-          {studio.selected ? (
-            <Viewer
-              artifact={studio.selected}
-              onBack={studio.closeArtifact}
-            />
           ) : null}
         </DialogContent>
       </Dialog>

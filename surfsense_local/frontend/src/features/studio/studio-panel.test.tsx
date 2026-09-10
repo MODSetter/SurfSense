@@ -29,11 +29,12 @@ const pendingArtifact = {
 }
 
 function renderStudio(
-  documents: typeof readyDocument[] = [readyDocument]
+  documents: typeof readyDocument[] = [readyDocument],
+  onOpen = vi.fn()
 ) {
   return render(
     <TooltipProvider>
-      <StudioPanel workspaceId={1} documents={documents} />
+      <StudioPanel workspaceId={1} documents={documents} onOpen={onOpen} />
     </TooltipProvider>
   )
 }
@@ -210,5 +211,45 @@ describe("studio panel", () => {
         name: "Generate an AI interactive quiz based on your sources",
       })
     ).toBeTruthy()
+  })
+
+  it("asks the rail to open a ready artifact", async () => {
+    const readyArtifact = {
+      ...pendingArtifact,
+      id: 12,
+      title: "Weekly summary",
+      status: "ready" as const,
+    }
+    const onOpen = vi.fn()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "summary",
+              label: "Summary",
+              requires_role: "generation",
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") {
+          return Response.json([readyArtifact])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    renderStudio([readyDocument], onOpen)
+
+    await user.click(
+      await screen.findByRole("button", { name: /^Weekly summary/ })
+    )
+    expect(onOpen).toHaveBeenCalledWith(12)
+    expect(screen.queryByRole("dialog", { name: "Weekly summary" })).toBeNull()
   })
 })
