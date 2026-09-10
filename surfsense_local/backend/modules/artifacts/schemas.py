@@ -23,8 +23,9 @@ class FormatRead(BaseModel):
 
     key: str
     label: str
-    requires_key: bool
-    available: bool  # false when a visual format has no OpenRouter key set
+    requires_role: str | None
+    available: bool
+    unavailable_reason: str | None
 
 
 class ArtifactFileRead(BaseModel):
