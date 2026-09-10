@@ -48,6 +48,9 @@ resolves to a configured OpenAI-compatible connection. `infographic` is a
 deterministic builder and needs only the generation role. The frontend never
 hard-codes the list or checks secrets. Connection and role resolution are
 defined in [`05b-openai-compatible-connections.md`](05b-openai-compatible-connections.md).
+Each format response carries `requires_role` (`generation`,
+`image_generation`, or null), `available`, and nullable `unavailable_reason`.
+The legacy `requires_key` field is removed.
 
 ## Acceptance
 

@@ -189,6 +189,7 @@ POST   /llm/connections
 PUT    /llm/connections/{connection_id}
 DELETE /llm/connections/{connection_id}
 GET    /llm/connections/{connection_id}/models
+POST   /llm/connections/{connection_id}/image-test
 ```
 
 Write body:
@@ -198,11 +199,15 @@ Write body:
   "label": "Engineering vLLM",
   "provider": "openai_compatible",
   "base_url": "https://qwen.internal/v1",
-  "api_key": null
+  "api_key": null,
+  "allow_unverified": false
 }
 ```
 
 Read bodies expose `has_api_key`, never `api_key`.
+On update, an omitted `api_key` preserves the current secret, a non-empty value
+replaces it, and explicit `null` clears it. On create, omitted and `null` both
+mean no key.
 
 Create and update validate a candidate before replacing durable state:
 
@@ -273,18 +278,25 @@ Remote write body:
 {
   "provider": "openai_compatible",
   "connection_id": 1,
-  "name": "qwen3-32b"
+  "name": "qwen3-32b",
+  "allow_unlisted": false
 }
 ```
 
 The API confirms that the connection exists and the live catalogue contains the
-model when discovery is available. A manual id is accepted only for an
-explicitly saved unverified connection or after discovery omitted that id.
+model when discovery is available. If discovery is unavailable or omitted the
+model, the client must repeat the explicit choice with `allow_unlisted: true`.
+The server does not persist a second verification flag.
 
 Selection never runs inference implicitly. Image testing always requires an
 explicit user action because it performs real inference and may cost money.
 “Use without testing” is allowed for trusted internal deployments; the first
 real chat or Studio request then reports the provider error normally.
+
+`POST /llm/connections/{id}/image-test` accepts `{model, prompt?}`, resolves the
+real image adapter, and returns the generated image bytes with their validated
+media type and `Cache-Control: no-store`. The default prompt is a small neutral
+test image. It creates no artifact row or file.
 
 ## Frontend contract
 
