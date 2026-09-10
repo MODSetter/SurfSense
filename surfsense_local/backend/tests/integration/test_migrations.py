@@ -4,9 +4,11 @@ from pathlib import Path
 
 import pytest
 from alembic.autogenerate import compare_metadata
+from alembic.config import Config
 from alembic.migration import MigrationContext
 from sqlalchemy import Engine, inspect, text
 
+from alembic import command
 from shared.db import Base, create_db_engine
 from shared.migrations import upgrade_to_head
 
@@ -51,3 +53,42 @@ def test_a_failed_migration_leaves_nothing_behind(tmp_path: Path) -> None:
         raise RuntimeError("upgrade died between two create_table calls")
 
     assert inspect(engine).get_table_names() == []
+
+
+def test_connection_migration_preserves_only_ollama_selection(
+    tmp_path: Path,
+) -> None:
+    """The breaking migration drops old remote secrets without harming local setup."""
+    engine = create_db_engine(tmp_path / "surfsense.db")
+    config = Config()
+    config.set_main_option(
+        "script_location", str(Path(__file__).parents[2] / "alembic")
+    )
+    config.attributes["engine"] = engine
+    command.upgrade(config, "0003")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "INSERT INTO selected_models(role, provider, name) "
+                "VALUES ('generation', 'ollama', 'qwen3:4b')"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO provider_credentials(provider, api_key) "
+                "VALUES ('openrouter', 'secret')"
+            )
+        )
+
+    command.upgrade(config, "head")
+
+    with engine.connect() as connection:
+        selected = connection.execute(
+            text(
+                "SELECT role, provider, connection_id, name FROM selected_models"
+            )
+        ).one()
+        tables = inspect(connection).get_table_names()
+    assert tuple(selected) == ("generation", "ollama", None, "qwen3:4b")
+    assert "provider_credentials" not in tables
+    assert "provider_connections" in tables
