@@ -1,8 +1,6 @@
 import { CircleAlertIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { modelKey, type ModelSelection } from "@/features/model-selection/api"
 import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
 import { useModelSelection } from "@/features/model-selection/use-model-selection"
@@ -19,8 +17,7 @@ export function ModelsSettings({
   onModelUnavailable: () => void
   onSelected: (selection: ModelSelection) => void
 }) {
-  const { state, draftKey, saveState, select, refresh, save } =
-    useModelSelection()
+  const { state, refresh } = useModelSelection()
 
   if (state.status === "api-unavailable") {
     return (
@@ -39,39 +36,22 @@ export function ModelsSettings({
   }
 
   const readyState = state.status === "ready" ? state : null
-  const persistedKey =
-    readyState?.selection == null ? null : modelKey(readyState.selection)
-  const hasChanges = draftKey !== null && draftKey !== persistedKey
-  const isSaving = saveState.status === "saving"
-
-  const saveSelection = async () => {
-    const selection = await save()
-    if (selection) {
-      onSelected(selection)
-    }
-  }
 
   return (
     <SettingsSection
       title="Models"
       description={DESCRIPTION}
       scrollable={false}
-      footer={
-        hasChanges ? (
-          <Button disabled={isSaving} onClick={() => void saveSelection()}>
-            {isSaving ? <Spinner data-icon="inline-start" /> : null}
-            {isSaving ? "Saving..." : "Use selected model"}
-          </Button>
-        ) : undefined
-      }
     >
       <ModelSelectionContent
         allowDelete
         state={state}
-        draftKey={draftKey}
-        disabled={isSaving}
+        draftKey={
+          readyState?.selection == null ? null : modelKey(readyState.selection)
+        }
+        disabled={false}
         installedFirst
-        onSelect={select}
+        onSelect={() => undefined}
         onCatalogSelected={(selection) => {
           onSelected(selection)
           void refresh({ silent: true })
@@ -85,10 +65,6 @@ export function ModelsSettings({
           ? ""
           : "No chat model is selected."}
       </span>
-
-      {saveState.status === "error" ? (
-        <p className="mt-3 text-sm text-destructive">{saveState.message}</p>
-      ) : null}
     </SettingsSection>
   )
 }

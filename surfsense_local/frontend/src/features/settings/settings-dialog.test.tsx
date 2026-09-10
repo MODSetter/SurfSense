@@ -158,6 +158,9 @@ describe("SettingsDialog", () => {
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
     expect(
+      screen.queryByRole("button", { name: "Use selected model" })
+    ).toBeNull()
+    expect(
       document.querySelector('[data-slot="settings-section-content"]')
         ?.className
     ).toContain("overflow-hidden")

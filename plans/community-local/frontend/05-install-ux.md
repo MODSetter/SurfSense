@@ -32,10 +32,12 @@ dialog and its active section. The rail button opens General; a chat model error
 opens Models directly.
 
 The onboarding page and Models settings use the same model-selection content:
-catalog, provider tabs, installation, refresh, and draft selection. Their shells
-remain separate. Settings puts Installed models first, supports local and
-OpenAI-compatible selection, and updates the dashboard's active selection
-immediately. It does not render onboarding branding or its Continue action.
+catalog, provider tabs, installation, refresh, and immediate Use actions.
+Their shells remain separate. Local **Use** and remote **Use for chat** persist
+the generation row and stay on the page. Onboarding leaves only when
+**Continue** calls `POST /llm/onboarding`. Continue stays disabled until a
+chat model is persisted; Image is optional. Settings has no **Use selected
+model** footer and does not complete onboarding.
 
 Installed local generation models expose Delete after confirmation. Deleting the
 selected model clears the backend selection but not onboarding completion. The
@@ -142,8 +144,9 @@ The remote tab implements
   switch the active model;
 - show exact model-id entry first in the browser, then live name search,
   All/Chat/Image/Unknown filters, and a fixed-height scrollable model list;
-- each listed model offers explicit **Use for chat** and **Assign as image**
-  actions, and assigning either role keeps the browser open;
+- each listed model offers **Use for chat** and **Assign as image**; the
+  matching control becomes a disabled **In use** instead of a Chat/Image
+  badge, and assigning either role keeps the browser open;
 - allow exact model-id entry when a valid endpoint does not list the model;
 - keep capability-unknown models visible and assignable instead of guessing
   from their names.

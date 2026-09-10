@@ -1,10 +1,6 @@
 import { useState } from "react"
 
-import {
-  CheckIcon,
-  CircleAlertIcon,
-  RefreshCwIcon,
-} from "@/components/ui/icons"
+import { CircleAlertIcon, RefreshCwIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -19,7 +15,10 @@ import {
 } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
-import { modelKey, type ModelSelection } from "@/features/model-selection/api"
+import {
+  completeOnboarding,
+  type ModelSelection,
+} from "@/features/model-selection/api"
 import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
 import { useModelSelection } from "@/features/model-selection/use-model-selection"
 
@@ -107,33 +106,27 @@ function ModelSetupStep({
 }: {
   onComplete: (selection: ModelSelection) => void
 }) {
-  const { state, draftKey, saveState, isRefreshing, select, refresh, save } =
-    useModelSelection()
+  const { state, isRefreshing, select, refresh } = useModelSelection()
+  const [completing, setCompleting] = useState(false)
+  const [completeError, setCompleteError] = useState<string | null>(null)
   const showsModelSelection = state.status !== "api-unavailable"
-  const persistedKey =
-    state.status === "ready" && state.selection !== null
-      ? modelKey(state.selection)
-      : null
-  const hasChanges = draftKey !== null && draftKey !== persistedKey
-  const isSaving = saveState.status === "saving"
-  const canContinue =
-    state.status === "ready" &&
-    draftKey !== null &&
-    (!state.staleSelection || hasChanges)
+  const selection = state.status === "ready" ? state.selection : null
+  const canContinue = selection !== null
+  const busy = completing || isRefreshing
 
-  const complete = async () => {
-    if (
-      !hasChanges &&
-      state.status === "ready" &&
-      state.selection !== null &&
-      !state.staleSelection
-    ) {
-      onComplete(state.selection)
-      return
-    }
-    const selection = await save()
-    if (selection) {
+  const finish = async () => {
+    if (selection === null) return
+    setCompleting(true)
+    setCompleteError(null)
+    try {
+      await completeOnboarding()
       onComplete(selection)
+    } catch (error) {
+      setCompleteError(
+        error instanceof Error ? error.message : "Could not finish setup"
+      )
+    } finally {
+      setCompleting(false)
     }
   }
 
@@ -157,27 +150,20 @@ function ModelSetupStep({
           <div className="min-h-0 flex-1 overflow-hidden">
             <ModelSelectionContent
               state={state}
-              draftKey={draftKey}
-              disabled={isSaving || isRefreshing}
+              draftKey={null}
+              disabled={busy}
               installedFirst
               onSelect={select}
-              onCatalogSelected={onComplete}
+              onCatalogSelected={() => void refresh({ silent: true })}
               refresh={refresh}
             />
           </div>
         ) : null}
 
-        {saveState.status === "saved" || saveState.status === "error" ? (
-          <div className="text-sm" aria-live="polite">
-            {saveState.status === "saved" ? (
-              <span className="flex items-center gap-1.5">
-                <CheckIcon aria-hidden="true" className="size-4" />
-                Model selection saved.
-              </span>
-            ) : (
-              <span className="text-destructive">{saveState.message}</span>
-            )}
-          </div>
+        {completeError ? (
+          <p className="text-sm text-destructive" aria-live="polite">
+            {completeError}
+          </p>
         ) : null}
       </CardContent>
 
@@ -186,7 +172,7 @@ function ModelSetupStep({
           type="button"
           variant="outline"
           className="min-h-10"
-          disabled={state.status !== "ready" || isRefreshing || isSaving}
+          disabled={state.status !== "ready" || busy}
           onClick={() => void refresh()}
         >
           {isRefreshing ? (
@@ -196,21 +182,15 @@ function ModelSetupStep({
           )}
           {isRefreshing ? "Refreshing..." : "Refresh"}
         </Button>
-        {state.status === "ready" && draftKey !== null ? (
-          <Button
-            type="button"
-            className="min-h-10"
-            disabled={!canContinue || isSaving || isRefreshing}
-            onClick={() => void complete()}
-          >
-            {isSaving ? <Spinner data-icon="inline-start" /> : null}
-            {isSaving
-              ? "Saving..."
-              : hasChanges
-                ? "Use this model"
-                : "Continue"}
-          </Button>
-        ) : null}
+        <Button
+          type="button"
+          className="min-h-10"
+          disabled={!canContinue || busy}
+          onClick={() => void finish()}
+        >
+          {completing ? <Spinner data-icon="inline-start" /> : null}
+          Continue
+        </Button>
       </CardFooter>
     </Card>
   )

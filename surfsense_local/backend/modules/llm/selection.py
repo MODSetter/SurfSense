@@ -53,13 +53,20 @@ async def choose_model(
         selected.provider = provider_name
         selected.connection_id = connection_id
         selected.name = model_name
-    if (
-        role is ModelRole.GENERATION
-        and session.get(OnboardingCompletion, 1) is None
-    ):
-        session.add(OnboardingCompletion())
     session.flush()
     return selected
+
+1   
+def complete_onboarding(session: Session) -> bool:
+    if session.get(SelectedModel, ModelRole.GENERATION) is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "chat model required",
+        )
+    if session.get(OnboardingCompletion, 1) is None:
+        session.add(OnboardingCompletion())
+        session.flush()
+    return True
 
 
 async def _validate_local(

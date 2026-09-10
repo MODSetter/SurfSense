@@ -108,6 +108,7 @@ Invariants:
 - `openai_compatible` selections require a connection id;
 - deleting a connection removes every role selection that uses it;
 - onboarding requires only `generation`; `image_generation` is always optional;
+- selecting a model does not complete onboarding; `POST /llm/onboarding` does;
 - generation and image roles may reference different connections;
 - both roles may reference one connection when its gateway implements both
   routes;

@@ -75,6 +75,15 @@ export function getOnboardingStatus(
   return requestJson<OnboardingStatus>("/llm/onboarding", { signal })
 }
 
+export function completeOnboarding(
+  signal?: AbortSignal
+): Promise<OnboardingStatus> {
+  return requestJson<OnboardingStatus>("/llm/onboarding", {
+    method: "POST",
+    signal,
+  })
+}
+
 export function getProviderModels(
   provider: string,
   signal?: AbortSignal

@@ -242,9 +242,13 @@ frontend calls the normalized install route.
 
 ### `GET /llm/onboarding`
 
-Returns whether the user has completed model onboarding. The first valid model
-selection creates the durable completion marker. Clearing or deleting a later
-selection does not reset onboarding.
+Returns whether the user has completed model onboarding.
+
+### `POST /llm/onboarding`
+
+Writes the durable completion marker. Requires a persisted generation
+selection. Image is optional. Selecting or clearing a model never writes or
+resets this marker. Settings Use actions must not call this route.
 
 ### `DELETE /llm/providers/{provider}/models/{model_name}`
 

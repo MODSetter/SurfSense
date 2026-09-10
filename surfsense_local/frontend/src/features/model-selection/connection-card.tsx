@@ -421,32 +421,40 @@ export function ConnectionCard({
                           ) : (
                             <Badge variant="outline">Capability unknown</Badge>
                           )}
-                          {generationName === model.name ? (
-                            <Badge variant="secondary">Chat</Badge>
-                          ) : null}
-                          {imageName === model.name ? (
-                            <Badge variant="secondary">Image</Badge>
-                          ) : null}
                         </div>
                       </div>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
+                        aria-label={
+                          generationName === model.name
+                            ? "In use for chat"
+                            : "Use for chat"
+                        }
                         disabled={
                           disabled ||
+                          generationName === model.name ||
                           (model.capability_known && !supportsChat(model))
                         }
                         onClick={() => void assign("generation", model)}
                       >
-                        Use for chat
+                        {generationName === model.name
+                          ? "In use"
+                          : "Use for chat"}
                       </Button>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
+                        aria-label={
+                          imageName === model.name
+                            ? "In use for image"
+                            : "Assign as image"
+                        }
                         disabled={
                           disabled ||
+                          imageName === model.name ||
                           (model.capability_known && !supportsImage(model))
                         }
                         onClick={() =>
@@ -455,7 +463,9 @@ export function ConnectionCard({
                             : setImageModel(model)
                         }
                       >
-                        Assign as image
+                        {imageName === model.name
+                          ? "In use"
+                          : "Assign as image"}
                       </Button>
                     </li>
                   ))}

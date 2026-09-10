@@ -95,6 +95,8 @@ async def test_chat_and_image_roles_can_use_one_connection(
     )
     assert chat.status_code == 200
     assert image.status_code == 200
+    assert (await client.get("/llm/onboarding")).json() == {"completed": False}
+    assert (await client.post("/llm/onboarding")).status_code == 200
     assert (await client.get("/llm/onboarding")).json() == {"completed": True}
 
     tested = await client.post(
@@ -140,6 +142,7 @@ async def test_deleting_connection_cascades_only_its_selections(
                 "name": name,
             },
         )
+    assert (await client.post("/llm/onboarding")).status_code == 200
 
     assert (
         await client.delete(f"/llm/connections/{connection['id']}")

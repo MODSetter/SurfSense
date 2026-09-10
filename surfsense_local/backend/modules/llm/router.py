@@ -25,7 +25,7 @@ from modules.llm.schemas import (
     SelectionRead,
     SelectionWrite,
 )
-from modules.llm.selection import choose_model
+from modules.llm.selection import choose_model, complete_onboarding
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(recommendations_router)
@@ -41,6 +41,16 @@ def read_onboarding_status(session: SessionDep) -> OnboardingStatusRead:
     return OnboardingStatusRead(
         completed=session.get(OnboardingCompletion, 1) is not None
     )
+
+
+@router.post(
+    "/onboarding",
+    response_model=OnboardingStatusRead,
+    summary="Complete model onboarding",
+)
+def mark_onboarding_complete(session: SessionDep) -> OnboardingStatusRead:
+    complete_onboarding(session)
+    return OnboardingStatusRead(completed=True)
 
 
 @router.get("/providers", response_model=list[ProviderRead], summary="List providers")

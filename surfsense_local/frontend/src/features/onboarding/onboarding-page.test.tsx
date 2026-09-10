@@ -36,6 +36,15 @@ function installApi() {
         updated_at: "2026-09-05T00:00:00Z",
       })
     }
+    if (path === "/llm/selection/image_generation") {
+      return Response.json({ detail: "not selected" }, { status: 404 })
+    }
+    if (path === "/llm/connections") {
+      return Response.json([])
+    }
+    if (path === "/llm/onboarding" && init?.method === "POST") {
+      return Response.json({ completed: true })
+    }
     if (path === "/llm/catalog") {
       return Response.json({
         hardware: {},
@@ -134,8 +143,13 @@ describe("model onboarding", () => {
     expect(bottomShadow?.className).toContain("duration-100")
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Continue" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
+    ).toBe(false)
     expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Use selected model" })
+    ).toBeNull()
 
     Object.defineProperties(scrollArea, {
       clientHeight: { configurable: true, value: 200 },
@@ -147,5 +161,75 @@ describe("model onboarding", () => {
       expect(topShadow?.className).toContain("opacity-100")
       expect(bottomShadow?.className).toContain("opacity-100")
     })
+  })
+
+  it("leaves onboarding only after Continue, and needs a chat model", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/selection/generation") {
+        return Response.json({ detail: "not selected" }, { status: 404 })
+      }
+      if (path === "/llm/selection/image_generation") {
+        return Response.json({ detail: "not selected" }, { status: 404 })
+      }
+      if (path === "/llm/connections") return Response.json([])
+      if (path === "/llm/providers") {
+        return Response.json([
+          {
+            name: "ollama",
+            healthy: true,
+            can_download: true,
+            requires_key: false,
+            configured: true,
+          },
+        ])
+      }
+      if (path === "/llm/providers/ollama/models") return Response.json([])
+      if (path === "/llm/catalog") {
+        return Response.json({
+          hardware: {},
+          llmfit_version: "1.0",
+          recommended: [],
+          explore: [],
+          installed: [],
+          warnings: [],
+          runtime_status: {},
+        })
+      }
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+
+    expect(
+      (await screen.findByRole("button", { name: "Continue" })).hasAttribute(
+        "disabled"
+      )
+    ).toBe(true)
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(
+      fetchMock.mock.calls.some(
+        ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
+      )
+    ).toBe(false)
+  })
+
+  it("posts onboarding completion when Continue is pressed", async () => {
+    const fetchMock = installApi()
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(
+      fetchMock.mock.calls.some(
+        ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
+      )
+    ).toBe(true)
   })
 })
