@@ -280,6 +280,7 @@ export function SourcesPanel({
     <>
       <aside
         className="flex h-full min-w-0 flex-col border-l bg-background"
+        id="workspace-sources"
         aria-label="Workspace sources"
       >
         <header className="flex h-14 items-center justify-between border-b px-3">
@@ -294,18 +295,15 @@ export function SourcesPanel({
             disabled={isUploading}
             onChange={uploadSelectedFiles}
           />
-          <div className="flex items-center gap-2">
-            {studioSlot}
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={isUploading}
-              onClick={chooseFiles}
-            >
-              {isUploading ? <Spinner /> : <FilePlus2Icon />}
-              {isUploading ? "Uploading..." : "Add"}
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={isUploading}
+            onClick={chooseFiles}
+          >
+            {isUploading ? <Spinner /> : <FilePlus2Icon />}
+            {isUploading ? "Uploading..." : "Add"}
+          </Button>
         </header>
         <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
           <div className="flex min-h-full w-full min-w-0 flex-col gap-3 overflow-hidden p-2">
@@ -320,6 +318,7 @@ export function SourcesPanel({
                   <Skeleton key={item} className="h-20 w-full" />
                 ))
               : null}
+            {studioSlot}
             {!isLoading && documents.length > 0 ? (
               <section
                 className="w-full min-w-0 overflow-hidden"

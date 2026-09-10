@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 
-import { StudioDialog } from "./studio-dialog"
+import { StudioPanel } from "./studio-panel"
 
 const readyDocument = {
   id: 4,
@@ -28,6 +28,16 @@ const pendingArtifact = {
   updated_at: "2026-09-06T00:00:00Z",
 }
 
+function renderStudio(
+  documents: typeof readyDocument[] = [readyDocument]
+) {
+  return render(
+    <TooltipProvider>
+      <StudioPanel workspaceId={1} documents={documents} />
+    </TooltipProvider>
+  )
+}
+
 beforeEach(() => {
   vi.stubGlobal(
     "ResizeObserver",
@@ -44,7 +54,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("studio dialog", () => {
+describe("studio panel", () => {
   it("submits a job for the chosen format and sources", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -72,14 +82,12 @@ describe("studio dialog", () => {
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
-    render(
-      <TooltipProvider>
-        <StudioDialog workspaceId={1} documents={[readyDocument]} />
-      </TooltipProvider>
-    )
+    renderStudio()
 
-    await user.click(screen.getByRole("button", { name: "Studio" }))
     await user.click(await screen.findByRole("button", { name: "Summary" }))
+    expect(screen.getByRole("dialog", { name: "Summary" })).toBeTruthy()
+    expect(screen.getByText("Sources (0 selected)")).toBeTruthy()
+    expect(screen.getByText("Prompt (optional)")).toBeTruthy()
     await user.click(screen.getByText("Saturn facts"))
     await user.click(screen.getByRole("button", { name: /Generate/ }))
 
@@ -93,6 +101,7 @@ describe("studio dialog", () => {
       format: "summary",
       document_ids: [4],
     })
+    expect(await screen.findByText("Generated artifacts")).toBeTruthy()
     expect(await screen.findByText("pending")).toBeTruthy()
   })
 
@@ -126,11 +135,10 @@ describe("studio dialog", () => {
         return Response.json({ detail: "not found" }, { status: 404 })
       })
     )
-    const user = userEvent.setup()
 
-    render(<StudioDialog workspaceId={1} documents={[readyDocument]} />)
-    await user.click(screen.getByRole("button", { name: "Studio" }))
+    renderStudio()
 
+    expect(await screen.findByText("Generated artifacts")).toBeTruthy()
     expect(await screen.findByText("failed")).toBeTruthy()
     expect(
       screen.getByText("ConnectError: All connection attempts failed")
@@ -159,12 +167,7 @@ describe("studio dialog", () => {
     )
     const user = userEvent.setup()
 
-    render(
-      <TooltipProvider>
-        <StudioDialog workspaceId={1} documents={[readyDocument]} />
-      </TooltipProvider>
-    )
-    await user.click(screen.getByRole("button", { name: "Studio" }))
+    renderStudio()
 
     const image = await screen.findByRole("button", { name: "Image" })
     expect(image.getAttribute("aria-disabled")).toBe("true")
@@ -172,6 +175,39 @@ describe("studio dialog", () => {
     expect(
       await screen.findByRole("tooltip", {
         name: "Image model required",
+      })
+    ).toBeTruthy()
+  })
+
+  it("shows an explanation tooltip on an available artifact", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "quiz",
+              label: "Quiz",
+              requires_role: "generation",
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    renderStudio()
+
+    const quiz = await screen.findByRole("button", { name: "Quiz" })
+    await user.hover(quiz)
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "Generate an AI interactive quiz based on your sources",
       })
     ).toBeTruthy()
   })

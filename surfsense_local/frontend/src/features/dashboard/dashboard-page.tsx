@@ -3,11 +3,17 @@ import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
+  SidebarRightIcon,
   XIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
 import { ThreadList } from "@/features/chat/thread-list"
 import { ThreadPanel } from "@/features/chat/thread-panel"
@@ -23,10 +29,29 @@ import {
 } from "@/features/settings/settings-dialog"
 import { SourcesPanel } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
-import { StudioDialog } from "@/features/studio/studio-dialog"
+import { StudioPanel } from "@/features/studio/studio-panel"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
+import { cn } from "@/lib/utils"
+
+const SOURCES_PANEL_KEY = "sourcesPanel:v1"
+
+function readSourcesOpen() {
+  try {
+    return localStorage.getItem(SOURCES_PANEL_KEY) !== "collapsed"
+  } catch {
+    return true
+  }
+}
+
+function writeSourcesOpen(open: boolean) {
+  try {
+    localStorage.setItem(SOURCES_PANEL_KEY, open ? "open" : "collapsed")
+  } catch {
+    // Private browsing and full disks throw.
+  }
+}
 
 function WorkspaceDashboard({
   workspace,
@@ -42,6 +67,7 @@ function WorkspaceDashboard({
   onModelSelected: (selection: ModelSelection) => void
 }) {
   const [citationChunkId, setCitationChunkId] = useState<number | null>(null)
+  const [sourcesOpen, setSourcesOpen] = useState(readSourcesOpen)
   const sources = useSources(workspace.id)
   const chat = useChatRuntime({
     workspaceId: workspace.id,
@@ -51,9 +77,51 @@ function WorkspaceDashboard({
   })
 
   const closeCitation = () => setCitationChunkId(null)
+  const toggleSources = () => {
+    setSourcesOpen((open) => {
+      const next = !open
+      writeSourcesOpen(next)
+      return next
+    })
+  }
+  const openSources = () => {
+    setSourcesOpen(true)
+    writeSourcesOpen(true)
+  }
 
   return (
-    <section className="my-2 mr-2 grid min-h-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm">
+    <>
+      <div className="titlebar-controls">
+        <div className="titlebar-controls-end">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="pointer-events-auto size-6"
+                aria-expanded={sourcesOpen}
+                aria-controls="workspace-sources"
+                aria-label={sourcesOpen ? "Hide sources" : "Show sources"}
+                onClick={toggleSources}
+              >
+                <SidebarRightIcon />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              {sourcesOpen ? "Hide sources" : "Show sources"}
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </div>
+      <section
+        className={cn(
+          "my-2 mr-2 grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm",
+          sourcesOpen
+            ? "grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)]"
+            : "grid-cols-[minmax(232px,272px)_minmax(0,1fr)]"
+        )}
+      >
       <ThreadList
         threads={chat.threads}
         activeThreadId={chat.activeThreadId}
@@ -86,44 +154,50 @@ function WorkspaceDashboard({
         isUploading={sources.isUploading}
         animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
         providerAvailable={providerAvailable}
-        onCitation={setCitationChunkId}
+        onCitation={(chunkId) => {
+          openSources()
+          setCitationChunkId(chunkId)
+        }}
         onModelSetup={onModelRequired}
         onModelSelected={onModelSelected}
         onUpload={(files) => void sources.upload(files)}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
-      {citationChunkId !== null ? (
-        <CitationPanel
-          workspaceId={workspace.id}
-          chunkId={citationChunkId}
-          onClose={closeCitation}
-          onOpen={(id) => void sources.openOriginal(id)}
-        />
-      ) : (
-        <SourcesPanel
-          documents={sources.documents}
-          selectedDocumentIds={sources.selectedDocumentIds}
-          highlightedDocumentId={null}
-          isLoading={sources.isLoading}
-          isUploading={sources.isUploading}
-          isDeleting={sources.isDeleting}
-          error={sources.error}
-          onOpen={(id) => void sources.openOriginal(id)}
-          onReveal={(id) => void sources.revealOriginal(id)}
-          onRetry={(id) => void sources.retry(id)}
-          onDelete={(id) => void sources.deleteOne(id)}
-          onDeleteSelected={() => void sources.deleteSelected()}
-          onSelectionChange={sources.setDocumentSelected}
-          onUpload={(files) => void sources.upload(files)}
-          studioSlot={
-            <StudioDialog
-              workspaceId={workspace.id}
-              documents={sources.documents}
-            />
-          }
-        />
-      )}
+      {sourcesOpen ? (
+        citationChunkId !== null ? (
+          <CitationPanel
+            workspaceId={workspace.id}
+            chunkId={citationChunkId}
+            onClose={closeCitation}
+            onOpen={(id) => void sources.openOriginal(id)}
+          />
+        ) : (
+          <SourcesPanel
+            documents={sources.documents}
+            selectedDocumentIds={sources.selectedDocumentIds}
+            highlightedDocumentId={null}
+            isLoading={sources.isLoading}
+            isUploading={sources.isUploading}
+            isDeleting={sources.isDeleting}
+            error={sources.error}
+            onOpen={(id) => void sources.openOriginal(id)}
+            onReveal={(id) => void sources.revealOriginal(id)}
+            onRetry={(id) => void sources.retry(id)}
+            onDelete={(id) => void sources.deleteOne(id)}
+            onDeleteSelected={() => void sources.deleteSelected()}
+            onSelectionChange={sources.setDocumentSelected}
+            onUpload={(files) => void sources.upload(files)}
+            studioSlot={
+              <StudioPanel
+                workspaceId={workspace.id}
+                documents={sources.documents}
+              />
+            }
+          />
+        )
+      ) : null}
     </section>
+    </>
   )
 }
 

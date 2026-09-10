@@ -1,10 +1,23 @@
-import { useState } from "react"
+import { useState, type ComponentType } from "react"
 import {
   ArrowLeftIcon,
+  BrowserIcon,
+  Cards01Icon,
+  ChartHistogramIcon,
   CheckIcon,
   DownloadIcon,
+  File02Icon,
+  FileIcon,
+  FileTextIcon,
+  HierarchyIcon,
+  Image01Icon,
+  Pdf01Icon,
+  PodcastIcon,
+  Presentation01Icon,
+  Quiz01Icon,
   SparklesIcon,
   Trash2Icon,
+  Xls01Icon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -16,7 +29,6 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -30,8 +42,43 @@ import {
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
-import { fileUrl, type Artifact, type ArtifactDetail } from "./api"
+import {
+  fileUrl,
+  type Artifact,
+  type ArtifactDetail,
+  type StudioFormat,
+} from "./api"
 import { useStudio } from "./use-studio"
+
+const FORMAT_HINTS: Record<string, string> = {
+  summary: "Generate an AI summary based on your sources",
+  docx: "Generate an AI Word document based on your sources",
+  pptx: "Generate an AI slide deck based on your sources",
+  xlsx: "Generate an AI spreadsheet based on your sources",
+  html: "Generate an AI interactive web page based on your sources",
+  pdf: "Generate an AI PDF based on your sources",
+  mindmap: "Generate an AI mind map based on your sources",
+  flashcards: "Generate AI flashcards based on your sources",
+  quiz: "Generate an AI interactive quiz based on your sources",
+  podcast: "Generate an AI podcast based on your sources",
+  image: "Generate an AI image based on your sources",
+  infographic: "Generate an AI infographic based on your sources",
+}
+
+const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  summary: FileTextIcon,
+  docx: File02Icon,
+  pptx: Presentation01Icon,
+  xlsx: Xls01Icon,
+  html: BrowserIcon,
+  pdf: Pdf01Icon,
+  mindmap: HierarchyIcon,
+  flashcards: Cards01Icon,
+  quiz: Quiz01Icon,
+  podcast: PodcastIcon,
+  image: Image01Icon,
+  infographic: ChartHistogramIcon,
+}
 
 const statusVariant = {
   pending: "outline",
@@ -40,14 +87,31 @@ const statusVariant = {
   failed: "destructive",
 } as const
 
+function unavailableReason(entry: StudioFormat) {
+  return (
+    entry.unavailable_reason ??
+    `Needs a ${entry.requires_role?.replace("_", " ")} model`
+  )
+}
+
+function formatHint(entry: StudioFormat) {
+  if (!entry.available) {
+    return unavailableReason(entry)
+  }
+  return (
+    FORMAT_HINTS[entry.key] ??
+    `Generate a ${entry.label.toLowerCase()} based on your sources`
+  )
+}
+
 function Composer({
+  format,
   documents,
-  formats,
   isCreating,
   onGenerate,
 }: {
+  format: string
   documents: WorkspaceDocument[]
-  formats: ReturnType<typeof useStudio>["formats"]
   isCreating: boolean
   onGenerate: (job: {
     format: string
@@ -56,7 +120,6 @@ function Composer({
   }) => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
-  const [format, setFormat] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<number>>(new Set())
   const [prompt, setPrompt] = useState("")
 
@@ -71,47 +134,10 @@ function Composer({
       return next
     })
 
-  const canGenerate = format !== null && selected.size > 0 && !isCreating
+  const canGenerate = selected.size > 0 && !isCreating
 
   return (
-    <div className="space-y-4">
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">Format</p>
-        <div className="flex flex-wrap gap-2">
-          {formats.map((entry) => {
-            const unavailableReason =
-              entry.unavailable_reason ??
-              `Needs a ${entry.requires_role?.replace("_", " ")} model`
-            return entry.available ? (
-              <Button
-                key={entry.key}
-                type="button"
-                size="sm"
-                variant={format === entry.key ? "default" : "outline"}
-                onClick={() => setFormat(entry.key)}
-              >
-                {entry.label}
-              </Button>
-            ) : (
-              <Tooltip key={entry.key}>
-                <TooltipTrigger asChild>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    aria-disabled="true"
-                    className="cursor-not-allowed opacity-50"
-                  >
-                    {entry.label}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">{unavailableReason}</TooltipContent>
-              </Tooltip>
-            )
-          })}
-        </div>
-      </div>
-
+    <div className="space-y-3">
       <div className="space-y-2">
         <p className="text-xs font-medium text-muted-foreground">
           Sources ({selected.size} selected)
@@ -161,6 +187,7 @@ function Composer({
           Prompt (optional)
         </p>
         <Input
+          className="select-text"
           value={prompt}
           placeholder="Steer the focus, e.g. emphasise the risks"
           onChange={(event) => setPrompt(event.target.value)}
@@ -171,7 +198,6 @@ function Composer({
         className="w-full"
         disabled={!canGenerate}
         onClick={() => {
-          if (format === null) return
           onGenerate({
             format,
             document_ids: [...selected],
@@ -201,8 +227,13 @@ function Library({
     return null
   }
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground">Artifacts</p>
+    <section className="space-y-2" aria-labelledby="generated-artifacts">
+      <h3
+        id="generated-artifacts"
+        className="px-1 text-xs font-medium text-muted-foreground"
+      >
+        Generated artifacts
+      </h3>
       <div className="space-y-1.5">
         {artifacts.map((artifact) => (
           <div
@@ -247,7 +278,44 @@ function Library({
           </div>
         ))}
       </div>
-    </div>
+    </section>
+  )
+}
+
+function FormatCard({
+  entry,
+  selected,
+  onSelect,
+}: {
+  entry: StudioFormat
+  selected: boolean
+  onSelect: () => void
+}) {
+  const Icon = FORMAT_ICONS[entry.key] ?? FileIcon
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-disabled={!entry.available || undefined}
+          aria-pressed={entry.available ? selected : undefined}
+          className={cn(
+            "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
+            entry.available
+              ? "hover:bg-accent"
+              : "cursor-not-allowed opacity-50",
+            selected && "border-primary bg-primary/5"
+          )}
+          onClick={entry.available ? onSelect : undefined}
+        >
+          <Icon />
+          <span className="w-full truncate text-[11px] leading-4">
+            {entry.label}
+          </span>
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="top">{formatHint(entry)}</TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -309,67 +377,115 @@ function Preview({ artifact }: { artifact: ArtifactDetail }) {
   return null
 }
 
-export function StudioDialog({
+export function StudioPanel({
   workspaceId,
   documents,
 }: {
   workspaceId: number
   documents: WorkspaceDocument[]
 }) {
-  const [open, setOpen] = useState(false)
-  const studio = useStudio(workspaceId, open)
-  const labelOf = (format: string) =>
-    studio.formats.find((entry) => entry.key === format)?.label ?? format
+  const studio = useStudio(workspaceId)
+  const [format, setFormat] = useState<string | null>(null)
+  const selectedFormat = studio.formats.find((entry) => entry.key === format)
+  const labelOf = (key: string) =>
+    studio.formats.find((entry) => entry.key === key)?.label ?? key
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="sm" variant="outline">
-          <SparklesIcon />
-          Studio
-        </Button>
-      </DialogTrigger>
-      <DialogContent className="flex max-h-[85svh] flex-col overflow-hidden sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Studio</DialogTitle>
-          <DialogDescription>
-            Turn this workspace's sources into a deliverable.
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      {studio.error ? (
+        <Alert variant="destructive">
+          <AlertTitle>Studio action failed</AlertTitle>
+          <AlertDescription>{studio.error}</AlertDescription>
+        </Alert>
+      ) : null}
 
-        {studio.error ? (
-          <Alert variant="destructive">
-            <AlertTitle>Studio action failed</AlertTitle>
-            <AlertDescription>{studio.error}</AlertDescription>
-          </Alert>
-        ) : null}
-
-        {studio.selected ? (
-          <Viewer artifact={studio.selected} onBack={studio.closeArtifact} />
-        ) : studio.isLoading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-24 w-full" />
-          </div>
-        ) : (
-          <div className="min-h-0 flex-1 overflow-y-auto">
-            <div className="space-y-5 pr-1 pb-1">
-              <Composer
-                documents={documents}
-                formats={studio.formats}
-                isCreating={studio.isCreating}
-                onGenerate={(job) => void studio.create(job)}
-              />
-              <Library
-                artifacts={studio.artifacts}
-                labelOf={labelOf}
-                onOpen={(id) => void studio.openArtifact(id)}
-                onDelete={(id) => void studio.remove(id)}
-              />
+      {studio.isLoading ? (
+        <div className="grid grid-cols-3 gap-1.5">
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((item) => (
+            <Skeleton key={item} className="h-16 w-full" />
+          ))}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          <Library
+            artifacts={studio.artifacts}
+            labelOf={labelOf}
+            onOpen={(id) => void studio.openArtifact(id)}
+            onDelete={(id) => void studio.remove(id)}
+          />
+          <section className="space-y-2" aria-labelledby="studio-formats">
+            <h3
+              id="studio-formats"
+              className="px-1 text-xs font-medium text-muted-foreground"
+            >
+              Studio
+            </h3>
+            <div className="grid grid-cols-3 gap-1.5">
+              {studio.formats.map((entry) => (
+                <FormatCard
+                  key={entry.key}
+                  entry={entry}
+                  selected={format === entry.key}
+                  onSelect={() => setFormat(entry.key)}
+                />
+              ))}
             </div>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
+          </section>
+        </div>
+      )}
+
+      <Dialog
+        open={selectedFormat != null}
+        onOpenChange={(open) => {
+          if (!open) setFormat(null)
+        }}
+      >
+        <DialogContent className="select-none sm:max-w-md">
+          {selectedFormat ? (
+            <>
+              <DialogHeader>
+                <DialogTitle>{selectedFormat.label}</DialogTitle>
+                <DialogDescription className="sr-only">
+                  {formatHint(selectedFormat)}
+                </DialogDescription>
+              </DialogHeader>
+              <Composer
+                key={selectedFormat.key}
+                format={selectedFormat.key}
+                documents={documents}
+                isCreating={studio.isCreating}
+                onGenerate={(job) => {
+                  void studio.create(job).then((created) => {
+                    if (created) setFormat(null)
+                  })
+                }}
+              />
+            </>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={studio.selected !== null}
+        onOpenChange={(open) => {
+          if (!open) studio.closeArtifact()
+        }}
+      >
+        <DialogContent className="flex max-h-[85svh] flex-col overflow-hidden sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{studio.selected?.title ?? "Artifact"}</DialogTitle>
+            <DialogDescription className="sr-only">
+              Generated studio artifact
+            </DialogDescription>
+          </DialogHeader>
+          {studio.selected ? (
+            <Viewer
+              artifact={studio.selected}
+              onBack={studio.closeArtifact}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }

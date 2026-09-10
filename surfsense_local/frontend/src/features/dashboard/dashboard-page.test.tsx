@@ -697,4 +697,69 @@ describe("dashboard chat", () => {
       await screen.findByRole("button", { name: "Send message" })
     ).toBeTruthy()
   })
+
+  it("collapses the sources panel from the toolbar outside the card", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/artifacts") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            selection={{
+              role: "generation",
+              provider: "ollama",
+              connection_id: null,
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
+    )
+
+    expect(
+      await screen.findByRole("complementary", { name: "Workspace sources" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Hide sources" }).closest(".titlebar-controls")
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Hide sources" }))
+    expect(
+      screen.queryByRole("complementary", { name: "Workspace sources" })
+    ).toBeNull()
+    expect(screen.getByRole("button", { name: "Show sources" })).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Show sources" }))
+    expect(
+      screen.getByRole("complementary", { name: "Workspace sources" })
+    ).toBeTruthy()
+  })
 })

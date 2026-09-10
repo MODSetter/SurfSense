@@ -14,8 +14,11 @@ if (!root) {
   throw new Error("Missing application root")
 }
 
-if (window.surfsense?.platform === "darwin") {
-  document.documentElement.classList.add("electron-macos")
+if (window.surfsense?.platform) {
+  document.documentElement.classList.add("electron")
+  if (window.surfsense.platform === "darwin") {
+    document.documentElement.classList.add("electron-macos")
+  }
 }
 
 createRoot(root).render(

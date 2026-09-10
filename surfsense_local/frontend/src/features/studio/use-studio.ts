@@ -38,7 +38,7 @@ function wait(ms: number, signal: AbortSignal) {
   })
 }
 
-export function useStudio(workspaceId: number, open: boolean) {
+export function useStudio(workspaceId: number) {
   const [formats, setFormats] = useState<StudioFormat[]>([])
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   const [selected, setSelected] = useState<ArtifactDetail | null>(null)
@@ -48,14 +48,8 @@ export function useStudio(workspaceId: number, open: boolean) {
   const pollController = useRef<AbortController | null>(null)
   const hasRunning = artifacts.some(isRunning)
 
-  // Loaded only while the dialog is open, and reloaded each time it reopens.
   useEffect(() => {
-    if (!open) {
-      return
-    }
     const controller = new AbortController()
-    // isLoading defaults to true, so the first open shows a skeleton; reopening
-    // keeps the last data on screen and refreshes it (stale-while-revalidate).
     void Promise.all([
       listFormats(workspaceId, controller.signal),
       listArtifacts(workspaceId, controller.signal),
@@ -76,12 +70,12 @@ export function useStudio(workspaceId: number, open: boolean) {
         }
       })
     return () => controller.abort()
-  }, [workspaceId, open])
+  }, [workspaceId])
 
   // While a job runs, poll the list until it settles — the same freshness path
   // the sources panel uses.
   useEffect(() => {
-    if (!open || !hasRunning) {
+    if (!hasRunning) {
       return
     }
     const controller = new AbortController()
@@ -109,7 +103,7 @@ export function useStudio(workspaceId: number, open: boolean) {
     })()
 
     return () => controller.abort()
-  }, [open, hasRunning, workspaceId])
+  }, [hasRunning, workspaceId])
 
   const create = async (job: StudioJobCreate) => {
     setIsCreating(true)

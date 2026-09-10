@@ -31,6 +31,18 @@ function isTheme(value: string | null): value is Theme {
   return THEME_VALUES.includes(value as Theme)
 }
 
+function syncTitleBarOverlay(theme: ResolvedTheme) {
+  const platform = window.surfsense?.platform
+  if (platform !== "win32" && platform !== "linux") {
+    return
+  }
+  const overlay =
+    theme === "dark"
+      ? { color: "#101010", symbolColor: "#e8e3da" }
+      : { color: "#f3f2ee", symbolColor: "#1e1e1e" }
+  void window.surfsense?.setTitleBarOverlay?.(overlay)
+}
+
 function getSystemTheme(): ResolvedTheme {
   if (window.matchMedia(COLOR_SCHEME_QUERY).matches) {
     return "dark"
@@ -112,6 +124,7 @@ export function ThemeProvider({
 
       root.classList.remove("light", "dark")
       root.classList.add(resolvedTheme)
+      syncTitleBarOverlay(resolvedTheme)
 
       if (restoreTransitions) {
         restoreTransitions()

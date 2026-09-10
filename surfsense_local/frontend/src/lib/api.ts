@@ -12,6 +12,10 @@ declare global {
         workspaceId: number,
         documentId: number
       ) => Promise<string>
+      setTitleBarOverlay?: (overlay: {
+        color: string
+        symbolColor: string
+      }) => Promise<void>
     }
   }
 }

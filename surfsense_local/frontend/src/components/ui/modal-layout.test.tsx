@@ -37,7 +37,7 @@ const modals: [string, () => ReactElement][] = [
 
 afterEach(() => {
   cleanup()
-  document.documentElement.classList.remove("electron-macos")
+  document.documentElement.classList.remove("electron-macos", "electron")
   document.body.replaceChildren()
 })
 
