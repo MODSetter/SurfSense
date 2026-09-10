@@ -26,7 +26,7 @@ The existing unauthenticated, rate-limit-exempt `GET /health` on the hosted back
 - One `GET /health` on startup against `HOSTED_BACKEND_URL`, 3-second timeout, no retry, no periodic recheck. A flip mid-session takes effect on next launch.
 - `sunset === true` → `mainWindow.loadURL(sunset_url)` instead of the bundled localhost frontend.
 - Anything else — `false`, missing field, non-2xx, timeout, network error, unparseable body — → start exactly as v0.0.39 did. **Fail open.** A flaky network must never turn the app into a sunset page early.
-- The updater is disabled in the same release. Nothing else changes.
+- The updater is capped below 1.0.0 in the same release (`0.x` releases still install; anything higher is ignored). Nothing else changes.
 
 ## Tests each side owns
 

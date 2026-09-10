@@ -59,7 +59,7 @@ Three workstreams, joined by four frozen contracts:
 
 **Distribution**
 - **One installer variant** with Docling bundled (~1.7GB+). All five targets: macOS arm64, macOS x64, Windows x64, Linux AppImage, Linux deb. Apple and Azure Trusted Signing are active.
-- Release tags move to **`v*`** once the legacy desktop updater is retired (below); [release-local.yml](../../.github/workflows/release-local.yml) switches its trigger from `local-v*` to `v*` at that point. Two facts drive the order: `v*` is **not free today**, [desktop-release.yml](../../.github/workflows/desktop-release.yml) already triggers on it, so a `v1.0.0` tag pushed before that workflow is deleted builds the *legacy* app; and both apps publish to the same GitHub repo, where electron-updater's GitHub provider takes the **newest release regardless of tag name**. Any published release with a version above 0.0.39 reaches every legacy client, `local-v*` included. Until v0.0.40 uptake is confirmed, every new-app pipeline run uses `publish: never`.
+- Release tags move to **`v*`** once the legacy desktop updater is capped (below); [release-local.yml](../../.github/workflows/release-local.yml) switches its trigger from `local-v*` to `v*` at that point. Two facts drive the order: `v*` is **not free today**, [desktop-release.yml](../../.github/workflows/desktop-release.yml) already triggers on it, so a `v1.0.0` tag pushed before that workflow is deleted builds the *legacy* app; and both apps publish to the same GitHub repo, where electron-updater's GitHub provider takes the **newest release regardless of tag name**. Any published release with a version above 0.0.39 reaches every legacy client, `local-v*` included. Until v0.0.40 uptake is confirmed, every new-app pipeline run uses `publish: never`.
 - If `macos-13` runners are gone, Intel sidecars are built with an **x64 Python under Rosetta** on the arm64 job.
 - In MVP hardening: **OS keychain for API keys** and the **network egress panel**. Deferred: SSE freshness, note authoring UI, onboarding screen.
 
@@ -189,7 +189,7 @@ Ordered. Each step is independently shippable to `dev`.
 
 1. **Rename.** `productName: SurfSense`, `appId: com.surfsense.app` in [electron-builder.yml](../../surfsense_local/electron/electron-builder.yml). Update [README.md](../../surfsense_local/README.md).
 2. **Ship legacy desktop v0.0.40, day one.** `surfsense_desktop` v0.0.39 auto-downloads whatever is the newest release in the repo, tag name irrelevant, so it must be neutralised before the new app publishes anything. v0.0.40 is deliberately tiny and has **no sunset content of its own**: the legacy app bundles a frozen copy of `surfsense_web` (see `extraResources` in [surfsense_desktop/electron-builder.yml](../../surfsense_desktop/electron-builder.yml)), so any page baked into it would be stale the day Dev B changes the portal. Instead:
-   - Updater disabled.
+   - Updater capped below 1.0.0: `autoDownload` off, and `update-available` only downloads when the offered version starts with `0.`. A future v0.0.41 still reaches every user; v1.0.0 and above are ignored. This keeps a repair path open for the legacy app without ever pulling the local app into it.
    - On startup, `GET /health` on the hosted backend (contract 4). If `sunset` is `true`, `loadURL('https://surfsense.com/sunset')` in the main window instead of the bundled localhost frontend; the live page then carries export, download, and import steps, and the session cookie keeps the user signed in. On `false`, an error, a timeout, or a missing field, start exactly as before.
    - Bump to 0.0.40, tag `v0.0.40`, let the still-active 0.0.39 updater push it out.
    
@@ -263,7 +263,7 @@ Triggered by readiness, not by a date. The step before T-0 happens as soon as it
 ## Risks and mitigations
 
 - **Release pipeline never run.** Dry-run in the first week of Workstream A, before any feature depends on it.
-- **Legacy desktop clients pull the new app.** The legacy updater takes the newest release in the shared repo regardless of tag, so this is not solved by tag naming. v0.0.40 with the updater disabled ships on day one; until its uptake is confirmed, no new-app run publishes (`publish: never` on every dry run), and `desktop-release.yml` (which owns `v*` today) is deleted before the trigger switch.
+- **Legacy desktop clients pull the new app.** The legacy updater takes the newest release in the shared repo regardless of tag, so this is not solved by tag naming. v0.0.40 with the updater capped below 1.0.0 ships on day one; until its uptake is confirmed, no new-app run publishes (`publish: never` on every dry run), and `desktop-release.yml` (which owns `v*` today) is deleted before the trigger switch.
 - **Legacy desktop bundles a frozen frontend.** A sunset page shipped inside v0.0.40 would be stale as soon as the portal changes and would need another legacy release. v0.0.40 therefore carries no page: it reads `sunset` from `/health` (contract 4) and loads the live `/sunset` when true, fail-open otherwise. The portal can change freely without a legacy version bump.
 - **`macos-13` runner availability.** Rosetta x64 Python on the arm64 job.
 - **Unlimited flat scraping.** Per-license counters exist from T+7 so a cap is a config change; EULA reserves the right.
