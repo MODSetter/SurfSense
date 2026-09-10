@@ -9,6 +9,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { SlideRail } from "@/components/ui/slide-rail"
 import {
   Tooltip,
   TooltipContent,
@@ -33,7 +34,6 @@ import { StudioPanel } from "@/features/studio/studio-panel"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
-import { cn } from "@/lib/utils"
 
 const SOURCES_PANEL_KEY = "sourcesPanel:v1"
 
@@ -115,12 +115,7 @@ function WorkspaceDashboard({
         </div>
       </div>
       <section
-        className={cn(
-          "my-2 mr-2 grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm",
-          sourcesOpen
-            ? "grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(336px,400px)]"
-            : "grid-cols-[minmax(232px,272px)_minmax(0,1fr)]"
-        )}
+        className="my-2 mr-2 grid min-h-0 min-w-0 grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_auto] grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm"
       >
       <ThreadList
         threads={chat.threads}
@@ -163,8 +158,8 @@ function WorkspaceDashboard({
         onUpload={(files) => void sources.upload(files)}
         onTitleAnimationComplete={chat.finishTitleAnimation}
       />
-      {sourcesOpen ? (
-        citationChunkId !== null ? (
+      <SlideRail open={sourcesOpen} side="end" width={400}>
+        {citationChunkId !== null ? (
           <CitationPanel
             workspaceId={workspace.id}
             chunkId={citationChunkId}
@@ -194,8 +189,8 @@ function WorkspaceDashboard({
               />
             }
           />
-        )
-      ) : null}
+        )}
+      </SlideRail>
     </section>
     </>
   )
