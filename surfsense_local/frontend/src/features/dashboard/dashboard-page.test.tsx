@@ -860,7 +860,9 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
+    expect(screen.getByRole("heading", { name: "Sources" })).toBeTruthy()
     await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
     expect(
       screen.getByRole("heading", { name: "All generated artifacts" })
     ).toBeTruthy()

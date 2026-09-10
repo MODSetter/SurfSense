@@ -1,7 +1,6 @@
 import { useTheme } from "@/components/theme-provider"
 import { ComputerIcon, MoonIcon, SunIcon } from "@/components/ui/icons"
 import { SegmentedControl } from "@/components/ui/segmented-control"
-import { cn } from "@/lib/utils"
 
 const THEME_OPTIONS = [
   { icon: ComputerIcon, value: "system", label: "system" },
@@ -37,12 +36,7 @@ export function AppearanceToggle() {
               aria-label={`Switch to ${option.label} theme`}
               onChange={() => setTheme(option.value)}
             />
-            <span
-              className={cn(
-                "relative flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors peer-focus-visible:z-10 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:outline-none",
-                selected ? "text-accent-foreground" : "hover:text-foreground"
-              )}
-            >
+            <span className="relative flex size-7 items-center justify-center rounded-md peer-focus-visible:z-10 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:outline-none">
               <Icon className="size-3.5" strokeWidth={1.5} />
             </span>
           </label>

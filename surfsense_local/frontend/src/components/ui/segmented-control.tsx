@@ -15,7 +15,16 @@ export function SegmentedControl({
   return (
     <div
       className={cn(
-        "relative inline-flex items-center overflow-hidden rounded-md border bg-muted/80",
+        "relative inline-flex items-center overflow-hidden rounded-md border bg-muted/80 text-muted-foreground",
+        "[&_svg]:text-current",
+        "[&_label]:text-muted-foreground [&_label]:transition-colors",
+        "[&_label:hover:not(:has(:checked))]:text-foreground",
+        "[&_label:has(:checked)]:text-accent-foreground",
+        "[&_label:has(:checked)_svg]:text-accent-foreground",
+        "[&_[aria-selected=true]]:text-accent-foreground",
+        "[&_[aria-selected=true]_svg]:text-accent-foreground",
+        "[&_[aria-selected=false]:hover]:text-foreground",
+        "[&_[aria-selected=false]:hover_svg]:text-foreground",
         className
       )}
       {...props}

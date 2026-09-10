@@ -1,7 +1,13 @@
 import type { ReactNode } from "react"
 
+import { FolderLibraryIcon, Shapes01Icon } from "@/components/ui/icons"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 
 export type RightTab = "sources" | "artifacts"
 
@@ -35,24 +41,43 @@ export function RightPanel({
         className="h-full min-h-0 gap-0"
       >
         <header className="flex h-14 shrink-0 items-center gap-2 px-3">
+          <h2 className="font-heading text-lg font-medium">
+            {tab === "sources" ? "Sources" : "Artifacts"}
+          </h2>
           <SegmentedControl
             count={2}
             selectedIndex={tab === "sources" ? 0 : 1}
-            className="h-7 w-40 shrink-0"
+            className="ml-auto h-7 w-14 shrink-0"
           >
             <TabsList className="relative h-full bg-transparent p-0">
-              <TabsTrigger
-                value="sources"
-                className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-              >
-                Sources
-              </TabsTrigger>
-              <TabsTrigger
-                value="artifacts"
-                className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-              >
-                Artifacts
-              </TabsTrigger>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger
+                    value="sources"
+                    aria-label="Sources"
+                    className="h-full px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                  >
+                    <FolderLibraryIcon />
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" collisionPadding={8}>
+                  Sources
+                </TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <TabsTrigger
+                    value="artifacts"
+                    aria-label="Artifacts"
+                    className="h-full px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                  >
+                    <Shapes01Icon />
+                  </TabsTrigger>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" collisionPadding={8}>
+                  Artifacts
+                </TooltipContent>
+              </Tooltip>
             </TabsList>
           </SegmentedControl>
         </header>
