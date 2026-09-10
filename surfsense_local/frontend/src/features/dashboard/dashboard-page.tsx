@@ -124,7 +124,7 @@ function WorkspaceDashboard({
           </Tooltip>
         </div>
       </div>
-      <section className="my-2 mr-2 flex h-full min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
+      <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
       <div className="flex h-full min-h-0 w-[272px] min-w-[232px] shrink-0 flex-col">
       <ThreadList
         threads={chat.threads}
