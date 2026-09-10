@@ -10,6 +10,7 @@ from modules.documents.router import router as documents_router
 from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
 from modules.health.router import router as health_router
+from modules.license.router import router as license_router
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
 from modules.workspaces.router import router as workspaces_router
@@ -57,4 +58,5 @@ def create_app() -> FastAPI:
     app.include_router(artifacts_router)
     app.include_router(events_router)
     app.include_router(migration_router)
+    app.include_router(license_router)
     return app
