@@ -1,18 +1,14 @@
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 
 from api.dependencies import SessionDep
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.llm.activity import ModelBusyError, model_activity
-from modules.llm.credentials import (
-    clear_provider_key,
-    read_provider_key,
-    write_provider_key,
-)
+from modules.llm.activity import ModelBusyError, model_activity, model_key
+from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import ProviderDep, StoreDep
 from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, provider_names
@@ -21,8 +17,6 @@ from modules.llm.recommendations.dependencies import CatalogServiceDep
 from modules.llm.recommendations.router import router as recommendations_router
 from modules.llm.schemas import (
     CatalogEntryRead,
-    CredentialStatus,
-    CredentialWrite,
     ModelDeleteRead,
     ModelRead,
     OnboardingStatusRead,
@@ -35,6 +29,7 @@ from modules.llm.selection import choose_model
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(recommendations_router)
+router.include_router(connections_router)
 
 
 @router.get(
@@ -49,16 +44,15 @@ def read_onboarding_status(session: SessionDep) -> OnboardingStatusRead:
 
 
 @router.get("/providers", response_model=list[ProviderRead], summary="List providers")
-async def list_providers(session: SessionDep) -> list[ProviderRead]:
-    providers = [get_provider(name, session) for name in provider_names()]
+async def list_providers() -> list[ProviderRead]:
+    providers = [get_provider(name) for name in provider_names()]
     return [
         ProviderRead(
             name=provider.name,
             healthy=await provider.health(),
             can_download=isinstance(provider, ModelStore),
             requires_key=getattr(provider, "requires_key", False),
-            configured=not getattr(provider, "requires_key", False)
-            or read_provider_key(session, provider.name) is not None,
+            configured=True,
         )
         for provider in providers
         if provider is not None
@@ -128,7 +122,7 @@ async def delete_model(
 
     try:
         try:
-            async with model_activity.deleting((store.name, model_name)):
+            async with model_activity.deleting(model_key(store.name, model_name)):
                 await store.delete(model_name)
         except ModelBusyError as error:
             raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
@@ -201,42 +195,6 @@ async def pull_model(
     return StreamingResponse(progress(), media_type="application/x-ndjson")
 
 
-@router.put(
-    "/providers/{provider}/credentials",
-    response_model=CredentialStatus,
-    summary="Set a provider's API key",
-)
-def set_credential(
-    provider: str, payload: CredentialWrite, session: SessionDep
-) -> CredentialStatus:
-    found = get_provider(provider)
-    if found is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown provider: {provider}")
-    if not getattr(found, "requires_key", False):
-        raise HTTPException(status.HTTP_409_CONFLICT, f"{provider} needs no API key")
-
-    key = payload.api_key.strip()
-    if not key:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT, "api key must not be empty"
-        )
-
-    write_provider_key(session, provider, key)
-    return CredentialStatus(provider=provider, configured=True)
-
-
-@router.delete(
-    "/providers/{provider}/credentials",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Remove a provider's API key",
-)
-def clear_credential(provider: str, session: SessionDep) -> Response:
-    if get_provider(provider) is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown provider: {provider}")
-    clear_provider_key(session, provider)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
 @router.get(
     "/selection/{role}",
     response_model=SelectionRead,
@@ -258,4 +216,11 @@ def read_selection(role: ModelRole, session: SessionDep) -> SelectedModel:
 async def set_selection(
     role: ModelRole, payload: SelectionWrite, session: SessionDep
 ) -> SelectedModel:
-    return await choose_model(session, role, payload.provider, payload.name)
+    return await choose_model(
+        session,
+        role,
+        payload.provider,
+        payload.name,
+        connection_id=payload.connection_id,
+        allow_unlisted=payload.allow_unlisted,
+    )
