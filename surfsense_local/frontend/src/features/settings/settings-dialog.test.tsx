@@ -51,17 +51,17 @@ describe("SettingsDialog", () => {
       screen.getByRole("heading", { name: "Appearance" }).textContent
     ).toBe("Appearance")
     const scrollRegion = document.querySelector(
-      '[data-slot="settings-section-scroll"]'
+      '[data-slot="scroll-shadow-viewport"]'
     )
     const scrollArea = scrollRegion as HTMLDivElement
     expect(scrollRegion?.className).toContain("min-h-0")
     expect(scrollRegion?.className).toContain("overflow-y-auto")
-    const topShadow = document.querySelector(
-      '[data-slot="settings-section-shadow-top"]'
-    )
+    const topShadow = document.querySelector('[data-slot="scroll-shadow-top"]')
     const bottomShadow = document.querySelector(
-      '[data-slot="settings-section-shadow-bottom"]'
+      '[data-slot="scroll-shadow-bottom"]'
     )
+    expect(topShadow?.className).toContain("duration-100")
+    expect(bottomShadow?.className).toContain("duration-100")
     Object.defineProperties(scrollRegion, {
       clientHeight: { configurable: true, value: 400 },
       scrollHeight: { configurable: true, value: 800 },
@@ -125,10 +125,38 @@ describe("SettingsDialog", () => {
     await user.click(screen.getByRole("button", { name: "Models" }))
 
     expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
-    expect(screen.getByText("Currently using")).toBeTruthy()
-    expect(screen.getByText("qwen3:1.7b")).toBeTruthy()
+    expect(screen.queryByText("Currently using")).toBeNull()
+    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
+    expect(
+      document.querySelector('[data-slot="settings-section-content"]')
+        ?.className
+    ).toContain("overflow-hidden")
+    expect(
+      document.querySelector('[data-slot="scroll-shadow-viewport"]')?.className
+    ).toContain("overflow-y-auto")
     expect(
       await screen.findByText("No local models are available")
     ).toBeTruthy()
+  })
+
+  it("shows the model tabs and catalog skeleton while selection data loads", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => undefined))
+    )
+    const user = userEvent.setup()
+
+    render(<SettingsHarness />)
+    await user.click(screen.getByRole("button", { name: "Models" }))
+
+    expect(screen.getByRole("heading", { name: "Models" })).toBeTruthy()
+    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    expect(
+      screen.getByRole("status", { name: "Scanning model catalog" })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("status", { name: "Loading model settings" })
+    ).toBeNull()
   })
 })

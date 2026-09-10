@@ -1,13 +1,13 @@
 import { useState } from "react"
 
-import { CheckIcon, CircleAlertIcon, KeyRoundIcon } from "@/components/ui/icons"
+import { CheckIcon, CircleAlertIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 
-import { type Provider, type SelectableModel } from "../../api"
+import type { Provider, SelectableModel } from "../../api"
 import { ModelList } from "../../model-list"
 import { clearProviderCredential, setProviderCredential } from "./api"
 
@@ -22,6 +22,7 @@ export function OpenRouterPanel({
   persistedKey,
   onSelect,
   disabled,
+  modelsLoading,
   onChanged,
 }: {
   provider: Provider
@@ -30,6 +31,7 @@ export function OpenRouterPanel({
   persistedKey: string | null
   onSelect: (key: string) => void
   disabled: boolean
+  modelsLoading: boolean
   onChanged: () => Promise<void>
 }) {
   const [key, setKey] = useState("")
@@ -69,7 +71,7 @@ export function OpenRouterPanel({
 
   if (provider.configured && provider.healthy) {
     return (
-      <div className="flex flex-col gap-3">
+      <div className="flex h-full min-h-0 flex-col gap-3">
         <div className="flex items-center justify-between gap-3">
           <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <CheckIcon className="size-4" />
@@ -87,14 +89,26 @@ export function OpenRouterPanel({
           </Button>
         </div>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
-        <ModelList
-          models={models}
-          draftKey={draftKey}
-          persistedKey={persistedKey}
-          onSelect={onSelect}
-          disabled={disabled}
-          searchable
-        />
+        {modelsLoading ? (
+          <div
+            className="flex items-center gap-2 text-sm text-muted-foreground"
+            role="status"
+          >
+            <Spinner />
+            Loading OpenRouter models...
+          </div>
+        ) : (
+          <div className="min-h-0 flex-1">
+            <ModelList
+              models={models}
+              draftKey={draftKey}
+              persistedKey={persistedKey}
+              onSelect={onSelect}
+              disabled={disabled}
+              searchable
+            />
+          </div>
+        )}
       </div>
     )
   }
@@ -142,11 +156,7 @@ export function OpenRouterPanel({
           disabled={busy || key.trim() === ""}
           onClick={() => void connect()}
         >
-          {busy ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <KeyRoundIcon data-icon="inline-start" />
-          )}
+          {busy ? <Spinner data-icon="inline-start" /> : null}
           Connect
         </Button>
       </div>

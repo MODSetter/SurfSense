@@ -112,6 +112,7 @@ class CatalogRow:
     installed: bool
     selected: bool
     can_install: bool
+    can_delete: bool
     warnings: tuple[str, ...] = ()
 
 

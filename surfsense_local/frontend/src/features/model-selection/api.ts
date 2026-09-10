@@ -25,12 +25,22 @@ export type SelectableModel = ProviderModel & {
   provider: string
 }
 
+export type OnboardingStatus = {
+  completed: boolean
+}
+
 export function modelKey(model: Pick<SelectableModel, "provider" | "name">) {
   return `${model.provider}\0${model.name}`
 }
 
 export function getProviders(signal?: AbortSignal): Promise<Provider[]> {
   return requestJson<Provider[]>("/llm/providers", { signal })
+}
+
+export function getOnboardingStatus(
+  signal?: AbortSignal
+): Promise<OnboardingStatus> {
+  return requestJson<OnboardingStatus>("/llm/onboarding", { signal })
 }
 
 export function getProviderModels(

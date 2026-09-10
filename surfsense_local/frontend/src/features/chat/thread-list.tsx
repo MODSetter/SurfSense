@@ -121,7 +121,7 @@ export function ThreadList({
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background">
       <header className="space-y-3 border-b p-3">
-        <h2 className="truncate px-1 font-heading text-lg font-medium text-white">
+        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground">
           SurfSense
         </h2>
         <Button className="w-full justify-start" onClick={onNewChat}>
@@ -162,7 +162,7 @@ export function ThreadList({
                   className={cn(
                     "h-8 w-full min-w-0 justify-start overflow-hidden px-2 py-1.5 text-sm font-normal group-hover:bg-muted active:!translate-y-0 dark:group-hover:bg-muted/50",
                     selected &&
-                      "bg-sidebar-accent text-white group-hover:text-white hover:text-white",
+                      "bg-sidebar-accent text-foreground group-hover:text-foreground hover:text-foreground",
                     openDropdownId === thread.id && "bg-muted dark:bg-muted/50"
                   )}
                   aria-current={selected ? "page" : undefined}

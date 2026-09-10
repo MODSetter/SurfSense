@@ -14,6 +14,7 @@ import {
   CpuIcon as CpuIconData,
   Delete02Icon,
   DownloadIcon as DownloadIconData,
+  DotIcon as DotIconData,
   EllipsisIcon as EllipsisIconData,
   FileAddIcon,
   FileIcon as FileIconData,
@@ -79,6 +80,7 @@ export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
 export const CpuIcon = createIcon(CpuIconData)
 export const DownloadIcon = createIcon(DownloadIconData)
+export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const FileIcon = createIcon(FileIconData)
 export const FilePlus2Icon = createIcon(FileAddIcon)

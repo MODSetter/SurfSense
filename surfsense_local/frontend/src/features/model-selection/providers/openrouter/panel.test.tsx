@@ -3,7 +3,7 @@ import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
-import { ModelSelectionPage } from "../../model-selection-page"
+import { OnboardingPage } from "@/features/onboarding/onboarding-page"
 
 function installApi() {
   const state = { configured: false }
@@ -92,23 +92,95 @@ beforeEach(() => {
 })
 
 describe("openrouter provider", () => {
+  it("loads OpenRouter models without waiting for local models", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            {
+              name: "ollama",
+              healthy: true,
+              can_download: true,
+              requires_key: false,
+              configured: true,
+            },
+            {
+              name: "openrouter",
+              healthy: true,
+              can_download: false,
+              requires_key: true,
+              configured: true,
+            },
+          ])
+        }
+        if (path === "/llm/selection/generation") {
+          return Response.json({ detail: "no model chosen" }, { status: 404 })
+        }
+        if (path === "/llm/providers/ollama/models") {
+          return new Promise<Response>(() => undefined)
+        }
+        if (path === "/llm/providers/openrouter/models") {
+          return Response.json([
+            {
+              name: "openai/gpt-4o",
+              installed: true,
+              capabilities: ["completion"],
+            },
+          ])
+        }
+        if (path === "/llm/catalog") {
+          return new Promise<Response>(() => undefined)
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    await user.click(screen.getByRole("tab", { name: "OpenRouter" }))
+
+    expect(
+      await screen.findByText("Connected with your API key")
+    ).toBeTruthy()
+    expect(await screen.findByRole("radio", { name: /gpt-4o/i })).toBeTruthy()
+  })
+
   it("connects a key, then selects and saves a remote model", async () => {
     const fetchMock = installApi()
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
-    render(<ModelSelectionPage />)
+    render(<OnboardingPage onComplete={() => undefined} />)
 
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
     await user.click(await screen.findByRole("tab", { name: /openrouter/i }))
 
     await user.type(
       screen.getByLabelText("OpenRouter API key"),
       "sk-or-test-key"
     )
-    await user.click(screen.getByRole("button", { name: "Connect" }))
+    const connect = screen.getByRole("button", { name: "Connect" })
+    expect(connect.querySelector("svg")).toBeNull()
+    await user.click(connect)
 
     const model = await screen.findByRole("radio", { name: /gpt-4o/i })
+    const modelViewport = document.querySelector(
+      '[data-slot="scroll-shadow-viewport"]'
+    )
+    expect(modelViewport?.contains(model)).toBe(true)
+    expect(
+      modelViewport?.contains(screen.getByLabelText("Search models"))
+    ).toBe(false)
     await user.click(model)
+    expect(screen.getByRole("button", { name: "Use this model" })).toBeTruthy()
+
+    await user.click(screen.getByRole("tab", { name: "Local" }))
+    expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
+
+    await user.click(screen.getByRole("tab", { name: /openrouter/i }))
     await user.click(screen.getByRole("button", { name: "Use this model" }))
 
     await screen.findByText("Model selection saved.")

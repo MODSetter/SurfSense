@@ -81,7 +81,7 @@ export function ThreadPanel({
   runtime: AssistantRuntime
   thread: ChatThread | null
   view: ConversationView
-  model: ModelSelection
+  model: ModelSelection | null
   error: string | null
   isLoading: boolean
   isRunning: boolean

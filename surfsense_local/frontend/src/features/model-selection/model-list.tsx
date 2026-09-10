@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { ScrollArea } from "@/components/ui/scroll-area"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 
 import { modelKey, type SelectableModel } from "./api"
 
@@ -76,7 +76,9 @@ export function ModelList({
   )
 
   return (
-    <FieldSet>
+    <FieldSet
+      className={searchable ? "flex h-full min-h-0 flex-col" : undefined}
+    >
       <FieldLegend className="sr-only">Models</FieldLegend>
       {searchable ? (
         <Input
@@ -93,9 +95,9 @@ export function ModelList({
           {needle ? "No models match your search." : "No models available yet."}
         </p>
       ) : searchable ? (
-        <ScrollArea className="h-72">
-          <div className="pr-3">{radios}</div>
-        </ScrollArea>
+        <ScrollShadow className="flex-1">
+          <div className="pr-3 pb-3">{radios}</div>
+        </ScrollShadow>
       ) : (
         radios
       )}

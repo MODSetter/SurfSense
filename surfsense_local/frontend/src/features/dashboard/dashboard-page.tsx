@@ -35,7 +35,7 @@ function WorkspaceDashboard({
   onModelSelected,
 }: {
   workspace: Workspace
-  selection: ModelSelection
+  selection: ModelSelection | null
   providerAvailable: boolean
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
@@ -159,10 +159,12 @@ function WorkspacesEmpty({
 export function DashboardPage({
   selection,
   initialWorkspaces,
+  onModelUnavailable = () => undefined,
   onModelSelected,
 }: {
-  selection: ModelSelection
+  selection: ModelSelection | null
   initialWorkspaces: Workspace[]
+  onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
   const workspaces = useWorkspaces(initialWorkspaces)
@@ -177,6 +179,9 @@ export function DashboardPage({
   }
 
   useEffect(() => {
+    if (!selection) {
+      return
+    }
     const controller = new AbortController()
     void getProviders(controller.signal)
       .then((providers) => {
@@ -189,7 +194,7 @@ export function DashboardPage({
       })
       .catch(() => setProviderAvailable(false))
     return () => controller.abort()
-  }, [selection.provider])
+  }, [selection])
 
   if (!workspaces.activeWorkspace) {
     return (
@@ -216,7 +221,7 @@ export function DashboardPage({
         key={workspaces.activeWorkspace.id}
         workspace={workspaces.activeWorkspace}
         selection={selection}
-        providerAvailable={providerAvailable}
+        providerAvailable={selection !== null && providerAvailable}
         onModelRequired={() => openSettings("models")}
         onModelSelected={onModelSelected}
       />
@@ -225,6 +230,7 @@ export function DashboardPage({
         section={settingsSection}
         onOpenChange={setSettingsOpen}
         onSectionChange={setSettingsSection}
+        onModelUnavailable={onModelUnavailable}
         onModelSelected={onModelSelected}
       />
       {workspaces.error ? (

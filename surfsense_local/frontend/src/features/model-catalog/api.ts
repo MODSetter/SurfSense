@@ -26,6 +26,7 @@ export type CatalogRow = {
   installed: boolean
   selected: boolean
   can_install: boolean
+  can_delete: boolean
   warnings: string[]
 }
 
@@ -77,6 +78,11 @@ export type InstallEvent =
     }
   | { type: "complete"; message?: string; selection: ModelSelection }
   | { type: "error"; message: string }
+
+export type DeleteModelResult = {
+  name: string
+  selection_cleared: boolean
+}
 
 export async function* parseNdjson<T>(
   stream: ReadableStream<Uint8Array>
@@ -145,4 +151,14 @@ export async function installCatalogModel(
     }
   }
   throw new Error("The install stream ended before completion")
+}
+
+export function deleteLocalModel(
+  provider: string,
+  modelName: string
+): Promise<DeleteModelResult> {
+  return requestJson<DeleteModelResult>(
+    `/llm/providers/${encodeURIComponent(provider)}/models/${encodeURIComponent(modelName)}`,
+    { method: "DELETE" }
+  )
 }

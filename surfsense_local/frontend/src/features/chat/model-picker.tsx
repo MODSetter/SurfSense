@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -17,6 +17,7 @@ import {
   Settings2Icon,
 } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import {
   getInstalledGenerationModels,
   getProviders,
@@ -27,6 +28,8 @@ import {
 import { cn } from "@/lib/utils"
 
 const installedModelsQueryKey = ["installed-generation-models"] as const
+export const modelControlButtonClassName =
+  "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
 
 export function ModelPicker({
   model,
@@ -41,11 +44,6 @@ export function ModelPicker({
 }) {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
-  const resultsRef = useRef<HTMLDivElement>(null)
-  const [scrollEdges, setScrollEdges] = useState({
-    top: false,
-    bottom: false,
-  })
   const installed = useQuery({
     queryKey: installedModelsQueryKey,
     queryFn: async ({ signal }) => {
@@ -73,28 +71,6 @@ export function ModelPicker({
   const visibleModels = (installed.data ?? []).filter((candidate) =>
     candidate.name.toLowerCase().includes(needle)
   )
-  const updateScrollEdges = useCallback(() => {
-    const results = resultsRef.current
-    if (!results) {
-      return
-    }
-    const top = results.scrollTop > 1
-    const bottom =
-      results.scrollTop + results.clientHeight < results.scrollHeight - 1
-    setScrollEdges((current) =>
-      current.top === top && current.bottom === bottom
-        ? current
-        : { top, bottom }
-    )
-  }, [])
-
-  useEffect(() => {
-    if (visibleModels.length === 0) {
-      setScrollEdges({ top: false, bottom: false })
-      return
-    }
-    updateScrollEdges()
-  }, [updateScrollEdges, visibleModels.length])
 
   return (
     <DropdownMenu
@@ -110,7 +86,7 @@ export function ModelPicker({
         <button
           type="button"
           className={cn(
-            "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none",
+            modelControlButtonClassName,
             className
           )}
           title="Change model"
@@ -127,8 +103,8 @@ export function ModelPicker({
           <Input
             type="search"
             value={query}
-            placeholder="Search installed models"
-            aria-label="Search installed models"
+            placeholder="Search models"
+            aria-label="Search models"
             className="rounded-none border-0 bg-popover pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-popover"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -139,13 +115,11 @@ export function ModelPicker({
           />
         </div>
 
-        <div className="relative">
-          <div
-            ref={resultsRef}
-            data-slot="model-picker-results"
-            className="relative h-64 select-none overflow-y-auto p-1"
-            onScroll={updateScrollEdges}
-          >
+        <ScrollShadow
+          className="h-60"
+          viewportClassName="select-none p-1"
+        >
+          <div data-slot="model-picker-results" className="relative min-h-full">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Installed models</DropdownMenuLabel>
               {installed.isPending ? (
@@ -191,21 +165,7 @@ export function ModelPicker({
               )}
             </DropdownMenuGroup>
           </div>
-          <div
-            data-slot="model-picker-shadow-top"
-            className={cn(
-              "pointer-events-none absolute inset-x-0 top-0 z-10 h-3 bg-gradient-to-b from-popover to-transparent transition-opacity duration-200 ease-out",
-              scrollEdges.top ? "opacity-100" : "opacity-0"
-            )}
-          />
-          <div
-            data-slot="model-picker-shadow-bottom"
-            className={cn(
-              "pointer-events-none absolute inset-x-0 bottom-0 z-10 h-3 bg-gradient-to-t from-popover to-transparent transition-opacity duration-200 ease-out",
-              scrollEdges.bottom ? "opacity-100" : "opacity-0"
-            )}
-          />
-        </div>
+        </ScrollShadow>
 
         <DropdownMenuGroup className="p-1">
           <DropdownMenuItem onSelect={onManageModels}>

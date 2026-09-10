@@ -8,6 +8,7 @@ import pytest
 from shared.config import get_llm_settings
 
 INSTALLED = ["qwen3:1.7b", "qwen3:4b"]
+DELETED: list[str] = []
 PULL_STEPS = [
     {"status": "pulling manifest"},
     {"status": "downloading", "completed": 40, "total": 100},
@@ -45,6 +46,15 @@ class StubOllama(BaseHTTPRequestHandler):
         else:
             self.send_error(404)
 
+    def do_DELETE(self) -> None:
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path != "/api/delete" or body["model"] not in INSTALLED:
+            self.send_error(404)
+            return
+        INSTALLED.remove(body["model"])
+        DELETED.append(body["model"])
+        self._send(b"")
+
     def _json(self, payload: dict) -> None:
         self._send(json.dumps(payload).encode())
 
@@ -62,6 +72,7 @@ class StubOllama(BaseHTTPRequestHandler):
 def ollama_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     """A real Ollama stand-in on a real port, pointed to by settings."""
     INSTALLED[:] = ["qwen3:1.7b", "qwen3:4b"]
+    DELETED.clear()
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubOllama)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"

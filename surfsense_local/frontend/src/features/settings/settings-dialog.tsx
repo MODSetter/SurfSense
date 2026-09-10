@@ -62,12 +62,14 @@ export function SettingsDialog({
   section,
   onOpenChange,
   onSectionChange,
+  onModelUnavailable = () => undefined,
   onModelSelected,
 }: {
   open: boolean
   section: SettingsSectionId
   onOpenChange: (open: boolean) => void
   onSectionChange: (section: SettingsSectionId) => void
+  onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
   const activeSection =
@@ -117,7 +119,10 @@ export function SettingsDialog({
           <section className="min-h-0 min-w-0 overflow-hidden bg-popover text-popover-foreground">
             {activeSection.id === "general" ? <GeneralSettings /> : null}
             {activeSection.id === "models" ? (
-              <ModelsSettings onSelected={onModelSelected} />
+              <ModelsSettings
+                onModelUnavailable={onModelUnavailable}
+                onSelected={onModelSelected}
+              />
             ) : null}
           </section>
         </div>

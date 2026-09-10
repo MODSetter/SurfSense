@@ -157,6 +157,11 @@ class OllamaProvider:
                 if line:
                     yield _progress(json.loads(line))
 
+    async def delete(self, name: str) -> None:
+        async with self._client() as client:
+            reply = await client.request("DELETE", "/api/delete", json={"model": name})
+            reply.raise_for_status()
+
     async def chat(
         self,
         model: str,

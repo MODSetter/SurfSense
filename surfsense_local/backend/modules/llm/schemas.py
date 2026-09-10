@@ -26,6 +26,11 @@ class ModelRead(BaseModel):
     capabilities: list[str]
 
 
+class ModelDeleteRead(BaseModel):
+    name: str
+    selection_cleared: bool
+
+
 class CatalogEntryRead(BaseModel):
     """A model on offer to download, with its size."""
 
@@ -70,6 +75,10 @@ class SelectionRead(BaseModel):
     provider: str
     name: str
     updated_at: datetime
+
+
+class OnboardingStatusRead(BaseModel):
+    completed: bool
 
 
 class RecommendationWarningRead(BaseModel):
@@ -126,6 +135,7 @@ class RecommendationRowRead(BaseModel):
     installed: bool
     selected: bool
     can_install: bool
+    can_delete: bool
     warnings: list[str]
 
 

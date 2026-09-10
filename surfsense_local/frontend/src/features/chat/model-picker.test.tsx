@@ -76,7 +76,7 @@ describe("composer model picker", () => {
       })
     )
     const search = await screen.findByRole("searchbox", {
-      name: "Search installed models",
+      name: "Search models",
     })
     const currentItem = await screen.findByRole("menuitemradio", {
       name: "llama3.2:1b",
@@ -92,14 +92,15 @@ describe("composer model picker", () => {
       "sidebar-row-title-fade"
     )
     const results = document.querySelector(
-      '[data-slot="model-picker-results"]'
+      '[data-slot="scroll-shadow-viewport"]'
     ) as HTMLDivElement
-    const topShadow = document.querySelector(
-      '[data-slot="model-picker-shadow-top"]'
-    )
+    expect(results.parentElement?.className).toContain("h-60")
+    const topShadow = document.querySelector('[data-slot="scroll-shadow-top"]')
     const bottomShadow = document.querySelector(
-      '[data-slot="model-picker-shadow-bottom"]'
+      '[data-slot="scroll-shadow-bottom"]'
     )
+    expect(topShadow?.className).toContain("duration-100")
+    expect(bottomShadow?.className).toContain("duration-100")
     Object.defineProperties(results, {
       clientHeight: { configurable: true, value: 256 },
       scrollHeight: { configurable: true, value: 512 },

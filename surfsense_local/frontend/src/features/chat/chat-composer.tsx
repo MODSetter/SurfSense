@@ -12,7 +12,40 @@ import type { ModelSelection } from "@/features/model-selection/api"
 import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
-import { ModelPicker } from "./model-picker"
+import { ModelPicker, modelControlButtonClassName } from "./model-picker"
+
+function ModelControl({
+  model,
+  onModelSelected,
+  onModelSetup,
+  className,
+}: {
+  model: ModelSelection | null
+  onModelSelected: (selection: ModelSelection) => void
+  onModelSetup: () => void
+  className?: string
+}) {
+  return model ? (
+    <ModelPicker
+      model={model}
+      onManageModels={onModelSetup}
+      onModelSelected={onModelSelected}
+      className={className}
+    />
+  ) : (
+    <button
+      type="button"
+      className={cn(
+        modelControlButtonClassName,
+        "text-white hover:text-white",
+        className
+      )}
+      onClick={onModelSetup}
+    >
+      Set up model
+    </button>
+  )
+}
 
 function ComposerAction({
   isRunning,
@@ -107,7 +140,7 @@ export function ChatComposer({
   onUpload,
 }: {
   placement: "center" | "bottom"
-  model: ModelSelection
+  model: ModelSelection | null
   isRunning: boolean
   isUploading: boolean
   providerAvailable: boolean
@@ -134,6 +167,7 @@ export function ChatComposer({
           />
         ) : null}
         <ComposerPrimitive.Input
+          disabled={!model}
           className={cn(
             "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
             placement === "center"
@@ -141,7 +175,7 @@ export function ChatComposer({
               : "min-h-10 flex-1"
           )}
           placeholder={
-            providerAvailable
+            !model || providerAvailable
               ? placement === "center"
                 ? "Turn your sources into answers"
                 : "Follow up on this answer"
@@ -159,9 +193,9 @@ export function ChatComposer({
               className="absolute bottom-2 left-1.5"
             />
             <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
-              <ModelPicker
+              <ModelControl
                 model={model}
-                onManageModels={onModelSetup}
+                onModelSetup={onModelSetup}
                 onModelSelected={onModelSelected}
                 className="h-9 rounded-xl px-3 text-sm"
               />
@@ -175,13 +209,13 @@ export function ChatComposer({
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
           <p className="min-w-0 select-none text-left text-[11px] text-muted-foreground">
-            {providerAvailable
+            {!model || providerAvailable
               ? "SurfSense can make mistakes. Check important answers."
               : "Historical chats remain available while the provider is offline."}
           </p>
-          <ModelPicker
+          <ModelControl
             model={model}
-            onManageModels={onModelSetup}
+            onModelSetup={onModelSetup}
             onModelSelected={onModelSelected}
           />
         </div>
