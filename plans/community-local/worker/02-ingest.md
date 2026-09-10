@@ -77,7 +77,7 @@ A PDF converts, but Docling's first conversion **downloads ~1.6GB of layout and
 OCR weights**. `HF_HOME` now lands them under `models_dir`, so nothing writes
 into the read-only bundle; the pack still has to ship or be fetched by the
 install wizard, which is why nothing in the suite converts a PDF — a test that
-downloads is not a test. See [`../api/05-packaging.md`](../api/05-packaging.md).
+downloads is not a test. See [`../api/05c-packaging.md`](../api/05c-packaging.md).
 
 Docling's default pipeline runs OCR on every PDF, minutes per scanned page on a
 CPU. Left on — a scanned PDF is a document a user expects to work — but it is

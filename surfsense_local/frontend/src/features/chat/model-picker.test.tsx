@@ -47,6 +47,7 @@ describe("composer model picker", () => {
           return Response.json({
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: JSON.parse(String(init.body)).name,
             updated_at: "2026-09-09T00:00:00Z",
           })
@@ -62,6 +63,7 @@ describe("composer model picker", () => {
         model={{
           role: "generation",
           provider: "ollama",
+          connection_id: null,
           name: "llama3.2:1b",
           updated_at: "2026-09-09T00:00:00Z",
         }}
@@ -139,5 +141,71 @@ describe("composer model picker", () => {
       await screen.findByRole("menuitem", { name: "Manage models" })
     )
     expect(onManageModels).toHaveBeenCalledOnce()
+  })
+
+  it("scopes remote models to their connection and hides image-only entries", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") return Response.json([])
+        if (path === "/llm/connections") {
+          return Response.json([
+            {
+              id: 7,
+              label: "Internal gateway",
+              provider: "openai_compatible",
+              base_url: "http://models.internal/v1",
+              has_api_key: false,
+              created_at: "2026-09-10T00:00:00Z",
+              updated_at: "2026-09-10T00:00:00Z",
+            },
+          ])
+        }
+        if (path === "/llm/connections/7/models") {
+          return Response.json([
+            {
+              connection_id: 7,
+              connection_label: "Internal gateway",
+              name: "qwen-chat",
+              capabilities: ["completion"],
+              capability_known: true,
+            },
+            {
+              connection_id: 7,
+              connection_label: "Internal gateway",
+              name: "flux-image",
+              capabilities: ["image_generation"],
+              capability_known: true,
+            },
+          ])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <ModelPicker
+        model={{
+          role: "generation",
+          provider: "openai_compatible",
+          connection_id: 7,
+          name: "qwen-chat",
+          updated_at: "2026-09-10T00:00:00Z",
+        }}
+        onModelSelected={() => undefined}
+        onManageModels={() => undefined}
+      />
+    )
+    await user.click(
+      screen.getByRole("button", { name: "Model qwen-chat. Change model." })
+    )
+
+    const remote = await screen.findByRole("menuitemradio", {
+      name: /qwen-chat/,
+    })
+    expect(remote.textContent).toContain("Internal gateway")
+    expect(screen.queryByText("flux-image")).toBeNull()
   })
 })

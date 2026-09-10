@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { TooltipProvider } from "@/components/ui/tooltip"
+
 import { StudioDialog } from "./studio-dialog"
 
 const readyDocument = {
@@ -52,8 +54,9 @@ describe("studio dialog", () => {
             {
               key: "summary",
               label: "Summary",
-              requires_key: false,
+              requires_role: "generation",
               available: true,
+              unavailable_reason: null,
             },
           ])
         }
@@ -69,7 +72,11 @@ describe("studio dialog", () => {
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
-    render(<StudioDialog workspaceId={1} documents={[readyDocument]} />)
+    render(
+      <TooltipProvider>
+        <StudioDialog workspaceId={1} documents={[readyDocument]} />
+      </TooltipProvider>
+    )
 
     await user.click(screen.getByRole("button", { name: "Studio" }))
     await user.click(await screen.findByRole("button", { name: "Summary" }))
@@ -107,8 +114,9 @@ describe("studio dialog", () => {
             {
               key: "flashcards",
               label: "Flashcards",
-              requires_key: false,
+              requires_role: "generation",
               available: true,
+              unavailable_reason: null,
             },
           ])
         }
@@ -126,6 +134,45 @@ describe("studio dialog", () => {
     expect(await screen.findByText("failed")).toBeTruthy()
     expect(
       screen.getByText("ConnectError: All connection attempts failed")
+    ).toBeTruthy()
+  })
+
+  it("explains why an unavailable image format is disabled", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "image",
+              label: "Image",
+              requires_role: "image_generation",
+              available: false,
+              unavailable_reason: "Image model required",
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <StudioDialog workspaceId={1} documents={[readyDocument]} />
+      </TooltipProvider>
+    )
+    await user.click(screen.getByRole("button", { name: "Studio" }))
+
+    const image = await screen.findByRole("button", { name: "Image" })
+    expect(image.getAttribute("aria-disabled")).toBe("true")
+    await user.hover(image)
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "Image model required",
+      })
     ).toBeTruthy()
   })
 })

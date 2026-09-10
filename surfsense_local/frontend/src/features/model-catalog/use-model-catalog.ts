@@ -101,6 +101,7 @@ export function useModelCatalog(
     mutationFn: (row: CatalogRow) =>
       setGenerationSelection({
         provider: row.runtime,
+        connection_id: null,
         name: row.runtime_model,
       }),
     onSuccess: async (selection) => {

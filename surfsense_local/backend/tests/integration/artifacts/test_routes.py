@@ -42,15 +42,22 @@ def make_ready_source(engine: Engine, workspace_id: int) -> int:
 
 
 async def test_formats_lists_summary_as_available(
-    client: AsyncClient, workspace_id: int
+    client: AsyncClient, workspace_id: int, choose_model: None
 ) -> None:
-    """The picker renders from this; summary needs no key, so it is usable."""
+    """Generation-backed formats are available with the selected chat model."""
     response = await client.get(f"/workspaces/{workspace_id}/studio/formats")
 
     assert response.status_code == 200
     summary = next(f for f in response.json() if f["key"] == "summary")
     assert summary["available"] is True
-    assert summary["requires_key"] is False
+    assert summary["requires_role"] == "generation"
+    assert summary["unavailable_reason"] is None
+
+    infographic = next(f for f in response.json() if f["key"] == "infographic")
+    assert infographic["available"] is True
+    image = next(f for f in response.json() if f["key"] == "image")
+    assert image["available"] is False
+    assert image["requires_role"] == "image_generation"
 
 
 async def test_a_job_creates_a_pending_artifact(

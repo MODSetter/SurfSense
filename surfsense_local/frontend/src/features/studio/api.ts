@@ -4,8 +4,9 @@ import type { DocumentStatus } from "@/features/sources/api"
 export type StudioFormat = {
   key: string
   label: string
-  requires_key: boolean
+  requires_role: "generation" | "image_generation" | null
   available: boolean
+  unavailable_reason: string | null
 }
 
 export type Artifact = {
@@ -86,6 +87,9 @@ export function deleteArtifact(
 
 // A plain URL for <a>/<img>/<audio>, which need the absolute sidecar address the
 // fetch helper injects itself.
-export function fileUrl(artifactId: number, role: ArtifactFile["role"]): string {
+export function fileUrl(
+  artifactId: number,
+  role: ArtifactFile["role"]
+): string {
   return apiUrl(`/artifacts/${artifactId}/files/${role}`)
 }

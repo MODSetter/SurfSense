@@ -112,4 +112,4 @@ installed-state and validated-selection path.
 Workspace routes — [`../api/01-skeleton.md`](../api/01-skeleton.md). Model
 provider inventory and validated generation selection —
 [`../api/03-chat.md`](../api/03-chat.md). Ranked catalog and installation —
-[`../api/05-model-recommendations.md`](../api/05-model-recommendations.md).
+[`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).

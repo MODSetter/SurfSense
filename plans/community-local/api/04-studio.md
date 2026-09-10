@@ -13,7 +13,7 @@ through **one service entry** that both the REST job (v1) and a future
 
 - **`service.py::create_artifact_job(workspace_id, format, document_ids, prompt,
   options, *, tool_call_id=None)`** — the hybrid seam. Validates `format` against
-  the buildable set (or a key-gated visual format), creates the `ARTIFACT`
+  the buildable set and checks any required model role, creates the `ARTIFACT`
   `Document` (`status=pending`) and its `artifacts` sidecar (`generation=1`,
   provenance from `tool_call_id`), enqueues `studio_job.delay(artifact_id)`,
   returns the artifact. The REST route passes no `tool_call_id`; the tool passes
@@ -22,7 +22,7 @@ through **one service entry** that both the REST job (v1) and a future
 
   | Method | Path | Does |
   |---|---|---|
-  | `GET` | `/workspaces/{id}/studio/formats` | buildable formats + which need a BYO key; the picker renders from this |
+  | `GET` | `/workspaces/{id}/studio/formats` | buildable formats + availability from selected model roles; the picker renders from this |
   | `POST` | `/workspaces/{id}/studio/jobs` | `{format, document_ids, prompt?, options?}` → 201 artifact |
   | `GET` | `/workspaces/{id}/artifacts` | list (status read from each artifact's `ARTIFACT` document) |
   | `GET` | `/artifacts/{id}` | detail + `files[]` |
@@ -43,14 +43,23 @@ through **one service entry** that both the REST job (v1) and a future
 ## Format catalog
 
 `formats` is computed, not stored: the buildable set is the worker's `BUILDERS`
-registry; visual formats are listed with `requires_key: true` and surface only
-when an OpenRouter credential exists. The frontend never hard-codes the list.
+registry. `image` is available only when `SelectedModel(IMAGE_GENERATION)`
+resolves to a configured OpenAI-compatible connection. `infographic` is a
+deterministic builder and needs only the generation role. The frontend never
+hard-codes the list or checks secrets. Connection and role resolution are
+defined in [`05b-openai-compatible-connections.md`](05b-openai-compatible-connections.md).
+Each format response carries `requires_role` (`generation`,
+`image_generation`, or null), `available`, and nullable `unavailable_reason`.
+The legacy `requires_key` field is removed.
 
 ## Acceptance
 
 - `POST .../studio/jobs` → 201 with an id; polling `GET /artifacts/{id}` flips to
   `ready` with downloadable files once the worker finishes.
-- A visual format with no OpenRouter key → a clear 4xx, not a silent failed job.
+- Image with no valid image-generation selection → a clear 409, not a queued
+  job that is certain to fail.
+- Infographic remains available with any valid generation selection; it does
+  not require an image endpoint.
 - Deleting an artifact removes the document, sidecar and blobs; a cleared chat
   thread leaves its artifacts intact (`chat_thread_id` set null).
 

@@ -2,6 +2,7 @@ import json
 import threading
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -84,8 +85,7 @@ def ollama_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
     server.server_close()
 
 
-# One text model, one image model: the provider keeps the first, drops the second.
-OPENROUTER_MODELS = [
+REMOTE_MODELS = [
     {
         "id": "anthropic/claude-3.5-sonnet",
         "architecture": {"output_modalities": ["text"]},
@@ -93,30 +93,36 @@ OPENROUTER_MODELS = [
     {"id": "black-forest-labs/flux", "architecture": {"output_modalities": ["image"]}},
 ]
 CHAT_DELTAS = ["Hel", "lo"]
+REMOTE_REQUESTS: list[tuple[str, str]] = []
 
 
-class StubOpenRouter(BaseHTTPRequestHandler):
-    """Enough of OpenRouter's OpenAI-compatible API for the provider to talk to."""
+class StubOpenAICompatible(BaseHTTPRequestHandler):
+    """Chat, model discovery, and image APIs behind one connection."""
 
     def do_GET(self) -> None:
-        if self.path == "/key":
-            self._json({"data": {"label": "test-key"}})
-        elif self.path == "/models":
-            self._json({"data": OPENROUTER_MODELS})
+        parsed = urlsplit(self.path)
+        if parsed.path == "/models":
+            image_only = parse_qs(parsed.query).get("output_modalities") == ["image"]
+            models = REMOTE_MODELS[1:] if image_only else REMOTE_MODELS[:1]
+            self._json({"object": "list", "data": models})
         else:
             self.send_error(404)
 
     def do_POST(self) -> None:
-        self.rfile.read(int(self.headers["Content-Length"]))
-        if self.path != "/chat/completions":
+        body = self.rfile.read(int(self.headers["Content-Length"]))
+        REMOTE_REQUESTS.append((self.path, body.decode()))
+        if self.path == "/chat/completions":
+            frames = [
+                f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
+                for text in CHAT_DELTAS
+            ]
+            frames.append("data: [DONE]\n\n")
+            self._send("".join(frames).encode())
+        elif self.path == "/images/generations":
+            encoded = "iVBORw0KGgpmYWtl"
+            self._json({"data": [{"b64_json": encoded, "media_type": "image/png"}]})
+        else:
             self.send_error(404)
-            return
-        frames = [
-            f"data: {json.dumps({'choices': [{'delta': {'content': text}}]})}\n\n"
-            for text in CHAT_DELTAS
-        ]
-        frames.append("data: [DONE]\n\n")
-        self._send("".join(frames).encode())
 
     def _json(self, payload: dict) -> None:
         self._send(json.dumps(payload).encode())
@@ -132,12 +138,12 @@ class StubOpenRouter(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def openrouter_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[str]:
-    """A real OpenRouter stand-in on a real port, pointed to by settings."""
-    server = ThreadingHTTPServer(("127.0.0.1", 0), StubOpenRouter)
+def openai_server() -> Iterator[str]:
+    """A real OpenAI-compatible endpoint on a real port."""
+    REMOTE_REQUESTS.clear()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), StubOpenAICompatible)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
-    monkeypatch.setattr(get_llm_settings(), "openrouter_base_url", url)
 
     yield url
 

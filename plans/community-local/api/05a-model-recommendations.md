@@ -2,8 +2,9 @@
 
 > Owns: `backend/modules/llm/recommendations/`, the llmfit adapter, the
 > runtime-install boundary, and the normalized catalog API. Packaging:
-> [`05-packaging.md`](05-packaging.md). Frontend:
-> [`../frontend/05-install-ux.md`](../frontend/05-install-ux.md).
+> [`05c-packaging.md`](05c-packaging.md). Frontend:
+> [`../frontend/05-install-ux.md`](../frontend/05-install-ux.md). Remote
+> connections: [`05b-openai-compatible-connections.md`](05b-openai-compatible-connections.md).
 
 ## Goal
 
@@ -98,8 +99,9 @@ class LocalRuntime(Generator, Protocol):
     def install(self, plan: InstallPlan) -> AsyncIterator[DownloadProgress]: ...
 ```
 
-`Generator` remains the chat seam used by `modules/chat`. Remote generators such
-as OpenRouter do not implement `LocalRuntime`. Do not add llmfit to the provider
+`Generator` remains the chat seam used by `modules/chat`. OpenAI-compatible
+remote connections do not implement `LocalRuntime`: they expose already-served
+models and cannot install or delete them. Do not add llmfit to the provider
 registry: it advises; it never answers a chat request.
 
 The normalized `ScoredModel` carries a canonical id and fit metadata only.
@@ -232,15 +234,21 @@ stale, unknown, unresolvable, or untrusted id before streaming. On success,
 `select=true` updates `SelectedModel(GENERATION)` to the installed runtime id.
 Partial artifacts never become selectable.
 
-Keep `GET /llm/providers`, provider model inventory, and
-`GET/PUT /llm/selection/generation`. The provider-specific pull route may remain
-during migration, but the final frontend calls the normalized install route.
+Keep `GET /llm/providers`, local provider inventory, and
+`GET/PUT /llm/selection/generation`. Remote inventory belongs to
+`GET /llm/connections/{id}/models`; see the connection spec. The
+provider-specific pull route may remain during migration, but the final
+frontend calls the normalized install route.
 
 ### `GET /llm/onboarding`
 
-Returns whether the user has completed model onboarding. The first valid model
-selection creates the durable completion marker. Clearing or deleting a later
-selection does not reset onboarding.
+Returns whether the user has completed model onboarding.
+
+### `POST /llm/onboarding`
+
+Writes the durable completion marker. Requires a persisted generation
+selection. Image is optional. Selecting or clearing a model never writes or
+resets this marker. Settings Use actions must not call this route.
 
 ### `DELETE /llm/providers/{provider}/models/{model_name}`
 

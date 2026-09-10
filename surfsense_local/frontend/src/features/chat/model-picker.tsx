@@ -13,14 +13,14 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   ChevronDownIcon,
+  DotIcon,
   SearchIcon,
   Settings2Icon,
 } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import {
-  getInstalledGenerationModels,
-  getProviders,
+  getAvailableGenerationModels,
   modelKey,
   setGenerationSelection,
   type ModelSelection,
@@ -47,8 +47,7 @@ export function ModelPicker({
   const installed = useQuery({
     queryKey: installedModelsQueryKey,
     queryFn: async ({ signal }) => {
-      const providers = await getProviders(signal)
-      return getInstalledGenerationModels(providers, signal)
+      return getAvailableGenerationModels(signal)
     },
   })
   const selectModel = useMutation({
@@ -85,10 +84,7 @@ export function ModelPicker({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={cn(
-            modelControlButtonClassName,
-            className
-          )}
+          className={cn(modelControlButtonClassName, className)}
           title="Change model"
           aria-label={`Model ${model.name}. Change model.`}
         >
@@ -115,10 +111,7 @@ export function ModelPicker({
           />
         </div>
 
-        <ScrollShadow
-          className="h-60"
-          viewportClassName="select-none p-1"
-        >
+        <ScrollShadow className="h-60" viewportClassName="select-none p-1">
           <div data-slot="model-picker-results" className="relative min-h-full">
             <DropdownMenuGroup>
               <DropdownMenuLabel>Installed models</DropdownMenuLabel>
@@ -143,10 +136,17 @@ export function ModelPicker({
                         disabled={selectModel.isPending}
                         className={selected ? "pr-8" : "pr-1.5"}
                       >
-                        <span
-                          className="sidebar-row-title-fade min-w-0 flex-1 overflow-hidden whitespace-nowrap"
-                        >
+                        <span className="sidebar-row-title-fade min-w-0 flex-1 overflow-hidden whitespace-nowrap">
                           {candidate.name}
+                          {candidate.connection_label ? (
+                            <span className="ml-1 inline-flex items-center gap-1 align-middle text-muted-foreground">
+                              <DotIcon
+                                aria-hidden="true"
+                                className="size-3 shrink-0"
+                              />
+                              {candidate.connection_label}
+                            </span>
+                          ) : null}
                         </span>
                       </DropdownMenuRadioItem>
                     )

@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.providers.openai_compatible import NonRetryableImageError
+from modules.llm.providers.protocols import GeneratedImage
+from modules.llm.resolution import ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
@@ -88,21 +91,19 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
 
 
 def _capture_image(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Stub the OpenRouter image call (and its key gate), recording its content."""
+    """Stub the selected image generator, recording its content."""
     seen: list[str] = []
 
-    def fake(_key: str, content: str) -> dict:
-        seen.append(content)
-        import base64
+    class FakeImageGenerator:
+        async def generate(self, _model: str, content: str) -> GeneratedImage:
+            seen.append(content)
+            return GeneratedImage(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8, "image/png")
 
-        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 8
-        url = "data:image/png;base64," + base64.b64encode(png).decode()
-        return {"choices": [{"message": {"images": [{"image_url": {"url": url}}]}}]}
-
+    selection = type("Selection", (), {"name": "flux"})()
     monkeypatch.setattr(
-        "worker.studio.media.visual.read_provider_key", lambda *a, **k: "key"
+        "worker.studio.media.image.resolve_image_generation",
+        lambda _session: ResolvedImageGeneration(selection, FakeImageGenerator()),
     )
-    monkeypatch.setattr("worker.studio.media.visual._request_image", fake)
     return seen
 
 
@@ -367,10 +368,10 @@ def test_podcast_synthesizes_a_wav_from_the_transcript(
     assert "keep it short" in seen[0]
 
 
-def test_image_draws_a_png_over_openrouter(
+def test_image_draws_a_png_over_the_selected_connection(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Image: a BYO OpenRouter model returns a PNG, stored as the primary file."""
+    """Image: the selected remote model's bytes become the primary file."""
     seen = _capture_image(monkeypatch)
     artifact = make_artifact(session, fmt="image", prompt="a bright poster")
 
@@ -384,11 +385,15 @@ def test_image_draws_a_png_over_openrouter(
     assert "a bright poster" in seen[0]
 
 
-def test_infographic_draws_a_png_over_openrouter(
+def test_infographic_builds_a_deterministic_svg(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Infographic: the visual seam draws the summary as a PNG over OpenRouter."""
-    seen = _capture_image(monkeypatch)
+    """Infographic: a chat model returns facts and the builder renders safe SVG."""
+    seen = _capture_model(
+        monkeypatch,
+        '{"title":"Cassini","summary":"Saturn mission",'
+        '"sections":[{"label":"Arrival","value":"2004","detail":"Reached Saturn"}]}',
+    )
     artifact = make_artifact(session, fmt="infographic", prompt="the key figures")
 
     run(artifact.id)
@@ -397,7 +402,7 @@ def test_infographic_draws_a_png_over_openrouter(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, "image/png", b"\x89PNG")
+    _one_file(artifact, "image/svg+xml", b"<svg")
     assert "the key figures" in seen[0]
 
 
@@ -419,6 +424,24 @@ def test_a_generation_failure_leaves_a_reason(
     assert artifact.document.status is DocumentStatus.FAILED
     assert "refused" in (artifact.document.error_message or "")
     assert session.scalar(text("SELECT count(*) FROM chunks")) == 0
+
+
+def test_an_image_failure_is_recorded_without_requesting_a_huey_retry(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A possibly billed image failure ends the task instead of generating twice."""
+
+    def fail(*_args: object, **_kwargs: object) -> Built:
+        raise NonRetryableImageError("image endpoint returned HTTP 500")
+
+    monkeypatch.setattr("worker.studio.media.render", fail)
+    artifact = make_artifact(session, fmt="image")
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert "HTTP 500" in (artifact.document.error_message or "")
 
 
 def test_persist_stores_a_primary_blob(session: Session, stub_model: None) -> None:

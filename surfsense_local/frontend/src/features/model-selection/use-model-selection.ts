@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
+  getConnectionModels,
+  getConnections,
   getGenerationSelection,
   getProviderModels,
   getProviders,
@@ -43,14 +45,20 @@ async function fetchSelectionState(
   onProgress: (state: ModelSelectionState) => void
 ): Promise<ModelSelectionState> {
   let providers: Provider[]
+  let connections: Awaited<ReturnType<typeof getConnections>>
   let selection: ModelSelection | null
   try {
     const result = await Promise.all([
       getProviders(signal),
       getGenerationSelection(signal),
+      getConnections(signal).catch((error: unknown) => {
+        if (signal.aborted) throw error
+        return []
+      }),
     ])
     providers = result[0]
     selection = result[1]
+    connections = result[2]
   } catch (error) {
     if (isAbort(error)) {
       throw error
@@ -64,6 +72,9 @@ async function fetchSelectionState(
       .filter((provider) => provider.healthy)
       .map((provider) => provider.name)
   )
+  for (const connection of connections) {
+    loadingProviders.add(`connection:${connection.id}`)
+  }
   const nextState = (modelsLoading: boolean): ModelSelectionState => {
     const sortedModels = models.toSorted(
       (left, right) =>
@@ -87,8 +98,8 @@ async function fetchSelectionState(
   }
 
   onProgress(nextState(loadingProviders.size > 0))
-  await Promise.all(
-    providers
+  await Promise.all([
+    ...providers
       .filter((provider) => provider.healthy)
       .map(async (provider) => {
         try {
@@ -100,7 +111,11 @@ async function fetchSelectionState(
                 (model) =>
                   model.installed && model.capabilities.includes("completion")
               )
-              .map((model) => ({ ...model, provider: provider.name })),
+              .map((model) => ({
+                ...model,
+                provider: provider.name,
+                connection_id: null,
+              })),
           ]
         } catch (error) {
           if (signal.aborted) {
@@ -110,8 +125,36 @@ async function fetchSelectionState(
           loadingProviders.delete(provider.name)
           onProgress(nextState(loadingProviders.size > 0))
         }
-      })
-  )
+      }),
+    ...connections.map(async (connection) => {
+      const key = `connection:${connection.id}`
+      try {
+        const connectionModels = await getConnectionModels(
+          connection.id,
+          signal
+        )
+        models = [
+          ...models,
+          ...connectionModels
+            .filter(
+              (model) =>
+                !model.capability_known ||
+                model.capabilities.includes("completion")
+            )
+            .map((model) => ({
+              ...model,
+              provider: "openai_compatible",
+              installed: true,
+            })),
+        ]
+      } catch (error) {
+        if (signal.aborted) throw error
+      } finally {
+        loadingProviders.delete(key)
+        onProgress(nextState(loadingProviders.size > 0))
+      }
+    }),
+  ])
   return nextState(false)
 }
 

@@ -2,7 +2,7 @@
 
 > Owns: the hardware-ranked generation catalog and one-click install flow.
 > API contract:
-> [`../api/05-model-recommendations.md`](../api/05-model-recommendations.md).
+> [`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
 
 ## Goal
 
@@ -32,16 +32,20 @@ dialog and its active section. The rail button opens General; a chat model error
 opens Models directly.
 
 The onboarding page and Models settings use the same model-selection content:
-catalog, provider tabs, installation, refresh, and draft selection. Their shells
-remain separate. Settings puts Installed models first, supports local and
-OpenRouter selection, and updates the dashboard's active selection immediately.
-It does not render onboarding branding or its Continue action.
+catalog, provider tabs, installation, refresh, and immediate Use actions.
+Their shells remain separate. Local **Use** and remote **Use for chat** persist
+the generation row and stay on the page. Onboarding leaves only when
+**Start chatting** calls `POST /llm/onboarding`. The button stays disabled until a
+chat model is persisted; Image is optional. Settings has no **Use selected
+model** footer and does not complete onboarding.
 
-Installed local generation models expose Delete after confirmation. Deleting the
-selected model clears the backend selection but not onboarding completion. The
+Installed local generation models expose Delete after confirmation on
+onboarding and in Settings → Models. Deleting the selected model clears the
+backend selection but not onboarding completion. During setup, Start chatting
+stays disabled until another chat model is chosen. After onboarding, the
 dashboard remains available for reading chats and sources, disables sending,
-and links back to Models settings. OpenRouter and embedding-only models never
-show local deletion controls.
+and links back to Models settings. Remote and embedding-only models never show
+local deletion controls.
 
 Every settings section uses the same fixed-header, scrollable-body, and optional
 fixed-footer shell. The dialog and its two-column grid constrain height with
@@ -105,11 +109,61 @@ from real workloads.
 - If a runtime is unavailable, show its status and disable its install actions;
   other runtimes remain usable.
 - If no model fits, explain the limitation and keep remote providers such as
-  OpenRouter available.
+  OpenAI-compatible connections available.
 - Surface insufficient disk before progress starts with required and available
   bytes.
 - Preserve keyboard focus across progress updates; progress announcements use
   a throttled live region rather than speaking every chunk.
+
+## OpenAI-compatible connections
+
+The shared model-selection content shows one Chat row and one Image row
+above the tabs, labelled with `Local` or the connection name. Cards do not
+repeat those roles.
+
+```text
+Chat  …  ·  Local | connection
+Image …  ·  Local | connection
+─────────────────────────────
+Local | OpenAI-compatible
+```
+
+The remote tab implements
+[`../api/05b-openai-compatible-connections.md`](../api/05b-openai-compatible-connections.md):
+
+- render one compact card per named connection with its label, base URL,
+  assigned Chat and Image models, **Browse models**, Edit, and Disconnect;
+- add/edit asks for a label, base URL, and optional key; an existing key is
+  represented only by `has_api_key`;
+- when `/models` cannot verify an endpoint, show the reason and require an
+  explicit **Save anyway** confirmation before enabling manual model-id entry;
+- do not fetch remote catalogues while rendering cards; fetch a connection's
+  models when **Browse models** opens and cache them while the card remains
+  mounted;
+- key list and row state by `(connection_id, model_name)`, since two endpoints
+  may expose the same model id;
+- connecting an endpoint does not select every discovered model and does not
+  switch the active model;
+- show exact model-id entry first in the browser, then live name search,
+  All/Chat/Image/Unknown filters, and a fixed-height scrollable model list;
+- each listed model offers **Use for chat** and **Assign as image**; the
+  matching control becomes a disabled **In use** instead of a Chat/Image
+  badge, and assigning either role keeps the browser open;
+- allow exact model-id entry when a valid endpoint does not list the model;
+- keep capability-unknown models visible and assignable instead of guessing
+  from their names.
+
+The Image filter is an aid, not an authority. It includes models positively
+identified as image-capable and the current image selection. Assigning an
+unknown model explains that the endpoint must implement
+`/images/generations` or `/images`, then offers **Test image**, **Use without
+testing**, and Cancel. Testing is user-triggered real inference and is never
+run merely by opening the page. Image-only models returned by an endpoint's
+optional `output_modalities=image` catalogue are merged into the same card.
+
+Onboarding completes after one generation selection. Image is optional and
+uses the same remote tab, not a separate provider setup screen. Disconnect
+confirmation names any generation or image roles that will be cleared.
 
 ## Airgap
 
@@ -134,6 +188,9 @@ src/features/model-catalog/
 src/features/model-selection/
 ├── model-selection-content.tsx
 ├── provider-tab.tsx
+├── connection-card.tsx
+├── connection-form.tsx
+├── remote-model-list.tsx
 ├── use-model-selection.ts
 └── api.ts
 
@@ -160,10 +217,16 @@ except for runtime-specific explanatory copy.
 - Path B: install → model download → chat works after completion.
 - Path A: import a valid local model/parser pack → app recognizes it.
 - Packaged-app behavior matches development behavior.
+- Two connections with the same model id render and select independently.
+- Adding a connection makes its live models available but changes no role.
+- Unknown image capability remains visible; explicit assignment and test
+  behavior are clear.
+- Disconnect clears only roles that reference that connection and never exposes
+  its key.
 
 ## Needs from API
 
 Normalized catalog and install stream —
-[`../api/05-model-recommendations.md`](../api/05-model-recommendations.md).
+[`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
 Binary/model packaging and airgap imports —
-[`../api/05-packaging.md`](../api/05-packaging.md).
+[`../api/05c-packaging.md`](../api/05c-packaging.md).

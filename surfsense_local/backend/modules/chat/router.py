@@ -21,9 +21,8 @@ from modules.chat.schemas import (
     ThreadUpdate,
 )
 from modules.chat.title import generate_title
-from modules.llm.activity import ModelBusyError, model_activity
-from modules.llm.models import ModelRole, SelectedModel
-from modules.llm.providers import get_provider
+from modules.llm.activity import ModelBusyError, model_activity, model_key
+from modules.llm.resolution import ModelResolutionError, resolve_generation
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.search import retrieve
 
@@ -99,14 +98,12 @@ def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
 async def send_message(
     thread: ThreadDep, payload: MessageCreate, session: SessionDep
 ) -> StreamingResponse:
-    selected = session.get(SelectedModel, ModelRole.GENERATION)
-    if selected is None:
-        raise HTTPException(status.HTTP_409_CONFLICT, "no chat model selected")
-    generator = get_provider(selected.provider, session)
-    if generator is None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"unknown provider: {selected.provider}"
-        )
+    try:
+        resolved = resolve_generation(session)
+    except ModelResolutionError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    selected = resolved.selection
+    generator = resolved.generator
     # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
     from worker.ingestion.embedding import missing_embedding_files
 
@@ -135,9 +132,11 @@ async def send_message(
     context, citations = build_context(hits)
     messages = build_messages(context, history, payload.text)
 
-    model_key = (selected.provider, selected.name)
+    activity_key = model_key(
+        selected.provider, selected.name, selected.connection_id
+    )
     try:
-        await model_activity.acquire_use(model_key)
+        await model_activity.acquire_use(activity_key)
     except ModelBusyError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     try:
@@ -157,7 +156,7 @@ async def send_message(
         session.commit()
         user_created_at = user_message.created_at.isoformat()
     except Exception:
-        await model_activity.release_use(model_key)
+        await model_activity.release_use(activity_key)
         raise
 
     async def stream() -> AsyncIterator[bytes]:
@@ -222,7 +221,7 @@ async def send_message(
         yield _DONE
 
     return StreamingResponse(
-        _release_model_after(stream(), model_key),
+        _release_model_after(stream(), activity_key),
         media_type="text/event-stream",
         # Keep a proxy from buffering or caching a live stream into one late blob.
         headers={
@@ -234,7 +233,7 @@ async def send_message(
 
 
 async def _release_model_after(
-    frames: AsyncIterator[bytes], key: tuple[str, str]
+    frames: AsyncIterator[bytes], key: tuple[str, ...]
 ) -> AsyncIterator[bytes]:
     try:
         async for frame in frames:

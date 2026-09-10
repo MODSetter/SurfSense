@@ -44,7 +44,11 @@ async def recommendation_catalog(
     refresh: bool = False,
 ):
     selected = session.get(SelectedModel, ModelRole.GENERATION)
-    selected_key = (selected.provider, selected.name) if selected is not None else None
+    selected_key = (
+        (selected.provider, selected.name)
+        if selected is not None and selected.connection_id is None
+        else None
+    )
     return await service.catalog(selected=selected_key, refresh=refresh)
 
 
