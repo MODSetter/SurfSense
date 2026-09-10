@@ -2,7 +2,7 @@
 
 > Airgapped, local-first NotebookLM-style desktop app (Community SKU).
 
-> **Pivot (Sep 2026):** this app is now *the* SurfSense product and the hosted SaaS is being sunset. Business decisions, licensing, cloud-to-local migration, the three cross-team contracts, owners, and the launch runbook live in [`00d-pivot-plan.md`](00d-pivot-plan.md). It adds a Phase 6 to the local app (import, license module, egress panel, keychain, auto-update), specified there under Workstream A. The out-of-scope list below still holds for this codebase: scrapers and MCP stay hosted and are reached at T+7 through a thin client; Stripe stays in the portal.
+> **Pivot (Sep 2026):** this app is now *the* SurfSense product and the hosted SaaS is being sunset. Business decisions, licensing, cloud-to-local migration, the four cross-team contracts, owners, and the launch runbook live in [`00d-pivot-plan.md`](00d-pivot-plan.md). It adds a Phase 6 to the local app (import, license module, egress panel, keychain, auto-update), specified there under Workstream A. The out-of-scope list below still holds for this codebase: scrapers and MCP stay hosted and are reached at T+7 through a thin client; Stripe stays in the portal.
 
 **Three workstreams** — pick a folder and work through phases in order:
 
