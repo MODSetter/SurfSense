@@ -239,10 +239,6 @@ function WorkspaceDashboard({
               artifacts={
                 <ArtifactList
                   artifacts={studio.artifacts}
-                  labelOf={(format) =>
-                    studio.formats.find((entry) => entry.key === format)
-                      ?.label ?? format
-                  }
                   onOpen={(artifactId) => {
                     openSources()
                     setInspect({ kind: "artifact", artifactId })

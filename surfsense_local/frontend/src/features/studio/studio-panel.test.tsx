@@ -48,9 +48,6 @@ function StudioHarness({
       />
       <ArtifactList
         artifacts={studio.artifacts}
-        labelOf={(format) =>
-          studio.formats.find((entry) => entry.key === format)?.label ?? format
-        }
         onOpen={vi.fn()}
         onDelete={(id) => void studio.remove(id)}
       />
@@ -114,9 +111,9 @@ describe("studio panel", () => {
 
     await user.click(await screen.findByRole("button", { name: "Summary" }))
     expect(screen.getByRole("dialog", { name: "Summary" })).toBeTruthy()
-    expect(screen.getByText("Sources (0 selected)")).toBeTruthy()
+    expect(screen.getByText("Sources (1 selected)")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Deselect all" })).toBeTruthy()
     expect(screen.getByText("Prompt (optional)")).toBeTruthy()
-    await user.click(screen.getByText("Saturn facts"))
     await user.click(screen.getByRole("button", { name: /Generate/ }))
 
     const jobCall = await vi.waitFor(() =>
@@ -135,7 +132,42 @@ describe("studio panel", () => {
     expect(
       screen.getByRole("heading", { name: "All generated artifacts" })
     ).toBeTruthy()
-    expect(screen.getByText("pending")).toBeTruthy()
+    expect(
+      screen.getByRole("status", { name: "Processing Summary" })
+    ).toBeTruthy()
+  })
+
+  it("selects every ready source and can clear them from the header", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/workspaces/1/studio/formats") {
+        return Response.json([
+          {
+            key: "summary",
+            label: "Summary",
+            requires_role: "generation",
+            available: true,
+            unavailable_reason: null,
+          },
+        ])
+      }
+      if (path === "/workspaces/1/artifacts") return Response.json([])
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    renderStudio([
+      readyDocument,
+      { ...readyDocument, id: 5, title: "Titan notes" },
+    ])
+
+    await user.click(await screen.findByRole("button", { name: "Summary" }))
+    expect(screen.getByText("Sources (2 selected)")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    expect(screen.getByText("Sources (0 selected)")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Select all" }))
+    expect(screen.getByText("Sources (2 selected)")).toBeTruthy()
   })
 
   it("explains why an unavailable image format is disabled", async () => {

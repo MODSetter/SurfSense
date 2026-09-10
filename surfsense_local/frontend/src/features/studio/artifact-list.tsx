@@ -1,5 +1,32 @@
-import { Badge } from "@/components/ui/badge"
+import { useState } from "react"
+import {
+  Alert02Icon,
+  EllipsisIcon,
+  FileIcon,
+  FileTextIcon,
+  Loader2Icon,
+  Trash2Icon,
+  ViewIcon,
+} from "@/components/ui/icons"
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Empty,
   EmptyDescription,
@@ -7,28 +34,137 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { FileTextIcon, Trash2Icon } from "@/components/ui/icons"
+import { Spinner } from "@/components/ui/spinner"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
 
 import type { Artifact } from "./api"
+import { FORMAT_ICONS } from "./studio-panel"
 
-const statusVariant = {
-  pending: "outline",
-  processing: "secondary",
-  ready: "secondary",
-  failed: "destructive",
-} as const
+function ArtifactRow({
+  artifact,
+  onOpen,
+  onDelete,
+}: {
+  artifact: Artifact
+  onOpen: () => void
+  onDelete: () => void
+}) {
+  const ready = artifact.status === "ready"
+  const failed = artifact.status === "failed"
+  const ingesting =
+    artifact.status === "pending" || artifact.status === "processing"
+  const processing = artifact.status === "processing"
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+  const FormatIcon = FORMAT_ICONS[artifact.format] ?? FileIcon
+
+  return (
+    <div
+      className={cn(
+        "group group/artifact relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
+        dropdownOpen && "bg-muted dark:bg-muted/50"
+      )}
+    >
+      <span className="relative flex size-7 shrink-0 items-center justify-center">
+        {ready ? (
+          <FormatIcon className="size-4.5 text-muted-foreground" />
+        ) : null}
+        {ingesting ? (
+          <Spinner
+            className="size-4.5 text-muted-foreground"
+            aria-label={`Processing ${artifact.title}`}
+          />
+        ) : null}
+        {failed ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={artifact.error_message ?? "Generation failed"}
+                className="hover:bg-transparent"
+              >
+                <Alert02Icon className="size-4.5 text-destructive" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" collisionPadding={8}>
+              {artifact.error_message ?? "Generation failed"}
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+      </span>
+      <button
+        type="button"
+        disabled={!ready}
+        className={cn(
+          "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+          dropdownOpen && "sidebar-row-title-fade-actions"
+        )}
+        onClick={ready ? onOpen : undefined}
+      >
+        {artifact.title}
+      </button>
+      <div className="absolute inset-y-0 right-0 flex items-center pr-1">
+        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="ghost"
+              className="size-6 shrink-0 opacity-0 group-hover/artifact:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
+              aria-label={`Actions for ${artifact.title}`}
+            >
+              <EllipsisIcon />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" sideOffset={8} className="min-w-40">
+            <DropdownMenuGroup>
+              {ready ? (
+                <DropdownMenuItem onSelect={onOpen}>
+                  <ViewIcon />
+                  Open
+                </DropdownMenuItem>
+              ) : null}
+              {ingesting ? (
+                <DropdownMenuItem disabled>
+                  <span className="flex animate-spin" aria-hidden="true">
+                    <Loader2Icon />
+                  </span>
+                  Processing
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={processing}
+                onSelect={onDelete}
+              >
+                <Trash2Icon />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
+    </div>
+  )
+}
 
 export function ArtifactList({
   artifacts,
-  labelOf,
   onOpen,
   onDelete,
 }: {
   artifacts: Artifact[]
-  labelOf: (format: string) => string
   onOpen: (id: number) => void
   onDelete: (id: number) => void
 }) {
+  const [deleteTarget, setDeleteTarget] = useState<Artifact | null>(null)
+
   return (
     <section
       className="mt-2 w-full min-w-0 overflow-hidden"
@@ -55,51 +191,46 @@ export function ArtifactList({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="flex flex-col gap-1.5">
+        <div className="flex flex-col gap-1">
           {artifacts.map((artifact) => (
-            <div
+            <ArtifactRow
               key={artifact.id}
-              className="flex items-start gap-2 rounded-md border p-2"
-            >
-              <div className="min-w-0 flex-1">
-                <button
-                  type="button"
-                  disabled={artifact.status !== "ready"}
-                  onClick={() => onOpen(artifact.id)}
-                  className="w-full cursor-pointer text-left disabled:cursor-default"
-                >
-                  <span className="block truncate text-sm font-medium">
-                    {artifact.title}
-                  </span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {labelOf(artifact.format)}
-                  </span>
-                </button>
-                {artifact.status === "failed" && artifact.error_message ? (
-                  <p className="mt-1 text-[11px] text-pretty text-destructive">
-                    {artifact.error_message}
-                  </p>
-                ) : null}
-              </div>
-              <Badge
-                variant={statusVariant[artifact.status]}
-                className="mt-0.5 h-4 shrink-0 px-1.5 text-[10px]"
-              >
-                {artifact.status}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                className="shrink-0"
-                aria-label={`Delete ${artifact.title}`}
-                onClick={() => onDelete(artifact.id)}
-              >
-                <Trash2Icon />
-              </Button>
-            </div>
+              artifact={artifact}
+              onOpen={() => onOpen(artifact.id)}
+              onDelete={() => setDeleteTarget(artifact)}
+            />
           ))}
         </div>
       )}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Delete {deleteTarget?.title ?? "this artifact"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently deletes{" "}
+              {deleteTarget?.title ?? "this artifact"} and its generated files.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => {
+                if (deleteTarget) onDelete(deleteTarget.id)
+              }}
+            >
+              Delete artifact
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
   )
 }

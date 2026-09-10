@@ -55,7 +55,7 @@ const FORMAT_HINTS: Record<string, string> = {
   infographic: "Generate an AI infographic based on your sources",
 }
 
-const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+export const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   summary: AiSearchLinesIcon,
   docx: File02Icon,
   pptx: Presentation02Icon,
@@ -103,8 +103,11 @@ function Composer({
   }) => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
-  const [selected, setSelected] = useState<Set<number>>(new Set())
+  const [selected, setSelected] = useState(
+    () => new Set(ready.map((document) => document.id))
+  )
   const [prompt, setPrompt] = useState("")
+  const allSelected = ready.length > 0 && selected.size === ready.length
 
   const toggle = (id: number) =>
     setSelected((current) => {
@@ -122,9 +125,28 @@ function Composer({
   return (
     <div className="space-y-3">
       <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">
-          Sources ({selected.size} selected)
-        </p>
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xs font-medium text-muted-foreground">
+            Sources ({selected.size} selected)
+          </p>
+          {ready.length > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="xs"
+              className="text-muted-foreground"
+              onClick={() =>
+                setSelected(
+                  allSelected
+                    ? new Set()
+                    : new Set(ready.map((document) => document.id))
+                )
+              }
+            >
+              {allSelected ? "Deselect all" : "Select all"}
+            </Button>
+          ) : null}
+        </div>
         {ready.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Add and index a source first — only ready documents can be used.
@@ -292,7 +314,7 @@ export function StudioPanel({
           if (!open) setFormat(null)
         }}
       >
-        <DialogContent className="select-none sm:max-w-md">
+        <DialogContent className="p-6 select-none sm:max-w-lg [&_[data-slot=dialog-close]]:top-3 [&_[data-slot=dialog-close]]:right-3">
           {selectedFormat ? (
             <>
               <DialogHeader>
