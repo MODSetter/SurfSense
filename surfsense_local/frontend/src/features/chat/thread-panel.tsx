@@ -13,8 +13,6 @@ import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/model-selection/api"
-import type { WorkspaceDocument } from "@/features/sources/api"
-
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
@@ -68,7 +66,6 @@ export function ThreadPanel({
   thread,
   view,
   model,
-  documents,
   error,
   isLoading,
   isRunning,
@@ -85,14 +82,13 @@ export function ThreadPanel({
   thread: ChatThread | null
   view: ConversationView
   model: ModelSelection | null
-  documents: WorkspaceDocument[]
   error: string | null
   isLoading: boolean
   isRunning: boolean
   isUploading: boolean
   animateTitle: boolean
   providerAvailable: boolean
-  onCitation: (citation: Citation) => void
+  onCitation: (chunkId: number) => void
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
@@ -184,7 +180,6 @@ export function ThreadPanel({
                   ) : (
                     <AssistantMessage
                       citations={citationsFrom(message)}
-                      documents={documents}
                       onCitation={onCitation}
                     />
                   )

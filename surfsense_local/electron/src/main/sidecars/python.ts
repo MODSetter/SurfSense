@@ -1,7 +1,8 @@
 /**
  * The two Python sidecars. They are the same shape: a frozen onedir binary in
- * the packaged app, `uv run` in dev, over the same SURFSENSE_LOCAL_* env. Only
- * the API talks to Ollama, so only it gets the base URL.
+ * the packaged app, `uv run` in dev, over the same SURFSENSE_LOCAL_* env. Chat
+ * hits Ollama from the API; Studio generation hits it from the worker — both
+ * need the bundled address.
  */
 import { join } from "node:path"
 
@@ -15,7 +16,11 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     SURFSENSE_LOCAL_PORT: String(ctx.apiPort),
     SURFSENSE_LOCAL_DATA_DIR: ctx.dataDir,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
-    ...(ctx.hfHome && { HF_HOME: ctx.hfHome }),
+    ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
+    ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
+    ...(ctx.ollamaModelsDir && {
+      SURFSENSE_LOCAL_OLLAMA_MODELS_DIR: ctx.ollamaModelsDir,
+    }),
   }
 }
 
@@ -35,11 +40,6 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
     ...pythonCmd(ctx, "api", "main.py"),
     env: {
       ...pythonEnv(ctx),
-      // chat generation reaches the bundled Ollama (packaged only)
-      ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
-      ...(ctx.ollamaModelsDir && {
-        SURFSENSE_LOCAL_OLLAMA_MODELS_DIR: ctx.ollamaModelsDir,
-      }),
       ...(ctx.llmfitPath && { SURFSENSE_LOCAL_LLMFIT_PATH: ctx.llmfitPath }),
     },
   }

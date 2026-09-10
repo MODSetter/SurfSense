@@ -86,6 +86,7 @@ def test_a_hit_carries_its_document_and_lines(
     hit = retrieve(session, workspace_id, "revenue")[0]
 
     assert hit.document_id == ids["finance"]
+    assert hit.title == "note"
     assert hit.content
     assert hit.start_line is not None
     assert hit.end_line is not None

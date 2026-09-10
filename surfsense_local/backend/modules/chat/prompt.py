@@ -1,31 +1,47 @@
 import re
+from collections import defaultdict
 from dataclasses import dataclass
 
 from shared.search import Hit
 
-# Precedes the retrieved context. Kept a constant, not a setting, for v1. The
-# explicit rules and example matter most for the small local models this targets.
+# Same contract as the cloud chat: the model copies a visible [n], the server
+# rewrites it to [citation:<chunk_id>] for the renderer.
 INSTRUCTION = (
     "Answer the question using the sources in the context below.\n"
-    "- Cite each claim inline with the source's id, exactly like [citation:1], "
-    "and only cite a source that carries an id.\n"
-    "- If the context does not hold the answer, say so, then answer from your own "
-    "knowledge if you can.\n"
+    "Cite with one token: the bracket label [n].\n"
+    "- Put the label right after the claim it supports.\n"
+    "- Several sources for one claim: stack brackets, [1][2].\n"
+    "- Copy labels exactly as shown — never write a title, id, or "
+    "[citation:...] yourself.\n"
+    "- Only cite claims the sources support. If nothing shown backs a claim, "
+    "leave it uncited; never invent one.\n"
+    "- If the context does not hold the answer, say so, then answer from your "
+    "own knowledge if you can.\n"
     "- Respond in the same language as the question.\n"
-    "- Label fenced code blocks with their language, such as python, typescript, "
-    "sql, or bash.\n"
+    "- Label fenced code blocks with their language, such as python, "
+    "typescript, sql, or bash.\n"
     "- Do not repeat the source tags back in your answer.\n"
-    'Example: "The method raised efficiency by 20% [citation:1]."'
+    'Example: "The method raised efficiency by 20% [1]."'
+)
+
+_HEADER = (
+    "These are excerpts from the user's knowledge base, selected for this query.\n"
+    "A document is a full source; each <document> below is in excerpt view, so "
+    "you are seeing only the chunks that matched this query, not the whole "
+    "source. Cite a chunk with its [n]."
 )
 
 # A chunk that contains these could otherwise close a source early and forge its
 # own, so its angle brackets are defanged before it goes between the tags.
-_TAGS = re.compile(r"</?(?:source|context)\b[^>]*>", re.IGNORECASE)
+_TAGS = re.compile(
+    r"</?(?:source|context|document|retrieved_context)\b[^>]*>", re.IGNORECASE
+)
 
 # Fenced (```...```) and inline (`...`) code, so citation-shaped examples remain
-# literal. Mirrors the frontend Markdown renderer.
+# literal. Mirrors the frontend Markdown renderer and the cloud normalizer.
 _CODE = re.compile(r"```[\s\S]*?```|`[^`\n]+`")
-_CITATION = re.compile(r"\[citation:\s*(\d+)\s*\]")
+# Citation wrapper first so `[citation:1]` is not eaten as a trailing `[1]`.
+_TOKEN = re.compile(r"\[citation:\s*(\d+)\s*\]|\[\s*(\d+)\s*\]")
 
 
 @dataclass(frozen=True)
@@ -37,49 +53,73 @@ class Citation:
     document_id: int
     start_line: int | None
     end_line: int | None
+    title: str = ""
 
 
 def build_context(hits: list[Hit]) -> tuple[str, list[Citation]]:
     """The grounding system message and the citations its ids point at.
 
-    Hits become `<source id="N">` blocks in rank order; the model cites `[N]` and
-    the frontend resolves each id through the returned citations. No hits leaves
-    the instruction alone, and the model is told to fall back to its own knowledge.
+    Hits become `[n]`-labelled excerpts grouped by document, matching the cloud
+    retrieved_context block. The model cites `[n]`; resolve_citations rewrites
+    those to `[citation:<chunk_id>]`. No hits leaves the instruction alone.
     """
     if not hits:
         return INSTRUCTION, []
 
-    citations = [
-        Citation(i, hit.chunk_id, hit.document_id, hit.start_line, hit.end_line)
-        for i, hit in enumerate(hits, start=1)
-    ]
-    sources = "\n".join(
-        f'<source id="{citation.source_id}" document="{citation.document_id}"'
-        f' lines="{_lines(citation)}">{_defang(hit.content)}</source>'
-        for citation, hit in zip(citations, hits, strict=True)
+    citations: list[Citation] = []
+    grouped: dict[int, list[tuple[Citation, Hit]]] = defaultdict(list)
+    order: list[int] = []
+    for i, hit in enumerate(hits, start=1):
+        citation = Citation(
+            i,
+            hit.chunk_id,
+            hit.document_id,
+            hit.start_line,
+            hit.end_line,
+            hit.title,
+        )
+        citations.append(citation)
+        if hit.document_id not in grouped:
+            order.append(hit.document_id)
+        grouped[hit.document_id].append((citation, hit))
+
+    documents = []
+    for document_id in order:
+        passages = grouped[document_id]
+        title = _attr(passages[0][0].title)
+        lines = [f'<document title="{title}" view="excerpt">']
+        for citation, hit in passages:
+            body = _defang(hit.content).strip().replace("\n", "\n" + " " * 6)
+            lines.append(f"  [{citation.source_id}] {body}")
+        lines.append("</document>")
+        documents.append("\n".join(lines))
+
+    context = (
+        f"{INSTRUCTION}\n\n<retrieved_context>\n{_HEADER}\n"
+        + "\n".join(documents)
+        + "\n</retrieved_context>"
     )
-    return f"{INSTRUCTION}\n\n<context>\n{sources}\n</context>", citations
+    return context, citations
 
 
 def resolve_citations(
     answer: str, citations: list[Citation]
 ) -> tuple[str, list[Citation]]:
-    """Resolve inline citation tokens against the sources the model received.
+    """Rewrite model `[n]` labels into `[citation:<chunk_id>]` markers.
 
-    Valid source ids remain stable so streamed and stored citations use the same
-    identity. Invented tokens are dropped rather than linked to the wrong source.
+    `[citation:n]` is accepted as the same ordinal so a model that still emits
+    the old wrapper is not left with a dead chip. Invented numbers are dropped.
     Citation-shaped text inside code remains literal.
     """
     if not answer:
         return answer, []
 
     by_id = {citation.source_id: citation for citation in citations}
-
     order: list[int] = []
 
     def collect(span: str) -> str:
-        for match in _CITATION.finditer(span):
-            cited = int(match.group(1))
+        for match in _TOKEN.finditer(span):
+            cited = int(match.group(1) or match.group(2))
             if cited in by_id and cited not in order:
                 order.append(cited)
         return span
@@ -88,9 +128,10 @@ def resolve_citations(
 
     def rewrite(span: str) -> str:
         def one(match: re.Match[str]) -> str:
-            return match.group(0) if int(match.group(1)) in by_id else ""
+            cited = int(match.group(1) or match.group(2))
+            return f"[citation:{by_id[cited].chunk_id}]" if cited in by_id else ""
 
-        return _CITATION.sub(one, span)
+        return _TOKEN.sub(one, span)
 
     used = [by_id[source_id] for source_id in order]
     return _outside_code(answer, rewrite), used
@@ -113,7 +154,11 @@ def _defang(content: str) -> str:
     return _TAGS.sub("", content)
 
 
-def _lines(citation: Citation) -> str:
-    if citation.start_line is None or citation.end_line is None:
-        return ""
-    return f"{citation.start_line}-{citation.end_line}"
+def _attr(value: str) -> str:
+    collapsed = " ".join(str(value).split())
+    return (
+        collapsed.replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace('"', "&quot;")
+    )

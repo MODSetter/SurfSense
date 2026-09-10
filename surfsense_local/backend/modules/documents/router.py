@@ -4,12 +4,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, Response, UploadFile, status
 from fastapi.responses import FileResponse
-from sqlalchemy import delete, select
+from sqlalchemy import and_, delete, func, or_, select
 
 from api.dependencies import SessionDep
+from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.schemas import (
+    DocumentByChunkRead,
     DocumentDetail,
     DocumentRead,
     DocumentUpdate,
@@ -57,6 +59,69 @@ def list_documents(
     query = query.order_by(Document.created_at).limit(limit).offset(offset)
 
     return session.scalars(query).all()
+
+
+@router.get(
+    "/by-chunk/{chunk_id}",
+    response_model=DocumentByChunkRead,
+    summary="Read a document from a cited chunk",
+)
+def get_document_by_chunk(
+    chunk_id: int,
+    workspace: WorkspaceDep,
+    session: SessionDep,
+    chunk_window: Annotated[int, Query(ge=0, le=20)] = 5,
+) -> DocumentByChunkRead:
+    """The citation panel: the cited chunk plus neighbours, scoped to this workspace."""
+    chunk = session.get(Chunk, chunk_id)
+    if chunk is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "chunk not found")
+
+    document = session.get(Document, chunk.document_id)
+    if document is None or document.workspace_id != workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "chunk not found")
+
+    total_chunks = (
+        session.scalar(
+            select(func.count())
+            .select_from(Chunk)
+            .where(Chunk.document_id == document.id)
+        )
+        or 0
+    )
+    cited_idx = (
+        session.scalar(
+            select(func.count())
+            .select_from(Chunk)
+            .where(
+                Chunk.document_id == document.id,
+                or_(
+                    Chunk.position < chunk.position,
+                    and_(Chunk.position == chunk.position, Chunk.id < chunk.id),
+                ),
+            )
+        )
+        or 0
+    )
+    start = max(0, cited_idx - chunk_window)
+    end = min(total_chunks, cited_idx + chunk_window + 1)
+    windowed = session.scalars(
+        select(Chunk)
+        .where(Chunk.document_id == document.id)
+        .order_by(Chunk.position, Chunk.id)
+        .offset(start)
+        .limit(end - start)
+    ).all()
+
+    return DocumentByChunkRead(
+        id=document.id,
+        title=document.title,
+        document_type=document.document_type,
+        workspace_id=document.workspace_id,
+        chunks=list(windowed),
+        total_chunks=total_chunks,
+        chunk_start_index=start,
+    )
 
 
 @router.post(

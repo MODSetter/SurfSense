@@ -1,6 +1,10 @@
+import logging
+
 from worker.studio.artifact import Built, Source
 from worker.studio.builder import Builder
 from worker.studio.text import as_list, as_text, parse_json, slug
+
+logger = logging.getLogger(__name__)
 
 MIME = "audio/wav"
 
@@ -41,6 +45,11 @@ def build(raw: str, _sources: list[Source]) -> Built:
         transcript.append("")
         turns.append(tts.Turn(_VOICES.get(speaker, _VOICES["A"]), text))
 
+    logger.info(
+        "studio: podcast %s turns (%s spoken chars); calling kokoro",
+        len(turns),
+        sum(len(turn.text) for turn in turns),
+    )
     audio = tts.synthesize(turns)
     return Built(
         title=title,

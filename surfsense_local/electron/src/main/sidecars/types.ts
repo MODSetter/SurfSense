@@ -21,13 +21,11 @@ export interface SidecarContext {
   host: string
   apiPort: number
   dataDir: string
-  /** Packaged: read-only bundled embedding model. */
+  /** Packaged: read-only bundled embedding, voice, and Docling parser packs. */
   modelsDir?: string
-  /** Packaged: writable Hugging Face cache for Docling's first-run download. */
-  hfHome?: string
   /** Packaged: absolute path to the pinned llmfit executable. */
   llmfitPath?: string
-  /** Packaged: the bundled Ollama's port, model dir, and URL for the API. */
+  /** Packaged: the bundled Ollama's port, model dir, and URL for API + worker. */
   ollamaPort?: number
   ollamaModelsDir?: string
   ollamaUrl?: string

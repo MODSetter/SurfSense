@@ -6,6 +6,7 @@ from typing import Any
 from modules.documents.models import Document, DocumentType
 from modules.documents.storage import original_path
 from shared.config import get_storage_settings
+from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 
 # Already text: read off disk rather than round-trip through Docling.
 TEXT_SUFFIXES = {".md", ".markdown", ".txt", ".text"}
@@ -42,12 +43,16 @@ def _converter() -> Any:
 
     # Lazy: the import costs seconds and pulls in torch, which the API never needs.
     from docling.datamodel.base_models import InputFormat
-    from docling.datamodel.pipeline_options import PdfPipelineOptions
+    from docling.datamodel.pipeline_options import PdfPipelineOptions, RapidOcrOptions
     from docling.document_converter import DocumentConverter, PdfFormatOption
 
     options = PdfPipelineOptions()
     options.do_ocr = True
     options.do_table_structure = True
+    if not missing_parser_folders():
+        options.artifacts_path = parser_dir()
+        options.ocr_options = RapidOcrOptions()
+        os.environ.setdefault("HF_HUB_OFFLINE", "1")
 
     return DocumentConverter(
         allowed_formats=[

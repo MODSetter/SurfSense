@@ -44,11 +44,10 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     host,
     apiPort,
     dataDir,
-    // Packaged: use the bundled model. Dev: reuse the model staged for builds.
+    // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
       ? join(process.resourcesPath, "models")
       : join(app.getAppPath(), "..", "backend", "models"),
-    hfHome: packaged ? join(dataDir, "hf") : undefined,
     llmfitPath: packaged
       ? join(process.resourcesPath, "llmfit", exe("llmfit"))
       : join(app.getAppPath(), "llmfit", exe("llmfit")),

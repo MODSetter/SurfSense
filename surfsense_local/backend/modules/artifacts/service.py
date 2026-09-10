@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -10,6 +12,8 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.credentials import read_provider_key
 from modules.llm.models import ModelRole, SelectedModel
 from modules.workspaces.models import Workspace
+
+logger = logging.getLogger(__name__)
 
 
 def list_formats(session: Session) -> list[FormatRead]:
@@ -79,6 +83,7 @@ def create_artifact_job(
     # another process and would look for a row this request had not written.
     session.commit()
     studio_job(artifact.id)
+    logger.info("studio: enqueued artifact %s format=%s", artifact.id, fmt.key)
     return artifact
 
 

@@ -144,6 +144,45 @@ async def test_a_deleted_document_takes_its_chunks(
         assert connection.execute(select(func.count()).select_from(Chunk)).scalar() == 0
 
 
+async def test_a_cited_chunk_returns_its_document_window(
+    client: AsyncClient, workspace_id: int, engine: Engine
+) -> None:
+    """The citation panel loads the document from the chunk id the model cited."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Guide.txt", "content": "x"},
+    )
+    document_id = created.json()["id"]
+    other = (await client.post("/workspaces", json={"name": "Other"})).json()["id"]
+
+    with engine.begin() as connection:
+        connection.execute(
+            insert(Chunk).values(
+                id=30, document_id=document_id, position=0, content="cited"
+            )
+        )
+        connection.execute(
+            insert(Chunk).values(
+                id=31, document_id=document_id, position=1, content="next"
+            )
+        )
+
+    found = await client.get(
+        f"/workspaces/{workspace_id}/documents/by-chunk/30?chunk_window=1"
+    )
+    missing = await client.get(f"/workspaces/{other}/documents/by-chunk/30")
+
+    assert found.status_code == 200
+    body = found.json()
+    assert body["id"] == document_id
+    assert body["title"] == "Guide.txt"
+    assert [chunk["id"] for chunk in body["chunks"]] == [30, 31]
+    assert body["chunks"][0]["content"] == "cited"
+    assert body["total_chunks"] == 2
+    assert body["chunk_start_index"] == 0
+    assert missing.status_code == 404
+
+
 async def test_a_processing_document_cannot_be_deleted(
     client: AsyncClient, workspace_id: int, engine: Engine
 ) -> None:

@@ -1,82 +1,57 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-import type { WorkspaceDocument } from "@/features/sources/api"
-
 import type { Citation } from "./sse"
 
 type CitationContextValue = {
-  citationBySourceId: Map<number, Citation>
-  titleByDocumentId: Map<number, string>
-  onCitation: (citation: Citation) => void
+  citations: Citation[]
+  onCitation: (chunkId: number) => void
 }
 
 const CitationContext = createContext<CitationContextValue | null>(null)
 
+export function useCitationContext() {
+  return useContext(CitationContext)
+}
+
 export function CitationProvider({
   citations,
-  documents,
   onCitation,
   children,
 }: {
   citations: Citation[]
-  documents: WorkspaceDocument[]
-  onCitation: (citation: Citation) => void
+  onCitation: (chunkId: number) => void
   children: ReactNode
 }) {
   const value = useMemo(
-    () => ({
-      citationBySourceId: new Map(
-        citations.map((citation) => [citation.source_id, citation])
-      ),
-      titleByDocumentId: new Map(
-        documents.map((document) => [document.id, document.title])
-      ),
-      onCitation,
-    }),
-    [citations, documents, onCitation]
+    () => ({ citations, onCitation }),
+    [citations, onCitation]
   )
 
   return (
-    <CitationContext.Provider value={value}>
-      {children}
-    </CitationContext.Provider>
+    <CitationContext.Provider value={value}>{children}</CitationContext.Provider>
   )
 }
 
 export function InlineCitation(props: Record<string, unknown>) {
   const context = useContext(CitationContext)
-  const sourceId = Number(props["data-source-id"] ?? props.children)
-  const citation = context?.citationBySourceId.get(sourceId)
+  const chunkId = Number(props["data-chunk-id"] ?? props.children)
 
-  if (!context || !citation) {
+  if (!context || !Number.isFinite(chunkId) || chunkId <= 0) {
     return null
   }
 
-  const title =
-    context.titleByDocumentId.get(citation.document_id) ??
-    `Document ${citation.document_id}`
-
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="xs"
-          className="mx-0.5 inline-flex h-5 min-w-5 rounded-md bg-popover px-1.5 align-baseline text-[11px] text-popover-foreground hover:bg-popover hover:text-popover-foreground"
-          aria-label={`Show source ${sourceId}: ${title}`}
-          onClick={() => context.onCitation(citation)}
-        >
-          {sourceId}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{title}</TooltipContent>
-    </Tooltip>
+    <Button
+      type="button"
+      variant="ghost"
+      size="xs"
+      className="mx-0.5 inline-flex h-5 min-w-5 rounded-md bg-popover px-1.5 align-baseline text-[11px] font-medium text-popover-foreground/80 hover:bg-popover hover:text-popover-foreground"
+      title={`View source chunk #${chunkId}`}
+      aria-label={`View cited chunk ${chunkId}`}
+      onClick={() => context.onCitation(chunkId)}
+    >
+      {chunkId}
+    </Button>
   )
 }

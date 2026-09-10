@@ -372,6 +372,12 @@ export function useChatRuntime({
                       ? {
                           ...message,
                           completed_at: event.assistant_completed_at,
+                          content: {
+                            ...message.content,
+                            ...(event.text !== undefined
+                              ? { text: event.text }
+                              : {}),
+                          },
                         }
                       : message
                   ) ?? null
