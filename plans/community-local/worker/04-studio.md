@@ -67,7 +67,7 @@ sidecar carries revisions; a re-run row-locks and bumps it.
 | **4c** | pdf | markdown → HTML → PDF (WeasyPrint or ReportLab); bundle native deps like the parser pack |
 | **4d** | podcast | two-host script (`Generator`) → **Kokoro-82M** → stitch MP3; Kokoro bundled as a model pack like bge-small |
 | **4e** | infographic | generation model emits strict labels, values, hierarchy and style tokens → deterministic SVG/HTML builder + optional PNG preview |
-| **4f** | image | selected OpenAI-compatible image model → `/images/generations` → validate and store returned bytes; unavailable without the image role |
+| **4f** | image | selected OpenAI-compatible image model → `/images/generations` with 404/405-only `/images` fallback → validate and store returned bytes; unavailable without the image role |
 
 4a proves the whole path with zero new deps; each later sub adds one builder (or,
 for 4f, one separate image-provider call) against the same pipeline. Video is
@@ -94,7 +94,8 @@ outside MVP.
 - Infographic fixtures validate the structured schema and deterministic output
   without an image model.
 - Image fixtures cover base64 and URL results, MIME and byte limits, timeouts,
-  and no automatic retry after a provider may have generated an image.
+  route fallback only on 404/405, route caching, and no retry after a provider
+  may have generated an image.
 
 ## Interface from API
 

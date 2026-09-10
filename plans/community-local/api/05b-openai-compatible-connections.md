@@ -9,8 +9,9 @@
 
 Replace the single OpenRouter key with multiple named OpenAI-compatible
 connections. An organization may expose one gateway containing many models or
-separate endpoints for different vLLM deployments and image services. SurfSense
-configures and selects those endpoints; it does not become their load balancer.
+separate endpoints for core vLLM chat deployments, vLLM-Omni image deployments,
+and other image services. SurfSense configures and selects those endpoints; it
+does not become their load balancer.
 
 The durable state stays minimal:
 
@@ -20,7 +21,10 @@ The durable state stays minimal:
 
 ## Non-goals
 
-- OpenRouter compatibility, aliases, model-id migration, or catalogue metadata.
+- A standalone OpenRouter provider, credential migration, attribution headers,
+  or its legacy Chat Completions image-response contract. The shared image
+  adapter does support OpenRouter's current `POST /images` route as a small
+  protocol extension.
 - Replica management, load balancing, failover, retries across connections, or
   routing policy. Replicas of one model belong behind the organization's
   gateway or load balancer.
@@ -47,12 +51,21 @@ inference run on separate infrastructure.
 OpenAI-compatible connection
   ├── GET  /models                    live discovery and health
   ├── POST /chat/completions          generation role
-  └── POST /images/generations        image_generation role, when implemented
+  └── POST /images/generations        standard image_generation route
+      └── POST /images                optional image-route extension
 ```
 
-Stock vLLM implements the chat branch, not image generation. “OpenAI-compatible”
-means compatibility with a particular endpoint; it does not imply that every
-route above exists.
+Core vLLM implements the chat branch and multimodal image **input**, not image
+generation output. vLLM-Omni is a separate image-serving runtime that implements
+the OpenAI-compatible `/images/generations` branch. Each server instance
+normally serves one underlying model, so separate chat and image connections
+are expected. An organization-managed gateway may expose both branches under
+one base URL, in which case one connection can supply both roles.
+
+“OpenAI-compatible” means compatibility with a particular endpoint; it does not
+imply that every route exists. A connection is role-neutral: its selected model
+and implemented route determine whether SurfSense uses it for chat, image
+generation, or both.
 
 ## Data model
 
@@ -94,7 +107,10 @@ Invariants:
 - `ollama` selections have `connection_id = NULL`;
 - `openai_compatible` selections require a connection id;
 - deleting a connection removes every role selection that uses it;
-- onboarding requires only `generation`;
+- onboarding requires only `generation`; `image_generation` is always optional;
+- generation and image roles may reference different connections;
+- both roles may reference one connection when its gateway implements both
+  routes;
 - clearing a later selection never clears onboarding completion.
 
 Do not add a `connection_models` table. The application needs current endpoint
@@ -130,11 +146,23 @@ class ImageGenerator(Protocol):
 OpenAICompatibleImageProvider(base_url, api_key)
 ```
 
-The image adapter calls `POST {base_url}/images/generations` and normalizes
-`data[0].b64_json` or `data[0].url` into bytes plus MIME type. It enforces
-response-size, download-size, MIME, scheme, and timeout limits before the
-existing artifact storage writes the file. It never calls the old OpenRouter
-Chat Completions image extension.
+The image adapter supports two request-compatible routes:
+
+1. use the connection's last successful route from the in-memory process cache;
+2. otherwise call `POST {base_url}/images/generations`;
+3. only on a definitive `404 Not Found` or `405 Method Not Allowed`, retry once
+   with `POST {base_url}/images`;
+4. cache the successful route for that connection until process restart.
+
+Do not fall back after authentication, rate-limit, timeout, `5xx`, connection,
+malformed-success, or other ambiguous failures: the endpoint may already have
+generated and billed an image. Route negotiation is not general retry policy.
+
+Both routes send the common `model` and `prompt` fields. The adapter normalizes
+`data[0].b64_json` or `data[0].url` plus optional `media_type` into bytes and
+MIME type. It enforces response-size, download-size, MIME, scheme, and timeout
+limits before the existing artifact storage writes the file. It never calls
+the old OpenRouter Chat Completions `message.images` extension.
 
 Centralize selection resolution:
 
@@ -195,8 +223,14 @@ Deleting a connection and its selected-role rows is one transaction.
 
 ### Live models
 
-`GET /llm/connections/{id}/models` calls the remote `/models` endpoint and
-returns:
+`GET /llm/connections/{id}/models` calls the remote `/models` endpoint. It also
+makes an optional `GET /models?output_modalities=image` request and merges a
+valid response. A `4xx`, unsupported query, or malformed optional response does
+not fail baseline discovery. This extension exposes image-only OpenRouter
+models while remaining harmless for endpoints that ignore or reject the
+filter. Deduplicate within a connection by exact model id.
+
+The normalized response is:
 
 ```json
 [
@@ -264,6 +298,12 @@ The OpenAI-compatible tab contains multiple connection cards. Adding a
 connection asks for label, base URL, and optional key. Saving one does not
 silently change the active generation model.
 
+The UI does not assume that “vLLM” means one endpoint serving every modality.
+A common setup is one core vLLM card assigned to Chat and another vLLM-Omni
+card assigned to Image. A gateway card can expose and hold both assignments.
+Organizations with no approved image-serving endpoint simply leave Image
+unassigned; this does not block onboarding, chat, or non-image Studio formats.
+
 Each card loads its models independently and progressively. A slow or failed
 connection does not block local models or other connections. Model identity in
 the renderer is `(connection_id, name)`, never `(provider, name)`.
@@ -279,7 +319,7 @@ company-model   Capability unknown  [Use for chat] [Assign as image]
 The Image filter includes positively identified image models and the current
 image selection. It must not hide unknown models or claim they are
 incompatible. Assigning an unknown model as Image explains that the endpoint
-must implement `/images/generations` and offers `Test image`,
+must implement `/images/generations` or `/images` and offers `Test image`,
 `Use without testing`, and Cancel.
 
 Onboarding requires one generation selection. Image setup is optional and stays
@@ -295,6 +335,7 @@ Artifact(format=image)
   → image_generation selection
   → connection URL + secret
   → POST /images/generations
+      └── on 404/405 only: POST /images
   → normalized image bytes
   → existing ArtifactFile(primary)
 ```
@@ -341,8 +382,9 @@ Delete:
 - A missing/deleted connection is “no model selected”, not “unknown provider”.
 - A model removed upstream makes its selection stale and disables its role; it
   is never silently replaced.
-- Do not retry image generation automatically after a response may have been
-  produced.
+- Do not retry image generation after a response may have been produced. The
+  one 404/405 alternate-route attempt is allowed because the requested route
+  definitively did not accept generation.
 - vLLM's bearer-key option protects compatible routes, not the entire server.
   Production deployments still require organization-managed network controls.
 
@@ -354,12 +396,16 @@ Delete:
   optional key, key redaction, candidate-before-replace update, URL validation,
   independent health failures, and delete-selection transaction.
 - Discovery: standard OpenAI list, richer capability metadata, duplicate model
-  names on different connections, unknown capability, malformed response,
-  timeout, and auth failure.
+  names on different connections, optional image-modality merge and
+  deduplication, unsupported optional filter, unknown capability, malformed
+  response, timeout, and auth failure.
 - Chat: selected connection resolves the correct URL/key and streams SSE;
   OpenRouter-only fields are absent.
-- Image: selected connection resolves `/images/generations`; base64 and URL
-  responses, MIME/size limits, timeout, missing selection, and explicit test.
+- Image: standard route success, 404/405 fallback to `/images`, successful-route
+  cache, no fallback on ambiguous failures, base64 and URL responses, MIME/size
+  limits, timeout, missing selection, and explicit test.
+- Role topology: chat-only core vLLM, image-only vLLM-Omni, separate
+  connections for each role, and one gateway connection serving both.
 - Frontend: add two connections, progressive independent loading, duplicate
   model ids remain distinct, role assignment, unknown-image confirmation,
   disconnect cleanup, keyboard access, and no secret rendering.
@@ -369,7 +415,10 @@ Delete:
 - Two different OpenAI-compatible endpoints can be connected with different
   keys and identical model ids without collision.
 - One gateway connection can supply both generation and image roles.
-- A direct vLLM connection supplies generation and shows no false image claim.
+- A direct core vLLM connection supplies generation and shows no false image
+  output claim.
+- Separate core vLLM and vLLM-Omni connections can supply generation and image
+  roles respectively; vLLM-Omni uses `/images/generations`.
 - Remote model responses are never copied into a catalogue table.
 - Disconnecting a connection immediately clears only the roles that reference
   it.
@@ -377,4 +426,9 @@ Delete:
   model.
 - Image writes through existing artifact storage; infographic requires no image
   endpoint.
-- No shipped code, schema, route, or user-facing copy depends on OpenRouter.
+- OpenRouter image models discovered through its modality filter work through
+  `/images` without a separate provider, table, credential flow, or branded UI.
+- A user with no image connection can finish onboarding and use every format
+  except Image.
+- No standalone OpenRouter provider or legacy Chat Completions image parser
+  remains.

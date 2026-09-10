@@ -69,8 +69,14 @@ SurfSense adapter + policy                live GET /models per endpoint
         │                                           │
         ▼                                           ▼
 runtime artifact resolver                 SelectedModel(connection_id, name)
-  ├── Ollama ── pull tag ── chat             ├── generation ── /chat/completions
-  └── llama.cpp (future) ── chat             └── image_generation ── /images/generations
+  ├── Ollama ── pull tag ── chat             ├── generation
+  └── llama.cpp (future) ── chat             │   └── core vLLM/gateway
+                                              │       └── /chat/completions
+                                              └── image_generation
+                                                  ├── vLLM-Omni/gateway
+                                                  │   └── /images/generations
+                                                  └── OpenRouter
+                                                      └── /images on 404/405
 ```
 
 llmfit never handles a SurfSense chat request. It can disappear and an already
@@ -89,5 +95,6 @@ STUDIO (button)
     → retrieve (app) → LLM → builder → artifacts row + file
 
   infographic → generation model → strict spec → deterministic SVG/HTML builder
-  image       → image_generation selection → /images/generations → artifact file
+  image       → image_generation selection
+                → /images/generations (or /images on 404/405) → artifact file
 ```

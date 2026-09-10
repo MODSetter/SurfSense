@@ -228,7 +228,8 @@ Own [api/04-studio.md](api/04-studio.md), [worker/04-studio.md](worker/04-studio
 6. **Infographics and Image.** Infographics use the selected generation model
    for a strict spec and a deterministic SVG/HTML builder; they do not depend on
    an image model. Image resolves the optional `image_generation` selection and
-   calls that connection's OpenAI-compatible `/images/generations` endpoint.
+   calls `/images/generations`, falling back to `/images` only after a definitive
+   404/405 so OpenRouter's current Image API uses the same connection model.
    Its key uses the keychain path and the connection must be enabled in the
    egress panel. Only the Image branch depends on A9 and A10.
 

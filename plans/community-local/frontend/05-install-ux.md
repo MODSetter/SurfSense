@@ -142,9 +142,10 @@ The remote tab implements
 The Image filter is an aid, not an authority. It includes models positively
 identified as image-capable and the current image selection. Assigning an
 unknown model explains that the endpoint must implement
-`/images/generations`, then offers **Test image**, **Use without testing**, and
-Cancel. Testing is user-triggered real inference and is never run merely by
-opening the page.
+`/images/generations` or `/images`, then offers **Test image**, **Use without
+testing**, and Cancel. Testing is user-triggered real inference and is never
+run merely by opening the page. Image-only models returned by an endpoint's
+optional `output_modalities=image` catalogue are merged into the same card.
 
 Onboarding completes after one generation selection. Image is optional and
 uses the same remote tab, not a separate provider setup screen. Disconnect
