@@ -11,6 +11,7 @@ from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.llm.router import router as llm_router
+from modules.migration.router import router as migration_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_storage_settings
@@ -55,4 +56,5 @@ def create_app() -> FastAPI:
     app.include_router(chat_router)
     app.include_router(artifacts_router)
     app.include_router(events_router)
+    app.include_router(migration_router)
     return app
