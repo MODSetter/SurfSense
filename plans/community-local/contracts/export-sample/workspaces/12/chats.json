@@ -1,0 +1,40 @@
+[
+  {
+    "id": 501,
+    "title": "Why scale the dot product?",
+    "created_at": "2026-06-02T14:00:00+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "text": "Why is the attention score divided by the square root of the key dimension?",
+        "citations": [],
+        "created_at": "2026-06-02T14:00:00+00:00"
+      },
+      {
+        "role": "assistant",
+        "text": "Without the scaling, dot products grow with the dimension and push the softmax into a region where gradients are tiny. Dividing by the square root keeps the variance of the scores roughly constant.",
+        "citations": [{"title": "Notes"}],
+        "created_at": "2026-06-02T14:00:12+00:00"
+      }
+    ]
+  },
+  {
+    "id": 502,
+    "title": "Quick hello",
+    "created_at": "2026-06-03T09:00:00+00:00",
+    "messages": [
+      {
+        "role": "user",
+        "text": "hello",
+        "citations": [],
+        "created_at": "2026-06-03T09:00:00+00:00"
+      },
+      {
+        "role": "assistant",
+        "text": "Hello. What would you like to look at in this workspace?",
+        "citations": [],
+        "created_at": "2026-06-03T09:00:03+00:00"
+      }
+    ]
+  }
+]
