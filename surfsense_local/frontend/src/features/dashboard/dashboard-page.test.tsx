@@ -750,14 +750,14 @@ describe("dashboard chat", () => {
       await screen.findByRole("complementary", { name: "Workspace sources" })
     ).toBeTruthy()
     expect(
-      screen.getByRole("button", { name: "Hide sources" }).closest(".titlebar-controls")
+      screen.getByRole("button", { name: "Hide right panel" }).closest(".titlebar-controls")
     ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Hide sources" }))
+    await user.click(screen.getByRole("button", { name: "Hide right panel" }))
     expect(
       screen.queryByRole("complementary", { name: "Workspace sources" })
     ).toBeNull()
-    expect(screen.getByRole("button", { name: "Show sources" })).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Show sources" }))
+    expect(screen.getByRole("button", { name: "Show right panel" })).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Show right panel" }))
     expect(
       screen.getByRole("complementary", { name: "Workspace sources" })
     ).toBeTruthy()

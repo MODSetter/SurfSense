@@ -99,17 +99,17 @@ function WorkspaceDashboard({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="pointer-events-auto size-6"
+                className="pointer-events-auto size-6 aria-expanded:bg-transparent"
                 aria-expanded={sourcesOpen}
                 aria-controls="workspace-sources"
-                aria-label={sourcesOpen ? "Hide sources" : "Show sources"}
+                aria-label={sourcesOpen ? "Hide right panel" : "Show right panel"}
                 onClick={toggleSources}
               >
                 <SidebarRightIcon />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">
-              {sourcesOpen ? "Hide sources" : "Show sources"}
+            <TooltipContent side="bottom" collisionPadding={8}>
+              {sourcesOpen ? "Hide right panel" : "Show right panel"}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -118,7 +118,7 @@ function WorkspaceDashboard({
         className={cn(
           "my-2 mr-2 grid min-h-0 min-w-0 grid-rows-[minmax(0,1fr)] overflow-hidden rounded-[16px] border bg-background shadow-sm",
           sourcesOpen
-            ? "grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(280px,320px)]"
+            ? "grid-cols-[minmax(232px,272px)_minmax(520px,1fr)_minmax(336px,400px)]"
             : "grid-cols-[minmax(232px,272px)_minmax(0,1fr)]"
         )}
       >
@@ -288,7 +288,7 @@ export function DashboardPage({
   }
 
   return (
-    <main className="relative grid h-full min-w-[1120px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
+    <main className="relative grid h-full min-w-[1168px] grid-cols-[56px_minmax(0,1fr)] overflow-hidden bg-app-shell">
       <WorkspaceRail
         workspaces={workspaces.workspaces}
         activeWorkspaceId={workspaces.activeWorkspace.id}
