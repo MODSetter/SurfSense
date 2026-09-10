@@ -35,12 +35,14 @@ The onboarding page and Models settings use the same model-selection content:
 catalog, provider tabs, installation, refresh, and immediate Use actions.
 Their shells remain separate. Local **Use** and remote **Use for chat** persist
 the generation row and stay on the page. Onboarding leaves only when
-**Continue** calls `POST /llm/onboarding`. Continue stays disabled until a
+**Start chatting** calls `POST /llm/onboarding`. The button stays disabled until a
 chat model is persisted; Image is optional. Settings has no **Use selected
 model** footer and does not complete onboarding.
 
-Installed local generation models expose Delete after confirmation. Deleting the
-selected model clears the backend selection but not onboarding completion. The
+Installed local generation models expose Delete after confirmation on
+onboarding and in Settings → Models. Deleting the selected model clears the
+backend selection but not onboarding completion. During setup, Start chatting
+stays disabled until another chat model is chosen. After onboarding, the
 dashboard remains available for reading chats and sources, disables sending,
 and links back to Models settings. Remote and embedding-only models never show
 local deletion controls.

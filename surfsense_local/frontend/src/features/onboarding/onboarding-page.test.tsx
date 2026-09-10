@@ -51,7 +51,34 @@ function installApi() {
         llmfit_version: "1.0",
         recommended: [],
         explore: [],
-        installed: [],
+        installed: [
+          {
+            catalog_id: "opaque-llama",
+            canonical_id: "meta-llama/Llama-3.2-1B",
+            family: "Llama",
+            label: "Llama 3.2 1B",
+            publisher: "Meta",
+            parameter_count: 1_000_000_000,
+            fit: "perfect",
+            score: 90,
+            memory_required_gb: 2,
+            disk_size_gb: 1.2,
+            estimated_tps: 40,
+            prefill_tps: 100,
+            ttft_ms: 200,
+            effective_context_length: 8192,
+            estimate_confidence: "high",
+            license: "Llama",
+            runtime: "ollama",
+            runtime_model: "llama3.2:1b",
+            quantization: "Q4_K_M",
+            installed: true,
+            selected: true,
+            can_install: true,
+            can_delete: true,
+            warnings: [],
+          },
+        ],
         warnings: [],
         runtime_status: {},
       })
@@ -144,8 +171,14 @@ describe("model onboarding", () => {
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
     expect(
-      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
+      screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Start chatting" }).hasAttribute("disabled")
     ).toBe(false)
+    expect(
+      screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
+    ).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
     expect(
       screen.queryByRole("button", { name: "Use selected model" })
@@ -163,7 +196,7 @@ describe("model onboarding", () => {
     })
   })
 
-  it("leaves onboarding only after Continue, and needs a chat model", async () => {
+  it("leaves onboarding only after Start chatting, and needs a chat model", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)
       if (path === "/llm/selection/generation") {
@@ -205,7 +238,7 @@ describe("model onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
     expect(
-      (await screen.findByRole("button", { name: "Continue" })).hasAttribute(
+      (await screen.findByRole("button", { name: "Start chatting" })).hasAttribute(
         "disabled"
       )
     ).toBe(true)
@@ -217,14 +250,14 @@ describe("model onboarding", () => {
     ).toBe(false)
   })
 
-  it("posts onboarding completion when Continue is pressed", async () => {
+  it("posts onboarding completion when Start chatting is pressed", async () => {
     const fetchMock = installApi()
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
     const onComplete = vi.fn()
     render(<OnboardingPage onComplete={onComplete} />)
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
-    await user.click(await screen.findByRole("button", { name: "Continue" }))
+    await user.click(await screen.findByRole("button", { name: "Start chatting" }))
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
     expect(
       fetchMock.mock.calls.some(

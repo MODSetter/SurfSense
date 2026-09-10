@@ -149,12 +149,15 @@ function ModelSetupStep({
         {showsModelSelection ? (
           <div className="min-h-0 flex-1 overflow-hidden">
             <ModelSelectionContent
+              allowDelete
               state={state}
               draftKey={null}
               disabled={busy}
               installedFirst
               onSelect={select}
               onCatalogSelected={() => void refresh({ silent: true })}
+              onModelUnavailable={() => void refresh({ silent: true })}
+              onModelsChanged={() => void refresh({ silent: true })}
               refresh={refresh}
             />
           </div>
@@ -189,7 +192,7 @@ function ModelSetupStep({
           onClick={() => void finish()}
         >
           {completing ? <Spinner data-icon="inline-start" /> : null}
-          Continue
+          Start chatting
         </Button>
       </CardFooter>
     </Card>
