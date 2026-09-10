@@ -64,6 +64,20 @@ def test_html_escapes_model_text_so_it_cannot_carry_a_script() -> None:
     assert "&lt;script&gt;" in body
 
 
+def test_infographic_is_deterministic_escaped_svg() -> None:
+    """Infographic facts become safe SVG and searchable markdown without an image API."""
+    raw = (
+        '{"title":"Saturn <script>","summary":"Rings",'
+        '"sections":[{"label":"Count","value":"7","detail":"Main rings"}]}'
+    )
+    built = BUILDERS["infographic"].build(raw, [])
+
+    assert built.primary_mime == "image/svg+xml"
+    assert b"<script>" not in built.primary
+    assert b"Saturn &lt;script&gt;" in built.primary
+    assert "**7**" in built.markdown
+
+
 def test_mindmap_renders_a_nested_outline_and_no_file() -> None:
     """A mind map is a markdown body Markmap reads; there is nothing to download."""
     raw = '{"title": "Saturn", "nodes": [{"label": "Rings", "children": [{"label": "Ice"}]}]}'

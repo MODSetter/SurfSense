@@ -1,6 +1,7 @@
 from worker.studio.builder import Builder
 from worker.studio.builders.flashcards import flashcards
 from worker.studio.builders.html_doc import html_doc
+from worker.studio.builders.infographic import infographic
 from worker.studio.builders.mindmap import mindmap
 from worker.studio.builders.quiz import quiz
 from worker.studio.builders.summary import summary
@@ -16,6 +17,7 @@ BUILDERS: dict[str, Builder] = {
     for builder in (
         summary,
         html_doc,
+        infographic,
         mindmap,
         flashcards,
         quiz,

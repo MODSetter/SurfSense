@@ -5,10 +5,8 @@ from collections.abc import AsyncIterator
 
 from sqlalchemy.orm import Session
 
-from modules.llm.models import ModelRole, SelectedModel
-from modules.llm.providers import get_provider
 from modules.llm.providers.types import Message
-from shared.config import get_llm_settings
+from modules.llm.resolution import ModelResolutionError, resolve_generation
 from worker.studio.artifact import Source
 from worker.studio.builder import Builder
 
@@ -38,12 +36,12 @@ def run_model(session: Session, system: str, sources: list[Source]) -> str:
     builder's prompt, the code path passes its own. Both collect the stream the
     worker cannot await lazily.
     """
-    selected = session.get(SelectedModel, ModelRole.GENERATION)
-    if selected is None:
-        raise NoModelSelectedError("no generation model selected")
-    generator = get_provider(selected.provider, session)
-    if generator is None:
-        raise NoModelSelectedError(f"unknown provider: {selected.provider}")
+    try:
+        resolved = resolve_generation(session)
+    except ModelResolutionError as error:
+        raise NoModelSelectedError(str(error)) from error
+    selected = resolved.selection
+    generator = resolved.generator
 
     messages = [
         Message(role="system", content=system),
@@ -51,13 +49,10 @@ def run_model(session: Session, system: str, sources: list[Source]) -> str:
     ]
     started = time.monotonic()
     logger.info(
-        "studio: model %s/%s starting (%s source chars) url=%s",
+        "studio: model %s/%s starting (%s source chars)",
         selected.provider,
         selected.name,
         sum(len(source.content) for source in sources),
-        get_llm_settings().ollama_base_url
-        if selected.provider == "ollama"
-        else selected.provider,
     )
     reply = asyncio.run(_collect(generator.chat(selected.name, messages)))
     logger.info(
