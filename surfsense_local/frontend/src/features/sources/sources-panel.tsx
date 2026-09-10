@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from "react"
 import {
+  Alert02Icon,
   EllipsisIcon,
   FileIcon,
   FilePlus2Icon,
@@ -50,6 +51,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
 function SelectableSourceRow({
@@ -132,15 +138,24 @@ function SelectableSourceRow({
           />
         ) : null}
         {failed ? (
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            aria-label={`Retry ${document.title}`}
-            onClick={onRetry}
-          >
-            <RefreshCwIcon className="size-4.5" />
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                aria-label={`Ingestion failed. Retry ${document.title}`}
+                className="relative hover:bg-transparent"
+                onClick={onRetry}
+              >
+                <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
+                <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="left" collisionPadding={8}>
+              Ingestion failed. Retry
+            </TooltipContent>
+          </Tooltip>
         ) : null}
       </span>
       <button

@@ -1,5 +1,6 @@
 import * as React from "react"
 import {
+  Alert02Icon as Alert02IconData,
   AlertCircleIcon,
   ArrowDownIcon as ArrowDownIconData,
   ArrowLeftIcon as ArrowLeftIconData,
@@ -78,6 +79,7 @@ function createIcon(icon: IconData) {
   })
 }
 
+export const Alert02Icon = createIcon(Alert02IconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
 export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
