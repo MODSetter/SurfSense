@@ -121,8 +121,7 @@ export function ThreadPanel({
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState("")
   const threadId = thread?.id
-  const title =
-    view.status === "initializing" ? null : thread?.title || "New chat"
+  const title = thread?.title || "New chat"
   const canRename =
     thread != null && thread.id !== autoNamingThreadId && !animateTitle
   const bottomComposer = view.status === "creating" || view.status === "active"
@@ -181,18 +180,9 @@ export function ThreadPanel({
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
       >
+        {thread != null ? (
         <header className="flex h-14 shrink-0 items-center px-5">
-          {title === null ? (
-            <Skeleton className="h-5 w-32" />
-          ) : thread == null ? (
-            <h1 className="min-w-0 truncate font-heading text-base font-medium">
-              <TypewriterText
-                text={title}
-                animate={animateTitle}
-                onComplete={onTitleAnimationComplete}
-              />
-            </h1>
-          ) : editing ? (
+          {editing ? (
             <Input
               ref={titleInputRef}
               value={draft}
@@ -277,6 +267,7 @@ export function ThreadPanel({
             </ButtonGroup>
           )}
         </header>
+        ) : null}
 
         {error ? (
           <Alert variant="destructive" className="m-4 mb-0 w-auto">

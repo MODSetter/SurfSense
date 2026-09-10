@@ -233,7 +233,7 @@ describe("dashboard chat", () => {
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
     const addSources = screen.getByRole("button", { name: "Add sources" })
-    expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
+    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
     expect(
       addSources.closest('[data-composer-placement="center"]')
@@ -246,9 +246,7 @@ describe("dashboard chat", () => {
       '[data-slot="scroll-shadow-top"]'
     )
     expect(conversation.parentElement?.className).toContain("flex-1")
-    expect(conversation.querySelector("header")?.className).not.toContain(
-      "border-b"
-    )
+    expect(conversation.querySelector("header")).toBeNull()
     expect(topShadow).toBeTruthy()
     expect(
       conversation.querySelector('[data-slot="scroll-shadow-bottom"]')

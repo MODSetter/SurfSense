@@ -130,7 +130,7 @@ export function ThreadList({
         </h2>
         <Button
           variant="ghost"
-          className="w-full justify-start"
+          className="w-full justify-start px-2"
           onClick={onNewChat}
         >
           <PencilEdit02Icon />
