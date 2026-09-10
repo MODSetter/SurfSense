@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ApiError } from "@/lib/api"
@@ -77,7 +78,7 @@ export function ConnectionForm({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="select-none">
         <DialogHeader>
           <DialogTitle>
             {connection ? "Edit connection" : "Add connection"}
@@ -115,14 +116,17 @@ export function ConnectionForm({
             disabled={busy}
           />
           {connection?.has_api_key ? (
-            <label className="flex items-center gap-2 text-sm">
+            <Field orientation="horizontal">
               <Checkbox
+                id={`clear-key-${connection.id}`}
                 checked={clearKey}
                 onCheckedChange={(checked) => setClearKey(checked === true)}
                 disabled={busy || Boolean(apiKey)}
               />
-              Remove saved API key
-            </label>
+              <FieldLabel htmlFor={`clear-key-${connection.id}`}>
+                Remove saved API key
+              </FieldLabel>
+            </Field>
           ) : null}
           {verificationError ? (
             <div className="space-y-2 text-sm" role="alert">

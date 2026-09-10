@@ -5,6 +5,7 @@ import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
 
 import type { ModelSelection } from "./api"
 import { OpenAICompatiblePanel } from "./openai-compatible-panel"
+import { SelectedRoles } from "./selected-roles"
 import type { ModelSelectionState } from "./use-model-selection"
 
 const REMOTE = "openai_compatible"
@@ -34,6 +35,7 @@ export function ModelSelectionContent({
 }) {
   const readyState = state.status === "ready" ? state : null
   const [activeTab, setActiveTab] = useState("local")
+  const [rolesVersion, setRolesVersion] = useState(0)
   const userChangedTab = useRef(false)
   const initializedTab = useRef(false)
   const selectedTab =
@@ -65,31 +67,42 @@ export function ModelSelectionContent({
   )
 
   return (
-    <Tabs
-      className="h-full min-h-0 gap-5"
-      value={activeTab}
-      onValueChange={(provider) => {
-        userChangedTab.current = true
-        setActiveTab(provider)
-      }}
-    >
-      <TabsList className="mx-55 w-auto">
-        <TabsTrigger value="local">Local</TabsTrigger>
-        <TabsTrigger value={REMOTE}>OpenAI-compatible</TabsTrigger>
-      </TabsList>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <SelectedRoles
+        key={rolesVersion}
+        generation={readyState?.selection ?? null}
+        generationLoading={state.status === "loading"}
+      />
 
-      <TabsContent value="local" className="min-h-0 overflow-hidden">
-        {localCatalog}
-      </TabsContent>
+      <Tabs
+        className="min-h-0 flex-1 gap-5"
+        value={activeTab}
+        onValueChange={(provider) => {
+          userChangedTab.current = true
+          setActiveTab(provider)
+        }}
+      >
+        <TabsList className="mx-55 w-auto">
+          <TabsTrigger value="local">Local</TabsTrigger>
+          <TabsTrigger value={REMOTE}>OpenAI-compatible</TabsTrigger>
+        </TabsList>
 
-      <TabsContent value={REMOTE} className="min-h-0 overflow-hidden">
-        <OpenAICompatiblePanel
-          disabled={disabled}
-          onGenerationSelected={(selection) => onCatalogSelected?.(selection)}
-          onGenerationUnavailable={onModelUnavailable}
-          onChanged={() => void refresh({ silent: true })}
-        />
-      </TabsContent>
-    </Tabs>
+        <TabsContent value="local" className="min-h-0 overflow-hidden">
+          {localCatalog}
+        </TabsContent>
+
+        <TabsContent value={REMOTE} className="min-h-0 overflow-hidden">
+          <OpenAICompatiblePanel
+            disabled={disabled}
+            onGenerationSelected={(selection) => onCatalogSelected?.(selection)}
+            onGenerationUnavailable={onModelUnavailable}
+            onChanged={() => {
+              setRolesVersion((current) => current + 1)
+              void refresh({ silent: true })
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

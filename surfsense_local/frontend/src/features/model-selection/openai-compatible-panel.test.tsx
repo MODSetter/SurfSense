@@ -33,7 +33,7 @@ const connections = [
 ]
 
 describe("OpenAI-compatible connections", () => {
-  it("loads cards independently and scopes duplicate model IDs", async () => {
+  it("loads and searches models only after opening a connection", async () => {
     let resolveSlow!: (response: Response) => void
     const slow = new Promise<Response>((resolve) => {
       resolveSlow = resolve
@@ -95,13 +95,42 @@ describe("OpenAI-compatible connections", () => {
       />
     )
 
-    expect(await screen.findByText("shared-model")).toBeTruthy()
-    expect(screen.getByText("Chat gateway")).toBeTruthy()
-    expect(screen.getAllByText("Loading models…")).toHaveLength(1)
+    expect(await screen.findByText("Chat gateway")).toBeTruthy()
+    expect(screen.queryByText("shared-model")).toBeNull()
+    expect(
+      fetchMock.mock.calls.some(([path]) => String(path).endsWith("/models"))
+    ).toBe(false)
     expect(
       screen.getByText("Chat gateway").closest('[data-slot="card"]')
         ?.parentElement?.className
     ).toContain("pl-px")
+
+    const browseButtons = screen.getAllByRole("button", {
+      name: "Browse models",
+    })
+    await user.click(browseButtons[1])
+    expect(await screen.findByText("shared-model")).toBeTruthy()
+    expect(
+      fetchMock.mock.calls.some(
+        ([path]) => path === "/llm/connections/1/models"
+      )
+    ).toBe(false)
+    const exactModelInput = screen.getByLabelText("Exact model ID")
+    const searchInput = screen.getByLabelText(
+      "Search models from Image gateway"
+    )
+    expect(
+      exactModelInput.compareDocumentPosition(searchInput) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      searchInput.closest('[data-slot="dialog-content"]')?.className
+    ).toContain("select-none")
+    expect(searchInput).toBe(document.activeElement)
+
+    await user.type(searchInput, "missing")
+    expect(await screen.findByText("No matching models")).toBeTruthy()
+    await user.clear(searchInput)
 
     const fastModel = screen.getByText("shared-model").closest("li")
     const chatButton = fastModel?.querySelector("button")
@@ -135,6 +164,14 @@ describe("OpenAI-compatible connections", () => {
     )
     expect(JSON.parse(String(imageWrite?.[1]?.body)).allow_unlisted).toBe(true)
 
+    const closeButtons = screen.getAllByRole("button", { name: "Close" })
+    const closeButton = closeButtons.at(-1)
+    if (!closeButton) throw new Error("model browser close button missing")
+    await user.click(closeButton)
+    await user.click(
+      screen.getAllByRole("button", { name: "Browse models" })[0]
+    )
+    expect(screen.getByRole("status", { name: "Loading models" })).toBeTruthy()
     resolveSlow(
       Response.json([
         {
@@ -146,9 +183,7 @@ describe("OpenAI-compatible connections", () => {
         },
       ])
     )
-    await waitFor(() =>
-      expect(screen.getAllByText("shared-model")).toHaveLength(2)
-    )
+    expect(await screen.findByText("shared-model")).toBeTruthy()
   })
 
   it("requires explicit Save anyway and names cleared roles", async () => {
@@ -223,6 +258,11 @@ describe("OpenAI-compatible connections", () => {
     await waitFor(() => expect(onGenerationUnavailable).toHaveBeenCalledOnce())
 
     await user.click(screen.getByRole("button", { name: "Add connection" }))
+    expect(
+      screen
+        .getByLabelText("Connection label")
+        .closest('[data-slot="dialog-content"]')?.className
+    ).toContain("select-none")
     await user.type(screen.getByLabelText("Connection label"), "Images")
     await user.type(
       screen.getByLabelText("Base URL"),

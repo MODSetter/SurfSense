@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 import {
   AlertDialog,
@@ -28,8 +28,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from "@/components/ui/empty"
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
+import { DotIcon, SearchIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ApiError } from "@/lib/api"
 
 import {
@@ -54,6 +64,8 @@ function supportsChat(model: ConnectionModel) {
   return model.capabilities.includes("completion")
 }
 
+type ModelFilter = "all" | "chat" | "image" | "unknown"
+
 export function ConnectionCard({
   connection,
   generationSelection,
@@ -73,10 +85,13 @@ export function ConnectionCard({
   onGenerationUnavailable?: () => void
   onGenerationSelected: (selection: ModelSelection) => void
 }) {
-  const [models, setModels] = useState<ConnectionModel[]>([])
-  const [loading, setLoading] = useState(true)
+  const [models, setModels] = useState<ConnectionModel[] | null>(null)
+  const [browserOpen, setBrowserOpen] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [manualName, setManualName] = useState("")
+  const [search, setSearch] = useState("")
+  const [filter, setFilter] = useState<ModelFilter>("all")
   const [disconnecting, setDisconnecting] = useState(false)
   const [imageModel, setImageModel] = useState<ConnectionModel | null>(null)
   const [imageBusy, setImageBusy] = useState(false)
@@ -86,9 +101,15 @@ export function ConnectionCard({
     model: ConnectionModel
     message: string
   } | null>(null)
+  const modelsRequest = useRef<AbortController | null>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
 
   const loadModels = () => {
+    modelsRequest.current?.abort()
     const controller = new AbortController()
+    modelsRequest.current = controller
+    setLoading(true)
+    setError(null)
     void getConnectionModels(connection.id, controller.signal)
       .then(setModels)
       .catch((cause: unknown) => {
@@ -97,21 +118,9 @@ export function ConnectionCard({
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false)
       })
-    return () => controller.abort()
   }
 
-  useEffect(() => {
-    const controller = new AbortController()
-    void getConnectionModels(connection.id, controller.signal)
-      .then(setModels)
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) setError(messageFrom(cause))
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false)
-      })
-    return () => controller.abort()
-  }, [connection.id])
+  useEffect(() => () => modelsRequest.current?.abort(), [])
   useEffect(
     () => () => {
       if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -168,6 +177,23 @@ export function ConnectionCard({
     generationSelection?.connection_id === connection.id ? "Chat" : null,
     imageSelection?.connection_id === connection.id ? "Image" : null,
   ].filter(Boolean)
+  const generationName =
+    generationSelection?.connection_id === connection.id
+      ? generationSelection.name
+      : null
+  const imageName =
+    imageSelection?.connection_id === connection.id ? imageSelection.name : null
+  const filteredModels = useMemo(() => {
+    if (!models) return []
+    const query = search.trim().toLocaleLowerCase()
+    return models.filter((model) => {
+      if (!model.name.toLocaleLowerCase().includes(query)) return false
+      if (filter === "chat") return supportsChat(model)
+      if (filter === "image") return supportsImage(model)
+      if (filter === "unknown") return !model.capability_known
+      return true
+    })
+  }, [filter, models, search])
 
   return (
     <Card>
@@ -179,7 +205,19 @@ export function ConnectionCard({
               {connection.base_url}
             </CardDescription>
           </div>
-          <div className="flex gap-1">
+          <div className="flex shrink-0 flex-wrap justify-end gap-1">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              disabled={disabled}
+              onClick={() => {
+                setBrowserOpen(true)
+                if (models === null && !loading) loadModels()
+              }}
+            >
+              Browse models
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -193,7 +231,7 @@ export function ConnectionCard({
               <AlertDialogTrigger asChild>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="destructive"
                   size="sm"
                   disabled={disabled}
                 >
@@ -239,123 +277,210 @@ export function ConnectionCard({
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        {loading ? (
-          <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Spinner /> Loading models…
+      {error && !browserOpen ? (
+        <CardContent>
+          <p className="text-sm text-destructive" role="alert">
+            {error}
           </p>
-        ) : error ? (
-          <div className="space-y-2 text-sm">
-            <p className="text-destructive">{error}</p>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setLoading(true)
-                setError(null)
-                loadModels()
-              }}
-            >
-              Retry
-            </Button>
-          </div>
-        ) : models.length ? (
-          <ul className="space-y-2">
-            {models.map((model) => (
-              <li
-                key={`${connection.id}\0${model.name}`}
-                className="flex flex-wrap items-center gap-2 rounded-md border p-2"
-              >
-                <div className="min-w-40 flex-1">
-                  <p className="truncate text-sm font-medium">{model.name}</p>
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {model.capability_known ? (
-                      model.capabilities.map((capability) => (
-                        <Badge key={capability} variant="outline">
-                          {capability.replaceAll("_", " ")}
-                        </Badge>
-                      ))
-                    ) : (
-                      <Badge variant="outline">Capability unknown</Badge>
-                    )}
-                    {generationSelection?.connection_id === connection.id &&
-                    generationSelection.name === model.name ? (
-                      <Badge variant="secondary">Chat</Badge>
-                    ) : null}
-                    {imageSelection?.connection_id === connection.id &&
-                    imageSelection.name === model.name ? (
-                      <Badge variant="secondary">Image</Badge>
-                    ) : null}
-                  </div>
-                </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={
-                    disabled || (model.capability_known && !supportsChat(model))
-                  }
-                  onClick={() => void assign("generation", model)}
-                >
-                  Use for chat
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  disabled={
-                    disabled ||
-                    (model.capability_known && !supportsImage(model))
-                  }
-                  onClick={() =>
-                    model.capability_known
-                      ? void assign("image_generation", model)
-                      : setImageModel(model)
-                  }
-                >
-                  Assign as image
-                </Button>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No models were returned. Enter an exact model ID below.
-          </p>
-        )}
+        </CardContent>
+      ) : null}
 
-        <div className="flex gap-2">
-          <Input
-            value={manualName}
-            onChange={(event) => setManualName(event.target.value)}
-            placeholder="Manual model ID"
-            aria-label={`Manual model ID for ${connection.label}`}
-            disabled={disabled}
-          />
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={disabled || !manualName.trim()}
-            onClick={() => {
-              const model = manualModel()
-              if (model) setUnlisted({ role: "generation", model, message: "" })
-            }}
-          >
-            Use for chat
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={disabled || !manualName.trim()}
-            onClick={() => setImageModel(manualModel())}
-          >
-            Assign as image
-          </Button>
-        </div>
-      </CardContent>
+      <Dialog
+        open={browserOpen}
+        onOpenChange={(open) => {
+          setBrowserOpen(open)
+          if (open && models === null && !loading) loadModels()
+        }}
+      >
+        <DialogContent
+          className="flex h-[85svh] max-h-[44rem] flex-col overflow-hidden select-none sm:max-w-3xl"
+          onOpenAutoFocus={(event) => {
+            event.preventDefault()
+            searchRef.current?.focus()
+          }}
+        >
+          <DialogHeader>
+            <DialogTitle>Browse models</DialogTitle>
+            <DialogDescription className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate">{connection.label}</span>
+              <DotIcon aria-hidden="true" className="size-3 shrink-0" />
+              <span>Models are loaded live from this connection.</span>
+            </DialogDescription>
+          </DialogHeader>
+
+          <Field>
+            <FieldLabel htmlFor={`manual-model-${connection.id}`}>
+              Exact model ID
+            </FieldLabel>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id={`manual-model-${connection.id}`}
+                value={manualName}
+                onChange={(event) => setManualName(event.target.value)}
+                placeholder="provider/model-id"
+                disabled={disabled}
+              />
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={disabled || !manualName.trim()}
+                onClick={() => {
+                  const model = manualModel()
+                  if (model) {
+                    setUnlisted({
+                      role: "generation",
+                      model,
+                      message: "",
+                    })
+                  }
+                }}
+              >
+                Use for chat
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={disabled || !manualName.trim()}
+                onClick={() => setImageModel(manualModel())}
+              >
+                Assign as image
+              </Button>
+            </div>
+            <FieldDescription>
+              Use this when the endpoint does not list a model.
+            </FieldDescription>
+          </Field>
+
+          <div className="flex min-h-0 flex-1 flex-col gap-3 border-t pt-4">
+            <div className="relative">
+              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                ref={searchRef}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search available models"
+                aria-label={`Search models from ${connection.label}`}
+                className="pl-9"
+              />
+            </div>
+            <Tabs
+              value={filter}
+              onValueChange={(value) => setFilter(value as ModelFilter)}
+            >
+              <TabsList className="w-full sm:w-fit">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="chat">Chat</TabsTrigger>
+                <TabsTrigger value="image">Image</TabsTrigger>
+                <TabsTrigger value="unknown">Unknown</TabsTrigger>
+              </TabsList>
+            </Tabs>
+
+            {loading ? (
+              <p
+                className="flex items-center gap-2 py-8 text-sm text-muted-foreground"
+                role="status"
+                aria-label="Loading models"
+              >
+                <Spinner /> Loading models…
+              </p>
+            ) : error ? (
+              <div className="flex flex-col items-start gap-2 py-4 text-sm">
+                <p className="text-destructive" role="alert">
+                  {error}
+                </p>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={loadModels}
+                >
+                  Retry
+                </Button>
+              </div>
+            ) : filteredModels.length ? (
+              <ScrollShadow className="flex-1" viewportClassName="pr-1">
+                <ul className="flex flex-col gap-2 pb-1">
+                  {filteredModels.map((model) => (
+                    <li
+                      key={`${connection.id}\0${model.name}`}
+                      className="flex flex-wrap items-center gap-2 rounded-md border p-3"
+                    >
+                      <div className="min-w-40 flex-1">
+                        <p className="truncate text-sm font-medium">
+                          {model.name}
+                        </p>
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {model.capability_known ? (
+                            model.capabilities.map((capability) => (
+                              <Badge key={capability} variant="outline">
+                                {capability.replaceAll("_", " ")}
+                              </Badge>
+                            ))
+                          ) : (
+                            <Badge variant="outline">Capability unknown</Badge>
+                          )}
+                          {generationName === model.name ? (
+                            <Badge variant="secondary">Chat</Badge>
+                          ) : null}
+                          {imageName === model.name ? (
+                            <Badge variant="secondary">Image</Badge>
+                          ) : null}
+                        </div>
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={
+                          disabled ||
+                          (model.capability_known && !supportsChat(model))
+                        }
+                        onClick={() => void assign("generation", model)}
+                      >
+                        Use for chat
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={
+                          disabled ||
+                          (model.capability_known && !supportsImage(model))
+                        }
+                        onClick={() =>
+                          model.capability_known
+                            ? void assign("image_generation", model)
+                            : setImageModel(model)
+                        }
+                      >
+                        Assign as image
+                      </Button>
+                    </li>
+                  ))}
+                </ul>
+              </ScrollShadow>
+            ) : (
+              <Empty className="min-h-40 border">
+                <EmptyHeader>
+                  <EmptyTitle>
+                    {models?.length
+                      ? "No matching models"
+                      : "No models returned"}
+                  </EmptyTitle>
+                  <EmptyDescription>
+                    {models?.length
+                      ? "Try another search or capability filter."
+                      : "Enter an exact model ID above."}
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            )}
+          </div>
+          <DialogFooter showCloseButton />
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={imageModel !== null}

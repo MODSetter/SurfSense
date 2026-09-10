@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import {
   ChevronDownIcon,
+  DotIcon,
   SearchIcon,
   Settings2Icon,
 } from "@/components/ui/icons"
@@ -138,8 +139,12 @@ export function ModelPicker({
                         <span className="sidebar-row-title-fade min-w-0 flex-1 overflow-hidden whitespace-nowrap">
                           {candidate.name}
                           {candidate.connection_label ? (
-                            <span className="ml-1 text-muted-foreground">
-                              · {candidate.connection_label}
+                            <span className="ml-1 inline-flex items-center gap-1 align-middle text-muted-foreground">
+                              <DotIcon
+                                aria-hidden="true"
+                                className="size-3 shrink-0"
+                              />
+                              {candidate.connection_label}
                             </span>
                           ) : null}
                         </span>

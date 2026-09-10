@@ -113,29 +113,38 @@ from real workloads.
 
 ## OpenAI-compatible connections
 
-The shared model-selection content has two top-level tabs:
+The shared model-selection content shows one Chat row and one Image row
+above the tabs, labelled with `Local` or the connection name. Cards do not
+repeat those roles.
 
 ```text
+Chat  …  ·  Local | connection
+Image …  ·  Local | connection
+─────────────────────────────
 Local | OpenAI-compatible
 ```
 
 The remote tab implements
 [`../api/05b-openai-compatible-connections.md`](../api/05b-openai-compatible-connections.md):
 
-- render one card per named connection with label, base URL, health, models,
-  Edit, and Disconnect;
+- render one compact card per named connection with its label, base URL,
+  assigned Chat and Image models, **Browse models**, Edit, and Disconnect;
 - add/edit asks for a label, base URL, and optional key; an existing key is
   represented only by `has_api_key`;
 - when `/models` cannot verify an endpoint, show the reason and require an
   explicit **Save anyway** confirmation before enabling manual model-id entry;
-- load cards independently so one slow endpoint does not block another or the
-  Local tab;
+- do not fetch remote catalogues while rendering cards; fetch a connection's
+  models when **Browse models** opens and cache them while the card remains
+  mounted;
 - key list and row state by `(connection_id, model_name)`, since two endpoints
   may expose the same model id;
 - connecting an endpoint does not select every discovered model and does not
   switch the active model;
-- each model offers explicit **Use for chat** and **Assign as image** actions;
-- allow manual model-id entry when a valid endpoint does not list the model;
+- show exact model-id entry first in the browser, then live name search,
+  All/Chat/Image/Unknown filters, and a fixed-height scrollable model list;
+- each listed model offers explicit **Use for chat** and **Assign as image**
+  actions, and assigning either role keeps the browser open;
+- allow exact model-id entry when a valid endpoint does not list the model;
 - keep capability-unknown models visible and assignable instead of guessing
   from their names.
 

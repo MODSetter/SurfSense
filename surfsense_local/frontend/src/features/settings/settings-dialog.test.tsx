@@ -105,6 +105,28 @@ describe("SettingsDialog", () => {
             updated_at: "2026-09-09T00:00:00Z",
           })
         }
+        if (path === "/llm/selection/image_generation") {
+          return Response.json({
+            role: "image_generation",
+            provider: "openai_compatible",
+            connection_id: 9,
+            name: "flux",
+            updated_at: "2026-09-09T00:00:00Z",
+          })
+        }
+        if (path === "/llm/connections") {
+          return Response.json([
+            {
+              id: 9,
+              label: "openrouter test",
+              provider: "openai_compatible",
+              base_url: "https://openrouter.ai/api/v1",
+              has_api_key: true,
+              created_at: "2026-09-09T00:00:00Z",
+              updated_at: "2026-09-09T00:00:00Z",
+            },
+          ])
+        }
         if (path === "/llm/catalog") {
           return Response.json({
             hardware: null,
@@ -126,6 +148,13 @@ describe("SettingsDialog", () => {
 
     expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
     expect(screen.queryByText("Currently using")).toBeNull()
+
+    const roles = await screen.findByRole("region", { name: "Models in use" })
+    expect(roles.textContent).toContain("qwen3:1.7b")
+    expect(roles.textContent).toContain("Local")
+    expect(roles.textContent).toContain("flux")
+    expect(roles.textContent).toContain("openrouter test")
+
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
     expect(
