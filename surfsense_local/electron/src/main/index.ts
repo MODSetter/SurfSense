@@ -1,6 +1,6 @@
 import { join } from "node:path"
 
-import { app, BrowserWindow, ipcMain, shell } from "electron"
+import { app, BrowserWindow, ipcMain, Menu, shell } from "electron"
 
 import { managedOriginalPath } from "./document-files.mts"
 import { getFreePort, waitForHealth } from "./net.ts"
@@ -173,6 +173,47 @@ function applyTitleBarOverlay(
   })
 }
 
+// Packaged only. Dev keeps Electron's default View menu (Cmd/Ctrl+R).
+// https://www.electronjs.org/docs/latest/tutorial/application-menu
+function installProductionMenu(): void {
+  if (!app.isPackaged) return
+
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+      { role: "fileMenu" },
+      { role: "editMenu" },
+      {
+        label: "View",
+        submenu: [
+          {
+            label: "Reload",
+            click: (_item, win) => {
+              if (win instanceof BrowserWindow) win.reload()
+            },
+          },
+          {
+            label: "Force Reload",
+            click: (_item, win) => {
+              if (win instanceof BrowserWindow) {
+                win.webContents.reloadIgnoringCache()
+              }
+            },
+          },
+          { role: "toggleDevTools" },
+          { type: "separator" },
+          { role: "resetZoom" },
+          { role: "zoomIn" },
+          { role: "zoomOut" },
+          { type: "separator" },
+          { role: "togglefullscreen" },
+        ],
+      },
+      { role: "windowMenu" },
+    ])
+  )
+}
+
 function createWindow(apiUrl: string): void {
   const savedState = app.isPackaged ? loadWindowState() : null
   const win = new BrowserWindow({
@@ -238,6 +279,7 @@ function main(): void {
     .then(async () => {
       const boot = await bootSidecars()
       registerDocumentHandlers(boot.dataDir)
+      installProductionMenu()
       createWindow(boot.apiUrl)
       app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0)
