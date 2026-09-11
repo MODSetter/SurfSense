@@ -23,6 +23,13 @@ const workspace = {
   updated_at: "2026-09-05T00:00:00Z",
 }
 
+function rememberOpenThread(workspaceId: number, threadId: number) {
+  localStorage.setItem(
+    `surfsense:last-thread:${workspaceId}:v1`,
+    String(threadId)
+  )
+}
+
 afterEach(() => {
   cleanup()
   vi.useRealTimers()
@@ -107,6 +114,7 @@ describe("dashboard chat", () => {
     )
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
+    rememberOpenThread(1, 10)
 
     render(
       <ThemeProvider>
@@ -186,6 +194,7 @@ describe("dashboard chat", () => {
       })
     )
     const user = userEvent.setup()
+    rememberOpenThread(1, 10)
 
     render(
       <ThemeProvider>
@@ -305,7 +314,15 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull()
+    const conversationWhileLoading = screen.getByRole("region", {
+      name: "Conversation",
+    })
+    expect(
+      await screen.findByRole("textbox", { name: "Message" })
+    ).toBeTruthy()
+    expect(
+      conversationWhileLoading.querySelector('[data-slot="skeleton"]')
+    ).toBeNull()
     expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
 
     resolveThreads(Response.json([]))
@@ -397,6 +414,154 @@ describe("dashboard chat", () => {
       ).toBeTruthy()
       expect((resetInput as HTMLTextAreaElement).value).toBe("")
     })
+  })
+
+  it("keeps a new chat after remount", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "ollama", healthy: true, can_download: true },
+        ])
+      }
+      if (
+        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+      ) {
+        return Response.json([])
+      }
+      if (path === "/workspaces/1/chat/threads") return Response.json([thread])
+      if (path === "/chat/threads/10/messages") return Response.json([])
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    rememberOpenThread(1, 10)
+    const page = (
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    render(page)
+    expect(
+      await within(screen.getByRole("region", { name: "Conversation" })).findByRole(
+        "button",
+        { name: "Original title" }
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("textbox", { name: "Message" })
+          .closest('[data-composer-placement="center"]')
+      ).toBeTruthy()
+    })
+    expect(
+      within(screen.getByRole("region", { name: "Conversation" })).queryByRole(
+        "button",
+        { name: "Original title" }
+      )
+    ).toBeNull()
+
+    cleanup()
+    render(page)
+    const input = await screen.findByRole("textbox", { name: "Message" })
+    expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
+    expect(
+      within(screen.getByRole("region", { name: "Conversation" })).queryByRole(
+        "button",
+        { name: "Original title" }
+      )
+    ).toBeNull()
+  })
+
+  it("shows message skeletons only while a loaded chat’s messages load", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    let resolveMessages!: (response: Response) => void
+    const messagesResponse = new Promise<Response>((resolve) => {
+      resolveMessages = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") return Response.json([thread])
+        if (path === "/chat/threads/10/messages") return messagesResponse
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    rememberOpenThread(1, 10)
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await waitFor(() => {
+      expect(conversation.querySelector('[data-slot="skeleton"]')).toBeTruthy()
+    })
+    expect(
+      screen
+        .queryByRole("textbox", { name: "Message" })
+        ?.closest('[data-composer-placement="center"]')
+    ).toBeNull()
+
+    resolveMessages(Response.json([]))
+    await waitFor(() => {
+      expect(conversation.querySelector('[data-slot="skeleton"]')).toBeNull()
+    })
+    expect(
+      screen
+        .getByRole("textbox", { name: "Message" })
+        .closest('[data-composer-placement="bottom"]')
+    ).toBeTruthy()
   })
 
   it("creates a thread on first send and scopes retrieval to selected sources", async () => {

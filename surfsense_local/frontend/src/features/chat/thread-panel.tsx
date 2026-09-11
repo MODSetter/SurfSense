@@ -67,7 +67,7 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
     view.status === "active" ? `thread:${view.threadId}` : view.status
 
   useEffect(() => {
-    if (conversationId === "initializing" || conversationId === "creating") {
+    if (conversationId === "creating") {
       return
     }
     void aui.thread.composer().reset()
@@ -279,7 +279,7 @@ export function ThreadPanel({
           <ChatViewport
             footer={bottomComposer ? composer("bottom") : undefined}
           >
-            {view.status === "initializing" || isLoading ? (
+            {isLoading ? (
               <div className="mx-auto flex w-full max-w-xl flex-col">
                 <div className="flex flex-col items-end px-6 py-3">
                   <Skeleton className="h-10 w-[42%] rounded-2xl rounded-br-md" />
