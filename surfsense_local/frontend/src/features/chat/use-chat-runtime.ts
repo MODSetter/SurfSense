@@ -40,7 +40,7 @@ const EMPTY_THREADS: ChatThread[] = []
 const EMPTY_MESSAGES: ChatMessage[] = []
 
 function lastThreadKey(workspaceId: number) {
-  return `surfsense-local:last-thread:${workspaceId}:v1`
+  return `surfsense:last-thread:${workspaceId}:v1`
 }
 
 function rememberThread(workspaceId: number, threadId: number | null) {

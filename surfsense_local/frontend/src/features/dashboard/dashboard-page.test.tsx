@@ -13,6 +13,7 @@ import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
+import { RIGHT_TAB_KEY } from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
 
 const workspace = {
@@ -1018,6 +1019,62 @@ describe("dashboard chat", () => {
       screen
         .getByRole("tab", { name: "Artifacts" })
         .getAttribute("aria-selected")
+    ).toBe("true")
+  })
+
+  it("remembers the sources and artifacts tab across remounts", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "ollama", healthy: true, can_download: true },
+        ])
+      }
+      if (
+        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+      ) {
+        return Response.json([])
+      }
+      if (path === "/workspaces/1/chat/threads") return Response.json([])
+      if (path === "/workspaces/1/studio/formats") return Response.json([])
+      if (path === "/workspaces/1/artifacts") return Response.json([])
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const page = (
+      <TooltipProvider>
+        <DashboardPage
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    render(page)
+    expect(
+      await screen.findByRole("complementary", { name: "Workspace sources" })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    expect(localStorage.getItem(RIGHT_TAB_KEY)).toBe("artifacts")
+    expect(
+      screen.getByRole("tab", { name: "Artifacts" }).getAttribute("aria-selected")
+    ).toBe("true")
+
+    cleanup()
+    render(page)
+    expect(
+      await screen.findByRole("complementary", { name: "Workspace artifacts" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("tab", { name: "Artifacts" }).getAttribute("aria-selected")
     ).toBe("true")
   })
 })
