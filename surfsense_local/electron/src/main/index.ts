@@ -13,6 +13,27 @@ import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
+function allowedExternalUrl(url: string): string | null {
+  try {
+    const parsed = new URL(url)
+    if (
+      parsed.protocol === "https:" &&
+      (parsed.hostname === "surfsense.com" ||
+        parsed.hostname === "www.surfsense.com")
+    ) {
+      return parsed.href
+    }
+  } catch {
+    return null
+  }
+  return null
+}
+
+function openAllowedExternal(url: string): void {
+  const allowed = allowedExternalUrl(url)
+  if (allowed) void shell.openExternal(allowed)
+}
+
 // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
 const DATA_DIR = join(
   app.getPath("home"),
@@ -108,6 +129,18 @@ function registerDocumentHandlers(dataDir: string): void {
     }
   })
 
+  ipcMain.handle("shell:open-external", async (event, url) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame ||
+      typeof url !== "string"
+    ) {
+      return
+    }
+    const allowed = allowedExternalUrl(url)
+    if (allowed) await shell.openExternal(allowed)
+  })
+
   ipcMain.handle("documents:reveal", async (event, workspaceId, documentId) => {
     if (
       !trusted(event.sender) ||
@@ -184,7 +217,22 @@ async function shutdown(): Promise<void> {
   if (sidecars) await stopAll(sidecars)
 }
 
+function denyAppWindows(contents: Electron.WebContents): void {
+  contents.setWindowOpenHandler(({ url }) => {
+    openAllowedExternal(url)
+    return { action: "deny" }
+  })
+  contents.on("will-navigate", (event, url) => {
+    if (!url.startsWith("https:")) return
+    event.preventDefault()
+    openAllowedExternal(url)
+  })
+}
+
 function main(): void {
+  app.on("web-contents-created", (_event, contents) => {
+    denyAppWindows(contents)
+  })
   app
     .whenReady()
     .then(async () => {

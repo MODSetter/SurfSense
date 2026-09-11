@@ -27,6 +27,7 @@ import {
   FolderLibraryIcon as FolderLibraryIconData,
   FolderOpenIcon as FolderOpenIconData,
   Image01Icon as Image01IconData,
+  InformationCircleIcon as InformationCircleIconData,
   KeyRoundIcon as KeyRoundIconData,
   LayoutGridIcon as LayoutGridIconData,
   Loading03Icon,
@@ -51,6 +52,7 @@ import {
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
+  Upload01Icon as Upload01IconData,
   ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
   WebDesign01Icon as WebDesign01IconData,
@@ -109,6 +111,7 @@ export const FileTextIcon = createIcon(FileTextIconData)
 export const FolderLibraryIcon = createIcon(FolderLibraryIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
+export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const KeyRoundIcon = createIcon(KeyRoundIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
@@ -131,6 +134,7 @@ export const Settings2Icon = createIcon(Settings02Icon)
 export const Shapes01Icon = createIcon(Shapes01IconData)
 export const SparklesIcon = createIcon(SparklesIconData)
 export const SunIcon = createIcon(Sun03IconData)
+export const Upload01Icon = createIcon(Upload01IconData)
 export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(
   SquareDashedMousePointerIconData

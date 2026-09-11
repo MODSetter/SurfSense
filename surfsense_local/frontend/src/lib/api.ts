@@ -16,6 +16,7 @@ declare global {
         color: string
         symbolColor: string
       }) => Promise<void>
+      openExternal?: (url: string) => Promise<void>
     }
   }
 }

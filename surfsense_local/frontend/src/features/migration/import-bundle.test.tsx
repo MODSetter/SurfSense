@@ -111,10 +111,12 @@ describe("importing a SurfSense cloud export", () => {
       expect(screen.getByRole("button", { name: "Research" })).toBeTruthy()
     })
     expect(screen.getByRole("button", { name: "Empty" })).toBeTruthy()
-    const [, init] = fetchMock.mock.calls.find(
+    const importCall = fetchMock.mock.calls.find(
       ([input]) => String(input) === "/migration/import"
-    )!
-    expect((init?.body as FormData).get("file")).toBe(bundle)
+    )
+    const body = importCall?.[1]?.body
+    expect(body).toBeInstanceOf(FormData)
+    expect((body as FormData).get("file")).toBe(bundle)
   })
 
   it("shows the server's reason when the bundle is refused", async () => {
@@ -149,16 +151,40 @@ describe("importing a SurfSense cloud export", () => {
     const user = userEvent.setup()
     render(
       <ThemeProvider>
-        <SettingsDialog
-          open
-          section="general"
-          onOpenChange={vi.fn()}
-          onSectionChange={vi.fn()}
-          onModelSelected={vi.fn()}
-          onImported={onImported}
-        />
+        <TooltipProvider>
+          <SettingsDialog
+            open
+            section="general"
+            onOpenChange={vi.fn()}
+            onSectionChange={vi.fn()}
+            onModelSelected={vi.fn()}
+            onImported={onImported}
+          />
+        </TooltipProvider>
       </ThemeProvider>
     )
+
+    expect(
+      screen.getByRole("heading", { name: "Import from SurfSense cloud" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", {
+        name: "More about importing from SurfSense cloud",
+      })
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Upload" })).toBeTruthy()
+    const openExternal = vi.fn(async () => undefined)
+    vi.stubGlobal("surfsense", {
+      apiUrl: "",
+      platform: "darwin",
+      openDocument: vi.fn(async () => ""),
+      revealDocument: vi.fn(async () => ""),
+      openExternal,
+    })
+    const exportLink = screen.getByRole("link", { name: "SurfSense cloud" })
+    expect(exportLink.getAttribute("href")).toBe("https://surfsense.com/sunset")
+    await user.click(exportLink)
+    expect(openExternal).toHaveBeenCalledWith("https://surfsense.com/sunset")
 
     await user.upload(
       screen.getByLabelText("Import from SurfSense cloud"),
