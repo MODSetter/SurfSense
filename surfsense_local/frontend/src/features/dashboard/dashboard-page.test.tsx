@@ -305,12 +305,12 @@ describe("dashboard chat", () => {
     )
 
     expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull()
-    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
+    expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
 
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
     const addSources = screen.getByRole("button", { name: "Add sources" })
-    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
+    expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
     expect(
       addSources.closest('[data-composer-placement="center"]')
@@ -323,7 +323,7 @@ describe("dashboard chat", () => {
       '[data-slot="scroll-shadow-top"]'
     )
     expect(conversation.parentElement?.className).toContain("flex-1")
-    expect(conversation.querySelector("header")).toBeNull()
+    expect(conversation.querySelector("header")).toBeTruthy()
     expect(topShadow).toBeTruthy()
     expect(
       conversation.querySelector('[data-slot="scroll-shadow-bottom"]')

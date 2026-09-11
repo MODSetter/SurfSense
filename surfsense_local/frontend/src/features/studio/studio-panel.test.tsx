@@ -41,13 +41,13 @@ function StudioHarness({
       <StudioPanel
         documents={documents}
         formats={studio.formats}
-        isLoading={studio.isLoading}
         isCreating={studio.isCreating}
         error={studio.error}
         onGenerate={studio.create}
       />
       <ArtifactList
         artifacts={studio.artifacts}
+        isLoading={studio.isLoading}
         onOpen={vi.fn()}
         onDelete={(id) => void studio.remove(id)}
       />
@@ -80,6 +80,24 @@ afterEach(() => {
 })
 
 describe("studio panel", () => {
+  it("shows the catalog cards before formats load", () => {
+    render(
+      <TooltipProvider>
+        <StudioPanel
+          documents={[]}
+          formats={[]}
+          isCreating={false}
+          error={null}
+          onGenerate={async () => false}
+        />
+      </TooltipProvider>
+    )
+
+    expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Infographic" })).toBeTruthy()
+    expect(document.querySelector("[data-slot=skeleton]")).toBeNull()
+  })
+
   it("submits a job for the chosen format and sources", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {

@@ -175,9 +175,12 @@ export function ThreadPanel({
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
       >
-        {thread != null ? (
         <header className="flex h-14 shrink-0 items-center px-5">
-          {editing ? (
+          {thread == null ? (
+            <h2 className="px-1.5 font-heading text-base font-medium">
+              New chat
+            </h2>
+          ) : editing ? (
             <Input
               ref={titleInputRef}
               value={draft}
@@ -261,7 +264,6 @@ export function ThreadPanel({
             </ButtonGroup>
           )}
         </header>
-        ) : null}
 
         {error ? (
           <Alert variant="destructive" className="m-4 mb-0 w-auto">
@@ -282,9 +284,15 @@ export function ThreadPanel({
             footer={bottomComposer ? composer("bottom") : undefined}
           >
             {view.status === "initializing" || isLoading ? (
-              <div className="mx-auto w-full max-w-2xl space-y-4 p-6">
-                <Skeleton className="ml-auto h-16 w-2/3" />
-                <Skeleton className="h-24 w-4/5" />
+              <div className="mx-auto flex w-full max-w-xl flex-col">
+                <div className="flex flex-col items-end px-6 py-3">
+                  <Skeleton className="h-10 w-[42%] rounded-2xl rounded-br-md" />
+                </div>
+                <div className="flex flex-col items-start gap-2 px-6 py-4">
+                  <Skeleton className="h-4 w-[92%]" />
+                  <Skeleton className="h-4 w-[80%]" />
+                  <Skeleton className="h-4 w-[58%]" />
+                </div>
               </div>
             ) : null}
 

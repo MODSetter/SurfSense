@@ -48,7 +48,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
-import { Skeleton } from "@/components/ui/skeleton"
+import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -359,11 +359,7 @@ export function SourcesPanel({
         {listHeader}
         <ScrollShadow className="min-h-0 flex-1" from="from-background">
           {isLoading ? (
-            <div className="flex flex-col gap-3">
-              {[0, 1, 2].map((item) => (
-                <Skeleton key={item} className="h-20 w-full" />
-              ))}
-            </div>
+            <SkeletonSlabs />
           ) : documents.length > 0 ? (
             <div className="flex flex-col gap-1">
               {documents.map((document) => (

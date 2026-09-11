@@ -216,7 +216,6 @@ function WorkspaceDashboard({
                 <StudioPanel
                   documents={sources.documents}
                   formats={studio.formats}
-                  isLoading={studio.isLoading}
                   isCreating={studio.isCreating}
                   error={studio.error}
                   onGenerate={studio.create}
@@ -247,6 +246,7 @@ function WorkspaceDashboard({
               artifacts={
                 <ArtifactList
                   artifacts={studio.artifacts}
+                  isLoading={studio.isLoading}
                   onOpen={(artifactId) => {
                     openSources()
                     setInspect({ kind: "artifact", artifactId })

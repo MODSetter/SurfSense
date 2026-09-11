@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
-import { Skeleton } from "@/components/ui/skeleton"
+import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
 
@@ -160,11 +160,7 @@ export function ThreadList({
           </button>
           {recentsOpen ? (
             <>
-              {isLoading
-                ? [0, 1, 2, 3].map((item) => (
-                    <Skeleton key={item} className="h-11 w-full" />
-                  ))
-                : null}
+              {isLoading ? <SkeletonSlabs /> : null}
               {!isLoading && threads.length === 0 ? (
                 <p className="px-2 py-1 text-sm text-muted-foreground select-none">
                   Start a conversation to see it here
