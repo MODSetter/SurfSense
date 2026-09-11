@@ -93,6 +93,7 @@ function WorkspaceNameDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        className="select-none"
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           const input = inputRef.current
@@ -282,7 +283,7 @@ export function WorkspaceRail({
           if (!open) setDeleting(null)
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="select-none">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>
