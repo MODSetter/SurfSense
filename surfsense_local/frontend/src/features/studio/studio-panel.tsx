@@ -235,7 +235,7 @@ function FormatCard({
           aria-disabled={!entry.available || undefined}
           aria-pressed={entry.available ? selected : undefined}
           className={cn(
-            "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
+            "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
             entry.available
               ? "hover:bg-accent"
               : "cursor-not-allowed opacity-50",
