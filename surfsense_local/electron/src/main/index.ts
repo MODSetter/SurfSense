@@ -173,7 +173,7 @@ function applyTitleBarOverlay(
   })
 }
 
-// Packaged only. Dev keeps Electron's default View menu (Cmd/Ctrl+R).
+// Packaged only. Dev keeps Electron's default View menu (reload + DevTools).
 // https://www.electronjs.org/docs/latest/tutorial/application-menu
 function installProductionMenu(): void {
   if (!app.isPackaged) return
@@ -200,7 +200,6 @@ function installProductionMenu(): void {
               }
             },
           },
-          { role: "toggleDevTools" },
           { type: "separator" },
           { role: "resetZoom" },
           { role: "zoomIn" },
@@ -225,6 +224,8 @@ function createWindow(apiUrl: string): void {
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       additionalArguments: [`--surfsense-api-url=${apiUrl}`],
+      // https://www.electronjs.org/docs/latest/api/structures/web-preferences
+      ...(app.isPackaged && { devTools: false }),
     },
   })
   mainWindow = win
