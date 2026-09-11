@@ -18,6 +18,7 @@ type ThemeProviderState = {
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
 const THEME_VALUES: Theme[] = ["dark", "light", "system"]
+export const THEME_STORAGE_KEY = "surfsense:theme:v1"
 
 const ThemeProviderContext = React.createContext<
   ThemeProviderState | undefined
@@ -92,7 +93,7 @@ function isEditableTarget(target: EventTarget | null) {
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "theme",
+  storageKey = THEME_STORAGE_KEY,
   disableTransitionOnChange = true,
   ...props
 }: ThemeProviderProps) {

@@ -41,6 +41,15 @@ describe("artifact list", () => {
     expect(screen.getByText("No generated artifacts yet")).toBeTruthy()
   })
 
+  it("shows list skeletons while artifacts load", () => {
+    renderList({ artifacts: [], isLoading: true })
+
+    expect(screen.queryByText("No generated artifacts yet")).toBeNull()
+    expect(
+      document.querySelectorAll("[data-slot=skeleton]").length
+    ).toBeGreaterThan(0)
+  })
+
   it("opens ready artifacts", async () => {
     const onOpen = vi.fn()
     const user = userEvent.setup()

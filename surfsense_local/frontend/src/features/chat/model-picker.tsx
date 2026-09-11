@@ -29,7 +29,7 @@ import { cn } from "@/lib/utils"
 
 const installedModelsQueryKey = ["installed-generation-models"] as const
 export const modelControlButtonClassName =
-  "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
+  "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
 
 export function ModelPicker({
   model,

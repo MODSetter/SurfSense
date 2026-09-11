@@ -67,7 +67,7 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
     view.status === "active" ? `thread:${view.threadId}` : view.status
 
   useEffect(() => {
-    if (conversationId === "initializing" || conversationId === "creating") {
+    if (conversationId === "creating") {
       return
     }
     void aui.thread.composer().reset()
@@ -115,18 +115,20 @@ export function ThreadPanel({
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
 }) {
-  const titleButtonRef = useRef<HTMLButtonElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const ignoreMenuFocusRef = useRef(false)
-  const [editing, setEditing] = useState(false)
+  const [editingThreadId, setEditingThreadId] = useState<number | null>(null)
   const [draft, setDraft] = useState("")
-  const threadId = thread?.id
   const title = thread?.title || "New chat"
+  const conversationId =
+    view.status === "active" ? `thread:${view.threadId}` : view.status
+  const editing = thread != null && editingThreadId === thread.id
   const canRename =
     thread != null && thread.id !== autoNamingThreadId && !animateTitle
   const bottomComposer = view.status === "creating" || view.status === "active"
   const composer = (placement: "center" | "bottom") => (
     <ChatComposer
+      key={conversationId}
       placement={placement}
       model={model}
       isRunning={isRunning}
@@ -139,13 +141,6 @@ export function ThreadPanel({
   )
 
   useEffect(() => {
-    setEditing(false)
-    if (threadId !== undefined) {
-      titleButtonRef.current?.focus()
-    }
-  }, [threadId])
-
-  useEffect(() => {
     if (editing) {
       const input = titleInputRef.current
       if (!input) return
@@ -155,20 +150,20 @@ export function ThreadPanel({
   }, [editing])
 
   const startEditing = () => {
-    if (!canRename || title == null) return
+    if (!canRename || thread == null) return
     setDraft(title)
-    setEditing(true)
+    setEditingThreadId(thread.id)
   }
 
   const cancelEditing = () => {
-    setEditing(false)
-    setDraft(title ?? "")
+    setEditingThreadId(null)
+    setDraft(title)
   }
 
   const commitEditing = () => {
     if (!thread || !editing) return
     const next = draft.trim()
-    setEditing(false)
+    setEditingThreadId(null)
     if (!next || next === (thread.title || "New chat")) return
     void onRename(thread.id, next)
   }
@@ -180,9 +175,8 @@ export function ThreadPanel({
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
       >
-        {thread != null ? (
         <header className="flex h-14 shrink-0 items-center px-5">
-          {editing ? (
+          {thread == null ? null : editing ? (
             <Input
               ref={titleInputRef}
               value={draft}
@@ -205,7 +199,6 @@ export function ThreadPanel({
           ) : (
             <ButtonGroup aria-label="Chat">
               <Button
-                ref={titleButtonRef}
                 type="button"
                 variant="ghost"
                 disabled={!canRename}
@@ -267,7 +260,6 @@ export function ThreadPanel({
             </ButtonGroup>
           )}
         </header>
-        ) : null}
 
         {error ? (
           <Alert variant="destructive" className="m-4 mb-0 w-auto">
@@ -287,10 +279,16 @@ export function ThreadPanel({
           <ChatViewport
             footer={bottomComposer ? composer("bottom") : undefined}
           >
-            {view.status === "initializing" || isLoading ? (
-              <div className="mx-auto w-full max-w-2xl space-y-4 p-6">
-                <Skeleton className="ml-auto h-16 w-2/3" />
-                <Skeleton className="h-24 w-4/5" />
+            {isLoading ? (
+              <div className="mx-auto flex w-full max-w-xl flex-col">
+                <div className="flex flex-col items-end px-6 py-3">
+                  <Skeleton className="h-10 w-[42%] rounded-2xl rounded-br-md" />
+                </div>
+                <div className="flex flex-col items-start gap-2 px-6 py-4">
+                  <Skeleton className="h-4 w-[92%]" />
+                  <Skeleton className="h-4 w-[80%]" />
+                  <Skeleton className="h-4 w-[58%]" />
+                </div>
               </div>
             ) : null}
 

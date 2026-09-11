@@ -8,7 +8,7 @@ import {
   type Workspace,
 } from "./api"
 
-const LAST_WORKSPACE_KEY = "surfsense-local:last-workspace:v1"
+const LAST_WORKSPACE_KEY = "surfsense:last-workspace:v1"
 
 function readLastWorkspaceId(workspaces: Workspace[]): number | null {
   try {

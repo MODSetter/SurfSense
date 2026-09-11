@@ -27,8 +27,9 @@ import {
   FolderLibraryIcon as FolderLibraryIconData,
   FolderOpenIcon as FolderOpenIconData,
   Image01Icon as Image01IconData,
-  KeyRoundIcon as KeyRoundIconData,
+  InformationCircleIcon as InformationCircleIconData,
   LayoutGridIcon as LayoutGridIconData,
+  LicenseIcon as LicenseIconData,
   Loading03Icon,
   MessageSquareIcon as MessageSquareIconData,
   Moon02Icon as Moon02IconData,
@@ -51,6 +52,7 @@ import {
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
+  Upload01Icon as Upload01IconData,
   ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
   WebDesign01Icon as WebDesign01IconData,
@@ -109,8 +111,9 @@ export const FileTextIcon = createIcon(FileTextIconData)
 export const FolderLibraryIcon = createIcon(FolderLibraryIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
-export const KeyRoundIcon = createIcon(KeyRoundIconData)
+export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
+export const LicenseIcon = createIcon(LicenseIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
 export const MoonIcon = createIcon(Moon02IconData)
@@ -131,6 +134,7 @@ export const Settings2Icon = createIcon(Settings02Icon)
 export const Shapes01Icon = createIcon(Shapes01IconData)
 export const SparklesIcon = createIcon(SparklesIconData)
 export const SunIcon = createIcon(Sun03IconData)
+export const Upload01Icon = createIcon(Upload01IconData)
 export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(
   SquareDashedMousePointerIconData

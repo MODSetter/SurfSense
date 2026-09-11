@@ -35,6 +35,7 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -157,10 +158,12 @@ function ArtifactRow({
 
 export function ArtifactList({
   artifacts,
+  isLoading = false,
   onOpen,
   onDelete,
 }: {
   artifacts: Artifact[]
+  isLoading?: boolean
   onOpen: (id: number) => void
   onDelete: (id: number) => void
 }) {
@@ -180,7 +183,9 @@ export function ArtifactList({
         </h3>
       </div>
       <ScrollShadow className="min-h-0 flex-1" from="from-background">
-        {artifacts.length === 0 ? (
+        {isLoading ? (
+          <SkeletonSlabs />
+        ) : artifacts.length === 0 ? (
           <Empty className="min-h-0 border-0 px-2">
             <EmptyHeader>
               <EmptyMedia variant="icon">

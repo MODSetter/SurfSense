@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
-import { Skeleton } from "@/components/ui/skeleton"
+import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
 
@@ -58,6 +58,7 @@ export function RenameChatDialog({
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
+        className="select-none"
         onOpenAutoFocus={(event) => {
           event.preventDefault()
           const input = inputRef.current
@@ -145,7 +146,7 @@ export function ThreadList({
         <div className="flex w-full max-w-full min-w-0 flex-col gap-1">
           <button
             type="button"
-            className="group flex min-h-7 items-center gap-1 px-2 text-xs font-medium text-muted-foreground transition-colors select-none hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="group flex min-h-7 items-center gap-1 px-2 text-xs font-semibold text-muted-foreground transition-colors select-none hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-expanded={recentsOpen}
             onClick={() => setRecentsOpen((open) => !open)}
           >
@@ -159,13 +160,9 @@ export function ThreadList({
           </button>
           {recentsOpen ? (
             <>
-              {isLoading
-                ? [0, 1, 2, 3].map((item) => (
-                    <Skeleton key={item} className="h-11 w-full" />
-                  ))
-                : null}
+              {isLoading ? <SkeletonSlabs /> : null}
               {!isLoading && threads.length === 0 ? (
-                <p className="px-2 py-1 text-sm text-muted-foreground">
+                <p className="px-2 py-1 text-sm text-muted-foreground select-none">
                   Start a conversation to see it here
                 </p>
               ) : null}

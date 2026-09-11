@@ -1,4 +1,4 @@
-import type { ComponentType } from "react"
+import type { ComponentType, MouseEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -8,7 +8,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { CpuIcon, KeyRoundIcon, Settings2Icon } from "@/components/ui/icons"
+import {
+  CpuIcon,
+  InformationCircleIcon,
+  LicenseIcon,
+  Settings2Icon,
+} from "@/components/ui/icons"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
@@ -26,6 +36,14 @@ type SettingsNavItem = {
 }
 
 export type SettingsSectionId = "general" | "models" | "license"
+
+const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
+
+function openCloudExport(event: MouseEvent<HTMLAnchorElement>) {
+  if (!window.surfsense?.openExternal) return
+  event.preventDefault()
+  void window.surfsense.openExternal(CLOUD_EXPORT_URL)
+}
 
 function GeneralSettings({
   onImported,
@@ -48,11 +66,43 @@ function GeneralSettings({
       </div>
       <div className="mt-8 flex items-center justify-between gap-8">
         <div className="flex flex-col gap-1">
-          <h3 className="text-sm font-medium">Import from SurfSense cloud</h3>
-          <p className="text-sm text-pretty text-muted-foreground">
-            Load the export bundle downloaded from your hosted account.
-            Documents arrive as markdown and are indexed in the background;
-            original files and live citation links do not travel.
+          <div className="flex items-center gap-1">
+            <h3 className="text-sm font-medium text-balance">
+              Import from SurfSense cloud
+            </h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none before:absolute before:inset-[-10px]"
+                  aria-label="More about importing from SurfSense cloud"
+                >
+                  <InformationCircleIcon
+                    className="size-3.5"
+                    strokeWidth={1.5}
+                  />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                collisionPadding={12}
+                className="max-w-64 font-normal leading-5"
+              >
+                Your workspaces, folders, and chats come with it. Documents come in as text and get indexed after import. Original files and generated artifacts stay in the cloud.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-sm text-pretty text-muted-foreground [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground">
+            Upload the ZIP you exported from{" "}
+            <a
+              href={CLOUD_EXPORT_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={openCloudExport}
+            >
+              SurfSense cloud
+            </a>
+            .
           </p>
         </div>
         <ImportBundleButton onImported={onImported} />
@@ -76,7 +126,7 @@ const SETTINGS_SECTIONS = [
   {
     id: "license",
     label: "License",
-    icon: KeyRoundIcon,
+    icon: LicenseIcon,
   },
 ] satisfies SettingsNavItem[]
 

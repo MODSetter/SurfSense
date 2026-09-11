@@ -46,30 +46,18 @@ import { useStudio } from "@/features/studio/use-studio"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
+import {
+  readRightRailOpen,
+  readRightTab,
+  writeRightRailOpen,
+  writeRightTab,
+} from "./chrome-prefs"
 import { RightPanel, type RightTab } from "./right-panel"
-
-const SOURCES_PANEL_KEY = "sourcesPanel:v1"
 
 type Inspect =
   | { kind: "citation"; chunkId: number }
   | { kind: "artifact"; artifactId: number }
   | null
-
-function readSourcesOpen() {
-  try {
-    return localStorage.getItem(SOURCES_PANEL_KEY) !== "collapsed"
-  } catch {
-    return true
-  }
-}
-
-function writeSourcesOpen(open: boolean) {
-  try {
-    localStorage.setItem(SOURCES_PANEL_KEY, open ? "open" : "collapsed")
-  } catch {
-    // Private browsing and full disks throw.
-  }
-}
 
 function WorkspaceDashboard({
   workspace,
@@ -84,9 +72,9 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
-  const [tab, setTab] = useState<RightTab>("sources")
+  const [tab, setTab] = useState<RightTab>(readRightTab)
   const [inspect, setInspect] = useState<Inspect>(null)
-  const [sourcesOpen, setSourcesOpen] = useState(readSourcesOpen)
+  const [sourcesOpen, setSourcesOpen] = useState(readRightRailOpen)
   const sources = useSources(workspace.id)
   const studio = useStudio(workspace.id)
   const chat = useChatRuntime({
@@ -100,13 +88,13 @@ function WorkspaceDashboard({
   const toggleSources = () => {
     setSourcesOpen((open) => {
       const next = !open
-      writeSourcesOpen(next)
+      writeRightRailOpen(next)
       return next
     })
   }
   const openSources = () => {
     setSourcesOpen(true)
-    writeSourcesOpen(true)
+    writeRightRailOpen(true)
   }
 
   return (
@@ -137,7 +125,7 @@ function WorkspaceDashboard({
         </div>
       </div>
       <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
-        <div className="flex h-full min-h-0 w-[272px] min-w-[232px] shrink-0 flex-col">
+        <div className="flex h-full min-h-0 w-68 min-w-58 shrink-0 flex-col">
           <ThreadList
             threads={chat.threads}
             activeThreadId={chat.activeThreadId}
@@ -211,12 +199,14 @@ function WorkspaceDashboard({
                 ) : null
               }
               tab={tab}
-              onTabChange={setTab}
+              onTabChange={(next) => {
+                writeRightTab(next)
+                setTab(next)
+              }}
               studio={
                 <StudioPanel
                   documents={sources.documents}
                   formats={studio.formats}
-                  isLoading={studio.isLoading}
                   isCreating={studio.isCreating}
                   error={studio.error}
                   onGenerate={studio.create}
@@ -247,6 +237,7 @@ function WorkspaceDashboard({
               artifacts={
                 <ArtifactList
                   artifacts={studio.artifacts}
+                  isLoading={studio.isLoading}
                   onOpen={(artifactId) => {
                     openSources()
                     setInspect({ kind: "artifact", artifactId })
@@ -297,19 +288,25 @@ function WorkspacesEmpty({
   )
 }
 
+type ProviderStatus = "checking" | "available" | "unavailable"
+
 export function DashboardPage({
   selection,
+  initialProviderAvailable,
   initialWorkspaces,
   onModelUnavailable = () => undefined,
   onModelSelected,
 }: {
   selection: ModelSelection | null
+  initialProviderAvailable: boolean
   initialWorkspaces: Workspace[]
   onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
   const workspaces = useWorkspaces(initialWorkspaces)
-  const [providerAvailable, setProviderAvailable] = useState(true)
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus>(() =>
+    initialProviderAvailable ? "available" : "checking"
+  )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] =
     useState<SettingsSectionId>("general")
@@ -338,11 +335,18 @@ export function DashboardPage({
           )
     void availability
       .then((available) => {
-        setProviderAvailable(available)
+        if (controller.signal.aborted) return
+        setProviderStatus(available ? "available" : "unavailable")
       })
-      .catch(() => setProviderAvailable(false))
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setProviderStatus("unavailable")
+      })
     return () => controller.abort()
   }, [selection])
+
+  const providerAvailable =
+    selection !== null && providerStatus !== "unavailable"
 
   const onImported = async (accepted: ImportAccepted) => {
     const first = accepted.workspaces[0]
@@ -375,7 +379,7 @@ export function DashboardPage({
         key={workspaces.activeWorkspace.id}
         workspace={workspaces.activeWorkspace}
         selection={selection}
-        providerAvailable={selection !== null && providerAvailable}
+        providerAvailable={providerAvailable}
         onModelRequired={() => openSettings("models")}
         onModelSelected={onModelSelected}
       />

@@ -130,8 +130,8 @@ describe("ThreadList", () => {
 
     expect(screen.getByRole("button", { name: "Recents" })).toBeTruthy()
     expect(
-      screen.getByText("Start a conversation to see it here")
-    ).toBeTruthy()
+      screen.getByText("Start a conversation to see it here").className
+    ).toContain("select-none")
     expect(screen.queryByText("No chats yet")).toBeNull()
   })
 })

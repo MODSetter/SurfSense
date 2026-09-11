@@ -28,7 +28,6 @@ import {
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -68,6 +67,27 @@ export const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>>
   podcast: PodcastIcon,
   image: Image01Icon,
   infographic: ChartHistogramIcon,
+}
+
+const STUDIO_CATALOG: StudioFormat[] = [
+  { key: "summary", label: "Summary", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "docx", label: "Document", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "pptx", label: "Slides", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "xlsx", label: "Spreadsheet", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "html", label: "Web page", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "pdf", label: "PDF", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "mindmap", label: "Mind map", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "flashcards", label: "Flashcards", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "quiz", label: "Quiz", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "podcast", label: "Podcast", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "image", label: "Image", requires_role: "image_generation", available: true, unavailable_reason: null },
+  { key: "infographic", label: "Infographic", requires_role: "generation", available: true, unavailable_reason: null },
+]
+
+function catalogFormats(formats: StudioFormat[]) {
+  if (formats.length === 0) return STUDIO_CATALOG
+  const loaded = new Map(formats.map((entry) => [entry.key, entry]))
+  return STUDIO_CATALOG.map((entry) => loaded.get(entry.key) ?? entry)
 }
 
 function unavailableReason(entry: StudioFormat) {
@@ -235,7 +255,7 @@ function FormatCard({
           aria-disabled={!entry.available || undefined}
           aria-pressed={entry.available ? selected : undefined}
           className={cn(
-            "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
+            "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
             entry.available
               ? "hover:bg-accent"
               : "cursor-not-allowed opacity-50",
@@ -257,20 +277,19 @@ function FormatCard({
 export function StudioPanel({
   documents,
   formats,
-  isLoading,
   isCreating,
   error,
   onGenerate,
 }: {
   documents: WorkspaceDocument[]
   formats: StudioFormat[]
-  isLoading: boolean
   isCreating: boolean
   error: string | null
   onGenerate: (job: StudioJobCreate) => Promise<boolean>
 }) {
   const [format, setFormat] = useState<string | null>(null)
-  const selectedFormat = formats.find((entry) => entry.key === format)
+  const catalog = catalogFormats(formats)
+  const selectedFormat = catalog.find((entry) => entry.key === format)
 
   return (
     <>
@@ -281,32 +300,24 @@ export function StudioPanel({
         </Alert>
       ) : null}
 
-      {isLoading ? (
+      <section className="space-y-2" aria-labelledby="studio-formats">
+        <h3
+          id="studio-formats"
+          className="text-xs font-medium text-muted-foreground"
+        >
+          Studio
+        </h3>
         <div className="grid grid-cols-3 gap-1.5">
-          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((item) => (
-            <Skeleton key={item} className="h-16 w-full" />
+          {catalog.map((entry) => (
+            <FormatCard
+              key={entry.key}
+              entry={entry}
+              selected={format === entry.key}
+              onSelect={() => setFormat(entry.key)}
+            />
           ))}
         </div>
-      ) : (
-        <section className="space-y-2" aria-labelledby="studio-formats">
-          <h3
-            id="studio-formats"
-            className="text-xs font-medium text-muted-foreground"
-          >
-            Studio
-          </h3>
-          <div className="grid grid-cols-3 gap-1.5">
-            {formats.map((entry) => (
-              <FormatCard
-                key={entry.key}
-                entry={entry}
-                selected={format === entry.key}
-                onSelect={() => setFormat(entry.key)}
-              />
-            ))}
-          </div>
-        </section>
-      )}
+      </section>
 
       <Dialog
         open={selectedFormat != null}
