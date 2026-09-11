@@ -115,18 +115,20 @@ export function ThreadPanel({
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
 }) {
-  const titleButtonRef = useRef<HTMLButtonElement>(null)
   const titleInputRef = useRef<HTMLInputElement>(null)
   const ignoreMenuFocusRef = useRef(false)
-  const [editing, setEditing] = useState(false)
+  const [editingThreadId, setEditingThreadId] = useState<number | null>(null)
   const [draft, setDraft] = useState("")
-  const threadId = thread?.id
   const title = thread?.title || "New chat"
+  const conversationId =
+    view.status === "active" ? `thread:${view.threadId}` : view.status
+  const editing = thread != null && editingThreadId === thread.id
   const canRename =
     thread != null && thread.id !== autoNamingThreadId && !animateTitle
   const bottomComposer = view.status === "creating" || view.status === "active"
   const composer = (placement: "center" | "bottom") => (
     <ChatComposer
+      key={conversationId}
       placement={placement}
       model={model}
       isRunning={isRunning}
@@ -139,13 +141,6 @@ export function ThreadPanel({
   )
 
   useEffect(() => {
-    setEditing(false)
-    if (threadId !== undefined) {
-      titleButtonRef.current?.focus()
-    }
-  }, [threadId])
-
-  useEffect(() => {
     if (editing) {
       const input = titleInputRef.current
       if (!input) return
@@ -155,20 +150,20 @@ export function ThreadPanel({
   }, [editing])
 
   const startEditing = () => {
-    if (!canRename || title == null) return
+    if (!canRename || thread == null) return
     setDraft(title)
-    setEditing(true)
+    setEditingThreadId(thread.id)
   }
 
   const cancelEditing = () => {
-    setEditing(false)
-    setDraft(title ?? "")
+    setEditingThreadId(null)
+    setDraft(title)
   }
 
   const commitEditing = () => {
     if (!thread || !editing) return
     const next = draft.trim()
-    setEditing(false)
+    setEditingThreadId(null)
     if (!next || next === (thread.title || "New chat")) return
     void onRename(thread.id, next)
   }
@@ -205,7 +200,6 @@ export function ThreadPanel({
           ) : (
             <ButtonGroup aria-label="Chat">
               <Button
-                ref={titleButtonRef}
                 type="button"
                 variant="ghost"
                 disabled={!canRename}

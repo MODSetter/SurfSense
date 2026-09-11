@@ -152,6 +152,83 @@ describe("dashboard chat", () => {
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeTruthy()
   })
 
+  it("focuses the composer when opening a chat, not the title", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([thread])
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            selection={{
+              role: "generation",
+              provider: "ollama",
+              connection_id: null,
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
+    expect(
+      within(conversation).getByRole("button", { name: "Original title" })
+    ).not.toBe(document.activeElement)
+
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
+
+    await user.click(screen.getByRole("button", { name: "Original title" }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
+  })
+
   it("keeps composer placement aligned with the conversation lifecycle", async () => {
     let resolveThreads!: (response: Response) => void
     let resolveCreate!: (response: Response) => void
