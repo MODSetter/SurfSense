@@ -8,6 +8,7 @@ export const PROVIDER_ORDER = [
 	"azure",
 	"openrouter",
 	"requesty",
+	"orcarouter",
 	"ollama_chat",
 	"lm_studio",
 	"openai_compatible",
@@ -55,6 +56,12 @@ export const PROVIDER_DISPLAY: Record<
 		subtitle: "Requesty",
 		iconKey: "requesty",
 		defaultBaseUrl: "https://router.requesty.ai/v1",
+	},
+	orcarouter: {
+		name: "OrcaRouter",
+		subtitle: "OrcaRouter",
+		iconKey: "orcarouter",
+		defaultBaseUrl: "https://api.orcarouter.ai/v1",
 	},
 	vertex_ai: { name: "Gemini", subtitle: "Google Cloud Vertex AI", iconKey: "vertex_ai" },
 };

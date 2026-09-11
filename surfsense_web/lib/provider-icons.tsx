@@ -25,6 +25,7 @@ import {
 	OllamaIcon,
 	OpenaiIcon,
 	OpenRouterIcon,
+	OrcaRouterIcon,
 	PerplexityIcon,
 	QwenIcon,
 	RecraftIcon,
@@ -112,6 +113,8 @@ export function getProviderIcon(
 			return <OpenaiIcon className={cn(className)} />;
 		case "OPENROUTER":
 			return <OpenRouterIcon className={cn(className)} />;
+		case "ORCAROUTER":
+			return <OrcaRouterIcon className={cn(className)} />;
 		case "PERPLEXITY":
 			return <PerplexityIcon className={cn(className)} />;
 		case "RECRAFT":
