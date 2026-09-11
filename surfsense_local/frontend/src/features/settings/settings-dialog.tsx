@@ -11,7 +11,7 @@ import {
 import {
   CpuIcon,
   InformationCircleIcon,
-  KeyRoundIcon,
+  LicenseIcon,
   Settings2Icon,
 } from "@/components/ui/icons"
 import {
@@ -126,7 +126,7 @@ const SETTINGS_SECTIONS = [
   {
     id: "license",
     label: "License",
-    icon: KeyRoundIcon,
+    icon: LicenseIcon,
   },
 ] satisfies SettingsNavItem[]
 

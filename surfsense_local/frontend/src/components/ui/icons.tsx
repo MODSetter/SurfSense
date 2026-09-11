@@ -28,8 +28,8 @@ import {
   FolderOpenIcon as FolderOpenIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
-  KeyRoundIcon as KeyRoundIconData,
   LayoutGridIcon as LayoutGridIconData,
+  LicenseIcon as LicenseIconData,
   Loading03Icon,
   MessageSquareIcon as MessageSquareIconData,
   Moon02Icon as Moon02IconData,
@@ -112,8 +112,8 @@ export const FolderLibraryIcon = createIcon(FolderLibraryIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
-export const KeyRoundIcon = createIcon(KeyRoundIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
+export const LicenseIcon = createIcon(LicenseIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
 export const MoonIcon = createIcon(Moon02IconData)
