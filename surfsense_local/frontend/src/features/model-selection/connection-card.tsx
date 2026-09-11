@@ -303,7 +303,7 @@ export function ConnectionCard({
         }}
       >
         <DialogContent
-          className="flex h-[85svh] max-h-[44rem] flex-col overflow-hidden select-none sm:max-w-3xl"
+          className="flex h-[85svh] max-h-[44rem] flex-col gap-0 overflow-hidden select-none sm:max-w-3xl"
           onOpenAutoFocus={(event) => {
             event.preventDefault()
             searchRef.current?.focus()
@@ -316,7 +316,7 @@ export function ConnectionCard({
             </DialogDescription>
           </DialogHeader>
 
-          <Field>
+          <Field className="mt-4">
             <FieldLabel htmlFor={`manual-model-${connection.id}`}>
               Exact model ID
             </FieldLabel>
@@ -355,11 +355,11 @@ export function ConnectionCard({
               </Button>
             </div>
             <FieldDescription>
-              Use this when the endpoint does not list a model.
+              If a model is missing from the list, type its ID and assign it.
             </FieldDescription>
           </Field>
 
-          <div className="flex min-h-0 flex-1 flex-col gap-3 border-t pt-4">
+          <div className="mt-4 flex min-h-0 flex-1 flex-col gap-3 border-t pt-4">
             <div className="relative">
               <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -407,11 +407,11 @@ export function ConnectionCard({
               </div>
             ) : filteredModels.length ? (
               <ScrollShadow className="flex-1" viewportClassName="pr-1">
-                <ul className="flex flex-col gap-2 pb-1">
+                <ul className="divide-y pb-1">
                   {filteredModels.map((model) => (
                     <li
                       key={`${connection.id}\0${model.name}`}
-                      className="flex flex-wrap items-center gap-2 rounded-md border p-3"
+                      className="flex flex-wrap items-center content-start gap-2 py-2"
                     >
                       <div className="min-w-40 flex-1">
                         <p className="truncate text-sm font-medium">
@@ -485,7 +485,7 @@ export function ConnectionCard({
                 </ul>
               </ScrollShadow>
             ) : (
-              <Empty className="min-h-40 border">
+              <Empty className="mb-4 min-h-40 border">
                 <EmptyHeader>
                   <EmptyTitle>
                     {models?.length
