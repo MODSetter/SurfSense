@@ -176,11 +176,7 @@ export function ThreadPanel({
         aria-label="Conversation"
       >
         <header className="flex h-14 shrink-0 items-center px-5">
-          {thread == null ? (
-            <h2 className="px-1.5 font-heading text-base font-medium">
-              New chat
-            </h2>
-          ) : editing ? (
+          {thread == null ? null : editing ? (
             <Input
               ref={titleInputRef}
               value={draft}

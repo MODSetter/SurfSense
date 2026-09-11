@@ -306,12 +306,12 @@ describe("dashboard chat", () => {
     )
 
     expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull()
-    expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
+    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
 
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
     const addSources = screen.getByRole("button", { name: "Add sources" })
-    expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
+    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
     expect(
       addSources.closest('[data-composer-placement="center"]')
