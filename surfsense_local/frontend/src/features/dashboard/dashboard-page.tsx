@@ -125,7 +125,7 @@ function WorkspaceDashboard({
         </div>
       </div>
       <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
-        <div className="flex h-full min-h-0 w-[272px] min-w-[232px] shrink-0 flex-col">
+        <div className="flex h-full min-h-0 w-68 min-w-58 shrink-0 flex-col">
           <ThreadList
             threads={chat.threads}
             activeThreadId={chat.activeThreadId}
@@ -288,19 +288,25 @@ function WorkspacesEmpty({
   )
 }
 
+type ProviderStatus = "checking" | "available" | "unavailable"
+
 export function DashboardPage({
   selection,
+  initialProviderAvailable,
   initialWorkspaces,
   onModelUnavailable = () => undefined,
   onModelSelected,
 }: {
   selection: ModelSelection | null
+  initialProviderAvailable: boolean
   initialWorkspaces: Workspace[]
   onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
   const workspaces = useWorkspaces(initialWorkspaces)
-  const [providerAvailable, setProviderAvailable] = useState(true)
+  const [providerStatus, setProviderStatus] = useState<ProviderStatus>(() =>
+    initialProviderAvailable ? "available" : "checking"
+  )
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [settingsSection, setSettingsSection] =
     useState<SettingsSectionId>("general")
@@ -329,11 +335,18 @@ export function DashboardPage({
           )
     void availability
       .then((available) => {
-        setProviderAvailable(available)
+        if (controller.signal.aborted) return
+        setProviderStatus(available ? "available" : "unavailable")
       })
-      .catch(() => setProviderAvailable(false))
+      .catch(() => {
+        if (controller.signal.aborted) return
+        setProviderStatus("unavailable")
+      })
     return () => controller.abort()
   }, [selection])
+
+  const providerAvailable =
+    selection !== null && providerStatus !== "unavailable"
 
   const onImported = async (accepted: ImportAccepted) => {
     const first = accepted.workspaces[0]
@@ -366,7 +379,7 @@ export function DashboardPage({
         key={workspaces.activeWorkspace.id}
         workspace={workspaces.activeWorkspace}
         selection={selection}
-        providerAvailable={selection !== null && providerAvailable}
+        providerAvailable={providerAvailable}
         onModelRequired={() => openSettings("models")}
         onModelSelected={onModelSelected}
       />

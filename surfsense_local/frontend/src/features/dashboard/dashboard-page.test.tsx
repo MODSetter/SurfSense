@@ -120,6 +120,7 @@ describe("dashboard chat", () => {
       <ThemeProvider>
         <TooltipProvider>
           <DashboardPage
+            initialProviderAvailable={true}
             selection={{
               role: "generation",
               provider: "ollama",
@@ -200,6 +201,7 @@ describe("dashboard chat", () => {
       <ThemeProvider>
         <TooltipProvider>
           <DashboardPage
+            initialProviderAvailable={true}
             selection={{
               role: "generation",
               provider: "ollama",
@@ -301,6 +303,7 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -446,6 +449,7 @@ describe("dashboard chat", () => {
     const page = (
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -530,6 +534,7 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -681,6 +686,7 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -788,6 +794,7 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -876,6 +883,7 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -954,6 +962,7 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -1017,6 +1026,7 @@ describe("dashboard chat", () => {
       <ThemeProvider>
         <TooltipProvider>
           <DashboardPage
+            initialProviderAvailable={true}
             selection={{
               role: "generation",
               provider: "ollama",
@@ -1120,6 +1130,7 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
@@ -1210,6 +1221,7 @@ describe("dashboard chat", () => {
     const page = (
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",

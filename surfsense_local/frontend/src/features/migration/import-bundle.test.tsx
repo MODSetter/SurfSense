@@ -42,6 +42,7 @@ function renderEmptyDashboard() {
       <TooltipProvider>
         <DashboardPage
           selection={null}
+          initialProviderAvailable={false}
           initialWorkspaces={[]}
           onModelSelected={vi.fn()}
         />
