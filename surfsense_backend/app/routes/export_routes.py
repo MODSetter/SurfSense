@@ -9,13 +9,43 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.context import AuthContext
 from app.db import Permission, get_async_session
-from app.services.export_service import build_export_zip
+from app.services.export_service import build_account_export_zip, build_export_zip
 from app.users import get_auth_context
 from app.utils.rbac import check_permission
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+
+@router.get("/export")
+async def export_account(
+    session: AsyncSession = Depends(get_async_session),
+    auth: AuthContext = Depends(get_auth_context),
+):
+    """Export every workspace the user can access as a contract-3 ZIP."""
+    result = await build_account_export_zip(session, auth.user.id)
+
+    def stream_and_cleanup():
+        try:
+            with open(result.zip_path, "rb") as f:
+                while chunk := f.read(8192):
+                    yield chunk
+        finally:
+            os.unlink(result.zip_path)
+
+    headers = {
+        "Content-Disposition": f'attachment; filename="{result.export_name}.zip"',
+        "Content-Length": str(result.zip_size),
+    }
+    if result.skipped_docs:
+        headers["X-Skipped-Documents"] = str(len(result.skipped_docs))
+
+    return StreamingResponse(
+        stream_and_cleanup(),
+        media_type="application/zip",
+        headers=headers,
+    )
 
 
 @router.get("/workspaces/{workspace_id}/export")
