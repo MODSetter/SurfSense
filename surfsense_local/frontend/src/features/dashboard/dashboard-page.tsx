@@ -23,6 +23,8 @@ import { CitationPanel } from "@/features/chat/citation-panel"
 import { ThreadList } from "@/features/chat/thread-list"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
+import type { ImportAccepted } from "@/features/migration/api"
+import { ImportBundleButton } from "@/features/migration/import-bundle"
 import {
   getConnectionModels,
   getProviders,
@@ -263,9 +265,11 @@ function WorkspaceDashboard({
 function WorkspacesEmpty({
   isMutating,
   onCreate,
+  onImported,
 }: {
   isMutating: boolean
   onCreate: (name: string) => Promise<boolean>
+  onImported: (accepted: ImportAccepted) => Promise<void>
 }) {
   return (
     <main className="flex h-full items-center justify-center bg-background p-8">
@@ -285,6 +289,9 @@ function WorkspacesEmpty({
           <PlusIcon />
           Create workspace
         </Button>
+        <div className="mt-3">
+          <ImportBundleButton onImported={onImported} />
+        </div>
       </div>
     </main>
   )
@@ -337,11 +344,17 @@ export function DashboardPage({
     return () => controller.abort()
   }, [selection])
 
+  const onImported = async (accepted: ImportAccepted) => {
+    const first = accepted.workspaces[0]
+    await workspaces.reload(first?.id ?? workspaces.activeWorkspace?.id ?? -1)
+  }
+
   if (!workspaces.activeWorkspace) {
     return (
       <WorkspacesEmpty
         isMutating={workspaces.isMutating}
         onCreate={workspaces.create}
+        onImported={onImported}
       />
     )
   }
@@ -373,6 +386,7 @@ export function DashboardPage({
         onSectionChange={setSettingsSection}
         onModelUnavailable={onModelUnavailable}
         onModelSelected={onModelSelected}
+        onImported={onImported}
       />
       {workspaces.error ? (
         <Alert

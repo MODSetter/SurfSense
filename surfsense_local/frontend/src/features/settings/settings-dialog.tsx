@@ -8,7 +8,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { CpuIcon, Settings2Icon } from "@/components/ui/icons"
+import { CpuIcon, KeyRoundIcon, Settings2Icon } from "@/components/ui/icons"
+import { LicenseSettings } from "@/features/license/license-settings"
+import type { ImportAccepted } from "@/features/migration/api"
+import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/model-selection/api"
 import { cn } from "@/lib/utils"
 
@@ -22,9 +25,13 @@ type SettingsNavItem = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
-export type SettingsSectionId = "general" | "models"
+export type SettingsSectionId = "general" | "models" | "license"
 
-function GeneralSettings() {
+function GeneralSettings({
+  onImported,
+}: {
+  onImported: (accepted: ImportAccepted) => Promise<void> | void
+}) {
   return (
     <SettingsSection
       title="General"
@@ -38,6 +45,17 @@ function GeneralSettings() {
           </p>
         </div>
         <AppearanceToggle />
+      </div>
+      <div className="mt-8 flex items-center justify-between gap-8">
+        <div className="flex flex-col gap-1">
+          <h3 className="text-sm font-medium">Import from SurfSense cloud</h3>
+          <p className="text-sm text-pretty text-muted-foreground">
+            Load the export bundle downloaded from your hosted account.
+            Documents arrive as markdown and are indexed in the background;
+            original files and live citation links do not travel.
+          </p>
+        </div>
+        <ImportBundleButton onImported={onImported} />
       </div>
     </SettingsSection>
   )
@@ -55,6 +73,11 @@ const SETTINGS_SECTIONS = [
     label: "Models",
     icon: CpuIcon,
   },
+  {
+    id: "license",
+    label: "License",
+    icon: KeyRoundIcon,
+  },
 ] satisfies SettingsNavItem[]
 
 export function SettingsDialog({
@@ -64,6 +87,7 @@ export function SettingsDialog({
   onSectionChange,
   onModelUnavailable = () => undefined,
   onModelSelected,
+  onImported = () => undefined,
 }: {
   open: boolean
   section: SettingsSectionId
@@ -71,6 +95,7 @@ export function SettingsDialog({
   onSectionChange: (section: SettingsSectionId) => void
   onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
+  onImported?: (accepted: ImportAccepted) => Promise<void> | void
 }) {
   const activeSection =
     SETTINGS_SECTIONS.find((candidate) => candidate.id === section) ??
@@ -117,13 +142,16 @@ export function SettingsDialog({
           </aside>
 
           <section className="min-h-0 min-w-0 overflow-hidden bg-popover text-popover-foreground">
-            {activeSection.id === "general" ? <GeneralSettings /> : null}
+            {activeSection.id === "general" ? (
+              <GeneralSettings onImported={onImported} />
+            ) : null}
             {activeSection.id === "models" ? (
               <ModelsSettings
                 onModelUnavailable={onModelUnavailable}
                 onSelected={onModelSelected}
               />
             ) : null}
+            {activeSection.id === "license" ? <LicenseSettings /> : null}
           </section>
         </div>
       </DialogContent>
