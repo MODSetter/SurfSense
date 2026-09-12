@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 176" role="img" aria-label="Automatic infographic style preview">
+  <rect width="320" height="176" rx="20" fill="#f4f4f5"/>
+  <rect x="28" y="28" width="116" height="120" rx="16" fill="#fff" stroke="#a1a1aa" stroke-width="3"/>
+  <circle cx="86" cy="67" r="20" fill="#a78bfa"/>
+  <path d="M54 105h64M54 122h46" stroke="#52525b" stroke-width="8" stroke-linecap="round"/>
+  <path d="m190 44 7 18 18 7-18 7-7 18-7-18-18-7 18-7z" fill="#f59e0b"/>
+  <path d="M175 119h108" stroke="#71717a" stroke-width="12" stroke-linecap="round"/>
+  <path d="M175 143h78" stroke="#a1a1aa" stroke-width="8" stroke-linecap="round"/>
+</svg>

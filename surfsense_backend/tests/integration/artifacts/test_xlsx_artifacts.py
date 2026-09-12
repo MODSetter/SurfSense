@@ -129,6 +129,7 @@ async def test_xlsx_tool_create_revise_without_persisted_preview(
     verified = await verify_service.verify_artifact(
         sandbox,
         primary_path,
+        format="xlsx",
         workspace_id=db_workspace.id,
         vision_llm=None,
         secret_key=SECRET,
@@ -158,6 +159,7 @@ async def test_xlsx_tool_create_revise_without_persisted_preview(
     reverified = await verify_service.verify_artifact(
         sandbox,
         primary_path,
+        format="xlsx",
         workspace_id=db_workspace.id,
         vision_llm=None,
         secret_key=SECRET,
@@ -199,6 +201,7 @@ async def test_xlsx_tool_create_revise_without_persisted_preview(
     revised_ok = await verify_service.verify_artifact(
         sandbox,
         revised_path,
+        format="xlsx",
         workspace_id=db_workspace.id,
         vision_llm=None,
         secret_key=SECRET,

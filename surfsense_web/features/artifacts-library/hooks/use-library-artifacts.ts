@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
-import { normalizeArtifactFormat } from "@/features/artifacts/artifact-format-meta";
-import { fetchArtifacts } from "@/features/artifacts/artifact-query";
-import type { ArtifactListItem } from "@/features/artifacts/model";
+import { artifactListQueryOptions } from "@/features/artifacts/api/artifact-queries";
+import { normalizeArtifactFormat } from "@/features/artifacts/lib/artifact-format-catalog";
+import type { ArtifactListItem } from "@/features/artifacts/model/artifact";
 import type { LibraryArtifact, LibraryArtifactStatus } from "../model/artifact";
 
 function indexingStatus(status: string): LibraryArtifactStatus {
@@ -25,8 +25,7 @@ function fromArtifactRow(row: ArtifactListItem): LibraryArtifact {
 
 // Delivered podcasts arrive as Artifact rows; in-flight/failed runs stream from
 // Zero (see useLibraryPodcastRuns), matching how videos are handled.
-async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifact[]> {
-	const rows = await fetchArtifacts(workspaceId).catch(() => []);
+export function projectLibraryArtifacts(rows: ArtifactListItem[]): LibraryArtifact[] {
 	return rows
 		.map(fromArtifactRow)
 		.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
@@ -34,10 +33,9 @@ async function fetchLibraryArtifacts(workspaceId: number): Promise<LibraryArtifa
 
 export function useLibraryArtifacts(workspaceId: number) {
 	const { data, isLoading, error, refetch } = useQuery({
-		queryKey: ["artifacts-library", workspaceId],
-		queryFn: () => fetchLibraryArtifacts(workspaceId),
+		...artifactListQueryOptions(workspaceId),
 		enabled: Number.isFinite(workspaceId) && workspaceId > 0,
-		staleTime: 60 * 1000,
+		select: projectLibraryArtifacts,
 	});
 
 	return { artifacts: data ?? [], loading: isLoading, error, refresh: refetch };

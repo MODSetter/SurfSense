@@ -13,10 +13,16 @@ import {
 } from "@/atoms/chat/mentioned-documents.atom";
 import { pendingUserImageDataUrlsAtom } from "@/atoms/chat/pending-user-images.atom";
 import { setPremiumAlertForThreadAtom } from "@/atoms/chat/premium-alert.atom";
+import { retrievalScopeAtom, submittedRetrievalScopeAtom } from "@/atoms/chat/retrieval-scope.atom";
 import { type AgentCreatedDocument, agentCreatedDocumentsAtom } from "@/atoms/documents/ui.atoms";
 import { updateChatTabTitleAtom } from "@/atoms/tabs/tabs.atom";
 import { currentUserAtom } from "@/atoms/user/user-query.atoms";
-import type { HitlDecision, PendingInterruptState } from "@/features/chat-messages/hitl";
+import { scopeForMentionKinds } from "@/contracts/types/retrieval-scope.types";
+import type {
+	HitlDecision,
+	HitlResponse,
+	PendingInterruptState,
+} from "@/features/chat-messages/hitl";
 import {
 	applyActionLogSse,
 	applyActionLogUpdatedSse,
@@ -345,6 +351,12 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 	const mentionedDocuments = jotaiStore.get(mentionedDocumentsAtom);
 	const activeMentions = submittedSnapshot ?? mentionedDocuments;
 	const mentionPayload = deriveMentionedPayload(activeMentions);
+	const submittedRetrievalScope = jotaiStore.get(submittedRetrievalScopeAtom);
+	jotaiStore.set(submittedRetrievalScopeAtom, null);
+	const retrievalScope = scopeForMentionKinds(
+		submittedRetrievalScope ?? jotaiStore.get(retrievalScopeAtom),
+		activeMentions.map((mention) => mention.kind)
+	);
 	if (activeMentions.length > 0) {
 		jotaiStore.set(mentionedDocumentsAtom, []);
 	}
@@ -540,6 +552,7 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 					chat_id: streamThreadId,
 					user_query: userQuery.trim(),
 					workspace_id: workspaceId,
+					retrieval_scope: retrievalScope,
 					filesystem_mode: selection.filesystem_mode,
 					client_platform: selection.client_platform,
 					local_filesystem_mounts: selection.local_filesystem_mounts,
@@ -691,6 +704,9 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 						interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
 					);
 					if (interruptId) {
+						if (interruptData.type === "structured_question" && bundleToolCallIds.length === 0) {
+							bundleToolCallIds.push(interruptId);
+						}
 						const incoming: PendingInterruptState = {
 							interruptId,
 							threadId: streamThreadId,
@@ -831,15 +847,7 @@ export async function startNewChat(ctx: EngineContext, message: AppendMessage): 
 // Resume (HITL decisions)
 // ---------------------------------------------------------------------------
 
-export async function resumeChat(
-	ctx: EngineContext,
-	decisions: Array<{
-		type: string;
-		message?: string;
-		edited_action?: { name: string; args: Record<string, unknown> };
-		tool_call_id?: string;
-	}>
-): Promise<void> {
+export async function resumeChat(ctx: EngineContext, decisions: HitlResponse[]): Promise<void> {
 	const { workspaceId, threadId } = ctx;
 	if (threadId == null) return;
 	const pendingInterrupts = chatStreamStore.getPendingInterrupts(threadId);
@@ -857,6 +865,7 @@ export async function resumeChat(
 	const localFilesystemEnabled =
 		jotaiStore.get(agentFlagsAtom).data?.enable_desktop_local_filesystem === true;
 	const disabledTools = jotaiStore.get(disabledToolsAtom);
+	const retrievalScope = jotaiStore.get(retrievalScopeAtom);
 
 	const contentPartsState: ContentPartsState = {
 		contentParts: [],
@@ -962,6 +971,7 @@ export async function resumeChat(
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({
 					workspace_id: workspaceId,
+					retrieval_scope: retrievalScope,
 					decisions,
 					disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 					filesystem_mode: selection.filesystem_mode,
@@ -1052,6 +1062,9 @@ export async function resumeChat(
 							interruptData.tool_call_id ?? interruptData.interrupt_id ?? ""
 						);
 						if (interruptId) {
+							if (interruptData.type === "structured_question" && bundleToolCallIds.length === 0) {
+								bundleToolCallIds.push(interruptId);
+							}
 							const incoming: PendingInterruptState = {
 								interruptId,
 								threadId: resumeThreadId,
@@ -1116,6 +1129,14 @@ export async function resumeChat(
 	} catch (error) {
 		streamBatcher?.flush();
 		streamBatcher?.dispose();
+		if (!resumeAccepted) {
+			chatStreamStore.setPendingInterrupts(resumeThreadId, () => pendingInterrupts);
+			window.dispatchEvent(
+				new CustomEvent("hitl-resume-failed", {
+					detail: { interruptIds: pendingInterrupts.map((item) => item.interruptId) },
+				})
+			);
+		}
 		await handleStreamTerminalError({
 			error,
 			flow: "resume",
@@ -1169,6 +1190,7 @@ export async function regenerateChat(
 	const localFilesystemEnabled =
 		jotaiStore.get(agentFlagsAtom).data?.enable_desktop_local_filesystem === true;
 	const disabledTools = jotaiStore.get(disabledToolsAtom);
+	const requestedRetrievalScope = jotaiStore.get(retrievalScopeAtom);
 
 	// Extract the original user query BEFORE removing messages (reload mode).
 	let userQueryToDisplay: string | undefined;
@@ -1236,9 +1258,14 @@ export async function regenerateChat(
 		const regenerateThreadIds = sourceMentionedDocs
 			.filter((d) => d.kind === "thread")
 			.map((d) => d.id);
+		const retrievalScope = scopeForMentionKinds(
+			requestedRetrievalScope,
+			sourceMentionedDocs.map((mention) => mention.kind)
+		);
 
 		const requestBody: Record<string, unknown> = {
 			workspace_id: workspaceId,
+			retrieval_scope: retrievalScope,
 			user_query: newUserQuery,
 			disabled_tools: disabledTools.length > 0 ? disabledTools : undefined,
 			filesystem_mode: selection.filesystem_mode,

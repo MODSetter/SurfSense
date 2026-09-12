@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 176" role="img" aria-label="Clay infographic style preview">
+  <defs><filter id="s"><feDropShadow dx="0" dy="6" stdDeviation="5" flood-opacity=".2"/></filter></defs>
+  <rect width="320" height="176" rx="20" fill="#fef3c7"/>
+  <g filter="url(#s)">
+    <rect x="28" y="37" width="78" height="105" rx="25" fill="#fb7185"/>
+    <circle cx="160" cy="88" r="47" fill="#60a5fa"/>
+    <path d="m241 38 53 92-106 0z" fill="#34d399" stroke="#fff" stroke-width="5" stroke-linejoin="round"/>
+  </g>
+  <path d="M67 70v39M140 88h40M225 109l18-31 18 31" fill="none" stroke="#fff" stroke-width="9" stroke-linecap="round"/>
+</svg>

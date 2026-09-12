@@ -1,11 +1,12 @@
 import { useAtomValue, useSetAtom } from "jotai";
-import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { activeWorkspaceIdAtom } from "@/atoms/workspaces/workspace-query.atoms";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
-import { ArtifactDownloadButton } from "@/features/artifacts/artifact-download-button";
-import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
-import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
-import { artifactDownloadPath } from "@/features/artifacts/download-file";
+import { artifactDownloadPath } from "@/features/artifacts/api/artifact-download-path";
+import { isArtifactDownloadable } from "@/features/artifacts/lib/artifact-format-catalog";
+import { openArtifactPanelAtom } from "@/features/artifacts/state/artifact-panel.atom";
+import { ArtifactDownloadButton } from "@/features/artifacts/ui/artifact-download-button";
+import { ArtifactFormatIcon } from "@/features/artifacts/ui/artifact-format-icon";
+import { ArtifactFormatLabel } from "@/features/artifacts/ui/artifact-format-label";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { openChatArtifact } from "../lib/open-chat-artifact";
 import type { ChatArtifact } from "../model/artifact";
@@ -17,7 +18,11 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 	const workspaceId = Number(useAtomValue(activeWorkspaceIdAtom));
 	const isDesktop = useMediaQuery("(min-width: 1024px)");
 	const canOpen = artifact.artifactId != null;
-	const canDownload = canOpen && Number.isFinite(workspaceId) && workspaceId > 0;
+	const canDownload =
+		canOpen &&
+		Number.isFinite(workspaceId) &&
+		workspaceId > 0 &&
+		isArtifactDownloadable(artifact.format);
 
 	const handleOpen = () => {
 		const artifactId = artifact.artifactId;
@@ -58,7 +63,7 @@ export function ArtifactRow({ artifact }: { artifact: ChatArtifact }) {
 			{canDownload && artifact.artifactId != null ? (
 				<ArtifactDownloadButton
 					path={artifactDownloadPath(workspaceId, artifact.artifactId)}
-					filename={`${artifact.title}.${artifact.format}`}
+					filename={artifact.title}
 					className="relative z-10 size-9 shrink-0 text-muted-foreground hover:text-foreground"
 				/>
 			) : null}

@@ -4,7 +4,7 @@ import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { AlertCircleIcon, ImageIcon } from "lucide-react";
 import { z } from "zod";
 import { Image, ImageErrorBoundary, ImageLoading } from "@/components/tool-ui/image";
-import { useArtifactImage } from "@/features/artifacts/use-artifact-image";
+import { useArtifactImage } from "@/features/artifacts/hooks/use-artifact-image";
 
 const GenerateImageArgsSchema = z.object({
 	prompt: z.string(),

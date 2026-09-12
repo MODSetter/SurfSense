@@ -1,0 +1,340 @@
+import shutil
+from collections.abc import Sequence
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Query, Response, UploadFile, status
+from fastapi.responses import FileResponse
+from sqlalchemy import and_, delete, func, or_, select
+
+from api.dependencies import SessionDep
+from modules.chunks.models import Chunk
+from modules.documents.dependencies import DocumentDep
+from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.schemas import (
+    DocumentByChunkRead,
+    DocumentDetail,
+    DocumentRead,
+    DocumentUpdate,
+    DuplicateRead,
+    NoteCreate,
+    RejectedUploadRead,
+    UploadOutcome,
+)
+from modules.documents.storage import (
+    SUPPORTED_UPLOAD_SUFFIXES,
+    StreamedUpload,
+    original_path,
+    stream_upload,
+    suffix_of,
+    title_of,
+    validate_upload,
+)
+from modules.documents.tasks import ingest_document
+from modules.workspaces.dependencies import WorkspaceDep
+from shared.config import get_storage_settings
+
+router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documents"])
+
+
+@router.get(
+    "",
+    response_model=list[DocumentRead],
+    summary="List a workspace's documents",
+)
+def list_documents(
+    workspace: WorkspaceDep,
+    session: SessionDep,
+    document_type: Annotated[list[DocumentType] | None, Query()] = None,
+    status_in: Annotated[list[DocumentStatus] | None, Query(alias="status")] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> Sequence[Document]:
+    query = select(Document).where(Document.workspace_id == workspace.id)
+
+    if document_type:
+        query = query.where(Document.document_type.in_(document_type))
+    if status_in:
+        query = query.where(Document.status.in_(status_in))
+
+    query = query.order_by(Document.created_at).limit(limit).offset(offset)
+
+    return session.scalars(query).all()
+
+
+@router.get(
+    "/by-chunk/{chunk_id}",
+    response_model=DocumentByChunkRead,
+    summary="Read a document from a cited chunk",
+)
+def get_document_by_chunk(
+    chunk_id: int,
+    workspace: WorkspaceDep,
+    session: SessionDep,
+    chunk_window: Annotated[int, Query(ge=0, le=20)] = 5,
+) -> DocumentByChunkRead:
+    """The citation panel: the cited chunk plus neighbours, scoped to this workspace."""
+    chunk = session.get(Chunk, chunk_id)
+    if chunk is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "chunk not found")
+
+    document = session.get(Document, chunk.document_id)
+    if document is None or document.workspace_id != workspace.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "chunk not found")
+
+    total_chunks = (
+        session.scalar(
+            select(func.count())
+            .select_from(Chunk)
+            .where(Chunk.document_id == document.id)
+        )
+        or 0
+    )
+    cited_idx = (
+        session.scalar(
+            select(func.count())
+            .select_from(Chunk)
+            .where(
+                Chunk.document_id == document.id,
+                or_(
+                    Chunk.position < chunk.position,
+                    and_(Chunk.position == chunk.position, Chunk.id < chunk.id),
+                ),
+            )
+        )
+        or 0
+    )
+    start = max(0, cited_idx - chunk_window)
+    end = min(total_chunks, cited_idx + chunk_window + 1)
+    windowed = session.scalars(
+        select(Chunk)
+        .where(Chunk.document_id == document.id)
+        .order_by(Chunk.position, Chunk.id)
+        .offset(start)
+        .limit(end - start)
+    ).all()
+
+    return DocumentByChunkRead(
+        id=document.id,
+        title=document.title,
+        document_type=document.document_type,
+        workspace_id=document.workspace_id,
+        chunks=list(windowed),
+        total_chunks=total_chunks,
+        chunk_start_index=start,
+    )
+
+
+@router.post(
+    "",
+    response_model=DocumentDetail,
+    status_code=status.HTTP_201_CREATED,
+    summary="Write a note",
+)
+def create_note(
+    payload: NoteCreate, workspace: WorkspaceDep, session: SessionDep
+) -> Document:
+    # A note arrives as text, so nothing needs parsing, but it stays pending
+    # until the worker has chunked and indexed it: ready means searchable.
+    note = Document(
+        workspace_id=workspace.id,
+        title=payload.title,
+        document_type=DocumentType.NOTE,
+        content=payload.content,
+    )
+    session.add(note)
+    session.commit()
+
+    ingest_document(note.id)
+    return note
+
+
+@router.post(
+    "/upload",
+    response_model=UploadOutcome,
+    status_code=status.HTTP_201_CREATED,
+    summary="Upload files",
+)
+def upload_documents(
+    files: list[UploadFile], workspace: WorkspaceDep, session: SessionDep
+) -> UploadOutcome:
+    storage = get_storage_settings()
+    created: list[Document] = []
+    duplicates: list[DuplicateRead] = []
+    rejected: list[RejectedUploadRead] = []
+    accepted: list[tuple[Document, StreamedUpload, str]] = []
+    staged: list[StreamedUpload] = []
+
+    try:
+        for upload in files:
+            suffix = suffix_of(upload)
+            if suffix not in SUPPORTED_UPLOAD_SUFFIXES:
+                rejected.append(
+                    RejectedUploadRead(
+                        filename=title_of(upload),
+                        reason=f"{suffix or 'extensionless files'} are not supported",
+                    )
+                )
+                continue
+
+            streamed = stream_upload(upload, storage.workspace_dir(workspace.id))
+            staged.append(streamed)
+            try:
+                mime_type = validate_upload(streamed.path, suffix)
+            except ValueError as failure:
+                streamed.path.unlink(missing_ok=True)
+                rejected.append(
+                    RejectedUploadRead(
+                        filename=title_of(upload),
+                        reason=str(failure),
+                    )
+                )
+                continue
+
+            # Keyed on the bytes: the same report under two names is one
+            # document, and two unrelated files both called report.pdf are two.
+            twin = session.scalar(
+                select(Document).where(
+                    Document.workspace_id == workspace.id,
+                    Document.dedup_key == streamed.digest,
+                )
+            )
+            if twin is not None:
+                streamed.path.unlink(missing_ok=True)
+                duplicates.append(
+                    DuplicateRead(filename=title_of(upload), document_id=twin.id)
+                )
+                continue
+
+            document = Document(
+                workspace_id=workspace.id,
+                title=title_of(upload),
+                document_type=DocumentType.FILE,
+                dedup_key=streamed.digest,
+                document_metadata={
+                    "mime_type": mime_type,
+                    "size_bytes": streamed.size,
+                    "suffix": suffix,
+                },
+            )
+            session.add(document)
+            # The file is stored under the id the database is about to assign.
+            session.flush()
+            created.append(document)
+            accepted.append((document, streamed, suffix))
+    except BaseException:
+        for streamed in staged:
+            streamed.path.unlink(missing_ok=True)
+        raise
+
+    for document, streamed, suffix in accepted:
+        destination = storage.document_dir(workspace.id, document.id)
+        destination.mkdir(parents=True, exist_ok=True)
+        streamed.path.replace(destination / f"original{suffix}")
+
+    # Before enqueueing, not by the session dependency afterwards: the worker is
+    # another process and would look for a row this request had not written yet.
+    session.commit()
+
+    for document, _, _ in accepted:
+        ingest_document(document.id)
+
+    return UploadOutcome(created=created, duplicates=duplicates, rejected=rejected)
+
+
+@router.patch(
+    "/{document_id}",
+    response_model=DocumentRead,
+    summary="Edit a document",
+)
+def update_document(
+    document: DocumentDep, payload: DocumentUpdate, session: SessionDep
+) -> Document:
+    if payload.title is not None:
+        document.title = payload.title
+
+    if payload.content is None:
+        return document
+
+    if document.document_type is not DocumentType.NOTE:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "only a note's content is editable; the rest is extracted from a file",
+        )
+
+    document.content = payload.content
+    # The indexed copy is now stale, and search would keep returning the old
+    # text until the worker has rebuilt it.
+    document.status = DocumentStatus.PENDING
+    session.commit()
+
+    ingest_document(document.id)
+    return document
+
+
+@router.post(
+    "/{document_id}/retry",
+    response_model=DocumentRead,
+    summary="Requeue a failed document",
+)
+def retry_document(document: DocumentDep, session: SessionDep) -> Document:
+    # Otherwise failed is terminal: the same bytes re-uploaded are a duplicate.
+    if document.status is not DocumentStatus.FAILED:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "only a failed document can be retried"
+        )
+
+    document.status = DocumentStatus.PENDING
+    document.error_message = None
+    session.commit()
+
+    ingest_document(document.id)
+    return document
+
+
+@router.get(
+    "/{document_id}/original",
+    response_class=FileResponse,
+    summary="Download the uploaded file",
+)
+def read_original(document: DocumentDep) -> FileResponse:
+    path = original_path(document)
+
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no file behind this document")
+
+    # Never inline: a stored html or svg would run its script on this origin.
+    return FileResponse(
+        path,
+        filename=document.title,
+        media_type=(document.document_metadata or {}).get("mime_type")
+        or "application/octet-stream",
+        content_disposition_type="attachment",
+    )
+
+
+@router.delete(
+    "/{document_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete a document",
+)
+def delete_document(document: DocumentDep, session: SessionDep) -> Response:
+    # Chunks cascade and their triggers clear both indexes. Only the bytes are
+    # beyond the database, and go after the commit a rollback would undo.
+    directory = get_storage_settings().document_dir(document.workspace_id, document.id)
+
+    deleted = session.execute(
+        delete(Document).where(
+            Document.id == document.id,
+            Document.status != DocumentStatus.PROCESSING,
+        )
+    )
+    if deleted.rowcount == 0:
+        session.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "a document cannot be deleted while it is processing",
+        )
+    session.commit()
+
+    shutil.rmtree(directory, ignore_errors=True)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

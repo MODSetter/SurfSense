@@ -369,14 +369,6 @@ celery_app.conf.beat_schedule = {
         "schedule": crontab(minute="20"),
         "options": {"expires": 600},
     },
-    # Re-drive remotes whose last-pushed stamp trails the store HEAD. Same
-    # hourly cadence as the index sweep: fire-and-forget push is the only
-    # recovery for a broker drop after a save.
-    "push-lagging-workspace-remotes": {
-        "task": "push_lagging_workspace_remotes",
-        "schedule": crontab(minute="25"),
-        "options": {"expires": 600},
-    },
     # Parity-check flipped workspaces against git by content address. Covers the
     # half the hourly sweep cannot see (its predicate is git-vs-git), and enqueues
     # a whole-tree converge for what it finds, capped per run.

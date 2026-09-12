@@ -1,0 +1,67 @@
+appId: com.surfsense.app
+productName: SurfSense
+directories:
+  output: release
+  buildResources: build
+
+# The asar carries only the main + preload bundles. The renderer SPA, the two
+# frozen Python binaries, and the Ollama server ride alongside in resources/,
+# where the main process spawns them by path (sidecars/) and loads the SPA from
+# disk (index.ts).
+files:
+  - out/**/*
+  - package.json
+
+asar: true
+
+extraResources:
+  - from: ../backend/dist/api
+    to: backend/api
+  - from: ../backend/dist/worker
+    to: backend/worker
+  - from: ../frontend/dist
+    to: frontend/dist
+  # Embedding, voice, and Docling parser packs (build:model, build:voice,
+  # build:parser). First PDF stays offline; the worker is not blocked on Hub.
+  - from: ../backend/models
+    to: models
+  # The Ollama server (fetch-ollama.mjs stages it here). Models are pulled by the
+  # user post-install into the writable data dir, not shipped.
+  - from: ollama
+    to: ollama
+  # Pinned hardware advisor (fetch-llmfit.mjs verifies and stages it atomically).
+  - from: llmfit
+    to: llmfit
+
+publish:
+  provider: github
+  owner: MODSetter
+  repo: SurfSense
+
+linux:
+  target: [AppImage, deb]
+  category: Office
+  icon: build/icon.png
+  executableName: surfsense-local
+  desktop:
+    entry:
+      Name: SurfSense
+      Comment: Local-first research over your own documents
+      Categories: Office;Utility;
+      StartupWMClass: SurfSense
+
+win:
+  target: [nsis]
+  icon: build/icon.ico
+
+
+mac:
+  target: [dmg]
+  category: public.app-category.productivity
+  icon: build/icon.icns
+  artifactName: "${productName}-${version}-${arch}.${ext}"
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  notarize: true

@@ -11,6 +11,9 @@ RemoteErrorCode = Literal[
     "invalid_spec",
     "missing",
     "forge",
+    "unsafe_path",
+    "would_delete_foreign",
+    "need_direction",
 ]
 
 

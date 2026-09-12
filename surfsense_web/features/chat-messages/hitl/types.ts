@@ -39,6 +39,31 @@ export interface HitlDecision {
 	};
 }
 
+export interface StructuredQuestionAnswer {
+	question_id: string;
+	option_ids?: string[];
+	text?: string;
+}
+
+export type StructuredQuestionResponse =
+	| {
+			type: "respond";
+			preset_id: string;
+			preset_version: number;
+			answers: StructuredQuestionAnswer[];
+			tool_call_id?: string;
+			interrupt_id?: string;
+	  }
+	| {
+			type: "cancel";
+			preset_id: string;
+			preset_version: number;
+			tool_call_id?: string;
+			interrupt_id?: string;
+	  };
+
+export type HitlResponse = HitlDecision | StructuredQuestionResponse;
+
 export type HitlPhase = "pending" | "processing" | "complete" | "rejected";
 
 export interface PerToolApprovalCardProps {

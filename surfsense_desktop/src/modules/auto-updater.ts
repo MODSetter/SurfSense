@@ -3,6 +3,8 @@ import { IPC_CHANNELS } from '../ipc/channels';
 import { trackEvent } from './analytics';
 
 const SEMVER_RE = /^\d+\.\d+\.\d+/;
+// ponytail: v1+ in this repo is the separate local app; the legacy app must never install it.
+const isLegacyRelease = (version: string) => version.startsWith('0.');
 
 type AutoUpdater = {
   autoDownload: boolean;
@@ -10,6 +12,7 @@ type AutoUpdater = {
   once(event: string, listener: (...args: any[]) => void): void;
   removeListener(event: string, listener: (...args: any[]) => void): void;
   checkForUpdates(): Promise<unknown>;
+  downloadUpdate(): Promise<unknown>;
   quitAndInstall(): void;
 };
 
@@ -50,7 +53,7 @@ function getAutoUpdater(): AutoUpdater {
 }
 
 function configureAutoUpdater(autoUpdater: AutoUpdater): void {
-  autoUpdater.autoDownload = true;
+  autoUpdater.autoDownload = false;
 
   if (listenersRegistered) return;
   listenersRegistered = true;
@@ -58,12 +61,18 @@ function configureAutoUpdater(autoUpdater: AutoUpdater): void {
   const version = app.getVersion();
 
   autoUpdater.on('update-available', (info: UpdateInfo) => {
+    if (!isLegacyRelease(info.version)) {
+      console.log(`Update ${info.version} ignored: not a legacy release`);
+      setUpdateMenuState({ status: 'idle' });
+      return;
+    }
     console.log(`Update available: ${info.version}`);
     setUpdateMenuState({ status: 'downloading', version: info.version });
     trackEvent('desktop_update_available', {
       current_version: version,
       new_version: info.version,
     });
+    autoUpdater.downloadUpdate().catch(() => {});
   });
 
   autoUpdater.on('update-downloaded', (info: UpdateInfo) => {
@@ -158,7 +167,12 @@ export async function checkForUpdatesManually(): Promise<void> {
         autoUpdater.removeListener('update-downloaded', onDownloaded);
         autoUpdater.removeListener('error', onError);
       };
-      const onAvailable = () => {};
+      const onAvailable = (info: UpdateInfo) => {
+        if (!isLegacyRelease(info.version)) {
+          cleanup();
+          resolve('not-available');
+        }
+      };
       const onNotAvailable = () => {
         cleanup();
         resolve('not-available');

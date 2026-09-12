@@ -43,7 +43,12 @@ from app.proprietary.web_crawler.stealth import (
 )
 from app.proprietary.web_crawler.url_policy import extract_link_records
 from app.utils.captcha import captcha_enabled, get_captcha_config
-from app.utils.crawl import BlockType, classify_block, extract_contacts
+from app.utils.crawl import (
+    BlockType,
+    classify_block,
+    extract_contacts,
+    is_publicly_routable,
+)
 from app.utils.proxy import get_proxy_url, is_pool_backed
 
 logger = logging.getLogger(__name__)
@@ -237,6 +242,18 @@ class WebCrawlerConnector:
                 return CrawlOutcome(
                     status=CrawlOutcomeStatus.FAILED,
                     error=f"Invalid URL: {url}",
+                    block_type=block_state["block_type"],
+                )
+
+            # ``validators.url`` only judges the spelling; it passes
+            # ``http://127.0.0.1:8000/`` and the cloud metadata endpoint alike.
+            # Resolving before any tier runs is what keeps those from being
+            # fetched from inside the backend's own network. DNS blocks, so it
+            # is offloaded the same way the browser tiers below are.
+            if not await asyncio.to_thread(is_publicly_routable, url):
+                return CrawlOutcome(
+                    status=CrawlOutcomeStatus.FAILED,
+                    error=f"Restricted URL (host is not publicly routable): {url}",
                     block_type=block_state["block_type"],
                 )
 

@@ -67,6 +67,7 @@ class ArtifactSaved:
     artifact_id: int
     generation: int
     title: str
+    format: str
     files: list[ArtifactSavedFile]
 
 
@@ -86,6 +87,20 @@ def _validated_files(
 def _validate_files(files: list[ArtifactInputFile]) -> None:
     """Compatibility validation seam used by focused unit tests."""
     _validated_files(files)
+
+
+def _revision_metadata(
+    current: dict[str, Any] | None,
+    extra: dict[str, Any] | None,
+    *,
+    artifact_format: str,
+) -> dict[str, Any]:
+    metadata = {**(current or {}), **(extra or {})}
+    # Interaction state is generation-scoped and cannot survive any content
+    # revision, including a semantic format switch.
+    metadata.pop("flashcards", None)
+    metadata.pop("quiz", None)
+    return metadata
 
 
 def _artifact_format(
@@ -299,10 +314,11 @@ async def save_artifact(
         artifact.generation += 1
         if tool_call_id is not None:
             artifact.updated_by_tool_call_id = tool_call_id
-        artifact.artifact_metadata = {
-            **(artifact.artifact_metadata or {}),
-            **(extra_metadata or {}),
-        }
+        artifact.artifact_metadata = _revision_metadata(
+            artifact.artifact_metadata,
+            extra_metadata,
+            artifact_format=artifact_format,
+        )
         artifact.updated_at = now
         document.title = title
         document.content = markdown_representation
@@ -366,6 +382,7 @@ async def save_artifact(
             artifact_id=artifact.id,
             generation=artifact.generation,
             title=document.title,
+            format=artifact.format,
             files=[
                 ArtifactSavedFile(
                     file_id=record.id,

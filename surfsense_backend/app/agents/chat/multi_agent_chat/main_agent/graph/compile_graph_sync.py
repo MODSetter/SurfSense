@@ -17,6 +17,7 @@ from app.agents.chat.multi_agent_chat.main_agent.middleware.stack import (
 )
 from app.agents.chat.multi_agent_chat.shared.feature_flags import AgentFeatureFlags
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import FilesystemMode
+from app.agents.chat.retrieval_scope import RetrievalScope
 from app.agents.chat.shared.context import SurfSenseContextSchema
 from app.db import ChatVisibility
 from app.utils.perf import get_perf_logger
@@ -45,6 +46,7 @@ def build_compiled_agent_graph_sync(
     subagent_dependencies: dict[str, Any],
     mcp_tools_by_agent: dict[str, list[BaseTool]] | None = None,
     disabled_tools: list[str] | None = None,
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS,
     knowledge_store_enabled: bool = False,
 ):
     """Sync compile: middleware + ``create_agent`` (run via ``asyncio.to_thread``)."""
@@ -68,6 +70,7 @@ def build_compiled_agent_graph_sync(
         checkpointer=checkpointer,
         mcp_tools_by_agent=mcp_tools_by_agent,
         disabled_tools=disabled_tools,
+        retrieval_scope=retrieval_scope,
         knowledge_store_enabled=knowledge_store_enabled,
     )
     mw_elapsed = time.perf_counter() - mw_start

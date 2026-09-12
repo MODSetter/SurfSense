@@ -45,6 +45,7 @@ class WorkspaceRemoteRepository:
                 url=row.url,
                 installation_id=row.installation_id,
                 branch=row.branch or "main",
+                sourcepath=row.sourcepath if row.sourcepath is not None else "docs",
             )
         if row.provider == "gitlab":
             if not row.token:
@@ -58,6 +59,7 @@ class WorkspaceRemoteRepository:
                 url=row.url,
                 token=token,
                 branch=row.branch or "main",
+                sourcepath=row.sourcepath if row.sourcepath is not None else "docs",
             )
         raise RemoteError("invalid_spec", f"unknown provider {row.provider!r}")
 
@@ -77,6 +79,7 @@ class WorkspaceRemoteRepository:
         row.provider = spec.provider
         row.url = spec.url
         row.branch = spec.branch or "main"
+        row.sourcepath = spec.sourcepath
         row.installation_id = installation_id
         row.token = token
         row.last_pushed_revision = None
@@ -124,4 +127,7 @@ def _status(row: WorkspaceGitRemotes) -> RemoteStatus:
         last_pushed_revision=row.last_pushed_revision,
         last_pushed_at=row.last_pushed_at,
         last_push_error=row.last_push_error,
+        sourcepath=row.sourcepath,
+        last_error_code=row.last_error_code,
+        last_conflict_paths=row.last_conflict_paths,
     )

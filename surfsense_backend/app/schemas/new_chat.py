@@ -7,15 +7,17 @@ These schemas follow the assistant-ui ThreadHistoryAdapter pattern:
 """
 
 from datetime import datetime
-from typing import Any, Literal, Self
+from typing import Annotated, Any, Literal, Self
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.agents.chat.retrieval_scope import RetrievalScope
 from app.db import ChatVisibility, NewChatMessageRole
 from app.utils.user_message_multimodal import decode_base64_image, to_data_url
 
 from .base import IDModel, TimestampModel
+from .structured_question import StructuredQuestionCancel, StructuredQuestionRespond
 
 # =============================================================================
 # Message Schemas
@@ -237,6 +239,7 @@ class NewChatRequest(BaseModel):
     chat_id: int
     user_query: str
     workspace_id: int
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS
     messages: list[ChatMessage] | None = None  # Optional chat history from frontend
     mentioned_document_ids: list[int] | None = (
         None  # Optional document IDs mentioned with @ in the chat
@@ -304,6 +307,20 @@ class NewChatRequest(BaseModel):
             raise ValueError("Provide non-empty user_query and/or user_images")
         if self.user_images is not None and len(self.user_images) > MAX_NEW_CHAT_IMAGES:
             raise ValueError(f"At most {MAX_NEW_CHAT_IMAGES} images allowed")
+        has_document_context = bool(
+            self.mentioned_document_ids
+            or self.mentioned_folder_ids
+            or self.mentioned_thread_ids
+        )
+        has_web_context = bool(self.mentioned_connector_ids)
+        if self.retrieval_scope is RetrievalScope.WEB and has_document_context:
+            raise ValueError(
+                "retrieval_scope='web' conflicts with document, folder, or thread mentions"
+            )
+        if self.retrieval_scope is RetrievalScope.DOCUMENTS and has_web_context:
+            raise ValueError(
+                "retrieval_scope='documents' conflicts with connected-app mentions"
+            )
         return self
 
 
@@ -331,6 +348,7 @@ class RegenerateRequest(BaseModel):
     """
 
     workspace_id: int
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS
     user_query: str | None = (
         None  # New user query (for edit). None = reload with same query
     )
@@ -398,6 +416,20 @@ class RegenerateRequest(BaseModel):
     def _validate_regenerate_user_images(self) -> Self:
         if self.user_images is not None and len(self.user_images) > MAX_NEW_CHAT_IMAGES:
             raise ValueError(f"At most {MAX_NEW_CHAT_IMAGES} images allowed")
+        has_document_context = bool(
+            self.mentioned_document_ids
+            or self.mentioned_folder_ids
+            or self.mentioned_thread_ids
+        )
+        has_web_context = bool(self.mentioned_connector_ids)
+        if self.retrieval_scope is RetrievalScope.WEB and has_document_context:
+            raise ValueError(
+                "retrieval_scope='web' conflicts with document, folder, or thread mentions"
+            )
+        if self.retrieval_scope is RetrievalScope.DOCUMENTS and has_web_context:
+            raise ValueError(
+                "retrieval_scope='documents' conflicts with connected-app mentions"
+            )
         return self
 
     @model_validator(mode="after")
@@ -428,9 +460,16 @@ class ResumeDecision(BaseModel):
     tool_call_id: str | None = None
 
 
+ResumeInput = Annotated[
+    ResumeDecision | StructuredQuestionRespond | StructuredQuestionCancel,
+    Field(discriminator="type"),
+]
+
+
 class ResumeRequest(BaseModel):
     workspace_id: int
-    decisions: list[ResumeDecision]
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS
+    decisions: list[ResumeInput] = Field(min_length=1)
     # Mirrors ``NewChatRequest.disabled_tools`` so the resumed run sees the
     # same tool surface as the originating turn.
     disabled_tools: list[str] | None = None

@@ -382,6 +382,7 @@ async def execute_video_deliverable(
         verification = await verify_artifact(
             sandbox,
             output_path,
+            format="video",
             workspace_id=job.workspace_id,
             vision_llm=verification_llm,
         )

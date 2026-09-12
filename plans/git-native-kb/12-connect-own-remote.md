@@ -1,8 +1,8 @@
 # Phase 12 — Connect-your-own remote (push only)
 
-**Status:** DESIGN. Do not implement until explicit go.
+**Status:** SHIPPED (export). **Product superseded** by [`13-bidirectional-folder-sync.md`](13-bidirectional-folder-sync.md): one repo = one folder, md bijection, pull + push. Keep this file as the as-built of GitHub App / GitLab PAT / `WorkspaceRemotes` / `enqueue_push`. Phase 13 reuses that package and **stops** pushing store `HEAD` onto an empty branch.
 **Umbrella:** [`00-umbrella-plan.md`](00-umbrella-plan.md).
-**Narrows** the deferred “connect-your-own-remote (push/pull to user GitHub/GitLab/Gitea)” bullet: **v1 is connect + push.** Pull, merge, force-push, front-matter, and restore-from-clone are out.
+**Narrowed** the deferred “connect-your-own-remote” bullet to **connect + push** (empty branch, no pull). That product is retired by 13.
 
 ## 0. Goal
 

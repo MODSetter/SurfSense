@@ -1,0 +1,39 @@
+{
+  "name": "surfsense-local-electron",
+  "private": true,
+  "version": "0.0.1",
+  "description": "Electron shell: spawns the API + worker sidecars, loads the Vite SPA",
+  "author": {
+    "name": "SurfSense",
+    "email": "noreply@surfsense.app"
+  },
+  "homepage": "https://github.com/MODSetter/SurfSense",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "predev": "pnpm build:model && pnpm build:parser && node scripts/fetch-llmfit.mjs --binary-only",
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"pnpm --dir ../frontend dev\" \"wait-on tcp:127.0.0.1:5173 && electron-vite dev\"",
+    "build": "electron-vite build",
+    "build:frontend": "pnpm --dir ../frontend build",
+    "build:binaries": "uv --directory ../backend run scripts/build_binaries.py",
+    "build:model": "uv --directory ../backend run scripts/fetch_embedding_model.py models",
+    "build:voice": "uv --directory ../backend run scripts/fetch_kokoro_model.py models",
+    "build:parser": "uv --directory ../backend run scripts/fetch_docling_models.py models",
+    "build:ollama": "node scripts/fetch-ollama.mjs",
+    "build:llmfit": "node scripts/fetch-llmfit.mjs",
+    "dist": "pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build:ollama && pnpm build:llmfit && pnpm build && electron-builder",
+    "test": "node --test src/main/document-files.test.mts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "check:sidecars": "node scripts/check-sidecars.mjs",
+    "check:llmfit": "node scripts/check-llmfit.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "concurrently": "^10",
+    "electron": "^44",
+    "electron-builder": "^26.16.1",
+    "electron-vite": "^5",
+    "typescript": "~6",
+    "vite": "^7",
+    "wait-on": "^9"
+  }
+}

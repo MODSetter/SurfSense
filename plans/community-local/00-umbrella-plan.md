@@ -1,0 +1,106 @@
+# SurfSense Community Local — Umbrella Plan
+
+> Airgapped, local-first NotebookLM-style desktop app (Community SKU).
+
+> **Pivot (Sep 2026):** this app is now *the* SurfSense product and the hosted SaaS is being sunset. Business decisions, licensing, cloud-to-local migration, the four cross-team contracts, owners, and the launch runbook live in [`00d-pivot-plan.md`](00d-pivot-plan.md). It adds a Phase 6 to the local app (import, license module, egress panel, keychain, auto-update), specified there under Workstream A. The out-of-scope list below still holds for this codebase: scrapers and MCP stay hosted and are reached at T+7 through a thin client; Stripe stays in the portal.
+
+**Three workstreams** — pick a folder and work through phases in order:
+
+| Workstream | Folder | Owns |
+|---|---|---|
+| **Frontend** | [`frontend/`](frontend/) | `surfsense_local/frontend/` |
+| **API** | [`api/`](api/) | `electron/`, `backend/api/`, migrations, packaging |
+| **Worker** | [`worker/`](worker/) | `backend/worker/`, ingest, `shared/search`, studio pipelines |
+
+Shared: [`00c-data-model.md`](00c-data-model.md), [`00b-diagrams.md`](00b-diagrams.md).
+
+> **SCOPE:** New tree **`surfsense_local/`** — not a feature flag on Docker SurfSense.
+
+## Phase index
+
+Same phase number = integrate together.
+
+| Phase | [`frontend/`](frontend/) | [`api/`](api/) | [`worker/`](worker/) |
+|---|---|---|---|
+| **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
+| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ✓ | [`01-boot.md`](worker/01-boot.md) ✓ |
+| **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
+| **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
+| **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
+| **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05a-model-recommendations.md`](api/05a-model-recommendations.md) + [`05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md) + [`05c-packaging.md`](api/05c-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
+| **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | — (import reuses `ingest_document`) |
+
+**Demo:** phase 3 all streams. **Ship:** phase 6 = SurfSense 2.0.0 (1.0.x tags are taken by the old project versioning; see [`00d-pivot-plan.md`](00d-pivot-plan.md)).
+
+◐ started · ✓ done · unmarked not begun. Built: a Vite + shadcn shell reading
+`/health`, the whole API surface for workspaces and documents — migrations,
+CRUD, upload, retry, and the search index with the triggers that keep it in step
+— and a worker that ingests what the API enqueues: Docling parses, Chonkie
+chunks, bundled bge-small embeds, both index tables written, `ready` or `failed`
+with a reason. The generation slice ([`modules/llm/`](../../surfsense_local/backend/modules/llm/))
+also lands ahead of its phase: list and pull Ollama models, a temporary curated
+Qwen catalog, and a selectable model per role — everything
+[`api/03-chat.md`](api/03-chat.md) needs except the stream itself. Retrieval
+lands too ([`shared/search.py`](../../surfsense_local/backend/shared/search.py)):
+`retrieve()` scopes to a workspace, widens recall with a BM25 leg and a vector KNN
+leg, then rescores the union by cosine. **Chat now closes on all of it**
+([`modules/chat/`](../../surfsense_local/backend/modules/chat/)): a thread's turn
+retrieves its own context, grounds a system prompt with citable `<source>` blocks,
+slides a window over history, and streams a cited reply over SSE while both turns
+persist. The Electron shell and dev loop now land too: [`electron/`](../../surfsense_local/electron/)
+spawns both Python sidecars, waits on `/health`, and loads the Vite SPA, reaping
+the sidecars on quit (guarded by `pnpm check:sidecars`). Phase 1 still owes both
+screens, and a PDF only converts on a machine that can reach
+Hugging Face until [`api/05c-packaging.md`](api/05c-packaging.md) ships the parser
+pack.
+
+## Layer boundary
+
+| Concern | API | Worker |
+|---|---|---|
+| HTTP / OpenAPI | ✓ | |
+| Upload stream + enqueue | ✓ | |
+| Docling / chunk / embed | | ✓ |
+| Hybrid search | calls | implements (`shared/`) |
+| Chat LLM stream | ✓ | |
+| Studio builder | | ✓ |
+| Electron / installers | ✓ | |
+
+## Positioning
+
+| | Connected / Docker | Community Local |
+|---|---|---|
+| DB | Postgres + Zero | SQLite |
+| Jobs | Celery + Redis | Huey `-w 1` |
+| Chat | LangGraph | Retrieve-first RAG |
+| Auth | Yes | None |
+| UI | Next + Zero | Vite in Electron |
+
+## Out of scope
+
+Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP, multi-seat LAN, Stripe.
+
+## Locked decisions
+
+| Decision | Choice | Why |
+|---|---|---|
+| **HTTP stack** | **FastAPI** + uvicorn | Same stack as cloud backend; native OpenAPI for frontend; SSE streaming for chat. PyInstaller risk is handled in [`api/00-spike.md`](api/00-spike.md) — not a reason to downgrade. |
+| **Retrieval** | **FTS5 + sqlite-vec hybrid, cosine rescore** | Semantic + keyword from day one: both legs widen recall, cosine orders. Embeddings on ingest must be queried properly — not keyword-only, not in-memory scan over BLOBs. |
+| **Embed provider** | Bundled bge-small-en-v1.5 int8, in-process on onnxruntime | 384-dim, ~66MB, runs offline on CPU with no model server. Docling parses, Chonkie chunks. Remote embedding is a later opt-in, not a launch dependency. |
+| **Generation architecture** | llmfit catalog/advisor + curated-model policy + runtime adapters; Ollama local, multiple OpenAI-compatible connections remote | [`api/05a-model-recommendations.md`](api/05a-model-recommendations.md) and [`api/05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md). llmfit supplies broad model metadata, hardware detection, and fit estimates; it is not a `Generator`, installer, or inference runtime. Local adapters resolve trusted artifacts and Ollama is first. Remote endpoints are named connection instances with their own URL and optional key; models are discovered live, not synchronized into SQLite. `SelectedModel(role)` stores the provider, connection identity when remote, and exact model id. SurfSense selects endpoints but does not load-balance their replicas. |
+| **llmfit integration** | **Pinned official binary, short-lived JSON CLI, normalized behind `ModelAdvisor`** | The API runs `llmfit --json system` and `llmfit --max-context 8192 --json fit`, caches one scan, and exposes only SurfSense DTOs. No fork, patch, Python import, or permanent llmfit server. CLI label/machine-code differences are normalized at one seam and fixture-tested before a version bump. Failure removes ranking, not installed-model selection or chat. |
+| **Ollama runtime** | **Bundled as a supervised sidecar (packaged); dev uses the developer's own `ollama serve`** | Chat can't depend on a daemon the user may not have installed. The packaged app ships the standalone Ollama archive (`electron/scripts/fetch-ollama.mjs` stages it, electron-builder carries it in `resources/ollama`) and Electron runs it as a third sidecar on a chosen port, passing `SURFSENSE_LOCAL_OLLAMA_BASE_URL` to the API. Models aren't shipped — the user pulls into the writable data dir after install. The two Python sidecars and Ollama share one supervisor (`electron/src/main/sidecars/`): the supervisor spawns/reaps, one spec file per sidecar carries its identity. Ollama is best-effort at boot (only the API gates the window; its state surfaces via `/llm/providers`). |
+| **Persistence** | SQLAlchemy 2.0 + Alembic, same as cloud | Models are the source of truth. `versions/` ships as PyInstaller data, resolved from the package's own `__file__` — de-risked in [`api/00-spike.md`](api/00-spike.md). |
+| **Migrations** | **Hand-written; autogenerate is off** | Autogenerate cannot see a rename — it emits drop + add, which deletes a column's data silently. The target database is one user's laptop, unbacked and uninspectable, so every revision is written and read by a person. `env.py` carries no `target_metadata`, so `--autogenerate` cannot be used by accident. Mature SQLite-backed apps make the same call — hand-written revisions throughout. |
+| **Schema owner** | Alembic only; **never** `create_all` | Cloud's `create_all`-on-startup races its own migrations and breaks releases. Local has one path to a schema, and a test fails if models and migrations drift. |
+| **Model layout** | One folder per feature: `modules/<feature>/models.py` | As in cloud's `automations/`, `notifications/`. `shared.db.import_models()` registers all of them at app creation: relationships name their target as a string, so a feature nobody imported is a name SQLAlchemy cannot resolve, and every query against a table pointing at it fails at runtime. |
+| **Test layout** | `tests/unit/<feature>` and `tests/integration/<feature>`, marked per module | Mirrors cloud, down to `pytestmark = pytest.mark.integration` at the top of each file. Nothing is mocked: integration means a real SQLite file in `tmp_path` built by the migrations, which is what caught the unresolved relationship above. |
+| **UI freshness** | **TanStack Query on the client; SSE `/events` invalidation; no sync engine** | Zero gave cloud two things — cross-client sync and reactive queries. Local is one user, one SQLite file: nothing to sync between clients, so that half is deleted. The reactive half stays. The worker flips a row (`pending → ready`) in a *separate* process, so it POSTs a tiny `/internal/events` to the API, which fans out a named SSE event carrying only IDs; the client calls `queryClient.invalidateQueries`. Polling (`refetchInterval`) is the trivial fallback. No WebSockets, no local replica. Endpoints (`/events`, `/internal/events`) are shipped in `modules/events/`, with the worker notifying on each status change; the client adopting TanStack Query is the frontend's. |
+
+## Open items
+
+Model pack hosting (Phase 5 only); default workspace on first launch. **Studio resolved:** deterministic builders (LLM emits structured content, a trusted per-format function renders — no sandbox), a hybrid `create_artifact_job` service (explicit job now, agentic tool later), image artifacts through an explicitly selected OpenAI-compatible Images model, deterministic infographics through the generation model, and Kokoro-82M bundled for offline podcasts — [`frontend/`](frontend/04-studio.md) · [`api/`](api/04-studio.md) · [`worker/`](worker/04-studio.md). **Done:** the freshness push — `GET /workspaces/{id}/events` (SSE fan-out to the renderer) and `POST /internal/events` (worker → API notify on row change) ship in `modules/events/`; the frontend still consumes it via `queryClient.invalidateQueries` (see the UI freshness decision).
+
+## Copy sources
+
+`surfsense_backend/app/routes/documents_routes.py`, `app/services/docling_service.py`, `etl_pipeline/`, `surfsense_web/`.

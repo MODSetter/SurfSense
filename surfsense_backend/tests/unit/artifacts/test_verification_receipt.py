@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 
 import pytest
@@ -103,6 +105,51 @@ async def test_receipt_rejects_tampered_payload():
             primary_path=_receipt().primary_path,
             now=100,
         )
+
+
+async def test_receipt_signs_optional_markdown_representation_hash():
+    session = FakeSandboxSession()
+    receipt = _receipt().model_copy(update={"markdown_representation_sha256": "d" * 64})
+    await write_receipt(session, receipt, SECRET)
+    path = receipt_path(receipt.primary_path)
+    envelope = json.loads(session.files[path])
+    envelope["payload"]["markdown_representation_sha256"] = "e" * 64
+    session.files[path] = json.dumps(envelope).encode()
+
+    with pytest.raises(ValueError, match="invalid signature"):
+        await read_receipt(
+            session,
+            SECRET,
+            workspace_id=WORKSPACE_ID,
+            primary_path=receipt.primary_path,
+            now=100,
+        )
+
+
+async def test_legacy_signed_receipt_without_markdown_hash_remains_valid():
+    session = FakeSandboxSession()
+    payload = _receipt().model_dump(mode="json")
+    payload.pop("markdown_representation_sha256")
+    payload_bytes = json.dumps(
+        payload, sort_keys=True, separators=(",", ":")
+    ).encode()
+    envelope = {
+        "payload": payload,
+        "signature": hmac.new(
+            SECRET.encode(), payload_bytes, hashlib.sha256
+        ).hexdigest(),
+    }
+    session.files[receipt_path(_receipt().primary_path)] = json.dumps(envelope).encode()
+
+    receipt = await read_receipt(
+        session,
+        SECRET,
+        workspace_id=WORKSPACE_ID,
+        primary_path=_receipt().primary_path,
+        now=100,
+    )
+
+    assert receipt.markdown_representation_sha256 is None
 
 
 async def test_receipt_rejects_wrong_key():

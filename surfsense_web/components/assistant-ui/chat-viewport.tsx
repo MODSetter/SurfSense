@@ -41,7 +41,7 @@ export const ChatViewport: FC<ChatViewportProps> = ({
 		scrollToBottomOnRunStart
 		scrollToBottomOnInitialize
 		scrollToBottomOnThreadSwitch
-		className="aui-thread-viewport relative flex flex-1 min-h-0 flex-col overflow-y-auto px-4 scroll-smooth"
+		className="aui-thread-viewport relative flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-y-auto px-4 scroll-smooth"
 		style={{ scrollbarGutter: "stable" }}
 	>
 		<div
@@ -52,10 +52,10 @@ export const ChatViewport: FC<ChatViewportProps> = ({
 		{footer ? (
 			<AuiIf condition={({ thread }) => footerAlwaysVisible || !thread.isEmpty}>
 				<ThreadPrimitive.ViewportFooter
-					className="aui-chat-composer-footer sticky bottom-0 z-20 -mx-4 mt-auto flex flex-col items-stretch bg-gradient-to-t from-main-panel from-60% to-transparent px-4 pt-6"
+					className="aui-chat-composer-footer sticky bottom-0 z-20 -mx-4 mt-auto flex min-w-0 flex-col items-stretch bg-gradient-to-t from-main-panel from-60% to-transparent px-4 pt-6"
 					style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
 				>
-					<div className="aui-chat-composer-area relative mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-3 overflow-visible">
+					<div className="aui-chat-composer-area relative mx-auto flex min-w-0 w-full max-w-(--thread-max-width) flex-col gap-3 overflow-visible">
 						<ChatScrollToBottom />
 						{footer}
 					</div>

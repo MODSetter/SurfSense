@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 176" role="img" aria-label="Kawaii infographic style preview">
+  <rect width="320" height="176" rx="20" fill="#fff1f2"/>
+  <circle cx="78" cy="88" r="47" fill="#f9a8d4" stroke="#831843" stroke-width="4"/>
+  <circle cx="63" cy="81" r="5" fill="#831843"/><circle cx="93" cy="81" r="5" fill="#831843"/>
+  <path d="M65 101q13 14 26 0" fill="none" stroke="#831843" stroke-width="4" stroke-linecap="round"/>
+  <rect x="150" y="38" width="136" height="25" rx="12" fill="#c4b5fd"/>
+  <rect x="150" y="77" width="108" height="21" rx="10" fill="#93c5fd"/>
+  <rect x="150" y="112" width="124" height="21" rx="10" fill="#86efac"/>
+</svg>

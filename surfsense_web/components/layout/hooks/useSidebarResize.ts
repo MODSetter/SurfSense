@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-
-const SIDEBAR_WIDTH_COOKIE_NAME = "sidebar_width";
-const SIDEBAR_WIDTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
-
-export const SIDEBAR_MIN_WIDTH = 240;
-export const SIDEBAR_MAX_WIDTH = 480;
+import {
+	persistSidebarPreference,
+	SIDEBAR_MAX_WIDTH,
+	SIDEBAR_MIN_WIDTH,
+	SIDEBAR_WIDTH_COOKIE,
+} from "../sidebar-preferences";
 
 interface UseSidebarResizeReturn {
 	sidebarWidth: number;
@@ -30,36 +30,18 @@ function setGlobalDragCursor(active: boolean) {
 	}
 }
 
-export function useSidebarResize(defaultWidth = SIDEBAR_MIN_WIDTH): UseSidebarResizeReturn {
-	const [sidebarWidth, setSidebarWidth] = useState(defaultWidth);
+export function useSidebarResize(initialWidth: number): UseSidebarResizeReturn {
+	const [sidebarWidth, setSidebarWidth] = useState(initialWidth);
 	const [isDragging, setIsDragging] = useState(false);
 
 	const startXRef = useRef(0);
-	const startWidthRef = useRef(defaultWidth);
-	const widthRef = useRef(defaultWidth);
+	const startWidthRef = useRef(initialWidth);
+	const widthRef = useRef(initialWidth);
 	const pointerIdRef = useRef<number | null>(null);
 	const captureTargetRef = useRef<HTMLElement | null>(null);
 
-	useEffect(() => {
-		try {
-			const match = document.cookie.match(/(?:^|; )sidebar_width=([^;]+)/);
-			if (match) {
-				const parsed = Number(match[1]);
-				if (!Number.isNaN(parsed) && parsed >= SIDEBAR_MIN_WIDTH && parsed <= SIDEBAR_MAX_WIDTH) {
-					setSidebarWidth(parsed);
-					widthRef.current = parsed;
-				}
-			}
-		} catch {}
-	}, []);
-
 	const persistWidth = useCallback((width: number) => {
-		try {
-			// biome-ignore lint/suspicious/noDocumentCookie: SSR-readable preference, not security-sensitive
-			document.cookie = `${SIDEBAR_WIDTH_COOKIE_NAME}=${width}; path=/; max-age=${SIDEBAR_WIDTH_COOKIE_MAX_AGE}`;
-		} catch {
-			// Ignore cookie write errors
-		}
+		persistSidebarPreference(SIDEBAR_WIDTH_COOKIE, width);
 	}, []);
 
 	const releaseCapture = useCallback(() => {

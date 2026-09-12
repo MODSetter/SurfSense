@@ -58,7 +58,7 @@ def _xlsx(*, sheet_body: str, sheet_count: int = 1) -> bytes:
 
 def test_clean_xlsx_and_registry():
     result = check_xlsx(_xlsx(sheet_body='<c r="A1"><v>10</v></c>'))
-    adapter = get_format_adapter("/workspace/budget.xlsx")
+    adapter = get_format_adapter("xlsx")
 
     assert result.clean
     assert adapter.name == "xlsx"
@@ -129,6 +129,7 @@ async def test_verify_xlsx_structural_only_skips_render_and_vision():
     result = await service.verify_artifact(
         session,
         path,
+        format="xlsx",
         workspace_id=WORKSPACE_ID,
         vision_llm=object(),
         secret_key=SECRET,
@@ -163,6 +164,7 @@ async def test_verify_xlsx_structural_failure_issues_no_receipt():
     result = await service.verify_artifact(
         session,
         path,
+        format="xlsx",
         workspace_id=WORKSPACE_ID,
         vision_llm=None,
         secret_key=SECRET,

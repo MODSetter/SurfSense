@@ -1,19 +1,20 @@
-"""The one way a writer asks for HEAD to be pushed to the workspace remote."""
+"""The one way a writer asks for the connected folder to be mirrored."""
 
 from __future__ import annotations
 
 import logging
 
 from app.knowledge_store.settings import load_knowledge_store_settings
+from app.observability.domains import knowledge_store as ks_telemetry
 
 logger = logging.getLogger(__name__)
 
 
-def enqueue_push(workspace_id: int | str) -> None:
-    """Ask a worker to fast-forward HEAD to the attached remote, if any.
+def enqueue_sync(workspace_id: int | str) -> None:
+    """Ask a worker to mirror the connected folder, if any.
 
-    Fire-and-forget: a broker problem is logged and dropped. The hourly sweep
-    is the backstop.
+    Fire-and-forget: a broker problem is logged and dropped. Retry in
+    settings is the recovery until we have evidence drops need a sweep.
     """
     if not load_knowledge_store_settings().enabled:
         return
@@ -29,7 +30,14 @@ def enqueue_push(workspace_id: int | str) -> None:
         push_knowledge_store_revision.delay(numeric)
     except Exception:
         logger.warning(
-            "Could not enqueue push for workspace %s; the drift sweep will pick it up",
+            "Could not enqueue sync for workspace %s",
             workspace_id,
             exc_info=True,
         )
+        ks_telemetry.record_knowledge_store_remote_enqueue(status="failed")
+        return
+    ks_telemetry.record_knowledge_store_remote_enqueue(status="queued")
+
+
+def enqueue_push(workspace_id: int | str) -> None:
+    enqueue_sync(workspace_id)

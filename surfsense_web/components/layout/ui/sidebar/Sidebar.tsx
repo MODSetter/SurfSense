@@ -17,7 +17,7 @@ import { useLoginGate } from "@/contexts/login-gate";
 import { usePlatform } from "@/hooks/use-platform";
 import { getWorkspaceIdNumber, getWorkspaceIdParam } from "@/lib/route-params";
 import { cn } from "@/lib/utils";
-import { SIDEBAR_MIN_WIDTH } from "../../hooks/useSidebarResize";
+import { SIDEBAR_MIN_WIDTH } from "../../sidebar-preferences";
 import type { ChatItem, NavItem, PageUsage, User, Workspace } from "../../types/layout.types";
 import { ChatListItem } from "./ChatListItem";
 import { CreditBalanceDisplay } from "./CreditBalanceDisplay";

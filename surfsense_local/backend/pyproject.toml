@@ -1,0 +1,113 @@
+[project]
+name = "surfsense-local-backend"
+version = "0.0.1"
+description = "SurfSense Community Local backend"
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.13,<1.19",
+    "chonkie>=1.7.0",
+    "cryptography>=43",
+    "docling>=2.125.0",
+    "fastapi>=0.115.8",
+    "httpx>=0.28.1",
+    "huey>=3.3.4",
+    # The offline podcast voice (Studio). Rides the bundled onnxruntime; its ~340MB
+    # model is staged by scripts/fetch_kokoro_model.py, not carried in the wheel.
+    "kokoro-onnx>=0.4.9",
+    "onnxruntime>=1.20",
+    "pydantic-settings>=2.7.0",
+    "python-docx>=1.2.0",
+    "python-multipart>=0.0.32",
+    "python-pptx>=1.0.2",
+    # Studio document formats: the model writes python-docx/pptx/xlsxwriter/
+    # reportlab code that the worker runs. reportlab renders the PDFs (pure
+    # Python, unlike WeasyPrint's native cairo/pango).
+    "reportlab>=4.2",
+    "sqlalchemy>=2.0",
+    "sqlite-vec>=0.1.9",
+    # Docling's, named here only so the CPU build below can be chosen: a source
+    # applies to a dependency this project declares, not to one it inherits.
+    "torch>=2.2",
+    "torchvision>=0.17",
+    "uvicorn[standard]>=0.34.0",
+    "xlsxwriter>=3.2.9",
+]
+
+[dependency-groups]
+dev = [
+    "pyinstaller>=6.22.2",
+    "pytest>=8.4.0",
+    "pytest-asyncio>=1.0.0",
+    "ruff>=0.12.5",
+]
+
+# Docling brings torch, and PyPI's Linux torch brings 3GB of CUDA wheels that
+# an installer would carry to machines that cannot use them. Elsewhere the
+# published wheels are already CPU-only.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["api*", "worker*", "modules*", "shared*", "alembic*"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E4",
+    "E7",
+    "E9",
+    "F",   # Pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "T20", # flake8-print
+    "SIM",  # flake8-simplify
+    "RUF",
+    "D103", # a test without a docstring does not say what it guarantees
+]
+
+[tool.ruff.lint.per-file-ignores]
+# import_models and import_tasks import for the registration, never for a name.
+"shared/db.py" = ["F401"]
+"shared/queue.py" = ["F401"]
+# D103 is here to make tests state what they guarantee, not to gate app code.
+"api/**" = ["D103"]
+"worker/**" = ["D103"]
+"modules/**" = ["D103"]
+"shared/**" = ["D103"]
+"alembic/**" = ["D103"]
+# Dev tooling: it prints progress and reads its intent from the module docstring.
+"scripts/**" = ["D103", "T201"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["api", "modules", "shared", "tests", "worker"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib -m 'not packaging'"
+markers = [
+    "unit: pure logic tests, no database or external services",
+    "integration: tests that run against a real SQLite database built by migrations",
+    "packaging: freezes a binary to prove the packaged app boots; slow, opt-in",
+]

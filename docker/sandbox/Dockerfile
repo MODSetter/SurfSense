@@ -59,7 +59,8 @@ RUN apt-get update \
         ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-ENV REMOTION_HOME=/opt/remotion
+ENV REMOTION_HOME=/opt/remotion \
+    REMOTION_BROWSER_EXECUTABLE=/opt/remotion/node_modules/.remotion/chrome-headless-shell/linux64/chrome-headless-shell-linux64/chrome-headless-shell
 COPY remotion/package*.json ${REMOTION_HOME}/
 RUN set -euo pipefail \
     && cd ${REMOTION_HOME} \
@@ -67,6 +68,9 @@ RUN set -euo pipefail \
     && npx remotion browser ensure \
     && node -e "require('@remotion/renderer'); require('@remotion/bundler')"
 COPY remotion/ ${REMOTION_HOME}/
+RUN set -euo pipefail \
+    && cd ${REMOTION_HOME} \
+    && npx remotion bundle src/index.ts --out-dir bundle
 
 # ---- Baked fonts: the ONLY families scene code may use (offline) ----
 COPY remotion/fonts/ /usr/share/fonts/truetype/surfsense/
@@ -82,10 +86,12 @@ COPY skills /tmp/surfsense-skills
 RUN set -euo pipefail \
     && mkdir -p /opt/skills \
     && for skill in /tmp/surfsense-skills/*; do \
+        test -f "${skill}/SKILL.md" || continue; \
         name="${skill##*/}"; \
         rm -rf "/opt/skills/${name}"; \
         cp -a "${skill}" "/opt/skills/${name}"; \
         rm -rf "/opt/skills/${name}/scripts"; \
+        cat /tmp/surfsense-skills/frontend-design/DESIGN.md >> "/opt/skills/${name}/SKILL.md"; \
     done \
     && rm -rf /tmp/surfsense-skills
 

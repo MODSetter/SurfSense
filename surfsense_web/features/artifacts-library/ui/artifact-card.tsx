@@ -1,7 +1,7 @@
 import { ChevronRight, Dot } from "lucide-react";
 import Link from "next/link";
-import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
-import { ArtifactFormatLabel } from "@/features/artifacts/artifact-format-label";
+import { ArtifactFormatIcon } from "@/features/artifacts/ui/artifact-format-icon";
+import { ArtifactFormatLabel } from "@/features/artifacts/ui/artifact-format-label";
 import { formatRelativeDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import type { LibraryArtifact } from "../model/artifact";

@@ -59,7 +59,7 @@ artifact unless the user explicitly asks for a separate copy.
 
 ## Required quality gate
 
-After generating the requested PDF, call `verify_artifact(path=output_path)`.
+After generating the requested PDF, call `verify_artifact(path=output_path, format="pdf")`.
 Warnings are advisory and do not require regeneration. If verification reports
 blocking findings, fix all blockers together, regenerate once at the same
 output path, and reverify. If a blocker remains, stop and explain it instead of

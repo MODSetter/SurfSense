@@ -15,6 +15,7 @@ from langchain_core.messages import AIMessage, HumanMessage, ToolMessage
 from langgraph.checkpoint.memory import InMemorySaver
 
 from app.agents.chat.multi_agent_chat import create_multi_agent_chat_deep_agent
+from app.agents.chat.retrieval_scope import RetrievalScope
 from app.services.connector_service import ConnectorService
 from tests.integration.harness import ScriptedTurn, build_scripted_harness
 
@@ -66,6 +67,7 @@ async def test_web_query_delegates_to_google_search(db_session, db_user, db_work
         user_id=str(db_user.id),
         thread_id=db_workspace.id,
         agent_config=None,
+        retrieval_scope=RetrievalScope.WEB,
     )
 
     result = await agent.ainvoke(

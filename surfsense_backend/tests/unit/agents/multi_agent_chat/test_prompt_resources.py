@@ -47,6 +47,7 @@ def test_deliverables_roster_advertises_file_artifacts():
         marker in description
         for marker in ("PDF", "Word", "DOCX", ".docx", "PowerPoint", "PPTX", ".pptx")
     )
+    assert all(marker in description for marker in ("mind maps", "static PNG"))
 
 
 def test_presentation_routing_separates_pptx_from_video():
@@ -111,6 +112,9 @@ def test_file_deliverable_revisions_are_in_place():
     assert "a changed title, filename,\n  or design does not create" in (
         deliverables_prompt
     )
+    assert "change visual style" in routing
+    assert "Do not list infographic style presets in chat" in routing
+    assert "`change_infographic_style=True` only if they asked" in deliverables_prompt
 
 
 def test_failed_verification_cannot_advance_to_save():
@@ -124,6 +128,10 @@ def test_failed_verification_cannot_advance_to_save():
         deliverables_prompt
     )
     assert "stop without calling `save_artifact`" in deliverables_prompt
+    assert (
+        "Treat visual suggestions and placeholders as design direction, not visible"
+        in deliverables_prompt
+    )
 
 
 # Real fragments under the hardcoded main-agent prompts package, including a

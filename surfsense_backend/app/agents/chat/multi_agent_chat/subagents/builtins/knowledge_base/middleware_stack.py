@@ -29,9 +29,11 @@ from app.agents.chat.multi_agent_chat.shared.middleware.patch_tool_calls import 
     build_patch_tool_calls_mw,
 )
 from app.agents.chat.multi_agent_chat.shared.permissions import (
+    Rule,
     Ruleset,
     build_permission_mw,
 )
+from app.agents.chat.retrieval_scope import RetrievalScope, denied_retrieval_tools
 from app.utils.perf import get_perf_logger
 
 _perf_log = get_perf_logger()
@@ -97,6 +99,21 @@ def build_kb_middleware(
         user_allowlist = _kb_user_allowlist(dependencies, subagent_name)
         if user_allowlist is not None:
             rulesets.append(user_allowlist)
+        scope_denied_tools = denied_retrieval_tools(
+            dependencies.get("retrieval_scope", RetrievalScope.DOCUMENTS),
+            subagent_name=subagent_name,
+            tools=[],
+        )
+        if scope_denied_tools:
+            rulesets.append(
+                Ruleset(
+                    origin="retrieval_scope",
+                    rules=[
+                        Rule(permission=tool_name, pattern="*", action="deny")
+                        for tool_name in sorted(scope_denied_tools)
+                    ],
+                )
+            )
         _t0 = _perf_time.perf_counter()
         permission_mw = build_permission_mw(
             flags=flags,

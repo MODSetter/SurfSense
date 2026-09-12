@@ -30,6 +30,11 @@ from app.agents.chat.multi_agent_chat.subagents import (
 from app.agents.chat.multi_agent_chat.subagents.mcp_tools.index import (
     load_mcp_tools_by_connector,
 )
+from app.agents.chat.retrieval_scope import (
+    RetrievalScope,
+    excluded_retrieval_subagents,
+    retrieval_scope_prompt,
+)
 from app.agents.chat.runtime.llm_config import AgentConfig
 from app.agents.chat.runtime.prompt_caching import (
     apply_litellm_prompt_caching,
@@ -75,6 +80,7 @@ async def create_multi_agent_chat_deep_agent(
     filesystem_selection: FilesystemSelection | None = None,
     image_gen_model_id: int | None = None,
     auth_context: AuthContext | None = None,
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS,
 ):
     """Deep agent with SurfSense tools/middleware; registry route subagents behind ``task`` when enabled.
 
@@ -155,6 +161,7 @@ async def create_multi_agent_chat_deep_agent(
         # Per-invocation image model override (automations run on their captured
         # model). Reaches the generate_image subagent tool via subagent_dependencies.
         "image_gen_model_id_override": image_gen_model_id,
+        "retrieval_scope": retrieval_scope,
     }
 
     _t0 = time.perf_counter()
@@ -261,7 +268,10 @@ async def create_multi_agent_chat_deep_agent(
     if isinstance(prof, str):
         _model_name = prof
 
-    _connector_exclude = get_subagents_to_exclude(available_connectors)
+    _connector_exclude = [
+        *get_subagents_to_exclude(available_connectors),
+        *excluded_retrieval_subagents(retrieval_scope),
+    ]
     _registry_subagent_prompt_lines = main_prompt_registry_subagent_lines(
         _connector_exclude
     )
@@ -291,7 +301,7 @@ async def create_multi_agent_chat_deep_agent(
         "[create_agent] System prompt built in %.3fs", time.perf_counter() - _t0
     )
 
-    final_system_prompt = system_prompt
+    final_system_prompt = f"{system_prompt}{retrieval_scope_prompt(retrieval_scope)}"
 
     config_id = agent_config.config_id if agent_config is not None else None
 
@@ -316,6 +326,7 @@ async def create_multi_agent_chat_deep_agent(
         subagent_dependencies=dependencies,
         mcp_tools_by_agent=mcp_tools_by_agent,
         disabled_tools=disabled_tools,
+        retrieval_scope=retrieval_scope,
         config_id=config_id,
         image_gen_model_id_override=image_gen_model_id,
         knowledge_store_enabled=git_native,

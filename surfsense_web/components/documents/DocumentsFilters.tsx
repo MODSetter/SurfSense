@@ -1,6 +1,8 @@
 "use client";
 
-import { FolderPlus, ListFilter, Search, Upload, X } from "lucide-react";
+import { IconBrandGithub } from "@tabler/icons-react";
+import { FolderPlus, ListFilter, Search, TriangleAlert, Upload, X } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import { useDocumentUploadDialog } from "@/components/assistant-ui/document-upload-popup";
@@ -147,6 +149,9 @@ export function DocumentsFilters({
 	onCreateFolder,
 	onUploadClick,
 	isUploading = false,
+	connectRepoHref,
+	repoConnected = false,
+	syncNeedsAttention = false,
 }: {
 	typeCounts: Partial<Record<DocumentTypeEnum, number>>;
 	onSearch: (v: string) => void;
@@ -156,6 +161,9 @@ export function DocumentsFilters({
 	onCreateFolder?: () => void;
 	onUploadClick?: () => void;
 	isUploading?: boolean;
+	connectRepoHref?: string;
+	repoConnected?: boolean;
+	syncNeedsAttention?: boolean;
 }) {
 	const t = useTranslations("documents");
 	const id = React.useId();
@@ -223,7 +231,7 @@ export function DocumentsFilters({
 				)}
 			</div>
 
-			<div className="flex items-center gap-2 w-full">
+			<div className="flex w-full flex-wrap items-center gap-2">
 				{/* Upload Button */}
 				<Button
 					data-joyride="upload-button"
@@ -231,11 +239,42 @@ export function DocumentsFilters({
 					disabled={isUploading}
 					variant="outline"
 					size="sm"
-					className="h-8 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+					className="h-8 min-w-0 basis-36 flex-1 gap-1.5 border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
 				>
 					{isUploading ? <Spinner size="xs" /> : <Upload size={13} />}
-					<span>{isUploading ? t("uploading") : t("upload_files")}</span>
+					<span className="truncate">{isUploading ? t("uploading") : t("upload_files")}</span>
 				</Button>
+				{connectRepoHref ? (
+					<Tooltip>
+						<TooltipTrigger asChild>
+							<Button
+								asChild
+								variant="outline"
+								size="sm"
+								className="relative h-8 min-w-0 basis-36 flex-1 gap-1.5 overflow-visible border-0 bg-white text-gray-700 shadow-none hover:bg-accent hover:text-accent-foreground dark:bg-white dark:text-gray-800"
+							>
+								<Link href={connectRepoHref}>
+									<IconBrandGithub size={13} className="shrink-0" />
+									<span className="truncate">
+										{repoConnected ? t("manage_repo") : t("connect_repo")}
+									</span>
+									{syncNeedsAttention ? (
+										<span
+											role="img"
+											aria-label={t("connect_repo_attention")}
+											className="absolute -right-1.5 -top-1.5 flex items-center justify-center  rounded-full bg-yellow-400 text-red-400"
+										>
+											<TriangleAlert size={10} className="shrink-0 text-red-400" aria-hidden />
+										</span>
+									) : null}
+								</Link>
+							</Button>
+						</TooltipTrigger>
+						{syncNeedsAttention ? (
+							<TooltipContent>{t("connect_repo_attention")}</TooltipContent>
+						) : null}
+					</Tooltip>
+				) : null}
 
 				{/* New Folder + Filter Toggle Group */}
 				<ToggleGroup type="multiple" value={[]} className="shrink-0 overflow-visible">

@@ -22,7 +22,6 @@ import type React from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { agentFlagsAtom } from "@/atoms/agent/agent-flags-query.atom";
-import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { makeFolderMention, mentionedDocumentsAtom } from "@/atoms/chat/mentioned-documents.atom";
 import { deleteDocumentMutationAtom } from "@/atoms/documents/document-mutation.atoms";
 import { openDocumentViewerAtom } from "@/atoms/documents/document-viewer.atom";
@@ -61,9 +60,11 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useAnonymousMode, useIsAnonymous } from "@/contexts/anonymous-mode";
 import { useLoginGate } from "@/contexts/login-gate";
 import type { DocumentTypeEnum } from "@/contracts/types/document.types";
-import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
+import { useArtifactsByDocument } from "@/features/artifacts/hooks/use-artifacts-by-document";
+import { openArtifactPanelAtom } from "@/features/artifacts/state/artifact-panel.atom";
 import { downloadFile } from "@/features/file-viewers/download-file-button";
 import { useDocumentsViewModel } from "@/hooks/use-documents-view-model";
+import { useGitRemoteStatus } from "@/hooks/use-git-remote-status";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { useElectronAPI, usePlatform } from "@/hooks/use-platform";
 import { anonymousChatApiService } from "@/lib/apis/anonymous-chat-api.service";
@@ -73,6 +74,12 @@ import { authenticatedFetch } from "@/lib/auth-fetch";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { documentDownloadTarget } from "@/lib/documents/document-download";
 import type { DocumentNodeDoc, FolderDisplay } from "@/lib/documents/document-tree-types";
+import {
+	folderDeletionTouchesSync,
+	gitMountFolderId,
+	gitRepoLabel,
+	isSyncedContent,
+} from "@/lib/documents/git-synced-folders";
 import { buildBackendUrl } from "@/lib/env-config";
 import { uploadFolderScan } from "@/lib/folder-sync-upload";
 import { getWorkspaceIdNumber } from "@/lib/route-params";
@@ -180,6 +187,8 @@ function AuthenticatedDocumentRightPanelBase({
 	const electronAPI = desktopFeaturesEnabled ? platformElectronAPI : null;
 	const { etlService } = useRuntimeConfig();
 	const workspaceId = getWorkspaceIdNumber(params) ?? 0;
+	const { remote: gitRemote, needsAttention: syncNeedsAttention } = useGitRemoteStatus(workspaceId);
+	const gitRemoteSettingsHref = `/dashboard/${workspaceId}/workspace-settings/git-remote`;
 	const openArtifactPanel = useSetAtom(openArtifactPanelAtom);
 	const openDocumentViewer = useSetAtom(openDocumentViewerAtom);
 	const openEditorPanel = useSetAtom(openEditorPanelAtom);
@@ -193,6 +202,8 @@ function AuthenticatedDocumentRightPanelBase({
 	const [pendingLocalPath, setPendingLocalPath] = useState<string | null>(null);
 	const [folderPendingDelete, setFolderPendingDelete] = useState<FolderDisplay | null>(null);
 	const [isDeletingFolder, setIsDeletingFolder] = useState(false);
+	const [docPendingDelete, setDocPendingDelete] = useState<DocumentNodeDoc | null>(null);
+	const [isDeletingDoc, setIsDeletingDoc] = useState(false);
 	const [watchedFolderIds, setWatchedFolderIds] = useState<Set<number>>(new Set());
 	const [folderWatchOpen, setFolderWatchOpen] = useAtom(folderWatchDialogOpenAtom);
 	const [watchInitialFolder, setWatchInitialFolder] = useAtom(folderWatchInitialFolderAtom);
@@ -471,6 +482,21 @@ function AuthenticatedDocumentRightPanelBase({
 		}
 		return map;
 	}, [treeFolders]);
+
+	const gitMountId = gitMountFolderId(gitRemote);
+	const gitSyncedFolderIds = useMemo(
+		() => new Set(gitMountId != null ? [gitMountId] : []),
+		[gitMountId]
+	);
+	const gitRepoName = gitRemote ? gitRepoLabel(gitRemote) : "";
+	const gitMountFolderName = treeFolders.find((f) => f.id === gitMountId)?.name ?? "";
+	const folderPendingDeleteIsSynced =
+		folderPendingDelete != null && isSyncedContent(treeFolders, folderPendingDelete.id, gitMountId);
+	const folderPendingDeleteContainsSynced =
+		folderPendingDelete != null &&
+		!folderPendingDeleteIsSynced &&
+		folderDeletionTouchesSync(treeFolders, folderPendingDelete.id, gitMountId);
+	const folderPendingDeleteInGit = folderPendingDeleteIsSynced || folderPendingDeleteContainsSynced;
 
 	// Folder actions
 	const [folderPickerOpen, setFolderPickerOpen] = useState(false);
@@ -944,6 +970,14 @@ function AuthenticatedDocumentRightPanelBase({
 			.map((doc) => doc.id);
 	}, [sidebarDocs, treeDocuments]);
 
+	const bulkDeleteHitsSync = useMemo(() => {
+		if (gitMountId == null) return false;
+		const byId = new Map(treeDocuments.map((d) => [d.id, d]));
+		return deletableSelectedIds.some((id) =>
+			isSyncedContent(treeFolders, byId.get(id)?.folderId, gitMountId)
+		);
+	}, [deletableSelectedIds, treeDocuments, treeFolders, gitMountId]);
+
 	const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false);
 	const [isBulkDeleting, setIsBulkDeleting] = useState(false);
 	const [versionDocId, setVersionDocId] = useState<number | null>(null);
@@ -1002,6 +1036,25 @@ function AuthenticatedDocumentRightPanelBase({
 		},
 		[deleteDocumentMutation, t, setSidebarDocs]
 	);
+
+	const requestDeleteDocument = useCallback(
+		(doc: DocumentNodeDoc) => {
+			if (isSyncedContent(treeFolders, doc.folderId, gitMountId)) {
+				setDocPendingDelete(doc);
+				return;
+			}
+			void handleDeleteDocument(doc.id);
+		},
+		[treeFolders, gitMountId, handleDeleteDocument]
+	);
+
+	const handleConfirmDeleteDocument = useCallback(async () => {
+		if (!docPendingDelete) return;
+		setIsDeletingDoc(true);
+		const ok = await handleDeleteDocument(docPendingDelete.id);
+		setIsDeletingDoc(false);
+		if (ok) setDocPendingDelete(null);
+	}, [docPendingDelete, handleDeleteDocument]);
 
 	useEffect(() => {
 		const handleEscape = (e: KeyboardEvent) => {
@@ -1062,7 +1115,7 @@ function AuthenticatedDocumentRightPanelBase({
 				</Button>
 			)}
 
-			<div className="flex-1 min-h-0 pt-0 flex flex-col">
+			<div className="flex min-h-0 min-w-0 flex-1 flex-col pt-0">
 				<div className={`${workspaceView ? "" : "px-4"} pb-1.5 ${isElectron ? "" : "pt-8"}`}>
 					<DocumentsFilters
 						typeCounts={typeCounts}
@@ -1071,10 +1124,13 @@ function AuthenticatedDocumentRightPanelBase({
 						onToggleType={onToggleType}
 						activeTypes={activeTypes}
 						onCreateFolder={() => handleCreateFolder(null)}
+						connectRepoHref={gitRemoteSettingsHref}
+						repoConnected={Boolean(gitRemote)}
+						syncNeedsAttention={syncNeedsAttention}
 					/>
 				</div>
 
-				<div className="relative flex-1 min-h-0 overflow-auto">
+				<div className="relative min-h-0 min-w-0 flex-1 overflow-auto">
 					{deletableSelectedIds.length > 0 && (
 						<div className="absolute inset-x-0 top-0 z-10 flex items-center justify-center px-4 py-1.5 animate-in fade-in duration-150 pointer-events-none">
 							<Button
@@ -1120,7 +1176,7 @@ function AuthenticatedDocumentRightPanelBase({
 								title: doc.title,
 							});
 						}}
-						onDeleteDocument={(doc) => handleDeleteDocument(doc.id)}
+						onDeleteDocument={requestDeleteDocument}
 						onMoveDocument={handleMoveDocument}
 						onDownloadDocument={handleDownloadDocument}
 						onResetDocument={handleResetMemoryDocument}
@@ -1131,6 +1187,8 @@ function AuthenticatedDocumentRightPanelBase({
 						onRescanFolder={handleRescanFolder}
 						onStopWatchingFolder={handleStopWatching}
 						onExportFolder={handleExportFolder}
+						gitSyncedFolderIds={gitSyncedFolderIds}
+						gitSyncedTooltip={gitRepoName ? `Synced with ${gitRepoName}` : undefined}
 					/>
 				</div>
 			</div>
@@ -1167,9 +1225,9 @@ function AuthenticatedDocumentRightPanelBase({
 					</h1>
 				</header>
 			) : (
-				<div className="shrink-0 flex h-12 items-center px-3">
-					<div className="flex w-full items-center justify-between">
-						<div className="flex items-center gap-3">
+				<div className="flex h-12 min-w-0 shrink-0 items-center px-3">
+					<div className="flex min-w-0 w-full items-center justify-between">
+						<div className="flex min-w-0 items-center gap-3">
 							{isMobile && (
 								<Button
 									variant="ghost"
@@ -1181,7 +1239,9 @@ function AuthenticatedDocumentRightPanelBase({
 									<span className="sr-only">{tSidebar("close") || "Close"}</span>
 								</Button>
 							)}
-							<h2 className="select-none text-lg font-semibold">{t("title") || "Documents"}</h2>
+							<h2 className="min-w-0 truncate text-lg font-semibold select-none">
+								{t("title") || "Documents"}
+							</h2>
 							{showFilesystemTabs && (
 								<Tabs
 									value={currentFilesystemTab}
@@ -1356,10 +1416,49 @@ function AuthenticatedDocumentRightPanelBase({
 			>
 				<AlertDialogContent>
 					<AlertDialogHeader>
-						<AlertDialogTitle>Delete this folder?</AlertDialogTitle>
+						<AlertDialogTitle>
+							{folderPendingDeleteIsSynced
+								? "Delete a synced folder?"
+								: folderPendingDeleteContainsSynced
+									? "Delete a folder with synced files?"
+									: "Delete this folder?"}
+						</AlertDialogTitle>
 						<AlertDialogDescription>
-							<span className="font-medium text-foreground">{folderPendingDelete?.name}</span> and
-							all of its contents will be permanently deleted. This action cannot be undone.
+							{folderPendingDeleteIsSynced ? (
+								<>
+									<span className="font-medium text-foreground">{folderPendingDelete?.name}</span>{" "}
+									is synced with <span className="font-medium text-foreground">{gitRepoName}</span>.
+									Deleting it also deletes its documents from{" "}
+									<span className="font-medium text-foreground">{gitRepoName}</span> on the next
+									sync. To remove only the local copy and keep the remote,{" "}
+									<Link href={gitRemoteSettingsHref} className="font-medium underline">
+										disconnect the repository
+									</Link>{" "}
+									first.
+								</>
+							) : folderPendingDeleteContainsSynced ? (
+								<>
+									<span className="font-medium text-foreground">{folderPendingDelete?.name}</span>{" "}
+									contains{" "}
+									<span className="font-medium text-foreground">
+										{gitMountFolderName || "a synced folder"}
+									</span>
+									, which is synced with{" "}
+									<span className="font-medium text-foreground">{gitRepoName}</span>. Deleting it
+									also deletes those synced documents from{" "}
+									<span className="font-medium text-foreground">{gitRepoName}</span> on the next
+									sync. To remove only the local copy and keep the remote,{" "}
+									<Link href={gitRemoteSettingsHref} className="font-medium underline">
+										disconnect the repository
+									</Link>{" "}
+									first.
+								</>
+							) : (
+								<>
+									<span className="font-medium text-foreground">{folderPendingDelete?.name}</span>{" "}
+									and all of its contents will be permanently deleted. This action cannot be undone.
+								</>
+							)}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
@@ -1372,8 +1471,47 @@ function AuthenticatedDocumentRightPanelBase({
 							disabled={isDeletingFolder}
 							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
 						>
-							<span className={isDeletingFolder ? "opacity-0" : ""}>Delete</span>
+							<span className={isDeletingFolder ? "opacity-0" : ""}>
+								{folderPendingDeleteInGit ? "Delete anyway" : "Delete"}
+							</span>
 							{isDeletingFolder ? <Spinner size="sm" className="absolute" /> : null}
+						</AlertDialogAction>
+					</AlertDialogFooter>
+				</AlertDialogContent>
+			</AlertDialog>
+
+			<AlertDialog
+				open={docPendingDelete !== null}
+				onOpenChange={(open) => {
+					if (!open && !isDeletingDoc) setDocPendingDelete(null);
+				}}
+			>
+				<AlertDialogContent>
+					<AlertDialogHeader>
+						<AlertDialogTitle>Delete a synced document?</AlertDialogTitle>
+						<AlertDialogDescription>
+							<span className="font-medium text-foreground">{docPendingDelete?.title}</span> is
+							synced with <span className="font-medium text-foreground">{gitRepoName}</span>.
+							Deleting it here also removes it from the remote on the next sync. To keep the remote
+							and remove only the local copy,{" "}
+							<Link href={gitRemoteSettingsHref} className="font-medium underline">
+								disconnect the repository
+							</Link>{" "}
+							first.
+						</AlertDialogDescription>
+					</AlertDialogHeader>
+					<AlertDialogFooter>
+						<AlertDialogCancel disabled={isDeletingDoc}>Cancel</AlertDialogCancel>
+						<AlertDialogAction
+							onClick={(event) => {
+								event.preventDefault();
+								void handleConfirmDeleteDocument();
+							}}
+							disabled={isDeletingDoc}
+							className="relative bg-destructive text-destructive-foreground hover:bg-destructive/90"
+						>
+							<span className={isDeletingDoc ? "opacity-0" : ""}>Delete anyway</span>
+							{isDeletingDoc ? <Spinner size="sm" className="absolute" /> : null}
 						</AlertDialogAction>
 					</AlertDialogFooter>
 				</AlertDialogContent>
@@ -1395,6 +1533,14 @@ function AuthenticatedDocumentRightPanelBase({
 								? "This document"
 								: `These ${deletableSelectedIds.length} documents`}{" "}
 							will be permanently deleted from your workspace.
+							{bulkDeleteHitsSync ? (
+								<>
+									{" "}
+									Some are synced with{" "}
+									<span className="font-medium text-foreground">{gitRepoName}</span> and will also
+									be removed from the remote on the next sync.
+								</>
+							) : null}
 						</AlertDialogDescription>
 					</AlertDialogHeader>
 					<AlertDialogFooter>
@@ -1448,8 +1594,8 @@ function AuthenticatedDocumentRightPanelBase({
 			<div
 				className={
 					workspaceView
-						? "flex h-full min-h-0 flex-col bg-panel text-foreground"
-						: "flex h-full flex-col bg-sidebar text-sidebar-foreground"
+						? "@container flex h-full min-h-0 min-w-0 w-full flex-col bg-panel text-foreground"
+						: "@container flex h-full min-h-0 min-w-0 w-full flex-col bg-sidebar text-sidebar-foreground"
 				}
 			>
 				{documentsContent}

@@ -1,4 +1,5 @@
 import {
+	type ActivityData,
 	type ActivityJournal,
 	type ActivityTimingData,
 	extractActivityJournal,
@@ -207,4 +208,55 @@ export function firstToolIndexByActivityId(
 		if (activityId && !result.has(activityId)) result.set(activityId, index);
 	}
 	return result;
+}
+
+export function getTraceLeafKind({
+	part,
+	index,
+	activities,
+	firstActivityIndices,
+	showReasoning,
+}: {
+	part: TracePartLike;
+	index: number;
+	activities: ReadonlyMap<string, ActivityData>;
+	firstActivityIndices: ReadonlyMap<string, number>;
+	showReasoning: boolean;
+}): "reasoning" | "activity" | null {
+	if (part.type === "reasoning") {
+		return showReasoning && typeof part.text === "string" && part.text.length > 0
+			? "reasoning"
+			: null;
+	}
+	if (part.type !== "tool-call") return null;
+	const activityId = getToolActivityId(part);
+	return activityId && activities.has(activityId) && firstActivityIndices.get(activityId) === index
+		? "activity"
+		: null;
+}
+
+export function hasExpandableTraceDetails({
+	parts,
+	indices,
+	activities,
+	firstActivityIndices,
+	showReasoning,
+}: {
+	parts: readonly TracePartLike[];
+	indices: readonly number[];
+	activities: ReadonlyMap<string, ActivityData>;
+	firstActivityIndices: ReadonlyMap<string, number>;
+	showReasoning: boolean;
+}): boolean {
+	for (const index of indices) {
+		const kind = getTraceLeafKind({
+			part: parts[index],
+			index,
+			activities,
+			firstActivityIndices,
+			showReasoning,
+		});
+		if (kind !== null) return true;
+	}
+	return false;
 }

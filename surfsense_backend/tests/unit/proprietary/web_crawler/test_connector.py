@@ -12,9 +12,20 @@ from app.proprietary.web_crawler import (
     WebCrawlerConnector,
     connector as connector_module,
 )
-from app.utils.crawl import BlockType
+from app.utils.crawl import BlockType, net_guard
 
 pytestmark = pytest.mark.unit
+
+
+@pytest.fixture(autouse=True)
+def _stub_destination_resolver(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep the destination guard hermetic.
+
+    ``crawl_url`` now resolves the target host before running a tier. These
+    are unit tests, so the resolver answers with a fixed public address
+    instead of whatever DNS says about ``example.com`` today.
+    """
+    monkeypatch.setattr(net_guard, "_resolve_host", lambda _host: ["93.184.216.34"])
 
 
 def _result(tier: str) -> dict:
@@ -497,3 +508,48 @@ def test_build_result_ok_on_real_content() -> None:
     )
 
     assert block_state["block_type"] is BlockType.OK
+
+
+async def test_restricted_url_is_failed_before_any_tier(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A host that is not publicly routable never reaches a fetch tier.
+
+    ``validators.url`` passes the cloud metadata endpoint, so without the
+    destination guard this URL is fetched from inside the backend's network.
+    """
+    crawler = WebCrawlerConnector()
+    tiers: list[str] = []
+
+    async def _record_static(_url: str, *_args) -> None:
+        tiers.append("static")
+        return None
+
+    async def _record_dynamic(_url: str, *_args) -> None:
+        tiers.append("dynamic")
+        return None
+
+    async def _record_stealthy(_url: str, *_args) -> None:
+        tiers.append("stealthy")
+        return None
+
+    monkeypatch.setattr(crawler, "_crawl_with_async_fetcher", _record_static)
+    monkeypatch.setattr(crawler, "_crawl_with_dynamic", _record_dynamic)
+    monkeypatch.setattr(crawler, "_crawl_with_stealthy", _record_stealthy)
+
+    outcome = await crawler.crawl_url("http://169.254.169.254/latest/meta-data/")
+
+    assert outcome.status is CrawlOutcomeStatus.FAILED
+    assert outcome.result is None
+    assert "Restricted URL" in (outcome.error or "")
+    assert tiers == []
+
+
+async def test_restricted_url_is_reported_apart_from_a_malformed_one() -> None:
+    """The two refusals are different diagnoses and must not share a message."""
+    restricted = await WebCrawlerConnector().crawl_url("http://127.0.0.1:8000/health")
+    malformed = await WebCrawlerConnector().crawl_url("not a url")
+
+    assert "Restricted URL" in (restricted.error or "")
+    assert "Invalid URL" in (malformed.error or "")
+    assert (malformed.error or "") != (restricted.error or "")

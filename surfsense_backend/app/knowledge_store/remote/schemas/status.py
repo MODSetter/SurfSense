@@ -18,3 +18,7 @@ class RemoteStatus:
     last_pushed_revision: str | None
     last_pushed_at: datetime | None
     last_push_error: str | None
+    sourcepath: str | None = None
+    last_error_code: str | None = None
+    last_conflict_paths: str | None = None
+    mount_folder_id: int | None = None

@@ -1,0 +1,12 @@
+.venv
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# PyInstaller onedir output (bundling/) — rebuilt per OS, never committed
+/dist/
+/build/
+
+# Embedding, voice, and parser packs staged for packaging (scripts/fetch_*.py models)
+/models/

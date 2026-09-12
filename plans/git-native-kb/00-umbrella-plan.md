@@ -210,7 +210,7 @@ Every decision traces to a proven source (full list + links in the ADR):
 
 ## Deferred — out of this umbrella
 
-- **Connect-your-own-remote** (push/pull to user GitHub/GitLab/Gitea). Free later because the repo is real git.
+- ~~**Connect-your-own-remote** (push/pull to user GitHub/GitLab/Gitea).~~ Phase 12 shipped **push-only export**. Phase 13 ([`13-bidirectional-folder-sync.md`](13-bidirectional-folder-sync.md)) is the bidirectional **folder** product (option 2; N remotes later).
 - **CRDT / Yjs real-time collaboration** (multi-writer). Keep single-writer for now.
 - **Review / merge workflows** (kherad's reviewer layer).
 - **Karpathy `raw/` + `wiki/` content model, contradiction-flagging, lint.**
@@ -255,6 +255,8 @@ Still genuinely open (non-blocking): commit-message format, `gc`/repack scheduli
 | 7 | `07-direct-caller-adapter.md` | WIRED (2026-08-06) — every non-agent writer records through the facade |
 | 8 | `08-store-facade-and-paths.md` | DESIGN (2026-07-31) — path law + per-workspace heal via the seed; prerequisite of the fleet flip |
 | 9 | `09-git-as-primary-store.md` | DESIGN (2026-08-06) — ownership model settled (git owns body, Postgres owns metadata); clean switch + `record_*`→intent rename fold into the Phase 5 cut; on-disk front-matter deferred |
+| 12 | `12-connect-own-remote.md` | SHIPPED (push-only export). Product superseded by 13. |
+| 13 | `13-bidirectional-folder-sync.md` | DESIGN — one repo = one folder under `/documents`; md bijection; 3-way fail-closed. |
 | — | `00b-diagrams.md` | companion flow diagrams |
 
 Frontend & client subplans will be added under a separate umbrella later (see "Deferred").

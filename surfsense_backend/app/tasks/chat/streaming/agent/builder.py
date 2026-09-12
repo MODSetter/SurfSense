@@ -12,6 +12,7 @@ from typing import Any
 from app.agents.chat.multi_agent_chat.shared.filesystem_selection import (
     FilesystemSelection,
 )
+from app.agents.chat.retrieval_scope import RetrievalScope
 from app.agents.chat.runtime.llm_config import AgentConfig
 from app.auth.context import AuthContext
 from app.db import ChatVisibility
@@ -34,6 +35,7 @@ async def build_main_agent_for_thread(
     disabled_tools: list[str] | None = None,
     mentioned_document_ids: list[int] | None = None,
     auth_context: AuthContext | None = None,
+    retrieval_scope: RetrievalScope = RetrievalScope.DOCUMENTS,
 ) -> Any:
     return await agent_factory(
         llm=llm,
@@ -49,4 +51,5 @@ async def build_main_agent_for_thread(
         disabled_tools=disabled_tools,
         mentioned_document_ids=mentioned_document_ids,
         auth_context=auth_context,
+        retrieval_scope=retrieval_scope,
     )

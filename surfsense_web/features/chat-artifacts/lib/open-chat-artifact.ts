@@ -1,4 +1,4 @@
-import { getArtifactFormatMeta } from "@/features/artifacts/artifact-format-meta";
+import { getArtifactFormatMeta } from "@/features/artifacts/lib/artifact-format-catalog";
 import type { ChatArtifact } from "../model/artifact";
 import { scrollToArtifact } from "./scroll-to-artifact";
 

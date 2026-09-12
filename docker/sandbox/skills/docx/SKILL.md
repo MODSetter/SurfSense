@@ -49,7 +49,7 @@ is still the same artifact unless the user explicitly asks for a separate copy.
 
 ## Verify and save
 
-Call `verify_artifact(path=output_path)`. Warnings are advisory. If it reports
+Call `verify_artifact(path=output_path, format="docx")`. Warnings are advisory. If it reports
 blocking findings, fix all blockers together, regenerate once at the same
 output path, and reverify. If a blocker remains, stop and explain it instead of
 entering another automatic rewrite loop.

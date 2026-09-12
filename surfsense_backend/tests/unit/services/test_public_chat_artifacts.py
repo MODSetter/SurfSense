@@ -22,6 +22,87 @@ def _session_returning(file):
     return session
 
 
+@pytest.mark.asyncio
+async def test_legacy_public_artifact_format_is_upcast_without_mutating_snapshot():
+    data = {
+        "artifact_ids": [5],
+        "messages": [
+            {
+                "content": [
+                    {
+                        "type": "tool-call",
+                        "toolName": "save_artifact",
+                        "result": {"status": "saved", "artifact_id": 5},
+                    }
+                ]
+            }
+        ],
+    }
+    rows = MagicMock()
+    rows.all.return_value = [(5, "pdf")]
+    session = AsyncMock()
+    session.execute.return_value = rows
+
+    upcast = await public_chat_service._upcast_legacy_public_artifact_formats(
+        session, data
+    )
+
+    assert upcast[0]["content"][0]["result"]["format"] == "pdf"
+    assert "format" not in data["messages"][0]["content"][0]["result"]
+
+
+@pytest.mark.asyncio
+async def test_legacy_public_artifact_format_requires_snapshot_allowlist():
+    messages = [
+        {
+            "content": [
+                {
+                    "type": "tool-call",
+                    "toolName": "save_artifact",
+                    "result": {"status": "saved", "artifact_id": 9},
+                }
+            ]
+        }
+    ]
+    session = AsyncMock()
+
+    upcast = await public_chat_service._upcast_legacy_public_artifact_formats(
+        session,
+        {"artifact_ids": [5], "messages": messages},
+    )
+
+    assert upcast is messages
+    session.execute.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_explicit_public_artifact_format_skips_compatibility_query():
+    messages = [
+        {
+            "content": [
+                {
+                    "type": "tool-call",
+                    "toolName": "save_artifact",
+                    "result": {
+                        "status": "saved",
+                        "artifact_id": 5,
+                        "format": "pdf",
+                    },
+                }
+            ]
+        }
+    ]
+    session = AsyncMock()
+
+    upcast = await public_chat_service._upcast_legacy_public_artifact_formats(
+        session,
+        {"artifact_ids": [5], "messages": messages},
+    )
+
+    assert upcast is messages
+    session.execute.assert_not_called()
+
+
 @pytest.fixture
 def snapshot_with_artifact_5(monkeypatch):
     async def fake_snapshot(*_args, **_kwargs):

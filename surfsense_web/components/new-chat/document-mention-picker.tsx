@@ -42,7 +42,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
 import type { SearchSourceConnector } from "@/contracts/types/connector.types";
 import type { Document, SearchDocumentTitlesResponse } from "@/contracts/types/document.types";
-import { useArtifactsByDocument } from "@/features/artifacts/use-artifacts-by-document";
+import { useArtifactsByDocument } from "@/features/artifacts/hooks/use-artifacts-by-document";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { getMentionDocKey } from "@/lib/chat/mention-doc-key";
 import { searchThreads } from "@/lib/chat/thread-persistence";

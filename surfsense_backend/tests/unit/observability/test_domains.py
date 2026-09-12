@@ -16,6 +16,7 @@ from app.observability.domains import (
     image,
     indexing,
     kb,
+    knowledge_store as ks_store,
     media,
     runtime,
     security,
@@ -51,6 +52,14 @@ class TestDomainSpansAreNoop:
             speech.transcription_span(provider="litellm", model="whisper-1"),
             speech.synthesis_span(provider="kokoro"),
             image.image_generation_span(model="auto", count=2),
+            ks_store.drift_sweep_span(),
+            ks_store.drift_check_span(workspace_id=1, status="ok"),
+            ks_store.remote_connect_span(workspace_id=1, provider="github"),
+            ks_store.remote_sync_span(workspace_id=1),
+            ks_store.remote_resolve_span(workspace_id=1, direction="from_remote"),
+            ks_store.remote_disconnect_span(workspace_id=1),
+            ks_store.remote_shadow_span(workspace_id=1, operation="clone"),
+            ks_store.remote_push_span(workspace_id=1),
         ]
         for cm in spans:
             with cm as sp:
@@ -91,6 +100,25 @@ class TestDomainMetricsAreNoop:
         )
         security.record_auth_failure(reason="UNAUTHORIZED")
         security.record_rate_limit_rejection(scope="login")
+        ks_store.record_knowledge_store_record_outcome(
+            flow="editor_save", status="recorded"
+        )
+        ks_store.record_knowledge_store_drift_check(workspace_id=1, status="ok")
+        ks_store.record_knowledge_store_remote_connect(
+            provider="github", status="connected"
+        )
+        ks_store.record_knowledge_store_remote_sync(
+            status="mirrored", provider="github"
+        )
+        ks_store.record_knowledge_store_remote_sync(
+            status="conflict", provider="github"
+        )
+        ks_store.record_knowledge_store_remote_resolve(
+            direction="from_remote", status="resolved", provider="github"
+        )
+        ks_store.record_knowledge_store_remote_disconnect(provider="github")
+        ks_store.record_knowledge_store_remote_enqueue(status="queued")
+        ks_store.record_knowledge_store_remote_push(status="skipped")
 
 
 class TestModelCallGuard:

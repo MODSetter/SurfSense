@@ -171,10 +171,10 @@ class KnowledgeStore:
 
     def _enqueue_after_revision(self) -> None:
         from app.knowledge_store.index.queue import enqueue_index
-        from app.knowledge_store.remote.queue import enqueue_push
+        from app.knowledge_store.remote.queue import enqueue_sync
 
         enqueue_index(self._workspace_id)
-        enqueue_push(self._workspace_id)
+        enqueue_sync(self._workspace_id)
 
     # --------------------------------------------------------- working copies
 

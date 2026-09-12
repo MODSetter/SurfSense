@@ -17,14 +17,18 @@ export {
 	MobileHitlEditPanel,
 	openHitlEditPanelAtom,
 } from "./edit-panel";
+export { isStructuredQuestionInterrupt, StructuredQuestionPrompt } from "./questions";
 export type {
 	HitlDecision,
 	HitlPhase,
+	HitlResponse,
 	InterruptActionRequest,
 	InterruptResult,
 	InterruptReviewConfig,
 	PerToolApprovalCard,
 	PerToolApprovalCardProps,
+	StructuredQuestionAnswer,
+	StructuredQuestionResponse,
 } from "./types";
 export { isInterruptResult } from "./types";
 export { useHitlDecision } from "./use-hitl-decision";

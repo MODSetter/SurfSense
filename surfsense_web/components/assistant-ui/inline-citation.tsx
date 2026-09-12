@@ -4,7 +4,6 @@ import { useSetAtom } from "jotai";
 import { FileText } from "lucide-react";
 import type { FC } from "react";
 import { useId, useState } from "react";
-import { openArtifactPanelAtom } from "@/atoms/chat/artifact-panel.atom";
 import { openCitationPanelAtom } from "@/atoms/citation/citation-panel.atom";
 import { useCitationMetadata } from "@/components/assistant-ui/citation-metadata-context";
 import { CitationPanelContent } from "@/components/citation-panel/citation-panel";
@@ -18,6 +17,7 @@ import {
 	DrawerTitle,
 } from "@/components/ui/drawer";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { openArtifactPanelAtom } from "@/features/artifacts/state/artifact-panel.atom";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { documentsApiService } from "@/lib/apis/documents-api.service";
 import { tryGetHostname } from "@/lib/url";

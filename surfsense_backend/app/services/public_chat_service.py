@@ -9,6 +9,7 @@ Key concepts:
 """
 
 import contextlib
+import copy
 import hashlib
 import json
 import re
@@ -349,6 +350,62 @@ async def get_snapshot_by_token(
     return result.scalars().first()
 
 
+async def _upcast_legacy_public_artifact_formats(
+    session: AsyncSession,
+    snapshot_data: dict,
+) -> list:
+    """Read-only compatibility for snapshots created before artifact formats."""
+    messages = snapshot_data.get("messages", [])
+    allowed_ids = set(snapshot_data.get("artifact_ids") or [])
+    missing_format_ids: set[int] = set()
+    for message in messages:
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if not isinstance(part, dict) or part.get("toolName") != "save_artifact":
+                continue
+            result = part.get("result")
+            if (
+                not isinstance(result, dict)
+                or result.get("status") != "saved"
+                or result.get("format")
+            ):
+                continue
+            artifact_id = result.get("artifact_id")
+            if isinstance(artifact_id, int) and artifact_id in allowed_ids:
+                missing_format_ids.add(artifact_id)
+
+    if not missing_format_ids:
+        return messages
+
+    from app.artifacts.persistence import Artifact
+
+    rows = await session.execute(
+        select(Artifact.id, Artifact.format).where(Artifact.id.in_(missing_format_ids))
+    )
+    format_by_id = dict(rows.all())
+    upcast_messages = copy.deepcopy(messages)
+    for message in upcast_messages:
+        content = message.get("content") if isinstance(message, dict) else None
+        if not isinstance(content, list):
+            continue
+        for part in content:
+            if not isinstance(part, dict) or part.get("toolName") != "save_artifact":
+                continue
+            result = part.get("result")
+            if (
+                not isinstance(result, dict)
+                or result.get("status") != "saved"
+                or result.get("format")
+            ):
+                continue
+            artifact_format = format_by_id.get(result.get("artifact_id"))
+            if artifact_format:
+                result["format"] = artifact_format
+    return upcast_messages
+
+
 async def get_public_chat(
     session: AsyncSession,
     share_token: str,
@@ -370,7 +427,7 @@ async def get_public_chat(
             "title": data.get("title", "Untitled"),
             "created_at": data.get("snapshot_at"),
         },
-        "messages": data.get("messages", []),
+        "messages": await _upcast_legacy_public_artifact_formats(session, data),
     }
 
 

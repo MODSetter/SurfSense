@@ -1,9 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-
-const SIDEBAR_COOKIE_NAME = "sidebar_collapsed";
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 365; // 1 year
+import { persistSidebarPreference, SIDEBAR_COLLAPSED_COOKIE } from "../sidebar-preferences";
 
 interface UseSidebarStateReturn {
 	isCollapsed: boolean;
@@ -11,37 +9,19 @@ interface UseSidebarStateReturn {
 	toggleCollapsed: () => void;
 }
 
-export function useSidebarState(defaultCollapsed = false): UseSidebarStateReturn {
-	const [isCollapsed, setIsCollapsedState] = useState(defaultCollapsed);
-
-	// Initialize from cookie on mount
-	useEffect(() => {
-		try {
-			const match = document.cookie.match(/(?:^|; )sidebar_collapsed=([^;]+)/);
-			if (match) {
-				setIsCollapsedState(match[1] === "true");
-			}
-		} catch {
-			// Ignore cookie read errors
-		}
-	}, []);
+export function useSidebarState(initialCollapsed: boolean): UseSidebarStateReturn {
+	const [isCollapsed, setIsCollapsedState] = useState(initialCollapsed);
 
 	// Persist to cookie when state changes
 	const setIsCollapsed = useCallback((collapsed: boolean) => {
 		setIsCollapsedState(collapsed);
-		try {
-			document.cookie = `${SIDEBAR_COOKIE_NAME}=${collapsed}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
-		} catch {
-			// Ignore cookie write errors
-		}
+		persistSidebarPreference(SIDEBAR_COLLAPSED_COOKIE, collapsed);
 	}, []);
 
 	const toggleCollapsed = useCallback(() => {
-		setIsCollapsedState((prev) => {
+		setIsCollapsedState((prev: boolean) => {
 			const next = !prev;
-			try {
-				document.cookie = `${SIDEBAR_COOKIE_NAME}=${next}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
-			} catch {}
+			persistSidebarPreference(SIDEBAR_COLLAPSED_COOKIE, next);
 			return next;
 		});
 	}, []);

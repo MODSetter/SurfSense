@@ -23,6 +23,7 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
     from app.agents.chat.multi_agent_chat.subagents.builtins.deliverables.tools import (
         generate_image as gi_module,
     )
+    from app.artifacts.media.image import generation as image_generation
 
     global_model = {
         "id": -20_001,
@@ -73,20 +74,24 @@ async def test_generate_image_tool_global_sets_explicit_api_base():
 
     with (
         patch.object(gi_module, "shielded_async_session", return_value=session_cm),
-        patch.object(gi_module, "get_global_model", return_value=global_model),
+        patch.object(image_generation, "get_global_model", return_value=global_model),
         patch.object(
-            gi_module, "get_global_connection", return_value=global_connection
+            image_generation, "get_global_connection", return_value=global_connection
         ),
         patch.object(
-            gi_module, "aimage_generation", side_effect=fake_aimage_generation
+            image_generation, "aimage_generation", side_effect=fake_aimage_generation
         ),
         patch.object(
-            gi_module, "is_image_gen_auto_mode", side_effect=lambda cid: cid == 0
+            image_generation,
+            "is_image_gen_auto_mode",
+            side_effect=lambda cid: cid == 0,
         ),
         patch.object(
-            gi_module, "resolve_billing_for_image_gen", side_effect=fake_resolve_billing
+            image_generation,
+            "resolve_billing_for_image_gen",
+            side_effect=fake_resolve_billing,
         ),
-        patch.object(gi_module, "billable_call", _null_billing),
+        patch.object(image_generation, "billable_call", _null_billing),
         patch.object(gi_module, "record_image", side_effect=fake_record),
         patch.object(gi_module, "resolve_root_thread_id", return_value=None),
     ):

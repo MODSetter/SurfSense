@@ -1,0 +1,125 @@
+import { useEffect, useRef, useState } from "react"
+
+import { SegmentedControl } from "@/components/ui/segmented-control"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
+
+import type { ModelSelection } from "./api"
+import { OpenAICompatiblePanel } from "./openai-compatible-panel"
+import { SelectedRoles } from "./selected-roles"
+import type { ModelSelectionState } from "./use-model-selection"
+
+const REMOTE = "openai_compatible"
+
+export function ModelSelectionContent({
+  allowDelete = false,
+  state,
+  disabled,
+  installedFirst = false,
+  onCatalogSelected,
+  onModelUnavailable,
+  onModelsChanged,
+  onActiveProviderChange,
+  refresh,
+}: {
+  state: Extract<ModelSelectionState, { status: "loading" | "ready" }>
+  draftKey: string | null
+  disabled: boolean
+  installedFirst?: boolean
+  allowDelete?: boolean
+  onSelect: (key: string) => void
+  onCatalogSelected?: (selection: ModelSelection) => void
+  onModelUnavailable?: () => void
+  onModelsChanged?: () => void
+  onActiveProviderChange?: (provider: string) => void
+  refresh: (options?: { silent?: boolean }) => Promise<void>
+}) {
+  const readyState = state.status === "ready" ? state : null
+  const [activeTab, setActiveTab] = useState("local")
+  const [rolesVersion, setRolesVersion] = useState(0)
+  const userChangedTab = useRef(false)
+  const initializedTab = useRef(false)
+  const selectedTab =
+    readyState?.selection?.provider === REMOTE ? REMOTE : "local"
+
+  useEffect(() => {
+    if (readyState === null || initializedTab.current) {
+      return
+    }
+    initializedTab.current = true
+    if (!userChangedTab.current) {
+      setActiveTab(selectedTab)
+    }
+  }, [readyState, selectedTab])
+
+  useEffect(() => {
+    onActiveProviderChange?.(activeTab)
+  }, [activeTab, onActiveProviderChange])
+
+  const localCatalog = (
+    <ModelCatalogPage
+      allowDelete={allowDelete}
+      disabled={disabled || readyState === null}
+      installedFirst={installedFirst}
+      onModelUnavailable={onModelUnavailable}
+      onModelsChanged={onModelsChanged}
+      onSelected={onCatalogSelected}
+    />
+  )
+
+  return (
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <SelectedRoles
+        key={rolesVersion}
+        generation={readyState?.selection ?? null}
+        generationLoading={state.status === "loading"}
+      />
+
+      <Tabs
+        className="min-h-0 flex-1 gap-5"
+        value={activeTab}
+        onValueChange={(provider) => {
+          userChangedTab.current = true
+          setActiveTab(provider)
+        }}
+      >
+        <SegmentedControl
+          count={2}
+          selectedIndex={activeTab === "local" ? 0 : 1}
+          className="mx-55 flex h-9"
+        >
+          <TabsList className="relative h-full bg-transparent p-0">
+            <TabsTrigger
+              value="local"
+              className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Local
+            </TabsTrigger>
+            <TabsTrigger
+              value={REMOTE}
+              className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              OpenAI-compatible
+            </TabsTrigger>
+          </TabsList>
+        </SegmentedControl>
+
+        <TabsContent value="local" className="min-h-0 overflow-hidden">
+          {localCatalog}
+        </TabsContent>
+
+        <TabsContent value={REMOTE} className="min-h-0 overflow-hidden">
+          <OpenAICompatiblePanel
+            disabled={disabled}
+            onGenerationSelected={(selection) => onCatalogSelected?.(selection)}
+            onGenerationUnavailable={onModelUnavailable}
+            onChanged={() => {
+              setRolesVersion((current) => current + 1)
+              void refresh({ silent: true })
+            }}
+          />
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}

@@ -1,6 +1,6 @@
 import { Folder, MessageSquare, Plug } from "lucide-react";
 import { getConnectorIcon } from "@/contracts/enums/connectorIcons";
-import { ArtifactFormatIcon } from "@/features/artifacts/artifact-format-icon";
+import { ArtifactFormatIcon } from "@/features/artifacts/ui/artifact-format-icon";
 
 interface MentionIconData {
 	kind?: "doc" | "folder" | "connector" | "thread";

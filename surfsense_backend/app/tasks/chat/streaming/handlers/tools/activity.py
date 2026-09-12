@@ -168,10 +168,10 @@ def resolve_tool_activity(
             _copy(
                 "Repairing the artifact"
                 if repairing_artifact
-                else "Creating the artifact",
+                else "Generating artifact",
                 "Repaired the artifact"
                 if repairing_artifact
-                else "Created the artifact",
+                else "Generated artifact",
                 "artifact",
                 lifecycle="phase",
                 icon_key="square-terminal",
