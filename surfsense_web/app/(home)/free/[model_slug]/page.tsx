@@ -2,7 +2,7 @@ import { SquareArrowOutUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { RetiredChatNotice } from "@/components/free-chat/retired-chat-notice";
+import { FreeChatClient } from "@/components/free-chat/free-chat-client";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
@@ -40,41 +40,35 @@ async function getAllModels(): Promise<AnonModel[]> {
 
 function buildSeoTitle(model: AnonModel): string {
 	if (model.seo_title) return model.seo_title;
-	return `Chat with ${model.name} Free Online | SurfSense`;
+	return `Chat with ${model.name} Free, No Login | SurfSense`;
 }
 
 function buildSeoDescription(model: AnonModel): string {
 	if (model.seo_description) return model.seo_description;
-	return `Use ${model.name} free online with a SurfSense account. Chat with ${model.name} by ${model.provider}, bring your own documents, and switch models any time on SurfSense, the open source ChatGPT alternative.`;
+	return `Use ${model.name} free online without login. No sign-up required. Chat with ${model.name} by ${model.provider} instantly on SurfSense, the open source ChatGPT alternative with no login.`;
 }
 
-/**
- * These answers are mirrored into FAQ structured data, so they have to match
- * what the page actually does. They previously promised no login, no sign-up
- * form, and 500,000 anonymous tokens — all untrue since anonymous chat was
- * retired, and an accuracy violation Google can pull the rich result over.
- */
 function buildModelFaq(model: AnonModel) {
 	return [
 		{
-			question: `Can I use ${model.name} for free?`,
-			answer: `Yes. ${model.name} is available on SurfSense with a free account. Signing up takes a moment and includes a monthly allowance you can spend on ${model.name} or any other model we support.`,
+			question: `Can I use ${model.name} without login?`,
+			answer: `Yes. ${model.name} is available on SurfSense without login. No account creation, no email, no password. Just open the page and start chatting with ${model.name} for free.`,
 		},
 		{
-			question: `Do I need an account to use ${model.name}?`,
-			answer: `Yes. SurfSense used to offer ${model.name} without an account, but that has been retired. A free account keeps your chat history, lets you upload your own documents, and works across every model.`,
+			question: `Is ${model.name} really free on SurfSense?`,
+			answer: `Yes! You can use ${model.name} completely free without login or sign-up. SurfSense gives you 500,000 free tokens to use across any model, including ${model.name}.`,
 		},
 		{
-			question: `How do I start using ${model.name}?`,
-			answer: `Create a free SurfSense account, then pick ${model.name} from the model selector and start typing. You can switch models mid-conversation without losing your thread.`,
+			question: `How do I use ${model.name} with no login?`,
+			answer: `Just start typing in the chat box above. ${model.name} will respond instantly. No login wall, no sign-up form, no verification. Your conversations are not stored in any database.`,
 		},
 		{
 			question: `What can I do with ${model.name} on SurfSense?`,
-			answer: `You can ask questions, get explanations, write content, brainstorm ideas, debug code, and query your own documents. ${model.name} is one of many models available on SurfSense.`,
+			answer: `You can ask questions, get explanations, write content, brainstorm ideas, debug code, and more. ${model.name} is a powerful AI assistant available for free without login on SurfSense.`,
 		},
 		{
 			question: `How is SurfSense different from using ${model.name} directly?`,
-			answer: `SurfSense puts ${model.name} and many other AI models in one place, on top of your own knowledge base. It adds document Q&A, team collaboration, and integrations with Slack, Google Drive, Notion, and more.`,
+			answer: `SurfSense gives you free access without login to ${model.name} and many other AI models in one place. Create a free account to unlock document Q&A, team collaboration, and integrations with Slack, Google Drive, Notion, and more.`,
 		},
 	];
 }
@@ -93,21 +87,27 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 		title,
 		description,
 		alternates: { canonical: canonicalUrl },
-		// The "no login" variants are gone with the product they described.
-		// Keeping them would win clicks onto a page that cannot deliver what
-		// the query asked for, which costs more in bounce rate than it gains.
 		keywords: [
 			`${modelNameLower} free`,
 			`free ${modelNameLower}`,
 			`${modelNameLower} online`,
 			`${modelNameLower} online free`,
+			`${modelNameLower} without login`,
+			`${modelNameLower} no login`,
+			`${modelNameLower} no sign up`,
+			`${modelNameLower} login free`,
+			`${modelNameLower} free without login`,
+			`${modelNameLower} free no login`,
 			`${modelNameLower} chat free`,
 			`${modelNameLower} free online`,
 			`use ${modelNameLower} for free`,
+			`use ${modelNameLower} without login`,
 			`${modelNameLower} alternative`,
 			`${modelNameLower} alternative free`,
-			"free ai chat",
-			"chatgpt alternative",
+			"chatgpt no login",
+			"chatgpt without login",
+			"free ai chat no login",
+			"ai chat without login",
 			"free ai apps",
 		],
 		openGraph: {
@@ -158,7 +158,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 				data={{
 					"@context": "https://schema.org",
 					"@type": "WebApplication",
-					name: `${model.name} Free Chat - SurfSense`,
+					name: `${model.name} Free Chat Without Login - SurfSense`,
 					description,
 					url: `https://www.surfsense.com/free/${model.seo_slug}`,
 					applicationCategory: "ChatApplication",
@@ -167,7 +167,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 						"@type": "Offer",
 						price: "0",
 						priceCurrency: "USD",
-						description: `Free ${model.name} access with a SurfSense account`,
+						description: `Free access to ${model.name} AI chat without login`,
 					},
 					provider: {
 						"@type": "Organization",
@@ -183,17 +183,20 @@ export default async function FreeModelPage({ params }: PageProps) {
 			/>
 			<FAQJsonLd questions={faqItems} />
 
-			{/* Anonymous chat is retired; the page and its rankings are not. */}
-			<div>
-				<RetiredChatNotice modelName={model.name} />
+			{/* Chat chrome is client-only; placeholder keeps SEO below the fold. */}
+			<div className="h-screen overflow-hidden">
+				<div className="h-full">
+					<FreeChatClient modelSlug={model.seo_slug ?? model_slug} />
+				</div>
 
+				{/* SEO content: in DOM for crawlers, clipped by overflow-hidden */}
 				<div className="border-t bg-background">
 					<article className="container mx-auto px-4 py-10 max-w-3xl">
 						<header className="mb-6">
-							<h1 className="text-2xl font-bold mb-2">Chat with {model.name} on SurfSense</h1>
+							<h1 className="text-2xl font-bold mb-2">Chat with {model.name} Free, No Login</h1>
 							<p className="text-sm text-muted-foreground leading-relaxed">
-								Use <strong>{model.name}</strong> online with a free SurfSense account, alongside
-								every other model we support, your own documents, and your connected tools.
+								Use <strong>{model.name}</strong> free online without login or sign-up. No account,
+								no email, no password needed. Powered by SurfSense.
 							</p>
 						</header>
 

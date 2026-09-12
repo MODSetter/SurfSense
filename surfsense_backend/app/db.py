@@ -2377,26 +2377,6 @@ if config.AUTH_TYPE == "GOOGLE":
             BigInteger, nullable=False, default=0, server_default="0"
         )
 
-        # Plan allowance (USD micro-units), drained *before*
-        # ``credit_micros_balance`` — see ``wallet_credit.drain``. Reset to the
-        # plan's grant when ``allowance_period_end`` passes; never rolls over.
-        # Held apart from the balance because one column cannot do both jobs: a
-        # monthly grant has to expire, and credit someone paid cash for must
-        # not. Splitting by where the money came from is what makes the
-        # allowance expirable without touching a purchase.
-        credit_micros_allowance = Column(
-            BigInteger, nullable=False, default=0, server_default="0"
-        )
-        # End of the current allowance period. NULL until the user is put on a
-        # plan. The reset is lazy (performed on the next spendable read that
-        # finds this in the past), so nothing recomputes it on a schedule.
-        allowance_period_end = Column(TIMESTAMP(timezone=True), nullable=True)
-        # Subscription plan key: "free" | "pro" | "max". Deliberately *not*
-        # named ``billing_tier`` — that name already means "is this model free
-        # or premium" on model configs and has nothing to do with what the user
-        # pays.
-        plan = Column(String, nullable=False, default="free", server_default="free")
-
         # Auto-reload (off-session Stripe top-up), behind AUTO_RELOAD_ENABLED.
         # ``stripe_customer_id`` + ``auto_reload_payment_method_id`` are the
         # saved-card plumbing; thresholds are micro-USD. ``auto_reload_failed_at``
@@ -2528,26 +2508,6 @@ else:
         credit_micros_reserved = Column(
             BigInteger, nullable=False, default=0, server_default="0"
         )
-
-        # Plan allowance (USD micro-units), drained *before*
-        # ``credit_micros_balance`` — see ``wallet_credit.drain``. Reset to the
-        # plan's grant when ``allowance_period_end`` passes; never rolls over.
-        # Held apart from the balance because one column cannot do both jobs: a
-        # monthly grant has to expire, and credit someone paid cash for must
-        # not. Splitting by where the money came from is what makes the
-        # allowance expirable without touching a purchase.
-        credit_micros_allowance = Column(
-            BigInteger, nullable=False, default=0, server_default="0"
-        )
-        # End of the current allowance period. NULL until the user is put on a
-        # plan. The reset is lazy (performed on the next spendable read that
-        # finds this in the past), so nothing recomputes it on a schedule.
-        allowance_period_end = Column(TIMESTAMP(timezone=True), nullable=True)
-        # Subscription plan key: "free" | "pro" | "max". Deliberately *not*
-        # named ``billing_tier`` — that name already means "is this model free
-        # or premium" on model configs and has nothing to do with what the user
-        # pays.
-        plan = Column(String, nullable=False, default="free", server_default="free")
 
         # Auto-reload (off-session Stripe top-up), behind AUTO_RELOAD_ENABLED.
         # ``stripe_customer_id`` + ``auto_reload_payment_method_id`` are the

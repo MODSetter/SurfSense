@@ -1,12 +1,18 @@
 import type { ReactNode } from "react";
+import { AdSenseScript } from "@/components/ads/adsense-script";
 
 /**
- * Wraps the /free hub and all /free/[model_slug] subpages.
- *
- * Previously mounted <AdSenseScript /> to scope ads to this route tree. The
- * ads came off with anonymous chat: the pages now send visitors to signup
- * rather than monetising them in place.
+ * Wraps the /free hub and all /free/[model_slug] subpages. Mounting
+ * <AdSenseScript /> here loads adsbygoogle.js across the entire /free route
+ * tree, which is what powers both the manual <AdUnit /> slots and AdSense
+ * Auto ads. Because the script lives here (not in the root layout), Auto ads
+ * is naturally scoped to /free and its subpages only.
  */
 export default function FreeSectionLayout({ children }: { children: ReactNode }) {
-	return <>{children}</>;
+	return (
+		<>
+			<AdSenseScript />
+			{children}
+		</>
+	);
 }

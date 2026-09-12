@@ -27,7 +27,6 @@ import litellm
 from litellm.integrations.custom_logger import CustomLogger
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import config
 from app.db import TokenUsage
 
 logger = logging.getLogger(__name__)
@@ -97,16 +96,6 @@ class TurnTokenAccumulator:
     )
     # Set when any chat call in the turn was cut off by its output-token cap.
     truncated: bool = False
-    # Set when RunCostLimitMiddleware ended the run for crossing its spend
-    # ceiling. Distinct from ``truncated``: that is the model stopping itself
-    # mid-sentence, this is us stopping the agent between steps, and the user
-    # needs to be told which one happened.
-    cost_limited: bool = False
-    # Per-run spend ceiling for this turn's plan, published by the credit
-    # reservation because that is where the user row is already loaded. None
-    # on turns that never reserved credit (free models), which spend no
-    # allowance and so fall back to the config default.
-    max_run_cost_micros: int | None = None
 
     def register_model_metadata(
         self,
@@ -216,35 +205,6 @@ class TurnTokenAccumulator:
         ``pricing_registration`` ran at startup.
         """
         return sum(c.cost_micros for c in self.calls)
-
-    def run_cost_ceiling_micros(self, default_micros: int | None = None) -> int:
-        """This turn's spend ceiling, in micro-USD.
-
-        The credit reservation publishes the plan's ceiling onto the turn, and
-        that always wins. A turn that never reserved (free models, so no
-        allowance at stake) leaves it unset and takes ``default_micros``, or
-        the configured default when the caller has no opinion.
-        """
-        return (
-            self.max_run_cost_micros
-            or default_micros
-            or (config.AGENT_MAX_RUN_COST_MICROS)
-        )
-
-    def run_cost_ceiling_reached(self, default_micros: int | None = None) -> bool:
-        """Whether accumulated cost has hit this turn's spend ceiling.
-
-        Lives here rather than in the middleware that first needed it because
-        the background pipelines have no middleware to hang it off — the video
-        graph runs in Celery, outside any agent — and a second copy of the
-        comparison would be a second place to get the fallback wrong.
-
-        A ceiling of 0 disables the guard, matching ``build_run_cost_limit_mw``.
-        """
-        ceiling = self.run_cost_ceiling_micros(default_micros)
-        if ceiling <= 0:
-            return False
-        return self.total_cost_micros >= ceiling
 
     def serialized_calls(self) -> list[dict[str, Any]]:
         return [dataclasses.asdict(c) for c in self.calls]

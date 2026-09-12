@@ -34,13 +34,10 @@ from app.schemas.stripe import (
     CreateAutoReloadSetupSessionResponse,
     CreateCreditCheckoutSessionRequest,
     CreateCreditCheckoutSessionResponse,
-    CreateSubscriptionCheckoutSessionRequest,
-    CreateSubscriptionCheckoutSessionResponse,
     CreditPurchaseHistoryResponse,
     CreditStripeStatusResponse,
     FinalizeCheckoutResponse,
     PagePurchaseHistoryResponse,
-    PlanStatusResponse,
     StripeWebhookResponse,
     UpdateAutoReloadSettingsRequest,
 )
@@ -478,248 +475,6 @@ async def _reconcile_auto_reload_payment_intent(
     return StripeWebhookResponse()
 
 
-def _unix_to_datetime(value: Any) -> datetime | None:
-    """Stripe sends timestamps as unix seconds; bools are ints, so exclude them."""
-    if not isinstance(value, int) or isinstance(value, bool):
-        return None
-    return datetime.fromtimestamp(value, UTC)
-
-
-def _invoice_plan_and_period(invoice: Any) -> tuple[str | None, datetime | None]:
-    """Which plan an invoice paid for, and the end of the period it covers.
-
-    Reads the subscription line rather than the invoice as a whole: an invoice
-    also carries proration and one-off lines, and only the recurring line names
-    the price that decides the plan.
-    """
-    lines = getattr(getattr(invoice, "lines", None), "data", None) or []
-    for line in lines:
-        pricing = getattr(line, "pricing", None)
-        price_details = getattr(pricing, "price_details", None)
-        price_id = _normalize_optional_string(
-            getattr(price_details, "price", None)
-            # API versions before 2025-03-31 put the price on the line itself.
-            # The webhook endpoint's configured version decides which shape
-            # arrives, not the SDK's, and guessing wrong fails silently — a
-            # paying customer simply never receives their allowance.
-            or getattr(line, "price", None)
-        )
-        plan = config.plan_for_price_id(price_id)
-        if plan is None:
-            continue
-        return plan, _unix_to_datetime(
-            getattr(getattr(line, "period", None), "end", None)
-        )
-    return None, None
-
-
-def _subscription_plan_and_period(
-    subscription: Any,
-) -> tuple[str | None, datetime | None]:
-    """Same as above for a subscription object, where the period sits per item."""
-    items = getattr(getattr(subscription, "items", None), "data", None) or []
-    for item in items:
-        price_id = _normalize_optional_string(getattr(item, "price", None))
-        plan = config.plan_for_price_id(price_id)
-        if plan is None:
-            continue
-        return plan, _unix_to_datetime(getattr(item, "current_period_end", None))
-    return None, None
-
-
-async def _lock_billing_user(
-    db_session: AsyncSession, *, user_id: str | None, customer_id: str | None
-) -> User | None:
-    """Lock the user a Stripe billing event belongs to.
-
-    Tries ``user_id`` metadata first because we set it ourselves at checkout and
-    it names the account outright. Falls back to the customer id, which is what
-    a subscription created in the Stripe dashboard has instead.
-    """
-    if user_id:
-        try:
-            parsed = uuid.UUID(user_id)
-        except ValueError:
-            logger.warning(
-                "Stripe billing event carried unparseable user_id %r", user_id
-            )
-        else:
-            user = (
-                (
-                    await db_session.execute(
-                        select(User).where(User.id == parsed).with_for_update(of=User)
-                    )
-                )
-                .unique()
-                .scalar_one_or_none()
-            )
-            if user is not None:
-                return user
-
-    if not customer_id:
-        return None
-    return (
-        (
-            await db_session.execute(
-                select(User)
-                .where(User.stripe_customer_id == customer_id)
-                .with_for_update(of=User)
-            )
-        )
-        .unique()
-        .scalar_one_or_none()
-    )
-
-
-async def _apply_paid_invoice(
-    db_session: AsyncSession, invoice: Any, *, now: datetime | None = None
-) -> StripeWebhookResponse:
-    """Grant a subscriber the monthly allowance for the period they just paid.
-
-    Idempotent without a ledger table. Stripe retries a failed delivery for up
-    to three days, which is long enough for a naive re-grant to refill an
-    allowance the user has already spent, so two guards stand in for the ledger:
-    a repeat of a period already granted *on the same plan* is refused, and an
-    invoice whose period has already elapsed is refused outright.
-    """
-    now = now or datetime.now(UTC)
-    plan, period_end = _invoice_plan_and_period(invoice)
-    if plan is None or period_end is None:
-        # Every credit top-up invoice lands here, so this is the normal path,
-        # not an error.
-        return StripeWebhookResponse()
-
-    if period_end <= now:
-        # A retry that arrives after the period it paid for. Granting it would
-        # set a paid plan with a period end in the past, and
-        # ``roll_allowance_if_due`` refuses to roll a paid plan — so the
-        # allowance would sit there unexpiring.
-        logger.warning(
-            "Ignoring invoice %s: its period ended at %s, already in the past",
-            getattr(invoice, "id", "?"),
-            period_end,
-        )
-        return StripeWebhookResponse()
-
-    parent = getattr(invoice, "parent", None)
-    details = getattr(parent, "subscription_details", None)
-    user = await _lock_billing_user(
-        db_session,
-        user_id=_get_metadata(details).get("user_id"),
-        customer_id=_normalize_optional_string(getattr(invoice, "customer", None)),
-    )
-    if user is None:
-        logger.error(
-            "Cannot grant %s allowance for invoice %s: no matching user",
-            plan,
-            getattr(invoice, "id", "?"),
-        )
-        return StripeWebhookResponse()
-
-    # Scoped to the same plan on purpose. A free user's lazy roll and Stripe's
-    # billing month are different clocks: the roll lands 30 days out, while a
-    # first Pro period is one calendar month, which in February is 28. Comparing
-    # them as one clock refuses the first paid grant, charging $15 for nothing.
-    # A plan *change* therefore always grants; only a repeat within a plan is a
-    # retry.
-    if (
-        user.plan == plan
-        and user.allowance_period_end is not None
-        and period_end <= user.allowance_period_end
-    ):
-        logger.info(
-            "Ignoring invoice %s for user %s: period ending %s is not newer than %s",
-            getattr(invoice, "id", "?"),
-            user.id,
-            period_end,
-            user.allowance_period_end,
-        )
-        return StripeWebhookResponse()
-
-    user.plan = plan
-    user.credit_micros_allowance = config.plan_allowance_micros(plan)
-    user.allowance_period_end = period_end
-    await db_session.commit()
-
-    ph_analytics.capture(
-        "plan_allowance_granted",
-        distinct_id=str(user.id),
-        properties={
-            "plan": plan,
-            "credit_micros_allowance": user.credit_micros_allowance,
-            "period_end": period_end.isoformat(),
-            "stripe_invoice_id": _normalize_optional_string(
-                getattr(invoice, "id", None)
-            ),
-        },
-    )
-    return StripeWebhookResponse()
-
-
-# Statuses that end a subscription's usefulness. ``past_due`` and ``incomplete``
-# are deliberately absent: Stripe is still retrying the card, and pulling access
-# during dunning punishes someone who is about to pay.
-_SUBSCRIPTION_DEAD_STATUSES = frozenset(
-    {"canceled", "unpaid", "incomplete_expired", "paused"}
-)
-
-
-async def _apply_subscription_state(
-    db_session: AsyncSession, subscription: Any, *, deleted: bool = False
-) -> StripeWebhookResponse:
-    """Move a user between plans as their subscription changes state.
-
-    Deliberately does not grant anything on the way up. ``invoice.paid`` is the
-    only event that proves money moved, so upgrading here would hand a month of
-    usage to anyone who reached checkout with a card that then declined.
-    """
-    plan, _ = _subscription_plan_and_period(subscription)
-    if plan is None:
-        return StripeWebhookResponse()
-
-    status_value = getattr(subscription, "status", None)
-    # ``deleted`` comes from the event type, which is a stronger signal than the
-    # status field: the subscription is gone whatever it claims to be.
-    is_dead = deleted or status_value in _SUBSCRIPTION_DEAD_STATUSES
-    if not is_dead and status_value not in {"active", "trialing"}:
-        return StripeWebhookResponse()
-
-    user = await _lock_billing_user(
-        db_session,
-        user_id=_get_metadata(subscription).get("user_id"),
-        customer_id=_normalize_optional_string(getattr(subscription, "customer", None)),
-    )
-    if user is None:
-        logger.error(
-            "Cannot apply subscription %s (status=%s): no matching user",
-            getattr(subscription, "id", "?"),
-            status_value,
-        )
-        return StripeWebhookResponse()
-
-    if is_dead:
-        user.plan = "free"
-        # Keep what they had not spent, capped at a free month. Zeroing it would
-        # claw back usage they paid for when a cancellation lands mid-period;
-        # leaving it alone would give a lapsed subscriber pro-sized months until
-        # the period rolled.
-        user.credit_micros_allowance = min(
-            user.credit_micros_allowance, config.plan_allowance_micros("free")
-        )
-    else:
-        user.plan = plan
-
-    await db_session.commit()
-    logger.info(
-        "Subscription %s status=%s put user %s on plan %s",
-        getattr(subscription, "id", "?"),
-        status_value,
-        user.id,
-        user.plan,
-    )
-    return StripeWebhookResponse()
-
-
 @router.post(
     "/create-credit-checkout-session",
     response_model=CreateCreditCheckoutSessionResponse,
@@ -801,84 +556,6 @@ async def create_credit_checkout_session(
     return CreateCreditCheckoutSessionResponse(checkout_url=checkout_url)
 
 
-@router.post(
-    "/create-subscription-checkout-session",
-    response_model=CreateSubscriptionCheckoutSessionResponse,
-)
-async def create_subscription_checkout_session(
-    body: CreateSubscriptionCheckoutSessionRequest,
-    auth: AuthContext = Depends(require_session_context),
-    db_session: AsyncSession = Depends(get_async_session),
-) -> CreateSubscriptionCheckoutSessionResponse:
-    """Start a ``mode=subscription`` checkout for the Pro plan.
-
-    Grants nothing itself. The allowance arrives with ``invoice.paid``, which is
-    the only event that proves the card actually charged.
-
-    Attaches to the user's persisted Stripe Customer and stamps ``user_id`` into
-    the subscription metadata, which is what lets the invoice handler find the
-    account without depending on the customer id alone.
-    """
-    user = auth.user
-    if not config.STRIPE_PRO_PRICE_ID:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Subscriptions are not configured.",
-        )
-    stripe_client = get_stripe_client()
-    success_url, cancel_url = _get_checkout_urls(body.workspace_id)
-    customer_id = await _get_or_create_stripe_customer(stripe_client, db_session, user)
-
-    try:
-        checkout_session = stripe_client.v1.checkout.sessions.create(
-            params={
-                "mode": "subscription",
-                "success_url": success_url,
-                "cancel_url": cancel_url,
-                "customer": customer_id,
-                "line_items": [{"price": config.STRIPE_PRO_PRICE_ID, "quantity": 1}],
-                "client_reference_id": str(user.id),
-                "subscription_data": {"metadata": {"user_id": str(user.id)}},
-                "metadata": {
-                    "user_id": str(user.id),
-                    "purchase_type": "subscription",
-                },
-            }
-        )
-    except StripeError as exc:
-        logger.exception(
-            "Failed to create subscription checkout session for user %s", user.id
-        )
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Unable to create Stripe checkout session.",
-        ) from exc
-
-    checkout_url = getattr(checkout_session, "url", None)
-    if not checkout_url:
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail="Stripe checkout session did not return a URL.",
-        )
-
-    return CreateSubscriptionCheckoutSessionResponse(checkout_url=checkout_url)
-
-
-@router.get("/plan", response_model=PlanStatusResponse)
-async def get_plan_status(
-    auth: AuthContext = Depends(require_session_context),
-) -> PlanStatusResponse:
-    """Return the user's plan, remaining allowance, and when the period ends."""
-    user = auth.user
-    return PlanStatusResponse(
-        plan=user.plan or "free",
-        allowance_micros=user.credit_micros_allowance,
-        period_end=user.allowance_period_end,
-        credit_micros_balance=user.credit_micros_balance,
-        subscription_available=bool(config.STRIPE_PRO_PRICE_ID),
-    )
-
-
 @router.post("/webhook", response_model=StripeWebhookResponse)
 async def stripe_webhook(
     request: Request,
@@ -957,20 +634,6 @@ async def stripe_webhook(
                 metadata.get("purchase_type"),
             )
             return StripeWebhookResponse()
-
-        if event.type == "invoice.paid":
-            return await _apply_paid_invoice(db_session, event.data.object)
-
-        if event.type in {
-            "customer.subscription.created",
-            "customer.subscription.updated",
-            "customer.subscription.deleted",
-        }:
-            return await _apply_subscription_state(
-                db_session,
-                event.data.object,
-                deleted=event.type == "customer.subscription.deleted",
-            )
 
         if event.type == "payment_intent.succeeded":
             return await _reconcile_auto_reload_payment_intent(
@@ -1084,22 +747,15 @@ async def finalize_checkout(
 async def get_credit_status(
     auth: AuthContext = Depends(require_session_context),
 ) -> CreditStripeStatusResponse:
-    """Return credit-buying availability and current funds for the frontend.
+    """Return credit-buying availability and current balance for the frontend.
 
-    Both ``*_micros`` fields are micro-USD (1_000_000 = $1.00); the FE divides
-    by 1M when displaying. The allowance rides along here rather than through
-    Zero because it is not in the Zero publication, and adding it there would
-    need a zero-cache reset.
+    ``credit_micros_balance`` is in micro-USD (1_000_000 = $1.00); the FE
+    divides by 1M when displaying.
     """
     user = auth.user
-    plan = user.plan or "free"
     return CreditStripeStatusResponse(
         credit_buying_enabled=config.STRIPE_CREDIT_BUYING_ENABLED,
         credit_micros_balance=user.credit_micros_balance,
-        credit_micros_allowance=user.credit_micros_allowance,
-        allowance_granted_micros=config.plan_allowance_micros(plan),
-        allowance_period_end=user.allowance_period_end,
-        plan=plan,
     )
 
 
