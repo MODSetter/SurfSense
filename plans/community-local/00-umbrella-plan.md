@@ -30,7 +30,7 @@ Same phase number = integrate together.
 | **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05-model-recommendations.md`](api/05-model-recommendations.md) + [`05-packaging.md`](api/05-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
 | **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | — (import reuses `ingest_document`) |
 
-**Demo:** phase 3 all streams. **Ship:** phase 6 = SurfSense v1.0.0.
+**Demo:** phase 3 all streams. **Ship:** phase 6 = SurfSense 2.0.0 (1.0.x tags are taken by the old project versioning; see [`00d-pivot-plan.md`](00d-pivot-plan.md)).
 
 ◐ started · ✓ done · unmarked not begun. Built: a Vite + shadcn shell reading
 `/health`, the whole API surface for workspaces and documents — migrations,
