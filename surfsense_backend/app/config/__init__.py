@@ -674,6 +674,16 @@ class Config:
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
 
+    # Keygen-backed offline desktop licenses.
+    KEYGEN_ACCOUNT_ID = os.getenv("KEYGEN_ACCOUNT_ID")
+    KEYGEN_API_TOKEN = os.getenv("KEYGEN_API_TOKEN")
+    KEYGEN_POLICY_TRIAL = os.getenv("KEYGEN_POLICY_TRIAL")
+    KEYGEN_POLICY_INDIVIDUAL = os.getenv("KEYGEN_POLICY_INDIVIDUAL")
+    KEYGEN_POLICY_TEAM = os.getenv("KEYGEN_POLICY_TEAM")
+    LICENSE_TRIAL_ENABLED = (
+        os.getenv("LICENSE_TRIAL_ENABLED", "FALSE").upper() == "TRUE"
+    )
+
     # Unified credit wallet (micro-USD) settings.
     #
     # Storage unit is integer micro-USD (1_000_000 = $1.00). A single

@@ -2092,6 +2092,40 @@ class CreditPurchase(Base, TimestampMixin):
     user = relationship("User", back_populates="credit_purchases")
 
 
+class LicensePurchase(Base, TimestampMixin):
+    """A Keygen certificate issued by Stripe, trial, or enterprise tooling."""
+
+    __tablename__ = "license_purchases"
+    __allow_unmapped__ = True
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    stripe_checkout_session_id = Column(
+        String(255), nullable=True, unique=True, index=True
+    )
+    email = Column(String(320), nullable=False, index=True)
+    plan = Column(String(20), nullable=False)
+    max_users = Column(Integer, nullable=True)
+    source = Column(String(20), nullable=False)
+    keygen_license_id = Column(String(255), nullable=False, unique=True)
+    certificate = Column(Text, nullable=False)
+
+
+class LicenseTrialClaim(BaseModel, TimestampMixin):
+    """An identity that has already claimed a desktop-license trial."""
+
+    __tablename__ = "license_trial_claims"
+    __table_args__ = (
+        UniqueConstraint(
+            "identity_kind",
+            "identity_fingerprint",
+            name="uq_license_trial_claims_identity",
+        ),
+    )
+
+    identity_kind = Column(String, nullable=False)
+    identity_fingerprint = Column(String(64), nullable=False)
+
+
 class WorkspaceRole(BaseModel, TimestampMixin):
     """
     Custom roles that can be defined per workspace.

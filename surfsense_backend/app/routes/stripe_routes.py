@@ -44,6 +44,7 @@ from app.schemas.stripe import (
     StripeWebhookResponse,
     UpdateAutoReloadSettingsRequest,
 )
+from app.services.license_service import fulfill_license_session
 from app.users import require_session_context
 
 logger = logging.getLogger(__name__)
@@ -948,6 +949,9 @@ async def stripe_webhook(
                 return await _fulfill_completed_credit_purchase(
                     db_session, checkout_session
                 )
+            if metadata.get("purchase_type") == "license":
+                await fulfill_license_session(db_session, checkout_session)
+                return StripeWebhookResponse()
             # Legacy page-pack purchase: page buying is removed, so log and
             # ignore rather than fulfilling.
             logger.info(
