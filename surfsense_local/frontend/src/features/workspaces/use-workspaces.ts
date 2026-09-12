@@ -3,11 +3,12 @@ import { useMemo, useState } from "react"
 import {
   createWorkspace,
   deleteWorkspace,
+  listWorkspaces,
   renameWorkspace,
   type Workspace,
 } from "./api"
 
-const LAST_WORKSPACE_KEY = "surfsense-local:last-workspace:v1"
+const LAST_WORKSPACE_KEY = "surfsense:last-workspace:v1"
 
 function readLastWorkspaceId(workspaces: Workspace[]): number | null {
   try {
@@ -117,6 +118,16 @@ export function useWorkspaces(initialWorkspaces: Workspace[]) {
     }
   }
 
+  // After a change made outside this hook (an import); lands on `focusId`.
+  const reload = async (focusId: number) => {
+    const next = await listWorkspaces()
+    setWorkspaces(next)
+    if (next.some((workspace) => workspace.id === focusId)) {
+      rememberWorkspace(focusId)
+      setActiveId(focusId)
+    }
+  }
+
   return {
     workspaces,
     activeWorkspace,
@@ -126,6 +137,7 @@ export function useWorkspaces(initialWorkspaces: Workspace[]) {
     create,
     rename,
     remove,
+    reload,
     clearError: () => setError(null),
   }
 }

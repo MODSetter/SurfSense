@@ -1,24 +1,21 @@
 import { useEffect, useRef, useState } from "react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { CircleAlertIcon } from "@/components/ui/icons"
-import { Spinner } from "@/components/ui/spinner"
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
 
-import { modelKey, type ModelSelection } from "./api"
-import { ProviderTab } from "./provider-tab"
+import type { ModelSelection } from "./api"
+import { OpenAICompatiblePanel } from "./openai-compatible-panel"
+import { SelectedRoles } from "./selected-roles"
 import type { ModelSelectionState } from "./use-model-selection"
 
-const OPENROUTER = "openrouter"
+const REMOTE = "openai_compatible"
 
 export function ModelSelectionContent({
   allowDelete = false,
   state,
-  draftKey,
   disabled,
   installedFirst = false,
-  onSelect,
   onCatalogSelected,
   onModelUnavailable,
   onModelsChanged,
@@ -39,15 +36,11 @@ export function ModelSelectionContent({
 }) {
   const readyState = state.status === "ready" ? state : null
   const [activeTab, setActiveTab] = useState("local")
+  const [rolesVersion, setRolesVersion] = useState(0)
   const userChangedTab = useRef(false)
   const initializedTab = useRef(false)
-  const persistedKey =
-    readyState?.selection == null ? null : modelKey(readyState.selection)
-  const openRouterProvider = readyState?.providers.find(
-    (provider) => provider.name === OPENROUTER
-  )
   const selectedTab =
-    readyState?.selection?.provider === OPENROUTER ? OPENROUTER : "local"
+    readyState?.selection?.provider === REMOTE ? REMOTE : "local"
 
   useEffect(() => {
     if (readyState === null || initializedTab.current) {
@@ -75,60 +68,58 @@ export function ModelSelectionContent({
   )
 
   return (
-    <Tabs
-      className="h-full min-h-0 gap-5"
-      value={activeTab}
-      onValueChange={(provider) => {
-        userChangedTab.current = true
-        setActiveTab(provider)
-      }}
-    >
-      <TabsList className="mx-55 w-auto">
-        <TabsTrigger value="local">Local</TabsTrigger>
-        <TabsTrigger value={OPENROUTER}>OpenRouter</TabsTrigger>
-      </TabsList>
+    <div className="flex h-full min-h-0 flex-col gap-4">
+      <SelectedRoles
+        key={rolesVersion}
+        generation={readyState?.selection ?? null}
+        generationLoading={state.status === "loading"}
+      />
 
-      <TabsContent value="local" className="min-h-0 overflow-hidden">
-        {localCatalog}
-      </TabsContent>
-
-      <TabsContent
-        value={OPENROUTER}
-        className="min-h-0 overflow-hidden"
+      <Tabs
+        className="min-h-0 flex-1 gap-5"
+        value={activeTab}
+        onValueChange={(provider) => {
+          userChangedTab.current = true
+          setActiveTab(provider)
+        }}
       >
-        {openRouterProvider ? (
-          <ProviderTab
-            provider={openRouterProvider}
-            models={(readyState?.models ?? []).filter(
-              (model) => model.provider === OPENROUTER
-            )}
-            draftKey={draftKey}
-            persistedKey={persistedKey}
-            onSelect={onSelect}
+        <SegmentedControl
+          count={2}
+          selectedIndex={activeTab === "local" ? 0 : 1}
+          className="mx-55 flex h-9"
+        >
+          <TabsList className="relative h-full bg-transparent p-0">
+            <TabsTrigger
+              value="local"
+              className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Local
+            </TabsTrigger>
+            <TabsTrigger
+              value={REMOTE}
+              className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              OpenAI-compatible
+            </TabsTrigger>
+          </TabsList>
+        </SegmentedControl>
+
+        <TabsContent value="local" className="min-h-0 overflow-hidden">
+          {localCatalog}
+        </TabsContent>
+
+        <TabsContent value={REMOTE} className="min-h-0 overflow-hidden">
+          <OpenAICompatiblePanel
             disabled={disabled}
-            modelsLoading={
-              readyState?.loadingProviders.includes(OPENROUTER) ?? true
-            }
-            refresh={refresh}
+            onGenerationSelected={(selection) => onCatalogSelected?.(selection)}
+            onGenerationUnavailable={onModelUnavailable}
+            onChanged={() => {
+              setRolesVersion((current) => current + 1)
+              void refresh({ silent: true })
+            }}
           />
-        ) : readyState === null ? (
-          <div
-            className="flex items-center gap-2 text-sm text-muted-foreground"
-            role="status"
-          >
-            <Spinner />
-            Loading OpenRouter...
-          </div>
-        ) : (
-          <Alert variant="destructive">
-            <CircleAlertIcon />
-            <AlertTitle>OpenRouter unavailable</AlertTitle>
-            <AlertDescription>
-              The local backend did not return the OpenRouter provider.
-            </AlertDescription>
-          </Alert>
-        )}
-      </TabsContent>
-    </Tabs>
+        </TabsContent>
+      </Tabs>
+    </div>
   )
 }

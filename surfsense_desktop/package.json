@@ -29,7 +29,7 @@
     "concurrently": "^9.2.4",
     "dotenv": "^17.3.1",
     "electron": "^42.4.0",
-    "electron-builder": "^26.8.1",
+    "electron-builder": "^26.16.1",
     "esbuild": "^0.27.4",
     "typescript": "^5.9.3",
     "wait-on": "^9.0.4"

@@ -16,6 +16,8 @@ class Workspace(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str]
+    # The hosted workspace this one was imported from, so a re-import finds it.
+    cloud_id: Mapped[int | None] = mapped_column(unique=True)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

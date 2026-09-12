@@ -36,13 +36,49 @@ function installApi() {
         updated_at: "2026-09-05T00:00:00Z",
       })
     }
+    if (path === "/llm/selection/image_generation") {
+      return Response.json({ detail: "not selected" }, { status: 404 })
+    }
+    if (path === "/llm/connections") {
+      return Response.json([])
+    }
+    if (path === "/llm/onboarding" && init?.method === "POST") {
+      return Response.json({ completed: true })
+    }
     if (path === "/llm/catalog") {
       return Response.json({
         hardware: {},
         llmfit_version: "1.0",
         recommended: [],
         explore: [],
-        installed: [],
+        installed: [
+          {
+            catalog_id: "opaque-llama",
+            canonical_id: "meta-llama/Llama-3.2-1B",
+            family: "Llama",
+            label: "Llama 3.2 1B",
+            publisher: "Meta",
+            parameter_count: 1_000_000_000,
+            fit: "perfect",
+            score: 90,
+            memory_required_gb: 2,
+            disk_size_gb: 1.2,
+            estimated_tps: 40,
+            prefill_tps: 100,
+            ttft_ms: 200,
+            effective_context_length: 8192,
+            estimate_confidence: "high",
+            license: "Llama",
+            runtime: "ollama",
+            runtime_model: "llama3.2:1b",
+            quantization: "Q4_K_M",
+            installed: true,
+            selected: true,
+            can_install: true,
+            can_delete: true,
+            warnings: [],
+          },
+        ],
         warnings: [],
         runtime_status: {},
       })
@@ -133,9 +169,20 @@ describe("model onboarding", () => {
     expect(topShadow?.className).toContain("duration-100")
     expect(bottomShadow?.className).toContain("duration-100")
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
-    expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
-    expect(screen.queryByRole("button", { name: "Continue" })).toBeNull()
+    expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Start chatting" }).hasAttribute("disabled")
+    ).toBe(false)
+    expect(
+      screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
+    ).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Use this model" })).toBeNull()
+    expect(
+      screen.queryByRole("button", { name: "Use selected model" })
+    ).toBeNull()
 
     Object.defineProperties(scrollArea, {
       clientHeight: { configurable: true, value: 200 },
@@ -147,5 +194,75 @@ describe("model onboarding", () => {
       expect(topShadow?.className).toContain("opacity-100")
       expect(bottomShadow?.className).toContain("opacity-100")
     })
+  })
+
+  it("leaves onboarding only after Start chatting, and needs a chat model", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/selection/generation") {
+        return Response.json({ detail: "not selected" }, { status: 404 })
+      }
+      if (path === "/llm/selection/image_generation") {
+        return Response.json({ detail: "not selected" }, { status: 404 })
+      }
+      if (path === "/llm/connections") return Response.json([])
+      if (path === "/llm/providers") {
+        return Response.json([
+          {
+            name: "ollama",
+            healthy: true,
+            can_download: true,
+            requires_key: false,
+            configured: true,
+          },
+        ])
+      }
+      if (path === "/llm/providers/ollama/models") return Response.json([])
+      if (path === "/llm/catalog") {
+        return Response.json({
+          hardware: {},
+          llmfit_version: "1.0",
+          recommended: [],
+          explore: [],
+          installed: [],
+          warnings: [],
+          runtime_status: {},
+        })
+      }
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+
+    expect(
+      (await screen.findByRole("button", { name: "Start chatting" })).hasAttribute(
+        "disabled"
+      )
+    ).toBe(true)
+    expect(onComplete).not.toHaveBeenCalled()
+    expect(
+      fetchMock.mock.calls.some(
+        ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
+      )
+    ).toBe(false)
+  })
+
+  it("posts onboarding completion when Start chatting is pressed", async () => {
+    const fetchMock = installApi()
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const onComplete = vi.fn()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    await user.click(await screen.findByRole("button", { name: "Start chatting" }))
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(
+      fetchMock.mock.calls.some(
+        ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
+      )
+    ).toBe(true)
   })
 })

@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import { ThemeProvider } from "@/components/theme-provider"
+import {
+  THEME_STORAGE_KEY,
+  ThemeProvider,
+} from "@/components/theme-provider"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
 import { SettingsDialog, type SettingsSectionId } from "./settings-dialog"
@@ -12,13 +16,15 @@ function SettingsHarness() {
   const [section, setSection] = useState<SettingsSectionId>("general")
   return (
     <ThemeProvider>
-      <SettingsDialog
-        open
-        section={section}
-        onOpenChange={() => undefined}
-        onSectionChange={setSection}
-        onModelSelected={() => undefined}
-      />
+      <TooltipProvider>
+        <SettingsDialog
+          open
+          section={section}
+          onOpenChange={() => undefined}
+          onSectionChange={setSection}
+          onModelSelected={() => undefined}
+        />
+      </TooltipProvider>
     </ThemeProvider>
   )
 }
@@ -83,7 +89,7 @@ describe("SettingsDialog", () => {
       screen.getByRole("radio", { name: "Switch to dark theme" })
     )
 
-    expect(localStorage.getItem("theme")).toBe("dark")
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark")
     await waitFor(() =>
       expect(document.documentElement.classList.contains("dark")).toBe(true)
     )
@@ -104,6 +110,28 @@ describe("SettingsDialog", () => {
             name: "qwen3:1.7b",
             updated_at: "2026-09-09T00:00:00Z",
           })
+        }
+        if (path === "/llm/selection/image_generation") {
+          return Response.json({
+            role: "image_generation",
+            provider: "openai_compatible",
+            connection_id: 9,
+            name: "flux",
+            updated_at: "2026-09-09T00:00:00Z",
+          })
+        }
+        if (path === "/llm/connections") {
+          return Response.json([
+            {
+              id: 9,
+              label: "openrouter test",
+              provider: "openai_compatible",
+              base_url: "https://openrouter.ai/api/v1",
+              has_api_key: true,
+              created_at: "2026-09-09T00:00:00Z",
+              updated_at: "2026-09-09T00:00:00Z",
+            },
+          ])
         }
         if (path === "/llm/catalog") {
           return Response.json({
@@ -126,8 +154,18 @@ describe("SettingsDialog", () => {
 
     expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
     expect(screen.queryByText("Currently using")).toBeNull()
+
+    const roles = await screen.findByRole("region", { name: "Models in use" })
+    expect(roles.textContent).toContain("qwen3:1.7b")
+    expect(roles.textContent).toContain("Local")
+    expect(roles.textContent).toContain("flux")
+    expect(roles.textContent).toContain("openrouter test")
+
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
-    expect(screen.getByRole("tab", { name: "OpenRouter" })).toBeTruthy()
+    expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Use selected model" })
+    ).toBeNull()
     expect(
       document.querySelector('[data-slot="settings-section-content"]')
         ?.className
@@ -151,6 +189,9 @@ describe("SettingsDialog", () => {
     await user.click(screen.getByRole("button", { name: "Models" }))
 
     expect(screen.getByRole("heading", { name: "Models" })).toBeTruthy()
+    const roles = screen.getByRole("region", { name: "Models in use" })
+    expect(roles.querySelectorAll("[data-slot=skeleton]")).toHaveLength(2)
+    expect(screen.queryByText("Loading…")).toBeNull()
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(
       screen.getByRole("status", { name: "Scanning model catalog" })

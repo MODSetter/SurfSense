@@ -1,4 +1,4 @@
-import type { ComponentType } from "react"
+import type { ComponentType, MouseEvent } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -8,7 +8,20 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { CpuIcon, Settings2Icon } from "@/components/ui/icons"
+import {
+  CpuIcon,
+  InformationCircleIcon,
+  LicenseIcon,
+  Settings2Icon,
+} from "@/components/ui/icons"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { LicenseSettings } from "@/features/license/license-settings"
+import type { ImportAccepted } from "@/features/migration/api"
+import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/model-selection/api"
 import { cn } from "@/lib/utils"
 
@@ -22,9 +35,21 @@ type SettingsNavItem = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
-export type SettingsSectionId = "general" | "models"
+export type SettingsSectionId = "general" | "models" | "license"
 
-function GeneralSettings() {
+const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
+
+function openCloudExport(event: MouseEvent<HTMLAnchorElement>) {
+  if (!window.surfsense?.openExternal) return
+  event.preventDefault()
+  void window.surfsense.openExternal(CLOUD_EXPORT_URL)
+}
+
+function GeneralSettings({
+  onImported,
+}: {
+  onImported: (accepted: ImportAccepted) => Promise<void> | void
+}) {
   return (
     <SettingsSection
       title="General"
@@ -38,6 +63,49 @@ function GeneralSettings() {
           </p>
         </div>
         <AppearanceToggle />
+      </div>
+      <div className="mt-8 flex items-center justify-between gap-8">
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-1">
+            <h3 className="text-sm font-medium text-balance">
+              Import from SurfSense cloud
+            </h3>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none before:absolute before:inset-[-10px]"
+                  aria-label="More about importing from SurfSense cloud"
+                >
+                  <InformationCircleIcon
+                    className="size-3.5"
+                    strokeWidth={1.5}
+                  />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="top"
+                collisionPadding={12}
+                className="max-w-64 font-normal leading-5"
+              >
+                Your workspaces, folders, and chats come with it. Documents come in as text and get indexed after import. Original files and generated artifacts stay in the cloud.
+              </TooltipContent>
+            </Tooltip>
+          </div>
+          <p className="text-sm text-pretty text-muted-foreground [&_a]:underline [&_a]:underline-offset-3 [&_a]:hover:text-foreground">
+            Upload the ZIP you exported from{" "}
+            <a
+              href={CLOUD_EXPORT_URL}
+              target="_blank"
+              rel="noreferrer"
+              onClick={openCloudExport}
+            >
+              SurfSense cloud
+            </a>
+            .
+          </p>
+        </div>
+        <ImportBundleButton onImported={onImported} />
       </div>
     </SettingsSection>
   )
@@ -55,6 +123,11 @@ const SETTINGS_SECTIONS = [
     label: "Models",
     icon: CpuIcon,
   },
+  {
+    id: "license",
+    label: "License",
+    icon: LicenseIcon,
+  },
 ] satisfies SettingsNavItem[]
 
 export function SettingsDialog({
@@ -64,6 +137,7 @@ export function SettingsDialog({
   onSectionChange,
   onModelUnavailable = () => undefined,
   onModelSelected,
+  onImported = () => undefined,
 }: {
   open: boolean
   section: SettingsSectionId
@@ -71,6 +145,7 @@ export function SettingsDialog({
   onSectionChange: (section: SettingsSectionId) => void
   onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
+  onImported?: (accepted: ImportAccepted) => Promise<void> | void
 }) {
   const activeSection =
     SETTINGS_SECTIONS.find((candidate) => candidate.id === section) ??
@@ -117,13 +192,16 @@ export function SettingsDialog({
           </aside>
 
           <section className="min-h-0 min-w-0 overflow-hidden bg-popover text-popover-foreground">
-            {activeSection.id === "general" ? <GeneralSettings /> : null}
+            {activeSection.id === "general" ? (
+              <GeneralSettings onImported={onImported} />
+            ) : null}
             {activeSection.id === "models" ? (
               <ModelsSettings
                 onModelUnavailable={onModelUnavailable}
                 onSelected={onModelSelected}
               />
             ) : null}
+            {activeSection.id === "license" ? <LicenseSettings /> : null}
           </section>
         </div>
       </DialogContent>

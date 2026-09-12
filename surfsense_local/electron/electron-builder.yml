@@ -1,5 +1,5 @@
-appId: com.surfsense.local
-productName: SurfSense Local
+appId: com.surfsense.app
+productName: SurfSense
 directories:
   output: release
   buildResources: build
@@ -45,10 +45,10 @@ linux:
   executableName: surfsense-local
   desktop:
     entry:
-      Name: SurfSense Local
+      Name: SurfSense
       Comment: Local-first research over your own documents
       Categories: Office;Utility;
-      StartupWMClass: SurfSense Local
+      StartupWMClass: SurfSense
 
 win:
   target: [nsis]

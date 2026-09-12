@@ -21,6 +21,7 @@ export default defineConfig({
       "/llm": "http://127.0.0.1:8000",
       "/workspaces": "http://127.0.0.1:8000",
       "/chat": "http://127.0.0.1:8000",
+      "/artifacts": "http://127.0.0.1:8000",
     },
   },
 })

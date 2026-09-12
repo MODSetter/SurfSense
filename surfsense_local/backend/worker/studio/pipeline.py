@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
 from modules.documents.models import DocumentStatus
+from modules.llm.providers.openai_compatible import NonRetryableImageError
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.notify import notify_artifact_updates
@@ -103,4 +104,6 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
             document.error_message,
         )
+        if isinstance(failure, NonRetryableImageError):
+            return
         raise  # Huey retries; a later success clears the message.

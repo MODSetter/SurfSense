@@ -13,9 +13,10 @@ track → view or download. Separate from chat, one deliverable at a time.
 Mirror `features/sources/` layout (page, hook, `api.ts`, components):
 
 - **Entry** — a Studio surface off the workspace, distinct from the chat panel.
-- **Format picker** from `GET /studio/formats`. Visual formats
-  (`requires_key`) render disabled with a "needs OpenRouter" affordance linking
-  to model setup, so the BYO ceiling is obvious, not a broken run.
+- **Format picker** from `GET /studio/formats`. Image renders disabled when no
+  image-generation role is selected, with a link to the OpenAI-compatible model
+  setup. Infographic remains available with the generation role; the frontend
+  does not infer availability from credentials.
 - **Document picker** — multi-select over the workspace's sources (reuse the
   sources list) + an optional prompt / theme field.
 - **Submit** → `POST /workspaces/{id}/studio/jobs`, returns the artifact id.
@@ -34,7 +35,10 @@ Mirror `features/sources/` layout (page, hook, `api.ts`, components):
 
 - Select documents → run a summary → the completed artifact renders inline; a
   docx/pptx downloads; a podcast plays.
-- A visual format is unrunnable without an OpenRouter key, with the reason shown.
+- Image is unrunnable without a valid image-generation selection, with the
+  reason and setup link shown.
+- Infographic stays runnable with a generation model and does not ask for an
+  image connection.
 - A running job resolves on the SSE invalidation, not only on the poll.
 
 ## Needs from API / worker

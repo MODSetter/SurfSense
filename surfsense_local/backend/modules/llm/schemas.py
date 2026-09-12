@@ -46,24 +46,44 @@ class PullRequest(BaseModel):
     name: str
 
 
-class CredentialWrite(BaseModel):
-    """The BYO API key a client sets for a provider."""
+class ConnectionWrite(BaseModel):
+    label: str = Field(min_length=1, max_length=100)
+    provider: str = "openai_compatible"
+    base_url: str = Field(min_length=1, max_length=2048)
+    api_key: str | None = Field(default=None, max_length=4096)
+    allow_unverified: bool = False
 
-    api_key: str
 
-
-class CredentialStatus(BaseModel):
-    """Whether a provider has a key on file. The key itself is never returned."""
-
+class ConnectionRead(BaseModel):
+    id: int
+    label: str
     provider: str
-    configured: bool
+    base_url: str
+    has_api_key: bool
+    created_at: datetime
+    updated_at: datetime
+
+
+class ConnectionModelRead(BaseModel):
+    connection_id: int
+    connection_label: str
+    name: str
+    capabilities: list[str]
+    capability_known: bool
+
+
+class ImageTestWrite(BaseModel):
+    model: str = Field(min_length=1, max_length=512)
+    prompt: str | None = Field(default=None, max_length=2000)
 
 
 class SelectionWrite(BaseModel):
     """The choice a client makes for a role."""
 
     provider: str
+    connection_id: int | None = None
     name: str
+    allow_unlisted: bool = False
 
 
 class SelectionRead(BaseModel):
@@ -73,6 +93,7 @@ class SelectionRead(BaseModel):
 
     role: ModelRole
     provider: str
+    connection_id: int | None
     name: str
     updated_at: datetime
 

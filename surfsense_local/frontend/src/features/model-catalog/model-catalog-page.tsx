@@ -251,7 +251,9 @@ export function ModelCatalogPage({
   // Estimates reserve resources for SurfSense and may vary by workload.
   const busy =
     disabled ||
-    install.isPending || selectInstalled.isPending || deleteModel.isPending
+    install.isPending ||
+    selectInstalled.isPending ||
+    deleteModel.isPending
 
   const act = (row: CatalogRow) => {
     if (busy) {
@@ -372,7 +374,7 @@ export function ModelCatalogPage({
               <AlertTitle>No local models are available</AlertTitle>
               <AlertDescription>
                 This computer has no compatible local configuration right now.
-                You can still use OpenRouter.
+                You can still use an OpenAI-compatible connection.
               </AlertDescription>
             </Alert>
           ) : null}

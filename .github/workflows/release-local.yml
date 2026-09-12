@@ -38,14 +38,14 @@ jobs:
             platform: --linux
             electron_cache: ~/.cache/electron
             llmfit_resource: release/linux-unpacked/resources/llmfit/llmfit
-          - os: macos-14 # Apple Silicon → arm64 dmg
+          - os: macos-15 # Apple Silicon → arm64 dmg
             platform: --mac
             electron_cache: ~/Library/Caches/electron
-            llmfit_resource: release/mac-arm64/SurfSense Local.app/Contents/Resources/llmfit/llmfit
-          - os: macos-13 # Intel → x64 dmg (the native backend can't cross-compile)
+            llmfit_resource: release/mac-arm64/SurfSense.app/Contents/Resources/llmfit/llmfit
+          - os: macos-15-intel # Intel → x64 dmg (the native backend can't cross-compile)
             platform: --mac
             electron_cache: ~/Library/Caches/electron
-            llmfit_resource: release/mac/SurfSense Local.app/Contents/Resources/llmfit/llmfit
+            llmfit_resource: release/mac/SurfSense.app/Contents/Resources/llmfit/llmfit
           - os: windows-latest
             platform: --win
             electron_cache: ~\AppData\Local\electron\Cache
@@ -141,9 +141,12 @@ jobs:
           if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
           "$WORKER" --check-vision-runtime
 
-      - name: Stage embedding model
+      - name: Stage embedding, voice, and Docling parser packs
         working-directory: surfsense_local/backend
-        run: uv run scripts/fetch_embedding_model.py models
+        run: |
+          uv run scripts/fetch_embedding_model.py models
+          uv run scripts/fetch_kokoro_model.py models
+          uv run scripts/fetch_docling_models.py models
 
       - name: Build frontend SPA
         working-directory: surfsense_local/frontend

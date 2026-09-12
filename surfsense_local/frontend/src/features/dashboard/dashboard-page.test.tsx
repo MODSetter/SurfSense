@@ -1,11 +1,19 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
+import {
+  cleanup,
+  fireEvent,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
+import { RIGHT_TAB_KEY } from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
 
 const workspace = {
@@ -13,6 +21,13 @@ const workspace = {
   name: "My Workspace",
   created_at: "2026-09-05T00:00:00Z",
   updated_at: "2026-09-05T00:00:00Z",
+}
+
+function rememberOpenThread(workspaceId: number, threadId: number) {
+  localStorage.setItem(
+    `surfsense:last-thread:${workspaceId}:v1`,
+    String(threadId)
+  )
 }
 
 afterEach(() => {
@@ -56,7 +71,7 @@ beforeEach(() => {
 })
 
 describe("dashboard chat", () => {
-  it("renames a saved chat from the sidebar", async () => {
+  it("renames a saved chat from the conversation title", async () => {
     const thread = {
       id: 10,
       workspace_id: 1,
@@ -99,14 +114,17 @@ describe("dashboard chat", () => {
     )
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
+    rememberOpenThread(1, 10)
 
     render(
       <ThemeProvider>
         <TooltipProvider>
           <DashboardPage
+            initialProviderAvailable={true}
             selection={{
               role: "generation",
               provider: "ollama",
+              connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
             }}
@@ -117,18 +135,20 @@ describe("dashboard chat", () => {
       </ThemeProvider>
     )
 
-    await screen.findByRole("heading", { name: "Original title" })
+    const conversation = screen.getByRole("region", { name: "Conversation" })
     await user.click(
-      screen.getByRole("button", { name: "Actions for Original title" })
+      await within(conversation).findByRole("button", {
+        name: "Original title",
+      })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Rename" }))
-    const input = screen.getByRole("textbox", { name: "Chat name" })
+    const input = within(conversation).getByRole("textbox", {
+      name: "Chat name",
+    })
     await user.clear(input)
-    await user.type(input, "Banking fees")
-    await user.click(screen.getByRole("button", { name: "Rename" }))
+    await user.type(input, "Banking fees{Enter}")
 
     expect(
-      await screen.findByRole("heading", { name: "Banking fees" })
+      await within(conversation).findByRole("button", { name: "Banking fees" })
     ).toBeTruthy()
     expect(fetchMock).toHaveBeenCalledWith(
       "/chat/threads/10",
@@ -140,6 +160,85 @@ describe("dashboard chat", () => {
 
     await user.click(screen.getByRole("button", { name: "Open settings" }))
     expect(screen.getByRole("heading", { name: "Appearance" })).toBeTruthy()
+  })
+
+  it("focuses the composer when opening a chat, not the title", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([thread])
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+    rememberOpenThread(1, 10)
+
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            initialProviderAvailable={true}
+            selection={{
+              role: "generation",
+              provider: "ollama",
+              connection_id: null,
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
+    expect(
+      within(conversation).getByRole("button", { name: "Original title" })
+    ).not.toBe(document.activeElement)
+
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
+
+    await user.click(screen.getByRole("button", { name: "Original title" }))
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
   })
 
   it("keeps composer placement aligned with the conversation lifecycle", async () => {
@@ -204,9 +303,11 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -216,23 +317,50 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    expect(screen.queryByRole("textbox", { name: "Message" })).toBeNull()
+    const conversationWhileLoading = screen.getByRole("region", {
+      name: "Conversation",
+    })
+    expect(
+      await screen.findByRole("textbox", { name: "Message" })
+    ).toBeTruthy()
+    expect(
+      conversationWhileLoading.querySelector('[data-slot="skeleton"]')
+    ).toBeNull()
     expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
 
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
     const addSources = screen.getByRole("button", { name: "Add sources" })
-    expect(screen.getByRole("heading", { name: "New chat" })).toBeTruthy()
+    expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
     expect(
       addSources.closest('[data-composer-placement="center"]')
     ).toBeTruthy()
     expect(addSources.getAttribute("data-slot")).toBe("tooltip-trigger")
     expect(addSources.className).not.toContain("-mr-1.5")
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    const viewport = conversation.querySelector("[data-chat-viewport]")
+    const topShadow = conversation.querySelector(
+      '[data-slot="scroll-shadow-top"]'
+    )
+    expect(conversation.parentElement?.className).toContain("flex-1")
+    expect(conversation.querySelector("header")).toBeTruthy()
+    expect(topShadow).toBeTruthy()
     expect(
-      screen.getByRole("region", { name: "Conversation" }).parentElement
-        ?.className
-    ).toContain("grid-rows-[minmax(0,1fr)]")
+      conversation.querySelector('[data-slot="scroll-shadow-bottom"]')
+    ).toBeNull()
+    Object.defineProperties(viewport, {
+      clientHeight: { configurable: true, value: 400 },
+      scrollHeight: { configurable: true, value: 800 },
+      scrollTop: { configurable: true, value: 0, writable: true },
+    })
+    fireEvent.scroll(viewport as HTMLElement)
+    expect(topShadow?.className).toContain("opacity-0")
+    ;(viewport as HTMLElement).scrollTop = 80
+    fireEvent.scroll(viewport as HTMLElement)
+    await waitFor(() => {
+      expect(topShadow?.className).toContain("opacity-100")
+    })
 
     await user.type(input, "Start a chat")
     await user.click(screen.getByRole("button", { name: "Send message" }))
@@ -264,7 +392,10 @@ describe("dashboard chat", () => {
         { status: 201 }
       )
     )
-    await screen.findByRole("heading", { name: "Start a chat" })
+    await within(screen.getByRole("region", { name: "Conversation" })).findByRole(
+      "button",
+      { name: "Start a chat" }
+    )
     await waitFor(() => {
       expect(document.querySelectorAll("time")).toHaveLength(1)
     })
@@ -286,6 +417,156 @@ describe("dashboard chat", () => {
       ).toBeTruthy()
       expect((resetInput as HTMLTextAreaElement).value).toBe("")
     })
+  })
+
+  it("keeps a new chat after remount", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "ollama", healthy: true, can_download: true },
+        ])
+      }
+      if (
+        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+      ) {
+        return Response.json([])
+      }
+      if (path === "/workspaces/1/chat/threads") return Response.json([thread])
+      if (path === "/chat/threads/10/messages") return Response.json([])
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    rememberOpenThread(1, 10)
+    const page = (
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    render(page)
+    expect(
+      await within(screen.getByRole("region", { name: "Conversation" })).findByRole(
+        "button",
+        { name: "Original title" }
+      )
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+    await waitFor(() => {
+      expect(
+        screen
+          .getByRole("textbox", { name: "Message" })
+          .closest('[data-composer-placement="center"]')
+      ).toBeTruthy()
+    })
+    expect(
+      within(screen.getByRole("region", { name: "Conversation" })).queryByRole(
+        "button",
+        { name: "Original title" }
+      )
+    ).toBeNull()
+
+    cleanup()
+    render(page)
+    const input = await screen.findByRole("textbox", { name: "Message" })
+    expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
+    expect(
+      within(screen.getByRole("region", { name: "Conversation" })).queryByRole(
+        "button",
+        { name: "Original title" }
+      )
+    ).toBeNull()
+  })
+
+  it("shows message skeletons only while a loaded chat’s messages load", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    let resolveMessages!: (response: Response) => void
+    const messagesResponse = new Promise<Response>((resolve) => {
+      resolveMessages = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") return Response.json([thread])
+        if (path === "/chat/threads/10/messages") return messagesResponse
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    rememberOpenThread(1, 10)
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const conversation = screen.getByRole("region", { name: "Conversation" })
+    await waitFor(() => {
+      expect(conversation.querySelector('[data-slot="skeleton"]')).toBeTruthy()
+    })
+    expect(
+      screen
+        .queryByRole("textbox", { name: "Message" })
+        ?.closest('[data-composer-placement="center"]')
+    ).toBeNull()
+
+    resolveMessages(Response.json([]))
+    await waitFor(() => {
+      expect(conversation.querySelector('[data-slot="skeleton"]')).toBeNull()
+    })
+    expect(
+      screen
+        .getByRole("textbox", { name: "Message" })
+        .closest('[data-composer-placement="bottom"]')
+    ).toBeTruthy()
   })
 
   it("creates a thread on first send and scopes retrieval to selected sources", async () => {
@@ -405,9 +686,11 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -417,7 +700,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.click(screen.getByRole("button", { name: "New chat" }))
     await user.click(
       await screen.findByRole("checkbox", { name: "Select Guide.txt" })
@@ -436,15 +719,26 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    fireEvent.click(
-      screen.getByRole("button", { name: "View cited chunk 30" })
-    )
+    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
     expect(await screen.findByText("indexed passage")).toBeTruthy()
     expect(screen.getByText("Cited chunk")).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Open" }))
+    const rail = document.querySelector("[data-slot=slide-rail]")
+    expect(rail).toBeInstanceOf(HTMLElement)
+    expect((rail as HTMLElement).style.width).toBe(`${DETAIL_RAIL_WIDTH}px`)
+    await user.click(screen.getByRole("button", { name: "Open file" }))
     expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
     await user.click(screen.getByRole("button", { name: "Close citation" }))
-    const sourceButton = await screen.findByRole("button", { name: "Guide.txt" })
+    expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
+    expect(
+      screen
+        .getByRole("tab", { name: "Artifacts" })
+        .getAttribute("aria-selected")
+    ).toBe("true")
+    await user.click(screen.getByRole("tab", { name: "Sources" }))
+    const sourceButton = await screen.findByRole("button", {
+      name: "Guide.txt",
+    })
     await user.click(sourceButton)
     expect(window.surfsense?.openDocument).toHaveBeenCalledTimes(2)
     expect(
@@ -500,9 +794,11 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -512,7 +808,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.click(screen.getByRole("button", { name: "Second Workspace" }))
 
     expect(screen.getByRole("heading", { name: "SurfSense" })).toBeTruthy()
@@ -541,6 +837,7 @@ describe("dashboard chat", () => {
           return Response.json({
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           })
@@ -586,9 +883,11 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -598,7 +897,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Fail safely"
@@ -663,9 +962,11 @@ describe("dashboard chat", () => {
     render(
       <TooltipProvider>
         <DashboardPage
+          initialProviderAvailable={true}
           selection={{
             role: "generation",
             provider: "ollama",
+            connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           }}
@@ -675,7 +976,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("No chats yet")
+    await screen.findByText("Start a conversation to see it here")
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Stop this"
@@ -689,5 +990,268 @@ describe("dashboard chat", () => {
     expect(
       await screen.findByRole("button", { name: "Send message" })
     ).toBeTruthy()
+  })
+
+  it("collapses the sources panel from the toolbar outside the card", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/artifacts") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            initialProviderAvailable={true}
+            selection={{
+              role: "generation",
+              provider: "ollama",
+              connection_id: null,
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
+    )
+
+    expect(
+      await screen.findByRole("complementary", { name: "Workspace sources" })
+    ).toBeTruthy()
+    expect(
+      screen
+        .getByRole("button", { name: "Hide right panel" })
+        .closest(".titlebar-controls")
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Hide right panel" }))
+    expect(
+      screen.queryByRole("complementary", { name: "Workspace sources" })
+    ).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "Show right panel" })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Show right panel" }))
+    expect(
+      screen.getByRole("complementary", { name: "Workspace sources" })
+    ).toBeTruthy()
+  })
+
+  it("opens a generated artifact in the detail rail", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "summary",
+              label: "Summary",
+              requires_role: "generation",
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") {
+          return Response.json([
+            {
+              id: 12,
+              document_id: 4,
+              format: "summary",
+              generation: 1,
+              title: "Weekly summary",
+              status: "ready",
+              error_message: null,
+              created_at: "2026-09-06T00:00:00Z",
+              updated_at: "2026-09-06T00:00:00Z",
+            },
+          ])
+        }
+        if (path === "/artifacts/12") {
+          return Response.json({
+            id: 12,
+            document_id: 4,
+            format: "summary",
+            generation: 1,
+            title: "Weekly summary",
+            status: "ready",
+            error_message: null,
+            content: "Saturn is a gas giant.",
+            files: [],
+            created_at: "2026-09-06T00:00:00Z",
+            updated_at: "2026-09-06T00:00:00Z",
+          })
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    expect(screen.getByRole("heading", { name: "Sources" })).toBeTruthy()
+    const sourcesPanel = screen.getByRole("complementary", {
+      name: "Workspace sources",
+    })
+    const sourcesScroll = sourcesPanel.querySelector(
+      '[data-state="active"] [data-slot="scroll-shadow-viewport"]'
+    )
+    expect(
+      sourcesScroll?.contains(screen.getByRole("heading", { name: "All sources" }))
+    ).toBe(false)
+    expect(
+      sourcesScroll?.contains(screen.getByRole("button", { name: "Add" }))
+    ).toBe(false)
+    expect(sourcesScroll).toBeTruthy()
+    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
+    expect(
+      screen.getByRole("heading", { name: "All generated artifacts" })
+    ).toBeTruthy()
+    const artifactsPanel = screen.getByRole("complementary", {
+      name: "Workspace artifacts",
+    })
+    const artifactsScroll = artifactsPanel.querySelector(
+      '[data-state="active"] [data-slot="scroll-shadow-viewport"]'
+    )
+    const weeklySummary = await screen.findByRole("button", {
+      name: /^Weekly summary/,
+    })
+    expect(
+      artifactsScroll?.contains(
+        screen.getByRole("heading", { name: "All generated artifacts" })
+      )
+    ).toBe(false)
+    expect(artifactsScroll?.contains(weeklySummary)).toBe(true)
+    expect(screen.queryByRole("heading", { name: "All sources" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Add" })).toBeNull()
+    expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
+    await user.click(weeklySummary)
+    expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
+    expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
+    const rail = document.querySelector("[data-slot=slide-rail]")
+    expect((rail as HTMLElement).style.width).toBe(`${DETAIL_RAIL_WIDTH}px`)
+    await user.click(screen.getByRole("button", { name: "Close artifact" }))
+    expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
+    expect(
+      screen.getByRole("complementary", { name: "Workspace artifacts" })
+    ).toBeTruthy()
+    expect(
+      screen
+        .getByRole("tab", { name: "Artifacts" })
+        .getAttribute("aria-selected")
+    ).toBe("true")
+  })
+
+  it("remembers the sources and artifacts tab across remounts", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "ollama", healthy: true, can_download: true },
+        ])
+      }
+      if (
+        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+      ) {
+        return Response.json([])
+      }
+      if (path === "/workspaces/1/chat/threads") return Response.json([])
+      if (path === "/workspaces/1/studio/formats") return Response.json([])
+      if (path === "/workspaces/1/artifacts") return Response.json([])
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    const page = (
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    render(page)
+    expect(
+      await screen.findByRole("complementary", { name: "Workspace sources" })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    expect(localStorage.getItem(RIGHT_TAB_KEY)).toBe("artifacts")
+    expect(
+      screen.getByRole("tab", { name: "Artifacts" }).getAttribute("aria-selected")
+    ).toBe("true")
+
+    cleanup()
+    render(page)
+    expect(
+      await screen.findByRole("complementary", { name: "Workspace artifacts" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("tab", { name: "Artifacts" }).getAttribute("aria-selected")
+    ).toBe("true")
   })
 })

@@ -1,8 +1,8 @@
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 
 import {
+  ChevronRightIcon,
   EllipsisIcon,
-  MessageSquareIcon,
   PencilEdit02Icon,
   PencilIcon,
   Trash2Icon,
@@ -24,21 +24,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@/components/ui/empty"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
 
-function RenameChatDialog({
+export function RenameChatDialog({
   thread,
   onClose,
   onRename,
@@ -47,6 +41,7 @@ function RenameChatDialog({
   onClose: () => void
   onRename: (id: number, title: string) => Promise<boolean>
 }) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState(thread.title || "New chat")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -62,7 +57,16 @@ function RenameChatDialog({
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
+      <DialogContent
+        className="select-none"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          const input = inputRef.current
+          if (!input) return
+          input.focus()
+          input.select()
+        }}
+      >
         <form onSubmit={(event) => void submit(event)}>
           <DialogHeader>
             <DialogTitle>Rename chat</DialogTitle>
@@ -71,12 +75,12 @@ function RenameChatDialog({
             </DialogDescription>
           </DialogHeader>
           <Input
+            ref={inputRef}
             className="my-4"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
             aria-label="Chat name"
             maxLength={200}
-            autoFocus
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
@@ -117,39 +121,52 @@ export function ThreadList({
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
+  const [recentsOpen, setRecentsOpen] = useState(true)
 
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background">
-      <header className="space-y-3 border-b p-3">
-        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground">
+      <header className="space-y-3 px-3 py-3">
+        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
           SurfSense
         </h2>
-        <Button className="w-full justify-start" onClick={onNewChat}>
+        <Button
+          variant="ghost"
+          className="w-full justify-start px-2"
+          onClick={onNewChat}
+        >
           <PencilEdit02Icon />
           New chat
         </Button>
       </header>
-      <div className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto">
-        <div className="w-full max-w-full min-w-0 space-y-1 p-2">
-          {isLoading
-            ? [0, 1, 2, 3].map((item) => (
-                <Skeleton key={item} className="h-11 w-full" />
-              ))
-            : null}
-          {!isLoading && threads.length === 0 ? (
-            <Empty className="border-0 px-2 py-12">
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <MessageSquareIcon />
-                </EmptyMedia>
-                <EmptyTitle>No chats yet</EmptyTitle>
-                <EmptyDescription>
-                  Your first message creates a chat here.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : null}
-          {threads.map((thread) => {
+      <ScrollShadow
+        className="min-h-0 min-w-0 flex-1"
+        viewportClassName="overflow-x-hidden p-3"
+        from="from-background"
+      >
+        <div className="flex w-full max-w-full min-w-0 flex-col gap-1">
+          <button
+            type="button"
+            className="group flex min-h-7 items-center gap-1 px-2 text-xs font-semibold text-muted-foreground transition-colors select-none hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            aria-expanded={recentsOpen}
+            onClick={() => setRecentsOpen((open) => !open)}
+          >
+            Recents
+            <ChevronRightIcon
+              className={cn(
+                "size-3.5 opacity-0 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-focus-visible:opacity-100",
+                recentsOpen && "rotate-90"
+              )}
+            />
+          </button>
+          {recentsOpen ? (
+            <>
+              {isLoading ? <SkeletonSlabs /> : null}
+              {!isLoading && threads.length === 0 ? (
+                <p className="px-2 py-1 text-sm text-muted-foreground select-none">
+                  Start a conversation to see it here
+                </p>
+              ) : null}
+              {threads.map((thread) => {
             const selected = thread.id === activeThreadId
             const title = thread.title || "New chat"
             return (
@@ -233,8 +250,10 @@ export function ThreadList({
               </div>
             )
           })}
+            </>
+          ) : null}
         </div>
-      </div>
+      </ScrollShadow>
       {renaming ? (
         <RenameChatDialog
           key={renaming.id}

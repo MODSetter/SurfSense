@@ -7,7 +7,7 @@ from sqlalchemy import Engine
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm import providers as registry
-from modules.llm.activity import model_activity
+from modules.llm.activity import model_activity, model_key
 from modules.llm.providers.types import Message, Model
 from modules.llm.recommendations.dependencies import get_catalog_service
 from modules.workspaces.models import Workspace
@@ -54,24 +54,6 @@ async def test_an_unknown_provider_is_a_404(client: AsyncClient) -> None:
     assert (await client.get("/llm/providers/openai/models")).status_code == 404
 
 
-async def test_a_saved_key_lists_openrouter_models_right_away(
-    client: AsyncClient, openrouter_server: str
-) -> None:
-    """Saving the key then listing is the exact connect flow the UI runs."""
-    saved = await client.put(
-        "/llm/providers/openrouter/credentials", json={"api_key": "sk-or-test"}
-    )
-    assert saved.status_code == 200
-
-    listed = (await client.get("/llm/providers")).json()
-    openrouter = next(entry for entry in listed if entry["name"] == "openrouter")
-    assert openrouter["configured"] is True
-    assert openrouter["healthy"] is True
-
-    models = (await client.get("/llm/providers/openrouter/models")).json()
-    assert [model["name"] for model in models] == ["anthropic/claude-3.5-sonnet"]
-
-
 async def test_pull_streams_progress(client: AsyncClient, ollama_server: str) -> None:
     """The client needs progress, not one reply after minutes of silence."""
     steps = []
@@ -104,18 +86,29 @@ async def test_the_selection_is_read_after_it_is_set(
     assert read.json() == written.json()
 
 
-async def test_selecting_the_first_model_completes_onboarding(
+async def test_selecting_a_chat_model_does_not_complete_onboarding(
     client: AsyncClient, ollama_server: str
 ) -> None:
-    """The first valid selection is the durable onboarding boundary."""
+    """Use persists the chat model; Continue writes the completion marker."""
     assert (await client.get("/llm/onboarding")).json() == {"completed": False}
 
     await client.put(
         "/llm/selection/generation",
         json={"provider": "ollama", "name": "qwen3:1.7b"},
     )
+    assert (await client.get("/llm/onboarding")).json() == {"completed": False}
 
-    assert (await client.get("/llm/onboarding")).json() == {"completed": True}
+    completed = await client.post("/llm/onboarding")
+    assert completed.status_code == 200
+    assert completed.json() == {"completed": True}
+
+
+async def test_onboarding_cannot_complete_without_a_chat_model(
+    client: AsyncClient,
+) -> None:
+    reply = await client.post("/llm/onboarding")
+    assert reply.status_code == 422
+    assert (await client.get("/llm/onboarding")).json() == {"completed": False}
 
 
 async def test_deleting_the_selected_local_model_clears_only_the_selection(
@@ -126,6 +119,7 @@ async def test_deleting_the_selected_local_model_clears_only_the_selection(
         "/llm/selection/generation",
         json={"provider": "ollama", "name": "qwen3:1.7b"},
     )
+    assert (await client.post("/llm/onboarding")).status_code == 200
 
     deleted = await client.delete("/llm/providers/ollama/models/qwen3%3A1.7b")
 
@@ -141,12 +135,12 @@ async def test_deleting_the_selected_local_model_clears_only_the_selection(
 
 
 async def test_remote_models_cannot_be_deleted(client: AsyncClient) -> None:
-    """Remote provider entries do not represent local files."""
+    """Remote connections never enter local provider storage routes."""
     reply = await client.delete(
-        "/llm/providers/openrouter/models/anthropic%2Fclaude-3.5-sonnet"
+        "/llm/providers/openai_compatible/models/anthropic%2Fclaude-3.5-sonnet"
     )
 
-    assert reply.status_code == 409
+    assert reply.status_code == 404
 
 
 async def test_embedding_models_cannot_be_deleted_from_chat_management(
@@ -192,7 +186,7 @@ async def test_a_model_in_use_cannot_be_deleted(
     client: AsyncClient, ollama_server: str
 ) -> None:
     """Deletion cannot race an active generation."""
-    key = ("ollama", "qwen3:1.7b")
+    key = model_key("ollama", "qwen3:1.7b")
     await model_activity.acquire_use(key)
     try:
         reply = await client.delete("/llm/providers/ollama/models/qwen3%3A1.7b")
@@ -291,7 +285,7 @@ async def test_a_generation_selection_requires_completion_capability(
     """An installed embedding model cannot be selected to answer chat."""
 
     class EmbeddingOnly:
-        name = "embedding-only"
+        name = "ollama"
 
         async def health(self) -> bool:
             return True
@@ -302,11 +296,11 @@ async def test_a_generation_selection_requires_completion_capability(
         def chat(self, model: str, messages: list[Message]):  # pragma: no cover
             raise NotImplementedError
 
-    monkeypatch.setitem(registry.REGISTRY, "embedding-only", EmbeddingOnly)
+    monkeypatch.setitem(registry.REGISTRY, "ollama", EmbeddingOnly)
 
     reply = await client.put(
         "/llm/selection/generation",
-        json={"provider": "embedding-only", "name": "embedder"},
+        json={"provider": "ollama", "name": "embedder"},
     )
 
     assert reply.status_code == 422

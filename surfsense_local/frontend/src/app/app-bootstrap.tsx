@@ -5,10 +5,9 @@ import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
 import {
   getGenerationSelection,
-  getInstalledGenerationModels,
+  getConnectionModels,
   getOnboardingStatus,
-  getProviders,
-  modelKey,
+  getProviderModels,
   type ModelSelection,
 } from "@/features/model-selection/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
@@ -26,6 +25,7 @@ type BootstrapState =
   | {
       status: "ready"
       selection: ModelSelection | null
+      providerAvailable: boolean
       workspaces: Workspace[]
     }
   | { status: "error"; message: string }
@@ -43,22 +43,36 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
     if (!onboarding.completed) {
       return { status: "onboarding-required" }
     }
-    const providersPromise = getProviders()
-    const selectionPromise = getGenerationSelection()
-    const workspacesPromise = listWorkspaces()
-    const providers = await providersPromise
-    const modelsPromise = getInstalledGenerationModels(providers)
-    const [selection, workspaces, models] = await Promise.all([
-      selectionPromise,
-      workspacesPromise,
-      modelsPromise,
+    const [selection, workspaces] = await Promise.all([
+      getGenerationSelection(),
+      listWorkspaces(),
     ])
-    const currentSelection =
-      selection &&
-      models.some((model) => modelKey(model) === modelKey(selection))
+    let currentSelection: ModelSelection | null = null
+    if (selection?.provider === "openai_compatible") {
+      const models =
+        selection.connection_id === null
+          ? []
+          : await getConnectionModels(selection.connection_id)
+      currentSelection = models.some((model) => model.name === selection.name)
         ? selection
         : null
-    return { status: "ready", selection: currentSelection, workspaces }
+    } else if (selection) {
+      const models = await getProviderModels(selection.provider)
+      currentSelection = models.some(
+        (model) =>
+          model.installed &&
+          model.capabilities.includes("completion") &&
+          model.name === selection.name
+      )
+        ? selection
+        : null
+    }
+    return {
+      status: "ready",
+      selection: currentSelection,
+      providerAvailable: currentSelection !== null,
+      workspaces,
+    }
   } catch (error) {
     return { status: "error", message: messageFrom(error) }
   }
@@ -117,7 +131,12 @@ export function AppBootstrap() {
           setState({ status: "loading" })
           void listWorkspaces()
             .then((workspaces) =>
-              setState({ status: "ready", selection, workspaces })
+              setState({
+                status: "ready",
+                selection,
+                providerAvailable: true,
+                workspaces,
+              })
             )
             .catch((error: unknown) =>
               setState({ status: "error", message: messageFrom(error) })
@@ -132,7 +151,7 @@ export function AppBootstrap() {
       <main className="flex min-h-full items-center justify-center bg-muted/30 p-8">
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
-          <AlertTitle>SurfSense Local could not start</AlertTitle>
+          <AlertTitle>SurfSense could not start</AlertTitle>
           <AlertDescription>
             <p>{state.message}</p>
             <Button
@@ -155,6 +174,7 @@ export function AppBootstrap() {
     <Suspense fallback={<GlobalLoader />}>
       <DashboardPage
         selection={state.selection}
+        initialProviderAvailable={state.providerAvailable}
         initialWorkspaces={state.workspaces}
         onModelUnavailable={() =>
           setState((current) =>

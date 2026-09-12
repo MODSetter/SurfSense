@@ -1,28 +1,33 @@
-"""Media formats: a podcast synthesised offline, an image drawn by a BYO model."""
-
-import base64
+"""Media formats: a podcast synthesised offline and a remote generated image."""
 
 import pytest
 
+from modules.llm.providers.protocols import GeneratedImage
+from modules.llm.resolution import ModelResolutionError, ResolvedImageGeneration
 from worker.studio.artifact import Source
-from worker.studio.media import podcast, visual
+from worker.studio.media import image, podcast
 
 pytestmark = pytest.mark.unit
 
-PNG = b"\x89PNG\r\n\x1a\n fake image bytes"
-
-
-def _reply(url: str) -> dict:
-    return {"choices": [{"message": {"images": [{"image_url": {"url": url}}]}}]}
+PNG = b"\x89PNG\r\n\x1a\nfake image bytes"
 
 
 def test_render_stores_the_returned_png(monkeypatch: pytest.MonkeyPatch) -> None:
-    """A data-URL image comes back decoded as the artifact's primary file."""
-    data_url = "data:image/png;base64," + base64.b64encode(PNG).decode()
-    monkeypatch.setattr(visual, "read_provider_key", lambda *a: "key")
-    monkeypatch.setattr(visual, "_request_image", lambda key, content: _reply(data_url))
+    """The selected ImageGenerator result becomes the artifact's primary file."""
 
-    built = visual.render(None, "image", [Source(1, "Saturn", "rings")], "make it bold")
+    class FakeImageGenerator:
+        async def generate(self, model: str, prompt: str) -> GeneratedImage:
+            assert model == "flux"
+            assert "Saturn" in prompt
+            return GeneratedImage(PNG, "image/png")
+
+    selection = type("Selection", (), {"name": "flux"})()
+    monkeypatch.setattr(
+        image,
+        "resolve_image_generation",
+        lambda _session: ResolvedImageGeneration(selection, FakeImageGenerator()),
+    )
+    built = image.render(None, [Source(1, "Saturn", "rings")], "make it bold")
 
     assert built.primary == PNG
     assert built.primary_mime == "image/png"
@@ -30,18 +35,17 @@ def test_render_stores_the_returned_png(monkeypatch: pytest.MonkeyPatch) -> None
     assert built.title == "make it bold"
 
 
-def test_render_without_a_key_fails_clearly(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The API gates this, but the worker re-checks rather than 401 upstream."""
-    monkeypatch.setattr(visual, "read_provider_key", lambda *a: None)
+def test_render_without_a_selection_fails_clearly(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The worker re-checks role resolution rather than calling an arbitrary API."""
 
-    with pytest.raises(RuntimeError, match="OpenRouter API key"):
-        visual.render(None, "image", [], None)
+    def missing(_session):
+        raise ModelResolutionError("no image model selected")
 
-
-def test_a_reply_with_no_image_is_an_error() -> None:
-    """A text-only answer must fail the job, not save an empty file."""
-    with pytest.raises(RuntimeError, match="no image"):
-        visual._first_image({"choices": [{"message": {}}]})
+    monkeypatch.setattr(image, "resolve_image_generation", missing)
+    with pytest.raises(RuntimeError, match="no image model selected"):
+        image.render(None, [], None)
 
 
 def test_podcast_voices_a_two_host_transcript(

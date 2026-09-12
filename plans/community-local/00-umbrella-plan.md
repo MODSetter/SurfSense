@@ -2,7 +2,7 @@
 
 > Airgapped, local-first NotebookLM-style desktop app (Community SKU).
 
-> **Pivot (Sep 2026):** this app is now *the* SurfSense product and the hosted SaaS is being sunset. Business decisions, licensing, cloud-to-local migration, the three cross-team contracts, owners, and the launch runbook live in [`00d-pivot-plan.md`](00d-pivot-plan.md). It adds a Phase 6 to the local app (import, license module, egress panel, keychain, auto-update), specified there under Workstream A. The out-of-scope list below still holds for this codebase: scrapers and MCP stay hosted and are reached at T+7 through a thin client; Stripe stays in the portal.
+> **Pivot (Sep 2026):** this app is now *the* SurfSense product and the hosted SaaS is being sunset. Business decisions, licensing, cloud-to-local migration, the four cross-team contracts, owners, and the launch runbook live in [`00d-pivot-plan.md`](00d-pivot-plan.md). It adds a Phase 6 to the local app (import, license module, egress panel, keychain, auto-update), specified there under Workstream A. The out-of-scope list below still holds for this codebase: scrapers and MCP stay hosted and are reached at T+7 through a thin client; Stripe stays in the portal.
 
 **Three workstreams** — pick a folder and work through phases in order:
 
@@ -27,7 +27,7 @@ Same phase number = integrate together.
 | **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
 | **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
 | **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
-| **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05-model-recommendations.md`](api/05-model-recommendations.md) + [`05-packaging.md`](api/05-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
+| **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05a-model-recommendations.md`](api/05a-model-recommendations.md) + [`05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md) + [`05c-packaging.md`](api/05c-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
 | **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | — (import reuses `ingest_document`) |
 
 **Demo:** phase 3 all streams. **Ship:** phase 6 = SurfSense 2.0.0 (1.0.x tags are taken by the old project versioning; see [`00d-pivot-plan.md`](00d-pivot-plan.md)).
@@ -51,7 +51,7 @@ persist. The Electron shell and dev loop now land too: [`electron/`](../../surfs
 spawns both Python sidecars, waits on `/health`, and loads the Vite SPA, reaping
 the sidecars on quit (guarded by `pnpm check:sidecars`). Phase 1 still owes both
 screens, and a PDF only converts on a machine that can reach
-Hugging Face until [`api/05-packaging.md`](api/05-packaging.md) ships the parser
+Hugging Face until [`api/05c-packaging.md`](api/05c-packaging.md) ships the parser
 pack.
 
 ## Layer boundary
@@ -87,7 +87,7 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 | **HTTP stack** | **FastAPI** + uvicorn | Same stack as cloud backend; native OpenAPI for frontend; SSE streaming for chat. PyInstaller risk is handled in [`api/00-spike.md`](api/00-spike.md) — not a reason to downgrade. |
 | **Retrieval** | **FTS5 + sqlite-vec hybrid, cosine rescore** | Semantic + keyword from day one: both legs widen recall, cosine orders. Embeddings on ingest must be queried properly — not keyword-only, not in-memory scan over BLOBs. |
 | **Embed provider** | Bundled bge-small-en-v1.5 int8, in-process on onnxruntime | 384-dim, ~66MB, runs offline on CPU with no model server. Docling parses, Chonkie chunks. Remote embedding is a later opt-in, not a launch dependency. |
-| **Generation architecture** | llmfit catalog/advisor + curated-model policy + runtime adapters; Ollama first, OpenRouter remote | [`api/05-model-recommendations.md`](api/05-model-recommendations.md). llmfit supplies broad model metadata, hardware detection, and fit estimates through a pinned JSON adapter; it is not a `Generator`, installer, or inference runtime. A packaged SurfSense manifest names exact team-tested configurations. Local runtime adapters resolve trusted artifacts, download them, and implement `Generator`; Ollama is the first adapter and llama.cpp can be added later without changing llmfit or the frontend catalog contract. OpenRouter remains the hosted BYO-key `Generator`. `SelectedModel(role)` stores the provider/runtime-specific installed choice. |
+| **Generation architecture** | llmfit catalog/advisor + curated-model policy + runtime adapters; Ollama local, multiple OpenAI-compatible connections remote | [`api/05a-model-recommendations.md`](api/05a-model-recommendations.md) and [`api/05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md). llmfit supplies broad model metadata, hardware detection, and fit estimates; it is not a `Generator`, installer, or inference runtime. Local adapters resolve trusted artifacts and Ollama is first. Remote endpoints are named connection instances with their own URL and optional key; models are discovered live, not synchronized into SQLite. `SelectedModel(role)` stores the provider, connection identity when remote, and exact model id. SurfSense selects endpoints but does not load-balance their replicas. |
 | **llmfit integration** | **Pinned official binary, short-lived JSON CLI, normalized behind `ModelAdvisor`** | The API runs `llmfit --json system` and `llmfit --max-context 8192 --json fit`, caches one scan, and exposes only SurfSense DTOs. No fork, patch, Python import, or permanent llmfit server. CLI label/machine-code differences are normalized at one seam and fixture-tested before a version bump. Failure removes ranking, not installed-model selection or chat. |
 | **Ollama runtime** | **Bundled as a supervised sidecar (packaged); dev uses the developer's own `ollama serve`** | Chat can't depend on a daemon the user may not have installed. The packaged app ships the standalone Ollama archive (`electron/scripts/fetch-ollama.mjs` stages it, electron-builder carries it in `resources/ollama`) and Electron runs it as a third sidecar on a chosen port, passing `SURFSENSE_LOCAL_OLLAMA_BASE_URL` to the API. Models aren't shipped — the user pulls into the writable data dir after install. The two Python sidecars and Ollama share one supervisor (`electron/src/main/sidecars/`): the supervisor spawns/reaps, one spec file per sidecar carries its identity. Ollama is best-effort at boot (only the API gates the window; its state surfaces via `/llm/providers`). |
 | **Persistence** | SQLAlchemy 2.0 + Alembic, same as cloud | Models are the source of truth. `versions/` ships as PyInstaller data, resolved from the package's own `__file__` — de-risked in [`api/00-spike.md`](api/00-spike.md). |
@@ -99,7 +99,7 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 
 ## Open items
 
-Model pack hosting (Phase 5 only); default workspace on first launch. **Studio resolved:** deterministic builders (LLM emits structured content, a trusted per-format function renders — no sandbox), a hybrid `create_artifact_job` service (explicit job now, agentic tool later), the cloud format set in feasibility sub-phases with visual formats gated to BYO OpenRouter, and Kokoro-82M bundled for offline podcasts — [`frontend/`](frontend/04-studio.md) · [`api/`](api/04-studio.md) · [`worker/`](worker/04-studio.md). **Done:** the freshness push — `GET /workspaces/{id}/events` (SSE fan-out to the renderer) and `POST /internal/events` (worker → API notify on row change) ship in `modules/events/`; the frontend still consumes it via `queryClient.invalidateQueries` (see the UI freshness decision).
+Model pack hosting (Phase 5 only); default workspace on first launch. **Studio resolved:** deterministic builders (LLM emits structured content, a trusted per-format function renders — no sandbox), a hybrid `create_artifact_job` service (explicit job now, agentic tool later), image artifacts through an explicitly selected OpenAI-compatible Images model, deterministic infographics through the generation model, and Kokoro-82M bundled for offline podcasts — [`frontend/`](frontend/04-studio.md) · [`api/`](api/04-studio.md) · [`worker/`](worker/04-studio.md). **Done:** the freshness push — `GET /workspaces/{id}/events` (SSE fan-out to the renderer) and `POST /internal/events` (worker → API notify on row change) ship in `modules/events/`; the frontend still consumes it via `queryClient.invalidateQueries` (see the UI freshness decision).
 
 ## Copy sources
 

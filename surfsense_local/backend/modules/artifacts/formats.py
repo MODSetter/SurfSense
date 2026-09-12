@@ -7,8 +7,7 @@ class Format:
 
     key: str
     label: str
-    # Visual formats have no local builder; they call a BYO OpenRouter model.
-    requires_key: bool = False
+    requires_role: str | None = "generation"
 
 
 # The whole Studio catalog. Kept dependency-free so the API validates and lists
@@ -25,10 +24,8 @@ FORMATS: tuple[Format, ...] = (
     Format("flashcards", "Flashcards"),
     Format("quiz", "Quiz"),
     Format("podcast", "Podcast"),
-    # Visual formats have no local builder — a BYO OpenRouter image model draws
-    # them — so they surface only when a key is set and never enter BUILDERS.
-    Format("image", "Image", requires_key=True),
-    Format("infographic", "Infographic", requires_key=True),
+    Format("image", "Image", requires_role="image_generation"),
+    Format("infographic", "Infographic"),
 )
 
 FORMATS_BY_KEY: dict[str, Format] = {fmt.key: fmt for fmt in FORMATS}

@@ -18,6 +18,7 @@ type ThemeProviderState = {
 
 const COLOR_SCHEME_QUERY = "(prefers-color-scheme: dark)"
 const THEME_VALUES: Theme[] = ["dark", "light", "system"]
+export const THEME_STORAGE_KEY = "surfsense:theme:v1"
 
 const ThemeProviderContext = React.createContext<
   ThemeProviderState | undefined
@@ -29,6 +30,18 @@ function isTheme(value: string | null): value is Theme {
   }
 
   return THEME_VALUES.includes(value as Theme)
+}
+
+function syncTitleBarOverlay(theme: ResolvedTheme) {
+  const platform = window.surfsense?.platform
+  if (platform !== "win32" && platform !== "linux") {
+    return
+  }
+  const overlay =
+    theme === "dark"
+      ? { color: "#101010", symbolColor: "#e8e3da" }
+      : { color: "#f3f2ee", symbolColor: "#1e1e1e" }
+  void window.surfsense?.setTitleBarOverlay?.(overlay)
 }
 
 function getSystemTheme(): ResolvedTheme {
@@ -80,7 +93,7 @@ function isEditableTarget(target: EventTarget | null) {
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "theme",
+  storageKey = THEME_STORAGE_KEY,
   disableTransitionOnChange = true,
   ...props
 }: ThemeProviderProps) {
@@ -112,6 +125,7 @@ export function ThemeProvider({
 
       root.classList.remove("light", "dark")
       root.classList.add(resolvedTheme)
+      syncTitleBarOverlay(resolvedTheme)
 
       if (restoreTransitions) {
         restoreTransitions()
