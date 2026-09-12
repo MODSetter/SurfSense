@@ -33,7 +33,6 @@ from app.db import (
 )
 from app.observability.analytics import posthog as ph_analytics
 from app.prompts.system_defaults import SYSTEM_PROMPT_DEFAULTS
-from app.services.wallet_credit import start_first_allowance_period
 from app.signup_credit.award import award_signup_credit
 from app.utils.pat import PAT_PREFIX, maybe_touch_last_used, resolve_pat
 from app.utils.refresh_tokens import create_refresh_token
@@ -203,13 +202,6 @@ class UserManager(UUIDIDMixin, BaseUserManager[User, uuid.UUID]):
                 # Shares the transaction below: a rollback must not leave an
                 # identity marked as having taken a credit it never received.
                 granted = await award_signup_credit(session, user)
-
-                # The plan allowance, which is separate money: it resets every
-                # period and does not roll over, where the grant above is
-                # permanent. If this whole block fails the account still gets
-                # its allowance on the first premium turn, from
-                # ``roll_allowance_if_due``.
-                await start_first_allowance_period(session, user.id)
 
                 default_workspace = await create_default_workspace(session, user)
 

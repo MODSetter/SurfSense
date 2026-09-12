@@ -4,16 +4,16 @@ import { JsonLd } from "@/components/seo/json-ld";
 
 const canonicalUrl = "https://www.surfsense.com/pricing";
 
-const metaTitle = "SurfSense Pricing: Free Plan, Pro at $15/month, or Self-Host";
+const metaTitle = "SurfSense Pricing: Self-Host Free or Pay As You Go";
 const metaDescription =
-	"Start free in the SurfSense cloud, upgrade to Pro for $15 a month, or self-host for free from our open-source repo. Premium models billed at provider cost.";
+	"Self-host SurfSense for free from our open-source repo, or use the cloud with $5 of free credit and pay as you go at provider cost. No subscription.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
 	description: metaDescription,
 	keywords: [
 		"surfsense pricing",
-		"ai agent platform pricing",
+		"pay as you go ai platform",
 		"open source ai agent platform",
 		"self-hosted ai workspace",
 		"ai automation pricing",
@@ -52,30 +52,19 @@ const page = () => {
 					offers: [
 						{
 							"@type": "Offer",
-							name: "Free",
+							name: "Free (Self-Hosted)",
 							price: "0",
 							priceCurrency: "USD",
 							description:
-								"Self-host from the open-source repo with unlimited usage and your own model keys, or use the cloud free with $1 of premium model usage each month.",
+								"Open source and self-hostable with unlimited usage. Bring your own model keys.",
 						},
 						{
 							"@type": "Offer",
-							name: "Pro",
-							price: "15",
+							name: "Pay As You Go",
+							price: "0",
 							priceCurrency: "USD",
 							description:
-								"$6 of premium model usage, connector calls, and crawls included every month, plus priority support. Top up credit at $1 for $1 if you need more.",
-							// Google reads a bare `price` as one-time. The recurrence has
-							// to be spelled out here or the rich result advertises Pro as
-							// a $15 purchase.
-							priceSpecification: {
-								"@type": "UnitPriceSpecification",
-								price: "15",
-								priceCurrency: "USD",
-								billingDuration: 1,
-								billingIncrement: 1,
-								unitCode: "MON",
-							},
+								"Cloud accounts start with $5 of free credit. Top up any amount after that; $1 buys $1 of credit at provider cost with no subscription.",
 						},
 					],
 				}}

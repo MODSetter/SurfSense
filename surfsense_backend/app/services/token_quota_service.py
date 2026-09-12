@@ -18,8 +18,6 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import config
-from app.services.token_tracking_service import get_current_accumulator
-from app.services.wallet_credit import drain, funds_micros, roll_allowance_if_due
 
 logger = logging.getLogger(__name__)
 
@@ -546,9 +544,8 @@ class TokenQuotaService:
 
         ``QuotaResult.balance``/``reserved``/``remaining`` are in micro-USD on
         this code path; callers (chat stream, credit-status route, FE display)
-        convert to dollars by dividing by 1_000_000. ``balance`` is the user's
-        total funds — plan allowance plus permanent balance — and ``remaining``
-        is that minus outstanding reservations.
+        convert to dollars by dividing by 1_000_000. ``remaining`` is the
+        spendable amount (``balance - reserved``).
         """
         from app.db import User
 
@@ -569,19 +566,7 @@ class TokenQuotaService:
                 limit=0,
             )
 
-        # Publish the plan's run ceiling onto the turn while the user row is
-        # already loaded, so RunCostLimitMiddleware can bound a free run at a
-        # quarter of the paid ceiling without a second query.
-        accumulator = get_current_accumulator()
-        if accumulator is not None:
-            accumulator.max_run_cost_micros = config.run_cost_ceiling_micros(user.plan)
-
-        # Roll a lapsed free allowance before reading the balance, so the user
-        # is not told they are broke on the first turn of a new period. The row
-        # is locked here, which is what makes the read-then-write safe.
-        await roll_allowance_if_due(db_session, user)
-
-        balance = funds_micros(user)
+        balance = user.credit_micros_balance
         reserved = user.credit_micros_reserved
 
         # Block when the new hold would exceed the spendable balance.
@@ -624,7 +609,7 @@ class TokenQuotaService:
     ) -> QuotaResult:
         """Settle the reservation: release ``reserved_micros`` and debit
         ``actual_micros`` (the LiteLLM-reported provider cost in micro-USD)
-        from the wallet, plan allowance first.
+        from the balance.
         """
         from app.db import User
 
@@ -645,11 +630,11 @@ class TokenQuotaService:
         user.credit_micros_reserved = max(
             0, user.credit_micros_reserved - reserved_micros
         )
-        drain(user, actual_micros)
+        user.credit_micros_balance = user.credit_micros_balance - actual_micros
 
         await db_session.commit()
 
-        balance = funds_micros(user)
+        balance = user.credit_micros_balance
         reserved = user.credit_micros_reserved
         remaining = max(0, balance - reserved)
 
@@ -716,7 +701,7 @@ class TokenQuotaService:
                 allowed=False, status=QuotaStatus.BLOCKED, used=0, limit=0
             )
 
-        balance = funds_micros(user)
+        balance = user.credit_micros_balance
         reserved = user.credit_micros_reserved
         remaining = max(0, balance - reserved)
 

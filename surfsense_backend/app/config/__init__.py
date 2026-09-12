@@ -678,24 +678,18 @@ class Config:
     #
     # Storage unit is integer micro-USD (1_000_000 = $1.00). A single
     # ``credit_micros_balance`` funds both ETL page processing and premium
-    # model calls, and holds permanent money: purchases, incentive rewards, and
-    # auto-reload. Nothing in it expires.
-    #
-    # ``DEFAULT_CREDIT_MICROS_BALANCE`` is the one-off signup grant, now 0. The
-    # monthly plan allowance replaces it: a grant here is permanent and lands in
-    # the same bucket as purchased credit, so $5 at signup was a standing
-    # liability *and* a reason never to subscribe — a free account could spend
-    # $5 before the $1/month allowance ever mattered. Zero disables the grant
-    # outright (see ``award_signup_credit``); set it to re-run a promotion.
+    # model calls. New users start with ``DEFAULT_CREDIT_MICROS_BALANCE``
+    # ($5 by default).
     #
     # Legacy env names (``PREMIUM_CREDIT_MICROS_LIMIT`` / ``PREMIUM_TOKEN_LIMIT``,
     # ``STRIPE_PREMIUM_TOKEN_PRICE_ID``, ``STRIPE_CREDIT_MICROS_PER_UNIT`` /
     # ``STRIPE_TOKENS_PER_UNIT``, ``STRIPE_TOKEN_BUYING_ENABLED``) are still
     # honoured as fall-backs for one release; deprecation warnings fire below.
-    # The two credit aliases are deliberately *not* consulted for the signup
-    # grant any more: they are set to 5_000_000 in existing deployments, so
-    # honouring them would silently keep paying the grant this change removes.
-    DEFAULT_CREDIT_MICROS_BALANCE = int(os.getenv("DEFAULT_CREDIT_MICROS_BALANCE", "0"))
+    DEFAULT_CREDIT_MICROS_BALANCE = int(
+        os.getenv("DEFAULT_CREDIT_MICROS_BALANCE")
+        or os.getenv("PREMIUM_CREDIT_MICROS_LIMIT")
+        or os.getenv("PREMIUM_TOKEN_LIMIT", "5000000")
+    )
     STRIPE_CREDIT_PRICE_ID = os.getenv("STRIPE_CREDIT_PRICE_ID") or os.getenv(
         "STRIPE_PREMIUM_TOKEN_PRICE_ID"
     )
@@ -707,22 +701,6 @@ class Config:
         os.getenv("STRIPE_CREDIT_BUYING_ENABLED")
         or os.getenv("STRIPE_TOKEN_BUYING_ENABLED", "FALSE")
     ).upper() == "TRUE"
-
-    # Recurring subscription price for the Pro plan. Unset means nobody can be
-    # put on a paid plan by a webhook, which is the safe default for
-    # self-hosted installs and for a deploy that lands before the price exists.
-    STRIPE_PRO_PRICE_ID = os.getenv("STRIPE_PRO_PRICE_ID")
-
-    def plan_for_price_id(self, price_id: str | None) -> str | None:
-        """Plan key billed by a Stripe price, or None if the price is not a plan.
-
-        None is the answer for the credit top-up price too, so a one-time
-        purchase can never be mistaken for a subscription and granted an
-        allowance.
-        """
-        if price_id and price_id == self.STRIPE_PRO_PRICE_ID:
-            return "pro"
-        return None
 
     # ETL page processing debits the credit wallet only when enabled. Defaults
     # to FALSE so self-hosted / OSS installs keep effectively-free ETL; hosted
@@ -850,81 +828,13 @@ class Config:
     # reserve_tokens ≈ $0.36) with headroom.
     QUOTA_MAX_RESERVE_MICROS = int(os.getenv("QUOTA_MAX_RESERVE_MICROS", "1000000"))
 
-    # Hard ceiling on the *settled* cost of a single agent run (micro-USD).
-    # ``QUOTA_MAX_RESERVE_MICROS`` above only clamps the pre-flight hold;
-    # finalize settles at LiteLLM's actual cost, which is unbounded by it. On
-    # real traffic the worst single turn settled at $21.44 (8.04M tokens) —
-    # 21x its own reserve — because ``model_call_limit`` bounds the number of
-    # calls but not the context stuffed into each one, leaving the user's
-    # balance deep in the negative.
-    # ``RunCostLimitMiddleware`` reads the live turn accumulator and ends the
-    # run once it crosses this. Set to 0 to disable.
-    #
-    # Deliberately equal to ``QUOTA_MAX_RESERVE_MICROS`` so the maximum hold
-    # and the maximum settle agree: a reservation can no longer be blown
-    # through by 21x. $1.00 also truncates only the 0.65% of observed turns
-    # that cost over a dollar, so legitimate deep-research runs (p99 = $0.68)
-    # finish untouched.
-    #
-    # ponytail: accurate only to within one model call, because LiteLLM's cost
-    # callback lands after the call it describes. Measured over 30 days the
-    # priciest single call was $1.95, so a ceiling can be overshot by about
-    # that much — worst-case settle is roughly ceiling + $1.95, versus the
-    # $37.73 an unbounded turn reached.
-    AGENT_MAX_RUN_COST_MICROS = int(os.getenv("AGENT_MAX_RUN_COST_MICROS", "1000000"))
-
-    # Same ceiling for the free plan, which is granted only $1.00 per month.
-    # At the paid $1.00 ceiling a single tail run could consume a free user's
-    # entire month, so free runs stop at a quarter of it: still above the p95
-    # turn ($0.0678) and roughly 1% of turns, while guaranteeing at least four
-    # runs per month even in the worst case.
-    AGENT_MAX_RUN_COST_MICROS_FREE = int(
-        os.getenv("AGENT_MAX_RUN_COST_MICROS_FREE", "250000")
-    )
-
-    # Reads ``self`` rather than ``Config`` so an override applied to the
-    # ``config`` singleton is honoured. Every caller goes through that
-    # singleton, and a staticmethod reading the class ignored them silently.
-    def run_cost_ceiling_micros(self, plan: str | None) -> int:
-        """Per-run spend ceiling for a plan key, in micro-USD.
-
-        Unknown plans get the paid ceiling rather than the free one: a plan
-        string we do not recognise is a deploy-order bug, and throttling a
-        paying customer over it is the worse failure.
-        """
-        if plan == "free":
-            return self.AGENT_MAX_RUN_COST_MICROS_FREE
-        return self.AGENT_MAX_RUN_COST_MICROS
-
-    # Monthly allowance granted per plan, in micro-USD. At the measured median
-    # turn cost ($0.0029) the free grant is roughly 345 turns and the pro grant
-    # roughly 2,000; pro is set at 40% of the $15 price so the rest covers
-    # infrastructure, connectors, and refunds.
-    PLAN_ALLOWANCE_MICROS_FREE = int(os.getenv("PLAN_ALLOWANCE_MICROS_FREE", "1000000"))
-    PLAN_ALLOWANCE_MICROS_PRO = int(os.getenv("PLAN_ALLOWANCE_MICROS_PRO", "6000000"))
-
-    def plan_allowance_micros(self, plan: str | None) -> int:
-        """Monthly grant for a plan key, in micro-USD.
-
-        Unknown plans grant nothing rather than guessing. They keep spending
-        their purchased balance, so an unrecognised plan degrades to
-        pay-as-you-go instead of to free money.
-        """
-        if plan == "free":
-            return self.PLAN_ALLOWANCE_MICROS_FREE
-        if plan == "pro":
-            return self.PLAN_ALLOWANCE_MICROS_PRO
-        return 0
-
     if (
         os.getenv("PREMIUM_TOKEN_LIMIT") or os.getenv("PREMIUM_CREDIT_MICROS_LIMIT")
     ) and not os.getenv("DEFAULT_CREDIT_MICROS_BALANCE"):
         print(
             "Warning: PREMIUM_TOKEN_LIMIT / PREMIUM_CREDIT_MICROS_LIMIT are "
-            "deprecated and are NO LONGER honoured as the signup grant, which "
-            "is now 0 by default; the monthly plan allowance replaces it. Set "
-            "DEFAULT_CREDIT_MICROS_BALANCE explicitly to grant credit at "
-            "signup. The old keys will be removed in a future release."
+            "deprecated; rename to DEFAULT_CREDIT_MICROS_BALANCE. The old keys "
+            "will be removed in a future release."
         )
     if os.getenv("STRIPE_TOKENS_PER_UNIT") and not os.getenv(
         "STRIPE_CREDIT_MICROS_PER_UNIT"
@@ -953,11 +863,6 @@ class Config:
 
     # Anonymous / no-login mode settings
     NOLOGIN_MODE_ENABLED = os.getenv("NOLOGIN_MODE_ENABLED", "FALSE").upper() == "TRUE"
-    # Whether anonymous users may actually chat. Separate from the flag above,
-    # which also gates the ``/models`` catalog that builds the ``/free/{slug}``
-    # landing pages — those keep their traffic and rankings after the chat
-    # itself is retired, so the two must be switchable independently.
-    NOLOGIN_CHAT_ENABLED = os.getenv("NOLOGIN_CHAT_ENABLED", "FALSE").upper() == "TRUE"
     ANON_TOKEN_LIMIT = int(os.getenv("ANON_TOKEN_LIMIT", "500000"))
     ANON_TOKEN_WARNING_THRESHOLD = int(
         os.getenv("ANON_TOKEN_WARNING_THRESHOLD", "400000")
@@ -984,7 +889,7 @@ class Config:
     )
 
     # Per-video-presentation reservation (in micro-USD). Fan-out of N
-    # slide-scene generations (up to ``VIDEO_PRESENTATION_MAX_SLIDES=20``)
+    # slide-scene generations (up to ``VIDEO_PRESENTATION_MAX_SLIDES=30``)
     # plus refine retries; can produce many premium completions. $1.00
     # covers worst-case. Tune via env.
     #
@@ -1346,14 +1251,8 @@ class Config:
     STT_SERVICE_API_KEY = os.getenv("STT_SERVICE_API_KEY")
 
     # Video presentation defaults
-    #
-    # Slides drive the cost of a video: scene-code generation is one LLM call
-    # per slide, and each may retry up to ``MAX_REFINE_ATTEMPTS`` times, so the
-    # cap sets the worst case at ``2 + 4N`` calls. Measured over 180 days and
-    # 228 videos the mean was 9 slides and p90 was 17, so 20 clips only the 4%
-    # tail while cutting the worst case from 122 calls to 82.
     VIDEO_PRESENTATION_MAX_SLIDES = int(
-        os.getenv("VIDEO_PRESENTATION_MAX_SLIDES", "20")
+        os.getenv("VIDEO_PRESENTATION_MAX_SLIDES", "30")
     )
     VIDEO_PRESENTATION_FPS = int(os.getenv("VIDEO_PRESENTATION_FPS", "30"))
     VIDEO_PRESENTATION_DEFAULT_DURATION_IN_FRAMES = int(

@@ -20,16 +20,10 @@ logger = logging.getLogger(__name__)
 
 async def award_signup_credit(session: AsyncSession, user: Any) -> int:
     """Credit a new account, once per person. Returns the micros granted."""
-    granted = config.DEFAULT_CREDIT_MICROS_BALANCE
-    if granted <= 0:
-        # The grant is off, so claim nothing. Burning the identity here would
-        # spend the once-per-person claim on a grant of zero and lock the
-        # account out of any future promotion.
-        return 0
-
     if not await _try_claim(session, user):
         return 0
 
+    granted = config.DEFAULT_CREDIT_MICROS_BALANCE
     await session.execute(
         update(User)
         .where(User.id == user.id)

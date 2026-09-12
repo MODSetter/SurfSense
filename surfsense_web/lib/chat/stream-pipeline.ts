@@ -1,9 +1,5 @@
 import { toast } from "sonner";
 import {
-	type ProviderDiagnostics,
-	pickProviderDiagnostics,
-} from "@/lib/chat/chat-error-classifier";
-import {
 	addToolCall,
 	appendReasoning,
 	appendText,
@@ -56,15 +52,12 @@ export function markInterruptsCompleted(
 	}
 }
 
-function toStreamTerminalError(event: Extract<SSEEvent, { type: "error" }>): Error & {
-	errorCode?: string;
-	diagnostic?: string;
-	providerDiagnostics?: ProviderDiagnostics;
-} {
+function toStreamTerminalError(
+	event: Extract<SSEEvent, { type: "error" }>
+): Error & { errorCode?: string; diagnostic?: string } {
 	return Object.assign(new Error(event.message), {
 		errorCode: event.errorCode,
 		diagnostic: event.diagnostic,
-		providerDiagnostics: pickProviderDiagnostics(event),
 	});
 }
 
@@ -175,18 +168,7 @@ export function processSharedStreamEvent(
 		}
 
 		case "data-token-usage":
-			// Two different stops with the same symptom — a half-finished answer.
-			// Cost-limited wins the toast because it is the one the user can act
-			// on, and a cost-limited turn is often truncated as a side effect.
-			if (parsed.data.cost_limited) {
-				// Advice has to hold for every plan: Pro sits at the top ceiling,
-				// so telling anyone to upgrade would be a dead end for them.
-				toast.warning("Stopped early — this run hit its cost limit.", {
-					description: "Try a narrower question, or split it into smaller steps.",
-					duration: Infinity,
-					closeButton: true,
-				});
-			} else if (parsed.data.truncated) {
+			if (parsed.data.truncated) {
 				toast.warning("Response was cut off — the model hit its output-token limit.", {
 					duration: Infinity,
 					closeButton: true,
