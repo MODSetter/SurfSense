@@ -298,7 +298,6 @@ def build_main_agent_deepagent_middleware(
         build_continue_on_max_length_mw(flags),
         resilience.model_call_limit,
         resilience.tool_call_limit,
-        resilience.run_cost_limit,
         build_context_editing_mw(
             flags=flags,
             max_input_tokens=max_input_tokens,

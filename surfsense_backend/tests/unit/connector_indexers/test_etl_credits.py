@@ -115,9 +115,6 @@ class _FakeUser:
     """Stands in for the User ORM model at the DB boundary."""
 
     def __init__(self, balance_micros: int = 0, reserved_micros: int = 0):
-        # Zero allowance keeps these assertions on the balance alone;
-        # wallet_credit.drain only touches the balance when allowance is 0.
-        self.credit_micros_allowance = 0
         self.credit_micros_balance = balance_micros
         self.credit_micros_reserved = reserved_micros
 
@@ -126,7 +123,7 @@ def _make_credit_session(balance_micros: int = _micros(100), reserved_micros: in
     """Build a mock DB session that the real EtlCreditService can operate against.
 
     Every ``session.execute()`` returns a result compatible with both
-    ``get_available_micros`` (.first() → ``(allowance, balance, reserved)``) and
+    ``get_available_micros`` (.first() → ``(balance, reserved)``) and
     ``charge_credits`` (.unique().scalar_one_or_none() → User-like).
     """
     fake_user = _FakeUser(balance_micros, reserved_micros)
@@ -135,7 +132,6 @@ def _make_credit_session(balance_micros: int = _micros(100), reserved_micros: in
     def _make_result(*_args, **_kwargs):
         result = MagicMock()
         result.first.return_value = (
-            fake_user.credit_micros_allowance,
             fake_user.credit_micros_balance,
             fake_user.credit_micros_reserved,
         )

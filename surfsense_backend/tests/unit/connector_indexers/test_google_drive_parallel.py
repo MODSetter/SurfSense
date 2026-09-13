@@ -252,7 +252,6 @@ def _make_page_limit_session(balance_micros=999_999_000, reserved_micros=0):
 
     class _FakeUser:
         def __init__(self, balance, reserved):
-            self.credit_micros_allowance = 0
             self.credit_micros_balance = balance
             self.credit_micros_reserved = reserved
 
@@ -262,7 +261,6 @@ def _make_page_limit_session(balance_micros=999_999_000, reserved_micros=0):
     def _make_result(*_a, **_kw):
         r = MagicMock()
         r.first.return_value = (
-            fake_user.credit_micros_allowance,
             fake_user.credit_micros_balance,
             fake_user.credit_micros_reserved,
         )

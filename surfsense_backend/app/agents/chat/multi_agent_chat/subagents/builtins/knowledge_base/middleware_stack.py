@@ -90,7 +90,6 @@ def build_kb_middleware(
             mws.get("fallback"),
             mws.get("model_call_limit"),
             mws.get("tool_call_limit"),
-            mws.get("run_cost_limit"),
         )
         if m is not None
     ]

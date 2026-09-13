@@ -42,15 +42,7 @@ def _stub_auto_reload(monkeypatch):
 
 
 class _FakeUser:
-    def __init__(
-        self,
-        balance_micros: int = 0,
-        reserved_micros: int = 0,
-        allowance_micros: int = 0,
-    ):
-        # Allowance defaults to 0 so these tests keep asserting on the balance
-        # alone; wallet_credit.drain spends allowance first when it is nonzero.
-        self.credit_micros_allowance = allowance_micros
+    def __init__(self, balance_micros: int = 0, reserved_micros: int = 0):
         self.credit_micros_balance = balance_micros
         self.credit_micros_reserved = reserved_micros
 
@@ -63,7 +55,6 @@ def _make_session(balance_micros: int = 100_000, reserved_micros: int = 0):
     def _make_result(*_args, **_kwargs):
         result = MagicMock()
         result.first.return_value = (
-            fake_user.credit_micros_allowance,
             fake_user.credit_micros_balance,
             fake_user.credit_micros_reserved,
         )

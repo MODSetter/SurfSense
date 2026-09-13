@@ -15,7 +15,6 @@ from langchain_core.runnables import RunnableConfig
 
 from app.podcasts.tts import SynthesisRequest, get_text_to_speech
 from app.services.llm_service import get_agent_llm
-from app.services.token_tracking_service import get_current_accumulator
 from app.utils.content_utils import extract_text_content, strip_markdown_fences
 from app.utils.file_io import write_bytes
 from app.utils.structured_output import invoke_json
@@ -403,11 +402,6 @@ async def generate_slide_scene_codes(
             title=scene_title or slide.title,
         )
 
-    # Slides fan out concurrently, so this bounds what came before rather than
-    # the fan-out itself: if the slide and theme nodes already spent the
-    # ceiling on a huge source document, do not launch N more calls on top.
-    _abort_if_over_cost_ceiling("scene generation")
-
     scene_codes = list(
         await asyncio.gather(*[_generate_scene_for_slide(s) for s in slides])
     )
@@ -447,41 +441,6 @@ def _extract_code_and_title(content: str) -> tuple[str, str | None]:
     return text, None
 
 
-class VideoCostCeilingError(RuntimeError):
-    """Raised when a video run has spent its plan's per-run cost ceiling.
-
-    A distinct type because the caller reports it to the user differently from
-    a compile failure: nothing is wrong with their slides, the job simply cost
-    more than one run is allowed to.
-    """
-
-
-def _abort_if_over_cost_ceiling(stage: str) -> None:
-    """Stop the pipeline if the run has spent its ceiling.
-
-    No accumulator means nothing is metering this run — a unit test, or a path
-    that never opened a billable envelope. Fail open, the same way
-    ``RunCostLimitMiddleware`` does: this bounds spend, it does not authorize.
-    """
-    accumulator = get_current_accumulator()
-    if accumulator is None or not accumulator.run_cost_ceiling_reached():
-        return
-
-    accumulator.cost_limited = True
-    logger.warning(
-        "Video cost ceiling hit before %s: %d micros across %d call(s), "
-        "ceiling %d micros. Aborting.",
-        stage,
-        accumulator.total_cost_micros,
-        len(accumulator.calls),
-        accumulator.run_cost_ceiling_micros(),
-    )
-    raise VideoCostCeilingError(
-        "This video cost more to generate than a single run is allowed to "
-        "spend. Try again with fewer slides or a shorter source document."
-    )
-
-
 async def _refine_if_needed(llm, code: str, slide_number: int) -> str:
     """Attempt basic syntax validation and auto-repair via LLM if needed.
 
@@ -493,14 +452,6 @@ async def _refine_if_needed(llm, code: str, slide_number: int) -> str:
         return code
 
     for attempt in range(1, MAX_REFINE_ATTEMPTS + 1):
-        # The retry multiplier is where this pipeline can run away: every slide
-        # may burn three extra calls, each carrying the whole broken component
-        # plus the error, so a bad batch is far pricier than the initial pass.
-        # Unlike the chat agent there is no middleware here to bound spend, and
-        # the $1.00 hold is only a hold — settlement charges actual cost. So
-        # stop refining once the turn has spent its plan's ceiling.
-        _abort_if_over_cost_ceiling(f"slide {slide_number} refinement")
-
         print(
             f"Slide {slide_number}: syntax issue (attempt {attempt}/{MAX_REFINE_ATTEMPTS}): {error}"
         )

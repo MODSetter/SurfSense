@@ -26,9 +26,6 @@ _OWNER = UUID("00000000-0000-0000-0000-0000000000bb")
 
 class _FakeUser:
     def __init__(self, balance_micros: int, reserved_micros: int = 0):
-        # Zero allowance keeps these assertions on the balance alone;
-        # wallet_credit.drain only touches the balance when allowance is 0.
-        self.credit_micros_allowance = 0
         self.credit_micros_balance = balance_micros
         self.credit_micros_reserved = reserved_micros
 
@@ -185,9 +182,7 @@ def _gate_session(owner_id, balance_micros):
     def _make_result(*_args, **_kwargs):
         result = MagicMock()
         result.scalar_one_or_none.return_value = owner_id  # owner resolution
-        # allowance, balance, reserved — zero allowance so the gate reads the
-        # balance alone, as it did before the wallet gained a plan bucket.
-        result.first.return_value = (0, balance_micros, 0)
+        result.first.return_value = (balance_micros, 0)  # balance, reserved
         return result
 
     session.execute = AsyncMock(side_effect=_make_result)
