@@ -398,6 +398,41 @@ async def test_trial_refuses_when_mail_is_disabled(client, monkeypatch, fake_key
     assert fake_keygen.licenses == {}
 
 
+async def test_a_keygen_outage_gives_trial_a_503_not_a_500(
+    client, monkeypatch, fake_keygen, mailer
+):
+    """Resend already degrades to 503; trial used to throw an unhandled 500."""
+
+    async def boom(*_args, **_kwargs):
+        raise RuntimeError("KEYGEN_ACCOUNT_ID is not configured")
+
+    monkeypatch.setattr(license_service.keygen, "list_licenses", boom)
+
+    response = await client.post(
+        "/api/v1/license/trial", json={"email": "person@example.com"}
+    )
+
+    assert response.status_code == 503
+    assert "resend" in response.json()["detail"].lower()
+
+
+async def test_a_keygen_outage_gives_resend_a_503_too(
+    client, monkeypatch, fake_keygen, mailer
+):
+    """Both unauthenticated routes must degrade the same way."""
+
+    async def boom(*_args, **_kwargs):
+        raise RuntimeError("keygen down")
+
+    monkeypatch.setattr(license_service.keygen, "list_licenses", boom)
+
+    response = await client.post(
+        "/api/v1/license/resend", json={"email": "person@example.com"}
+    )
+
+    assert response.status_code == 503
+
+
 async def test_trial_says_so_when_the_license_exists_but_mail_failed(
     client, monkeypatch, fake_keygen
 ):

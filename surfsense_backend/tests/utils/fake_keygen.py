@@ -43,6 +43,7 @@ class FakeKeygen:
             "id": license_id,
             "attributes": {
                 "key": f"key-{license_id}",
+                "status": "ACTIVE",
                 "maxUsers": max_users,
                 "expiry": expiry.isoformat() if expiry else None,
                 "metadata": metadata,
@@ -100,6 +101,8 @@ class FakeKeygen:
 
     async def suspend_license(self, license_id: str, *, client: Any = None) -> None:
         self.suspended.append(license_id)
+        # Real Keygen flips the status, and resend filters on it.
+        self.licenses[license_id]["attributes"]["status"] = "SUSPENDED"
 
     # -- wiring ------------------------------------------------------------
 

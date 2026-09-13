@@ -155,6 +155,22 @@ async def claim_trial_license(
             status_code=status.HTTP_409_CONFLICT,
             detail="A trial license has already been claimed for that address.",
         ) from None
+    except Exception:
+        # Keygen unreachable or misconfigured. Resend already degrades to 503
+        # here; without this the same outage gives trial an unhandled 500.
+        #
+        # The issue call is two Keygen requests, and a failure between them
+        # leaves the trial created but undelivered -- the address is spent and
+        # the caller has nothing. Point at resend, which finds that trial and
+        # mails it, rather than leaving them to guess.
+        logger.exception("Trial issuance failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Could not issue a trial right now. Try again shortly, and if "
+                "it keeps failing use 'resend my license'."
+            ),
+        ) from None
 
     try:
         await deliver_licenses(

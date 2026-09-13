@@ -51,8 +51,9 @@ Response is `text/plain` with
 ### `POST /license/resend`
 
 1. Rate-limit on IP and on the normalized email (below).
-2. Require a configured mailer, else `503`. See **Delivery**.
-3. List Keygen licenses by `metadata[email]`.
+2. Require mail to be enabled, else `503`. See **Delivery**.
+3. List Keygen licenses by `metadata[email]`, skipping suspended ones — a
+   refund suspends the key, and mailing the file back would contradict that.
 4. Check out each one and mail them all to that address.
 5. Return `200` regardless of how many were found — **including zero**.
 
@@ -89,7 +90,8 @@ customer, reads `keygen_license_id` from the Stripe customer metadata, and
 
 Suspend, not revoke: it is reversible, it keeps the record listable for
 support, and Keygen's `validate-key` returns `SUSPENDED`, which maps onto
-contract 2's `revoked` reason. A revoked license is deleted and a refund
+contract 2's `revoked` reason. Resend filters those out, so the two stay
+consistent. A revoked license is deleted and a refund
 reversal would have nothing to restore.
 
 ## Keygen as the database
@@ -377,6 +379,7 @@ scripts/correct_license_email.py  the support correction above
 | `tests/unit/services/test_license_issue.py` | Keygen payload shapes, plan resolution, trial expiry floor, normalization/folding, support corrections |
 | `tests/unit/services/test_license_rate_limit.py` | both buckets, folded email key, per-route budgets, proxy header |
 | `tests/unit/routes/test_license_routes.py` | route wiring, idempotency via Keygen list, resend 200-on-miss, trial dedupe, 503 when mail is disabled, 429, refund → suspend |
+| `tests/integration/mailer/test_smtp_contract.py` | opt-in: the real socket, MIME round trip and per-feature sender against Mailpit |
 | `tests/utils/fake_keygen.py`, `fake_mailer.py` | recording fakes, mirroring `fake_sandbox.py` |
 
 The route tests are **unit**, not integration, because the license path touches
@@ -386,11 +389,19 @@ regressed.
 
 The fakes are what let all of this be tested with no Keygen account and no
 mail server. What they cannot prove is that our model of Keygen matches Keygen,
-or that `_send_blocking` really talks SMTP — every test stubs it out. Point
-`SMTP_HOST` at a local Mailpit to exercise the real wire; a live contract test,
-opt-in behind an env flag like
-`tests/integration/sandbox/test_opensandbox_contract.py`, is the one that needs
-a real vendor, and it stays skipped until an account exists.
+or that `_send_blocking` really talks SMTP — every test stubs it out. `tests/integration/mailer/test_smtp_contract.py` closes part of that gap: it
+sends through the real `_send_blocking` against the dev-stack Mailpit and asks
+the server what arrived. It is opt-in, like
+`tests/integration/sandbox/test_opensandbox_contract.py`:
+
+```
+docker compose -f docker/docker-compose.dev.yml --profile mail up -d mailpit
+SMTP_INTEGRATION=1 pytest tests/integration/mailer
+```
+
+Still uncovered even there: STARTTLS and `login()` (that Mailpit accepts
+plaintext with no credentials), and deliverability — a verified From domain and
+spam placement are answerable only by a real provider.
 
 ## The `/license` and `/license/success` pages
 

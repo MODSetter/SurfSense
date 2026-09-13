@@ -42,9 +42,15 @@ export default function LicensePage() {
 						<p>
 							If you mistyped your email when buying, or no longer have access to it, we cannot send
 							the file anywhere else automatically &mdash; otherwise anyone could type your address
-							and receive your license. Contact support with your payment details (the charge on
-							your card statement, or the last 4 digits, amount and date) and we will verify the
-							purchase and fix it.
+							and receive your license. Email{" "}
+							<a
+								className="underline"
+								href="mailto:support@surfsense.com?subject=License%20recovery"
+							>
+								support@surfsense.com
+							</a>{" "}
+							with your payment details (the charge on your card statement, or the last 4 digits,
+							amount and date) and we will verify the purchase and fix it.
 						</p>
 					</div>
 				</div>

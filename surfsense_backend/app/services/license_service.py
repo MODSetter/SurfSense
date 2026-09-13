@@ -381,13 +381,27 @@ async def trial_exists(folded_email: str) -> bool:
 # --------------------------------------------------------------------------
 
 
+_SUSPENDED_STATUSES = {"SUSPENDED", "BANNED"}
+
+
+def _is_suspended(record: dict[str, Any]) -> bool:
+    status = (record.get("attributes") or {}).get("status")
+    return str(status or "").upper() in _SUSPENDED_STATUSES
+
+
 async def certificates_for_email(email: str) -> list[str]:
-    """Every license file registered to an address. The whole of "resend"."""
+    """Every usable license file registered to an address. The whole of "resend".
+
+    Suspended licenses are skipped. A refund suspends the license, and mailing
+    someone a file for a purchase they were refunded is confusing rather than
+    dangerous -- the scraper API rejects the key server-side either way
+    (contract 2). Skipping keeps the two consistent.
+    """
     matches = await keygen.list_licenses(metadata={META_EMAIL: normalize_email(email)})
     certificates: list[str] = []
     for record in matches:
         license_id = str(record.get("id") or "")
-        if not license_id:
+        if not license_id or _is_suspended(record):
             continue
         certificates.append(await keygen.checkout_license(license_id))
     return certificates

@@ -551,3 +551,28 @@ async def test_an_empty_replacement_address_is_refused(fake_keygen):
 
     with pytest.raises(ValueError, match="required"):
         await correct_license_email(record, "   ")
+
+
+async def test_a_refunded_license_is_not_resent(fake_keygen):
+    """A refund suspends the key; mailing the file back contradicts that."""
+    issued = await fulfill_license_session(
+        _session(metadata={"purchase_type": "license", "plan": "individual"})
+    )
+    await suspend_licenses_for_customer("cus_1")
+
+    assert await certificates_for_email("buyer@example.com") == []
+    assert fake_keygen.suspended == [issued.keygen_license_id]
+
+
+async def test_a_refund_does_not_hide_the_buyer_s_other_licenses(fake_keygen):
+    """Only the suspended one drops out; an unrelated purchase still resends."""
+    await fulfill_license_session(
+        _session(metadata={"purchase_type": "license", "plan": "individual"})
+    )
+    await issue_license(
+        plan="team", email="buyer@example.com", max_users=5, source="stripe"
+    )
+
+    await suspend_licenses_for_customer("cus_1")
+
+    assert len(await certificates_for_email("buyer@example.com")) == 1

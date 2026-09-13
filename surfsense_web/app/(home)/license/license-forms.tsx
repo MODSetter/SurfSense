@@ -22,7 +22,9 @@ const RESEND_SENT =
 
 const TRIAL_SENT = "Your trial license is on its way. Check your spam folder too.";
 
-const DELIVERY_DOWN = "We cannot send email right now. Please try again in a few minutes.";
+// 503 covers either half being down -- the license service or the mail
+// server -- so this must not blame email specifically.
+const SERVICE_DOWN = "Something on our side is unavailable. Please try again in a few minutes.";
 
 const RATE_LIMITED = "Too many requests from here. Please try again later.";
 
@@ -52,7 +54,7 @@ function ResendForm() {
 			} else if (response.status === 429) {
 				setOutcome({ kind: "error", message: RATE_LIMITED });
 			} else if (response.status === 503) {
-				setOutcome({ kind: "error", message: DELIVERY_DOWN });
+				setOutcome({ kind: "error", message: SERVICE_DOWN });
 			} else if (response.status === 422) {
 				setOutcome({ kind: "error", message: "That does not look like an email address." });
 			} else {
@@ -139,7 +141,7 @@ function TrialForm() {
 			} else if (response.status === 429) {
 				setOutcome({ kind: "error", message: RATE_LIMITED });
 			} else if (response.status === 503) {
-				setOutcome({ kind: "error", message: DELIVERY_DOWN });
+				setOutcome({ kind: "error", message: SERVICE_DOWN });
 			} else if (response.status === 422) {
 				setOutcome({ kind: "error", message: "That does not look like an email address." });
 			} else {
