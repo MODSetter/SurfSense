@@ -5,6 +5,9 @@
 	"description": "Extension to collect Browsing History for SurfSense.",
 	"author": "https://github.com/MODSetter",
 	"engines": {
+		"browsers": [
+			"last 1 Chrome version"
+		],
 		"node": ">=18.0.0 <23.0.0",
 		"pnpm": ">=8.0.0"
 	},
