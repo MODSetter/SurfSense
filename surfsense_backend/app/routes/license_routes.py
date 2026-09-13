@@ -1,180 +1,182 @@
-"""Download and trial routes for offline desktop licenses."""
+"""Unauthenticated license routes: download, resend, trial.
+
+There is no login on the portal and no license table. Stripe and Keygen are
+the system of record, the license is tied to the buyer email in Keygen
+metadata, and re-download is a resend to that address. Nothing here takes a
+session, reads the user table, or touches Postgres.
+
+Spec: ``plans/community-local/portal/01-license-routes.md``.
+"""
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy import func, select, text
-from sqlalchemy.dialects.postgresql import insert as postgres_insert
-from sqlalchemy.ext.asyncio import AsyncSession
-from stripe import StripeError
+import logging
 
-from app.auth.context import AuthContext
+from fastapi import APIRouter, HTTPException, Request, Response, status
+
 from app.config import config
-from app.db import (
-    LicensePurchase,
-    LicenseTrialClaim,
-    get_async_session,
+from app.mailer import MailerRejectedError, MailerUnavailableError, is_mail_enabled
+from app.routes.stripe_routes import get_stripe_client
+from app.schemas.license import LicenseAckResponse, LicenseEmailRequest
+from app.services.license_email import is_disposable, normalize_email
+from app.services.license_rate_limit import enforce_license_rate_limit
+from app.services.license_service import (
+    TrialAlreadyClaimedError,
+    certificate_for_checkout_session,
+    certificates_for_email,
+    deliver_licenses,
+    issue_trial_license,
 )
-from app.services.license_service import fulfill_license_session, issue_license
-from app.signup_credit.identity.registry import identities_of
-from app.users import UserManager, get_auth_context, get_user_manager
 
-from .stripe_routes import get_stripe_client
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/license", tags=["license"])
 
-
-async def _optional_auth_context(
-    request: Request,
-    session: AsyncSession = Depends(get_async_session),
-    user_manager: UserManager = Depends(get_user_manager),
-) -> AuthContext | None:
-    try:
-        return await get_auth_context(request, session, user_manager)
-    except HTTPException as exc:
-        if exc.status_code == status.HTTP_401_UNAUTHORIZED:
-            return None
-        raise
+# Deliberately identical for "mailed three files" and "found none", so the
+# endpoint cannot be used to probe which addresses are customers.
+_RESEND_ACK = "If a license is registered to that address, it is on its way."
 
 
-def _license_file(purchase: LicensePurchase) -> Response:
+def _license_file(certificate: str) -> Response:
     return Response(
-        content=purchase.certificate,
+        content=certificate,
         media_type="text/plain",
-        headers={
-            "Content-Disposition": 'attachment; filename="surfsense.lic"',
-        },
+        headers={"Content-Disposition": 'attachment; filename="surfsense.lic"'},
     )
 
 
+def _require_mailer() -> None:
+    """Refuse rather than report a send that will not happen.
+
+    ``/license/resend`` always answers 200 so it cannot be used as an email
+    oracle, and the ``null`` transport also "succeeds" -- together they would
+    make a misconfigured deployment indistinguishable from a working one.
+    Checked before any Keygen lookup, so the 503 is outcome-independent and
+    leaks nothing.
+    """
+    if not is_mail_enabled():
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="License email delivery is not configured.",
+        )
+
+
+def _stripe_client_or_none():
+    try:
+        return get_stripe_client()
+    except HTTPException:
+        # Stripe unconfigured: the Keygen lookup can still serve an already
+        # fulfilled session.
+        return None
+
+
 @router.get("/file")
-async def download_license(
-    session_id: str | None = None,
-    auth: AuthContext | None = Depends(_optional_auth_context),
-    db_session: AsyncSession = Depends(get_async_session),
-) -> Response:
-    """Download by opaque Stripe session id or by the signed-in user's email."""
-    purchase: LicensePurchase | None
-    if session_id:
-        purchase = (
-            await db_session.execute(
-                select(LicensePurchase).where(
-                    LicensePurchase.stripe_checkout_session_id == session_id
-                )
-            )
-        ).scalar_one_or_none()
+async def download_license(session_id: str) -> Response:
+    """Serve a purchase's license file on the success page.
 
-        if purchase is None and config.STRIPE_SECRET_KEY:
-            try:
-                checkout_session = get_stripe_client().v1.checkout.sessions.retrieve(
-                    session_id
-                )
-                purchase = await fulfill_license_session(
-                    db_session,
-                    checkout_session,
-                )
-            except (StripeError, ValueError):
-                purchase = None
-    else:
-        if auth is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unauthorized",
-            )
-        if not auth.is_session:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="This action requires an interactive session",
-            )
-        purchase = (
-            await db_session.execute(
-                select(LicensePurchase)
-                .where(func.lower(LicensePurchase.email) == auth.user.email.lower())
-                .order_by(LicensePurchase.created_at.desc())
-                .limit(1)
-            )
-        ).scalar_one_or_none()
-
-    if purchase is None:
+    ``session_id`` is required. The old build fell back to the signed-in user's
+    email, which is the login coupling this design removes; there is no
+    fallback to replace it.
+    """
+    certificate = await certificate_for_checkout_session(
+        session_id, stripe_client=_stripe_client_or_none()
+    )
+    if certificate is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="License not found.",
         )
-    return _license_file(purchase)
+    return _license_file(certificate)
 
 
-@router.post("/trial")
+@router.post("/resend", response_model=LicenseAckResponse)
+async def resend_license(
+    payload: LicenseEmailRequest,
+    request: Request,
+) -> LicenseAckResponse:
+    """Mail every license registered to an address. Always answers 200."""
+    _require_mailer()
+    email = normalize_email(payload.email)
+    await enforce_license_rate_limit(request, route="resend", email=email)
+
+    try:
+        certificates = await certificates_for_email(email)
+        if certificates:
+            await deliver_licenses("resend", to=email, certificates=certificates)
+    except MailerRejectedError:
+        # Reporting this would confirm the address exists as a customer.
+        logger.info("Resend mail refused for an address; answering 200 regardless")
+    except MailerUnavailableError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not send the email right now. Please try again shortly.",
+        ) from None
+    except Exception:
+        # Keygen failures must not become an oracle either.
+        logger.exception("Resend lookup failed")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Could not process that request right now.",
+        ) from None
+
+    return LicenseAckResponse(detail=_RESEND_ACK)
+
+
+@router.post("/trial", response_model=LicenseAckResponse)
 async def claim_trial_license(
-    auth: AuthContext | None = Depends(_optional_auth_context),
-    db_session: AsyncSession = Depends(get_async_session),
-) -> Response:
-    """Issue one dark-launched trial per email and stable login identity."""
+    payload: LicenseEmailRequest,
+    request: Request,
+) -> LicenseAckResponse:
+    """Issue one 14-day trial per email and mail it.
+
+    The file is never returned in the response: requiring delivery to a real
+    inbox is what makes one-trial-per-email mean anything.
+    """
     if not config.LICENSE_TRIAL_ENABLED:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="License trial is not available.",
         )
-    if auth is None:
+    _require_mailer()
+
+    email = normalize_email(payload.email)
+    await enforce_license_rate_limit(request, route="trial", email=email)
+
+    if is_disposable(email):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-        )
-    if not auth.is_session:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="This action requires an interactive session",
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Use a permanent email address to start a trial.",
         )
 
-    user = auth.user
-    email = user.email.strip().lower()
-    await db_session.execute(
-        text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 0))"),
-        {"key": f"license-trial:{email}"},
-    )
-    existing = (
-        await db_session.execute(
-            select(LicensePurchase.id).where(
-                LicensePurchase.source == "trial",
-                func.lower(LicensePurchase.email) == email,
-            )
-        )
-    ).scalar_one_or_none()
-    if existing is not None:
+    try:
+        issued = await issue_trial_license(email)
+    except TrialAlreadyClaimedError:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="A trial license has already been claimed.",
-        )
+            detail="A trial license has already been claimed for that address.",
+        ) from None
 
-    identities = identities_of(user)
-    if identities:
-        claimed = await db_session.execute(
-            postgres_insert(LicenseTrialClaim)
-            .values(
-                [
-                    {
-                        "identity_kind": identity.kind,
-                        "identity_fingerprint": identity.fingerprint,
-                    }
-                    for identity in identities
-                ]
-            )
-            .on_conflict_do_nothing(
-                index_elements=["identity_kind", "identity_fingerprint"]
-            )
-            .returning(LicenseTrialClaim.id)
+    try:
+        await deliver_licenses(
+            "trial",
+            to=email,
+            certificates=[issued.certificate],
+            idempotency_key=issued.keygen_license_id,
         )
-        if len(claimed.scalars().all()) != len(identities):
-            await db_session.rollback()
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="A trial license has already been claimed.",
-            )
+    except MailerRejectedError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="That email address was refused by its mail server.",
+        ) from None
+    except MailerUnavailableError:
+        # The license exists; the trial is claimed. Say so honestly rather
+        # than implying the address is now burned for nothing.
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Your trial was created but the email could not be sent. "
+                "Use 'resend my license' in a few minutes."
+            ),
+        ) from None
 
-    purchase = await issue_license(
-        db_session,
-        plan="trial",
-        email=email,
-        source="trial",
-    )
-    await db_session.commit()
-    return _license_file(purchase)
+    return LicenseAckResponse(detail="Your trial license is on its way.")

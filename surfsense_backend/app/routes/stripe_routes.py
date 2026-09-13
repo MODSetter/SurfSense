@@ -41,7 +41,13 @@ from app.schemas.stripe import (
     StripeWebhookResponse,
     UpdateAutoReloadSettingsRequest,
 )
-from app.services.license_service import fulfill_license_session
+from app.services.license_service import (
+    LicenseIssueError,
+    deliver_licenses,
+    fulfill_license_session,
+    resolve_license_plan,
+    suspend_licenses_for_customer,
+)
 from app.users import require_session_context
 
 logger = logging.getLogger(__name__)
@@ -557,6 +563,86 @@ async def create_credit_checkout_session(
     return CreateCreditCheckoutSessionResponse(checkout_url=checkout_url)
 
 
+def _is_license_purchase(
+    metadata: dict[str, str],
+    checkout_session: Any,
+    stripe_client: StripeClient,
+) -> bool:
+    """Whether this paid session bought a desktop license.
+
+    API-created sessions say so in metadata. Payment Links carry none, so the
+    price ID is the fallback -- which is only consulted when a license price is
+    actually configured, so ordinary checkouts cost no extra Stripe call.
+    """
+    if metadata.get("purchase_type") == "license":
+        return True
+    if not (
+        config.STRIPE_PRICE_LICENSE_INDIVIDUAL or config.STRIPE_PRICE_LICENSE_TEAM
+    ):
+        return False
+    try:
+        return resolve_license_plan(checkout_session, stripe_client=stripe_client) is not None
+    except LicenseIssueError:
+        return False
+
+
+async def _fulfill_license_purchase(
+    checkout_session: Any,
+    stripe_client: StripeClient,
+) -> None:
+    """Issue the license and email it.
+
+    Delivery failure does not fail the webhook: the license exists, the success
+    page serves it regardless, and a Stripe retry would only risk a duplicate.
+    """
+    issued = await fulfill_license_session(
+        checkout_session, stripe_client=stripe_client
+    )
+    try:
+        await deliver_licenses(
+            "purchase",
+            to=issued.email,
+            certificates=[issued.certificate],
+            idempotency_key=str(getattr(checkout_session, "id", "")) or None,
+        )
+    except Exception:
+        logger.warning(
+            "Issued license %s but could not email it to %s",
+            issued.keygen_license_id,
+            issued.email,
+            exc_info=True,
+        )
+
+
+async def _suspend_refunded_license(charge: Any) -> StripeWebhookResponse:
+    """Suspend a refunded buyer's licenses.
+
+    Suspend rather than revoke: reversible, still listable for support, and
+    ``validate-key`` then reports SUSPENDED, which contract 2 maps to the
+    ``revoked`` reason.
+    """
+    customer = getattr(charge, "customer", None)
+    customer_id = customer if isinstance(customer, str) else getattr(customer, "id", None)
+    if not customer_id:
+        return StripeWebhookResponse()
+
+    try:
+        suspended = await suspend_licenses_for_customer(str(customer_id))
+    except Exception:
+        logger.exception(
+            "Could not suspend licenses for refunded customer %s", customer_id
+        )
+        return StripeWebhookResponse()
+
+    if suspended:
+        logger.info(
+            "Suspended %d license(s) after refund for customer %s",
+            suspended,
+            customer_id,
+        )
+    return StripeWebhookResponse()
+
+
 @router.post("/webhook", response_model=StripeWebhookResponse)
 async def stripe_webhook(
     request: Request,
@@ -626,8 +712,8 @@ async def stripe_webhook(
                 return await _fulfill_completed_credit_purchase(
                     db_session, checkout_session
                 )
-            if metadata.get("purchase_type") == "license":
-                await fulfill_license_session(db_session, checkout_session)
+            if _is_license_purchase(metadata, checkout_session, stripe_client):
+                await _fulfill_license_purchase(checkout_session, stripe_client)
                 return StripeWebhookResponse()
             # Legacy page-pack purchase: page buying is removed, so log and
             # ignore rather than fulfilling.
@@ -638,6 +724,9 @@ async def stripe_webhook(
                 metadata.get("purchase_type"),
             )
             return StripeWebhookResponse()
+
+        if event.type == "charge.refunded":
+            return await _suspend_refunded_license(event.data.object)
 
         if event.type == "payment_intent.succeeded":
             return await _reconcile_auto_reload_payment_intent(
