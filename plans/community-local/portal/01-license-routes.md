@@ -182,11 +182,17 @@ and defers the choice.
 plus frozen payload dataclasses, a config-selected factory with lazy imports,
 and transports behind it.
 
-One naming rule, because it is the thing readers trip on:
-`LICENSE_MAIL_TRANSPORT` selects **how** mail leaves the process — discard,
-log, or SMTP — and never **who** delivers it. No vendor name appears in any
-executable line of the backend. Changing company means editing the SMTP
-connection strings; the transport stays `smtp` forever.
+The connection is **deployment-wide, not license-specific**. It is named
+`SMTP_*` like the other shared infrastructure (`DATABASE_URL`, `REDIS_APP_URL`,
+`STRIPE_SECRET_KEY`) rather than after its first caller, because a second
+caller already exists in waiting: `on_after_forgot_password` and
+`on_after_request_verify` in `app/users.py` still print reset tokens to stdout,
+and self-hosted installs default to `AUTH_TYPE=LOCAL`. Password reset has never
+worked for them purely because nothing could send mail.
+
+Each feature supplies its own **sender**, so licenses and account email can use
+one connection and two identities. `SMTP_LICENSE_FROM` falls back to
+`SMTP_FROM`.
 
 **The transport is SMTP**, because SMTP is the actual universal interface:
 Resend, Postmark, SendGrid, Mailgun, SES and Brevo all expose it, and all of
@@ -213,33 +219,34 @@ reconnect logic would cost more than it saves at this volume.
 `aiosmtplib` was the alternative — native async, one small dep. Rejected only
 because zero dependencies was worth more than the threadpool hop here.
 
-### Transports
+### On or off, nothing in between
 
-| `LICENSE_MAIL_TRANSPORT` | Behaviour |
-|---|---|
-| `null` | discards; the default, and what unit tests use |
-| `console` | logs the envelope and writes the `.lic` to a temp path; local dev |
-| `smtp` | the real one |
+`SMTP_ENABLED` is a boolean and defaults to **false**. There is no "pretend to
+send" mode: a console/log sender was built and removed, because it skipped the
+connection, the authentication and the MIME round trip — exactly the parts that
+break in practice — while counting as delivering. For local end-to-end mail,
+run Mailpit and point `SMTP_HOST` at it; that exercises the real path and
+cannot be mistaken for a working production config.
 
-Transport selection is a deployment choice, **not a fallback chain**. An
-unreachable SMTP server is an error to fix, never a reason to silently drop
-mail — the same rule `app/sandbox/factory.py` states for sandboxes.
+Enablement is a deployment choice, **not a fallback chain**. An unreachable
+server is an error to fix, never a reason to silently drop mail — the same rule
+`app/sandbox/factory.py` states for sandboxes.
 
-It is also deliberately **explicit rather than inferred** from whether an SMTP
-host is set. Inference makes a typo silent: misspell the host variable and the
-deployment quietly resolves to "discard", which is exactly the trap the next
-section describes. Declaring the transport means a mismatch — `smtp` with no
-host — fails at startup instead of at 2am.
+It is also deliberately **explicit rather than inferred** from whether a host is
+set. Inference makes a typo silent: misspell `SMTP_HOST` and the deployment
+quietly resolves to "discard", which is the trap the next section describes.
+With the flag, `SMTP_ENABLED=TRUE` and no host — or no `SMTP_FROM` — raises at
+startup instead of at 2am.
 
-### The null-transport trap
+### The disabled-mail trap
 
 `/license/resend` always returns `200` so it cannot be used to probe emails. A
 no-op mailer also returns success. Together those make a misconfigured
 deployment **indistinguishable from a working one**: the customer asks for
 their license, gets a cheerful `200`, and nothing ever arrives.
 
-So both POST routes return `503` unless the transport actually delivers,
-checked *before* any Keygen lookup — which leaks nothing, because it is
+So both POST routes return `503` when mail is disabled, checked *before* any
+Keygen lookup — which leaks nothing, because it is
 outcome-independent. `GET /license/file` is unaffected and works with no
 mailer at all, which is why the success page remains the reliable delivery
 path.
@@ -273,8 +280,8 @@ provider swap from becoming a copy migration. Three kinds: `purchase`,
 
 ### Idempotency key
 
-`LicenseEmail.idempotency_key` is carried by the port and ignored by SMTP,
-which has no equivalent. It exists so a future API-based transport can dedupe
+`OutboundEmail.idempotency_key` is carried by the port and ignored by SMTP,
+which has no equivalent. It exists so a future API-based sender can dedupe
 retries without changing call sites. A duplicate license email is a nuisance,
 not a correctness bug.
 
@@ -315,15 +322,16 @@ LICENSE_TRIAL_DAYS=14
 LICENSE_TRIAL_EXPIRY_FLOOR=          # ISO date; unset once the plugin ships
 LICENSE_DISPOSABLE_EMAIL_DOMAINS=    # extends the built-in list
 
-LICENSE_MAIL_TRANSPORT=null          # null | console | smtp (how, not who)
-LICENSE_MAIL_FROM=
-LICENSE_MAIL_REPLY_TO=
-LICENSE_MAIL_SMTP_HOST=
-LICENSE_MAIL_SMTP_PORT=587
-LICENSE_MAIL_SMTP_USERNAME=
-LICENSE_MAIL_SMTP_PASSWORD=
-LICENSE_MAIL_SMTP_SECURITY=starttls  # starttls | tls | none
-LICENSE_MAIL_TIMEOUT_SECONDS=20
+SMTP_ENABLED=FALSE                   # off by default
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USERNAME=
+SMTP_PASSWORD=
+SMTP_SECURITY=starttls               # starttls | tls | none
+SMTP_TIMEOUT_SECONDS=20
+SMTP_FROM=                           # required when enabled
+SMTP_LICENSE_FROM=                   # per-feature override of SMTP_FROM
+SMTP_LICENSE_REPLY_TO=
 
 LICENSE_RATE_LIMIT_IP_PER_HOUR=10
 LICENSE_RESEND_RATE_LIMIT_PER_HOUR=5
@@ -333,7 +341,7 @@ STRIPE_PRICE_LICENSE_INDIVIDUAL=
 STRIPE_PRICE_LICENSE_TEAM=
 ```
 
-`LICENSE_MAIL_SMTP_SECURITY` is explicit rather than inferred from the port.
+`SMTP_SECURITY` is explicit rather than inferred from the port.
 465 is implicit TLS and 587 is STARTTLS; guessing from the port number is the
 classic source of "it hangs forever with no error". `none` is refused unless
 the host is loopback, so a production typo cannot send credentials in clear.
@@ -342,10 +350,10 @@ the host is loopback, so a production typo cannot send credentials in clear.
 
 ```
 app/mailer/
-  protocol.py     Mailer, LicenseEmail, Attachment, the two errors
-  factory.py      build_mailer() / is_mail_enabled(); lazy imports
-  templates.py    subjects and bodies for the three kinds
-  transports/     null.py, console.py, smtp.py
+  protocol.py     Mailer, OutboundEmail, Attachment, the two errors
+  factory.py      build_mailer() / is_mail_enabled()
+  templates.py    license subjects, bodies and sender identity
+  smtp.py         the sender; knows the connection, not the feature
 surfsense_web/app/(home)/license/
   page.tsx + license-forms.tsx          resend and trial forms, no login
   success/page.tsx + license-download.tsx  serves the file by checkout session
@@ -365,15 +373,24 @@ scripts/correct_license_email.py  the support correction above
 
 | Layer | Covers |
 |---|---|
-| `tests/unit/mailer/` | SMTP error mapping, MIME shape, transport selection, plaintext refused with credentials, templates |
+| `tests/unit/mailer/` | SMTP error mapping, MIME shape, enablement, startup validation, per-feature sender, plaintext refused with credentials, templates |
 | `tests/unit/services/test_license_issue.py` | Keygen payload shapes, plan resolution, trial expiry floor, normalization/folding, support corrections |
-| `tests/integration/test_license_routes.py` | route wiring, idempotency via Keygen list, resend 200-on-miss, trial dedupe, 503 with no mailer, 429, refund → suspend |
+| `tests/unit/services/test_license_rate_limit.py` | both buckets, folded email key, per-route budgets, proxy header |
+| `tests/unit/routes/test_license_routes.py` | route wiring, idempotency via Keygen list, resend 200-on-miss, trial dedupe, 503 when mail is disabled, 429, refund → suspend |
 | `tests/utils/fake_keygen.py`, `fake_mailer.py` | recording fakes, mirroring `fake_sandbox.py` |
 
+The route tests are **unit**, not integration, because the license path touches
+neither Postgres nor Redis — the database dependency is overridden with a stub
+that is never used. If one of them ever needs a real session, the design has
+regressed.
+
 The fakes are what let all of this be tested with no Keygen account and no
-mail provider. A live SMTP contract test, opt-in behind an env flag like
-`tests/integration/sandbox/test_opensandbox_contract.py`, is the single test
-that needs a real vendor, and it stays skipped until one exists.
+mail server. What they cannot prove is that our model of Keygen matches Keygen,
+or that `_send_blocking` really talks SMTP — every test stubs it out. Point
+`SMTP_HOST` at a local Mailpit to exercise the real wire; a live contract test,
+opt-in behind an env flag like
+`tests/integration/sandbox/test_opensandbox_contract.py`, is the one that needs
+a real vendor, and it stays skipped until an account exists.
 
 ## The `/license` and `/license/success` pages
 

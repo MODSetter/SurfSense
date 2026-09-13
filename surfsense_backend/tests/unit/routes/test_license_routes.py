@@ -101,8 +101,8 @@ def fake_keygen(monkeypatch):
 
 @pytest.fixture
 def mailer(monkeypatch):
-    """A delivering transport, so routes do not short-circuit on 503."""
-    monkeypatch.setattr(config, "LICENSE_MAIL_TRANSPORT", "smtp")
+    """Mail enabled, so routes do not short-circuit on 503."""
+    monkeypatch.setattr(config, "SMTP_ENABLED", True)
     fake = FakeMailer()
     monkeypatch.setattr(license_service, "get_mailer", lambda: fake)
     return fake
@@ -177,7 +177,7 @@ async def test_purchase_emails_the_file(client, monkeypatch, fake_keygen, mailer
     )
 
     assert mailer.only().to == "buyer@example.com"
-    assert mailer.only().kind == "purchase"
+    assert mailer.only().subject == "Your SurfSense license"
     assert mailer.only().attachments[0].filename == "surfsense.lic"
 
 
@@ -185,7 +185,7 @@ async def test_a_failed_email_does_not_fail_the_purchase(
     client, monkeypatch, fake_keygen
 ):
     """The license exists and the success page serves it; a retry could duplicate."""
-    monkeypatch.setattr(config, "LICENSE_MAIL_TRANSPORT", "smtp")
+    monkeypatch.setattr(config, "SMTP_ENABLED", True)
     monkeypatch.setattr(
         license_service,
         "get_mailer",
@@ -282,7 +282,7 @@ async def test_resend_mails_every_license_for_the_address(client, fake_keygen, m
 
     assert response.status_code == 200
     assert len(mailer.only().attachments) == 2
-    assert mailer.only().kind == "resend"
+    assert "resent" in mailer.only().subject
 
 
 async def test_resend_answers_identically_for_an_unknown_address(
@@ -307,7 +307,7 @@ async def test_resend_answers_identically_for_an_unknown_address(
 
 async def test_resend_hides_a_rejected_recipient(client, monkeypatch, fake_keygen):
     """A bounce would otherwise confirm the address is a customer."""
-    monkeypatch.setattr(config, "LICENSE_MAIL_TRANSPORT", "smtp")
+    monkeypatch.setattr(config, "SMTP_ENABLED", True)
     monkeypatch.setattr(
         license_service,
         "get_mailer",
@@ -324,11 +324,9 @@ async def test_resend_hides_a_rejected_recipient(client, monkeypatch, fake_keyge
     assert response.status_code == 200
 
 
-async def test_resend_refuses_when_the_transport_does_not_deliver(
-    client, monkeypatch, fake_keygen
-):
-    """A null mailer would make a broken deployment look like a working one."""
-    monkeypatch.setattr(config, "LICENSE_MAIL_TRANSPORT", "null")
+async def test_resend_refuses_when_mail_is_disabled(client, monkeypatch, fake_keygen):
+    """Disabled mail must refuse, not report a send that never happens."""
+    monkeypatch.setattr(config, "SMTP_ENABLED", False)
 
     response = await client.post(
         "/api/v1/license/resend", json={"email": "buyer@example.com"}
@@ -358,7 +356,7 @@ async def test_trial_issues_once_and_mails_it(client, fake_keygen, mailer):
     assert first.status_code == 200
     assert second.status_code == 409
     assert len(fake_keygen.licenses) == 1
-    assert mailer.only().kind == "trial"
+    assert "trial" in mailer.only().subject
 
 
 async def test_the_trial_file_is_never_returned_over_http(client, fake_keygen, mailer):
@@ -389,10 +387,8 @@ async def test_trial_rejects_disposable_domains(client, fake_keygen, mailer):
     assert fake_keygen.licenses == {}
 
 
-async def test_trial_refuses_when_the_transport_does_not_deliver(
-    client, monkeypatch, fake_keygen
-):
-    monkeypatch.setattr(config, "LICENSE_MAIL_TRANSPORT", "null")
+async def test_trial_refuses_when_mail_is_disabled(client, monkeypatch, fake_keygen):
+    monkeypatch.setattr(config, "SMTP_ENABLED", False)
 
     response = await client.post(
         "/api/v1/license/trial", json={"email": "person@example.com"}
@@ -406,7 +402,7 @@ async def test_trial_says_so_when_the_license_exists_but_mail_failed(
     client, monkeypatch, fake_keygen
 ):
     """The address is now burned; telling the user only 'error' would be a lie."""
-    monkeypatch.setattr(config, "LICENSE_MAIL_TRANSPORT", "smtp")
+    monkeypatch.setattr(config, "SMTP_ENABLED", True)
     monkeypatch.setattr(
         license_service,
         "get_mailer",

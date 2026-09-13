@@ -1,9 +1,10 @@
-"""SMTP transport.
+"""The SMTP sender.
 
-SMTP is chosen because it is the only *universal* interface: Resend, Postmark,
-SendGrid, Mailgun, SES and Brevo all expose it and all reduce to
-host/port/username/password. Picking a vendor is therefore filling in strings,
-not writing code -- which is what lets the vendor decision be deferred.
+SMTP is the only interface we support, because it is the only *universal* one:
+Resend, Postmark, SendGrid, Mailgun, SES and Brevo all expose it and all reduce
+to host/port/username/password. Picking a vendor is therefore filling in
+strings, not writing code -- which is what lets the vendor decision be
+deferred.
 
 Implementation is stdlib (``email.message`` + ``smtplib``) run through
 ``asyncio.to_thread``, so this adds no dependency. ``aiosmtplib`` was the
@@ -24,10 +25,10 @@ from email.message import EmailMessage
 
 from app.config import config
 
-from ..protocol import (
-    LicenseEmail,
+from .protocol import (
     MailerRejectedError,
     MailerUnavailableError,
+    OutboundEmail,
 )
 
 logger = logging.getLogger(__name__)
@@ -35,15 +36,13 @@ logger = logging.getLogger(__name__)
 _LOOPBACK_HOSTS = {"localhost", "127.0.0.1", "::1", "[::1]"}
 
 
-def _build_mime(
-    message: LicenseEmail, *, sender: str, reply_to: str | None
-) -> EmailMessage:
+def _build_mime(message: OutboundEmail, *, sender: str) -> EmailMessage:
     mime = EmailMessage()
     mime["From"] = sender
     mime["To"] = message.to
     mime["Subject"] = message.subject
-    if reply_to:
-        mime["Reply-To"] = reply_to
+    if message.reply_to:
+        mime["Reply-To"] = message.reply_to
 
     mime.set_content(message.text_body)
     if message.html_body:
@@ -61,10 +60,10 @@ def _build_mime(
 
 
 def _connect() -> smtplib.SMTP:
-    host = config.LICENSE_MAIL_SMTP_HOST
-    port = config.LICENSE_MAIL_SMTP_PORT
-    timeout = config.LICENSE_MAIL_TIMEOUT_SECONDS
-    security = config.LICENSE_MAIL_SMTP_SECURITY
+    host = config.SMTP_HOST
+    port = config.SMTP_PORT
+    timeout = config.SMTP_TIMEOUT_SECONDS
+    security = config.SMTP_SECURITY
 
     if security == "tls":
         return smtplib.SMTP_SSL(host, port, timeout=timeout)
@@ -80,8 +79,8 @@ def _connect() -> smtplib.SMTP:
 def _send_blocking(mime: EmailMessage) -> None:
     client = _connect()
     try:
-        username = config.LICENSE_MAIL_SMTP_USERNAME
-        password = config.LICENSE_MAIL_SMTP_PASSWORD
+        username = config.SMTP_USERNAME
+        password = config.SMTP_PASSWORD
         if username:
             client.login(username, password or "")
         client.send_message(mime)
@@ -98,41 +97,38 @@ class SmtpMailer:
     """Sends over SMTP, translating every failure into the port's two errors."""
 
     def __init__(self) -> None:
-        sender = config.LICENSE_MAIL_FROM
-        if not sender:
-            raise ValueError("LICENSE_MAIL_FROM is required when the mailer is smtp")
-        if not config.LICENSE_MAIL_SMTP_HOST:
-            raise ValueError(
-                "LICENSE_MAIL_SMTP_HOST is required when the mailer is smtp"
-            )
+        if not config.SMTP_HOST:
+            raise ValueError("SMTP_HOST is required when SMTP_ENABLED is true")
+        # The default sender is mandatory even though features may override it:
+        # a deployment with no From at all should fail at startup, not at the
+        # first send.
+        if not config.SMTP_FROM:
+            raise ValueError("SMTP_FROM is required when SMTP_ENABLED is true")
 
-        security = config.LICENSE_MAIL_SMTP_SECURITY
+        security = config.SMTP_SECURITY
         if security not in {"starttls", "tls", "none"}:
             raise ValueError(
-                f"Unknown LICENSE_MAIL_SMTP_SECURITY {security!r}. "
+                f"Unknown SMTP_SECURITY {security!r}. "
                 "Expected one of: starttls, tls, none"
             )
         # Explicit rather than inferred from the port: 465 is implicit TLS and
         # 587 is STARTTLS, and guessing from the port number is the classic
         # source of "it hangs forever with no error".
-        if security == "none" and config.LICENSE_MAIL_SMTP_USERNAME:
+        if security == "none" and config.SMTP_USERNAME:
             raise ValueError(
-                "LICENSE_MAIL_SMTP_SECURITY=none refuses to send credentials in "
-                "the clear. Use starttls or tls, or drop the username for a "
-                "local relay."
+                "SMTP_SECURITY=none refuses to send credentials in the clear. "
+                "Use starttls or tls, or drop the username for a local relay."
             )
-        if security == "none" and config.LICENSE_MAIL_SMTP_HOST not in _LOOPBACK_HOSTS:
+        if security == "none" and config.SMTP_HOST not in _LOOPBACK_HOSTS:
             logger.warning(
-                "LICENSE_MAIL_SMTP_SECURITY=none to non-loopback host %s: license "
-                "files will cross the network unencrypted.",
-                config.LICENSE_MAIL_SMTP_HOST,
+                "SMTP_SECURITY=none to non-loopback host %s: mail will cross "
+                "the network unencrypted.",
+                config.SMTP_HOST,
             )
 
-        self._sender = sender
-        self._reply_to = config.LICENSE_MAIL_REPLY_TO or None
-
-    async def send(self, message: LicenseEmail) -> None:
-        mime = _build_mime(message, sender=self._sender, reply_to=self._reply_to)
+    async def send(self, message: OutboundEmail) -> None:
+        sender = message.sender or config.SMTP_FROM
+        mime = _build_mime(message, sender=sender)
         try:
             await asyncio.to_thread(_send_blocking, mime)
         except smtplib.SMTPAuthenticationError as exc:
@@ -144,7 +140,7 @@ class SmtpMailer:
         except smtplib.SMTPSenderRefused as exc:
             # Almost always an unverified From domain -- also our problem.
             raise MailerUnavailableError(
-                f"SMTP server refused the sender {self._sender!r}"
+                f"SMTP server refused the sender {sender!r}"
             ) from exc
         except smtplib.SMTPRecipientsRefused as exc:
             codes = [code for code, _ in exc.recipients.values()]

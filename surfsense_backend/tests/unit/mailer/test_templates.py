@@ -35,7 +35,29 @@ def test_every_kind_renders_a_subject_and_install_steps(kind):
 
     assert message.subject
     assert "Settings -> License" in message.text_body
-    assert message.kind == kind
+
+
+def test_license_mail_carries_its_own_sender(monkeypatch):
+    """The SMTP connection is shared; the From is the feature's own."""
+    from app.config import config
+
+    monkeypatch.setattr(config, "SMTP_FROM", "noreply@surfsense.test")
+    monkeypatch.setattr(config, "SMTP_LICENSE_FROM", "licenses@surfsense.test")
+
+    message = build_license_email("purchase", to="a@b.test", certificates=("CERT",))
+
+    assert message.sender == "licenses@surfsense.test"
+
+
+def test_license_mail_falls_back_to_the_deployment_sender(monkeypatch):
+    from app.config import config
+
+    monkeypatch.setattr(config, "SMTP_FROM", "noreply@surfsense.test")
+    monkeypatch.setattr(config, "SMTP_LICENSE_FROM", "")
+
+    message = build_license_email("purchase", to="a@b.test", certificates=("CERT",))
+
+    assert message.sender == "noreply@surfsense.test"
 
 
 def test_a_message_with_no_certificate_is_a_programming_error():

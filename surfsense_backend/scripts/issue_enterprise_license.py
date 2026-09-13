@@ -6,7 +6,7 @@ touches no database: Keygen is the system of record.
     python -m scripts.issue_enterprise_license --email ops@acme.com --seats 40
     python -m scripts.issue_enterprise_license --email cto@acme.com --plan individual
 
-Pass --mail to also send it, which needs a delivering LICENSE_MAIL_TRANSPORT.
+Pass --mail to also send it, which needs SMTP_ENABLED=TRUE.
 """
 
 from __future__ import annotations

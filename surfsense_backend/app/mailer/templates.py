@@ -1,13 +1,23 @@
-"""Subjects and bodies for the three license emails.
+"""Subjects, bodies and sender identity for the three license emails.
 
 Copy lives on our side of the port, never in a transport and never hosted at
 a vendor. That is what keeps switching provider from becoming a copy
 migration.
+
+This module also owns *who license mail comes from*. The SMTP connection is
+shared across the backend, so each feature stamps its own address on the
+messages it builds instead of the sender object carrying one.
 """
 
 from __future__ import annotations
 
-from .protocol import Attachment, LicenseEmail, LicenseEmailKind
+from typing import Literal
+
+from app.config import config
+
+from .protocol import Attachment, OutboundEmail
+
+LicenseEmailKind = Literal["purchase", "resend", "trial"]
 
 LICENSE_FILENAME = "surfsense.lic"
 
@@ -48,7 +58,7 @@ def build_license_email(
     to: str,
     certificates: tuple[str, ...],
     idempotency_key: str | None = None,
-) -> LicenseEmail:
+) -> OutboundEmail:
     """Render one message carrying every certificate issued to ``to``.
 
     A resend can legitimately carry more than one file (an individual license
@@ -78,11 +88,12 @@ def build_license_email(
             f"{_INSTALL_STEPS}\n"
         )
 
-    return LicenseEmail(
+    return OutboundEmail(
         to=to,
-        kind=kind,
         subject=_SUBJECTS[kind] + plural,
         text_body=body,
+        sender=config.SMTP_LICENSE_FROM or config.SMTP_FROM or None,
+        reply_to=config.SMTP_LICENSE_REPLY_TO or None,
         attachments=attachments,
         idempotency_key=idempotency_key,
     )

@@ -711,25 +711,31 @@ class Config:
         os.getenv("LICENSE_TRIAL_RATE_LIMIT_PER_HOUR", "3")
     )
 
-    # Transactional mail. This selects a *transport*, not a vendor: every
-    # provider exposes SMTP, so switching companies changes the SMTP strings
-    # below and leaves this alone. "null" discards; routes that exist only to
-    # mail something refuse to run under it rather than reporting a false
-    # success.
-    LICENSE_MAIL_TRANSPORT = os.getenv("LICENSE_MAIL_TRANSPORT", "null").strip().lower()
-    LICENSE_MAIL_FROM = os.getenv("LICENSE_MAIL_FROM", "").strip()
-    LICENSE_MAIL_REPLY_TO = os.getenv("LICENSE_MAIL_REPLY_TO", "").strip()
-    LICENSE_MAIL_SMTP_HOST = os.getenv("LICENSE_MAIL_SMTP_HOST", "").strip()
-    LICENSE_MAIL_SMTP_PORT = int(os.getenv("LICENSE_MAIL_SMTP_PORT", "587"))
-    LICENSE_MAIL_SMTP_USERNAME = os.getenv("LICENSE_MAIL_SMTP_USERNAME", "").strip()
-    LICENSE_MAIL_SMTP_PASSWORD = os.getenv("LICENSE_MAIL_SMTP_PASSWORD", "")
+    # Transactional email over SMTP. One connection for the whole backend --
+    # licenses today, password reset and verification whenever those stubs in
+    # app/users.py grow up -- so these are named like the other shared
+    # infrastructure (DATABASE_URL, REDIS_APP_URL, STRIPE_SECRET_KEY) rather
+    # than after their first caller.
+    #
+    # Off by default: routes that exist only to mail something answer 503
+    # rather than reporting a send that never happened. Enabling with an
+    # unreachable or unnamed server is an error to fix at startup, never a
+    # reason to silently drop mail.
+    SMTP_ENABLED = os.getenv("SMTP_ENABLED", "FALSE").strip().upper() == "TRUE"
+    SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
     # Explicit, never inferred from the port: 465 is implicit TLS and 587 is
     # STARTTLS, and guessing from the port is the classic source of "it hangs
     # forever with no error".
-    LICENSE_MAIL_SMTP_SECURITY = (
-        os.getenv("LICENSE_MAIL_SMTP_SECURITY", "starttls").strip().lower()
-    )
-    LICENSE_MAIL_TIMEOUT_SECONDS = int(os.getenv("LICENSE_MAIL_TIMEOUT_SECONDS", "20"))
+    SMTP_SECURITY = os.getenv("SMTP_SECURITY", "starttls").strip().lower()
+    SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "20"))
+    # Default sender, required when SMTP is enabled. Each feature may override
+    # it so licenses and account email can come from different addresses.
+    SMTP_FROM = os.getenv("SMTP_FROM", "").strip()
+    SMTP_LICENSE_FROM = os.getenv("SMTP_LICENSE_FROM", "").strip()
+    SMTP_LICENSE_REPLY_TO = os.getenv("SMTP_LICENSE_REPLY_TO", "").strip()
 
     # Unified credit wallet (micro-USD) settings.
     #

@@ -1,25 +1,25 @@
 """Provider-agnostic transactional mail contract.
 
-Only the license flows use this today. Everything above this module talks to
-``Mailer`` and the two errors below; no transport exception escapes the
-package, so swapping how mail is sent never touches a call site.
+Everything above this module talks to ``Mailer`` and the two errors below; no
+SMTP exception escapes the package, so changing how mail is sent never touches
+a call site.
 
-The payload models the *license email domain*, not SMTP: subjects and bodies
-are built on our side (``templates.py``) so a provider change is never a copy
-migration.
+The payload is deliberately feature-agnostic. ``sender`` travels *on the
+message* rather than being fixed on the sender object, because one SMTP
+connection serves every feature and each one addresses its mail differently --
+licenses from one address, account email from another. A sender baked into the
+transport would make it a license mailer forever.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Protocol, runtime_checkable
-
-LicenseEmailKind = Literal["purchase", "resend", "trial"]
+from typing import Protocol, runtime_checkable
 
 
 @dataclass(frozen=True, slots=True)
 class Attachment:
-    """One file on a message. Base64 transfer encoding is the provider's job."""
+    """One file on a message. Base64 transfer encoding is the transport's job."""
 
     filename: str
     content: bytes
@@ -29,13 +29,16 @@ class Attachment:
 
 
 @dataclass(frozen=True, slots=True)
-class LicenseEmail:
-    """One transactional message, fully rendered."""
+class OutboundEmail:
+    """One transactional message, fully rendered and addressed."""
 
     to: str
-    kind: LicenseEmailKind
     subject: str
     text_body: str
+    # None falls back to SMTP_FROM. Features that want their own identity set
+    # it; everything else inherits the deployment default.
+    sender: str | None = None
+    reply_to: str | None = None
     html_body: str | None = None
     attachments: tuple[Attachment, ...] = ()
     # Carried by the port and ignored by SMTP, which has no equivalent. It is
@@ -48,7 +51,7 @@ class LicenseEmail:
 class Mailer(Protocol):
     """Sends one message, or raises one of the two errors below."""
 
-    async def send(self, message: LicenseEmail) -> None: ...
+    async def send(self, message: OutboundEmail) -> None: ...
 
 
 class MailerError(RuntimeError):

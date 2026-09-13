@@ -21,7 +21,7 @@ from app.mailer import (
     get_mailer,
     is_mail_enabled,
 )
-from app.mailer.protocol import LicenseEmailKind
+from app.mailer.templates import LicenseEmailKind
 from app.services import keygen
 from app.services.keygen import LicensePlan
 from app.services.license_email import fold_email, normalize_email
