@@ -675,6 +675,10 @@ class Config:
     )
 
     # Keygen-backed offline desktop licenses.
+    #
+    # Keygen is the system of record: there is no license table, and every
+    # lookup is a filter over Keygen license metadata. See
+    # plans/community-local/portal/01-license-routes.md.
     KEYGEN_ACCOUNT_ID = os.getenv("KEYGEN_ACCOUNT_ID")
     KEYGEN_API_TOKEN = os.getenv("KEYGEN_API_TOKEN")
     KEYGEN_POLICY_TRIAL = os.getenv("KEYGEN_POLICY_TRIAL")
@@ -683,6 +687,49 @@ class Config:
     LICENSE_TRIAL_ENABLED = (
         os.getenv("LICENSE_TRIAL_ENABLED", "FALSE").upper() == "TRUE"
     )
+    LICENSE_TRIAL_DAYS = int(os.getenv("LICENSE_TRIAL_DAYS", "14"))
+    # ISO date. Trials issued before the plugin ships expire this many days
+    # after the plugin lands rather than after purchase, so the gap week does
+    # not eat the trial. Unset once the plugin has shipped.
+    LICENSE_TRIAL_EXPIRY_FLOOR = os.getenv("LICENSE_TRIAL_EXPIRY_FLOOR", "").strip()
+    LICENSE_DISPOSABLE_EMAIL_DOMAINS = os.getenv("LICENSE_DISPOSABLE_EMAIL_DOMAINS", "")
+
+    # Stripe prices for license purchases. Used to resolve the plan when the
+    # buyer came through a Payment Link, which carries no session metadata.
+    STRIPE_PRICE_LICENSE_INDIVIDUAL = os.getenv("STRIPE_PRICE_LICENSE_INDIVIDUAL", "")
+    STRIPE_PRICE_LICENSE_TEAM = os.getenv("STRIPE_PRICE_LICENSE_TEAM", "")
+
+    # Rate limits for the two unauthenticated POST license routes. These also
+    # protect the Keygen tier quota: one resend is N check-out calls.
+    LICENSE_RATE_LIMIT_IP_PER_HOUR = int(
+        os.getenv("LICENSE_RATE_LIMIT_IP_PER_HOUR", "10")
+    )
+    LICENSE_RESEND_RATE_LIMIT_PER_HOUR = int(
+        os.getenv("LICENSE_RESEND_RATE_LIMIT_PER_HOUR", "5")
+    )
+    LICENSE_TRIAL_RATE_LIMIT_PER_HOUR = int(
+        os.getenv("LICENSE_TRIAL_RATE_LIMIT_PER_HOUR", "3")
+    )
+
+    # Transactional mail. This selects a *transport*, not a vendor: every
+    # provider exposes SMTP, so switching companies changes the SMTP strings
+    # below and leaves this alone. "null" discards; routes that exist only to
+    # mail something refuse to run under it rather than reporting a false
+    # success.
+    LICENSE_MAIL_TRANSPORT = os.getenv("LICENSE_MAIL_TRANSPORT", "null").strip().lower()
+    LICENSE_MAIL_FROM = os.getenv("LICENSE_MAIL_FROM", "").strip()
+    LICENSE_MAIL_REPLY_TO = os.getenv("LICENSE_MAIL_REPLY_TO", "").strip()
+    LICENSE_MAIL_SMTP_HOST = os.getenv("LICENSE_MAIL_SMTP_HOST", "").strip()
+    LICENSE_MAIL_SMTP_PORT = int(os.getenv("LICENSE_MAIL_SMTP_PORT", "587"))
+    LICENSE_MAIL_SMTP_USERNAME = os.getenv("LICENSE_MAIL_SMTP_USERNAME", "").strip()
+    LICENSE_MAIL_SMTP_PASSWORD = os.getenv("LICENSE_MAIL_SMTP_PASSWORD", "")
+    # Explicit, never inferred from the port: 465 is implicit TLS and 587 is
+    # STARTTLS, and guessing from the port is the classic source of "it hangs
+    # forever with no error".
+    LICENSE_MAIL_SMTP_SECURITY = (
+        os.getenv("LICENSE_MAIL_SMTP_SECURITY", "starttls").strip().lower()
+    )
+    LICENSE_MAIL_TIMEOUT_SECONDS = int(os.getenv("LICENSE_MAIL_TIMEOUT_SECONDS", "20"))
 
     # Unified credit wallet (micro-USD) settings.
     #
