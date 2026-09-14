@@ -7,6 +7,7 @@ import App from "./App.tsx"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { Toaster } from "@/components/ui/sonner.tsx"
 import { TooltipProvider } from "@/components/ui/tooltip.tsx"
+import { EgressPrompt } from "@/features/egress/egress-prompt.tsx"
 import { queryClient } from "@/lib/query-client.ts"
 
 const root = document.getElementById("root")
@@ -27,6 +28,7 @@ createRoot(root).render(
       <ThemeProvider>
         <TooltipProvider>
           <App />
+          <EgressPrompt />
           <Toaster position="top-right" />
         </TooltipProvider>
       </ThemeProvider>
