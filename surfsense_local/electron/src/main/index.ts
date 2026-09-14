@@ -197,22 +197,30 @@ async function registerUpdateHandlers(): Promise<void> {
     }
   }
 
+  const check = (): void => {
+    writeUpdatePrefs(prefsPath, {
+      ...readUpdatePrefs(prefsPath),
+      lastCheckedAt: new Date().toISOString(),
+    })
+    void updates.check()
+  }
+
   ipcMain.handle("updates:prefs", () => readUpdatePrefs(prefsPath))
   ipcMain.handle("updates:set-automatic", (event, automatic: unknown) => {
     if (!trusted(event.sender)) return readUpdatePrefs(prefsPath)
-    const prefs = { automatic: automatic === true }
+    const prefs = { ...readUpdatePrefs(prefsPath), automatic: automatic === true }
     writeUpdatePrefs(prefsPath, prefs)
     return prefs
   })
   ipcMain.handle("updates:state", () => updates.state())
   ipcMain.handle("updates:check", (event) => {
-    if (trusted(event.sender)) void updates.check()
+    if (trusted(event.sender)) check()
   })
   ipcMain.handle("updates:install", (event) => {
     if (trusted(event.sender)) updates.install()
   })
 
-  if (readUpdatePrefs(prefsPath).automatic) void updates.check()
+  if (readUpdatePrefs(prefsPath).automatic) check()
 }
 
 function applyTitleBarOverlay(
