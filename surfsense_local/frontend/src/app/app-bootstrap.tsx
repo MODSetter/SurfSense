@@ -11,6 +11,7 @@ import {
   type ModelSelection,
 } from "@/features/model-selection/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import { UpdateBanner } from "@/features/updates/update-settings"
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
 const DashboardPage = lazy(() =>
@@ -161,22 +162,25 @@ export function AppBootstrap() {
 
   return (
     <Suspense fallback={<GlobalLoader />}>
-      <DashboardPage
-        selection={state.selection}
-        initialWorkspaces={state.workspaces}
-        onModelUnavailable={() =>
-          setState((current) =>
-            current.status === "ready"
-              ? { ...current, selection: null }
-              : current
-          )
-        }
-        onModelSelected={(selection) =>
-          setState((current) =>
-            current.status === "ready" ? { ...current, selection } : current
-          )
-        }
-      />
+      <div className="grid h-full grid-rows-[auto_minmax(0,1fr)]">
+        <UpdateBanner />
+        <DashboardPage
+          selection={state.selection}
+          initialWorkspaces={state.workspaces}
+          onModelUnavailable={() =>
+            setState((current) =>
+              current.status === "ready"
+                ? { ...current, selection: null }
+                : current
+            )
+          }
+          onModelSelected={(selection) =>
+            setState((current) =>
+              current.status === "ready" ? { ...current, selection } : current
+            )
+          }
+        />
+      </div>
     </Suspense>
   )
 }

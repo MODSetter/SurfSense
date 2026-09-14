@@ -12,9 +12,26 @@ declare global {
         workspaceId: number,
         documentId: number
       ) => Promise<string>
+      updates: {
+        prefs: () => Promise<{ automatic: boolean }>
+        setAutomatic: (automatic: boolean) => Promise<{ automatic: boolean }>
+        state: () => Promise<UpdateState>
+        check: () => Promise<void>
+        install: () => Promise<void>
+        onState: (listener: (state: UpdateState) => void) => () => void
+      }
     }
   }
 }
+
+// Mirrors electron/src/main/updater.mts.
+export type UpdateState =
+  | { status: "idle" }
+  | { status: "checking" }
+  | { status: "up-to-date" }
+  | { status: "downloading"; version: string }
+  | { status: "ready"; version: string }
+  | { status: "error"; message: string }
 
 // Packaged (Electron) exposes the sidecar's dynamic origin; a bare dev browser
 // leaves it empty so root-relative paths still hit the Vite proxy.
