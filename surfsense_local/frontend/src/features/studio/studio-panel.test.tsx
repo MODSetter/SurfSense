@@ -46,6 +46,7 @@ function StudioHarness({
         onGenerate={studio.create}
       />
       <ArtifactList
+        workspaceId={1}
         artifacts={studio.artifacts}
         isLoading={studio.isLoading}
         onOpen={vi.fn()}

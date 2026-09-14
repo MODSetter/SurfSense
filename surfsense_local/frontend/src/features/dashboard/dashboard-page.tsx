@@ -255,7 +255,9 @@ function WorkspaceDashboard({
               }
               artifacts={
                 <ArtifactList
+                  workspaceId={workspace.id}
                   artifacts={studio.artifacts}
+                  formats={studio.formats}
                   isLoading={studio.isLoading}
                   onOpen={(artifactId) => {
                     openSources()

@@ -23,6 +23,7 @@ function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
   return render(
     <TooltipProvider>
       <ArtifactList
+        workspaceId={1}
         artifacts={[artifact]}
         onOpen={vi.fn()}
         onDelete={vi.fn()}
@@ -195,5 +196,82 @@ describe("artifact list", () => {
     await waitFor(() =>
       expect(screen.queryByRole("tooltip", { name: "boom" })).toBeNull()
     )
+  })
+
+  describe("type filter", () => {
+    const podcast: Artifact = {
+      ...artifact,
+      id: 20,
+      format: "podcast",
+      title: "Episode one",
+    }
+    const infographic: Artifact = {
+      ...artifact,
+      id: 21,
+      format: "infographic",
+      title: "At a glance",
+    }
+
+    afterEach(() => localStorage.clear())
+
+    it("hides the filter control when there are no artifacts", () => {
+      renderList({ artifacts: [] })
+
+      expect(screen.queryByLabelText("Filter artifacts")).toBeNull()
+    })
+
+    it("lists each type once with a count and filters the list on check", async () => {
+      const user = userEvent.setup()
+      const podcastTwo = { ...podcast, id: 22, title: "Episode two" }
+      renderList({ artifacts: [artifact, podcast, podcastTwo, infographic] })
+
+      await user.click(screen.getByLabelText("Filter artifacts"))
+      expect(
+        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+      ).toBeTruthy()
+      expect(screen.getByText("(2)")).toBeTruthy()
+
+      await user.click(screen.getByRole("menuitemcheckbox", { name: /podcast/i }))
+      expect(screen.queryByRole("button", { name: "Weekly summary" })).toBeNull()
+      expect(screen.queryByRole("button", { name: "At a glance" })).toBeNull()
+      expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
+      expect(screen.getByRole("button", { name: "Episode two" })).toBeTruthy()
+    })
+
+    it("shows an empty state with a way to clear when a stored filter matches nothing here", async () => {
+      // The realistic way to land on zero matches: a filter saved while in a
+      // workspace with different artifact types (see the persistence test).
+      localStorage.setItem(
+        "surfsense:artifact-filter:1:v1",
+        JSON.stringify(["podcast"])
+      )
+      const user = userEvent.setup()
+      renderList({ workspaceId: 1, artifacts: [artifact] })
+
+      expect(screen.getByText("No artifacts match this filter")).toBeTruthy()
+      await user.click(screen.getByRole("button", { name: "Clear filter" }))
+      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+    })
+
+    it("persists the selected filter per workspace", async () => {
+      const user = userEvent.setup()
+      const { unmount } = renderList({
+        workspaceId: 1,
+        artifacts: [artifact, podcast],
+      })
+
+      await user.click(screen.getByLabelText("Filter artifacts"))
+      await user.click(screen.getByRole("menuitemcheckbox", { name: /podcast/i }))
+      unmount()
+
+      renderList({ workspaceId: 1, artifacts: [artifact, podcast] })
+      expect(screen.queryByRole("button", { name: "Weekly summary" })).toBeNull()
+      expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
+      cleanup()
+
+      renderList({ workspaceId: 2, artifacts: [artifact, podcast] })
+      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+      expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
+    })
   })
 })

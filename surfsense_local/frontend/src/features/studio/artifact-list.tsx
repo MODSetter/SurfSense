@@ -1,9 +1,10 @@
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import {
   Alert02Icon,
   EllipsisIcon,
   FileIcon,
   FileTextIcon,
+  FilterIcon,
   Loader2Icon,
   RefreshCwIcon,
   Trash2Icon,
@@ -23,9 +24,12 @@ import {
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
@@ -46,8 +50,34 @@ import {
 import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { cn } from "@/lib/utils"
 
-import type { Artifact } from "./api"
-import { FORMAT_ICONS } from "./studio-panel"
+import type { Artifact, StudioFormat } from "./api"
+import { FORMAT_ICONS } from "./studio-formats"
+
+function artifactFilterKey(workspaceId: number) {
+  return `surfsense:artifact-filter:${workspaceId}:v1`
+}
+
+function readStoredFormats(workspaceId: number): string[] {
+  try {
+    const parsed: unknown = JSON.parse(
+      localStorage.getItem(artifactFilterKey(workspaceId)) ?? "[]"
+    )
+    return Array.isArray(parsed) ? parsed.filter((v) => typeof v === "string") : []
+  } catch {
+    return []
+  }
+}
+
+function writeStoredFormats(workspaceId: number, formats: string[]) {
+  try {
+    localStorage.setItem(
+      artifactFilterKey(workspaceId),
+      JSON.stringify(formats)
+    )
+  } catch {
+    // Private browsing and full disks throw.
+  }
+}
 
 function ArtifactRow({
   artifact,
@@ -187,32 +217,147 @@ function ArtifactRow({
 }
 
 export function ArtifactList({
+  workspaceId,
   artifacts,
+  formats = [],
   isLoading = false,
   onOpen,
   onDelete,
   onRetry,
 }: {
+  workspaceId: number
   artifacts: Artifact[]
+  formats?: StudioFormat[]
   isLoading?: boolean
   onOpen: (id: number) => void
   onDelete: (id: number) => void
   onRetry: (id: number) => void
 }) {
+  // The backend's format catalog is the single source of truth for labels;
+  // fall back to the raw key only for a format the catalog doesn't know yet.
+  const formatLabels = useMemo(
+    () => new Map(formats.map((format) => [format.key, format.label])),
+    [formats]
+  )
   const [deleteTarget, setDeleteTarget] = useState<Artifact | null>(null)
+  const [selectedFormats, setSelectedFormats] = useState<string[]>(() =>
+    readStoredFormats(workspaceId)
+  )
+  // The list stays mounted across workspace switches, so re-load the filter
+  // that workspace last saved instead of carrying the old one over. This is
+  // the "adjust state during render" idiom React recommends in place of an
+  // effect for resetting state when a prop changes.
+  const [renderedWorkspaceId, setRenderedWorkspaceId] = useState(workspaceId)
+  if (workspaceId !== renderedWorkspaceId) {
+    setRenderedWorkspaceId(workspaceId)
+    setSelectedFormats(readStoredFormats(workspaceId))
+  }
+
+  const availableFormats = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const artifact of artifacts) {
+      counts.set(artifact.format, (counts.get(artifact.format) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+  }, [artifacts])
+
+  // Filtered directly against what's selected, not intersected with what's
+  // available — a filter saved in another workspace (e.g. "podcast") should
+  // correctly show zero results here rather than silently showing everything.
+  const visibleArtifacts = useMemo(() => {
+    if (selectedFormats.length === 0) return artifacts
+    const wanted = new Set(selectedFormats)
+    return artifacts.filter((artifact) => wanted.has(artifact.format))
+  }, [artifacts, selectedFormats])
+
+  function toggleFormat(format: string, checked: boolean) {
+    const next = checked
+      ? [...selectedFormats, format]
+      : selectedFormats.filter((candidate) => candidate !== format)
+    setSelectedFormats(next)
+    writeStoredFormats(workspaceId, next)
+  }
+
+  function clearFormats() {
+    setSelectedFormats([])
+    writeStoredFormats(workspaceId, [])
+  }
 
   return (
     <section
       className="flex h-full min-h-0 w-full min-w-0 flex-col"
       aria-labelledby="all-artifacts"
     >
-      <div className="mb-2 flex min-h-7 shrink-0 items-center">
+      <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2">
         <h3
           id="all-artifacts"
           className="text-xs font-medium text-muted-foreground"
         >
           All generated artifacts
         </h3>
+        {availableFormats.length > 0 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                size="icon-sm"
+                variant="ghost"
+                className={cn(
+                  "relative size-6 shrink-0 text-muted-foreground data-[state=open]:bg-accent",
+                  selectedFormats.length > 0 && "text-foreground"
+                )}
+                aria-label={
+                  selectedFormats.length > 0
+                    ? `Filter artifacts (${selectedFormats.length} active)`
+                    : "Filter artifacts"
+                }
+              >
+                <FilterIcon className="size-4" />
+                {selectedFormats.length > 0 ? (
+                  <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-primary" />
+                ) : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={8}
+              className="w-52 select-none"
+            >
+              <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
+              <DropdownMenuGroup>
+                {availableFormats.map(([format, count]) => {
+                  const FormatIcon = FORMAT_ICONS[format] ?? FileIcon
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={format}
+                      checked={selectedFormats.includes(format)}
+                      onCheckedChange={(checked) =>
+                        toggleFormat(format, checked === true)
+                      }
+                      onSelect={(event) => event.preventDefault()}
+                    >
+                      <FormatIcon className="size-4 text-muted-foreground" />
+                      <span className="flex-1">
+                        {formatLabels.get(format) ?? format}{" "}
+                        <span className="text-muted-foreground">
+                          ({count})
+                        </span>
+                      </span>
+                    </DropdownMenuCheckboxItem>
+                  )
+                })}
+              </DropdownMenuGroup>
+              {selectedFormats.length > 0 ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onSelect={clearFormats}>
+                    Clear filter
+                  </DropdownMenuItem>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
       </div>
       <ScrollShadow className="min-h-0 flex-1" from="from-background">
         {isLoading ? (
@@ -229,9 +374,23 @@ export function ArtifactList({
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
+        ) : visibleArtifacts.length === 0 ? (
+          <Empty className="min-h-0 border-0 px-2">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <FilterIcon />
+              </EmptyMedia>
+              <EmptyTitle>No artifacts match this filter</EmptyTitle>
+              <EmptyDescription>
+                <Button type="button" variant="link" onClick={clearFormats}>
+                  Clear filter
+                </Button>
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
           <div className="flex flex-col gap-1">
-            {artifacts.map((artifact) => (
+            {visibleArtifacts.map((artifact) => (
               <ArtifactRow
                 key={artifact.id}
                 artifact={artifact}
