@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { DownloadCircle02Icon } from "@/components/ui/icons"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import type { UpdateState } from "@/lib/api"
 
 export type { UpdateState }
@@ -107,18 +113,32 @@ export function UpdateSettings() {
   )
 }
 
-export function UpdateBanner() {
+/**
+ * Sits in the title bar and appears only once an update has been downloaded
+ * and is waiting. The title bar is `position: fixed`, so this button is out of
+ * the document flow: rendering nothing costs no space and cannot disturb the
+ * layout around it.
+ */
+export function UpdateButton() {
   const state = useUpdateState()
   if (state.status !== "ready") return null
+  const label = `Restart to install ${state.version}`
   return (
-    <div
-      role="status"
-      className="flex items-center justify-between gap-4 border-b bg-muted/60 px-4 py-2 text-sm"
-    >
-      <span>SurfSense {state.version} is ready to install.</span>
-      <Button type="button" size="sm" onClick={() => void bridge()?.install()}>
-        Restart to update
-      </Button>
-    </div>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon-sm"
+          aria-label={label}
+          className="pointer-events-auto bg-notice text-notice-foreground hover:bg-notice/85"
+          onClick={() => void bridge()?.install()}
+        >
+          <DownloadCircle02Icon />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" collisionPadding={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
   )
 }
