@@ -181,3 +181,32 @@ async def test_an_artifact_can_be_deleted(
 
     gone = await client.get(f"/artifacts/{artifact_id}")
     assert gone.status_code == 404
+
+
+async def test_a_failed_artifact_can_be_regenerated(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """Regenerate requeues the same job, clears the reason, bumps the generation."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+
+    # Still queued: the worker is absent here, so the row is as the API left it.
+    busy = await client.post(f"/artifacts/{artifact_id}/regenerate")
+    assert busy.status_code == 409
+
+    with create_session_factory(engine)() as session:
+        document = session.get(Document, created.json()["document_id"])
+        document.status = DocumentStatus.FAILED
+        document.error_message = "the model refused"
+        session.commit()
+
+    again = await client.post(f"/artifacts/{artifact_id}/regenerate")
+    assert again.status_code == 202
+    body = again.json()
+    assert body["status"] == "pending"
+    assert body["error_message"] is None
+    assert body["generation"] == 2

@@ -1,6 +1,7 @@
 import logging
 import time
 
+import httpx
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS_BY_KEY
@@ -91,10 +92,10 @@ def _generate(session: Session, artifact: Artifact) -> None:
     except Exception as failure:
         session.rollback()
         document.status = DocumentStatus.FAILED
-        document.error_message = f"{type(failure).__name__}: {failure}"[:MESSAGE_CHARS]
+        document.error_message = _reason(failure)
         session.commit()
         notify_artifact_updates(artifact)
-        logger.info(
+        logger.exception(
             "studio: artifact %s failed after %.1fs: %s",
             artifact.id,
             time.monotonic() - started,
@@ -103,6 +104,14 @@ def _generate(session: Session, artifact: Artifact) -> None:
         if isinstance(failure, NonRetryableImageError):
             return
         raise  # Huey retries; a later success clears the message.
+
+
+def _reason(failure: Exception) -> str:
+    """The one line the user reads in the tooltip; the traceback goes to the log."""
+    if isinstance(failure, httpx.HTTPError):
+        return f"The model could not be reached: {failure}"[:MESSAGE_CHARS]
+    first_line = str(failure).strip().splitlines()[:1]
+    return (first_line[0] if first_line else type(failure).__name__)[:MESSAGE_CHARS]
 
 
 def _choose_model(

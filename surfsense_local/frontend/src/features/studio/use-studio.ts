@@ -5,6 +5,7 @@ import {
   deleteArtifact,
   listArtifacts,
   listFormats,
+  regenerateArtifact,
   type Artifact,
   type StudioFormat,
   type StudioJobCreate,
@@ -117,6 +118,20 @@ export function useStudio(workspaceId: number) {
     }
   }
 
+  const regenerate = async (artifactId: number) => {
+    setError(null)
+    try {
+      const updated = await regenerateArtifact(artifactId)
+      setArtifacts((current) =>
+        current.map((artifact) =>
+          artifact.id === artifactId ? updated : artifact
+        )
+      )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
   const remove = async (artifactId: number) => {
     setError(null)
     try {
@@ -134,6 +149,7 @@ export function useStudio(workspaceId: number) {
     isCreating,
     error,
     create,
+    regenerate,
     remove,
     clearError: () => setError(null),
   }

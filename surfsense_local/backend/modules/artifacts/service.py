@@ -87,6 +87,28 @@ def create_artifact_job(
     return artifact
 
 
+def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
+    """Run a finished artifact's job again: same sources and prompt, new output."""
+    document = artifact.document
+    if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
+        raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
+    available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
+    if not available:
+        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+
+    document.status = DocumentStatus.PENDING
+    document.error_message = None
+    artifact.generation += 1
+    session.commit()
+    studio_job(artifact.id)
+    logger.info(
+        "studio: re-enqueued artifact %s generation=%s",
+        artifact.id,
+        artifact.generation,
+    )
+    return artifact
+
+
 def _resolve_sources(
     session: Session, workspace: Workspace, document_ids: list[int]
 ) -> list[Document]:

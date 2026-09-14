@@ -472,7 +472,8 @@ def test_a_generation_failure_leaves_a_reason(
 
     session.expire_all()
     assert artifact.document.status is DocumentStatus.FAILED
-    assert "refused" in (artifact.document.error_message or "")
+    # The tooltip line: what went wrong, without a Python type name in front.
+    assert artifact.document.error_message == "the model refused"
     assert session.scalar(text("SELECT count(*) FROM chunks")) == 0
 
 

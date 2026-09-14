@@ -14,7 +14,11 @@ from modules.artifacts.schemas import (
     FormatRead,
     StudioJobCreate,
 )
-from modules.artifacts.service import create_artifact_job, list_formats
+from modules.artifacts.service import (
+    create_artifact_job,
+    list_formats,
+    regenerate_artifact,
+)
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
@@ -75,6 +79,16 @@ def list_artifacts(
 )
 def read_artifact(artifact: ArtifactDep) -> ArtifactDetail:
     return ArtifactDetail.of(artifact)
+
+
+@router.post(
+    "/artifacts/{artifact_id}/regenerate",
+    response_model=ArtifactRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Generate a finished or failed artifact again",
+)
+def regenerate(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+    return ArtifactRead.of(regenerate_artifact(session, artifact))
 
 
 @router.get(

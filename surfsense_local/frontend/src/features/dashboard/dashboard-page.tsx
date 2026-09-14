@@ -244,6 +244,9 @@ function WorkspaceDashboard({
                     openSources()
                     setInspect({ kind: "artifact", artifactId })
                   }}
+                  onRegenerate={(artifactId) =>
+                    void studio.regenerate(artifactId)
+                  }
                   onDelete={(artifactId) => void studio.remove(artifactId)}
                 />
               }

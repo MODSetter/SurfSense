@@ -25,6 +25,7 @@ function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
       <ArtifactList
         artifacts={[artifact]}
         onOpen={vi.fn()}
+        onRegenerate={vi.fn()}
         onDelete={vi.fn()}
         {...props}
       />
@@ -71,8 +72,11 @@ describe("artifact list", () => {
       screen.getByRole("status", { name: "Processing Weekly summary" })
     ).toBeTruthy()
     expect(
-      (screen.getByRole("button", { name: "Weekly summary" }) as HTMLButtonElement)
-        .disabled
+      (
+        screen.getByRole("button", {
+          name: "Weekly summary",
+        }) as HTMLButtonElement
+      ).disabled
     ).toBe(true)
   })
 
@@ -100,6 +104,33 @@ describe("artifact list", () => {
     expect((failed as HTMLButtonElement).disabled).toBe(true)
     await user.click(failed)
     expect(onOpen).not.toHaveBeenCalled()
+  })
+
+  it("regenerates a failed artifact from the overflow menu", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    renderList({
+      artifacts: [
+        { ...artifact, status: "failed", error_message: "the model refused" },
+      ],
+      onRegenerate,
+    })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Weekly summary" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Regenerate" }))
+    expect(onRegenerate).toHaveBeenCalledWith(12)
+  })
+
+  it("offers no regenerate while an artifact is generating", async () => {
+    const user = userEvent.setup()
+    renderList({ artifacts: [{ ...artifact, status: "processing" }] })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Weekly summary" })
+    )
+    expect(screen.queryByRole("menuitem", { name: "Regenerate" })).toBeNull()
   })
 
   it("deletes from the overflow menu after confirm", async () => {

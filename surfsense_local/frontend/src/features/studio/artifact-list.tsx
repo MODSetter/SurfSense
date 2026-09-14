@@ -5,6 +5,7 @@ import {
   FileIcon,
   FileTextIcon,
   Loader2Icon,
+  RefreshCwIcon,
   Trash2Icon,
   ViewIcon,
 } from "@/components/ui/icons"
@@ -50,10 +51,12 @@ import { FORMAT_ICONS } from "./studio-panel"
 function ArtifactRow({
   artifact,
   onOpen,
+  onRegenerate,
   onDelete,
 }: {
   artifact: Artifact
   onOpen: () => void
+  onRegenerate: () => void
   onDelete: () => void
 }) {
   const ready = artifact.status === "ready"
@@ -132,6 +135,12 @@ function ArtifactRow({
                   Open
                 </DropdownMenuItem>
               ) : null}
+              {ready || failed ? (
+                <DropdownMenuItem onSelect={onRegenerate}>
+                  <RefreshCwIcon />
+                  Regenerate
+                </DropdownMenuItem>
+              ) : null}
               {ingesting ? (
                 <DropdownMenuItem disabled>
                   <span className="flex animate-spin" aria-hidden="true">
@@ -160,11 +169,13 @@ export function ArtifactList({
   artifacts,
   isLoading = false,
   onOpen,
+  onRegenerate,
   onDelete,
 }: {
   artifacts: Artifact[]
   isLoading?: boolean
   onOpen: (id: number) => void
+  onRegenerate: (id: number) => void
   onDelete: (id: number) => void
 }) {
   const [deleteTarget, setDeleteTarget] = useState<Artifact | null>(null)
@@ -204,6 +215,7 @@ export function ArtifactList({
                 key={artifact.id}
                 artifact={artifact}
                 onOpen={() => onOpen(artifact.id)}
+                onRegenerate={() => onRegenerate(artifact.id)}
                 onDelete={() => setDeleteTarget(artifact)}
               />
             ))}
@@ -222,8 +234,8 @@ export function ArtifactList({
               Delete {deleteTarget?.title ?? "this artifact"}?
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes{" "}
-              {deleteTarget?.title ?? "this artifact"} and its generated files.
+              This permanently deletes {deleteTarget?.title ?? "this artifact"}{" "}
+              and its generated files.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
