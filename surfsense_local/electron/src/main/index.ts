@@ -1,6 +1,10 @@
 import { join } from "node:path"
 
 import { app, BrowserWindow, ipcMain, Menu, safeStorage, shell } from "electron"
+// Static on purpose: electron-updater is CJS and exposes `autoUpdater` through
+// a getter, which `await import()` cannot see (named export comes back
+// undefined). require() honours it, and the getter is lazy so dev pays nothing.
+import { autoUpdater } from "electron-updater"
 
 import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
@@ -183,7 +187,6 @@ async function registerUpdateHandlers(): Promise<void> {
 
   let updates: Updates
   if (app.isPackaged) {
-    const { autoUpdater } = await import("electron-updater")
     // GitHub's CDN rejects the multi-range requests differential updates need.
     autoUpdater.disableDifferentialDownload = true
     updates = attachUpdater(autoUpdater, broadcast)
