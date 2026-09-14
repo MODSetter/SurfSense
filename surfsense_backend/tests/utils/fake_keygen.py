@@ -13,6 +13,8 @@ from datetime import datetime
 from itertools import count
 from typing import Any
 
+from app.services.keygen import LicenseExistsError
+
 
 class FakeKeygen:
     """Enough of the Keygen licenses API for the license flows."""
@@ -23,7 +25,7 @@ class FakeKeygen:
         self.checkouts: list[str] = []
         self._ids = count(1)
 
-    # -- the four functions app.services.keygen exposes --------------------
+    # -- the app.services.keygen surface the license flows use --------------
 
     async def create_license(
         self,
@@ -31,11 +33,19 @@ class FakeKeygen:
         email: str,
         max_users: int | None = None,
         *,
+        license_id: str | None = None,
         expiry: datetime | None = None,
         extra_metadata: Mapping[str, str] | None = None,
         client: Any = None,
     ) -> str:
-        license_id = f"lic_{next(self._ids)}"
+        # Keygen refuses a duplicate id atomically, and the whole
+        # duplicate-fulfilment defence rests on that. A fake that assigned its
+        # own id regardless would let a double-create pass here and fail in
+        # production.
+        if license_id is not None and license_id in self.licenses:
+            raise LicenseExistsError(license_id)
+
+        license_id = license_id or f"lic_{next(self._ids)}"
         metadata: dict[str, str] = {"plan": plan, "email": email}
         if extra_metadata:
             metadata.update({k: str(v) for k, v in extra_metadata.items() if v})
@@ -86,6 +96,12 @@ class FakeKeygen:
             results.append(record)
         return results[:limit]
 
+    async def get_license(
+        self, license_id: str, *, client: Any = None
+    ) -> dict[str, Any] | None:
+        # Resolves whatever the state, suspended included.
+        return self.licenses.get(license_id)
+
     async def update_license_metadata(
         self,
         license_id: str,
@@ -111,6 +127,7 @@ class FakeKeygen:
         for name in (
             "create_license",
             "checkout_license",
+            "get_license",
             "list_licenses",
             "update_license_metadata",
             "suspend_license",

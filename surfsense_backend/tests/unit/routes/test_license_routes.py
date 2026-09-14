@@ -9,7 +9,6 @@ real session, the design has regressed.
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
 import httpx
@@ -119,15 +118,6 @@ def _no_rate_limit(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _no_redis_locks(monkeypatch):
-    @asynccontextmanager
-    async def _noop(_key, **_kwargs):
-        yield True
-
-    monkeypatch.setattr(license_service, "license_lock", _noop)
-
-
-@pytest.fixture(autouse=True)
 def _trial_enabled(monkeypatch):
     monkeypatch.setattr(config, "LICENSE_TRIAL_ENABLED", True)
     monkeypatch.setattr(config, "LICENSE_TRIAL_EXPIRY_FLOOR", "")
@@ -178,6 +168,44 @@ async def test_purchase_emails_the_file(client, monkeypatch, fake_keygen, mailer
 
     assert mailer.only().to == "buyer@example.com"
     assert mailer.only().subject == "Your SurfSense license"
+    assert mailer.only().attachments[0].filename == "surfsense.lic"
+
+
+async def test_a_payment_link_purchase_is_fulfilled_by_the_webhook(
+    client, monkeypatch, fake_keygen, mailer
+):
+    """A Payment Link sends no metadata, so the price ID has to classify it.
+
+    Reading a missing purchase_type as "credits" used to return before the
+    license branch, leaving the success page to fulfil the purchase and the
+    buyer with no email.
+    """
+    monkeypatch.setattr(config, "STRIPE_PRICE_LICENSE_INDIVIDUAL", "price_individual")
+    session = SimpleNamespace(
+        id="cs_payment_link",
+        mode="payment",
+        payment_status="paid",
+        metadata={},
+        customer="cus_link_1",
+        customer_details=SimpleNamespace(email="buyer@example.com"),
+        line_items=SimpleNamespace(
+            data=[
+                SimpleNamespace(
+                    price=SimpleNamespace(id="price_individual"), quantity=1
+                )
+            ]
+        ),
+    )
+
+    response = await _webhook(
+        client, monkeypatch, "checkout.session.completed", session
+    )
+
+    assert response.status_code == 200
+    assert len(fake_keygen.licenses) == 1
+    issued = next(iter(fake_keygen.licenses.values()))
+    assert issued["attributes"]["metadata"]["plan"] == "individual"
+    # The webhook delivered it; the success-page fallback never emails.
     assert mailer.only().attachments[0].filename == "surfsense.lic"
 
 

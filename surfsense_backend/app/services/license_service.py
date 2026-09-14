@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import uuid
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
@@ -25,7 +26,6 @@ from app.mailer.templates import LicenseEmailKind
 from app.services import keygen
 from app.services.keygen import LicensePlan
 from app.services.license_email import fold_email, normalize_email
-from app.services.license_locks import license_lock
 
 logger = logging.getLogger(__name__)
 
@@ -63,6 +63,34 @@ class IssuedLicense:
     plan: LicensePlan
     email: str
     max_users: int | None = None
+
+
+# --------------------------------------------------------------------------
+# License identity
+# --------------------------------------------------------------------------
+
+# Changing this namespace changes every derived id, so an in-flight purchase
+# could be fulfilled twice across the deploy that changes it. It is a constant
+# for that reason, not configuration.
+_LICENSE_NAMESPACE = uuid.UUID("75511ef3-567a-4f1d-8aaa-8d62f1883751")
+
+
+def derive_license_id(scope: str, identity: str) -> str:
+    """The Keygen id a given purchase or claimant must always produce.
+
+    This is the whole concurrency story. Two callers can fulfil one payment at
+    the same instant -- the webhook and the buyer's success page -- and with no
+    license table there is no unique row to collide on. Deriving the record's
+    id from the purchase moves the collision into Keygen, which refuses the
+    second create atomically and account-wide. The loser then reads the
+    winner's license instead of minting a second one.
+
+    Only the id is derived. The license *key* stays Keygen-generated, because
+    that is the bearer credential contract 2 sends to the scraper API and must
+    be unguessable; an id is a handle that does nothing without an API token,
+    so it costs no secret to make it predictable.
+    """
+    return str(uuid.uuid5(_LICENSE_NAMESPACE, f"{scope}:{identity}"))
 
 
 # --------------------------------------------------------------------------
@@ -218,11 +246,17 @@ async def issue_license(
     email: str,
     max_users: int | None = None,
     source: LicenseSource,
+    license_id: str | None = None,
     stripe_session_id: str | None = None,
     stripe_customer_id: str | None = None,
     extra_metadata: dict[str, str] | None = None,
 ) -> IssuedLicense:
-    """Create one Keygen license and check out its file."""
+    """Create one Keygen license and check out its file.
+
+    Raises :class:`keygen.LicenseExistsError` when ``license_id`` is already
+    taken, which is how callers learn they lost a race rather than by looking
+    first.
+    """
     normalized_email = normalize_email(email)
     if not normalized_email:
         raise LicenseIssueError("License email is required")
@@ -239,6 +273,7 @@ async def issue_license(
         plan,
         normalized_email,
         max_users,
+        license_id=license_id,
         expiry=_trial_expiry() if plan == "trial" else None,
         extra_metadata=metadata or None,
     )
@@ -285,6 +320,14 @@ async def _issued_from_keygen(license_record: dict[str, Any]) -> IssuedLicense:
     )
 
 
+async def _issued_for_id(license_id: str) -> IssuedLicense | None:
+    """The license with this id, checked out ready to deliver."""
+    record = await keygen.get_license(license_id)
+    if record is None:
+        return None
+    return await _issued_from_keygen(record)
+
+
 async def fulfill_license_session(
     checkout_session: Any,
     *,
@@ -303,22 +346,35 @@ async def fulfill_license_session(
         raise LicenseIssueError("Checkout session is not a license purchase")
     plan, max_users = resolved
 
-    # The lock narrows the webhook-vs-success-page race; the Keygen list inside
-    # it is the durable check.
+    # No look-before-create: the id is derived from the session, so a second
+    # caller fulfilling the same payment collides inside Keygen rather than
+    # reading "not found" a moment before the first one writes.
     customer_id = _customer_id(checkout_session)
-    async with license_lock(f"session:{session_id}"):
-        existing = await _existing_for_session(session_id)
-        if existing is not None:
-            return existing
-
+    license_id = derive_license_id("stripe", session_id)
+    try:
         issued = await issue_license(
             plan=plan,
             email=_customer_email(checkout_session),
             max_users=max_users,
             source="stripe",
+            license_id=license_id,
             stripe_session_id=session_id,
             stripe_customer_id=customer_id,
         )
+    except keygen.LicenseExistsError:
+        existing = await _issued_for_id(license_id)
+        if existing is None:
+            # Only reachable if the winner's license was deleted between its
+            # create and this lookup. Retrying would collide again.
+            raise LicenseIssueError(
+                f"License for session {session_id} exists but is unreadable"
+            ) from None
+        logger.info(
+            "Session %s was already fulfilled as license %s; reusing it",
+            session_id,
+            existing.keygen_license_id,
+        )
+        return existing
 
     if customer_id and stripe_client is not None:
         _record_license_on_customer(stripe_client, customer_id, issued)
@@ -347,26 +403,42 @@ def _record_license_on_customer(
 
 
 async def issue_trial_license(email: str) -> IssuedLicense:
-    """Issue one trial per email, or raise if this address already has one."""
+    """Issue one trial per email, or raise if this address already has one.
+
+    The key folds the address, so ``a+one@`` and ``a+two@`` are one claimant,
+    and Keygen refuses the second create outright. One-trial-per-person is
+    therefore enforced by the store rather than by a lookup that two
+    simultaneous claims could both pass.
+    """
     normalized = normalize_email(email)
     folded = fold_email(email)
 
-    async with license_lock(f"trial:{folded}"):
-        if await trial_exists(folded):
-            raise TrialAlreadyClaimedError(folded)
+    # Two guards, because they answer different questions. The derived id is
+    # the constraint: it is immutable, so it settles simultaneous claims by the
+    # same address without anyone having to look first. ``trialKey`` is the
+    # mutable index: support re-points it when it corrects a mistyped address,
+    # and the id cannot follow, because a record's id is fixed once created.
+    if await trial_exists(folded):
+        raise TrialAlreadyClaimedError(folded)
+
+    try:
         return await issue_license(
             plan="trial",
             email=normalized,
             source="trial",
+            license_id=derive_license_id("trial", folded),
             extra_metadata={META_TRIAL_KEY: folded},
         )
+    except keygen.LicenseExistsError:
+        raise TrialAlreadyClaimedError(folded) from None
 
 
 async def trial_exists(folded_email: str) -> bool:
-    """Whether the trial policy already holds a license for this person.
+    """Whether this person already holds a trial, by the mutable index.
 
     Filters on the folded key, not the delivery address, so ``a+one@`` and
-    ``a+two@`` are one claimant.
+    ``a+two@`` are one claimant. Racy on its own -- two simultaneous claims can
+    both pass -- which is what the derived license key is there to catch.
     """
     matches = await keygen.list_licenses(
         metadata={META_TRIAL_KEY: folded_email},

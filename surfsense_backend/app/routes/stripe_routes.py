@@ -708,13 +708,25 @@ async def stripe_webhook(
                 )
 
             metadata = _get_metadata(checkout_session)
-            if _is_credit_purchase(metadata):
+            # Order matters. A Payment Link session carries no metadata at all,
+            # and _is_credit_purchase reads a missing purchase_type as credits,
+            # so testing it first classified every link-bought license as a
+            # credit purchase and returned before the license branch could run.
+            # Licenses were then left to the success page's fallback, which
+            # serves the file but sends no email. An explicit purchase_type
+            # still short-circuits ahead of any extra Stripe call; only a
+            # metadata-less session pays for the line-item lookup.
+            if metadata.get("purchase_type") in _PURCHASE_TYPE_CREDIT_VALUES:
                 return await _fulfill_completed_credit_purchase(
                     db_session, checkout_session
                 )
             if _is_license_purchase(metadata, checkout_session, stripe_client):
                 await _fulfill_license_purchase(checkout_session, stripe_client)
                 return StripeWebhookResponse()
+            if _is_credit_purchase(metadata):
+                return await _fulfill_completed_credit_purchase(
+                    db_session, checkout_session
+                )
             # Legacy page-pack purchase: page buying is removed, so log and
             # ignore rather than fulfilling.
             logger.info(

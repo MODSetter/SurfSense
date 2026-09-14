@@ -6,6 +6,7 @@ the lookups that replace the unique constraints a table would have given us.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -17,12 +18,14 @@ from app.config import config
 from app.services import keygen, license_service
 from app.services.license_email import fold_email, is_disposable, normalize_email
 from app.services.license_service import (
+    IssuedLicense,
     LicenseIssueError,
     LicenseNotFoundError,
     TrialAlreadyClaimedError,
     _trial_expiry,
     certificates_for_email,
     correct_license_email,
+    derive_license_id,
     find_license_by_checkout_session,
     fulfill_license_session,
     issue_license,
@@ -48,18 +51,6 @@ def keygen_config(monkeypatch):
 @pytest.fixture
 def fake_keygen(monkeypatch, keygen_config):
     return FakeKeygen().install(monkeypatch, license_service.keygen)
-
-
-@pytest.fixture(autouse=True)
-def _no_redis_locks(monkeypatch):
-    """Locks narrow a race; they are not the correctness check under test."""
-    from contextlib import asynccontextmanager
-
-    @asynccontextmanager
-    async def _noop(_key, **_kwargs):
-        yield True
-
-    monkeypatch.setattr(license_service, "license_lock", _noop)
 
 
 def _session(
@@ -576,3 +567,154 @@ async def test_a_refund_does_not_hide_the_buyer_s_other_licenses(fake_keygen):
     await suspend_licenses_for_customer("cus_1")
 
     assert len(await certificates_for_email("buyer@example.com")) == 1
+
+
+# --------------------------------------------------------------------------
+# One payment, one license
+# --------------------------------------------------------------------------
+
+
+def _force_interleave(fake_keygen, monkeypatch) -> None:
+    """Put both callers at the create before either of them writes.
+
+    That ordering is the whole problem: a look-before-create sees "nothing
+    exists" twice and issues twice. The suspension point makes it deterministic
+    instead of waiting for it to happen in production.
+    """
+    inner = fake_keygen.create_license
+
+    async def _suspend_then_create(*args, **kwargs):
+        await asyncio.sleep(0)
+        return await inner(*args, **kwargs)
+
+    monkeypatch.setattr(license_service.keygen, "create_license", _suspend_then_create)
+
+
+async def test_the_webhook_and_the_success_page_together_issue_one_license(
+    fake_keygen, monkeypatch
+):
+    """Both ask for the same payment at once; Keygen settles it, not timing."""
+    _force_interleave(fake_keygen, monkeypatch)
+    session = _session(metadata={"purchase_type": "license", "plan": "individual"})
+
+    first, second = await asyncio.gather(
+        fulfill_license_session(session),
+        fulfill_license_session(session),
+    )
+
+    assert first.keygen_license_id == second.keygen_license_id
+    assert len(fake_keygen.licenses) == 1
+
+
+async def test_two_simultaneous_trial_claims_yield_one_trial(fake_keygen, monkeypatch):
+    """The racy metadata check passes twice; the derived key still holds."""
+    _force_interleave(fake_keygen, monkeypatch)
+
+    results = await asyncio.gather(
+        issue_trial_license("person@example.com"),
+        issue_trial_license("person@example.com"),
+        return_exceptions=True,
+    )
+
+    assert sum(isinstance(r, IssuedLicense) for r in results) == 1
+    assert sum(isinstance(r, TrialAlreadyClaimedError) for r in results) == 1
+    assert len(fake_keygen.licenses) == 1
+
+
+async def test_a_tagged_address_races_against_its_own_fold(fake_keygen, monkeypatch):
+    """``a+one@`` and ``a+two@`` are one claimant even when they arrive together."""
+    _force_interleave(fake_keygen, monkeypatch)
+
+    results = await asyncio.gather(
+        issue_trial_license("person+one@gmail.com"),
+        issue_trial_license("person+two@gmail.com"),
+        return_exceptions=True,
+    )
+
+    assert sum(isinstance(r, IssuedLicense) for r in results) == 1
+    assert len(fake_keygen.licenses) == 1
+
+
+def test_the_derived_id_is_stable_and_scoped():
+    """Same purchase, same id; a trial and a purchase never collide."""
+    assert derive_license_id("stripe", "cs_1") == derive_license_id("stripe", "cs_1")
+    assert derive_license_id("stripe", "cs_1") != derive_license_id("trial", "cs_1")
+    assert derive_license_id("stripe", "cs_1") != derive_license_id("stripe", "cs_2")
+
+
+async def test_the_license_key_is_left_for_keygen_to_generate(fake_keygen):
+    """Only the id is derived: the key is a credential and must stay unguessable."""
+    issued = await issue_license(
+        plan="individual",
+        email="a@b.test",
+        source="stripe",
+        license_id=derive_license_id("stripe", "cs_key_check"),
+    )
+
+    sent = fake_keygen.licenses[issued.keygen_license_id]["attributes"]
+    assert issued.keygen_license_id == derive_license_id("stripe", "cs_key_check")
+    assert sent["key"] and sent["key"] != issued.keygen_license_id
+
+
+# --------------------------------------------------------------------------
+# How Keygen refuses a duplicate id
+# --------------------------------------------------------------------------
+
+
+def _conflict_handler(lookup_status: int, lookups: list[httpx.Request]):
+    """A create that 409s, and a lookup answering ``lookup_status``."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "GET":
+            lookups.append(request)
+            return httpx.Response(lookup_status, json={"data": {"id": "lic-1"}})
+        return httpx.Response(409, json={"errors": [{"title": "Conflict"}]})
+
+    return handler
+
+
+async def test_a_committed_duplicate_id_is_reported_as_existing(keygen_config):
+    """Validation catches it: 422 with an explicit ID_CONFLICT code."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(422, json={"errors": [{"code": "ID_CONFLICT"}]})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(keygen.LicenseExistsError):
+            await keygen.create_license(
+                "individual", "a@b.test", license_id="lic-1", client=client
+            )
+
+
+async def test_a_concurrent_duplicate_id_is_reported_as_existing(keygen_config):
+    """The race loses at the unique index instead: a bare 409, no error code.
+
+    This is the shape a real webhook-vs-success-page collision produces, so
+    matching only the 422 would miss every race this design exists to settle.
+    """
+    lookups: list[httpx.Request] = []
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_conflict_handler(200, lookups))
+    ) as client:
+        with pytest.raises(keygen.LicenseExistsError):
+            await keygen.create_license(
+                "individual", "a@b.test", license_id="lic-1", client=client
+            )
+
+    assert lookups, "a 409 carries no code, so the id must be confirmed"
+
+
+async def test_an_unrelated_conflict_is_not_mistaken_for_an_existing_license(
+    keygen_config,
+):
+    """Otherwise any 409 would tell a first-time claimant their trial is used."""
+    lookups: list[httpx.Request] = []
+
+    async with httpx.AsyncClient(
+        transport=httpx.MockTransport(_conflict_handler(404, lookups))
+    ) as client:
+        with pytest.raises(httpx.HTTPStatusError):
+            await keygen.create_license(
+                "individual", "a@b.test", license_id="lic-1", client=client
+            )
