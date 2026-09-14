@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
   SidebarRightIcon,
+  UnplugIcon,
   XIcon,
 } from "@/components/ui/icons"
 
@@ -148,6 +150,15 @@ function WorkspaceDashboard({
               await chat.removeThread(threadId)
             }}
             onTitleAnimationComplete={chat.finishTitleAnimation}
+            actions={[
+              {
+                key: "plugins",
+                label: "Plugins",
+                icon: UnplugIcon,
+                // TODO: open the plugins panel once it exists.
+                onClick: () => toast.info("Plugins are coming soon"),
+              },
+            ]}
           />
         </div>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">

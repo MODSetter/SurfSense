@@ -1,4 +1,9 @@
-import { useRef, useState, type FormEvent } from "react"
+import {
+  useRef,
+  useState,
+  type ComponentType,
+  type SubmitEvent,
+} from "react"
 
 import {
   ChevronRightIcon,
@@ -32,6 +37,32 @@ import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
 
+// A row rendered below "New chat" with the same look. Add an entry here (or
+// pass one through `actions`) rather than hand-rolling another Button.
+export type SidebarNavAction = {
+  key: string
+  label: string
+  icon: ComponentType<{ className?: string }>
+  onClick: () => void
+}
+
+function SidebarNavButton({
+  label,
+  icon: Icon,
+  onClick,
+}: Omit<SidebarNavAction, "key">) {
+  return (
+    <Button
+      variant="ghost"
+      className="w-full justify-start px-2"
+      onClick={onClick}
+    >
+      <Icon />
+      {label}
+    </Button>
+  )
+}
+
 export function RenameChatDialog({
   thread,
   onClose,
@@ -45,7 +76,7 @@ export function RenameChatDialog({
   const [title, setTitle] = useState(thread.title || "New chat")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault()
     const normalized = title.trim()
     if (!normalized) return
@@ -107,6 +138,7 @@ export function ThreadList({
   onRename,
   onDelete,
   onTitleAnimationComplete,
+  actions = [],
 }: {
   threads: ChatThread[]
   activeThreadId: number | null
@@ -118,6 +150,8 @@ export function ThreadList({
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
   onTitleAnimationComplete: () => void
+  // Extra rows below "New chat", same look. Append here to add one.
+  actions?: SidebarNavAction[]
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
@@ -129,14 +163,16 @@ export function ThreadList({
         <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
           SurfSense
         </h2>
-        <Button
-          variant="ghost"
-          className="w-full justify-start px-2"
-          onClick={onNewChat}
-        >
-          <PencilEdit02Icon />
-          New chat
-        </Button>
+        <div className="flex flex-col">
+          <SidebarNavButton
+            label="New chat"
+            icon={PencilEdit02Icon}
+            onClick={onNewChat}
+          />
+          {actions.map(({ key, ...action }) => (
+            <SidebarNavButton key={key} {...action} />
+          ))}
+        </div>
       </header>
       <ScrollShadow
         className="min-h-0 min-w-0 flex-1"
@@ -177,7 +213,7 @@ export function ThreadList({
                 <Button
                   variant="ghost"
                   className={cn(
-                    "h-8 w-full min-w-0 justify-start overflow-hidden px-2 py-1.5 text-sm font-normal group-hover:bg-muted active:!translate-y-0 dark:group-hover:bg-muted/50",
+                    "h-8 w-full min-w-0 justify-start overflow-hidden px-2 py-1.5 text-sm font-normal group-hover:bg-muted active:translate-y-0! dark:group-hover:bg-muted/50",
                     selected &&
                       "bg-sidebar-accent text-foreground group-hover:text-foreground hover:text-foreground",
                     openDropdownId === thread.id && "bg-muted dark:bg-muted/50"
