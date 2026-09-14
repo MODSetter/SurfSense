@@ -51,7 +51,7 @@ class EtlCreditService:
         return int(pages) * int(multiplier) * config.MICROS_PER_PAGE
 
     async def get_available_micros(self, user_id: str) -> int | None:
-        """Return spendable credit in micro-USD (``allowance + balance - reserved``).
+        """Return spendable credit in micro-USD (``balance - reserved``).
 
         Returns ``None`` when ETL billing is disabled, which callers treat as
         "unlimited" (no batch skipping, no blocking).
@@ -62,18 +62,16 @@ class EtlCreditService:
         from app.db import User
 
         result = await self.session.execute(
-            select(
-                User.credit_micros_allowance,
-                User.credit_micros_balance,
-                User.credit_micros_reserved,
-            ).where(User.id == user_id)
+            select(User.credit_micros_balance, User.credit_micros_reserved).where(
+                User.id == user_id
+            )
         )
         row = result.first()
         if not row:
             raise ValueError(f"User with ID {user_id} not found")
 
-        allowance, balance, reserved = row
-        return max(0, allowance) + balance - reserved
+        balance, reserved = row
+        return balance - reserved
 
     async def check_credits(
         self, user_id: str, estimated_pages: int = 1, multiplier: int = 1
@@ -124,13 +122,8 @@ class EtlCreditService:
         if not user:
             raise ValueError(f"User with ID {user_id} not found")
 
-        # Imported here, not at module scope: wallet_credit imports
-        # InsufficientCreditsError from this module, so a top-level import
-        # would be circular.
-        from app.services.wallet_credit import drain
-
         cost = self.pages_to_micros(pages, multiplier)
-        drain(user, cost)
+        user.credit_micros_balance -= cost
         await self.session.commit()
         await self.session.refresh(user)
 

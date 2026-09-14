@@ -47,6 +47,7 @@ def test_document_exports_are_absent_but_workspace_export_remains() -> None:
         not in route_paths
     )
     assert "/workspaces/{workspace_id}/export" in route_paths
+    assert "/export" in route_paths
 
     template_imports: list[str] = []
     for path in (BACKEND_ROOT / "app").rglob("*.py"):

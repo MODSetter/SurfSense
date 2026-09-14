@@ -1,7 +1,7 @@
 import { useRef, useState, type ChangeEvent } from "react"
 
 import { Button } from "@/components/ui/button"
-import { DownloadIcon } from "@/components/ui/icons"
+import { Upload01Icon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 
 import { importBundle, type ImportAccepted } from "./api"
@@ -53,8 +53,8 @@ export function ImportBundleButton({
         disabled={isImporting}
         onClick={() => fileInput.current?.click()}
       >
-        <DownloadIcon />
-        {isImporting ? "Importing…" : "Import from SurfSense cloud"}
+        <Upload01Icon />
+        {isImporting ? "Importing…" : "Upload"}
       </Button>
       {error ? (
         <p role="alert" className="text-sm text-destructive">

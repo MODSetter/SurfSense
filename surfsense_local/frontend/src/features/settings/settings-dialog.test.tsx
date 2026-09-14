@@ -3,7 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import { ThemeProvider } from "@/components/theme-provider"
+import {
+  THEME_STORAGE_KEY,
+  ThemeProvider,
+} from "@/components/theme-provider"
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
 import { SettingsDialog, type SettingsSectionId } from "./settings-dialog"
@@ -12,13 +16,15 @@ function SettingsHarness() {
   const [section, setSection] = useState<SettingsSectionId>("general")
   return (
     <ThemeProvider>
-      <SettingsDialog
-        open
-        section={section}
-        onOpenChange={() => undefined}
-        onSectionChange={setSection}
-        onModelSelected={() => undefined}
-      />
+      <TooltipProvider>
+        <SettingsDialog
+          open
+          section={section}
+          onOpenChange={() => undefined}
+          onSectionChange={setSection}
+          onModelSelected={() => undefined}
+        />
+      </TooltipProvider>
     </ThemeProvider>
   )
 }
@@ -83,7 +89,7 @@ describe("SettingsDialog", () => {
       screen.getByRole("radio", { name: "Switch to dark theme" })
     )
 
-    expect(localStorage.getItem("theme")).toBe("dark")
+    expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark")
     await waitFor(() =>
       expect(document.documentElement.classList.contains("dark")).toBe(true)
     )

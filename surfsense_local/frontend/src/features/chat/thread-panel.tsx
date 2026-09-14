@@ -1,5 +1,11 @@
-import { useEffect, useRef, type ReactNode } from "react"
-import { BotIcon, Settings2Icon } from "@/components/ui/icons"
+import { useEffect, useRef, useState, type ReactNode } from "react"
+import {
+  BotIcon,
+  ChevronDownIcon,
+  PencilIcon,
+  Settings2Icon,
+  Trash2Icon,
+} from "@/components/ui/icons"
 
 import {
   AssistantRuntimeProvider,
@@ -10,6 +16,15 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/model-selection/api"
@@ -52,7 +67,7 @@ function ComposerDraftLifecycle({ view }: { view: ConversationView }) {
     view.status === "active" ? `thread:${view.threadId}` : view.status
 
   useEffect(() => {
-    if (conversationId === "initializing" || conversationId === "creating") {
+    if (conversationId === "creating") {
       return
     }
     void aui.thread.composer().reset()
@@ -77,6 +92,9 @@ export function ThreadPanel({
   onModelSelected,
   onUpload,
   onTitleAnimationComplete,
+  autoNamingThreadId,
+  onRename,
+  onDelete,
 }: {
   runtime: AssistantRuntime
   thread: ChatThread | null
@@ -93,14 +111,24 @@ export function ThreadPanel({
   onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
   onTitleAnimationComplete: () => void
+  autoNamingThreadId: number | null
+  onRename: (id: number, title: string) => Promise<boolean>
+  onDelete: (id: number) => Promise<void>
 }) {
-  const headingRef = useRef<HTMLHeadingElement>(null)
-  const threadId = thread?.id
-  const title =
-    view.status === "initializing" ? null : thread?.title || "New chat"
+  const titleInputRef = useRef<HTMLInputElement>(null)
+  const ignoreMenuFocusRef = useRef(false)
+  const [editingThreadId, setEditingThreadId] = useState<number | null>(null)
+  const [draft, setDraft] = useState("")
+  const title = thread?.title || "New chat"
+  const conversationId =
+    view.status === "active" ? `thread:${view.threadId}` : view.status
+  const editing = thread != null && editingThreadId === thread.id
+  const canRename =
+    thread != null && thread.id !== autoNamingThreadId && !animateTitle
   const bottomComposer = view.status === "creating" || view.status === "active"
   const composer = (placement: "center" | "bottom") => (
     <ChatComposer
+      key={conversationId}
       placement={placement}
       model={model}
       isRunning={isRunning}
@@ -113,10 +141,32 @@ export function ThreadPanel({
   )
 
   useEffect(() => {
-    if (threadId !== undefined) {
-      headingRef.current?.focus()
+    if (editing) {
+      const input = titleInputRef.current
+      if (!input) return
+      input.focus()
+      input.select()
     }
-  }, [threadId])
+  }, [editing])
+
+  const startEditing = () => {
+    if (!canRename || thread == null) return
+    setDraft(title)
+    setEditingThreadId(thread.id)
+  }
+
+  const cancelEditing = () => {
+    setEditingThreadId(null)
+    setDraft(title)
+  }
+
+  const commitEditing = () => {
+    if (!thread || !editing) return
+    const next = draft.trim()
+    setEditingThreadId(null)
+    if (!next || next === (thread.title || "New chat")) return
+    void onRename(thread.id, next)
+  }
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -125,22 +175,90 @@ export function ThreadPanel({
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label="Conversation"
       >
-        <header className="flex h-14 shrink-0 items-center border-b px-5">
-          <h1
-            ref={headingRef}
-            tabIndex={-1}
-            className="min-w-0 truncate font-heading text-lg font-medium outline-none"
-          >
-            {title === null ? (
-              <Skeleton className="h-5 w-32" />
-            ) : (
-              <TypewriterText
-                text={title}
-                animate={animateTitle}
-                onComplete={onTitleAnimationComplete}
-              />
-            )}
-          </h1>
+        <header className="flex h-14 shrink-0 items-center px-5">
+          {thread == null ? null : editing ? (
+            <Input
+              ref={titleInputRef}
+              value={draft}
+              maxLength={200}
+              aria-label="Chat name"
+              className="w-auto max-w-full font-heading text-base font-medium md:text-base"
+              onChange={(event) => setDraft(event.target.value)}
+              onBlur={commitEditing}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault()
+                  commitEditing()
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault()
+                  cancelEditing()
+                }
+              }}
+            />
+          ) : (
+            <ButtonGroup aria-label="Chat">
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={!canRename}
+                className="h-auto min-w-0 max-w-full px-1.5 py-0 font-heading text-base font-medium active:translate-y-0"
+                onClick={startEditing}
+              >
+                <span className="truncate">
+                  <TypewriterText
+                    text={title}
+                    animate={animateTitle}
+                    onComplete={onTitleAnimationComplete}
+                  />
+                </span>
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon-sm"
+                    aria-label={`Chat options for ${title}`}
+                  >
+                    <ChevronDownIcon />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  sideOffset={8}
+                  className="w-36"
+                  onCloseAutoFocus={(event) => {
+                    if (ignoreMenuFocusRef.current) {
+                      event.preventDefault()
+                      ignoreMenuFocusRef.current = false
+                    }
+                  }}
+                >
+                  <DropdownMenuGroup>
+                    <DropdownMenuItem
+                      disabled={!canRename}
+                      onSelect={() => {
+                        ignoreMenuFocusRef.current = true
+                        startEditing()
+                      }}
+                    >
+                      <PencilIcon />
+                      Rename
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      variant="destructive"
+                      onSelect={() => {
+                        void onDelete(thread.id)
+                      }}
+                    >
+                      <Trash2Icon />
+                      Delete chat
+                    </DropdownMenuItem>
+                  </DropdownMenuGroup>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </ButtonGroup>
+          )}
         </header>
 
         {error ? (
@@ -161,10 +279,16 @@ export function ThreadPanel({
           <ChatViewport
             footer={bottomComposer ? composer("bottom") : undefined}
           >
-            {view.status === "initializing" || isLoading ? (
-              <div className="mx-auto w-full max-w-2xl space-y-4 p-6">
-                <Skeleton className="ml-auto h-16 w-2/3" />
-                <Skeleton className="h-24 w-4/5" />
+            {isLoading ? (
+              <div className="mx-auto flex w-full max-w-xl flex-col">
+                <div className="flex flex-col items-end px-6 py-3">
+                  <Skeleton className="h-10 w-[42%] rounded-2xl rounded-br-md" />
+                </div>
+                <div className="flex flex-col items-start gap-2 px-6 py-4">
+                  <Skeleton className="h-4 w-[92%]" />
+                  <Skeleton className="h-4 w-[80%]" />
+                  <Skeleton className="h-4 w-[58%]" />
+                </div>
               </div>
             ) : null}
 

@@ -152,29 +152,71 @@
   }
 }
 
+.electron {
+  --titlebar-height: env(titlebar-area-height, 32px);
+}
+
 .electron-macos {
   --titlebar-height: 28px;
 }
 
+.electron body,
 .electron-macos body {
   background: var(--app-shell);
 }
 
+.electron body::before,
 .electron-macos body::before {
   position: fixed;
-  inset: 0 0 auto;
-  height: var(--titlebar-height);
+  top: env(titlebar-area-y, 0px);
+  left: env(titlebar-area-x, 0px);
+  width: env(titlebar-area-width, 100%);
+  height: env(titlebar-area-height, var(--titlebar-height));
   background: var(--app-shell);
   content: "";
+  app-region: drag;
   -webkit-app-region: drag;
 }
 
+.electron body:has([data-onboarding-page])::before,
 .electron-macos body:has([data-onboarding-page])::before {
   background: color-mix(in oklab, var(--muted) 30%, transparent);
 }
 
+.electron #root {
+  padding-top: env(titlebar-area-height, var(--titlebar-height));
+}
+
 .electron-macos #root {
   padding-top: var(--titlebar-height);
+}
+
+.electron-macos body::before {
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: var(--titlebar-height);
+}
+
+.titlebar-controls {
+  pointer-events: none;
+  position: fixed;
+  z-index: 50;
+  top: env(titlebar-area-y, 0px);
+  left: env(titlebar-area-x, 0px);
+  display: flex;
+  height: env(titlebar-area-height, var(--titlebar-height));
+  width: env(titlebar-area-width, 100%);
+  align-items: center;
+  box-sizing: border-box;
+  padding-inline: 0.5rem 0.75rem;
+}
+
+.titlebar-controls-end {
+  margin-inline-start: auto;
+  transform: translateY(2px);
+  app-region: no-drag;
+  -webkit-app-region: no-drag;
 }
 
 .sidebar-row-title-fade {

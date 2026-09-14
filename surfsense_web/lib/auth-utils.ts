@@ -34,6 +34,7 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/changelog",
 	"/announcements",
 	"/blog",
+	"/sunset",
 	// Connector marketing pages (see lib/connectors-marketing)
 	"/connectors",
 	"/mcp-server",

@@ -167,6 +167,8 @@ export function ChatComposer({
           />
         ) : null}
         <ComposerPrimitive.Input
+          autoFocus
+          unstable_focusOnThreadSwitched
           disabled={!model}
           className={cn(
             "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",

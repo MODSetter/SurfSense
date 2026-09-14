@@ -40,31 +40,39 @@ const EMPTY_THREADS: ChatThread[] = []
 const EMPTY_MESSAGES: ChatMessage[] = []
 
 function lastThreadKey(workspaceId: number) {
-  return `surfsense-local:last-thread:${workspaceId}:v1`
+  return `surfsense:last-thread:${workspaceId}:v1`
 }
+
+const NEW_CHAT = "new"
+
+export type ConversationView =
+  | { status: "new" }
+  | { status: "creating" }
+  | { status: "active"; threadId: number }
 
 function rememberThread(workspaceId: number, threadId: number | null) {
   try {
-    if (threadId === null) {
-      localStorage.removeItem(lastThreadKey(workspaceId))
-    } else {
-      localStorage.setItem(lastThreadKey(workspaceId), String(threadId))
-    }
+    localStorage.setItem(
+      lastThreadKey(workspaceId),
+      threadId === null ? NEW_CHAT : String(threadId)
+    )
   } catch {
     // Selection remains valid for this session when storage is unavailable.
   }
 }
 
-function initialThreadId(workspaceId: number, threads: ChatThread[]) {
+function readStoredView(workspaceId: number): ConversationView {
   try {
-    const stored = Number(localStorage.getItem(lastThreadKey(workspaceId)))
-    if (threads.some((thread) => thread.id === stored)) {
-      return stored
+    const stored = localStorage.getItem(lastThreadKey(workspaceId))
+    if (stored === NEW_CHAT) return { status: "new" }
+    const id = Number(stored)
+    if (Number.isInteger(id) && id > 0) {
+      return { status: "active", threadId: id }
     }
   } catch {
-    // The newest thread below is a safe fallback.
+    // Private browsing: treat as a new chat.
   }
-  return threads[0]?.id ?? null
+  return { status: "new" }
 }
 
 function hasCanonicalTurn(
@@ -105,12 +113,6 @@ function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
   }
 }
 
-export type ConversationView =
-  | { status: "initializing" }
-  | { status: "new" }
-  | { status: "creating" }
-  | { status: "active"; threadId: number }
-
 export function useChatRuntime({
   workspaceId,
   canSend,
@@ -123,8 +125,8 @@ export function useChatRuntime({
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
-  const [selectedView, setConversationView] = useState<ConversationView | null>(
-    null
+  const [conversationView, setConversationView] = useState<ConversationView>(
+    () => readStoredView(workspaceId)
   )
   const [liveMessages, setLiveMessages] = useState<ChatMessage[] | null>(null)
   const [isRunning, setIsRunning] = useState(false)
@@ -143,16 +145,6 @@ export function useChatRuntime({
     queryFn: ({ signal }) => listThreads(workspaceId, signal),
   })
   const threads = threadsQuery.data ?? EMPTY_THREADS
-  const initialView = useMemo<ConversationView>(() => {
-    if (!threadsQuery.isSuccess) {
-      return { status: "initializing" }
-    }
-    const threadId = initialThreadId(workspaceId, threads)
-    return threadId === null
-      ? { status: "new" }
-      : { status: "active", threadId }
-  }, [threads, threadsQuery.isSuccess, workspaceId])
-  const conversationView = selectedView ?? initialView
   const activeThreadId =
     conversationView.status === "active" ? conversationView.threadId : null
 
@@ -219,6 +211,23 @@ export function useChatRuntime({
     setAnimatingTitleThreadId(null)
   }, [workspaceId])
 
+  useEffect(() => {
+    if (!threadsQuery.isSuccess) return
+    if (conversationView.status !== "active") return
+    if (threads.some((thread) => thread.id === conversationView.threadId)) {
+      return
+    }
+    const fallback = threads[0]
+    if (fallback) selectThread(fallback.id)
+    else startNewChat()
+  }, [
+    conversationView,
+    selectThread,
+    startNewChat,
+    threads,
+    threadsQuery.isSuccess,
+  ])
+
   const removeThread = async (threadId: number) => {
     try {
       await deleteThreadMutation.mutateAsync(threadId)
@@ -264,7 +273,6 @@ export function useChatRuntime({
         !text ||
         isRunning ||
         !canSend ||
-        conversationView.status === "initializing" ||
         conversationView.status === "creating"
       ) {
         return

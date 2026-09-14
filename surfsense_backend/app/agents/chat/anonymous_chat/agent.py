@@ -29,9 +29,6 @@ from langgraph.types import Checkpointer
 from app.agents.chat.multi_agent_chat.main_agent.middleware.otel_span import (
     OtelSpanMiddleware,
 )
-from app.agents.chat.multi_agent_chat.shared.middleware.resilience.run_cost_limit import (
-    build_run_cost_limit_mw,
-)
 from app.agents.chat.shared.context import SurfSenseContextSchema
 from app.agents.chat.shared.middleware import (
     RetryAfterMiddleware,
@@ -168,12 +165,6 @@ async def create_anonymous_chat_agent(
         OtelSpanMiddleware(),
         RetryAfterMiddleware(max_retries=3),
     ]
-    # The call limit above bounds how many calls a run makes, not what they
-    # cost, and the anon token budget only settles after the turn finishes.
-    # Same guard as the logged-in stack; None when disabled by config.
-    run_cost_limit = build_run_cost_limit_mw()
-    if run_cost_limit is not None:
-        middleware.append(run_cost_limit)
 
     system_prompt = build_anonymous_system_prompt(anon_doc)
 

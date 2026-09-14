@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { ThemeProvider } from "@/components/theme-provider"
@@ -58,6 +58,13 @@ function stubApi(initial: LicenseStatus, onPut: () => Response) {
   return calls
 }
 
+async function openAddDialog(
+  user: ReturnType<typeof userEvent.setup>
+) {
+  await user.click(await screen.findByRole("button", { name: "Add license" }))
+  return screen.getByRole("dialog", { name: /Add license/ })
+}
+
 function Harness() {
   const [section, setSection] = useState<SettingsSectionId>("license")
   return (
@@ -101,12 +108,14 @@ describe("License settings", () => {
     render(<Harness />)
 
     expect(await screen.findByText("No license on this device")).toBeTruthy()
+    const dialog = await openAddDialog(user)
     await user.upload(
-      screen.getByLabelText("Choose license file"),
+      within(dialog).getByLabelText("Choose license file"),
       new File([CERTIFICATE], "individual.lic", { type: "text/plain" })
     )
 
     expect(await screen.findByText("Individual plan")).toBeTruthy()
+    expect(screen.getByText("Active")).toBeTruthy()
     expect(screen.getByText("ada@example.com")).toBeTruthy()
     expect(
       screen.getByText(/Renews 10 Sept 2027|Renews Sep 10, 2027/)
@@ -121,11 +130,12 @@ describe("License settings", () => {
     const user = userEvent.setup()
     render(<Harness />)
 
+    const dialog = await openAddDialog(user)
     await user.type(
-      await screen.findByLabelText("Paste license file"),
+      within(dialog).getByLabelText("Paste license file"),
       "-----BEGIN LICENSE FILE-----"
     )
-    await user.click(screen.getByRole("button", { name: "Add license" }))
+    await user.click(within(dialog).getByRole("button", { name: "Add" }))
 
     expect(await screen.findByText("Individual plan")).toBeTruthy()
     expect(calls[0]?.body).toEqual({
@@ -149,8 +159,9 @@ describe("License settings", () => {
     const user = userEvent.setup()
     render(<Harness />)
 
+    const dialog = await openAddDialog(user)
     await user.upload(
-      await screen.findByLabelText("Choose license file"),
+      within(dialog).getByLabelText("Choose license file"),
       new File(["nope"], "fake.lic", { type: "text/plain" })
     )
 
@@ -167,6 +178,7 @@ describe("License settings", () => {
     render(<Harness />)
 
     expect(await screen.findByText("Trial plan")).toBeTruthy()
+    expect(screen.getByRole("status").textContent).toContain("Expiring soon")
     expect(screen.getByRole("status").textContent).toContain("9 days")
   })
 
@@ -177,6 +189,20 @@ describe("License settings", () => {
     render(<Harness />)
 
     expect((await screen.findByRole("status")).textContent).toContain("expired")
+  })
+
+  it("opens replace from an active license", async () => {
+    stubApi(ACTIVE, () => Response.json(ACTIVE))
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Replace license" })
+    )
+
+    expect(
+      screen.getByRole("dialog", { name: /Replace license/ })
+    ).toBeTruthy()
   })
 
   it("removes the license from this device", async () => {

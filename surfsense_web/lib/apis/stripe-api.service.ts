@@ -5,12 +5,9 @@ import {
 	type CreateAutoReloadSetupSessionResponse,
 	type CreateCreditCheckoutSessionRequest,
 	type CreateCreditCheckoutSessionResponse,
-	type CreateSubscriptionCheckoutSessionRequest,
-	type CreateSubscriptionCheckoutSessionResponse,
 	type CreditStripeStatusResponse,
 	createAutoReloadSetupSessionResponse,
 	createCreditCheckoutSessionResponse,
-	createSubscriptionCheckoutSessionResponse,
 	creditStripeStatusResponse,
 	type FinalizeCheckoutResponse,
 	finalizeCheckoutResponse,
@@ -18,8 +15,6 @@ import {
 	type GetPagePurchasesResponse,
 	getCreditPurchasesResponse,
 	getPagePurchasesResponse,
-	type PlanStatusResponse,
-	planStatusResponse,
 	type UpdateAutoReloadSettingsRequest,
 } from "@/contracts/types/stripe.types";
 import { baseApiService } from "./base-api.service";
@@ -84,29 +79,6 @@ class StripeApiService {
 		return baseApiService.post(
 			"/api/v1/stripe/auto-reload/setup",
 			createAutoReloadSetupSessionResponse,
-			{ body: { workspace_id } }
-		);
-	};
-
-	// --- Subscription (Pro plan) -------------------------------------------
-
-	getPlanStatus = async (): Promise<PlanStatusResponse> => {
-		return baseApiService.get("/api/v1/stripe/plan", planStatusResponse);
-	};
-
-	/**
-	 * Start a `mode=subscription` checkout for Pro.
-	 *
-	 * Grants nothing on its own — the monthly allowance arrives with the
-	 * `invoice.paid` webhook, which is the only event proving the card charged.
-	 */
-	createSubscriptionCheckoutSession = async (
-		request: CreateSubscriptionCheckoutSessionRequest
-	): Promise<CreateSubscriptionCheckoutSessionResponse> => {
-		const { workspace_id } = request;
-		return baseApiService.post(
-			"/api/v1/stripe/create-subscription-checkout-session",
-			createSubscriptionCheckoutSessionResponse,
 			{ body: { workspace_id } }
 		);
 	};

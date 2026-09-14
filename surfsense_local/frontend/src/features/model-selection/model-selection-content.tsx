@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 
+import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
 
@@ -82,10 +83,26 @@ export function ModelSelectionContent({
           setActiveTab(provider)
         }}
       >
-        <TabsList className="mx-55 w-auto">
-          <TabsTrigger value="local">Local</TabsTrigger>
-          <TabsTrigger value={REMOTE}>OpenAI-compatible</TabsTrigger>
-        </TabsList>
+        <SegmentedControl
+          count={2}
+          selectedIndex={activeTab === "local" ? 0 : 1}
+          className="mx-55 flex h-9"
+        >
+          <TabsList className="relative h-full bg-transparent p-0">
+            <TabsTrigger
+              value="local"
+              className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              Local
+            </TabsTrigger>
+            <TabsTrigger
+              value={REMOTE}
+              className="h-full data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+            >
+              OpenAI-compatible
+            </TabsTrigger>
+          </TabsList>
+        </SegmentedControl>
 
         <TabsContent value="local" className="min-h-0 overflow-hidden">
           {localCatalog}

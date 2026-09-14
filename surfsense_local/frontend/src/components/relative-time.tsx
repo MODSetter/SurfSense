@@ -86,7 +86,7 @@ export function RelativeTime({
         <time
           dateTime={date.toISOString()}
           className={cn(
-            "inline-flex h-7 cursor-default items-center text-xs",
+            "inline-flex h-7 cursor-default items-center text-xs select-none",
             className
           )}
         >

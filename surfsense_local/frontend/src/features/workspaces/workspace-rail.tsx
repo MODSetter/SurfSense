@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react"
+import { useRef, useState, type FormEvent } from "react"
 import {
   PencilIcon,
   PlusIcon,
@@ -73,6 +73,7 @@ function WorkspaceNameDialog({
   onOpenChange: (open: boolean) => void
   onSubmit: (name: string) => Promise<boolean>
 }) {
+  const inputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState(initialName)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -91,18 +92,27 @@ function WorkspaceNameDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent
+        className="select-none"
+        onOpenAutoFocus={(event) => {
+          event.preventDefault()
+          const input = inputRef.current
+          if (!input) return
+          input.focus()
+          input.select()
+        }}
+      >
         <form onSubmit={(event) => void submit(event)}>
           <DialogHeader>
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>{description}</DialogDescription>
           </DialogHeader>
           <Input
+            ref={inputRef}
             className="my-4"
             value={name}
             onChange={(event) => setName(event.target.value)}
             aria-label="Workspace name"
-            autoFocus
             maxLength={200}
           />
           <DialogFooter>
@@ -273,7 +283,7 @@ export function WorkspaceRail({
           if (!open) setDeleting(null)
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent className="select-none">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
             <AlertDialogDescription>

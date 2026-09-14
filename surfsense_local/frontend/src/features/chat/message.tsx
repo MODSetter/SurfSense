@@ -101,7 +101,7 @@ function MessageActions({
   return (
     <div
       className={cn(
-        "relative flex h-7 items-center gap-2 text-muted-foreground",
+        "relative flex h-7 items-center gap-2 text-muted-foreground select-none",
         className
       )}
     >

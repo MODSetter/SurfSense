@@ -26,6 +26,7 @@ type BootstrapState =
   | {
       status: "ready"
       selection: ModelSelection | null
+      providerAvailable: boolean
       workspaces: Workspace[]
     }
   | { status: "error"; message: string }
@@ -67,7 +68,12 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
         ? selection
         : null
     }
-    return { status: "ready", selection: currentSelection, workspaces }
+    return {
+      status: "ready",
+      selection: currentSelection,
+      providerAvailable: currentSelection !== null,
+      workspaces,
+    }
   } catch (error) {
     return { status: "error", message: messageFrom(error) }
   }
@@ -126,7 +132,12 @@ export function AppBootstrap() {
           setState({ status: "loading" })
           void listWorkspaces()
             .then((workspaces) =>
-              setState({ status: "ready", selection, workspaces })
+              setState({
+                status: "ready",
+                selection,
+                providerAvailable: true,
+                workspaces,
+              })
             )
             .catch((error: unknown) =>
               setState({ status: "error", message: messageFrom(error) })
@@ -166,6 +177,7 @@ export function AppBootstrap() {
         <UpdateBanner />
         <DashboardPage
           selection={state.selection}
+          initialProviderAvailable={state.providerAvailable}
           initialWorkspaces={state.workspaces}
           onModelUnavailable={() =>
             setState((current) =>
