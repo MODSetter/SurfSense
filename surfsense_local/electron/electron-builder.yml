@@ -33,10 +33,13 @@ extraResources:
   - from: llmfit
     to: llmfit
 
+# The legacy 0.0.x desktop lives in the same repo and its updater reads
+# latest*.yml; this app publishes stable*.yml so the two feeds never cross.
 publish:
   provider: github
   owner: MODSetter
   repo: SurfSense
+  channel: stable
 
 linux:
   target: [AppImage, deb]
@@ -56,7 +59,7 @@ win:
 
 
 mac:
-  target: [dmg]
+  target: [dmg, zip]
   category: public.app-category.productivity
   icon: build/icon.icns
   artifactName: "${productName}-${version}-${arch}.${ext}"

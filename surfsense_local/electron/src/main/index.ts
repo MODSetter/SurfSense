@@ -9,6 +9,13 @@ import { exe } from "./sidecars/platform.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import { startAll, stopAll, type Sidecars } from "./sidecars/supervisor.ts"
 import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
+import {
+  attachUpdater,
+  readUpdatePrefs,
+  writeUpdatePrefs,
+  type Updates,
+  type UpdateState,
+} from "./updater.mts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
@@ -160,6 +167,49 @@ function registerDocumentHandlers(dataDir: string): void {
   })
 }
 
+// Updates are the one call the app makes on its own, so they are off until the
+// user turns them on; "Check now" in Settings works either way.
+async function registerUpdateHandlers(): Promise<void> {
+  const prefsPath = join(app.getPath("userData"), "updates.json")
+  const trusted = (sender: Electron.WebContents): boolean =>
+    mainWindow !== null && sender === mainWindow.webContents
+  const broadcast = (state: UpdateState) =>
+    mainWindow?.webContents.send("updates:state", state)
+
+  let updates: Updates
+  if (app.isPackaged) {
+    const { autoUpdater } = await import("electron-updater")
+    // GitHub's CDN rejects the multi-range requests differential updates need.
+    autoUpdater.disableDifferentialDownload = true
+    updates = attachUpdater(autoUpdater, broadcast)
+  } else {
+    // ponytail: dev has no signed build to update; expose the same surface
+    // so the Settings row renders, and stay idle.
+    updates = {
+      check: async () => undefined,
+      install: () => undefined,
+      state: () => ({ status: "idle" }),
+    }
+  }
+
+  ipcMain.handle("updates:prefs", () => readUpdatePrefs(prefsPath))
+  ipcMain.handle("updates:set-automatic", (event, automatic: unknown) => {
+    if (!trusted(event.sender)) return readUpdatePrefs(prefsPath)
+    const prefs = { automatic: automatic === true }
+    writeUpdatePrefs(prefsPath, prefs)
+    return prefs
+  })
+  ipcMain.handle("updates:state", () => updates.state())
+  ipcMain.handle("updates:check", (event) => {
+    if (trusted(event.sender)) void updates.check()
+  })
+  ipcMain.handle("updates:install", (event) => {
+    if (trusted(event.sender)) updates.install()
+  })
+
+  if (readUpdatePrefs(prefsPath).automatic) void updates.check()
+}
+
 function applyTitleBarOverlay(
   win: BrowserWindow,
   overlay: { color?: string; symbolColor?: string }
@@ -282,6 +332,7 @@ function main(): void {
       registerDocumentHandlers(boot.dataDir)
       installProductionMenu()
       createWindow(boot.apiUrl)
+      await registerUpdateHandlers()
       app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0)
           createWindow(boot.apiUrl)

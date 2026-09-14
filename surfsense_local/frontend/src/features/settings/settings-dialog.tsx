@@ -23,6 +23,7 @@ import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/model-selection/api"
+import { UpdateSettings } from "@/features/updates/update-settings"
 import { cn } from "@/lib/utils"
 
 import { AppearanceToggle } from "./appearance-toggle"
@@ -107,6 +108,7 @@ function GeneralSettings({
         </div>
         <ImportBundleButton onImported={onImported} />
       </div>
+      <UpdateSettings />
     </SettingsSection>
   )
 }
