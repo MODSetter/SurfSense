@@ -15,6 +15,7 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     SURFSENSE_LOCAL_HOST: ctx.host,
     SURFSENSE_LOCAL_PORT: String(ctx.apiPort),
     SURFSENSE_LOCAL_DATA_DIR: ctx.dataDir,
+    SURFSENSE_LOCAL_SECRET: ctx.secret,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
     ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
     ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
