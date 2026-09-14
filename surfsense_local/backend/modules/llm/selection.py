@@ -2,6 +2,7 @@ import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
+from modules.egress import service as egress
 from modules.llm.connections import discover_models
 from modules.llm.models import (
     ModelRole,
@@ -31,9 +32,7 @@ async def choose_model(
     if provider_name == "ollama":
         await _validate_local(role, model_name, connection_id)
     elif provider_name == "openai_compatible":
-        await _validate_remote(
-            session, role, model_name, connection_id, allow_unlisted
-        )
+        await _validate_remote(session, role, model_name, connection_id, allow_unlisted)
     else:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -56,7 +55,7 @@ async def choose_model(
     session.flush()
     return selected
 
-1   
+
 def complete_onboarding(session: Session) -> bool:
     if session.get(SelectedModel, ModelRole.GENERATION) is None:
         raise HTTPException(
@@ -116,6 +115,7 @@ async def _validate_remote(
     connection = session.get(ProviderConnection, connection_id)
     if connection is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+    egress.require(session, egress.host_destination(connection.base_url))
     try:
         models = await discover_models(connection)
     except (httpx.HTTPError, ValueError) as error:
@@ -134,11 +134,7 @@ async def _validate_remote(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not listed by this connection: {model_name}",
         )
-    required = (
-        "completion"
-        if role is ModelRole.GENERATION
-        else "image_generation"
-    )
+    required = "completion" if role is ModelRole.GENERATION else "image_generation"
     if model.capability_known and required not in model.capabilities:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

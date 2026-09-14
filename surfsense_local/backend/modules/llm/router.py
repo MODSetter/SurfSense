@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from api.dependencies import SessionDep
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.egress import service as egress
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import ProviderDep, StoreDep
@@ -181,7 +182,9 @@ async def pull_model(
     store: StoreDep,
     payload: PullRequest,
     service: CatalogServiceDep,
+    session: SessionDep,
 ) -> StreamingResponse:
+    egress.require(session, egress.OLLAMA_PULL)
     lock = service.install_lock(store.name)
     if lock.locked():
         raise HTTPException(
