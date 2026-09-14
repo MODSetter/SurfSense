@@ -35,6 +35,8 @@
   --color-border: var(--border);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
+  --color-notice: var(--notice);
+  --color-notice-foreground: var(--notice-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -78,6 +80,11 @@
   --accent: #e5e4df;
   --accent-foreground: #2e2e2e;
   --destructive: #dc2626;
+  /* Draws the eye to something waiting on the user, such as a downloaded
+     update. Distinct from `destructive`, which means danger. The same blue
+     clears 3:1 on both app shells, so both themes share it. */
+  --notice: #3f74c8;
+  --notice-foreground: #ffffff;
   --destructive-foreground: #ffffff;
   --border: #dedede;
   --input: #d6d6d6;
@@ -116,6 +123,11 @@
   --accent: #363636;
   --accent-foreground: #d1cfc0;
   --destructive: #ef4444;
+  /* Draws the eye to something waiting on the user, such as a downloaded
+     update. Distinct from `destructive`, which means danger. The same blue
+     clears 3:1 on both app shells, so both themes share it. */
+  --notice: #3f74c8;
+  --notice-foreground: #ffffff;
   --destructive-foreground: #ffffff;
   --border: #2c2c2c;
   --input: #2c2c2c;
@@ -213,6 +225,9 @@
 }
 
 .titlebar-controls-end {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
   margin-inline-start: auto;
   transform: translateY(2px);
   app-region: no-drag;

@@ -5,6 +5,7 @@ import {
   type RenderOptions,
 } from "@testing-library/react"
 
+import { TooltipProvider } from "@/components/ui/tooltip"
 import { createQueryClient } from "@/lib/query-client"
 
 export function render(
@@ -14,7 +15,10 @@ export function render(
   const client = createQueryClient()
   return testingLibraryRender(element, {
     wrapper: ({ children }) => (
-      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+      // Mirrors main.tsx, where every component renders inside these.
+      <QueryClientProvider client={client}>
+        <TooltipProvider>{children}</TooltipProvider>
+      </QueryClientProvider>
     ),
     ...options,
   })
