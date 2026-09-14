@@ -1,11 +1,20 @@
-from worker.studio.artifact import Built, Source
-from worker.studio.builder import Builder
-from worker.studio.text import as_list, as_text, parse_json
+from modules.llm.resolution import ResolvedGeneration
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.text import as_list, as_text, parse_json
 
 _SCHEMA = (
     'Return only JSON, no prose: {"title": str, "questions": '
     '[{"question": str, "options": [str], "answer": str}]}.'
 )
+
+
+def render(
+    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
+) -> Built:
+    return build(
+        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+    )
 
 
 def prompt(_sources: list[Source], user_prompt: str | None) -> str:
@@ -42,6 +51,3 @@ def build(raw: str, _sources: list[Source]) -> Built:
         lines.append("")
 
     return Built(title=title, markdown="\n".join(lines).strip())
-
-
-quiz = Builder(key="quiz", prompt=prompt, build=build)

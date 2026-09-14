@@ -11,8 +11,8 @@ class Format:
 
 
 # The whole Studio catalog. Kept dependency-free so the API validates and lists
-# without importing the builder libraries; the worker's BUILDERS registry must
-# carry a builder for every non-visual key (asserted in the worker unit test).
+# without importing the render libraries; worker/studio/job_router.py must name
+# every key here and nothing else (asserted in tests/unit/worker).
 FORMATS: tuple[Format, ...] = (
     Format("summary", "Summary"),
     Format("docx", "Document"),

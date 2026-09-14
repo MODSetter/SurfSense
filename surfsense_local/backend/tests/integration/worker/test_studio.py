@@ -12,8 +12,13 @@ from modules.llm.resolution import ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from worker.studio import office, persist, run
-from worker.studio.artifact import Built
+from worker.studio import run
+from worker.studio.office.docx import docx
+from worker.studio.office.pdf import pdf
+from worker.studio.office.pptx import pptx
+from worker.studio.office.xlsx import xlsx
+from worker.studio.shared import persist
+from worker.studio.shared.artifact import Built
 
 pytestmark = pytest.mark.integration
 
@@ -86,7 +91,7 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
         seen.append(system)
         return reply
 
-    monkeypatch.setattr("worker.studio.generate.run_model", fake)
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", fake)
     return seen
 
 
@@ -99,9 +104,9 @@ def _capture_image(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             seen.append(content)
             return GeneratedImage(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8, "image/png")
 
-    selection = type("Selection", (), {"name": "flux"})()
+    selection = type("Selection", (), {"provider": "fake", "name": "flux"})()
     monkeypatch.setattr(
-        "worker.studio.media.image.resolve_image_generation",
+        "worker.studio.job.resolve_image_generation",
         lambda _session: ResolvedImageGeneration(selection, FakeImageGenerator()),
     )
     return seen
@@ -285,7 +290,7 @@ def test_docx_runs_generated_python_docx_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["docx"].mime, b"PK\x03\x04")
+    _one_file(artifact, docx.mime, b"PK\x03\x04")
     assert "a one-page brief" in seen[0]
 
 
@@ -302,7 +307,7 @@ def test_pptx_runs_generated_python_pptx_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["pptx"].mime, b"PK\x03\x04")
+    _one_file(artifact, pptx.mime, b"PK\x03\x04")
     assert "three slides" in seen[0]
 
 
@@ -319,7 +324,7 @@ def test_xlsx_runs_generated_xlsxwriter_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["xlsx"].mime, b"PK\x03\x04")
+    _one_file(artifact, xlsx.mime, b"PK\x03\x04")
     assert "one column" in seen[0]
 
 
@@ -336,7 +341,7 @@ def test_pdf_runs_generated_reportlab_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["pdf"].mime, b"%PDF")
+    _one_file(artifact, pdf.mime, b"%PDF")
     assert "a cover page" in seen[0]
 
 
@@ -354,7 +359,7 @@ def test_podcast_synthesizes_a_wav_from_the_transcript(
         '{"speaker": "B", "text": "Remarkable."}]}',
     )
     monkeypatch.setattr(
-        "worker.studio.media.podcast.tts.synthesize", lambda turns: b"RIFF" + b"\x00" * 40
+        "worker.studio.media.audio.podcast.tts.synthesize", lambda turns: b"RIFF" + b"\x00" * 40
     )
     artifact = make_artifact(session, fmt="podcast", prompt="keep it short")
 
@@ -414,7 +419,7 @@ def test_a_generation_failure_leaves_a_reason(
     def boom(*args: object, **kwargs: object) -> str:
         raise RuntimeError("the model refused")
 
-    monkeypatch.setattr("worker.studio.generate.generate", boom)
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", boom)
     artifact = make_artifact(session)
 
     with pytest.raises(RuntimeError, match="refused"):
@@ -434,7 +439,7 @@ def test_an_image_failure_is_recorded_without_requesting_a_huey_retry(
     def fail(*_args: object, **_kwargs: object) -> Built:
         raise NonRetryableImageError("image endpoint returned HTTP 500")
 
-    monkeypatch.setattr("worker.studio.media.render", fail)
+    monkeypatch.setattr("worker.studio.media.visual.image.pipeline.render", fail)
     artifact = make_artifact(session, fmt="image")
 
     run(artifact.id)

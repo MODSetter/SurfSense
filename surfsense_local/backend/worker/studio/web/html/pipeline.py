@@ -1,8 +1,18 @@
 import html
 
-from worker.studio.artifact import Built, Source
-from worker.studio.builder import Builder
-from worker.studio.text import as_list, as_text, parse_json, slug
+from modules.llm.resolution import ResolvedGeneration
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.text import as_list, as_text, parse_json, slug
+
+
+def render(
+    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
+) -> Built:
+    return build(
+        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+    )
+
 
 MIME = "text/html"
 
@@ -53,6 +63,3 @@ def build(raw: str, _sources: list[Source]) -> Built:
         primary_mime=MIME,
         primary_filename=f"{slug(title, 'page')}.html",
     )
-
-
-html_doc = Builder(key="html", prompt=prompt, build=build)

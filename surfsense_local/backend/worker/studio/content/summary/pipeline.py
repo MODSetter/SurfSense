@@ -1,7 +1,16 @@
-from worker.studio.artifact import Built, Source
-from worker.studio.builder import Builder
+from modules.llm.resolution import ResolvedGeneration
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Built, Source
 
 MAX_TITLE = 200
+
+
+def render(
+    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
+) -> Built:
+    return build(
+        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+    )
 
 
 def prompt(sources: list[Source], user_prompt: str | None) -> str:
@@ -24,6 +33,3 @@ def _title(markdown: str) -> str:
         if line.startswith("# "):
             return line[2:].strip()[:MAX_TITLE] or "Summary"
     return "Summary"
-
-
-summary = Builder(key="summary", prompt=prompt, build=build)

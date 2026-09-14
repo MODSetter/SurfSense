@@ -8,7 +8,7 @@ from modules.artifacts.models import Artifact, ArtifactFile, ArtifactFileRole
 from modules.documents.models import Document
 from shared.config import get_storage_settings
 from worker.ingestion import chunking, embedding, indexing
-from worker.studio.artifact import Built
+from worker.studio.shared.artifact import Built
 
 logger = logging.getLogger(__name__)
 

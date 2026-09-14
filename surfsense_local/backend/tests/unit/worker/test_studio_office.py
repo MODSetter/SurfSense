@@ -2,9 +2,14 @@
 
 import pytest
 
-from worker.studio import generate, office
-from worker.studio.artifact import Source
+from worker.studio.office import pipeline as office
 from worker.studio.office import runner
+from worker.studio.office.docx import docx
+from worker.studio.office.pdf import pdf
+from worker.studio.office.pptx import pptx
+from worker.studio.office.xlsx import xlsx
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Source
 
 pytestmark = pytest.mark.unit
 
@@ -27,7 +32,7 @@ def test_render_executes_generated_code_and_keeps_its_bytes(
         monkeypatch,
     )
 
-    built = office.render(None, "pdf", [Source(1, "Saturn", "rings")], None)
+    built = office.render(pdf, None, [Source(1, "Saturn", "rings")], None)
 
     assert built.primary == b"%PDF-1.7 fake"
     assert built.primary_mime == "application/pdf"
@@ -42,7 +47,7 @@ def test_render_uses_the_picked_formats_mime_and_extension(
     """The user's button fixes the type: a docx job stores a .docx, not whatever."""
     _model("output_bytes = b'PK\\x03\\x04'\ntitle = 'Deck'", monkeypatch)
 
-    built = office.render(None, "docx", [], None)
+    built = office.render(docx, None, [], None)
 
     assert built.primary_filename == "deck.docx"
     assert built.primary_mime.endswith("wordprocessingml.document")
@@ -56,7 +61,7 @@ def test_code_that_forgets_output_bytes_fails_the_job(
     _model("title = 'oops'", monkeypatch)
 
     with pytest.raises(RuntimeError, match="output_bytes"):
-        office.render(None, "pdf", [], None)
+        office.render(pdf, None, [], None)
 
 
 def test_code_that_raises_surfaces_the_reason(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -64,7 +69,7 @@ def test_code_that_raises_surfaces_the_reason(monkeypatch: pytest.MonkeyPatch) -
     _model("raise ValueError('bad layout')", monkeypatch)
 
     with pytest.raises(RuntimeError, match="bad layout"):
-        office.render(None, "pptx", [], None)
+        office.render(pptx, None, [], None)
 
 
 def test_render_retries_failed_code_then_keeps_the_fix(
@@ -85,7 +90,7 @@ def test_render_retries_failed_code_then_keeps_the_fix(
 
     monkeypatch.setattr(generate, "run_model", fake_model)
 
-    built = office.render(None, "pdf", [], None)
+    built = office.render(pdf, None, [], None)
 
     assert built.primary == b"%PDF-ok"
     assert len(seen) == 2
@@ -106,7 +111,7 @@ def test_render_stops_after_three_code_failures(
     monkeypatch.setattr(generate, "run_model", fake_model)
 
     with pytest.raises(RuntimeError, match="still broken"):
-        office.render(None, "pdf", [], None)
+        office.render(pdf, None, [], None)
     assert calls == 3
 
 
@@ -120,6 +125,6 @@ def test_execute_times_out_a_hanging_script(monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_each_format_carries_its_skill_and_library() -> None:
     """Every office folder loaded a non-empty SKILL.md and names its library."""
-    for spec in office.OFFICE.values():
+    for spec in (docx, pptx, xlsx, pdf):
         assert spec.skill.strip()
         assert spec.library in {"python-docx", "python-pptx", "xlsxwriter", "reportlab"}

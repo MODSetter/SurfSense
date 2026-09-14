@@ -3,18 +3,31 @@ import time
 
 from sqlalchemy.orm import Session
 
+from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
 from modules.documents.models import DocumentStatus
+from modules.llm.models import ModelRole
 from modules.llm.providers.openai_compatible import NonRetryableImageError
+from modules.llm.resolution import (
+    ModelResolutionError,
+    ResolvedGeneration,
+    ResolvedImageGeneration,
+    resolve_generation,
+    resolve_image_generation,
+)
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.notify import notify_artifact_updates
-from worker.studio import gather, generate, media, office, persist
-from worker.studio.builders import BUILDERS
+from worker.studio import job_router
+from worker.studio.shared import gather, persist
 
 logger = logging.getLogger(__name__)
 
 MESSAGE_CHARS = 500
+
+
+class NoModelSelectedError(RuntimeError):
+    """No model is chosen for this format's role, so the job cannot run."""
 
 
 def run(artifact_id: int) -> None:
@@ -36,9 +49,7 @@ def run(artifact_id: int) -> None:
 def _generate(session: Session, artifact: Artifact) -> None:
     document = artifact.document
     started = time.monotonic()
-    logger.info(
-        "studio: artifact %s format=%s starting", artifact.id, artifact.format
-    )
+    logger.info("studio: artifact %s format=%s starting", artifact.id, artifact.format)
     document.status = DocumentStatus.PROCESSING
     session.commit()
     notify_artifact_updates(artifact)
@@ -53,32 +64,14 @@ def _generate(session: Session, artifact: Artifact) -> None:
             len(sources),
             sum(len(source.content) for source in sources),
         )
+        kind = job_router.Kind(artifact.format)
+        model = _choose_model(session, kind)
 
-        # Route by family: office (model-written code), media (audio/visual), or
-        # a deterministic builder.
-        builder = BUILDERS.get(artifact.format)
-        if artifact.format in office.OFFICE:
-            family = "office"
-            built = office.render(session, artifact.format, sources, prompt)
-        elif artifact.format in media.MEDIA:
-            family = "media"
-            built = media.render(session, artifact.format, sources, prompt)
-        elif builder is not None:
-            family = "builder"
-            raw = generate.generate(session, builder, sources, prompt)
-            logger.info(
-                "studio: artifact %s model reply %s chars; building",
-                artifact.id,
-                len(raw),
-            )
-            built = builder.build(raw, sources)
-        else:  # pragma: no cover - the invariant test rules this out
-            raise RuntimeError(f"no route for artifact format {artifact.format!r}")
+        built = job_router.pipeline_for(kind)(model, sources, prompt)
 
         logger.info(
-            "studio: artifact %s family=%s render done in %.1fs; persisting",
+            "studio: artifact %s render done in %.1fs; persisting",
             artifact.id,
-            family,
             time.monotonic() - started,
         )
         persist.persist(session, artifact, document, built)
@@ -107,3 +100,15 @@ def _generate(session: Session, artifact: Artifact) -> None:
         if isinstance(failure, NonRetryableImageError):
             return
         raise  # Huey retries; a later success clears the message.
+
+
+def _choose_model(
+    session: Session, kind: job_router.Kind
+) -> ResolvedGeneration | ResolvedImageGeneration:
+    """The catalog says which role a format needs; pick that role's model."""
+    try:
+        if FORMATS_BY_KEY[kind].requires_role == ModelRole.IMAGE_GENERATION:
+            return resolve_image_generation(session)
+        return resolve_generation(session)
+    except ModelResolutionError as error:
+        raise NoModelSelectedError(str(error)) from error

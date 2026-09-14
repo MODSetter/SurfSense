@@ -1,9 +1,19 @@
 import html
 import textwrap
 
-from worker.studio.artifact import Built, Source
-from worker.studio.builder import Builder
-from worker.studio.text import as_list, as_text, parse_json, slug
+from modules.llm.resolution import ResolvedGeneration
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.text import as_list, as_text, parse_json, slug
+
+
+def render(
+    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
+) -> Built:
+    return build(
+        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+    )
+
 
 MIME = "image/svg+xml"
 WIDTH = 1200
@@ -28,10 +38,7 @@ def _lines(value: str, width: int, maximum: int) -> list[str]:
 
 
 def _text(x: int, y: int, value: str, css: str) -> str:
-    return (
-        f'<text x="{x}" y="{y}" class="{css}">'
-        f"{html.escape(value)}</text>"
-    )
+    return f'<text x="{x}" y="{y}" class="{css}">{html.escape(value)}</text>'
 
 
 def build(raw: str, _sources: list[Source]) -> Built:
@@ -82,9 +89,7 @@ def build(raw: str, _sources: list[Source]) -> Built:
         nodes.append(_text(x + 28, y + 40, label, "label"))
         nodes.append(_text(x + 28, y + 88, value, "value"))
         for line_index, line in enumerate(_lines(detail, 54, 3)):
-            nodes.append(
-                _text(x + 28, y + 126 + line_index * 23, line, "detail")
-            )
+            nodes.append(_text(x + 28, y + 126 + line_index * 23, line, "detail"))
         markdown.append(f"\n## {label}\n\n**{value}**\n\n{detail}")
     nodes.append("</svg>")
 
@@ -97,6 +102,3 @@ def build(raw: str, _sources: list[Source]) -> Built:
         primary_mime=MIME,
         primary_filename=f"{slug(title, 'infographic')}.svg",
     )
-
-
-infographic = Builder(key="infographic", prompt=prompt, build=build)

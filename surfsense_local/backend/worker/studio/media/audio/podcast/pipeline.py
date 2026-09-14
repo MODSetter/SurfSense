@@ -1,8 +1,9 @@
 import logging
 
-from worker.studio.artifact import Built, Source
-from worker.studio.builder import Builder
-from worker.studio.text import as_list, as_text, parse_json, slug
+from modules.llm.resolution import ResolvedGeneration
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.text import as_list, as_text, parse_json, slug
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ def prompt(_sources: list[Source], user_prompt: str | None) -> str:
 
 
 def build(raw: str, _sources: list[Source]) -> Built:
-    from worker.studio.media.podcast import tts
+    from worker.studio.media.audio.podcast import tts
 
     spec = parse_json(raw)
     title = as_text(spec.get("title")) or "Podcast"
@@ -60,4 +61,10 @@ def build(raw: str, _sources: list[Source]) -> Built:
     )
 
 
-builder = Builder(key="podcast", prompt=prompt, build=build)
+def render(
+    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
+) -> Built:
+    """Write the transcript with the generation model, then voice it."""
+    raw = generate.run_model(model, prompt(sources, user_prompt), sources)
+    logger.info("studio: podcast transcript %s chars; synthesising", len(raw))
+    return build(raw, sources)

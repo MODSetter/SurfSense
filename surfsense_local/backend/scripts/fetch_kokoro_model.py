@@ -12,7 +12,7 @@ from pathlib import Path
 
 import httpx
 
-from worker.studio.media.podcast.tts import (
+from worker.studio.media.audio.podcast.tts import (
     MODEL_DIR_NAME,
     MODEL_FILE,
     VOICES_FILE,

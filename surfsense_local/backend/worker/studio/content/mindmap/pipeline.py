@@ -1,8 +1,18 @@
 from typing import Any
 
-from worker.studio.artifact import Built, Source
-from worker.studio.builder import Builder
-from worker.studio.text import as_list, as_text, parse_json
+from modules.llm.resolution import ResolvedGeneration
+from worker.studio.shared import generate
+from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.text import as_list, as_text, parse_json
+
+
+def render(
+    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
+) -> Built:
+    return build(
+        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+    )
+
 
 _SCHEMA = (
     'Return only JSON, no prose: {"title": str, "nodes": '
@@ -37,6 +47,3 @@ def _render(nodes: list[Any], lines: list[str], depth: int) -> None:
             continue
         lines.append(f"{'  ' * depth}- {label}")
         _render(as_list(node.get("children")), lines, depth + 1)
-
-
-mindmap = Builder(key="mindmap", prompt=prompt, build=build)
