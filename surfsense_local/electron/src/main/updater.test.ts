@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.mts"
+import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.ts"
 
 type Listener = (...args: unknown[]) => void
 

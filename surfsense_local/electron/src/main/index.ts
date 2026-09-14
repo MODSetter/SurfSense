@@ -2,7 +2,7 @@ import { join } from "node:path"
 
 import { app, BrowserWindow, ipcMain, Menu, shell } from "electron"
 
-import { managedOriginalPath } from "./document-files.mts"
+import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { ollamaSpec } from "./sidecars/ollama.ts"
 import { exe } from "./sidecars/platform.ts"
@@ -15,7 +15,7 @@ import {
   writeUpdatePrefs,
   type Updates,
   type UpdateState,
-} from "./updater.mts"
+} from "./updater.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
