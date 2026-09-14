@@ -221,6 +221,7 @@ function WorkspaceDashboard({
                 writeRightTab(next)
                 setTab(next)
               }}
+              artifactCount={studio.artifacts.length}
               studio={
                 <StudioPanel
                   documents={sources.documents}
