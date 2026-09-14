@@ -4,7 +4,7 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 
-import { managedOriginalPath } from "./document-files.mts"
+import { managedOriginalPath } from "./document-files.ts"
 
 test("resolves a backend-managed original without duplicating its formats", async (t) => {
   const dataDir = await mkdtemp(join(tmpdir(), "surfsense-document-"))

@@ -29,7 +29,7 @@ declare global {
   }
 }
 
-// Mirrors electron/src/main/updater.mts.
+// Mirrors electron/src/main/updater.ts.
 export type UpdateState =
   | { status: "idle" }
   | { status: "checking" }
