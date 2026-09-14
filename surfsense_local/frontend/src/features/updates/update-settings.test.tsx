@@ -116,10 +116,11 @@ describe("UpdateButton", () => {
   it("appears only when an update is ready and restarts on click", async () => {
     const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
     const user = userEvent.setup()
-    const { container } = render(<UpdateButton />)
+    render(<UpdateButton />)
 
-    // Nothing rendered at all: the title bar keeps no space for it.
-    expect(container.textContent).toBe("")
+    // No element at all: the title bar keeps no space for it. Queried by role
+    // rather than text, since the button is icon-only and has no text content.
+    expect(screen.queryByRole("button")).toBeNull()
     bridge.push({ status: "ready", version: "1.0.1" })
 
     const button = await screen.findByRole("button", {

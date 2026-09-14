@@ -43,7 +43,6 @@
   --sidebar-foreground: #1e1e1e;
   --secondary-foreground: #2e2e2e;
   --destructive-foreground: #ffffff;
-  --notice-foreground: #ffffff;
   --sidebar-accent-foreground: #2e2e2e;
   --sidebar-primary-foreground: #f7f7f7;
 }
@@ -93,7 +92,6 @@
   --sidebar-foreground: #e8e3da;
   --secondary-foreground: #d1cfc0;
   --destructive-foreground: #ffffff;
-  --notice-foreground: #ffffff;
   --sidebar-accent-foreground: #d1cfc0;
   --sidebar-primary-foreground: #363636;
 }
@@ -124,7 +122,6 @@
   --color-foreground: var(--foreground);
   --color-destructive: var(--destructive);
   --color-notice: var(--notice);
-  --color-notice-foreground: var(--notice-foreground);
   --color-shadow-blur: var(--shadow-blur);
   --color-shadow-color: var(--shadow-color);
   --color-sidebar-ring: var(--sidebar-ring);
