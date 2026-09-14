@@ -674,6 +674,69 @@ class Config:
         os.getenv("STRIPE_RECONCILIATION_BATCH_SIZE", "100")
     )
 
+    # Keygen-backed offline desktop licenses.
+    #
+    # Keygen is the system of record: there is no license table, and every
+    # lookup is a filter over Keygen license metadata. See
+    # plans/community-local/portal/01-license-routes.md.
+    KEYGEN_ACCOUNT_ID = os.getenv("KEYGEN_ACCOUNT_ID")
+    KEYGEN_API_TOKEN = os.getenv("KEYGEN_API_TOKEN")
+    KEYGEN_POLICY_TRIAL = os.getenv("KEYGEN_POLICY_TRIAL")
+    KEYGEN_POLICY_INDIVIDUAL = os.getenv("KEYGEN_POLICY_INDIVIDUAL")
+    KEYGEN_POLICY_TEAM = os.getenv("KEYGEN_POLICY_TEAM")
+    LICENSE_TRIAL_ENABLED = (
+        os.getenv("LICENSE_TRIAL_ENABLED", "FALSE").upper() == "TRUE"
+    )
+    LICENSE_TRIAL_DAYS = int(os.getenv("LICENSE_TRIAL_DAYS", "14"))
+    # ISO date. Trials issued before the plugin ships expire this many days
+    # after the plugin lands rather than after purchase, so the gap week does
+    # not eat the trial. Unset once the plugin has shipped.
+    LICENSE_TRIAL_EXPIRY_FLOOR = os.getenv("LICENSE_TRIAL_EXPIRY_FLOOR", "").strip()
+    LICENSE_DISPOSABLE_EMAIL_DOMAINS = os.getenv("LICENSE_DISPOSABLE_EMAIL_DOMAINS", "")
+
+    # Stripe prices for license purchases. Used to resolve the plan when the
+    # buyer came through a Payment Link, which carries no session metadata.
+    STRIPE_PRICE_LICENSE_INDIVIDUAL = os.getenv("STRIPE_PRICE_LICENSE_INDIVIDUAL", "")
+    STRIPE_PRICE_LICENSE_TEAM = os.getenv("STRIPE_PRICE_LICENSE_TEAM", "")
+
+    # Rate limits for the two unauthenticated POST license routes. These also
+    # protect the Keygen tier quota: one resend is N check-out calls.
+    LICENSE_RATE_LIMIT_IP_PER_HOUR = int(
+        os.getenv("LICENSE_RATE_LIMIT_IP_PER_HOUR", "10")
+    )
+    LICENSE_RESEND_RATE_LIMIT_PER_HOUR = int(
+        os.getenv("LICENSE_RESEND_RATE_LIMIT_PER_HOUR", "5")
+    )
+    LICENSE_TRIAL_RATE_LIMIT_PER_HOUR = int(
+        os.getenv("LICENSE_TRIAL_RATE_LIMIT_PER_HOUR", "3")
+    )
+
+    # Transactional email over SMTP. One connection for the whole backend --
+    # licenses today, password reset and verification whenever those stubs in
+    # app/users.py grow up -- so these are named like the other shared
+    # infrastructure (DATABASE_URL, REDIS_APP_URL, STRIPE_SECRET_KEY) rather
+    # than after their first caller.
+    #
+    # Off by default: routes that exist only to mail something answer 503
+    # rather than reporting a send that never happened. Enabling with an
+    # unreachable or unnamed server is an error to fix at startup, never a
+    # reason to silently drop mail.
+    SMTP_ENABLED = os.getenv("SMTP_ENABLED", "FALSE").strip().upper() == "TRUE"
+    SMTP_HOST = os.getenv("SMTP_HOST", "").strip()
+    SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.getenv("SMTP_USERNAME", "").strip()
+    SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+    # Explicit, never inferred from the port: 465 is implicit TLS and 587 is
+    # STARTTLS, and guessing from the port is the classic source of "it hangs
+    # forever with no error".
+    SMTP_SECURITY = os.getenv("SMTP_SECURITY", "starttls").strip().lower()
+    SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "20"))
+    # Default sender, required when SMTP is enabled. Each feature may override
+    # it so licenses and account email can come from different addresses.
+    SMTP_FROM = os.getenv("SMTP_FROM", "").strip()
+    SMTP_LICENSE_FROM = os.getenv("SMTP_LICENSE_FROM", "").strip()
+    SMTP_LICENSE_REPLY_TO = os.getenv("SMTP_LICENSE_REPLY_TO", "").strip()
+
     # Unified credit wallet (micro-USD) settings.
     #
     # Storage unit is integer micro-USD (1_000_000 = $1.00). A single

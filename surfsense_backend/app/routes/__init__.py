@@ -58,6 +58,7 @@ from .google_gmail_add_connector_route import (
 )
 from .incentive_tasks_routes import router as incentive_tasks_router
 from .jira_add_connector_route import router as jira_add_connector_router
+from .license_routes import router as license_router
 from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router
@@ -145,6 +146,7 @@ router.include_router(composio_router)  # Composio OAuth and toolkit management
 router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
+router.include_router(license_router)  # Offline desktop license files
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)

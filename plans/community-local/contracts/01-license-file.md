@@ -34,10 +34,11 @@ The payload (`enc` decoded) is a Keygen JSON:API document. The app reads these f
 
 ## Producer rules (Dev B)
 
-1. Create the license under the matching policy with `metadata: {"plan": ..., "email": ...}`. For team keys set the `maxUsers` override to the Stripe quantity.
+1. Create the license under the matching policy with `metadata: {"plan": ..., "email": ...}`. For team keys set the `maxUsers` override to the Stripe quantity. Stripe purchases also carry `stripeCustomerId` and `checkoutSessionId` in metadata; the app ignores both, and they exist because Keygen metadata is the only lookup index we have (there is no license table). Trial licenses additionally get an explicit `expiry` rather than the policy default, so a trial issued before the plugin ships is not eaten by the gap week.
 2. Check out with `POST /licenses/{id}/actions/check-out` and body `{"meta": {"ttl": null}}`. **The default TTL is 30 days.** The app never refreshes, so a default-TTL file dies a month after purchase. `ttl: null` produces `meta.expiry: null`.
 3. Do not pass `encrypt`. Do not pass `include`.
 4. Serve the certificate string as-is; do not re-wrap or reformat it.
+5. **Certificates are not stored.** Every delivery — success page, purchase email, resend — checks out a fresh file for the same license. Two files for one license therefore differ in `meta.issued` and are byte-different, while `data.attributes.key` and `expiry` stay identical. This follows from Stripe and Keygen being the only system of record.
 
 ## Consumer rules (Dev A)
 
@@ -51,6 +52,8 @@ Verify in this order and stop at the first failure:
 6. `data.attributes.expiry` past → `license_expired`. This is a state, not a rejection: the file is still stored and shown, with the plan marked expired.
 
 Then persist the parsed fields and update the clock watermark (highest timestamp ever seen; a clock earlier than the watermark marks the license `clock_untrusted` until it catches up).
+
+7. **A file may be replaced by another file for the same key.** Producer rule 5 means a resend produces a fresh certificate with a later `meta.issued` for a license already imported. Importing it replaces the stored file and advances the watermark; it is never treated as a second license or rejected as a duplicate. Match on `data.attributes.key`, not on file bytes.
 
 The public key is **hard-coded in the app source**, never read from config, environment, or a file at runtime. Tests inject the test key from `license-sample/public-key.hex` through a test-only seam.
 
@@ -72,5 +75,5 @@ These are signed by a **test** key, not the production Keygen key. When the Keyg
 
 ## Tests each side owns
 
-- Dev B: a Stripe-test-mode purchase yields a file whose `meta.expiry` is `null` and whose `metadata.plan` and `metadata.email` match the checkout.
+- Dev B: a Stripe-test-mode purchase yields a file whose `meta.expiry` is `null` and whose `metadata.plan` and `metadata.email` match the checkout. A resend for the same email yields a file with the same `key` and a later `meta.issued`.
 - Dev A: every fixture file parses to the expected plan and state; a one-byte change to `enc` fails with `bad_signature`; `expired.lic` yields `license_expired`.
