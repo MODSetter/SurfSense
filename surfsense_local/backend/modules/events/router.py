@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, Request, Response, status
 from fastapi.responses import StreamingResponse
 
+from api.dependencies import SessionDep
 from modules.events.broker import EventBroker
 from modules.events.schemas import InternalEvent
 from modules.workspaces.dependencies import WorkspaceDep
@@ -27,8 +28,11 @@ _HEARTBEAT_SECONDS = 15
     summary="Stream a workspace's change events",
 )
 async def subscribe_events(
-    workspace: WorkspaceDep, request: Request
+    workspace: WorkspaceDep, request: Request, session: SessionDep
 ) -> StreamingResponse:
+    # The request session only commits after the stream ends, and this stream
+    # lives as long as the window; do not hold a transaction that long.
+    session.commit()
     broker: EventBroker = request.app.state.broker
     queue = broker.subscribe(workspace.id)
 

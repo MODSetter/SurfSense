@@ -411,6 +411,37 @@ def test_infographic_builds_a_deterministic_svg(
     assert "the key figures" in seen[0]
 
 
+def test_a_write_during_generation_does_not_lock_the_job_out(
+    session: Session, engine: Engine, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The API keeps writing while a model runs; persisting must still land."""
+    artifact = make_artifact(session)
+
+    def model_with_a_concurrent_writer(*_args: object, **_kwargs: object) -> str:
+        with create_session_factory(engine)() as other:
+            other.add(
+                Document(
+                    workspace_id=artifact.workspace_id,
+                    title="typed while generating",
+                    document_type=DocumentType.NOTE,
+                    status=DocumentStatus.READY,
+                    content="a chat turn, a new artifact, anything",
+                )
+            )
+            other.commit()
+        return SUMMARY
+
+    monkeypatch.setattr(
+        "worker.studio.shared.generate.run_model", model_with_a_concurrent_writer
+    )
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.READY
+    assert artifact.document.content == SUMMARY
+
+
 def test_a_generation_failure_leaves_a_reason(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:

@@ -185,6 +185,8 @@ async def pull_model(
     session: SessionDep,
 ) -> StreamingResponse:
     egress.require(session, egress.OLLAMA_PULL)
+    # A pull streams for minutes; do not hold its transaction open that long.
+    session.commit()
     lock = service.install_lock(store.name)
     if lock.locked():
         raise HTTPException(

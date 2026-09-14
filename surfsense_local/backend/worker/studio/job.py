@@ -66,6 +66,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         )
         kind = job_router.Kind(artifact.format)
         model = _choose_model(session, kind)
+        # Generation runs for minutes; a transaction held across it fails on the
+        # first write after (SQLITE_BUSY_SNAPSHOT) as soon as the API writes.
+        session.commit()
 
         built = job_router.pipeline_for(kind)(model, sources, prompt)
 
