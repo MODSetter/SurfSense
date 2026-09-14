@@ -1,14 +1,15 @@
-name: Local Desktop Release
+name: Desktop Release
 
-# Builds the community-local desktop app (surfsense_local) into per-OS installers
-# and attaches them to a GitHub Release.
+# Builds the desktop app (surfsense_local) into per-OS installers and attaches
+# them to a GitHub Release on the `stable` channel. The legacy 0.0.x desktop
+# reads `latest*.yml`, which no release publishes anymore, so it never updates.
 #
-# Trigger: push a tag like `local-v0.0.1`. Or run manually for a dry run.
+# Trigger: push a tag like `v1.0.0`. Or run manually for a dry run.
 
 on:
   push:
     tags:
-      - "local-v*"
+      - "v*"
   workflow_dispatch:
     inputs:
       version:
@@ -65,7 +66,7 @@ jobs:
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             VERSION="${{ inputs.version }}"
           else
-            VERSION="${GITHUB_REF#refs/tags/local-v}"
+            VERSION="${GITHUB_REF#refs/tags/v}"
           fi
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
             echo "::error::Version '$VERSION' is not semver (expected X.Y.Z); fix the tag."
@@ -76,9 +77,9 @@ jobs:
       - name: Detect release signing eligibility
         id: sign
         run: |
-          # Sign only on production tag pushes (local-v*), reusing the org certs.
+          # Sign only on production tag pushes (v*), reusing the org certs.
           # Contributor forks and dry runs lack the secrets and build unsigned.
-          if [ "${{ github.event_name }}" = "push" ] && [[ "$GITHUB_REF" == refs/tags/local-v* ]]; then
+          if [ "${{ github.event_name }}" = "push" ] && [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "prod=true" >> "$GITHUB_OUTPUT"
           else
             echo "prod=false" >> "$GITHUB_OUTPUT"
@@ -246,6 +247,10 @@ jobs:
           name: surfsense-local-${{ matrix.os }}
           path: |
             surfsense_local/electron/release/*.AppImage
+            surfsense_local/electron/release/*.deb
             surfsense_local/electron/release/*.dmg
+            surfsense_local/electron/release/*.zip
             surfsense_local/electron/release/*.exe
+            surfsense_local/electron/release/*.blockmap
+            surfsense_local/electron/release/*.yml
           if-no-files-found: ignore
