@@ -39,14 +39,11 @@ jobs:
             platform: --linux
             electron_cache: ~/.cache/electron
             llmfit_resource: release/linux-unpacked/resources/llmfit/llmfit
-          - os: macos-15 # Apple Silicon → arm64 dmg
+          # Apple Silicon only: torch (2.3+) and onnxruntime (1.24+) no longer ship Intel Mac wheels.
+          - os: macos-15
             platform: --mac
             electron_cache: ~/Library/Caches/electron
             llmfit_resource: release/mac-arm64/SurfSense.app/Contents/Resources/llmfit/llmfit
-          - os: macos-15-intel # Intel → x64 dmg (the native backend can't cross-compile)
-            platform: --mac
-            electron_cache: ~/Library/Caches/electron
-            llmfit_resource: release/mac/SurfSense.app/Contents/Resources/llmfit/llmfit
           - os: windows-latest
             platform: --win
             electron_cache: ~\AppData\Local\electron\Cache
