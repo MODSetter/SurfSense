@@ -178,4 +178,41 @@ describe("ThreadList", () => {
     await user.click(plugins)
     expect(onPlugins).toHaveBeenCalledOnce()
   })
+
+  it("shows an action's badge next to its label", () => {
+    const actions: SidebarNavAction[] = [
+      {
+        key: "plugins",
+        label: "Plugins",
+        icon: UnplugIcon,
+        badge: "Coming soon",
+        onClick: vi.fn(),
+      },
+    ]
+
+    render(
+      <ThreadList
+        threads={[]}
+        activeThreadId={null}
+        autoNamingThreadId={null}
+        animatingTitleThreadId={null}
+        isLoading={false}
+        onNewChat={vi.fn()}
+        onSelect={vi.fn()}
+        onRename={vi.fn(async () => true)}
+        onDelete={vi.fn(async () => undefined)}
+        onTitleAnimationComplete={vi.fn()}
+        actions={actions}
+      />
+    )
+
+    const badge = screen.getByText("Coming soon")
+    expect(badge.closest('[data-slot="badge"]')).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: /^Plugins/ }).contains(badge)
+    ).toBe(true)
+    expect(
+      screen.getByRole("button", { name: "New chat" }).textContent
+    ).not.toContain("Coming soon")
+  })
 })

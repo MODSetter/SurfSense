@@ -155,6 +155,7 @@ function WorkspaceDashboard({
                 key: "plugins",
                 label: "Plugins",
                 icon: UnplugIcon,
+                badge: "Coming soon",
                 // TODO: open the plugins panel once it exists.
                 onClick: () => toast.info("Plugins are coming soon"),
               },
