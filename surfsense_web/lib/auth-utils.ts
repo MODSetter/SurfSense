@@ -28,6 +28,10 @@ const PUBLIC_ROUTE_PREFIXES = [
 	"/free",
 	"/invite",
 	"/contact",
+	// The license portal and the post-purchase success page. There is no
+	// account to sign in to, and the buyer lands on /license/success straight
+	// from Stripe -- a login redirect there loses them their license file.
+	"/license",
 	"/pricing",
 	"/privacy",
 	"/terms",
