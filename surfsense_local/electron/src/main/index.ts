@@ -1,9 +1,10 @@
 import { join } from "node:path"
 
-import { app, BrowserWindow, ipcMain, Menu, shell } from "electron"
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, shell } from "electron"
 
 import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
+import { loadSecret } from "./secret.ts"
 import { ollamaSpec } from "./sidecars/ollama.ts"
 import { exe } from "./sidecars/platform.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
@@ -68,6 +69,9 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const packaged = app.isPackaged
   const apiPort = await getFreePort(host)
   const dataDir = DATA_DIR
+  // Linux without a keyring daemon: keep booting on Chromium's built-in key
+  // rather than refusing to start; same fallback every Electron app takes.
+  if (process.platform === "linux") safeStorage.setUsePlainTextEncryption(true)
 
   const ctx: SidecarContext = {
     packaged,
@@ -77,6 +81,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     host,
     apiPort,
     dataDir,
+    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage),
     // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
       ? join(process.resourcesPath, "models")
