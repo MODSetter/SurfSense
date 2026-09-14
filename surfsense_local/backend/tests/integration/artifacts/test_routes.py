@@ -1,9 +1,12 @@
+from pathlib import Path
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.providers.kokoro import provider as kokoro
 from shared.db import create_session_factory
 
 pytestmark = pytest.mark.integration
@@ -58,6 +61,24 @@ async def test_formats_lists_summary_as_available(
     image = next(f for f in response.json() if f["key"] == "image")
     assert image["available"] is False
     assert image["requires_role"] == "image_generation"
+
+
+async def test_podcast_is_gated_on_the_voice_engine(
+    client: AsyncClient, workspace_id: int, choose_model: None, data_dir: Path
+) -> None:
+    """Without the voice weights the button is disabled with why; with them, on."""
+    url = f"/workspaces/{workspace_id}/studio/formats"
+    podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
+    assert podcast["available"] is False
+    assert podcast["unavailable_reason"] == "Voice model required"
+
+    weights = data_dir / "models" / kokoro.MODEL_DIR_NAME
+    weights.mkdir(parents=True)
+    for name in (kokoro.MODEL_FILE, kokoro.VOICES_FILE):
+        (weights / name).write_bytes(b"")
+
+    podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
+    assert podcast["available"] is True
 
 
 async def test_a_job_creates_a_pending_artifact(

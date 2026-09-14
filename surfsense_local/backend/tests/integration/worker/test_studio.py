@@ -7,7 +7,12 @@ from sqlalchemy.orm import Session
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.providers.openai_compatible import NonRetryableImageError
-from modules.llm.providers.protocols import GeneratedImage
+from modules.llm.providers.protocols import (
+    GeneratedImage,
+    SpokenTurn,
+    SynthesizedAudio,
+    Voice,
+)
 from modules.llm.resolution import ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
@@ -127,7 +132,8 @@ def test_summary_becomes_a_searchable_markdown_body(
 ) -> None:
     """Summary: the model's markdown is the body, indexed for search, with no file."""
     seen = _capture_model(
-        monkeypatch, "# Cassini\n\nThe orbiter reached Saturn in 2004, carrying Huygens."
+        monkeypatch,
+        "# Cassini\n\nThe orbiter reached Saturn in 2004, carrying Huygens.",
     )
     artifact = make_artifact(session, fmt="summary", prompt="the arrival date")
 
@@ -351,15 +357,23 @@ def test_pdf_runs_generated_reportlab_code(
 def test_podcast_synthesizes_a_wav_from_the_transcript(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Podcast: the model writes a two-host transcript, Kokoro renders it to WAV."""
+    """Podcast: the model writes a two-host transcript, the voice engine voices it."""
     seen = _capture_model(
         monkeypatch,
         '{"title": "Cassini", "turns": '
         '[{"speaker": "A", "text": "It reached Saturn in 2004."}, '
         '{"speaker": "B", "text": "Remarkable."}]}',
     )
+
+    class FakeVoice:
+        def voices(self) -> list[Voice]:
+            return [Voice("a", "A")]
+
+        async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+            return SynthesizedAudio(b"RIFF" + b"\x00" * 40, "audio/wav")
+
     monkeypatch.setattr(
-        "worker.studio.media.audio.podcast.tts.synthesize", lambda turns: b"RIFF" + b"\x00" * 40
+        "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech", FakeVoice
     )
     artifact = make_artifact(session, fmt="podcast", prompt="keep it short")
 

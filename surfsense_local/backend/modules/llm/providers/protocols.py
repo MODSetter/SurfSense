@@ -35,6 +35,34 @@ class ImageGenerator(Protocol):
     async def generate(self, model: str, prompt: str) -> GeneratedImage: ...
 
 
+@dataclass(frozen=True)
+class Voice:
+    id: str
+    label: str
+
+
+@dataclass(frozen=True)
+class SpokenTurn:
+    """One spoken line: which voice says it, and what."""
+
+    voice: str
+    text: str
+
+
+@dataclass(frozen=True)
+class SynthesizedAudio:
+    content: bytes
+    media_type: str
+
+
+class TextToSpeech(Protocol):
+    """Anything that voices a script. Kokoro on this CPU today, hosted APIs later."""
+
+    def voices(self) -> list[Voice]: ...
+
+    async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio: ...
+
+
 @runtime_checkable
 class ModelStore(Protocol):
     """Only runtimes that keep models on disk can fetch them.

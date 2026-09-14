@@ -10,6 +10,7 @@ from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
 from modules.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -22,8 +23,8 @@ def list_formats(session: Session) -> list[FormatRead]:
         available, reason = _availability(session, fmt)
         formats.append(
             FormatRead(
-            key=fmt.key,
-            label=fmt.label,
+                key=fmt.key,
+                label=fmt.label,
                 requires_role=fmt.requires_role,
                 available=available,
                 unavailable_reason=reason,
@@ -114,11 +115,15 @@ def _resolve_sources(
 
 
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    if fmt.requires_role is None:
-        return True, None
-    role = ModelRole(fmt.requires_role)
-    if session.get(SelectedModel, role) is not None:
-        return True, None
-    if role is ModelRole.IMAGE_GENERATION:
-        return False, "Image model required"
-    return False, "Chat model required"
+    if fmt.requires_role is not None:
+        role = ModelRole(fmt.requires_role)
+        if session.get(SelectedModel, role) is None:
+            if role is ModelRole.IMAGE_GENERATION:
+                return False, "Image model required"
+            return False, "Chat model required"
+    if fmt.requires_voice:
+        try:
+            resolve_text_to_speech()
+        except ModelResolutionError:
+            return False, "Voice model required"
+    return True, None

@@ -2,8 +2,13 @@
 
 import pytest
 
-from modules.llm.providers.protocols import GeneratedImage
-from modules.llm.resolution import ResolvedImageGeneration
+from modules.llm.providers.protocols import (
+    GeneratedImage,
+    SpokenTurn,
+    SynthesizedAudio,
+    Voice,
+)
+from modules.llm.resolution import ModelResolutionError, ResolvedImageGeneration
 from worker.studio.media.audio.podcast import pipeline as podcast
 from worker.studio.media.visual.image import pipeline as image
 from worker.studio.media.visual.infographic import pipeline as infographic
@@ -47,18 +52,27 @@ def test_infographic_is_deterministic_escaped_svg() -> None:
     assert "**7**" in built.markdown
 
 
-def test_podcast_voices_a_two_host_transcript(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The transcript is the searchable body; the synthesised WAV is the file."""
-    monkeypatch.setattr(
-        "worker.studio.media.audio.podcast.tts.synthesize", lambda turns: b"RIFFfake"
-    )
+class FakeVoice:
+    """A TextToSpeech with two voices that records what it was asked to say."""
+
+    def __init__(self) -> None:
+        self.turns: list[SpokenTurn] = []
+
+    def voices(self) -> list[Voice]:
+        return [Voice("lead", "Lead"), Voice("guest", "Guest")]
+
+    async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+        self.turns = turns
+        return SynthesizedAudio(b"RIFFfake", "audio/wav")
+
+
+def test_podcast_voices_a_two_host_transcript() -> None:
+    """The transcript is the searchable body; the engine's audio is the file."""
     raw = (
         '{"title": "Saturn", "turns": [{"speaker": "A", "text": "Hi."}, '
         '{"speaker": "B", "text": "Tell me more."}]}'
     )
-    built = podcast.build(raw, [])
+    built = podcast.build(raw, FakeVoice())
 
     assert built.primary == b"RIFFfake"
     assert built.primary_mime == "audio/wav"
@@ -67,15 +81,30 @@ def test_podcast_voices_a_two_host_transcript(
     assert "**B:** Tell me more." in built.markdown
 
 
-def test_podcast_without_the_voice_pack_fails_clearly(
+def test_podcast_gives_each_host_one_of_the_engines_voices() -> None:
+    """Hosts take the engine's first and last voice; no voice id is hard-coded."""
+    voice = FakeVoice()
+    raw = (
+        '{"title": "T", "turns": [{"speaker": "A", "text": "Hi."}, '
+        '{"speaker": "B", "text": "Hello."}, {"speaker": "C", "text": "Also."}]}'
+    )
+    podcast.build(raw, voice)
+
+    assert [turn.voice for turn in voice.turns] == ["lead", "guest", "lead"]
+
+
+def test_podcast_without_a_voice_engine_never_calls_the_text_model(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A machine lacking Kokoro gets a clear reason, like the parser-pack path."""
+    """A missing voice engine fails before any model tokens are spent."""
     monkeypatch.setattr(
-        "worker.studio.media.audio.podcast.tts.missing_kokoro_files",
+        "modules.llm.providers.kokoro.provider.missing_files",
         lambda: ["kokoro-v1.0.onnx"],
     )
-    raw = '{"title": "T", "turns": [{"speaker": "A", "text": "Hi."}]}'
+    monkeypatch.setattr(
+        "worker.studio.shared.generate.run_model",
+        lambda *a: pytest.fail("the text model was called"),
+    )
 
-    with pytest.raises(RuntimeError, match="Kokoro"):
-        podcast.build(raw, [])
+    with pytest.raises(ModelResolutionError, match="Kokoro"):
+        podcast.render(None, [], None)
