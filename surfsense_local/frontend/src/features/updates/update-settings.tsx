@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { DownloadCircle02Icon } from "@/components/ui/icons"
 import {
   Tooltip,
@@ -73,12 +74,10 @@ export function UpdateSettings() {
           turn this on, SurfSense never checks on its own.
         </p>
         <label className="mt-2 flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            className="size-4 accent-primary"
+          <Checkbox
             checked={automatic}
-            onChange={(event) => {
-              const next = event.target.checked
+            onCheckedChange={(checked) => {
+              const next = checked === true
               setAutomatic(next)
               void updates.setAutomatic(next)
             }}

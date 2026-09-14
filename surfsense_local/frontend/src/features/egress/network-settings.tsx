@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { RelativeTime } from "@/components/relative-time"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SettingsSection } from "@/features/settings/settings-section"
 import type { UpdatePrefs } from "@/lib/api"
@@ -38,11 +39,9 @@ function DestinationRow({
         </p>
       </div>
       <label className="flex shrink-0 items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="size-4 accent-primary"
+        <Checkbox
           checked={enabled}
-          onChange={(event) => onChange(event.target.checked)}
+          onCheckedChange={(checked) => onChange(checked === true)}
         />
         <span className="sr-only">Allow {label}</span>
       </label>
