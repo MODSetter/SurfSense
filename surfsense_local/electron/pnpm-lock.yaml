@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  isbinaryfile: ^5.0.7
+
 importers:
 
   .:
@@ -1272,10 +1275,6 @@ packages:
   isarray@1.0.0:
     resolution: {integrity: sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ==}
 
-  isbinaryfile@4.0.10:
-    resolution: {integrity: sha512-iHrqe5shvBUcFbmZq9zOQHBoeOhZJu6RQGrDpBgenUm/Am+F3JM2MgQj+rK3Z601fzrL5gLZWtAPH2OBaSVcyw==}
-    engines: {node: '>= 8.0.0'}
-
   isbinaryfile@5.0.7:
     resolution: {integrity: sha512-gnWD14Jh3FzS3CPhF0AxNOJ8CxqeblPTADzI38r0wt8ZyQl5edpy75myt08EG2oKvpyiqSqsx+Wkz9vtkbTqYQ==}
     engines: {node: '>= 18.0.0'}
@@ -2127,7 +2126,7 @@ snapshots:
       compare-version: 0.1.2
       debug: 4.4.3(supports-color@10.2.2)
       fs-extra: 10.1.0
-      isbinaryfile: 4.0.10
+      isbinaryfile: 5.0.7
       minimist: 1.2.8
       plist: 3.1.0
     transitivePeerDependencies:
@@ -3232,8 +3231,6 @@ snapshots:
   is-fullwidth-code-point@3.0.0: {}
 
   isarray@1.0.0: {}
-
-  isbinaryfile@4.0.10: {}
 
   isbinaryfile@5.0.7: {}
 
