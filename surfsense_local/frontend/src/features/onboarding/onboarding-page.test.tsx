@@ -174,7 +174,9 @@ describe("model onboarding", () => {
       screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
     ).toBeTruthy()
     expect(
-      screen.getByRole("button", { name: "Start chatting" }).hasAttribute("disabled")
+      screen
+        .getByRole("button", { name: "Start chatting" })
+        .hasAttribute("disabled")
     ).toBe(false)
     expect(
       screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
@@ -197,7 +199,7 @@ describe("model onboarding", () => {
   })
 
   it("leaves onboarding only after Start chatting, and needs a chat model", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
       const path = String(input)
       if (path === "/llm/selection/generation") {
         return Response.json({ detail: "not selected" }, { status: 404 })
@@ -238,9 +240,9 @@ describe("model onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
     expect(
-      (await screen.findByRole("button", { name: "Start chatting" })).hasAttribute(
-        "disabled"
-      )
+      (
+        await screen.findByRole("button", { name: "Start chatting" })
+      ).hasAttribute("disabled")
     ).toBe(true)
     expect(onComplete).not.toHaveBeenCalled()
     expect(
@@ -257,7 +259,9 @@ describe("model onboarding", () => {
     const onComplete = vi.fn()
     render(<OnboardingPage onComplete={onComplete} />)
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
-    await user.click(await screen.findByRole("button", { name: "Start chatting" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Start chatting" })
+    )
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
     expect(
       fetchMock.mock.calls.some(
