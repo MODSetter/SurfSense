@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
@@ -26,6 +26,7 @@ function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
         artifacts={[artifact]}
         onOpen={vi.fn()}
         onDelete={vi.fn()}
+        onRetry={vi.fn()}
         {...props}
       />
     </TooltipProvider>
@@ -71,12 +72,15 @@ describe("artifact list", () => {
       screen.getByRole("status", { name: "Processing Weekly summary" })
     ).toBeTruthy()
     expect(
-      (screen.getByRole("button", { name: "Weekly summary" }) as HTMLButtonElement)
-        .disabled
+      (
+        screen.getByRole("button", {
+          name: "Weekly summary",
+        }) as HTMLButtonElement
+      ).disabled
     ).toBe(true)
   })
 
-  it("shows the stored failure reason without opening the artifact", async () => {
+  it("disables opening a failed artifact and offers a generic retry hint on hover", async () => {
     const onOpen = vi.fn()
     const user = userEvent.setup()
     renderList({
@@ -93,9 +97,21 @@ describe("artifact list", () => {
     })
 
     expect(screen.queryByText("failed")).toBeNull()
+    const retryIcon = screen.getByLabelText(
+      "Generation failed. Retry Flashcards"
+    )
+    await user.hover(retryIcon)
+    // The real error is reserved for Ctrl/Cmd+hover — see the test below.
     expect(
-      screen.getByLabelText("ConnectError: All connection attempts failed")
+      await screen.findByRole("tooltip", {
+        name: "Generation failed. Retry again.",
+      })
     ).toBeTruthy()
+    expect(
+      screen.queryByRole("tooltip", {
+        name: "ConnectError: All connection attempts failed",
+      })
+    ).toBeNull()
     const failed = screen.getByRole("button", { name: "Flashcards" })
     expect((failed as HTMLButtonElement).disabled).toBe(true)
     await user.click(failed)
@@ -114,5 +130,70 @@ describe("artifact list", () => {
     expect(onDelete).not.toHaveBeenCalled()
     await user.click(screen.getByRole("button", { name: "Delete artifact" }))
     expect(onDelete).toHaveBeenCalledWith(12)
+  })
+
+  it("retries a failed artifact from the icon and from the dropdown", async () => {
+    const onRetry = vi.fn()
+    const user = userEvent.setup()
+    renderList({
+      artifacts: [{ ...artifact, status: "failed", error_message: "boom" }],
+      onRetry,
+    })
+
+    await user.click(
+      screen.getByLabelText("Generation failed. Retry Weekly summary")
+    )
+    expect(onRetry).toHaveBeenCalledExactlyOnceWith(12)
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Weekly summary" })
+    )
+    expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull()
+    await user.click(screen.getByRole("menuitem", { name: "Retry" }))
+    expect(onRetry).toHaveBeenCalledTimes(2)
+  })
+
+  it("shows a generic retry hint on plain hover of just the icon", async () => {
+    const user = userEvent.setup()
+    renderList({
+      artifacts: [{ ...artifact, status: "failed", error_message: "boom" }],
+    })
+
+    const retryIcon = screen.getByLabelText(
+      "Generation failed. Retry Weekly summary"
+    )
+    await user.hover(retryIcon)
+    const generic = await screen.findByRole("tooltip", {
+      name: "Generation failed. Retry again.",
+    })
+    expect(generic.getAttribute("data-side")).toBe("left")
+  })
+
+  it("reveals the real error above the whole row while Ctrl/Cmd is held", async () => {
+    const user = userEvent.setup()
+    renderList({
+      artifacts: [{ ...artifact, status: "failed", error_message: "boom" }],
+    })
+
+    // Hovering the title, not the icon, proves this covers the whole row.
+    const title = screen.getByRole("button", { name: "Weekly summary" })
+    await user.hover(title)
+    expect(screen.queryByRole("tooltip", { name: "boom" })).toBeNull()
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Control", ctrlKey: true })
+    )
+    const real = await screen.findByRole("tooltip", { name: "boom" })
+    expect(real.getAttribute("data-side")).toBe("top")
+
+    window.dispatchEvent(
+      new KeyboardEvent("keyup", { key: "Control", ctrlKey: false })
+    )
+    // Radix keeps the node mounted with data-state="closed" through its exit
+    // animation, which jsdom never finishes — so wait for it to go rather
+    // than asserting synchronously.
+    await waitFor(() =>
+      expect(screen.queryByRole("tooltip", { name: "boom" })).toBeNull()
+    )
   })
 })

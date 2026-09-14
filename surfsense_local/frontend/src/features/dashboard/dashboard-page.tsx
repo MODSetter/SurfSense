@@ -157,7 +157,11 @@ function WorkspaceDashboard({
                 icon: UnplugIcon,
                 badge: "Coming soon",
                 // TODO: open the plugins panel once it exists.
-                onClick: () => toast.info("Plugins are coming soon"),
+                onClick: () =>
+                  toast.info("Plugins are coming soon", {
+                    description:
+                      "Connect external tools to extend what SurfSense can do. We're still polishing this.",
+                  }),
               },
             ]}
           />
@@ -257,6 +261,7 @@ function WorkspaceDashboard({
                     setInspect({ kind: "artifact", artifactId })
                   }}
                   onDelete={(artifactId) => void studio.remove(artifactId)}
+                  onRetry={(artifactId) => void studio.retry(artifactId)}
                 />
               }
             />

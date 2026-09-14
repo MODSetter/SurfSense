@@ -78,6 +78,16 @@ export function readArtifact(
   return requestJson<ArtifactDetail>(`/artifacts/${artifactId}`, { signal })
 }
 
+export function retryArtifact(
+  artifactId: number,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/retry`, {
+    method: "POST",
+    signal,
+  })
+}
+
 export function deleteArtifact(
   artifactId: number,
   signal?: AbortSignal

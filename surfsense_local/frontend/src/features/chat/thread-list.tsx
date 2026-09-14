@@ -162,7 +162,7 @@ export function ThreadList({
 
   return (
     <aside className="flex h-full min-w-0 flex-col border-r bg-background">
-      <header className="space-y-3 px-3 py-3">
+      <header className="space-y-6 px-3 py-3">
         <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
           SurfSense
         </h2>

@@ -14,7 +14,7 @@ from modules.artifacts.schemas import (
     FormatRead,
     StudioJobCreate,
 )
-from modules.artifacts.service import create_artifact_job, list_formats
+from modules.artifacts.service import create_artifact_job, list_formats, retry_artifact
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
@@ -100,6 +100,16 @@ def read_artifact_file(artifact: ArtifactDep, role: ArtifactFileRole) -> FileRes
         media_type=file.mime_type,
         content_disposition_type="inline" if inline else "attachment",
     )
+
+
+@router.post(
+    "/artifacts/{artifact_id}/retry",
+    response_model=ArtifactRead,
+    summary="Requeue a failed artifact",
+)
+def retry_studio_artifact(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+    artifact = retry_artifact(session, artifact)
+    return ArtifactRead.of(artifact)
 
 
 @router.delete(

@@ -1,10 +1,11 @@
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import Engine
+from sqlalchemy import Engine, text
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
 from shared.db import create_session_factory
+from shared.queue import huey
 
 pytestmark = pytest.mark.integration
 
@@ -140,6 +141,51 @@ async def test_a_job_waits_for_a_source_to_index(
         f"/workspaces/{workspace_id}/studio/jobs",
         json={"format": "summary", "document_ids": [int(note.json()["id"])]},
     )
+
+    assert response.status_code == 409
+
+
+async def test_a_failed_artifact_can_be_retried(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """Mirrors document retry: reset the backing document and requeue in place."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+    document_id = created.json()["document_id"]
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "UPDATE documents SET status = 'failed', "
+                "error_message = 'model server down' WHERE id = :id"
+            ),
+            {"id": document_id},
+        )
+    huey.flush()
+
+    response = await client.post(f"/artifacts/{artifact_id}/retry")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "pending"
+    assert response.json()["error_message"] is None
+    assert [job.args for job in huey.pending()] == [(artifact_id,)]
+
+
+async def test_only_a_failed_artifact_is_retried(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """Requeueing one already pending or processing would run it twice."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+
+    response = await client.post(f"/artifacts/{artifact_id}/retry")
 
     assert response.status_code == 409
 
