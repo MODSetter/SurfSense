@@ -134,6 +134,8 @@ async function registerUpdateHandlers(): Promise<void> {
   let updates: Updates
   if (app.isPackaged) {
     const { autoUpdater } = await import("electron-updater")
+    // GitHub's CDN rejects the multi-range requests differential updates need.
+    autoUpdater.disableDifferentialDownload = true
     updates = attachUpdater(autoUpdater, broadcast)
   } else {
     // ponytail: dev has no signed build to update; expose the same surface
