@@ -45,6 +45,9 @@ export const TARGETS = {
 
 const key = `${process.platform}-${process.arch}`
 const binaryName = process.platform === "win32" ? "llmfit.exe" : "llmfit"
+// Under bash on Windows, PATH resolves to Git's GNU tar, which reads "C:\..." as a host and can't open zip.
+const TAR =
+  process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar"
 
 function find(root, predicate) {
   for (const entry of readdirSync(root, { withFileTypes: true })) {
@@ -153,7 +156,7 @@ async function main() {
     }
 
     // bsdtar is available on all supported packaging runners and reads zip too.
-    execFileSync("tar", ["-xf", archive, "-C", unpacked], { stdio: "inherit" })
+    execFileSync(TAR, ["-xf", archive, "-C", unpacked], { stdio: "inherit" })
     const extracted = find(unpacked, (entry) => entry === binaryName)
     if (!extracted) throw new Error(`${target.asset} did not contain ${binaryName}`)
     copyFileSync(extracted, join(stage, binaryName))

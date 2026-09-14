@@ -32,6 +32,9 @@ const TAR_FLAGS = {
   zst: ["--zstd", "-xf"],
   zip: ["-xf"],
 }
+// Under bash on Windows, PATH resolves to Git's GNU tar, which reads "C:\..." as a host and can't open zip.
+const TAR =
+  process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar"
 
 const binary = process.platform === "win32" ? "ollama.exe" : "ollama"
 const staged = [join(OUT, "bin", binary), join(OUT, binary)]
@@ -55,7 +58,7 @@ console.log(`downloading ${target.url}`)
 execFileSync("curl", ["-fSL", "--retry", "3", target.url, "-o", archive], { stdio: "inherit" })
 
 console.log(`extracting into ${OUT}`)
-execFileSync("tar", [...TAR_FLAGS[target.kind], archive, "-C", OUT], {
+execFileSync(TAR, [...TAR_FLAGS[target.kind], archive, "-C", OUT], {
   stdio: "inherit",
 })
 rmSync(archive, { force: true })
