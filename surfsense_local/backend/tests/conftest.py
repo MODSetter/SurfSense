@@ -8,6 +8,7 @@ from pathlib import Path
 os.environ.setdefault(
     "SURFSENSE_LOCAL_DATA_DIR", tempfile.mkdtemp(prefix="surfsense-tests-")
 )
+os.environ.setdefault("SURFSENSE_LOCAL_SECRET", "test-secret")
 
 import pytest
 from httpx import ASGITransport, AsyncClient

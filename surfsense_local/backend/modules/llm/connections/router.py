@@ -34,7 +34,7 @@ def _read(connection: ProviderConnection) -> ConnectionRead:
         label=connection.label,
         provider=connection.provider,
         base_url=connection.base_url,
-        has_api_key=connection.api_key is not None,
+        has_api_key=connection.api_key_ciphertext is not None,
         created_at=connection.created_at,
         updated_at=connection.updated_at,
     )

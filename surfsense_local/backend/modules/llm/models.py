@@ -5,6 +5,7 @@ from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, fu
 from sqlalchemy.orm import Mapped, mapped_column
 
 from shared.db import Base, text_enum
+from shared.secrets import decrypt, encrypt
 
 
 class ModelRole(enum.StrEnum):
@@ -54,10 +55,18 @@ class ProviderConnection(Base):
     label: Mapped[str] = mapped_column(String(collation="NOCASE"))
     provider: Mapped[str]
     base_url: Mapped[str]
-    # ponytail: plaintext is the Phase 5 ceiling; Phase 6 moves this value behind
-    # ConnectionSecretStore without changing connection ids or API DTOs.
-    api_key: Mapped[str | None]
+    api_key_ciphertext: Mapped[bytes | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
+
+    @property
+    def api_key(self) -> str | None:
+        if self.api_key_ciphertext is None:
+            return None
+        return decrypt(self.api_key_ciphertext)
+
+    @api_key.setter
+    def api_key(self, value: str | None) -> None:
+        self.api_key_ciphertext = None if value is None else encrypt(value)
