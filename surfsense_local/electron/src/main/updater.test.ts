@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import test from "node:test"
 
-import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.mts"
+import { attachUpdater, parseUpdatePrefs, type UpdateState } from "./updater.ts"
 
 type Listener = (...args: unknown[]) => void
 
@@ -82,4 +82,9 @@ test("update prefs default to off and ignore junk", () => {
   assert.deepEqual(parseUpdatePrefs(undefined), { automatic: false })
   assert.deepEqual(parseUpdatePrefs({ automatic: "yes" }), { automatic: false })
   assert.deepEqual(parseUpdatePrefs({ automatic: true }), { automatic: true })
+  assert.deepEqual(
+    parseUpdatePrefs({ automatic: true, lastCheckedAt: "2026-09-14T10:00:00Z" }),
+    { automatic: true, lastCheckedAt: "2026-09-14T10:00:00Z" }
+  )
+  assert.deepEqual(parseUpdatePrefs({ lastCheckedAt: 5 }), { automatic: false })
 })

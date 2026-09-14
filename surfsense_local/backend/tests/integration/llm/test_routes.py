@@ -56,6 +56,7 @@ async def test_an_unknown_provider_is_a_404(client: AsyncClient) -> None:
 
 async def test_pull_streams_progress(client: AsyncClient, ollama_server: str) -> None:
     """The client needs progress, not one reply after minutes of silence."""
+    await client.put("/egress/ollama_pull", json={"enabled": True})
     steps = []
     async with client.stream(
         "POST", "/llm/providers/ollama/pull", json={"name": "qwen3:1.7b"}

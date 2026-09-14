@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
+from modules.egress import service as egress
 from modules.llm.models import ModelRole, ProviderConnection, SelectedModel
 from modules.llm.providers import get_provider
 from modules.llm.providers.openai_compatible import (
@@ -56,12 +57,11 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
     )
 
 
-def _connection(
-    session: Session, selected: SelectedModel
-) -> ProviderConnection:
+def _connection(session: Session, selected: SelectedModel) -> ProviderConnection:
     if selected.provider != "openai_compatible" or selected.connection_id is None:
         raise ModelResolutionError(f"unknown provider: {selected.provider}")
     connection = session.get(ProviderConnection, selected.connection_id)
     if connection is None:
         raise ModelResolutionError("selected model connection no longer exists")
+    egress.require(session, egress.host_destination(connection.base_url))
     return connection

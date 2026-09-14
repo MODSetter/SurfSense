@@ -1,9 +1,10 @@
 import { join } from "node:path"
 
-import { app, BrowserWindow, ipcMain, Menu, shell } from "electron"
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, shell } from "electron"
 
-import { managedOriginalPath } from "./document-files.mts"
+import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
+import { loadSecret } from "./secret.ts"
 import { ollamaSpec } from "./sidecars/ollama.ts"
 import { exe } from "./sidecars/platform.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
@@ -15,7 +16,7 @@ import {
   writeUpdatePrefs,
   type Updates,
   type UpdateState,
-} from "./updater.mts"
+} from "./updater.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
@@ -68,6 +69,9 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const packaged = app.isPackaged
   const apiPort = await getFreePort(host)
   const dataDir = DATA_DIR
+  // Linux without a keyring daemon: keep booting on Chromium's built-in key
+  // rather than refusing to start; same fallback every Electron app takes.
+  if (process.platform === "linux") safeStorage.setUsePlainTextEncryption(true)
 
   const ctx: SidecarContext = {
     packaged,
@@ -77,6 +81,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     host,
     apiPort,
     dataDir,
+    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage),
     // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
       ? join(process.resourcesPath, "models")
@@ -192,22 +197,30 @@ async function registerUpdateHandlers(): Promise<void> {
     }
   }
 
+  const check = (): void => {
+    writeUpdatePrefs(prefsPath, {
+      ...readUpdatePrefs(prefsPath),
+      lastCheckedAt: new Date().toISOString(),
+    })
+    void updates.check()
+  }
+
   ipcMain.handle("updates:prefs", () => readUpdatePrefs(prefsPath))
   ipcMain.handle("updates:set-automatic", (event, automatic: unknown) => {
     if (!trusted(event.sender)) return readUpdatePrefs(prefsPath)
-    const prefs = { automatic: automatic === true }
+    const prefs = { ...readUpdatePrefs(prefsPath), automatic: automatic === true }
     writeUpdatePrefs(prefsPath, prefs)
     return prefs
   })
   ipcMain.handle("updates:state", () => updates.state())
   ipcMain.handle("updates:check", (event) => {
-    if (trusted(event.sender)) void updates.check()
+    if (trusted(event.sender)) check()
   })
   ipcMain.handle("updates:install", (event) => {
     if (trusted(event.sender)) updates.install()
   })
 
-  if (readUpdatePrefs(prefsPath).automatic) void updates.check()
+  if (readUpdatePrefs(prefsPath).automatic) check()
 }
 
 function applyTitleBarOverlay(

@@ -13,8 +13,8 @@ declare global {
         documentId: number
       ) => Promise<string>
       updates: {
-        prefs: () => Promise<{ automatic: boolean }>
-        setAutomatic: (automatic: boolean) => Promise<{ automatic: boolean }>
+        prefs: () => Promise<UpdatePrefs>
+        setAutomatic: (automatic: boolean) => Promise<UpdatePrefs>
         state: () => Promise<UpdateState>
         check: () => Promise<void>
         install: () => Promise<void>
@@ -29,7 +29,8 @@ declare global {
   }
 }
 
-// Mirrors electron/src/main/updater.mts.
+// Mirrors electron/src/main/updater.ts.
+export type UpdatePrefs = { automatic: boolean; lastCheckedAt?: string }
 export type UpdateState =
   | { status: "idle" }
   | { status: "checking" }
@@ -58,18 +59,29 @@ export function apiUrl(path: string): string {
 export class ApiError extends Error {
   readonly status: number
   readonly code: string | null
+  readonly detail: Record<string, unknown>
 
-  constructor(status: number, message: string, code: string | null = null) {
+  constructor(
+    status: number,
+    message: string,
+    code: string | null = null,
+    detail: Record<string, unknown> = {}
+  ) {
     super(message)
     this.name = "ApiError"
     this.status = status
     this.code = code
+    this.detail = detail
   }
 }
 
-async function responseError(
-  response: Response
-): Promise<{ message: string; code: string | null }> {
+type ErrorDetails = {
+  message: string
+  code: string | null
+  detail?: Record<string, unknown>
+}
+
+async function responseError(response: Response): Promise<ErrorDetails> {
   try {
     const body: unknown = await response.json()
     if (typeof body === "object" && body !== null && "detail" in body) {
@@ -100,6 +112,7 @@ async function responseError(
             "code" in body.detail && typeof body.detail.code === "string"
               ? body.detail.code
               : null,
+          detail: body.detail as Record<string, unknown>,
         }
       }
     }
@@ -114,16 +127,34 @@ async function responseError(
   }
 }
 
+// Resolves true once the user allowed the refused destination.
+let egressPrompt: ((error: ApiError) => Promise<boolean>) | null = null
+
+export function setEgressPrompt(handler: typeof egressPrompt): void {
+  egressPrompt = handler
+}
+
 export async function request(
   input: RequestInfo | URL,
-  init?: RequestInit
+  init?: RequestInit,
+  { prompted = false } = {}
 ): Promise<Response> {
   const response = await fetch(withBase(input), init)
-  if (!response.ok) {
-    const error = await responseError(response)
-    throw new ApiError(response.status, error.message, error.code)
+  if (response.ok) return response
+  const { message, code, detail } = await responseError(response)
+  const error = new ApiError(response.status, message, code, detail)
+  // ponytail: method stands in for "user action"; reads run unattended at boot.
+  const userAction = (init?.method ?? "GET").toUpperCase() !== "GET"
+  if (
+    !prompted &&
+    userAction &&
+    error.code === "egress_disabled" &&
+    egressPrompt &&
+    (await egressPrompt(error))
+  ) {
+    return request(input, init, { prompted: true })
   }
-  return response
+  throw error
 }
 
 export async function requestJson<T>(

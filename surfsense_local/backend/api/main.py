@@ -1,12 +1,15 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from modules.artifacts.router import router as artifacts_router
 from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
+from modules.egress.router import router as egress_router
+from modules.egress.service import EgressDeniedError
 from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
 from modules.health.router import router as health_router
@@ -59,4 +62,20 @@ def create_app() -> FastAPI:
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
+    app.include_router(egress_router)
+    app.add_exception_handler(EgressDeniedError, egress_denied)
     return app
+
+
+def egress_denied(_request: Request, error: EgressDeniedError) -> JSONResponse:
+    return JSONResponse(
+        {
+            "detail": {
+                "code": "egress_disabled",
+                "message": str(error),
+                "destination": error.destination,
+                "host": error.host,
+            }
+        },
+        status.HTTP_403_FORBIDDEN,
+    )

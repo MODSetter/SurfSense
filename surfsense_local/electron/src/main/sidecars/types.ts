@@ -21,6 +21,8 @@ export interface SidecarContext {
   host: string
   apiPort: number
   dataDir: string
+  /** Per-install secret the backend encrypts provider API keys with. */
+  secret: string
   /** Packaged: read-only bundled embedding, voice, and Docling parser packs. */
   modelsDir?: string
   /** Packaged: absolute path to the pinned llmfit executable. */

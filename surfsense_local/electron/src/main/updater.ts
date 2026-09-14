@@ -18,7 +18,8 @@ export type UpdateState =
   | { status: "ready"; version: string }
   | { status: "error"; message: string }
 
-export type UpdatePrefs = { automatic: boolean }
+// lastCheckedAt: the "last call" shown in Settings > Network.
+export type UpdatePrefs = { automatic: boolean; lastCheckedAt?: string }
 
 export type Updates = {
   check(): Promise<void>
@@ -40,12 +41,14 @@ export function writeUpdatePrefs(path: string, prefs: UpdatePrefs): void {
 }
 
 export function parseUpdatePrefs(value: unknown): UpdatePrefs {
-  const automatic =
-    typeof value === "object" &&
-    value !== null &&
-    "automatic" in value &&
-    value.automatic === true
-  return { automatic }
+  const record =
+    typeof value === "object" && value !== null
+      ? (value as Record<string, unknown>)
+      : {}
+  const automatic = record.automatic === true
+  return typeof record.lastCheckedAt === "string"
+    ? { automatic, lastCheckedAt: record.lastCheckedAt }
+    : { automatic }
 }
 
 export function attachUpdater(

@@ -1,0 +1,79 @@
+import { afterEach, describe, expect, it, vi } from "vitest"
+import { cleanup, screen, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+
+import { requestVoid } from "@/lib/api"
+import { render } from "@/test-utils"
+
+import { EgressPrompt } from "./egress-prompt"
+
+const REFUSED = {
+  detail: {
+    code: "egress_disabled",
+    message: "off",
+    destination: "host:api.provider.example",
+    host: "api.provider.example",
+  },
+}
+
+function stubApi() {
+  const calls: string[] = []
+  let allowed = false
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const path = String(input)
+      calls.push(`${init?.method ?? "GET"} ${path}`)
+      if (path.startsWith("/egress/")) {
+        allowed = true
+        return Response.json({})
+      }
+      return allowed
+        ? Response.json({})
+        : Response.json(REFUSED, { status: 403 })
+    })
+  )
+  return calls
+}
+
+afterEach(() => {
+  cleanup()
+  vi.unstubAllGlobals()
+})
+
+describe("egress prompt", () => {
+  it("asks about the host and, once allowed, lets the call through", async () => {
+    const calls = stubApi()
+    const user = userEvent.setup()
+    render(<EgressPrompt />)
+
+    const pending = requestVoid("/chat/threads/1/messages", { method: "POST" })
+    await screen.findByRole("alertdialog", {
+      name: "Allow sending data to api.provider.example?",
+    })
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await expect(pending).resolves.toBeUndefined()
+    expect(calls).toEqual([
+      "POST /chat/threads/1/messages",
+      "PUT /egress/host:api.provider.example",
+      "POST /chat/threads/1/messages",
+    ])
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+  })
+
+  it("cancelling leaves the call refused", async () => {
+    const calls = stubApi()
+    const user = userEvent.setup()
+    render(<EgressPrompt />)
+
+    const refused = expect(
+      requestVoid("/chat/threads/1/messages", { method: "POST" })
+    ).rejects.toMatchObject({ code: "egress_disabled" })
+    await screen.findByRole("alertdialog")
+    await user.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await refused
+    expect(calls).toEqual(["POST /chat/threads/1/messages"])
+  })
+})

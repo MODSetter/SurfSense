@@ -2,8 +2,10 @@ import httpx
 from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep
+from modules.egress import service as egress
 from modules.llm.connections.service import (
     discover_models,
     normalize_base_url,
@@ -23,9 +25,7 @@ from modules.llm.schemas import (
 
 router = APIRouter(prefix="/connections")
 
-DEFAULT_IMAGE_TEST_PROMPT = (
-    "A simple blue circle centered on a plain white background."
-)
+DEFAULT_IMAGE_TEST_PROMPT = "A simple blue circle centered on a plain white background."
 
 
 def _read(connection: ProviderConnection) -> ConnectionRead:
@@ -34,7 +34,7 @@ def _read(connection: ProviderConnection) -> ConnectionRead:
         label=connection.label,
         provider=connection.provider,
         base_url=connection.base_url,
-        has_api_key=connection.api_key is not None,
+        has_api_key=connection.api_key_ciphertext is not None,
         created_at=connection.created_at,
         updated_at=connection.updated_at,
     )
@@ -69,8 +69,9 @@ def _candidate(payload: ConnectionWrite) -> tuple[str, str, str | None]:
 
 
 async def _probe_or_reject(
-    base_url: str, api_key: str | None, allow_unverified: bool
+    session: Session, base_url: str, api_key: str | None, allow_unverified: bool
 ) -> None:
+    egress.require(session, egress.host_destination(base_url))
     try:
         await probe_connection(base_url, api_key)
     except (httpx.HTTPError, ValueError) as error:
@@ -98,7 +99,7 @@ async def create_connection(
     payload: ConnectionWrite, session: SessionDep
 ) -> ConnectionRead:
     label, base_url, api_key = _candidate(payload)
-    await _probe_or_reject(base_url, api_key, payload.allow_unverified)
+    await _probe_or_reject(session, base_url, api_key, payload.allow_unverified)
     connection = ProviderConnection(
         label=label,
         provider=payload.provider,
@@ -124,11 +125,9 @@ async def update_connection(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
     label, base_url, submitted_key = _candidate(payload)
     api_key = (
-        submitted_key
-        if "api_key" in payload.model_fields_set
-        else connection.api_key
+        submitted_key if "api_key" in payload.model_fields_set else connection.api_key
     )
-    await _probe_or_reject(base_url, api_key, payload.allow_unverified)
+    await _probe_or_reject(session, base_url, api_key, payload.allow_unverified)
     connection.label = label
     connection.provider = payload.provider
     connection.base_url = base_url
@@ -159,6 +158,7 @@ async def list_connection_models(
     connection = session.get(ProviderConnection, connection_id)
     if connection is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+    egress.require(session, egress.host_destination(connection.base_url))
     try:
         models = await discover_models(connection)
     except httpx.HTTPError as error:
@@ -186,6 +186,7 @@ async def test_connection_image(
     connection = session.get(ProviderConnection, connection_id)
     if connection is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+    egress.require(session, egress.host_destination(connection.base_url))
     provider = OpenAICompatibleImageProvider(
         connection.id, connection.base_url, connection.api_key
     )
