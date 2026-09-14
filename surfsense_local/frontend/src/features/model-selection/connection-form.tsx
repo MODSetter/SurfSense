@@ -10,6 +10,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+} from "@/components/ui/combobox"
 import { Field, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -21,6 +31,29 @@ import {
   type Connection,
   type ConnectionWrite,
 } from "./api"
+
+const COMMON_BASE_URLS = [
+  { name: "OpenAI", url: "https://api.openai.com/v1" },
+  { name: "OpenRouter", url: "https://openrouter.ai/api/v1" },
+  { name: "Together AI", url: "https://api.together.xyz/v1" },
+  { name: "Groq", url: "https://api.groq.com/openai/v1" },
+  { name: "DeepSeek", url: "https://api.deepseek.com/v1" },
+  { name: "Mistral", url: "https://api.mistral.ai/v1" },
+  { name: "Fireworks", url: "https://api.fireworks.ai/inference/v1" },
+  { name: "xAI", url: "https://api.x.ai/v1" },
+  { name: "Cerebras", url: "https://api.cerebras.ai/v1" },
+  {
+    name: "Google Gemini",
+    url: "https://generativelanguage.googleapis.com/v1beta/openai",
+  },
+  { name: "Ollama (local)", url: "http://localhost:11434/v1" },
+  { name: "LM Studio (local)", url: "http://localhost:1234/v1" },
+  { name: "vLLM (local)", url: "http://localhost:8000/v1" },
+] as const
+
+function presetFor(url: string) {
+  return COMMON_BASE_URLS.find((entry) => entry.url === url)
+}
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "Could not save connection"
@@ -46,6 +79,10 @@ export function ConnectionForm({
     null
   )
   const [canSaveAnyway, setCanSaveAnyway] = useState(false)
+  // Hosts the combobox popup inside the dialog so the dialog's scroll lock
+  // lets the list scroll. Absolute, so it adds no height and the dialog, which
+  // is centred by transform, does not shift when the popup opens.
+  const [popupHost, setPopupHost] = useState<HTMLDivElement | null>(null)
 
   const save = async (allowUnverified: boolean) => {
     setBusy(true)
@@ -88,6 +125,7 @@ export function ConnectionForm({
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
+          <div ref={setPopupHost} className="absolute" />
           <Input
             value={label}
             onChange={(event) => setLabel(event.target.value)}
@@ -95,13 +133,43 @@ export function ConnectionForm({
             aria-label="Connection label"
             disabled={busy}
           />
-          <Input
+          <Combobox
             value={baseUrl}
-            onChange={(event) => setBaseUrl(event.target.value)}
-            placeholder="https://models.example.com/v1"
-            aria-label="Base URL"
+            onValueChange={(url) => {
+              const preset = presetFor(url)
+              if (preset && !label.trim()) setLabel(preset.name)
+            }}
+            inputValue={baseUrl}
+            onInputValueChange={setBaseUrl}
             disabled={busy}
-          />
+          >
+            <ComboboxInput
+              placeholder="https://models.example.com/v1"
+              aria-label="Base URL"
+            />
+            <ComboboxContent container={popupHost}>
+              <ComboboxEmpty>No items found</ComboboxEmpty>
+              <ComboboxList>
+                <ComboboxGroup>
+                  <ComboboxLabel>Common endpoints</ComboboxLabel>
+                  {COMMON_BASE_URLS.map((entry) => (
+                    <ComboboxItem
+                      key={entry.url}
+                      value={entry.url}
+                      keywords={[entry.name]}
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                        {entry.name}
+                        <span className="ml-1.5 text-muted-foreground">
+                          {entry.url}
+                        </span>
+                      </span>
+                    </ComboboxItem>
+                  ))}
+                </ComboboxGroup>
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
           <Input
             type="password"
             autoComplete="off"

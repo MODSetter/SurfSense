@@ -4,7 +4,11 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { render } from "@/test-utils"
 
-import { ThreadList } from "./thread-list"
+import { ThreadList, type SidebarNavAction } from "./thread-list"
+
+function UnplugIcon(props: { className?: string }) {
+  return <svg data-testid="unplug-icon" {...props} />
+}
 
 afterEach(cleanup)
 
@@ -89,7 +93,7 @@ describe("ThreadList", () => {
     expect(chatButton.className).toContain("text-foreground")
     expect(chatButton.className).toContain("group-hover:bg-muted")
     expect(chatButton.className).toContain("dark:group-hover:bg-muted/50")
-    expect(chatButton.className).toContain("active:!translate-y-0")
+    expect(chatButton.className).toContain("active:translate-y-0!")
     expect(actionsButton.className).toContain("size-6")
     expect(actionsButton.className).toContain("active:translate-y-px")
     expect(titleContainer?.className).toContain("min-w-0")
@@ -133,5 +137,82 @@ describe("ThreadList", () => {
       screen.getByText("Start a conversation to see it here").className
     ).toContain("select-none")
     expect(screen.queryByText("No chats yet")).toBeNull()
+  })
+
+  it("renders each extra action the same way as New chat", async () => {
+    const onPlugins = vi.fn()
+    const user = userEvent.setup()
+    const actions: SidebarNavAction[] = [
+      {
+        key: "plugins",
+        label: "Plugins",
+        icon: UnplugIcon,
+        onClick: onPlugins,
+      },
+    ]
+
+    render(
+      <ThreadList
+        threads={[]}
+        activeThreadId={null}
+        autoNamingThreadId={null}
+        animatingTitleThreadId={null}
+        isLoading={false}
+        onNewChat={vi.fn()}
+        onSelect={vi.fn()}
+        onRename={vi.fn(async () => true)}
+        onDelete={vi.fn(async () => undefined)}
+        onTitleAnimationComplete={vi.fn()}
+        actions={actions}
+      />
+    )
+
+    const newChat = screen.getByRole("button", { name: "New chat" })
+    const plugins = screen.getByRole("button", { name: "Plugins" })
+    expect(plugins.getAttribute("data-variant")).toBe(
+      newChat.getAttribute("data-variant")
+    )
+    expect(plugins.className).toBe(newChat.className)
+    expect(plugins.querySelector("[data-testid='unplug-icon']")).toBeTruthy()
+
+    await user.click(plugins)
+    expect(onPlugins).toHaveBeenCalledOnce()
+  })
+
+  it("shows an action's badge next to its label", () => {
+    const actions: SidebarNavAction[] = [
+      {
+        key: "plugins",
+        label: "Plugins",
+        icon: UnplugIcon,
+        badge: "Coming soon",
+        onClick: vi.fn(),
+      },
+    ]
+
+    render(
+      <ThreadList
+        threads={[]}
+        activeThreadId={null}
+        autoNamingThreadId={null}
+        animatingTitleThreadId={null}
+        isLoading={false}
+        onNewChat={vi.fn()}
+        onSelect={vi.fn()}
+        onRename={vi.fn(async () => true)}
+        onDelete={vi.fn(async () => undefined)}
+        onTitleAnimationComplete={vi.fn()}
+        actions={actions}
+      />
+    )
+
+    const badge = screen.getByText("Coming soon")
+    expect(badge.closest('[data-slot="badge"]')).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: /^Plugins/ }).contains(badge)
+    ).toBe(true)
+    expect(
+      screen.getByRole("button", { name: "New chat" }).textContent
+    ).not.toContain("Coming soon")
   })
 })

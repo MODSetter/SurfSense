@@ -86,6 +86,28 @@ def create_artifact_job(
     return artifact
 
 
+def retry_artifact(session: Session, artifact: Artifact) -> Artifact:
+    """Requeue a failed artifact's generation, in place.
+
+    Mirrors retry_document: the same artifact_metadata (sources, prompt,
+    options) that created the artifact is still there, so this just resets
+    the backing document and re-enqueues the same job — no new row.
+    """
+    document = artifact.document
+    if document.status is not DocumentStatus.FAILED:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "only a failed artifact can be retried"
+        )
+
+    document.status = DocumentStatus.PENDING
+    document.error_message = None
+    session.commit()
+
+    studio_job(artifact.id)
+    logger.info("studio: retrying artifact %s", artifact.id)
+    return artifact
+
+
 def _resolve_sources(
     session: Session, workspace: Workspace, document_ids: list[int]
 ) -> list[Document]:

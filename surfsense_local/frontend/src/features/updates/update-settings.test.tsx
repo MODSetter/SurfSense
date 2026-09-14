@@ -63,10 +63,12 @@ describe("UpdateSettings", () => {
     const toggle = await screen.findByRole("checkbox", {
       name: "Check for updates automatically",
     })
-    expect(toggle).toHaveProperty("checked", false)
+    expect(toggle.getAttribute("aria-checked")).toBe("false")
     await user.click(toggle)
 
-    await waitFor(() => expect(toggle).toHaveProperty("checked", true))
+    await waitFor(() =>
+      expect(toggle.getAttribute("aria-checked")).toBe("true")
+    )
     expect(bridge.calls).toEqual(["automatic:true"])
   })
 

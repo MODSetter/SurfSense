@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import {
   createJob,
   deleteArtifact,
   listArtifacts,
   listFormats,
+  retryArtifact,
   type Artifact,
   type StudioFormat,
   type StudioJobCreate,
@@ -44,6 +46,12 @@ export function useStudio(workspaceId: number) {
   const [error, setError] = useState<string | null>(null)
   const pollController = useRef<AbortController | null>(null)
   const hasRunning = artifacts.some(isRunning)
+  // Read inside the poll loop instead of closing over `artifacts` directly,
+  // so the diff against each new poll result always sees the latest state.
+  const artifactsRef = useRef(artifacts)
+  useEffect(() => {
+    artifactsRef.current = artifacts
+  }, [artifacts])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -87,6 +95,22 @@ export function useStudio(workspaceId: number) {
           if (pollController.current !== controller) {
             return
           }
+          for (const artifact of next) {
+            const before = artifactsRef.current.find(
+              (candidate) => candidate.id === artifact.id
+            )
+            if (!before || !isRunning(before)) continue
+            if (artifact.status === "ready") {
+              toast.success(`${artifact.title} is ready`)
+            } else if (artifact.status === "failed") {
+              // The raw error (often a multi-line HTTP exception) belongs in
+              // the row's own Ctrl/Cmd-hover tooltip, not a toast.
+              toast.error(`${artifact.title} failed`, {
+                description:
+                  "This artifact couldn't be generated. Retry it from the artifacts tab.",
+              })
+            }
+          }
           setArtifacts(next)
           if (!next.some(isRunning)) {
             return
@@ -127,6 +151,22 @@ export function useStudio(workspaceId: number) {
     }
   }
 
+  // Puts the artifact back to "pending" in state; the poll effect picks it up
+  // the same way it does a freshly created one.
+  const retry = async (artifactId: number) => {
+    setError(null)
+    try {
+      const updated = await retryArtifact(artifactId)
+      setArtifacts((current) =>
+        current.map((artifact) =>
+          artifact.id === artifactId ? updated : artifact
+        )
+      )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
   return {
     formats,
     artifacts,
@@ -135,6 +175,7 @@ export function useStudio(workspaceId: number) {
     error,
     create,
     remove,
+    retry,
     clearError: () => setError(null),
   }
 }

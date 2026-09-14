@@ -1,21 +1,5 @@
-import { useState, type ComponentType } from "react"
-import {
-  AiSearchLinesIcon,
-  Cards01Icon,
-  ChartHistogramIcon,
-  CheckIcon,
-  File02Icon,
-  FileIcon,
-  Image01Icon,
-  NetworkIcon,
-  Pdf01Icon,
-  PodcastIcon,
-  Presentation02Icon,
-  Quiz02Icon,
-  SparklesIcon,
-  WebDesign01Icon,
-  Xls01Icon,
-} from "@/components/ui/icons"
+import { useState } from "react"
+import { CheckIcon, FileIcon, SparklesIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -38,6 +22,7 @@ import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
+import { FORMAT_ICONS } from "./studio-formats"
 
 const FORMAT_HINTS: Record<string, string> = {
   summary: "Generate an AI summary based on your sources",
@@ -52,21 +37,6 @@ const FORMAT_HINTS: Record<string, string> = {
   podcast: "Generate an AI podcast based on your sources",
   image: "Generate an AI image based on your sources",
   infographic: "Generate an AI infographic based on your sources",
-}
-
-export const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  summary: AiSearchLinesIcon,
-  docx: File02Icon,
-  pptx: Presentation02Icon,
-  xlsx: Xls01Icon,
-  html: WebDesign01Icon,
-  pdf: Pdf01Icon,
-  mindmap: NetworkIcon,
-  flashcards: Cards01Icon,
-  quiz: Quiz02Icon,
-  podcast: PodcastIcon,
-  image: Image01Icon,
-  infographic: ChartHistogramIcon,
 }
 
 const STUDIO_CATALOG: StudioFormat[] = [
@@ -325,7 +295,7 @@ export function StudioPanel({
           if (!open) setFormat(null)
         }}
       >
-        <DialogContent className="p-6 select-none sm:max-w-lg [&_[data-slot=dialog-close]]:top-3 [&_[data-slot=dialog-close]]:right-3">
+        <DialogContent className="p-6 select-none sm:max-w-lg **:data-[slot=dialog-close]:top-3 **:data-[slot=dialog-close]:right-3">
           {selectedFormat ? (
             <>
               <DialogHeader>

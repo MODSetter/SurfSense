@@ -320,9 +320,7 @@ describe("dashboard chat", () => {
     const conversationWhileLoading = screen.getByRole("region", {
       name: "Conversation",
     })
-    expect(
-      await screen.findByRole("textbox", { name: "Message" })
-    ).toBeTruthy()
+    expect(await screen.findByRole("textbox", { name: "Message" })).toBeTruthy()
     expect(
       conversationWhileLoading.querySelector('[data-slot="skeleton"]')
     ).toBeNull()
@@ -392,10 +390,9 @@ describe("dashboard chat", () => {
         { status: 201 }
       )
     )
-    await within(screen.getByRole("region", { name: "Conversation" })).findByRole(
-      "button",
-      { name: "Start a chat" }
-    )
+    await within(
+      screen.getByRole("region", { name: "Conversation" })
+    ).findByRole("button", { name: "Start a chat" })
     await waitFor(() => {
       expect(document.querySelectorAll("time")).toHaveLength(1)
     })
@@ -465,10 +462,9 @@ describe("dashboard chat", () => {
 
     render(page)
     expect(
-      await within(screen.getByRole("region", { name: "Conversation" })).findByRole(
-        "button",
-        { name: "Original title" }
-      )
+      await within(
+        screen.getByRole("region", { name: "Conversation" })
+      ).findByRole("button", { name: "Original title" })
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "New chat" }))
     await waitFor(() => {
@@ -524,7 +520,8 @@ describe("dashboard chat", () => {
         ) {
           return Response.json([])
         }
-        if (path === "/workspaces/1/chat/threads") return Response.json([thread])
+        if (path === "/workspaces/1/chat/threads")
+          return Response.json([thread])
         if (path === "/chat/threads/10/messages") return messagesResponse
         return Response.json({ detail: "not found" }, { status: 404 })
       })
@@ -719,7 +716,7 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
     fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
     expect(await screen.findByText("indexed passage")).toBeTruthy()
     expect(screen.getByText("Cited chunk")).toBeTruthy()
@@ -732,7 +729,7 @@ describe("dashboard chat", () => {
     expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
     expect(
       screen
-        .getByRole("tab", { name: "Artifacts" })
+        .getByRole("tab", { name: /^Artifacts/ })
         .getAttribute("aria-selected")
     ).toBe("true")
     await user.click(screen.getByRole("tab", { name: "Sources" }))
@@ -1152,13 +1149,15 @@ describe("dashboard chat", () => {
       '[data-state="active"] [data-slot="scroll-shadow-viewport"]'
     )
     expect(
-      sourcesScroll?.contains(screen.getByRole("heading", { name: "All sources" }))
+      sourcesScroll?.contains(
+        screen.getByRole("heading", { name: "All sources" })
+      )
     ).toBe(false)
     expect(
       sourcesScroll?.contains(screen.getByRole("button", { name: "Add" }))
     ).toBe(false)
     expect(sourcesScroll).toBeTruthy()
-    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
     expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
     expect(
       screen.getByRole("heading", { name: "All generated artifacts" })
@@ -1193,7 +1192,7 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
     expect(
       screen
-        .getByRole("tab", { name: "Artifacts" })
+        .getByRole("tab", { name: /^Artifacts/ })
         .getAttribute("aria-selected")
     ).toBe("true")
   })
@@ -1239,10 +1238,12 @@ describe("dashboard chat", () => {
     expect(
       await screen.findByRole("complementary", { name: "Workspace sources" })
     ).toBeTruthy()
-    await user.click(screen.getByRole("tab", { name: "Artifacts" }))
+    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
     expect(localStorage.getItem(RIGHT_TAB_KEY)).toBe("artifacts")
     expect(
-      screen.getByRole("tab", { name: "Artifacts" }).getAttribute("aria-selected")
+      screen
+        .getByRole("tab", { name: /^Artifacts/ })
+        .getAttribute("aria-selected")
     ).toBe("true")
 
     cleanup()
@@ -1251,7 +1252,9 @@ describe("dashboard chat", () => {
       await screen.findByRole("complementary", { name: "Workspace artifacts" })
     ).toBeTruthy()
     expect(
-      screen.getByRole("tab", { name: "Artifacts" }).getAttribute("aria-selected")
+      screen
+        .getByRole("tab", { name: /^Artifacts/ })
+        .getAttribute("aria-selected")
     ).toBe("true")
   })
 })

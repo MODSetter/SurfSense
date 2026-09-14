@@ -1,4 +1,4 @@
-import { useRef, useState, type FormEvent } from "react"
+import { useRef, useState, type SubmitEvent } from "react"
 import {
   PencilIcon,
   PlusIcon,
@@ -77,7 +77,7 @@ function WorkspaceNameDialog({
   const [name, setName] = useState(initialName)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  const submit = async (event: FormEvent) => {
+  const submit = async (event: SubmitEvent) => {
     event.preventDefault()
     const normalized = name.trim()
     if (!normalized) {
