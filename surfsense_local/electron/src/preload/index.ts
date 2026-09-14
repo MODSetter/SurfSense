@@ -12,4 +12,17 @@ contextBridge.exposeInMainWorld("surfsense", {
     ipcRenderer.invoke("documents:open", workspaceId, documentId),
   revealDocument: (workspaceId: number, documentId: number): Promise<string> =>
     ipcRenderer.invoke("documents:reveal", workspaceId, documentId),
+  updates: {
+    prefs: () => ipcRenderer.invoke("updates:prefs"),
+    setAutomatic: (automatic: boolean) =>
+      ipcRenderer.invoke("updates:set-automatic", automatic),
+    state: () => ipcRenderer.invoke("updates:state"),
+    check: () => ipcRenderer.invoke("updates:check"),
+    install: () => ipcRenderer.invoke("updates:install"),
+    onState: (listener: (state: unknown) => void) => {
+      const wrapped = (_event: unknown, state: unknown) => listener(state)
+      ipcRenderer.on("updates:state", wrapped)
+      return () => ipcRenderer.removeListener("updates:state", wrapped)
+    },
+  },
 })
