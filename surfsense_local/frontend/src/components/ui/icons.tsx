@@ -17,6 +17,7 @@ import {
   Copy01Icon,
   CpuIcon as CpuIconData,
   Delete02Icon,
+  DownloadCircle02Icon as DownloadCircle02IconData,
   DownloadIcon as DownloadIconData,
   DotIcon as DotIconData,
   EllipsisIcon as EllipsisIconData,
@@ -129,6 +130,7 @@ export const Quiz02Icon = createIcon(Quiz02IconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const SearchIcon = createIcon(Search01Icon)
 export const ServerOffIcon = createIcon(ServerOffIconData)
+export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
 export const SidebarRightIcon = createIcon(SidebarRight01IconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const Shapes01Icon = createIcon(Shapes01IconData)

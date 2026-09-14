@@ -23,6 +23,7 @@
   --font-serif: "Newsreader", serif;
   --foreground: #1e1e1e;
   --destructive: #dc2626;
+  --notice: #3f74c8;
   --shadow-blur: 10px;
   --shadow-color: #000000;
   --sidebar-ring: #2e2e2e;
@@ -71,6 +72,7 @@
   --font-serif: "Newsreader", serif;
   --foreground: #e8e3da;
   --destructive: #ef4444;
+  --notice: #3f74c8;
   --shadow-blur: 15px;
   --shadow-color: #000000;
   --sidebar-ring: #d1cfc0;
@@ -119,6 +121,7 @@
   --color-font-serif: var(--font-serif);
   --color-foreground: var(--foreground);
   --color-destructive: var(--destructive);
+  --color-notice: var(--notice);
   --color-shadow-blur: var(--shadow-blur);
   --color-shadow-color: var(--shadow-color);
   --color-sidebar-ring: var(--sidebar-ring);

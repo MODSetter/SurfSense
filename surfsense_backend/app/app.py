@@ -2,7 +2,6 @@ import asyncio
 import contextlib
 import gc
 import logging
-import os
 import time
 import uuid
 from collections import defaultdict
@@ -66,6 +65,7 @@ from app.routes.users_routes import router as users_router
 from app.routes.zero_context_routes import router as zero_context_router
 from app.schemas import UserCreate, UserRead
 from app.session_events import register_session_hooks
+from app.sunset import SunsetWriteBlockMiddleware, is_sunset_mode, sunset_url
 from app.users import SECRET, allow_any_principal, auth_backend, fastapi_users
 from app.utils.perf import log_system_snapshot
 
@@ -907,6 +907,9 @@ allowed_origins.extend(
     ]
 )
 
+# Outermost of the two, so a refused write costs nothing further in.
+# A no-op whenever SUNSET_MODE is unset, which is every self-host install.
+app.add_middleware(SunsetWriteBlockMiddleware)
 app.add_middleware(CsrfOriginMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -1214,11 +1217,16 @@ app.include_router(crud_router, prefix="/api/v1", tags=["crud"])
 @app.get("/health", tags=["health"])
 @limiter.exempt
 async def health_check():
-    """Lightweight liveness probe exempt from rate limiting."""
+    """Lightweight liveness probe exempt from rate limiting.
+
+    Also carries the sunset flag legacy desktop clients read once at startup
+    (``plans/community-local/contracts/04-sunset-flag.md``). The flag is read
+    per request, so flipping it never needs a deploy.
+    """
     return {
         "status": "ok",
-        "sunset": os.getenv("SUNSET_MODE", "false").strip().lower() == "true",
-        "sunset_url": os.environ.get("SUNSET_URL", "https://surfsense.com/sunset"),
+        "sunset": is_sunset_mode(),
+        "sunset_url": sunset_url(),
     }
 
 

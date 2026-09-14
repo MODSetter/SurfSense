@@ -245,6 +245,8 @@ Ordered. Each step is independently shippable to `dev`.
 8. **Email and money.** Broadcast: export addresses into Loops or Resend for the launch email and the T+23 reminder; both carry real dates because both go out after T-0 is known. Transactional: the SMTP adapter in `app/mailer/` from the webhook and the license routes, any provider, domain warmed from day one; `SMTP_ENABLED=FALSE` until the founder's strings land. Refunds and per-user discount codes done by hand in the Stripe dashboard; exposure is under $500.
 9. **T+30 purge script.** Snapshot first (encrypted, kept 90 days). Then delete user content (documents, chunks, chats, connectors, files, PATs, credit records) while keeping the schema and the scraper API's rows (synthetic users and workspaces, runs, events). Destroy blob storage. Postgres stays up because the backend and the scraper API need it.
 
+**Note.** The download links on `/sunset` and on `/downloads` are the same links, by tag, never `/releases/latest`. One owner takes both pages.
+
 **T+7, plugin release:** a license auth context on the capabilities routes: `Authorization: License <key>` validated against Keygen with a short cache, resolved to a synthetic user and workspace created on first use, credit metering off for that context, per-license usage counters on (instrumentation only, no cap). MCP: `SURFSENSE_LICENSE_KEY` env sends the `License` scheme; knowledge-base tools are not registered in license mode. PATs keep working until the T+30 purge removes them.
 
 ## Workstream C - Studio (contractors)
