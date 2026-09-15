@@ -962,44 +962,11 @@
 /* ---------------------------------------------------------------------------
  * Footer
  *
- * Part of the page, not chrome around it: it sits inside the same ruled column
- * as every section above, so the side borders run unbroken from the hero to
- * the wordmark.
+ * The footer paints its own dark fluted-glass panel and its own text colours in
+ * `components/site/site-footer.tsx`, so it reads the same on the routes that
+ * have not moved onto this design. Nothing is scoped here any more; it keeps
+ * only `.ss-home-rule` and `.ss-home-pad` so it stays inside the ruled column.
  * ------------------------------------------------------------------------ */
-
-.ss-home-footer-link {
-	color: var(--muted-foreground);
-	font-size: 0.875rem;
-	transition: color 100ms ease-out;
-}
-
-.ss-home-footer-link:hover {
-	color: var(--foreground);
-}
-
-.ss-home-footer-link:focus-visible {
-	outline: 2px solid var(--ring);
-	outline-offset: 2px;
-	border-radius: 2px;
-}
-
-/* The oversized wordmark that closes the page. It is decorative type: the
- * gradient fades it into the ground so it reads as a watermark rather than as
- * a heading, and it is not selectable. */
-.ss-home-wordmark {
-	margin: 0;
-	padding-block: 2rem 0;
-	text-align: center;
-	font-size: clamp(3.5rem, 19vw, 14rem);
-	line-height: 0.9;
-	font-weight: 700;
-	letter-spacing: -0.06em;
-	user-select: none;
-	background-image: linear-gradient(to bottom, var(--border), transparent);
-	background-clip: text;
-	-webkit-background-clip: text;
-	color: transparent;
-}
 
 /* ---------------------------------------------------------------------------
  * Shared auth control

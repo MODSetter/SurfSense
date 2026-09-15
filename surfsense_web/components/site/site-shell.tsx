@@ -66,7 +66,7 @@ export function SiteShell({
 			{usesSiteDesign ? (
 				// The footer is part of the page, not chrome around it: it sits inside
 				// the same ruled column as every section above, so the side borders run
-				// unbroken from the top of the page to the wordmark.
+				// unbroken from the top of the page to the footer panel.
 				<div className="ss-home-shell">
 					{children}
 					<SiteFooter />
