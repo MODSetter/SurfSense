@@ -229,8 +229,8 @@ const SAMPLES: { value: string; label: string; build: (api: ApiSample) => string
 
 function CodeBlock({ code }: { code: string }) {
 	return (
-		<pre className="overflow-x-auto rounded-lg border bg-muted/50 p-4 text-xs leading-relaxed">
-			<code className="font-mono text-foreground/90">{code}</code>
+		<pre className="ss-home-code ss-home-mono">
+			<code>{code}</code>
 		</pre>
 	);
 }
@@ -238,15 +238,19 @@ function CodeBlock({ code }: { code: string }) {
 export function ApiMcpTabs({ api }: { api: ApiSample }) {
 	return (
 		<Tabs defaultValue="curl" className="w-full">
-			<TabsList className="flex h-auto flex-wrap justify-start gap-1">
+			<TabsList className="ss-home-tabs-list h-auto justify-start rounded-none bg-transparent p-0">
 				{SAMPLES.map((sample) => (
-					<TabsTrigger key={sample.value} value={sample.value}>
+					<TabsTrigger
+						key={sample.value}
+						value={sample.value}
+						className="ss-home-tab rounded-none px-0 py-2.5 shadow-none data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+					>
 						{sample.label}
 					</TabsTrigger>
 				))}
 			</TabsList>
 			{SAMPLES.map((sample) => (
-				<TabsContent key={sample.value} value={sample.value}>
+				<TabsContent key={sample.value} value={sample.value} className="mt-4">
 					<CodeBlock code={sample.build(api)} />
 				</TabsContent>
 			))}

@@ -1,7 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 import {
-	BUG_REPORT_CHECKLIST,
 	CALL_URL,
 	CHANNELS,
 	type Channel,
@@ -95,45 +94,30 @@ export function ContactChannels() {
 	);
 }
 
-/**
- * The argument on the left, the checklist as a bento grid on the right: the
- * same split the landing page uses for its claims.
- */
 export function ContactBugReports() {
 	return (
-		<section className="ss-home-rule">
-			<div className="ss-home-split">
-				<div className="ss-home-statement">
-					<h2 className="ss-home-h2">Reporting something broken</h2>
-					<p className="ss-home-body mt-6">
-						SurfSense runs on your machine, which means we cannot look at your logs, your index or
-						your model settings. Everything we know about a bug is what the report tells us.
-					</p>
-					<p className="ss-home-body mt-3">
-						Four details turn a report into a fix rather than a round trip. Nothing here asks for
-						your documents. Describe the failure, not the file it happened on.
-					</p>
-					<p className="mt-6">
-						<a
-							className="ss-home-forward"
-							href={DISCUSSIONS_URL}
-							target="_blank"
-							rel="noreferrer noopener"
-						>
-							Not sure it is a bug? Ask in Discussions
-							<ArrowUpRight aria-hidden="true" className="size-4" />
-						</a>
-					</p>
-				</div>
-
-				<div className="ss-home-grid ss-home-grid-2">
-					{BUG_REPORT_CHECKLIST.map((item) => (
-						<div key={item.title} className="ss-home-cell">
-							<p className="ss-home-h3">{item.title}</p>
-							<p className="ss-home-body mt-1.5 max-w-sm text-sm">{item.body}</p>
-						</div>
-					))}
-				</div>
+		<section className="ss-home-rule ss-home-pad">
+			<div className="ss-home-statement">
+				<h2 className="ss-home-h2">Reporting something broken</h2>
+				<p className="ss-home-body mt-6">
+					SurfSense runs on your machine, which means we cannot look at your logs, your index or
+					your model settings. Everything we know about a bug is what the report tells us.
+				</p>
+				<p className="ss-home-body mt-3">
+					Four details turn a report into a fix rather than a round trip. Nothing here asks for your
+					documents. Describe the failure, not the file it happened on.
+				</p>
+				<p className="mt-6">
+					<a
+						className="ss-home-forward"
+						href={DISCUSSIONS_URL}
+						target="_blank"
+						rel="noreferrer noopener"
+					>
+						Not sure it is a bug? Ask in Discussions
+						<ArrowUpRight aria-hidden="true" className="size-4" />
+					</a>
+				</p>
 			</div>
 		</section>
 	);

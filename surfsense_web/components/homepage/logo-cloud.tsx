@@ -59,10 +59,11 @@ function LogoItem({ title, file }: { title: string; file: string }) {
 			width={130}
 			height={40}
 			loading="lazy"
+			draggable={false}
 			onError={() => setFailed(true)}
 			// dark mode: dark-on-transparent marks would vanish, so render every logo as a
 			// uniform light silhouette (brightness-0 + invert) instead of relying on its own color
-			className="h-10 w-auto max-w-[130px] object-contain opacity-60 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0 dark:opacity-70 dark:brightness-0 dark:invert dark:hover:opacity-100"
+			className="h-10 w-auto max-w-[130px] select-none object-contain opacity-60 grayscale transition duration-300 [-webkit-user-drag:none] hover:opacity-100 hover:grayscale-0 dark:opacity-70 dark:brightness-0 dark:invert dark:hover:opacity-100"
 		/>
 	);
 }

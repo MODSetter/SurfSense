@@ -182,6 +182,11 @@
 	padding: 2rem var(--home-gutter);
 }
 
+.ss-home-cell img {
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
 /* Two halves of a section, split by a vertical hairline on wide screens and
  * stacked with a horizontal one when narrow. */
 .ss-home-split {
@@ -1205,6 +1210,141 @@
 .ss-home-cell-link:focus-visible .ss-home-cell-link-arrow {
 	transform: translate(0.125rem, -0.125rem);
 	color: var(--home-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Connector marketing pages
+ *
+ * The per-platform pages (`/reddit`, `/amazon`, ...) are built from the same
+ * primitives as the rest of the site — the same hero, the same ruled bands,
+ * the same cell grids and `.ss-home-table`. The three things below are new
+ * only because nothing before this page needed them: a breadcrumb, a static
+ * terminal illustration, and a code block.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-breadcrumb {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.375rem;
+	font-size: 0.8125rem;
+	color: var(--muted-foreground);
+}
+
+.ss-home-breadcrumb a {
+	color: inherit;
+	transition: color 100ms ease-out;
+}
+
+.ss-home-breadcrumb a:hover {
+	color: var(--foreground);
+}
+
+.ss-home-breadcrumb-current {
+	color: var(--foreground);
+	font-weight: 500;
+}
+
+/* A monospace stack declared locally: the site loads Roboto only, so the
+ * `font-mono` utility (which points at a Geist Mono variable nothing on this
+ * site ever loads) silently falls back to the body font. Code needs to
+ * actually be monospaced. */
+.ss-home-mono {
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* The hero's terminal illustration: a static "here is what comes back"
+ * artifact. Square-cornered like every other surface on the page — nothing
+ * here gets a radius or a shadow of its own. */
+.ss-home-terminal {
+	border: 1px solid var(--border);
+	background-color: var(--card);
+}
+
+.ss-home-terminal-bar {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	border-bottom: 1px solid var(--border);
+	padding: 0.625rem 1rem;
+}
+
+.ss-home-terminal-dot {
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background-color: var(--muted-foreground);
+	opacity: 0.35;
+}
+
+.ss-home-code {
+	overflow-x: auto;
+	border: 1px solid var(--border);
+	background-color: var(--muted);
+	padding: 0.875rem 1rem;
+	font-size: 0.75rem;
+	line-height: 1.6;
+	color: var(--muted-foreground);
+}
+
+.ss-home-code code {
+	color: var(--foreground);
+}
+
+/* The "required" mark on a schema field, and a result row's tag in the
+ * terminal illustration. */
+.ss-home-tag {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 999px;
+	border: 1px solid var(--border);
+	padding: 0.0625rem 0.5rem;
+	font-size: 0.625rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--muted-foreground);
+	white-space: nowrap;
+}
+
+.ss-home-tag[data-tone="accent"] {
+	border-color: color-mix(in oklab, var(--home-accent) 40%, transparent);
+	color: var(--home-accent);
+}
+
+/* The API/MCP language tabs: an underline, not the shadcn pill-list default —
+ * the ss-home button vocabulary is for actions, and switching a code sample
+ * is a state change on a document, not an action. */
+.ss-home-tabs-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.25rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-tab {
+	padding-block: 0.625rem;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--muted-foreground);
+	transition: color 100ms ease-out;
+}
+
+.ss-home-tab:hover {
+	color: var(--foreground);
+}
+
+.ss-home-tab[data-state="active"] {
+	border-bottom-color: var(--home-accent);
+	color: var(--foreground);
+}
+
+.ss-home-tab:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+	border-radius: 2px;
 }
 
 /* ---------------------------------------------------------------------------

@@ -52,26 +52,3 @@ export const CHANNELS: Channel[] = [
 		action: { label: "Join the Discord", href: DISCORD_URL, external: true },
 	},
 ];
-
-/**
- * The details that turn a short report into one we can act on without a
- * round trip. Deliberately short: a long checklist stops people writing at all.
- */
-export const BUG_REPORT_CHECKLIST = [
-	{
-		title: "Your platform",
-		body: "Operating system, its version, and the SurfSense version from Settings → About.",
-	},
-	{
-		title: "What you expected",
-		body: "The steps you took and what should have happened at the end of them.",
-	},
-	{
-		title: "What happened instead",
-		body: "The error text verbatim, or a screenshot if the failure is visual.",
-	},
-	{
-		title: "Your model setup",
-		body: "Which provider and model the notebook was pointed at, if the problem involves answers.",
-	},
-];

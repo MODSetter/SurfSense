@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { GlobalAnnouncement } from "@/components/homepage/global-announcement";
 import { SiteFooter } from "@/components/site/site-footer";
 import { SiteNav } from "@/components/site/site-nav";
+import { getAllConnectorSlugs } from "@/lib/connectors-marketing";
 import { cn } from "@/lib/utils";
 
 /**
@@ -22,8 +23,19 @@ import { cn } from "@/lib/utils";
  * Every other route under `(home)` still renders against `globals.css`; moving
  * one over is a matter of adding its path here and rebuilding its page with the
  * `ss-home-*` classes.
+ *
+ * The connector slugs (`/reddit`, `/amazon`, ...) are read from the registry
+ * rather than listed by hand, so a page added to `lib/connectors-marketing`
+ * lands on the site design automatically instead of falling back to the older
+ * palette until someone remembers to list it here.
  */
-const SITE_DESIGN_ROUTES = new Set(["/", "/pricing", "/contact", "/plugins"]);
+const SITE_DESIGN_ROUTES = new Set([
+	"/",
+	"/pricing",
+	"/contact",
+	"/plugins",
+	...getAllConnectorSlugs().map((slug) => `/${slug}`),
+]);
 
 export function SiteShell({
 	children,
