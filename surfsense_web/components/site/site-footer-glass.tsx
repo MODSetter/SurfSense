@@ -7,7 +7,7 @@ import { FlutedGlass } from "@paper-design/shaders-react";
  *
  * `FlutedGlass` is a WebGL shader: it draws parallel vertical prisms and lights
  * them from one side, which is what turns the footer's flat dark panel into a
- * ribbed surface. Nothing is sampled from the page behind it — the panel paints
+ * ribbed surface. Nothing is sampled from the page behind it. The panel paints
  * its own ground and this sits on top, adding only highlight and shadow.
  *
  * The only client component in the footer, which is why it is split out: the

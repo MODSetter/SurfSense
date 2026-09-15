@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
  * one over is a matter of adding its path here and rebuilding its page with the
  * `ss-home-*` classes.
  */
-const SITE_DESIGN_ROUTES = new Set(["/", "/pricing"]);
+const SITE_DESIGN_ROUTES = new Set(["/", "/pricing", "/contact"]);
 
 export function SiteShell({
 	children,

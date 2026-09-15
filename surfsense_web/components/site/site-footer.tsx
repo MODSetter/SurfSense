@@ -13,10 +13,10 @@ import { SiteFooterGlass } from "@/components/site/site-footer-glass";
 /**
  * Site footer.
  *
- * A dark fluted-glass panel that closes the page: identity, tagline and socials
+ * A dark fluted glass panel that closes the page: identity, tagline and socials
  * on the left, link columns on the right. The panel paints its own ground and
  * its own text colours rather than reading the page's tokens, so it looks the
- * same under the dark site design and under the older light routes — it is the
+ * same under the dark site design and under the older light routes. It is the
  * end of the page, and it reads as one object everywhere.
  *
  * It replaces the oversized watermark wordmark that used to close the page,
@@ -24,7 +24,7 @@ import { SiteFooterGlass } from "@/components/site/site-footer-glass";
  * not already said.
  *
  * Rendered by `app/(home)/layout.tsx` for every route under `(home)` except the
- * auth pages. On a site-design route it sits inside the ruled column; elsewhere
+ * auth pages. On a route in the site design it sits inside the ruled column; elsewhere
  * it is held to the same width without the side borders.
  */
 
