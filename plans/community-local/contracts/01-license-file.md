@@ -1,6 +1,6 @@
 # Contract 1: license file
 
-A Keygen.sh license file. Dev B's backend checks it out from Keygen once, online, at purchase. The app verifies it forever, offline, with the Keygen account public key compiled into the binary.
+A Keygen license file. Dev B's backend checks it out once, at purchase, from our **self-hosted Keygen CE** instance over the internal network. The app verifies it forever, offline, with that account's public key compiled into the binary. Nothing about the format below changes with self-hosting — CE is the same API and the same signed-file shape.
 
 ## Format
 
@@ -69,9 +69,9 @@ Reference implementation: [keygen-sh/example-python-cryptographic-license-files]
 | `team.lic` | team, `maxUsers: 12` | valid |
 | `trial.lic` | trial | valid |
 | `expired.lic` | individual | `license_expired` |
-| `public-key.hex` | | raw 32-byte Ed25519 public key, hex, as Keygen's dashboard shows it |
+| `public-key.hex` | | raw 32-byte Ed25519 public key, hex, as the Keygen account reports it (`Account.sole.ed25519_public_key`) |
 
-These are signed by a **test** key, not the production Keygen key. When the Keygen account exists, add one real `keygen-individual.lic` and its public key for an integration check; keep the test files for unit tests.
+These are signed by a **test** key, not the production key. Once the Keygen CE instance is up, add one real `keygen-individual.lic` and its public key for an integration check; keep the test files for unit tests.
 
 ## Tests each side owns
 

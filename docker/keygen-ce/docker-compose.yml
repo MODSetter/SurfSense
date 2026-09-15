@@ -1,0 +1,55 @@
+name: surfsense-keygen-ce
+
+# Standalone Keygen CE for setup and verification. Production runs one `keygen`
+# service against the main stack's db and redis -- see README, "Production shape".
+
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: keygen
+      POSTGRES_PASSWORD: keygen
+      POSTGRES_DB: keygen
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keygen -d keygen"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # One-shot. Prints the env vars to keep; needs no TTY because .env supplies
+  # every prompt. Run with: docker compose --profile setup run --rm setup
+  setup:
+    image: keygen/api:latest
+    command: setup
+    env_file: .env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    profiles: ["setup"]
+
+  web:
+    image: keygen/api:latest
+    command: web
+    env_file: .env
+    # Loopback only. Production publishes no port at all.
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }
+
+  worker:
+    image: keygen/api:latest
+    command: worker
+    env_file: .env
+    depends_on:
+      db: { condition: service_healthy }
+      redis: { condition: service_healthy }

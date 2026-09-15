@@ -21,7 +21,7 @@ flowchart LR
 | Page | For whom | Reached from | Login | Status |
 |---|---|---|---|---|
 | `/` landing | new visitors | search, email, social | no | open (B6) |
-| `/pricing` | buyers | landing, `/sunset` | no | done |
+| `/pricing` | buyers | landing, `/sunset` | no | open (B5) — the route exists but still sells pay-as-you-go credits; no license prices, early-bird date, buy buttons or trial form |
 | `/license/success` | just paid | Stripe redirect only | no | done |
 | `/license` | resend, trial | pricing, support, email | no | done |
 | `/downloads` | anyone installing | landing, `/sunset`, success page | no | open (B5), may be a landing section |
@@ -76,3 +76,9 @@ flowchart LR
 ```
 
 No login. Resend always answers 200 so nobody can probe which addresses bought.
+
+## Open items
+
+**Landing content (B6) is unspecified and unowned.** The six pages above are the ones with content requirements; `/` landing has only "rewrite for the new positioning" in the pivot plan, because the content is deferred to the **founder's landing brief for B6 — which does not exist yet, and no launch gate names it**. Meanwhile the page is the entry point for search, email and social, and almost none of it survives: of the eight components in [`app/(home)/page.tsx`](../../../surfsense_web/app/\(home\)/page.tsx), `AuthRedirect` (`router.replace("/dashboard")`) and the `HeroSection` primary CTA (`<Link href="/login">Get Started</Link>`) cannot exist without accounts at all; `ConnectorGrid` showcases what becomes a paid T+7 plugin while `/connectors` is being unpublished; `CompareTable`, `HomeFaq`, `LogoCloud` and `SocialProof` are all written for the hosted service. `CommunityStrip` is the only one that mostly survives, and it links to `/login`. Separately, `hero-section.tsx` is one of the two call sites of `desktop-download-utils` (the other is `SidebarUserProfile.tsx`), so the hero's download button currently serves legacy v0.0.40 — see the Dev B status row.
+
+**Eight public routes have no disposition.** Everything under `app/(home)/` that the plan never places: **`/free`** — a no-login hosted AI chat funnel ("ChatGPT Free Online Without Login") with a quota bar, ads and an ads-removal banner, plus structured data and OG images, so presumably an SEO asset — which **dropping hosted inference kills outright**; `/external-mcp-connectors`; `/announcements`; `/changelog`; `/contact`; `/privacy` and `/terms` (hosted-service legal text the EULA work does not cover); and the `[slug]` catch-all. Each needs unpublish, redirect or keep, and `/free` is the consequential one (unpublish alongside `/connectors`, or redirect to `/downloads` to convert the search traffic into installs — **undecided, founder's call**). Only `/connectors` is named for unpublishing today. Note that `NEXT_PUBLIC_SUNSET_MODE` is still unread in `surfsense_web` (B4), so none of these redirect anywhere yet and all of them stay live and indexed at T-0 by default.
