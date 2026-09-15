@@ -1,7 +1,9 @@
+import json
+
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
-from worker.studio.shared.text import as_list, as_text, parse_json
+from worker.studio.shared.text import as_list, as_text, parse_json, slug
 
 _SCHEMA = (
     'Return only JSON, no prose: {"title": str, "cards": '
@@ -29,16 +31,22 @@ def build(raw: str, _sources: list[Source]) -> Built:
     spec = parse_json(raw)
     title = as_text(spec.get("title")) or "Flashcards"
     lines = [f"# {title}", ""]
+    cards = []
 
-    for index, card in enumerate(as_list(spec.get("cards")), start=1):
+    for card in as_list(spec.get("cards")):
         if not isinstance(card, dict):
             continue
         front = as_text(card.get("front"))
         back = as_text(card.get("back"))
         if front and back:
-            lines.append(f"**{index}. {front}**")
-            lines.append("")
-            lines.append(back)
-            lines.append("")
+            cards.append({"front_text": front, "back_text": back})
+            lines += [f"**{len(cards)}. {front}**", "", back, ""]
 
-    return Built(title=title, markdown="\n".join(lines).strip())
+    deck = {"schema_version": 1, "title": title, "cards": cards}
+    return Built(
+        title=title,
+        markdown="\n".join(lines).strip(),
+        primary=json.dumps(deck).encode(),
+        primary_mime="application/json",
+        primary_filename=f"{slug(title, 'flashcards')}.json",
+    )

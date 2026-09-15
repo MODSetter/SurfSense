@@ -41,7 +41,7 @@ def test_image_stores_the_returned_png() -> None:
 def test_infographic_paints_the_brief_the_chat_model_wrote(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Two steps, as the cloud does: chat model distils facts, image model draws them."""
+    """Two steps: the chat model distils the facts, the image model draws them."""
     monkeypatch.setattr(
         "worker.studio.shared.generate.run_model",
         lambda *_: (

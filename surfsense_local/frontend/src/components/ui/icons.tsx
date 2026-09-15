@@ -4,7 +4,9 @@ import {
   AlertCircleIcon,
   AiSearchLinesIcon as AiSearchLinesIconData,
   ArrowDownIcon as ArrowDownIconData,
+  ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
+  ArrowRightIcon as ArrowRightIconData,
   ArrowUp02Icon as ArrowUp02IconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
@@ -88,7 +90,9 @@ function createIcon(icon: IconData) {
 export const Alert02Icon = createIcon(Alert02IconData)
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
+export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)
 export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
+export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
 export const BrainCircuitIcon = createIcon(BrainCircuitIconData)

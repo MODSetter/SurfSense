@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 _EXTENSION = {
     "application/pdf": ".pdf",
+    "application/json": ".json",
     "image/png": ".png",
     "audio/mpeg": ".mp3",
     "audio/wav": ".wav",

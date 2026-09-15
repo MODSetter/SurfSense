@@ -53,12 +53,12 @@ def test_flashcards_and_quiz_project_to_readable_markdown() -> None:
     cards = flashcards.build(
         '{"title": "Deck", "cards": [{"front": "Q?", "back": "A."}]}', []
     )
-    assert cards.primary is None
+    assert cards.primary_mime == "application/json"
     assert "Q?" in cards.markdown and "A." in cards.markdown
 
     test = quiz.build(
         '{"title": "Test", "questions": [{"question": "Q?", '
-        '"options": ["a", "b"], "answer": "a"}]}',
+        '"options": ["a", "b", "c", "d"], "answer": "a"}]}',
         [],
     )
     assert "Q?" in test.markdown and "Answer: a" in test.markdown

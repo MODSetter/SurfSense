@@ -1,3 +1,4 @@
+import json
 from collections.abc import Iterator
 
 import pytest
@@ -117,11 +118,16 @@ def _capture_image(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     return seen
 
 
+def _primary_bytes(artifact: Artifact) -> bytes:
+    return (
+        get_storage_settings().data_dir / artifact.files[0].storage_key
+    ).read_bytes()
+
+
 def _one_file(artifact: Artifact, mime: str, magic: bytes) -> None:
     """The artifact holds exactly one file of `mime` whose bytes start with `magic`."""
     assert [file.mime_type for file in artifact.files] == [mime]
-    path = get_storage_settings().data_dir / artifact.files[0].storage_key
-    assert path.read_bytes().startswith(magic)
+    assert _primary_bytes(artifact).startswith(magic)
 
 
 # --- Builders: the model returns markdown/JSON, a builder renders the body. ---
@@ -195,10 +201,10 @@ def test_mindmap_becomes_a_nested_outline_body(
     assert "key milestones" in seen[0]
 
 
-def test_flashcards_become_a_study_list_body(
+def test_flashcards_become_a_deck_file_and_a_study_list_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Flashcards: the model's front/back pairs render to a markdown list, no file."""
+    """Flashcards: a JSON deck for the study viewer, markdown to search."""
     seen = _capture_model(
         monkeypatch,
         '{"title": "Cassini", "cards": [{"front": "Arrival?", "back": "2004"}]}',
@@ -211,19 +217,26 @@ def test_flashcards_become_a_study_list_body(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    assert artifact.files == []
+    _one_file(artifact, "application/json", b"{")
+    deck = json.loads(_primary_bytes(artifact))
+    assert deck == {
+        "schema_version": 1,
+        "title": "Cassini",
+        "cards": [{"front_text": "Arrival?", "back_text": "2004"}],
+    }
     assert "Arrival?" in artifact.document.content
     assert "dates only" in seen[0]
 
 
-def test_quiz_becomes_a_question_list_body(
+def test_quiz_becomes_a_question_file_and_a_question_list_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Quiz: the model's multiple-choice questions render to a markdown body, no file."""
+    """Quiz: a JSON quiz for the study viewer, markdown to search."""
     seen = _capture_model(
         monkeypatch,
-        '{"title": "Cassini", "questions": '
-        '[{"question": "Arrival?", "options": ["2004", "2010"], "answer": "2004"}]}',
+        '{"title": "Cassini", "questions": [{"question": "Arrival?", '
+        '"options": ["1997", "2004", "2010", "2017"], "answer": "2004", '
+        '"explanation": "Cassini reached Saturn in July 2004."}]}',
     )
     artifact = make_artifact(session, fmt="quiz", prompt="arrival facts")
 
@@ -233,7 +246,19 @@ def test_quiz_becomes_a_question_list_body(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    assert artifact.files == []
+    _one_file(artifact, "application/json", b"{")
+    assert json.loads(_primary_bytes(artifact)) == {
+        "schema_version": 1,
+        "title": "Cassini",
+        "questions": [
+            {
+                "question_text": "Arrival?",
+                "options": ["1997", "2004", "2010", "2017"],
+                "correct_option_index": 1,
+                "explanation_text": "Cassini reached Saturn in July 2004.",
+            }
+        ],
+    }
     assert "Answer: 2004" in artifact.document.content
     assert "arrival facts" in seen[0]
 

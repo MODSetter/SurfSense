@@ -95,6 +95,14 @@ export function deleteArtifact(
   return requestVoid(`/artifacts/${artifactId}`, { method: "DELETE", signal })
 }
 
+// The parsed body of a JSON primary (a flashcard deck, a quiz).
+export function readArtifactFile<T>(
+  artifactId: number,
+  signal?: AbortSignal
+): Promise<T> {
+  return requestJson<T>(`/artifacts/${artifactId}/files/primary`, { signal })
+}
+
 // A plain URL for <a>/<img>/<audio>, which need the absolute sidecar address the
 // fetch helper injects itself.
 export function fileUrl(

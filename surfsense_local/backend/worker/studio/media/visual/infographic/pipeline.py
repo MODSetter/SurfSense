@@ -1,8 +1,7 @@
 """Infographic: the chat model writes a factual brief, the image model paints it.
 
-The same two steps as the cloud (app/artifacts/infographic): distilling first
-keeps the picture grounded and gives the image model a short prompt, which is
-what image models draw well from.
+Distilling first keeps the picture grounded and gives the image model the short
+prompt it draws well from.
 """
 
 import asyncio
@@ -25,8 +24,8 @@ _TASK = (
     "fully visible within the canvas, preserve factual accuracy, and follow the "
     "selected visual style."
 )
-# ponytail: one style, the cloud's default. A picker rides on the job's
-# `options` once the panel offers one.
+# ponytail: one style for now. A picker rides on the job's `options` once the
+# panel offers one.
 _STYLE = (
     "Use a hand-drawn editorial sketchnote style with mostly black ink on a warm "
     "white background, one restrained accent color, simple icons, arrows, "
