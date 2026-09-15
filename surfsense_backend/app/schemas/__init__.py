@@ -90,16 +90,6 @@ from .search_source_connector import (
     SearchSourceConnectorRead,
     SearchSourceConnectorUpdate,
 )
-from .stripe import (
-    CreateCreditCheckoutSessionRequest,
-    CreateCreditCheckoutSessionResponse,
-    CreditPurchaseHistoryResponse,
-    CreditPurchaseRead,
-    CreditStripeStatusResponse,
-    PagePurchaseHistoryResponse,
-    PagePurchaseRead,
-    StripeWebhookResponse,
-)
 from .users import UserCreate, UserRead, UserUpdate
 from .workspace import (
     WorkspaceApiAccessUpdate,
@@ -124,11 +114,6 @@ __all__ = [
     "ConnectionCreate",
     "ConnectionRead",
     "ConnectionUpdate",
-    "CreateCreditCheckoutSessionRequest",
-    "CreateCreditCheckoutSessionResponse",
-    "CreditPurchaseHistoryResponse",
-    "CreditPurchaseRead",
-    "CreditStripeStatusResponse",
     # Document schemas
     "DocumentBase",
     "DocumentMove",
@@ -198,8 +183,6 @@ __all__ = [
     "NewChatThreadRead",
     "NewChatThreadUpdate",
     "NewChatThreadWithMessages",
-    "PagePurchaseHistoryResponse",
-    "PagePurchaseRead",
     "PaginatedResponse",
     "PermissionInfo",
     "PermissionsListResponse",
@@ -213,7 +196,6 @@ __all__ = [
     "SearchSourceConnectorCreate",
     "SearchSourceConnectorRead",
     "SearchSourceConnectorUpdate",
-    "StripeWebhookResponse",
     "ThreadHistoryLoadResponse",
     "ThreadListItem",
     "ThreadListResponse",

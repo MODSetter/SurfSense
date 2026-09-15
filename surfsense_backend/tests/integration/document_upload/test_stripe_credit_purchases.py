@@ -16,7 +16,7 @@ import pytest_asyncio
 from httpx import ASGITransport
 
 from app.app import app
-from app.routes import stripe_routes
+from app.config import config
 from app.tasks.celery_tasks import stripe_reconciliation_task
 from tests.conftest import TEST_DATABASE_URL
 from tests.utils.helpers import TEST_EMAIL, TEST_PASSWORD, auth_headers
@@ -112,16 +112,12 @@ async def _cleanup_credit_purchases():
 
 
 def _configure_credit_buying(monkeypatch) -> None:
-    monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", True)
+    monkeypatch.setattr(config, "STRIPE_CREDIT_BUYING_ENABLED", True)
+    monkeypatch.setattr(config, "STRIPE_CREDIT_PRICE_ID", "price_credit_1")
     monkeypatch.setattr(
-        stripe_routes.config, "STRIPE_CREDIT_PRICE_ID", "price_credit_1"
+        config, "STRIPE_CREDIT_MICROS_PER_UNIT", _CREDIT_MICROS_PER_UNIT
     )
-    monkeypatch.setattr(
-        stripe_routes.config, "STRIPE_CREDIT_MICROS_PER_UNIT", _CREDIT_MICROS_PER_UNIT
-    )
-    monkeypatch.setattr(
-        stripe_routes.config, "NEXT_FRONTEND_URL", "http://localhost:3000"
-    )
+    monkeypatch.setattr(config, "NEXT_FRONTEND_URL", "http://localhost:3000")
 
 
 class _FakeCreateStripeClient:
@@ -172,13 +168,13 @@ class TestStripeCheckoutSessionCreation:
     async def test_credit_status_reflects_backend_toggle(
         self, client, headers, monkeypatch
     ):
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", False)
+        monkeypatch.setattr(config, "STRIPE_CREDIT_BUYING_ENABLED", False)
         disabled = await client.get("/api/v1/stripe/credit-status", headers=headers)
         assert disabled.status_code == 200, disabled.text
         assert disabled.json()["credit_buying_enabled"] is False
         assert "credit_micros_balance" in disabled.json()
 
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", True)
+        monkeypatch.setattr(config, "STRIPE_CREDIT_BUYING_ENABLED", True)
         enabled = await client.get("/api/v1/stripe/credit-status", headers=headers)
         assert enabled.status_code == 200, enabled.text
         assert enabled.json()["credit_buying_enabled"] is True
@@ -199,7 +195,9 @@ class TestStripeCheckoutSessionCreation:
         )
         fake_client = _FakeCreateStripeClient(checkout_session)
 
-        monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: fake_client)
+        monkeypatch.setattr(
+            "app.payments.router.get_stripe_client", lambda: fake_client
+        )
         _configure_credit_buying(monkeypatch)
 
         response = await client.post(
@@ -247,7 +245,7 @@ class TestStripeCheckoutSessionCreation:
         workspace_id: int,
         monkeypatch,
     ):
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_CREDIT_BUYING_ENABLED", False)
+        monkeypatch.setattr(config, "STRIPE_CREDIT_BUYING_ENABLED", False)
 
         response = await client.post(
             "/api/v1/stripe/create-credit-checkout-session",
@@ -285,7 +283,9 @@ class TestStripeWebhookFulfillment:
         )
         create_client = _FakeCreateStripeClient(checkout_session)
 
-        monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(
+            "app.payments.router.get_stripe_client", lambda: create_client
+        )
         _configure_credit_buying(monkeypatch)
 
         create_response = await client.post(
@@ -317,8 +317,10 @@ class TestStripeWebhookFulfillment:
         )
         webhook_client = _FakeWebhookStripeClient(event)
 
-        monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: webhook_client)
-        monkeypatch.setattr(stripe_routes.config, "STRIPE_WEBHOOK_SECRET", "whsec_test")
+        monkeypatch.setattr(
+            "app.payments.webhook.get_stripe_client", lambda: webhook_client
+        )
+        monkeypatch.setattr(config, "STRIPE_WEBHOOK_SECRET", "whsec_test")
 
         first_response = await client.post(
             "/api/v1/stripe/webhook",
@@ -374,7 +376,9 @@ class TestStripeReconciliation:
         )
         create_client = _FakeCreateStripeClient(checkout_session)
 
-        monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(
+            "app.payments.router.get_stripe_client", lambda: create_client
+        )
         _configure_credit_buying(monkeypatch)
 
         create_response = await client.post(
@@ -448,7 +452,9 @@ class TestStripeReconciliation:
         )
         create_client = _FakeCreateStripeClient(checkout_session)
 
-        monkeypatch.setattr(stripe_routes, "get_stripe_client", lambda: create_client)
+        monkeypatch.setattr(
+            "app.payments.router.get_stripe_client", lambda: create_client
+        )
         _configure_credit_buying(monkeypatch)
 
         create_response = await client.post(

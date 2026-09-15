@@ -26,7 +26,7 @@ from app.license.service import (
     issue_trial_license,
 )
 from app.mailer import MailerRejectedError, MailerUnavailableError, is_mail_enabled
-from app.routes.stripe_routes import get_stripe_client
+from app.payments.client import get_stripe_client
 
 logger = logging.getLogger(__name__)
 
