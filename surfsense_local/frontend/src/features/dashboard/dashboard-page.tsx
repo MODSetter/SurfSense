@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
   SidebarRightIcon,
+  UnplugIcon,
   XIcon,
 } from "@/components/ui/icons"
 
@@ -148,6 +150,20 @@ function WorkspaceDashboard({
               await chat.removeThread(threadId)
             }}
             onTitleAnimationComplete={chat.finishTitleAnimation}
+            actions={[
+              {
+                key: "plugins",
+                label: "Plugins",
+                icon: UnplugIcon,
+                badge: "Coming soon",
+                // TODO: open the plugins panel once it exists.
+                onClick: () =>
+                  toast.info("Plugins are coming soon", {
+                    description:
+                      "Connect external tools to extend what SurfSense can do. We're still polishing this.",
+                  }),
+              },
+            ]}
           />
         </div>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
@@ -205,6 +221,7 @@ function WorkspaceDashboard({
                 writeRightTab(next)
                 setTab(next)
               }}
+              artifactCount={studio.artifacts.length}
               studio={
                 <StudioPanel
                   workspaceId={workspace.id}
@@ -239,7 +256,9 @@ function WorkspaceDashboard({
               }
               artifacts={
                 <ArtifactList
+                  workspaceId={workspace.id}
                   artifacts={studio.artifacts}
+                  formats={studio.formats}
                   isLoading={studio.isLoading}
                   onOpen={(artifactId) => {
                     openSources()

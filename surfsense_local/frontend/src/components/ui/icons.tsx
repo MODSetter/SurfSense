@@ -16,6 +16,7 @@ import {
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
   ChevronRightIcon as ChevronRightIconData,
+  ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
   Delete02Icon,
@@ -26,8 +27,8 @@ import {
   File02Icon as File02IconData,
   FileAddIcon,
   FileIcon as FileIconData,
-  FilterIcon as FilterIconData,
   FileTextIcon as FileTextIconData,
+  FilterIcon as FilterIconData,
   FolderLibraryIcon as FolderLibraryIconData,
   FolderOpenIcon as FolderOpenIconData,
   Image01Icon as Image01IconData,
@@ -56,6 +57,7 @@ import {
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
+  UnplugIcon as UnplugIconData,
   Upload01Icon as Upload01IconData,
   ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
@@ -103,6 +105,7 @@ export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
 export const ChevronRightIcon = createIcon(ChevronRightIconData)
+export const ComputerEthernetIcon = createIcon(ComputerEthernetIconData)
 export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
@@ -112,9 +115,9 @@ export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
-export const FilterIcon = createIcon(FilterIconData)
 export const FilePlus2Icon = createIcon(FileAddIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
+export const FilterIcon = createIcon(FilterIconData)
 export const FolderLibraryIcon = createIcon(FolderLibraryIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
@@ -142,6 +145,7 @@ export const Settings2Icon = createIcon(Settings02Icon)
 export const Shapes01Icon = createIcon(Shapes01IconData)
 export const SparklesIcon = createIcon(SparklesIconData)
 export const SunIcon = createIcon(Sun03IconData)
+export const UnplugIcon = createIcon(UnplugIconData)
 export const Upload01Icon = createIcon(Upload01IconData)
 export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(

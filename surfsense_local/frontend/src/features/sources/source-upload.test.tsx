@@ -186,33 +186,126 @@ describe("source upload", () => {
     expect(actionsButton.className).toContain("focus-visible:opacity-100")
   })
 
+  it("shows a generic retry hint on plain hover of just the icon", async () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const retryIcon = screen.getByLabelText(
+      "Ingestion failed. Retry failed.pdf"
+    )
+    await user.hover(retryIcon)
+    const generic = await screen.findByRole("tooltip", {
+      name: "Ingestion failed. Retry again.",
+    })
+    expect(generic.getAttribute("data-side")).toBe("left")
+  })
+
+  it("reveals the real error above the whole row while Ctrl/Cmd is held", async () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    // Hovering the title, not the icon, proves this covers the whole row.
+    const title = screen.getByRole("button", { name: "failed.pdf" })
+    await user.hover(title)
+    expect(
+      screen.queryByRole("tooltip", { name: "connection refused" })
+    ).toBeNull()
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Control", ctrlKey: true })
+    )
+    const real = await screen.findByRole("tooltip", {
+      name: "connection refused",
+    })
+    expect(real.getAttribute("data-side")).toBe("top")
+
+    window.dispatchEvent(
+      new KeyboardEvent("keyup", { key: "Control", ctrlKey: false })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("tooltip", { name: "connection refused" })
+      ).toBeNull()
+    )
+  })
+
   it("offers per-source delete but disables it while processing", async () => {
     const onDelete = vi.fn()
     const user = userEvent.setup()
 
     render(
-      <SourcesPanel
-        documents={[
-          pendingDocument,
-          {
-            ...pendingDocument,
-            id: 2,
-            title: "processing.pdf",
-            status: "processing",
-          },
-        ]}
-        selectedDocumentIds={[]}
-        highlightedDocumentId={null}
-        isLoading={false}
-        isDeleting={false}
-        error={null}
-        onOpen={vi.fn()}
-        onReveal={vi.fn()}
-        onRetry={vi.fn()}
-        onDelete={onDelete}
-        onDeleteSelected={vi.fn()}
-        onSelectionChange={vi.fn()}
-      />
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[
+            pendingDocument,
+            {
+              ...pendingDocument,
+              id: 2,
+              title: "processing.pdf",
+              status: "processing",
+            },
+          ]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onDelete={onDelete}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+        />
+      </TooltipProvider>
     )
 
     await user.click(

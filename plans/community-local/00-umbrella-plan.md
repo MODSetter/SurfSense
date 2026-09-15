@@ -23,12 +23,12 @@ Same phase number = integrate together.
 | Phase | [`frontend/`](frontend/) | [`api/`](api/) | [`worker/`](worker/) |
 |---|---|---|---|
 | **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
-| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ✓ | [`01-boot.md`](worker/01-boot.md) ✓ |
-| **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
-| **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
-| **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
-| **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05a-model-recommendations.md`](api/05a-model-recommendations.md) + [`05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md) + [`05c-packaging.md`](api/05c-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
-| **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | — (import reuses `ingest_document`) |
+| **1** | [`01-shell.md`](frontend/01-shell.md) ✓ | [`01-skeleton.md`](api/01-skeleton.md) ✓ | [`01-boot.md`](worker/01-boot.md) ✓ |
+| **2** | [`02-documents.md`](frontend/02-documents.md) ✓ | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
+| **3** | [`03-chat.md`](frontend/03-chat.md) ✓ | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
+| **4** | [`04-studio.md`](frontend/04-studio.md) ◐ | [`04-studio.md`](api/04-studio.md) ◐ | [`04-studio.md`](worker/04-studio.md) ◐ |
+| **5** | [`05-install-ux.md`](frontend/05-install-ux.md) ◐ | [`05a-model-recommendations.md`](api/05a-model-recommendations.md) ✓ + [`05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md) ✓ + [`05c-packaging.md`](api/05c-packaging.md) ◐ | [`05-packaging.md`](worker/05-packaging.md) ✓ |
+| **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) ✓ | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) ◐ | — (import reuses `ingest_document`) |
 
 **Demo:** phase 3 all streams. **Ship:** phase 6 = SurfSense 2.0.0 (1.0.x tags are taken by the old project versioning; see [`00d-pivot-plan.md`](00d-pivot-plan.md)).
 
@@ -49,10 +49,19 @@ retrieves its own context, grounds a system prompt with citable `<source>` block
 slides a window over history, and streams a cited reply over SSE while both turns
 persist. The Electron shell and dev loop now land too: [`electron/`](../../surfsense_local/electron/)
 spawns both Python sidecars, waits on `/health`, and loads the Vite SPA, reaping
-the sidecars on quit (guarded by `pnpm check:sidecars`). Phase 1 still owes both
-screens, and a PDF only converts on a machine that can reach
-Hugging Face until [`api/05c-packaging.md`](api/05c-packaging.md) ships the parser
-pack.
+the sidecars on quit (guarded by `pnpm check:sidecars`). The parser pack ships, so
+a first PDF now converts with networking disabled.
+
+Phases 4 to 6 all have working slices, which is why the marks moved off blank;
+each is ◐ rather than ✓ for a named reason, and **[`00d-pivot-plan.md`](00d-pivot-plan.md)
+carries the live status — this table is the map, not the scoreboard**. Phase 4:
+every artifact type builds, but DOCX, PPTX, XLSX and PDF `exec()` model-written
+Python instead of rendering a structured spec, `GET /artifacts/{id}/manifest` is
+absent, and the panel renders mind map, flashcards, quiz and HTML as plain
+markdown. Phase 5: `05c` packaging is green on Mac and Linux and still fails on
+Windows at the NSIS step. Phase 6: the API side is built but the license verifier
+compiles in the public test key, `allowPrerelease` is missing from the updater,
+and import has no summary endpoint.
 
 ## Layer boundary
 

@@ -9,10 +9,10 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  ComputerEthernetIcon,
   CpuIcon,
   InformationCircleIcon,
   LicenseIcon,
-  NetworkIcon,
   Settings2Icon,
 } from "@/components/ui/icons"
 import {
@@ -132,7 +132,7 @@ const SETTINGS_SECTIONS = [
   {
     id: "network",
     label: "Network",
-    icon: NetworkIcon,
+    icon: ComputerEthernetIcon,
   },
   {
     id: "license",

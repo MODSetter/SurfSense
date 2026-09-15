@@ -9,6 +9,7 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.providers.kokoro import provider as kokoro
 from shared.db import create_session_factory
+from shared.queue import studio_queue
 
 pytestmark = pytest.mark.integration
 
@@ -317,6 +318,7 @@ async def test_a_failed_artifact_can_be_regenerated(
         document.status = DocumentStatus.FAILED
         document.error_message = "the model refused"
         session.commit()
+    studio_queue.flush()  # Drop the job the first request enqueued.
 
     again = await client.post(f"/artifacts/{artifact_id}/regenerate")
     assert again.status_code == 202
@@ -324,3 +326,4 @@ async def test_a_failed_artifact_can_be_regenerated(
     assert body["status"] == "pending"
     assert body["error_message"] is None
     assert body["generation"] == 2
+    assert [job.args for job in studio_queue.pending()] == [(artifact_id,)]

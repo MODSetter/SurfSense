@@ -159,7 +159,8 @@ export function ThemeProvider({
         return
       }
 
-      if (event.metaKey || event.ctrlKey || event.altKey) {
+      // Cmd/Ctrl+Shift+D, so a bare "d" while typing never flips the theme.
+      if (!(event.metaKey || event.ctrlKey) || !event.shiftKey || event.altKey) {
         return
       }
 
@@ -170,6 +171,8 @@ export function ThemeProvider({
       if (event.key.toLowerCase() !== "d") {
         return
       }
+
+      event.preventDefault()
 
       setThemeState((currentTheme) => {
         const nextTheme =

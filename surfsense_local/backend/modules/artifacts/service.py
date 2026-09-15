@@ -89,7 +89,11 @@ def create_artifact_job(
 
 
 def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
-    """Run a finished artifact's job again: same sources and prompt, new output."""
+    """Run a finished or failed artifact's job again: same sources and prompt.
+
+    The artifact_metadata that created it (sources, prompt, options) is still
+    there, so this resets the backing document and re-enqueues — no new row.
+    """
     document = artifact.document
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
         raise HTTPException(status.HTTP_409_CONFLICT, "already generating")

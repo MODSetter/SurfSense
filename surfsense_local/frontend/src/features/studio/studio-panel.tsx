@@ -21,8 +21,8 @@ import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
-import { FORMAT_ICONS, STUDIO_CATALOG } from "./catalog"
 import { PodcastBriefForm } from "./podcast-brief-form"
+import { FORMAT_ICONS, STUDIO_CATALOG } from "./studio-formats"
 import { usePodcastBrief } from "./use-podcast-brief"
 
 const FORMAT_HINTS: Record<string, string> = {
@@ -299,7 +299,7 @@ export function StudioPanel({
           if (!open) setFormat(null)
         }}
       >
-        <DialogContent className="p-6 select-none sm:max-w-lg [&_[data-slot=dialog-close]]:top-3 [&_[data-slot=dialog-close]]:right-3">
+        <DialogContent className="p-6 select-none sm:max-w-lg **:data-[slot=dialog-close]:top-3 **:data-[slot=dialog-close]:right-3">
           {selectedFormat ? (
             <>
               <DialogHeader>

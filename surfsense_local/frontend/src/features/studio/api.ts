@@ -120,6 +120,7 @@ export function readArtifact(
   return requestJson<ArtifactDetail>(`/artifacts/${artifactId}`, { signal })
 }
 
+// Also the retry a failed artifact offers: same job, same sources, run again.
 export function regenerateArtifact(
   artifactId: number,
   signal?: AbortSignal

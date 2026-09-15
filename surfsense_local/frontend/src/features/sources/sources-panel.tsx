@@ -50,6 +50,7 @@ import {
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
+import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -89,147 +90,168 @@ function SelectableSourceRow({
   const processing = document.status === "processing"
   const openable = ready && document.document_type === "FILE"
   const [dropdownOpen, setDropdownOpen] = useState(false)
+  const [rowHovered, setRowHovered] = useState(false)
+  // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
+  // row (not just the retry icon) surfaces the actual error above the row.
+  const modifierHeld = useModifierHeld()
 
   return (
-    <div
-      ref={rowRef}
-      aria-current={highlighted ? "true" : undefined}
-      className={cn(
-        "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
-        highlighted && "border-ring",
-        selected && "bg-sidebar-accent text-white",
-        dropdownOpen && "bg-muted dark:bg-muted/50"
-      )}
-    >
-      <span className="relative flex size-7 shrink-0 items-center justify-center">
-        {ready ? (
-          <>
-            <Checkbox
-              checked={selected}
-              aria-label={`Select ${document.title}`}
-              className={cn(
-                "peer absolute z-10 transition-opacity duration-150",
-                selected
-                  ? "opacity-100"
-                  : "pointer-events-none opacity-0 group-hover/source:pointer-events-auto group-hover/source:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
-              )}
-              onClick={(event) => event.stopPropagation()}
-              onCheckedChange={(checked) => onSelectedChange(checked === true)}
-            />
-            <span
-              className={cn(
-                "pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground transition-opacity duration-150",
-                selected
-                  ? "opacity-0"
-                  : "opacity-100 group-hover/source:opacity-0 peer-focus-visible:opacity-0"
-              )}
-            >
-              {document.document_type === "NOTE" ? (
-                <NotebookTextIcon className="size-4.5" />
-              ) : (
-                <FileIcon className="size-4.5" />
-              )}
-            </span>
-          </>
-        ) : null}
-        {ingesting ? (
-          <Spinner
-            className="size-4.5 text-muted-foreground"
-            aria-label={`Processing ${document.title}`}
-          />
-        ) : null}
-        {failed ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                aria-label={`Ingestion failed. Retry ${document.title}`}
-                className="relative hover:bg-transparent"
-                onClick={onRetry}
+    <Tooltip open={failed && modifierHeld && rowHovered}>
+      <TooltipTrigger asChild>
+        <div
+          ref={rowRef}
+          aria-current={highlighted ? "true" : undefined}
+          className={cn(
+            "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
+            highlighted && "border-ring",
+            selected && "bg-sidebar-accent text-white",
+            dropdownOpen && "bg-muted dark:bg-muted/50"
+          )}
+          onMouseEnter={() => setRowHovered(true)}
+          onMouseLeave={() => setRowHovered(false)}
+        >
+          <span className="relative flex size-7 shrink-0 items-center justify-center">
+            {ready ? (
+              <>
+                <Checkbox
+                  checked={selected}
+                  aria-label={`Select ${document.title}`}
+                  className={cn(
+                    "peer absolute z-10 transition-opacity duration-150",
+                    selected
+                      ? "opacity-100"
+                      : "pointer-events-none opacity-0 group-hover/source:pointer-events-auto group-hover/source:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+                  )}
+                  onClick={(event) => event.stopPropagation()}
+                  onCheckedChange={(checked) =>
+                    onSelectedChange(checked === true)
+                  }
+                />
+                <span
+                  className={cn(
+                    "pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground transition-opacity duration-150",
+                    selected
+                      ? "opacity-0"
+                      : "opacity-100 group-hover/source:opacity-0 peer-focus-visible:opacity-0"
+                  )}
+                >
+                  {document.document_type === "NOTE" ? (
+                    <NotebookTextIcon className="size-4.5" />
+                  ) : (
+                    <FileIcon className="size-4.5" />
+                  )}
+                </span>
+              </>
+            ) : null}
+            {ingesting ? (
+              <Spinner
+                className="size-4.5 text-muted-foreground"
+                aria-label={`Processing ${document.title}`}
+              />
+            ) : null}
+            {failed ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon-sm"
+                    variant="ghost"
+                    aria-label={`Ingestion failed. Retry ${document.title}`}
+                    className="relative hover:bg-transparent"
+                    onClick={onRetry}
+                  >
+                    <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
+                    <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="left" collisionPadding={8}>
+                  Ingestion failed. Retry again.
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
+          </span>
+          <button
+            type="button"
+            disabled={!openable}
+            className={cn(
+              "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
+              dropdownOpen && "sidebar-row-title-fade-actions"
+            )}
+            onClick={openable ? onOpen : undefined}
+          >
+            {document.title}
+          </button>
+          <div className="absolute inset-y-0 right-0 flex items-center pr-1">
+            <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
+                  aria-label={`Actions for ${document.title}`}
+                >
+                  <EllipsisIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent
+                align="end"
+                sideOffset={8}
+                className="min-w-40"
               >
-                <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
-                <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="left" collisionPadding={8}>
-              Ingestion failed. Retry
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
-      </span>
-      <button
-        type="button"
-        disabled={!openable}
-        className={cn(
-          "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
-          dropdownOpen && "sidebar-row-title-fade-actions"
-        )}
-        onClick={openable ? onOpen : undefined}
-      >
-        {document.title}
-      </button>
-      <div className="absolute inset-y-0 right-0 flex items-center pr-1">
-        <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
-          <DropdownMenuTrigger asChild>
-            <Button
-              type="button"
-              size="icon-sm"
-              variant="ghost"
-              className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
-              aria-label={`Actions for ${document.title}`}
-            >
-              <EllipsisIcon />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" sideOffset={8} className="min-w-40">
-            <DropdownMenuGroup>
-              {openable ? (
-                <>
-                  <DropdownMenuItem onSelect={onOpen}>
-                    <ViewIcon />
-                    Open
+                <DropdownMenuGroup>
+                  {openable ? (
+                    <>
+                      <DropdownMenuItem onSelect={onOpen}>
+                        <ViewIcon />
+                        Open
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={onReveal}>
+                        <FolderOpenIcon />
+                        Show in folder
+                      </DropdownMenuItem>
+                    </>
+                  ) : null}
+                  {ready ? (
+                    <DropdownMenuItem
+                      onSelect={() => onSelectedChange(!selected)}
+                    >
+                      {selected ? <XIcon /> : <SquareDashedMousePointerIcon />}
+                      {selected ? "Deselect" : "Select"}
+                    </DropdownMenuItem>
+                  ) : null}
+                  {failed ? (
+                    <DropdownMenuItem onSelect={onRetry}>
+                      <RefreshCwIcon />
+                      Retry
+                    </DropdownMenuItem>
+                  ) : null}
+                  {ingesting ? (
+                    <DropdownMenuItem disabled>
+                      <span className="flex animate-spin" aria-hidden="true">
+                        <Loader2Icon />
+                      </span>
+                      Processing
+                    </DropdownMenuItem>
+                  ) : null}
+                  <DropdownMenuItem
+                    variant="destructive"
+                    disabled={processing || isDeleting}
+                    onSelect={onDelete}
+                  >
+                    <Trash2Icon />
+                    Delete
                   </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={onReveal}>
-                    <FolderOpenIcon />
-                    Show in folder
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-              {ready ? (
-                <DropdownMenuItem onSelect={() => onSelectedChange(!selected)}>
-                  {selected ? <XIcon /> : <SquareDashedMousePointerIcon />}
-                  {selected ? "Deselect" : "Select"}
-                </DropdownMenuItem>
-              ) : null}
-              {failed ? (
-                <DropdownMenuItem onSelect={onRetry}>
-                  <RefreshCwIcon />
-                  Retry
-                </DropdownMenuItem>
-              ) : null}
-              {ingesting ? (
-                <DropdownMenuItem disabled>
-                  <span className="flex animate-spin" aria-hidden="true">
-                    <Loader2Icon />
-                  </span>
-                  Processing
-                </DropdownMenuItem>
-              ) : null}
-              <DropdownMenuItem
-                variant="destructive"
-                disabled={processing || isDeleting}
-                onSelect={onDelete}
-              >
-                <Trash2Icon />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    </div>
+                </DropdownMenuGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+      </TooltipTrigger>
+      <TooltipContent side="top" collisionPadding={8}>
+        {document.error_message ?? "Ingestion failed"}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 

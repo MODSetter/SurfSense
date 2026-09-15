@@ -2,6 +2,8 @@ import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { RelativeTime } from "@/components/relative-time"
+import { Checkbox } from "@/components/ui/checkbox"
+import { DotIcon } from "@/components/ui/icons"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SettingsSection } from "@/features/settings/settings-section"
 import type { UpdatePrefs } from "@/lib/api"
@@ -32,17 +34,18 @@ function DestinationRow({
         <p className="text-sm font-medium">{label}</p>
         <p className="truncate text-xs text-muted-foreground">
           {host}
-          <span aria-hidden> · </span>
+          <DotIcon
+            aria-hidden="true"
+            className="mx-1 inline size-3 align-middle"
+          />
           Last call:{" "}
           {lastCallAt ? <RelativeTime date={new Date(lastCallAt)} /> : "never"}
         </p>
       </div>
       <label className="flex shrink-0 items-center gap-2 text-sm">
-        <input
-          type="checkbox"
-          className="size-4 accent-primary"
+        <Checkbox
           checked={enabled}
-          onChange={(event) => onChange(event.target.checked)}
+          onCheckedChange={(checked) => onChange(checked === true)}
         />
         <span className="sr-only">Allow {label}</span>
       </label>

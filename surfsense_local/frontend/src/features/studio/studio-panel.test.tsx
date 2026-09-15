@@ -47,11 +47,13 @@ function StudioHarness({
         onGenerate={studio.create}
       />
       <ArtifactList
+        workspaceId={1}
         artifacts={studio.artifacts}
         isLoading={studio.isLoading}
         onOpen={vi.fn()}
         onRegenerate={(id) => void studio.regenerate(id)}
         onDelete={(id) => void studio.remove(id)}
+        onRetry={(id) => void studio.retry(id)}
       />
     </>
   )

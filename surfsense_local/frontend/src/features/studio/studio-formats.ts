@@ -1,4 +1,5 @@
 import type { ComponentType } from "react"
+
 import {
   AiSearchLinesIcon,
   Cards01Icon,
@@ -16,6 +17,8 @@ import {
 
 import type { StudioFormat } from "./api"
 
+// Frontend-only concern: the backend's format catalog has no notion of an
+// icon, so this is the single place format keys map to one.
 export const FORMAT_ICONS: Record<
   string,
   ComponentType<{ className?: string }>
@@ -34,6 +37,8 @@ export const FORMAT_ICONS: Record<
   infographic: ChartHistogramIcon,
 }
 
+// The formats offered before the API answers, and if it never does. The
+// backend's catalog replaces this as soon as it loads.
 export const STUDIO_CATALOG: StudioFormat[] = [
   {
     key: "summary",
@@ -120,7 +125,3 @@ export const STUDIO_CATALOG: StudioFormat[] = [
     unavailable_reason: null,
   },
 ]
-
-export function formatLabel(key: string) {
-  return STUDIO_CATALOG.find((entry) => entry.key === key)?.label ?? key
-}
