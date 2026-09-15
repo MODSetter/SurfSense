@@ -16,7 +16,8 @@ export function HomeQuestions() {
 	return (
 		<section className="ss-home-rule">
 			<div className="ss-home-head">
-				<h2 className="ss-home-h2">Questions people ask</h2>
+				<p className="ss-home-eyebrow">FAQ</p>
+				<h2 className="ss-home-h2 mt-2">Questions people ask</h2>
 			</div>
 
 			<div className="ss-home-grid">

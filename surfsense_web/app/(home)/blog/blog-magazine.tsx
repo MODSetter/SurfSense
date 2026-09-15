@@ -92,10 +92,13 @@ function PostSearchGrid({ blogs: allBlogs }: { blogs: BlogEntry[] }) {
 
 	return (
 		<section aria-labelledby="archive-heading">
-			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h2 id="archive-heading" className="ss-home-h3">
-					All posts
-				</h2>
+			<div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+				<div>
+					<p className="ss-home-eyebrow">Archive</p>
+					<h2 id="archive-heading" className="ss-home-h2 mt-2">
+						All posts
+					</h2>
+				</div>
 				<label className="relative w-full sm:max-w-md">
 					<span className="sr-only">Search articles</span>
 					<SearchIcon className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground" />

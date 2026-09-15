@@ -87,20 +87,16 @@ export type Action = {
 /** H2 #1 — the offline / local / air-gapped claim, stated concretely. */
 export const ON_YOUR_MACHINE: Cell[] = [
 	{
-		title: "The index lives on disk",
-		body: "Your documents are parsed, embedded and stored in a database inside your own user directory. There is no upload step because there is nowhere to upload to.",
-	},
-	{
-		title: "Nothing is sent anywhere",
-		body: "No telemetry, no analytics, no sync service. Pull the network cable and the app keeps answering questions about the sources you have already added.",
+		title: "Runs entirely on your machine",
+		body: "The index is a file on your disk, not a row in someone else's database. Pull the network cable and it keeps answering questions about the sources you already added.",
 	},
 	{
 		title: "Your keys, your provider",
 		body: "Point it at a local model through Ollama, or paste a key for a provider you already pay for. The key stays on the machine that uses it.",
 	},
 	{
-		title: "It is still yours offline",
-		body: "Files stay in the formats you gave it. Nothing is locked behind an account, a subscription check, or a server that has to be reachable.",
+		title: "Sources become artifacts",
+		body: "Turn what you have indexed into flashcards, quizzes, mind maps and study notes, generated and stored in the same local database as everything else.",
 	},
 ];
 

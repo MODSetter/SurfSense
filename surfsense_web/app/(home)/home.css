@@ -63,6 +63,12 @@
 	--destructive-foreground: #ffffff;
 	--notice: #3f74c8;
 	--border: #2c2c2c;
+	/* A darker line for dividers *inside* a group of things (cells in one
+	 * bento row, columns in one table) as opposed to `--border`, which marks
+	 * where one section ends and the next begins. Derived from `--border`
+	 * rather than a new literal, so it darkens with the palette if that ever
+	 * changes. */
+	--home-divider: color-mix(in oklab, var(--border) 85%, black);
 	--input: #2c2c2c;
 	--ring: #d1cfc0;
 	--chart-1: #f26a4b;
@@ -125,11 +131,28 @@
 	border-top: 1px solid var(--border);
 }
 
+/* For the one section whose only dividers should be the ones between its own
+ * cells — no rule where it meets the section before it either. */
+.ss-home-rule-plain {
+	border-top: none;
+}
+
 /* Section header: an H2 (or eyebrow) and a one-line subtitle, ruled off from
  * the content it introduces. */
 .ss-home-head {
-	padding: 2rem var(--home-gutter);
+	/* More air above than below: the hairline above already marks where the
+	 * previous section ends, but 2rem of padding alone reads as barely more
+	 * than the rule itself. This is what actually makes a new section feel
+	 * like a new section rather than a continuation of the last one. */
+	padding-block: clamp(8rem, 20vw, 12rem) 2rem;
+	padding-inline: var(--home-gutter);
 	border-bottom: 1px solid var(--border);
+}
+
+/* Where the only dividers that should show are the ones between the cells
+ * below it — no rule between the heading and the grid it introduces. */
+.ss-home-head-plain {
+	border-bottom: none;
 }
 
 /**
@@ -160,6 +183,34 @@
 @media (min-width: 768px) {
 	.ss-home-grid-3 {
 		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+/**
+ * A dashed variant of the interior rule, in `--home-divider` rather than
+ * `--border`: for a grid whose only dividers are the ones between its own
+ * cells, with no rule at the top or bottom marking it off from its
+ * neighbours. The shared-background gap trick above only draws solid lines,
+ * so this switches to a real border instead — on the leading edge in a row,
+ * on the top edge once cells stack to one column.
+ */
+.ss-home-grid-dashed {
+	gap: 0;
+	background-color: transparent;
+}
+
+.ss-home-grid-dashed > * {
+	background-color: transparent;
+}
+
+.ss-home-grid-dashed > *:not(:first-child) {
+	border-top: 1px dashed var(--home-divider);
+}
+
+@media (min-width: 768px) {
+	.ss-home-grid-dashed > *:not(:first-child) {
+		border-top: none;
+		border-left: 1px dashed var(--home-divider);
 	}
 }
 
@@ -538,36 +589,20 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Decorated cell
+ * Artifact illustration
  *
- * The reference's widest bento cell carries a pattern bled in from the right
- * and faded out towards the copy, so the artwork never sits behind text. The
- * pattern is drawn in CSS rather than loaded as an SVG: it is a hairline grid
- * in the same border colour as every rule on the page, which is the texture
- * the reference is after, and it costs no request.
+ * The "sources become artifacts" bento cell. The artwork is a designed SVG
+ * with its own built-in SMIL loop (see `home-artifact-illustration.tsx`), so
+ * there is nothing to animate here — only how big it sits in the cell.
  * ------------------------------------------------------------------------ */
 
-.ss-home-figure {
-	pointer-events: none;
-	user-select: none;
-	position: absolute;
-	inset-block: 0;
-	right: 0;
-	width: 55%;
-	background-image:
-		linear-gradient(to right, var(--border) 1px, transparent 1px),
-		linear-gradient(to bottom, var(--border) 1px, transparent 1px);
-	background-size: 2rem 2rem;
-	/* Fades out towards the copy on the left and off the top and bottom edges,
-	 * so the grid never reads as a box drawn inside the cell. */
-	-webkit-mask-image:
-		linear-gradient(to left, #000, transparent 85%),
-		linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
-	mask-image:
-		linear-gradient(to left, #000, transparent 85%),
-		linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
-	-webkit-mask-composite: source-in;
-	mask-composite: intersect;
+.ss-home-artifact {
+	display: block;
+	width: 100%;
+	max-width: 18rem;
+	height: auto;
+	aspect-ratio: 4 / 3;
+	margin-bottom: 1.5rem;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1079,6 +1114,42 @@
  * rest of the row left empty beside it. */
 .ss-home-faq-answer {
 	padding: 0 var(--home-gutter) 1.5rem;
+}
+
+/* Smooth open/close, still with no client JS: `::details-content` keeps the
+ * answer in normal flow (instead of `display: none`) so its height and
+ * opacity can transition both ways. `interpolate-size` has to sit on the
+ * `<details>` element itself (it's inherited) — set on the pseudo directly it
+ * only ever resolved the *opening* transition, since the browser had already
+ * dropped the box from rendering (content-visibility) before the closing
+ * transition's `auto` starting height could be read. `overflow: clip` (not
+ * `hidden`) matches what `content-visibility` itself expects here; `hidden`
+ * fights it and the collapse ships instantly instead of animating. Browsers
+ * without support for any of this just snap open/closed, same as before. */
+.ss-home-faq {
+	interpolate-size: allow-keywords;
+}
+
+.ss-home-faq::details-content {
+	overflow: clip;
+	height: 0;
+	opacity: 0;
+	transition:
+		height 260ms cubic-bezier(0.4, 0, 0.2, 1),
+		opacity 200ms ease-out,
+		content-visibility 260ms allow-discrete;
+}
+
+.ss-home-faq[open]::details-content {
+	height: auto;
+	opacity: 1;
+}
+
+@starting-style {
+	.ss-home-faq[open]::details-content {
+		height: 0;
+		opacity: 0;
+	}
 }
 
 .ss-home-faq-summary::-webkit-details-marker {

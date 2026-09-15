@@ -139,10 +139,11 @@ export function PricingPlans() {
 export function PricingQuestions() {
 	return (
 		<section className="ss-home-rule" aria-labelledby="ss-pricing-faq-label">
-			<div className="ss-home-pad pt-12 pb-8">
-				<p id="ss-pricing-faq-label" className="ss-home-section-label">
-					Questions about <span className="ss-home-section-label-accent">licences</span>
-				</p>
+			<div className="ss-home-head">
+				<p className="ss-home-eyebrow">FAQ</p>
+				<h2 id="ss-pricing-faq-label" className="ss-home-h2 mt-2">
+					Questions about <span className="ss-home-accent">licences</span>
+				</h2>
 			</div>
 
 			<div className="ss-home-grid border-t border-[color:var(--border)]">

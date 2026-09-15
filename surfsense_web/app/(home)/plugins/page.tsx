@@ -86,10 +86,11 @@ export default function PluginsPage() {
 			</section>
 
 			<section className="ss-home-rule" aria-labelledby="ss-plugins-label">
-				<div className="ss-home-pad pt-12 pb-8">
-					<p id="ss-plugins-label" className="ss-home-section-label">
-						Shipping <span className="ss-home-section-label-accent">first</span>
-					</p>
+				<div className="ss-home-head">
+					<p className="ss-home-eyebrow">Plugins</p>
+					<h2 id="ss-plugins-label" className="ss-home-h2 mt-2">
+						Shipping <span className="ss-home-accent">first</span>
+					</h2>
 				</div>
 
 				<ul className="ss-home-grid ss-home-grid-2 ss-home-grid-3 list-none border-t border-[color:var(--border)] p-0">

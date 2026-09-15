@@ -1,5 +1,6 @@
-import { Check, Download } from "lucide-react";
+import { ArrowRight, Check, Download } from "lucide-react";
 import Link from "next/link";
+import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifact-illustration";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import {
 	type Cell,
@@ -57,16 +58,14 @@ export function HomeHero() {
 }
 
 /**
- * A bento cell. `wide` spans both columns; `figure` adds the reference's
- * decorative grid bled in from the right edge.
- *
- * The first and last of four cells are wide, so the two-column grid fills
- * exactly — three single cells in two columns would leave one empty.
+ * A bento cell. `illustration` renders the artifact flow diagram in place of
+ * the usual figure — the one cell in this grid with something to show rather
+ * than only say.
  */
-function BentoCell({ title, body, wide, figure }: Cell & { wide?: boolean; figure?: boolean }) {
+function BentoCell({ title, body, illustration }: Cell & { illustration?: boolean }) {
 	return (
-		<div className={`relative overflow-hidden ss-home-cell ${wide ? "ss-home-grid-wide" : ""}`}>
-			{figure ? <div className="ss-home-figure" aria-hidden="true" /> : null}
+		<div className="relative overflow-hidden ss-home-cell">
+			{illustration ? <HomeArtifactIllustration /> : null}
 			<div className="relative">
 				<p className="ss-home-h3">{title}</p>
 				<p className="ss-home-body mt-1.5 max-w-sm text-sm">{body}</p>
@@ -78,38 +77,27 @@ function BentoCell({ title, body, wide, figure }: Cell & { wide?: boolean; figur
 /**
  * H2 #1 — the offline / local / air-gapped claim.
  *
- * The reference's `Features` split: the argument on the left, the evidence for
- * it as a bento grid on the right.
+ * A plain heading band, not a fourth cell: the eyebrow-plus-headline pair
+ * introduces the row of three bento cells below it rather than sitting beside
+ * them as an equal-weight panel, the way `HomePillars` introduces its own row.
+ *
+ * The headline is the brief's exact H2 #1 text; `Features` moved up to become
+ * the small kicker above it instead of replacing it.
  */
 export function HomeOnYourMachine() {
 	const lastIndex = ON_YOUR_MACHINE.length - 1;
 
 	return (
 		<section className="ss-home-rule">
-			<div className="ss-home-split">
-				<div className="ss-home-statement">
-					<h2 className="ss-home-h2">Runs entirely on your machine</h2>
-					<p className="ss-home-body mt-6">
-						Everything happens locally: parsing, embedding, search and generation. The index is a
-						file on your disk, not a row in someone else&rsquo;s database, so the question of who
-						else can read your sources does not arise.
-					</p>
-					<p className="ss-home-body mt-3">
-						That is what air-gapped means here in the literal sense: the application keeps working
-						with no network at all.
-					</p>
-				</div>
+			<div className="ss-home-head ss-home-head-plain">
+				<p className="ss-home-eyebrow">Features</p>
+				<h2 className="ss-home-h2 mt-2">Runs entirely on your machine</h2>
+			</div>
 
-				<div className="ss-home-grid ss-home-grid-2">
-					{ON_YOUR_MACHINE.map((cell, index) => (
-						<BentoCell
-							key={cell.title}
-							{...cell}
-							wide={index === 0 || index === lastIndex}
-							figure={index === 0}
-						/>
-					))}
-				</div>
+			<div className="ss-home-grid ss-home-grid-3 ss-home-grid-dashed">
+				{ON_YOUR_MACHINE.map((cell, index) => (
+					<BentoCell key={cell.title} {...cell} illustration={index === lastIndex} />
+				))}
 			</div>
 		</section>
 	);
@@ -121,15 +109,17 @@ export function HomeOnYourMachine() {
  * The reference's `Services` cards: a headline, a short body, and a forward
  * link pinned to the bottom of the cell so the three links line up regardless
  * of how long each body runs.
+ *
+ * The band's own headline is a `<p>` styled like an H2, not a real one — the
+ * three real H2s the brief wants are the pillar titles below it, and adding a
+ * fourth here would leave the section carrying two.
  */
 export function HomePillars() {
 	return (
-		<section className="ss-home-rule">
+		<section className="ss-home-rule ss-home-rule-plain">
 			<div className="ss-home-head">
 				<p className="ss-home-eyebrow">Why it is different</p>
-				<p className="ss-home-body mt-2 text-sm">
-					Three things NotebookLM cannot do, because of how it is built rather than what it charges.
-				</p>
+				<p className="ss-home-h2 mt-2">Three things NotebookLM cannot do</p>
 			</div>
 
 			<div className="ss-home-grid ss-home-grid-3">
@@ -145,11 +135,11 @@ export function HomePillars() {
 									target="_blank"
 									rel="noreferrer noopener"
 								>
-									{pillar.action.label} <span aria-hidden="true">&rarr;</span>
+									{pillar.action.label} <ArrowRight aria-hidden="true" className="size-4" />
 								</a>
 							) : (
 								<Link className="ss-home-forward" href={pillar.action.href}>
-									{pillar.action.label} <span aria-hidden="true">&rarr;</span>
+									{pillar.action.label} <ArrowRight aria-hidden="true" className="size-4" />
 								</Link>
 							)}
 						</p>
@@ -162,7 +152,8 @@ export function HomePillars() {
 
 /**
  * The comparison table carries no heading of its own, so the brief's H2 order
- * stays intact. The caption names it for assistive technology instead.
+ * stays intact — the headline below is a `<p>` styled like an H2, not a real
+ * one. The caption names the table for assistive technology instead.
  *
  * The scroller is focusable and labelled: on a narrow screen the table is wider
  * than the column, and a keyboard visitor needs to be able to scroll it without
@@ -173,9 +164,7 @@ export function HomeCompare() {
 		<section className="ss-home-rule">
 			<div className="ss-home-head">
 				<p className="ss-home-eyebrow">How it compares</p>
-				<p className="ss-home-body mt-2 text-sm">
-					Compared on getting started, which is where a local notebook is either usable or not.
-				</p>
+				<p className="ss-home-h2 mt-2">Getting started, compared</p>
 			</div>
 
 			<section
@@ -222,15 +211,16 @@ export function HomeCompare() {
  * H2 #5, #6, #7 — the reference's `Pricing` block: a header, then cells that
  * pair a claim with the concrete things that back it, each ruled off from the
  * next.
+ *
+ * The band's own headline is a `<p>` styled like an H2, not a real one — the
+ * three real H2s the brief wants are each story's own heading below it.
  */
 export function HomeFeatures() {
 	return (
 		<section className="ss-home-rule">
 			<div className="ss-home-head">
 				<p className="ss-home-eyebrow">What you get</p>
-				<p className="ss-home-body mt-2 text-sm">
-					Three claims, and the reasons each of them holds.
-				</p>
+				<p className="ss-home-h2 mt-2">Three claims, and why each one holds</p>
 			</div>
 
 			<div className="ss-home-grid">
@@ -252,11 +242,11 @@ export function HomeFeatures() {
 											target="_blank"
 											rel="noreferrer noopener"
 										>
-											{story.action.label} <span aria-hidden="true">&rarr;</span>
+											{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
 										</a>
 									) : (
 										<Link className="ss-home-forward" href={story.action.href}>
-											{story.action.label} <span aria-hidden="true">&rarr;</span>
+											{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
 										</Link>
 									)}
 								</p>
