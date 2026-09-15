@@ -37,6 +37,48 @@ export type StudioJobCreate = {
   format: string
   document_ids: number[]
   prompt?: string
+  options?: PodcastBrief
+}
+
+export const PODCAST_STYLES = [
+  "conversational",
+  "interview",
+  "debate",
+  "monologue",
+  "narrative",
+] as const
+export const PODCAST_ROLES = [
+  "host",
+  "cohost",
+  "guest",
+  "expert",
+  "narrator",
+] as const
+export const PODCAST_DURATIONS = ["short", "standard", "long"] as const
+export const MAX_SPEAKERS = 6
+
+export type PodcastSpeaker = {
+  name: string
+  role: (typeof PODCAST_ROLES)[number]
+  voice: string
+}
+
+export type PodcastBrief = {
+  language: string
+  style: (typeof PODCAST_STYLES)[number]
+  duration: (typeof PODCAST_DURATIONS)[number]
+  speakers: PodcastSpeaker[]
+}
+
+export type Voice = { id: string; label: string; language: string }
+
+export function readPodcastBrief(
+  workspaceId: number,
+  signal?: AbortSignal
+): Promise<{ brief: PodcastBrief; voices: Voice[] }> {
+  return requestJson(`/workspaces/${workspaceId}/studio/podcast/brief`, {
+    signal,
+  })
 }
 
 export function listFormats(

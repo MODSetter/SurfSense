@@ -15,7 +15,7 @@ function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
 }
 
-function messageFrom(error: unknown) {
+export function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
 

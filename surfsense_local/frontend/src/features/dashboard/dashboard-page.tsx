@@ -207,6 +207,7 @@ function WorkspaceDashboard({
               }}
               studio={
                 <StudioPanel
+                  workspaceId={workspace.id}
                   documents={sources.documents}
                   formats={studio.formats}
                   isCreating={studio.isCreating}

@@ -38,6 +38,8 @@ import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
+import { PodcastBriefForm } from "./podcast-brief-form"
+import { usePodcastBrief } from "./use-podcast-brief"
 
 const FORMAT_HINTS: Record<string, string> = {
   summary: "Generate an AI summary based on your sources",
@@ -108,25 +110,24 @@ function formatHint(entry: StudioFormat) {
 }
 
 function Composer({
+  workspaceId,
   format,
   documents,
   isCreating,
   onGenerate,
 }: {
+  workspaceId: number
   format: string
   documents: WorkspaceDocument[]
   isCreating: boolean
-  onGenerate: (job: {
-    format: string
-    document_ids: number[]
-    prompt?: string
-  }) => void
+  onGenerate: (job: StudioJobCreate) => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
   const [selected, setSelected] = useState(
     () => new Set(ready.map((document) => document.id))
   )
   const [prompt, setPrompt] = useState("")
+  const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
   const allSelected = ready.length > 0 && selected.size === ready.length
 
   const toggle = (id: number) =>
@@ -140,10 +141,26 @@ function Composer({
       return next
     })
 
-  const canGenerate = selected.size > 0 && !isCreating
+  // A podcast is generated from its reviewed brief, so it waits for the brief.
+  const briefReady = format !== "podcast" || podcast.brief != null
+  const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
     <div className="space-y-3">
+      {format === "podcast" ? (
+        podcast.brief ? (
+          <PodcastBriefForm
+            brief={podcast.brief}
+            voices={podcast.voices}
+            onChange={podcast.setBrief}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {podcast.error ?? "Preparing the brief…"}
+          </p>
+        )
+      ) : null}
+
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">
@@ -227,6 +244,7 @@ function Composer({
             format,
             document_ids: [...selected],
             prompt: prompt.trim() || undefined,
+            options: podcast.brief ?? undefined,
           })
         }}
       >
@@ -275,12 +293,14 @@ function FormatCard({
 }
 
 export function StudioPanel({
+  workspaceId,
   documents,
   formats,
   isCreating,
   error,
   onGenerate,
 }: {
+  workspaceId: number
   documents: WorkspaceDocument[]
   formats: StudioFormat[]
   isCreating: boolean
@@ -336,6 +356,7 @@ export function StudioPanel({
               </DialogHeader>
               <Composer
                 key={selectedFormat.key}
+                workspaceId={workspaceId}
                 format={selectedFormat.key}
                 documents={documents}
                 isCreating={isCreating}
