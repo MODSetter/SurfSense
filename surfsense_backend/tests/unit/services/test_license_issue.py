@@ -30,6 +30,9 @@ pytestmark = pytest.mark.unit
 def keygen_config(monkeypatch):
     monkeypatch.setattr(config, "KEYGEN_ACCOUNT_ID", "acct")
     monkeypatch.setattr(config, "KEYGEN_API_TOKEN", "token")
+    # Cloud unless a test says otherwise, whatever the developer's environment.
+    monkeypatch.setattr(config, "KEYGEN_API_URL", "")
+    monkeypatch.setattr(config, "KEYGEN_HOST", "")
     monkeypatch.setattr(config, "KEYGEN_POLICY_TRIAL", "policy-trial")
     monkeypatch.setattr(config, "KEYGEN_POLICY_INDIVIDUAL", "policy-individual")
     monkeypatch.setattr(config, "KEYGEN_POLICY_TEAM", "policy-team")
@@ -115,6 +118,40 @@ async def test_list_filters_use_keygen_metadata_query_syntax(keygen_config):
 async def test_team_license_requires_seats(keygen_config):
     with pytest.raises(ValueError, match="max_users"):
         await keygen.create_license("team", "a@b.test", None)
+
+
+async def _captured_get(client_kwargs=None) -> httpx.Request:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(404)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        await keygen.get_license("lic_1", client=client)
+    return seen[0]
+
+
+async def test_unconfigured_calls_go_to_keygen_cloud(keygen_config):
+    request = await _captured_get()
+
+    assert str(request.url) == "https://api.keygen.sh/v1/accounts/acct/licenses/lic_1"
+    assert "X-Forwarded-Proto" not in request.headers
+
+
+async def test_a_self_hosted_call_carries_the_host_the_account_is_keyed_on(
+    keygen_config, monkeypatch
+):
+    """CE reads the account from Host, so the alias we dial is not the name it knows."""
+    monkeypatch.setattr(config, "KEYGEN_API_URL", "http://keygen-web:3000/v1/accounts/")
+    monkeypatch.setattr(config, "KEYGEN_HOST", "keygen.internal")
+
+    request = await _captured_get()
+
+    assert str(request.url) == "http://keygen-web:3000/v1/accounts/acct/licenses/lic_1"
+    assert request.headers["Host"] == "keygen.internal"
+    # Absent this, CE 308s the call and the redirect reads as "no such license".
+    assert request.headers["X-Forwarded-Proto"] == "https"
 
 
 def test_trial_expiry_is_measured_from_now_once_the_plugin_has_shipped(monkeypatch):

@@ -17,8 +17,12 @@ import httpx
 from app.config import config
 
 LicensePlan = Literal["trial", "individual", "team"]
-_BASE_URL = "https://api.keygen.sh/v1/accounts"
+_CLOUD_BASE_URL = "https://api.keygen.sh/v1/accounts"
 _TIMEOUT_SECONDS = 30.0
+
+
+def _base_url() -> str:
+    return (config.KEYGEN_API_URL or _CLOUD_BASE_URL).rstrip("/")
 
 
 def _required(value: str | None, name: str) -> str:
@@ -39,16 +43,23 @@ def _policy_for(plan: LicensePlan) -> str:
 
 
 def _headers() -> dict[str, str]:
-    return {
+    headers = {
         "Accept": "application/vnd.api+json",
         "Content-Type": "application/vnd.api+json",
         "Authorization": f"Bearer {_required(config.KEYGEN_API_TOKEN, 'KEYGEN_API_TOKEN')}",
     }
+    if config.KEYGEN_HOST:
+        # Self-hosted CE resolves the account from Host, and 308s plain HTTP
+        # unless a proxy vouches for it. Missing either one, a call redirects
+        # and reads as an empty result rather than as an error.
+        headers["Host"] = config.KEYGEN_HOST
+        headers["X-Forwarded-Proto"] = "https"
+    return headers
 
 
 def _account_url(path: str) -> str:
     account_id = _required(config.KEYGEN_ACCOUNT_ID, "KEYGEN_ACCOUNT_ID")
-    return f"{_BASE_URL}/{account_id}/{path.lstrip('/')}"
+    return f"{_base_url()}/{account_id}/{path.lstrip('/')}"
 
 
 @asynccontextmanager
