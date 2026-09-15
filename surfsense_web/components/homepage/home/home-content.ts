@@ -78,6 +78,9 @@ export type Cell = {
 	body: string;
 };
 
+/** Which bento cells in `ON_YOUR_MACHINE` carry a designed SVG illustration. */
+export type IllustratedCell = "no-cloud" | "artifacts";
+
 export type Action = {
 	label: string;
 	href: string;
@@ -85,10 +88,11 @@ export type Action = {
 };
 
 /** H2 #1 — the offline / local / air-gapped claim, stated concretely. */
-export const ON_YOUR_MACHINE: Cell[] = [
+export const ON_YOUR_MACHINE: (Cell & { illustration?: IllustratedCell })[] = [
 	{
 		title: "No cloud in the loop",
 		body: "The index is a file on your disk, not a row in someone else's database. Pull the network cable and it keeps answering questions about the sources you already added.",
+		illustration: "no-cloud",
 	},
 	{
 		title: "Local model or your own key",
@@ -97,6 +101,7 @@ export const ON_YOUR_MACHINE: Cell[] = [
 	{
 		title: "Sources become artifacts",
 		body: "Turn what you have indexed into flashcards, quizzes, mind maps and study notes, generated and stored in the same local database as everything else.",
+		illustration: "artifacts",
 	},
 ];
 

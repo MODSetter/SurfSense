@@ -5,6 +5,7 @@ import {
 	type Cell,
 	COMPARE_ROWS,
 	DOWNLOADS_URL,
+	type IllustratedCell,
 	ON_YOUR_MACHINE,
 	PILLARS,
 	PROOF_POINTS,
@@ -53,14 +54,14 @@ export function HomeHero() {
 }
 
 /**
- * A bento cell. `illustration` renders the artifact flow diagram in place of
- * the usual figure — the one cell in this grid with something to show rather
- * than only say.
+ * A bento cell. `illustration` renders a designed SVG in place of the usual
+ * figure — some cells in this grid have something to show rather than only
+ * say.
  */
-function BentoCell({ title, body, illustration }: Cell & { illustration?: boolean }) {
+function BentoCell({ title, body, illustration }: Cell & { illustration?: IllustratedCell }) {
 	return (
 		<div className="relative overflow-hidden ss-home-cell">
-			{illustration ? <HomeArtifactIllustration /> : null}
+			{illustration ? <HomeArtifactIllustration illustration={illustration} /> : null}
 			<div className="relative">
 				<p className="ss-home-h3">{title}</p>
 				<p className="ss-home-body mt-1.5 max-w-sm text-sm">{body}</p>
@@ -80,8 +81,6 @@ function BentoCell({ title, body, illustration }: Cell & { illustration?: boolea
  * the small kicker above it instead of replacing it.
  */
 export function HomeOnYourMachine() {
-	const lastIndex = ON_YOUR_MACHINE.length - 1;
-
 	return (
 		<section className="ss-home-rule">
 			<div className="ss-home-head ss-home-head-plain">
@@ -90,8 +89,8 @@ export function HomeOnYourMachine() {
 			</div>
 
 			<div className="ss-home-grid ss-home-grid-3 ss-home-grid-dashed">
-				{ON_YOUR_MACHINE.map((cell, index) => (
-					<BentoCell key={cell.title} {...cell} illustration={index === lastIndex} />
+				{ON_YOUR_MACHINE.map((cell) => (
+					<BentoCell key={cell.title} {...cell} />
 				))}
 			</div>
 		</section>
@@ -111,13 +110,13 @@ export function HomeOnYourMachine() {
  */
 export function HomePillars() {
 	return (
-		<section className="ss-home-rule ss-home-rule-plain">
-			<div className="ss-home-head">
+		<section className="ss-home-rule">
+			<div className="ss-home-head ss-home-head-plain">
 				<p className="ss-home-eyebrow">Why it is different</p>
 				<p className="ss-home-h2 mt-2">Three things NotebookLM cannot do</p>
 			</div>
 
-			<div className="ss-home-grid ss-home-grid-3">
+			<div className="ss-home-grid ss-home-grid-3 ss-home-grid-dashed">
 				{PILLARS.map((pillar) => (
 					<div key={pillar.title} className="ss-home-cell flex flex-col">
 						<h2 className="ss-home-h3">{pillar.title}</h2>

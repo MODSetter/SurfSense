@@ -68,7 +68,7 @@
 	 * where one section ends and the next begins. Derived from `--border`
 	 * rather than a new literal, so it darkens with the palette if that ever
 	 * changes. */
-	--home-divider: color-mix(in oklab, var(--border) 85%, black);
+	--home-divider: color-mix(in oklab, var(--border) 90%, black);
 	--input: #2c2c2c;
 	--ring: #d1cfc0;
 	--chart-1: #f26a4b;
@@ -200,8 +200,10 @@
  * `--border`: for a grid whose only dividers are the ones between its own
  * cells, with no rule at the top or bottom marking it off from its
  * neighbours. The shared-background gap trick above only draws solid lines,
- * so this switches to a real border instead — on the leading edge in a row,
- * on the top edge once cells stack to one column.
+ * so this switches to a pseudo-element instead — inset from both ends
+ * rather than run edge-to-edge, so it reads as a mark between cells rather
+ * than a full structural rule. On the leading edge in a row, on the top
+ * edge once cells stack to one column.
  */
 .ss-home-grid-dashed {
 	gap: 0;
@@ -209,15 +211,26 @@
 }
 
 .ss-home-grid-dashed > * {
+	position: relative;
 	background-color: transparent;
 }
 
-.ss-home-grid-dashed > *:not(:first-child) {
+.ss-home-grid-dashed > *:not(:first-child)::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	right: 6%;
+	left: 6%;
 	border-top: 1px dashed var(--home-divider);
 }
 
 @media (min-width: 768px) {
-	.ss-home-grid-dashed > *:not(:first-child) {
+	.ss-home-grid-dashed > *:not(:first-child)::before {
+		top: 10%;
+		bottom: 10%;
+		left: 0;
+		right: auto;
+		width: 0;
 		border-top: none;
 		border-left: 1px dashed var(--home-divider);
 	}
@@ -598,11 +611,12 @@
 }
 
 /* ---------------------------------------------------------------------------
- * Artifact illustration
+ * Bento cell illustrations
  *
- * The "sources become artifacts" bento cell. The artwork is a designed SVG
- * with its own built-in SMIL loop (see `home-artifact-illustration.tsx`), so
- * there is nothing to animate here — only how big it sits in the cell.
+ * "No cloud in the loop" and "sources become artifacts". Each artwork is a
+ * designed SVG with its own built-in SMIL loop (see
+ * `home-artifact-illustration.tsx`), so there is nothing to animate here —
+ * only how big it sits in the cell.
  * ------------------------------------------------------------------------ */
 
 .ss-home-artifact {
