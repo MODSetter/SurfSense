@@ -282,7 +282,7 @@ describe("studio panel", () => {
             {
               key: "image",
               label: "Image",
-              requires_roles: ["image_generation"],
+              requires_roles: ["image_generation", "generation"],
               available: false,
               unavailable_reason: "Image model required",
             },

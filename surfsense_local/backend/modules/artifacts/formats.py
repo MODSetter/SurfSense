@@ -38,7 +38,7 @@ FORMATS: tuple[Format, ...] = (
         requires_voice=True,
         validate_options=brief.validate_options,
     ),
-    Format("image", "Image", requires_roles=("image_generation",)),
+    Format("image", "Image", requires_roles=("image_generation", "generation")),
     Format(
         "infographic", "Infographic", requires_roles=("image_generation", "generation")
     ),

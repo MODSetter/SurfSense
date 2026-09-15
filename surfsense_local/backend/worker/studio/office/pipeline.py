@@ -11,7 +11,7 @@ from modules.llm.resolution import ResolvedGeneration
 from worker.studio.office import prompt, runner
 from worker.studio.office.spec import Office
 from worker.studio.shared import generate
-from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_text, slug
 
 logger = logging.getLogger(__name__)
@@ -64,7 +64,9 @@ def render(
             )
             continue
 
-        title = as_text(namespace.get("title")) or (user_prompt or spec.label)[:200]
+        title = as_text(namespace.get("title")) or fallback_title(
+            user_prompt, sources, spec.label
+        )
         summary = as_text(namespace.get("summary")) or f"# {title}"
         return Built(
             title=title,

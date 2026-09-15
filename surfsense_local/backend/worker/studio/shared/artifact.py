@@ -12,6 +12,16 @@ class Source:
     content: str
 
 
+def fallback_title(user_prompt: str | None, sources: list[Source], label: str) -> str:
+    """The name when the model gave none: the prompt, else the sources, else the format."""
+    if user_prompt and user_prompt.strip():
+        return user_prompt.strip()[:200]
+    if not sources:
+        return label
+    more = len(sources) - 1
+    return sources[0].title + (f" and {more} more" if more else "")
+
+
 @dataclass
 class Built:
     """A generator's output: the searchable body, and any blobs to store.

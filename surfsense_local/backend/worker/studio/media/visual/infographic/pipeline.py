@@ -9,7 +9,7 @@ import asyncio
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
 from worker.studio.shared import generate
-from worker.studio.shared.artifact import Built, Source
+from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
 
 _SCHEMA = (
@@ -41,7 +41,10 @@ def render(
     sources: list[Source],
     user_prompt: str | None,
 ) -> Built:
-    brief = _brief(generate.run_model(writer, _brief_prompt(user_prompt), sources))
+    brief = _brief(
+        generate.run_model(writer, _brief_prompt(user_prompt), sources),
+        fallback_title(user_prompt, sources, "Infographic"),
+    )
     image = asyncio.run(
         painter.generator.generate(painter.selection.name, _image_prompt(brief))
     )
@@ -66,7 +69,7 @@ def _brief_prompt(user_prompt: str | None) -> str:
     )
 
 
-def _brief(raw: str) -> Brief:
+def _brief(raw: str, untitled: str) -> Brief:
     spec = parse_json(raw)
     sections = [
         (
@@ -78,7 +81,7 @@ def _brief(raw: str) -> Brief:
         if isinstance(section, dict)
     ]
     return (
-        as_text(spec.get("title")) or "Infographic",
+        as_text(spec.get("title")) or untitled,
         as_text(spec.get("summary")),
         sections,
     )

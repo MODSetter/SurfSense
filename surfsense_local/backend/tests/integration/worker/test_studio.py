@@ -441,7 +441,11 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
 def test_image_draws_a_png_over_the_selected_connection(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Image: the selected remote model's bytes become the primary file."""
+    """Image: the chat model writes the prompt and the title, the selected remote
+    model's bytes become the primary file."""
+    asked = _capture_model(
+        monkeypatch, '{"title": "Bright Poster", "prompt": "a sunlit poster wall"}'
+    )
     seen = _capture_image(monkeypatch)
     artifact = make_artifact(session, fmt="image", prompt="a bright poster")
 
@@ -451,8 +455,10 @@ def test_image_draws_a_png_over_the_selected_connection(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
+    assert "a bright poster" in asked[0]
+    assert seen == ["a sunlit poster wall"]
+    assert artifact.document.title == "Bright Poster"
     _one_file(artifact, "image/png", b"\x89PNG")
-    assert "a bright poster" in seen[0]
 
 
 def test_a_two_model_format_gets_both_models_in_catalog_order(

@@ -82,7 +82,7 @@ const STUDIO_CATALOG: StudioFormat[] = [
   { key: "flashcards", label: "Flashcards", requires_roles: ["generation"], available: true, unavailable_reason: null },
   { key: "quiz", label: "Quiz", requires_roles: ["generation"], available: true, unavailable_reason: null },
   { key: "podcast", label: "Podcast", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "image", label: "Image", requires_roles: ["image_generation"], available: true, unavailable_reason: null },
+  { key: "image", label: "Image", requires_roles: ["image_generation", "generation"], available: true, unavailable_reason: null },
   { key: "infographic", label: "Infographic", requires_roles: ["image_generation", "generation"], available: true, unavailable_reason: null },
 ]
 

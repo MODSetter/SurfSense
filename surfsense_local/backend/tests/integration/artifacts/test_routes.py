@@ -59,7 +59,7 @@ async def test_formats_lists_summary_as_available(
 
     image = next(f for f in response.json() if f["key"] == "image")
     assert image["available"] is False
-    assert image["requires_roles"] == ["image_generation"]
+    assert image["requires_roles"] == ["image_generation", "generation"]
 
 
 async def test_infographic_needs_the_image_model_and_the_chat_model(
