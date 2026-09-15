@@ -56,8 +56,8 @@ export function ConnectorGrid() {
 				</div>
 				<div className="mt-6">
 					<Button asChild variant="outline">
-						<Link href="/connectors">
-							View all connectors
+						<Link href="/plugins">
+							View all plugins
 							<ArrowRight className="size-4" />
 						</Link>
 					</Button>

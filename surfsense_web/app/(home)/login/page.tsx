@@ -10,9 +10,15 @@ import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
 import { getAuthErrorDetails, shouldRetry } from "@/lib/auth-errors";
 import { setRedirectPath } from "@/lib/auth-utils";
-import { AmbientBackground } from "./AmbientBackground";
 import { GoogleLoginButton } from "./GoogleLoginButton";
 import { LocalLoginForm } from "./LocalLoginForm";
+
+/**
+ * Rendered in the site design: listed in `SITE_DESIGN_ROUTES` in
+ * `components/site/site-shell.tsx`, so the palette, ruled column and
+ * navigation all come from `app/(home)/home.css`. `SiteShell` skips the
+ * footer here (`isAuthPage`), same as it always has for this route.
+ */
 
 function LoginContent() {
 	const t = useTranslations("auth");
@@ -100,13 +106,11 @@ function LoginContent() {
 	}
 
 	return (
-		<div className="relative w-full overflow-hidden">
-			<AmbientBackground />
-			<div className="mx-auto flex h-screen max-w-lg flex-col items-center justify-center">
-				<Logo priority className="h-16 w-16 md:h-32 md:w-32 rounded-md transition-all" />
-				<h1 className="mt-4 mb-6 text-xl font-bold text-neutral-800 dark:text-neutral-100 md:mt-8 md:mb-8 md:text-3xl lg:text-4xl transition-all">
-					{t("sign_in")}
-				</h1>
+		<section className="ss-home-hero ss-home-pad flex min-h-screen items-center justify-center">
+			<div className="mx-auto flex w-full max-w-md flex-col items-center text-center">
+				<Logo priority className="h-14 w-14 rounded-md transition-all md:h-16 md:w-16" />
+				<h1 className="ss-home-h2 mt-6 mb-2">{t("sign_in")}</h1>
+				<p className="ss-home-body">{t("login_subtitle")}</p>
 
 				{/* URL Error Display */}
 				<AnimatePresence>
@@ -116,7 +120,7 @@ function LoginContent() {
 							animate={{ opacity: 1, y: 0, scale: 1 }}
 							exit={{ opacity: 0, y: -10, scale: 0.95 }}
 							transition={{ duration: 0.3 }}
-							className="mb-6 w-full max-w-md rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 shadow-sm dark:border-red-900/30 dark:bg-red-900/20 dark:text-red-200"
+							className="mt-6 w-full rounded-md border border-destructive/30 bg-destructive/10 p-4 text-left text-destructive shadow-sm"
 						>
 							<div className="flex items-start gap-3">
 								<svg
@@ -129,7 +133,7 @@ function LoginContent() {
 									strokeWidth="2"
 									strokeLinecap="round"
 									strokeLinejoin="round"
-									className="flex-shrink-0 mt-0.5 text-red-500 dark:text-red-400"
+									className="shrink-0 mt-0.5 text-destructive"
 								>
 									<title>Error Icon</title>
 									<circle cx="12" cy="12" r="10" />
@@ -138,14 +142,14 @@ function LoginContent() {
 								</svg>
 								<div className="flex-1 min-w-0">
 									<p className="text-sm font-semibold mb-1">{urlError.title}</p>
-									<p className="text-sm text-red-700 dark:text-red-300">{urlError.message}</p>
+									<p className="text-sm text-destructive/90">{urlError.message}</p>
 								</div>
 								<Button
 									type="button"
 									variant="ghost"
 									size="icon"
 									onClick={() => setUrlError(null)}
-									className="size-6 flex-shrink-0 text-red-500 hover:bg-transparent hover:text-red-700 dark:text-red-400 dark:hover:text-red-200"
+									className="size-6 shrink-0 text-destructive hover:bg-transparent hover:text-destructive/80"
 									aria-label="Dismiss error"
 								>
 									<svg
@@ -169,9 +173,11 @@ function LoginContent() {
 					)}
 				</AnimatePresence>
 
-				<LocalLoginForm />
+				<div className="mt-8 w-full text-left">
+					<LocalLoginForm />
+				</div>
 			</div>
-		</div>
+		</section>
 	);
 }
 

@@ -24,18 +24,18 @@ const COMPANIES: { title: string; file: string }[] = [
 	{ title: "Korean Air", file: "koreanair.svg" },
 	{ title: "Iron Mountain", file: "ironmountain.svg" },
 	{ title: "Globant", file: "globant.svg" },
-	{ title: "Devoteam", file: "devoteam.png" },
+	{ title: "Devoteam", file: "devoteam.svg" },
 	{ title: "VNG", file: "vng.svg" },
 	{ title: "TPBank", file: "tpbank.svg" },
-	{ title: "OpenGov", file: "opengov.png" },
-	{ title: "WeLab", file: "welab.png" },
-	{ title: "Leverage Edu", file: "leverageedu.png" },
-	{ title: "Zopper", file: "zopper.png" },
+	{ title: "OpenGov", file: "opengov.svg" },
+	{ title: "WeLab", file: "welab.svg" },
+	{ title: "Leverage Edu", file: "leverage-edu.svg" },
+	{ title: "Zopper", file: "zopper.svg" },
 	{ title: "Tec de Monterrey", file: "tec.svg" },
 	{ title: "Chulalongkorn", file: "chula.svg" },
 	{ title: "Univ. of Bristol", file: "bristol.svg" },
 	{ title: "Nutresa", file: "nutresa.svg" },
-	{ title: "Bosta", file: "bosta.png" },
+	{ title: "Bosta", file: "bosta.svg" },
 ];
 
 const LOGOS_PER_SET = 10;
@@ -59,10 +59,11 @@ function LogoItem({ title, file }: { title: string; file: string }) {
 			width={130}
 			height={40}
 			loading="lazy"
+			draggable={false}
 			onError={() => setFailed(true)}
 			// dark mode: dark-on-transparent marks would vanish, so render every logo as a
 			// uniform light silhouette (brightness-0 + invert) instead of relying on its own color
-			className="h-10 w-auto max-w-[130px] object-contain opacity-60 grayscale transition duration-300 hover:opacity-100 hover:grayscale-0 dark:opacity-70 dark:brightness-0 dark:invert dark:hover:opacity-100"
+			className="h-10 w-auto max-w-[130px] select-none object-contain opacity-60 grayscale transition duration-300 [-webkit-user-drag:none] hover:opacity-100 hover:grayscale-0 dark:opacity-70 dark:brightness-0 dark:invert dark:hover:opacity-100"
 		/>
 	);
 }

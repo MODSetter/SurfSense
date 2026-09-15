@@ -1,6 +1,6 @@
 ---
 name: frontend-workflow
-description: Coordinates frontend and UI implementation, refactoring, and review using the project's color system, React performance, shadcn/ui, interface-polish, and animation-vocabulary skills. Use when the user explicitly requests /frontend-workflow for a frontend task.
+description: Coordinates frontend and UI implementation, refactoring, and review using the project's color system, React performance, shadcn/ui, interface-polish, Apple-style motion behavior, and animation-vocabulary skills. Use when the user explicitly requests /frontend-workflow for a frontend task.
 disable-model-invocation: true
 ---
 
@@ -25,12 +25,21 @@ Load only the skills relevant to the task:
 - **UI polish, typography, surfaces, icons, interactions, or motion:** read
   `../make-interfaces-feel-better/SKILL.md`, then load only the applicable
   supporting reference files.
+- **Gesture-driven or physical motion — drag, swipe, sheets, springs, momentum,
+  interruptible or reversible transitions, translucent materials and depth, or
+  the `prefers-reduced-transparency` and `prefers-contrast` preferences:** read
+  `../apple-design/SKILL.md`. It governs how motion behaves; the interface-polish
+  skill governs concrete values and static detail. Where they conflict, prefer
+  springs and current-value interpolation for anything the user can touch or
+  interrupt, and CSS transitions for everything else.
 - **A vaguely described motion effect:** read
   `../animation-vocabulary/SKILL.md` first to identify the exact term. This
   glossary names effects; it does not decide whether to build them.
 
-Do not load animation vocabulary or animation references for frontend work
-that has no motion concern.
+Do not load animation vocabulary, Apple-style motion, or animation references
+for frontend work that has no motion concern. Apple-style motion in particular
+is for gesture, physics, and material work; a hover state or a colour change
+does not need it.
 
 ## Workflow
 
@@ -73,7 +82,8 @@ Resolve conflicting guidance in this order:
 3. Existing project conventions and configuration.
 4. The canonical color system and shadcn/ui composition rules.
 5. React and Next.js performance guidance.
-6. Interface and motion polish.
+6. Motion behavior for gesture-driven and interruptible interactions.
+7. Interface and motion polish.
 
 Never sacrifice correctness or accessibility for visual polish or a
 micro-optimization. If a specialist rule conflicts with the installed library
