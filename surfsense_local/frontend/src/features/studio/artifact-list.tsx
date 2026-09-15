@@ -4,6 +4,7 @@ import {
   EllipsisIcon,
   FileIcon,
   FileTextIcon,
+  FilterIcon,
   Loader2Icon,
   RefreshCwIcon,
   Trash2Icon,
@@ -24,6 +25,7 @@ import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
@@ -47,7 +49,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import type { Artifact } from "./api"
-import { FORMAT_ICONS, formatLabel } from "./studio-panel"
+import { FORMAT_ICONS, formatLabel } from "./catalog"
 
 function ArtifactRow({
   artifact,
@@ -117,8 +119,9 @@ function ArtifactRow({
       </button>
       <RelativeTime
         date={new Date(artifact.created_at)}
+        compact
         className={cn(
-          "shrink-0 text-muted-foreground transition-opacity group-focus-within/artifact:opacity-0 group-hover/artifact:opacity-0",
+          "shrink-0 text-[11px] text-muted-foreground/70 tabular-nums transition-opacity group-focus-within/artifact:opacity-0 group-hover/artifact:opacity-0",
           dropdownOpen && "opacity-0"
         )}
       />
@@ -173,39 +176,51 @@ function ArtifactRow({
   )
 }
 
-function TypeChip({
-  format,
-  pressed,
+function TypeFilter({
+  formats,
+  shown,
   onToggle,
 }: {
-  format: string
-  pressed: boolean
-  onToggle: () => void
+  formats: string[]
+  shown: Set<string>
+  onToggle: (format: string) => void
 }) {
-  const Icon = FORMAT_ICONS[format] ?? FileIcon
-  const label = formatLabel(format)
+  const active = formats.filter((format) => shown.has(format)).length
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
         <Button
           type="button"
           size="icon-xs"
           variant="ghost"
-          aria-pressed={pressed}
-          aria-label={`${label} artifacts`}
+          aria-label={
+            active ? `Filter by type, ${active} selected` : "Filter by type"
+          }
           className={cn(
-            "text-muted-foreground",
-            pressed && "bg-accent text-accent-foreground"
+            "ml-auto text-muted-foreground data-[state=open]:bg-accent",
+            active && "text-foreground"
           )}
-          onClick={onToggle}
         >
-          <Icon />
+          <FilterIcon />
         </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" collisionPadding={8}>
-        {label}
-      </TooltipContent>
-    </Tooltip>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" sideOffset={4} className="min-w-36">
+        {formats.map((format) => {
+          const Icon = FORMAT_ICONS[format] ?? FileIcon
+          return (
+            <DropdownMenuCheckboxItem
+              key={format}
+              checked={shown.has(format)}
+              onCheckedChange={() => onToggle(format)}
+              onSelect={(event) => event.preventDefault()} // stay open for a second pick
+            >
+              <Icon className="text-muted-foreground" />
+              {formatLabel(format)}
+            </DropdownMenuCheckboxItem>
+          )
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -251,16 +266,7 @@ export function ArtifactList({
           All generated artifacts
         </h3>
         {formats.length > 1 ? (
-          <div className="ml-auto flex flex-wrap justify-end gap-0.5">
-            {formats.map((format) => (
-              <TypeChip
-                key={format}
-                format={format}
-                pressed={shown.has(format)}
-                onToggle={() => toggle(format)}
-              />
-            ))}
-          </div>
+          <TypeFilter formats={formats} shown={shown} onToggle={toggle} />
         ) : null}
       </div>
       <ScrollShadow className="min-h-0 flex-1" from="from-background">

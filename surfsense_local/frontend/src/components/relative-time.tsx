@@ -20,6 +20,17 @@ const units: [number, Intl.RelativeTimeFormatUnit][] = [
   [Number.POSITIVE_INFINITY, "year"],
 ]
 
+// Sidebar rows: "45s", "5m", "2h", "3d", "2w", "4mo", "1y"; the tooltip has the date.
+const compactUnits: [number, string][] = [
+  [60, "s"],
+  [60, "m"],
+  [24, "h"],
+  [7, "d"],
+  [4.345, "w"],
+  [12, "mo"],
+  [Number.POSITIVE_INFINITY, "y"],
+]
+
 let now = Date.now()
 let clock: number | undefined
 const listeners = new Set<() => void>()
@@ -28,12 +39,13 @@ function subscribe(listener: () => void) {
   listeners.add(listener)
   if (listeners.size === 1) {
     now = Date.now()
+    // 10s so the compact seconds count moves; the long form only changes by the minute.
     clock = window.setInterval(() => {
       now = Date.now()
       listeners.forEach((notify) => {
         notify()
       })
-    }, 60_000)
+    }, 10_000)
   }
   return () => {
     listeners.delete(listener)
@@ -59,11 +71,21 @@ function formatRelativeTime(date: Date, currentTime: number) {
   }
 }
 
+function formatCompactTime(date: Date, currentTime: number) {
+  let value = Math.max(0, (currentTime - date.getTime()) / 1000)
+  for (const [limit, unit] of compactUnits) {
+    if (value < limit) return `${Math.max(1, Math.floor(value))}${unit}`
+    value /= limit
+  }
+}
+
 export function RelativeTime({
   date,
+  compact = false,
   className,
 }: {
   date: Date
+  compact?: boolean
   className?: string
 }) {
   const currentTime = useSyncExternalStore(
@@ -90,7 +112,9 @@ export function RelativeTime({
             className
           )}
         >
-          {formatRelativeTime(date, currentTime)}
+          {compact
+            ? formatCompactTime(date, currentTime)
+            : formatRelativeTime(date, currentTime)}
         </time>
       </TooltipTrigger>
       <TooltipContent>{exactTime}</TooltipContent>

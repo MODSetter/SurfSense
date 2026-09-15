@@ -1,21 +1,5 @@
-import { useState, type ComponentType } from "react"
-import {
-  AiSearchLinesIcon,
-  Cards01Icon,
-  ChartHistogramIcon,
-  CheckIcon,
-  File02Icon,
-  FileIcon,
-  Image01Icon,
-  NetworkIcon,
-  Pdf01Icon,
-  PodcastIcon,
-  Presentation02Icon,
-  Quiz02Icon,
-  SparklesIcon,
-  WebDesign01Icon,
-  Xls01Icon,
-} from "@/components/ui/icons"
+import { useState } from "react"
+import { CheckIcon, FileIcon, SparklesIcon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -27,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -38,6 +21,7 @@ import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
+import { FORMAT_ICONS, STUDIO_CATALOG } from "./catalog"
 import { PodcastBriefForm } from "./podcast-brief-form"
 import { usePodcastBrief } from "./use-podcast-brief"
 
@@ -54,40 +38,6 @@ const FORMAT_HINTS: Record<string, string> = {
   podcast: "Generate an AI podcast based on your sources",
   image: "Generate an AI image based on your sources",
   infographic: "Generate an AI infographic based on your sources",
-}
-
-export const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  summary: AiSearchLinesIcon,
-  docx: File02Icon,
-  pptx: Presentation02Icon,
-  xlsx: Xls01Icon,
-  html: WebDesign01Icon,
-  pdf: Pdf01Icon,
-  mindmap: NetworkIcon,
-  flashcards: Cards01Icon,
-  quiz: Quiz02Icon,
-  podcast: PodcastIcon,
-  image: Image01Icon,
-  infographic: ChartHistogramIcon,
-}
-
-const STUDIO_CATALOG: StudioFormat[] = [
-  { key: "summary", label: "Summary", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "docx", label: "Document", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "pptx", label: "Slides", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "xlsx", label: "Spreadsheet", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "html", label: "Web page", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "pdf", label: "PDF", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "mindmap", label: "Mind map", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "flashcards", label: "Flashcards", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "quiz", label: "Quiz", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "podcast", label: "Podcast", requires_roles: ["generation"], available: true, unavailable_reason: null },
-  { key: "image", label: "Image", requires_roles: ["image_generation", "generation"], available: true, unavailable_reason: null },
-  { key: "infographic", label: "Infographic", requires_roles: ["image_generation", "generation"], available: true, unavailable_reason: null },
-]
-
-export function formatLabel(key: string) {
-  return STUDIO_CATALOG.find((entry) => entry.key === key)?.label ?? key
 }
 
 function catalogFormats(formats: StudioFormat[]) {
@@ -193,7 +143,7 @@ function Composer({
             Add and index a source first — only ready documents can be used.
           </p>
         ) : (
-          <ScrollArea className="max-h-40">
+          <div className="max-h-40 overflow-y-auto">
             <div className="space-y-1 pr-2">
               {ready.map((document) => {
                 const on = selected.has(document.id)
@@ -224,7 +174,7 @@ function Composer({
                 )
               })}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 

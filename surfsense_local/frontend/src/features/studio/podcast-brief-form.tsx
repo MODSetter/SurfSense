@@ -120,9 +120,8 @@ export function PodcastBriefForm({
               variant="outline"
               size="sm"
               aria-pressed={brief.duration === duration}
-              className={cn(
-                brief.duration === duration && "border-primary bg-primary/5"
-              )}
+              // The outline variant sets dark: border and background; override both.
+              className="aria-pressed:border-primary aria-pressed:bg-primary/5 dark:aria-pressed:border-primary dark:aria-pressed:bg-primary/5"
               onClick={() => update({ duration })}
             >
               {title(duration)}

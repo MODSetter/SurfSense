@@ -26,6 +26,7 @@ import {
   File02Icon as File02IconData,
   FileAddIcon,
   FileIcon as FileIconData,
+  FilterIcon as FilterIconData,
   FileTextIcon as FileTextIconData,
   FolderLibraryIcon as FolderLibraryIconData,
   FolderOpenIcon as FolderOpenIconData,
@@ -111,6 +112,7 @@ export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
+export const FilterIcon = createIcon(FilterIconData)
 export const FilePlus2Icon = createIcon(FileAddIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
 export const FolderLibraryIcon = createIcon(FolderLibraryIconData)

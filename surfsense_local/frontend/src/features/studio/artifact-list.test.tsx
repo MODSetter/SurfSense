@@ -62,30 +62,61 @@ describe("artifact list", () => {
     ])
   })
 
-  it("filters by type with one chip per type present", async () => {
+  it("dates rows in short units", () => {
+    vi.useFakeTimers({ now: new Date("2026-09-08T03:04:05Z") })
+    try {
+      renderList({
+        artifacts: [
+          { ...artifact, id: 1, created_at: "2026-09-08T03:03:50Z" },
+          { ...artifact, id: 2, created_at: "2026-09-08T02:59:00Z" },
+          { ...artifact, id: 3, created_at: "2026-09-07T22:00:00Z" },
+          { ...artifact, id: 4, created_at: "2026-09-05T00:00:00Z" },
+          { ...artifact, id: 5, created_at: "2026-08-20T00:00:00Z" },
+          { ...artifact, id: 6, created_at: "2026-05-01T00:00:00Z" },
+          { ...artifact, id: 7, created_at: "2024-01-01T00:00:00Z" },
+        ],
+      })
+      const times = [...document.querySelectorAll("time")]
+      expect(times.map((t) => t.textContent)).toEqual([
+        "15s",
+        "5m",
+        "5h",
+        "3d",
+        "2w",
+        "4mo",
+        "2y",
+      ])
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("filters by type from one dropdown listing the types present", async () => {
     const podcast = { ...artifact, id: 14, format: "podcast", title: "Ep. 1" }
     const user = userEvent.setup()
     renderList({ artifacts: [artifact, podcast] })
 
-    const summaryChip = screen.getByRole("button", {
-      name: "Summary artifacts",
+    await user.click(screen.getByRole("button", { name: "Filter by type" }))
+    const summary = screen.getByRole("menuitemcheckbox", { name: "Summary" })
+    const podcastItem = screen.getByRole("menuitemcheckbox", {
+      name: "Podcast",
     })
-    const podcastChip = screen.getByRole("button", {
-      name: "Podcast artifacts",
-    })
-    expect(screen.queryByRole("button", { name: "Image artifacts" })).toBeNull()
-    expect(summaryChip.getAttribute("aria-pressed")).toBe("false")
+    expect(screen.queryByRole("menuitemcheckbox", { name: "Image" })).toBeNull()
+    expect(summary.getAttribute("aria-checked")).toBe("false")
 
-    await user.click(podcastChip)
-    expect(podcastChip.getAttribute("aria-pressed")).toBe("true")
+    await user.click(podcastItem) // menu stays open for a second pick
+    expect(podcastItem.getAttribute("aria-checked")).toBe("true")
     expect(screen.getByText("Ep. 1")).toBeTruthy()
     expect(screen.queryByText("Weekly summary")).toBeNull()
+    expect(
+      screen.getByRole("button", { name: "Filter by type, 1 selected" })
+    ).toBeTruthy()
 
-    await user.click(summaryChip) // two pressed: both types
+    await user.click(summary) // both checked: both types
     expect(screen.getByText("Weekly summary")).toBeTruthy()
 
-    await user.click(podcastChip)
-    await user.click(summaryChip) // none pressed: everything
+    await user.click(podcastItem)
+    await user.click(summary) // none checked: everything
     expect(screen.getByText("Ep. 1")).toBeTruthy()
     expect(screen.getByText("Weekly summary")).toBeTruthy()
   })
@@ -93,7 +124,7 @@ describe("artifact list", () => {
   it("offers no filter when every artifact is the same type", () => {
     renderList({ artifacts: [artifact, { ...artifact, id: 15 }] })
 
-    expect(screen.queryByRole("button", { name: /artifacts$/ })).toBeNull()
+    expect(screen.queryByRole("button", { name: /^Filter by type/ })).toBeNull()
   })
 
   it("opens ready artifacts", async () => {
