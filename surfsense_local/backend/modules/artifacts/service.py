@@ -1,7 +1,6 @@
 import logging
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS, FORMATS_BY_KEY, Format
@@ -9,6 +8,7 @@ from modules.artifacts.models import Artifact
 from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.sources import load_selected_sources
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
 from modules.workspaces.models import Workspace
@@ -54,7 +54,7 @@ def create_artifact_job(
     if not available:
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
-    documents = _resolve_sources(session, workspace, payload.document_ids)
+    documents = _resolve_sources(session, workspace.id, payload.document_ids)
     options = _resolve_options(fmt, payload.options)
 
     document = Document(
@@ -115,30 +115,13 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
 
 
 def _resolve_sources(
-    session: Session, workspace: Workspace, document_ids: list[int]
+    session: Session, workspace_id: int, document_ids: list[int]
 ) -> list[Document]:
     if not document_ids:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, "pick at least one source"
         )
-    documents = session.scalars(
-        select(Document).where(
-            Document.id.in_(document_ids),
-            Document.workspace_id == workspace.id,
-        )
-    ).all()
-    if len(documents) != len(set(document_ids)):
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "a chosen source is not in this workspace",
-        )
-    not_ready = [doc.id for doc in documents if doc.status is not DocumentStatus.READY]
-    if not_ready:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"sources are still indexing: {not_ready}",
-        )
-    return list(documents)
+    return load_selected_sources(session, workspace_id, document_ids)
 
 
 def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:

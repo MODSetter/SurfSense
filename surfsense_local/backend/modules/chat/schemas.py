@@ -37,7 +37,11 @@ class ThreadRead(BaseModel):
 
 
 class MessageCreate(BaseModel):
-    """The user's turn; the assistant's is streamed, not posted."""
+    """The user's turn; the assistant's is streamed, not posted.
+
+    `document_ids` is the RAG scope for this turn. Omit it to search the whole
+    workspace. An empty list retrieves nothing.
+    """
 
     text: MessageText
     document_ids: Annotated[list[DocumentId], Field(max_length=1000)] | None = None

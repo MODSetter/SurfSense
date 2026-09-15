@@ -23,6 +23,7 @@ from modules.chat.schemas import (
     ThreadUpdate,
 )
 from modules.chat.title import generate_title
+from modules.documents.sources import load_selected_sources
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.resolution import (
     ModelResolutionError,
@@ -249,6 +250,8 @@ def _ground(
         resolved = resolve_generation(session)
     except ModelResolutionError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    if payload.document_ids is not None:
+        load_selected_sources(session, thread.workspace_id, payload.document_ids)
     # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
     from worker.ingestion.embedding import missing_embedding_files
 
