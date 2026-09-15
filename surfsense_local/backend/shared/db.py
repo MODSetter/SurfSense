@@ -1,9 +1,19 @@
 import enum
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import sqlite_vec
-from sqlalchemy import Connection, Engine, Enum, MetaData, create_engine, event
+from sqlalchemy import (
+    Connection,
+    DateTime,
+    Engine,
+    Enum,
+    MetaData,
+    TypeDecorator,
+    create_engine,
+    event,
+)
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 # SQLite is the only backend that lets constraints stay unnamed, and Alembic's
@@ -18,8 +28,30 @@ NAMING_CONVENTION = {
 }
 
 
+class UtcDateTime(TypeDecorator[datetime]):
+    """SQLite keeps no offset: rows hold UTC wall time (func.now() is UTC), so a
+    value read back is stamped UTC. Serialised with its offset, the client stops
+    reading it as local time. Aware values written are converted to UTC first."""
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(
+        self, value: datetime | None, _dialect: Any
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is not None:
+            return value.astimezone(UTC).replace(tzinfo=None)
+        return value
+
+    def process_result_value(
+        self, value: datetime | None, _dialect: Any
+    ) -> datetime | None:
+        return value.replace(tzinfo=UTC) if value is not None else None
+
+
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    type_annotation_map: ClassVar = {datetime: UtcDateTime}
 
 
 def import_models() -> None:

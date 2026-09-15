@@ -154,7 +154,7 @@ async def send_message(
         # Do not hold a write transaction open while the model generates. The IDs
         # are also the stable identities the client uses throughout the stream.
         session.commit()
-        user_created_at = user_message.created_at.isoformat()
+        user_created_at = _iso(user_message.created_at)
     except Exception:
         await model_activity.release_use(activity_key)
         raise
@@ -207,7 +207,7 @@ async def send_message(
             assistant_message.completed_at = datetime.now(UTC)
             session.commit()
             session.refresh(assistant_message, attribute_names=["completed_at"])
-            assistant_completed_at = assistant_message.completed_at.isoformat()
+            assistant_completed_at = _iso(assistant_message.completed_at)
 
         if cited:
             yield _frame({"type": "citations", "items": cited})
@@ -240,6 +240,11 @@ async def _release_model_after(
             yield frame
     finally:
         await model_activity.release_use(key)
+
+
+def _iso(instant: datetime) -> str:
+    """Spelled as Pydantic spells the REST timestamps: UTC as Z."""
+    return instant.isoformat().replace("+00:00", "Z")
 
 
 def _frame(payload: dict) -> bytes:
