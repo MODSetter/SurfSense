@@ -79,7 +79,7 @@ export type Cell = {
 };
 
 /** Which bento cells in `ON_YOUR_MACHINE` carry a designed SVG illustration. */
-export type IllustratedCell = "no-cloud" | "artifacts";
+export type IllustratedCell = "no-cloud" | "local-key" | "artifacts";
 
 export type Action = {
 	label: string;
@@ -97,6 +97,7 @@ export const ON_YOUR_MACHINE: (Cell & { illustration?: IllustratedCell })[] = [
 	{
 		title: "Local model or your own key",
 		body: "Use SurfSense with a local model, or paste a key for a provider you already pay for. The key stays on the machine that uses it.",
+		illustration: "local-key",
 	},
 	{
 		title: "Sources become artifacts",

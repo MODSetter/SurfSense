@@ -9,6 +9,7 @@ import type { IllustratedCell } from "@/components/homepage/home/home-content";
  */
 const ILLUSTRATION_SRC: Record<IllustratedCell, string> = {
 	"no-cloud": "/homepage/no-cloud-in-the-loop.svg",
+	"local-key": "/homepage/local-model-toggle.svg",
 	artifacts: "/homepage/artifacts.svg",
 };
 
