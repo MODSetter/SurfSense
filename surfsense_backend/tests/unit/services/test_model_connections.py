@@ -1,6 +1,7 @@
 from types import SimpleNamespace
 
 import httpx
+import litellm
 import pytest
 
 from app.routes.model_connections_routes import _apply_model_facts
@@ -121,6 +122,109 @@ def test_derive_capabilities_seeds_a_small_window_verbatim() -> None:
     assert facts["max_input_tokens"] == 4_096
     assert facts["supports_tools"] is True
     assert facts["supports_image_input"] is True
+
+
+def _openai_compatible_conn() -> SimpleNamespace:
+    return SimpleNamespace(
+        provider="openai_compatible",
+        base_url="http://host.docker.internal:9997/v1",
+        api_key=None,
+        extra={},
+    )
+
+
+def test_derive_capabilities_classifies_xinference_image_model() -> None:
+    """Xinference reports an image model's type in its /v1/models entry;
+    litellm has never heard of FLUX.2-klein-4B and would otherwise default it
+    to chat (SurfSense #1518). The full dict is pinned, not just the two
+    changed keys, so over-claiming supports_image_input from the
+    text2image ability (editing, not vision input, per the plan) is caught."""
+    facts = derive_capabilities(
+        _openai_compatible_conn(),
+        "FLUX.2-klein-4B",
+        {
+            "id": "FLUX.2-klein-4B",
+            "model_type": "image",
+            "model_ability": ["text2image"],
+        },
+    )
+
+    assert facts == {
+        "supports_chat": False,
+        "max_input_tokens": None,
+        "supports_image_input": False,
+        "supports_tools": False,
+        "supports_image_generation": True,
+    }
+
+
+def test_derive_capabilities_classifies_xinference_llm_model() -> None:
+    facts = derive_capabilities(
+        _openai_compatible_conn(),
+        "some-vlm",
+        {
+            "id": "some-vlm",
+            "model_type": "LLM",
+            "model_ability": ["generate", "chat", "vision", "tools"],
+        },
+    )
+
+    assert facts["supports_chat"] is True
+    assert facts["supports_image_input"] is True
+    assert facts["supports_tools"] is True
+
+
+def test_derive_capabilities_classifies_xinference_embedding_model() -> None:
+    facts = derive_capabilities(
+        _openai_compatible_conn(),
+        "bge-m3",
+        {"id": "bge-m3", "model_type": "embedding"},
+    )
+
+    assert facts["supports_chat"] is False
+
+
+def test_derive_capabilities_classifies_xinference_video_model() -> None:
+    """Xinference also serves video models (xinference/model/video/core.py,
+    model_type "video"); a user connecting one hits the same reported
+    symptom as an image model if this type is left unhandled."""
+    facts = derive_capabilities(
+        _openai_compatible_conn(),
+        "CogVideoX",
+        {"id": "CogVideoX", "model_type": "video"},
+    )
+
+    assert facts["supports_chat"] is False
+
+
+def test_derive_capabilities_leaves_litellm_facts_when_no_model_type(
+    monkeypatch,
+) -> None:
+    """A plain OpenAI-compatible server (vanilla vLLM, LM Studio's OpenAI
+    facade) does not report model_type; the metadata branch must leave
+    whatever litellm already classified untouched.
+
+    litellm's classification is monkeypatched to a fixed, non-default dict
+    so the assertion pins actual values instead of comparing the branch
+    against itself -- two calls that both lack model_type were previously
+    compared to each other, which stayed green even when the branch
+    unconditionally overwrote supports_chat to False."""
+    fixed_facts = {
+        "supports_chat": True,
+        "max_input_tokens": 4096,
+        "supports_image_input": True,
+        "supports_tools": False,
+        "supports_image_generation": False,
+    }
+    monkeypatch.setattr(
+        model_connection_service,
+        "_classify_from_litellm",
+        lambda _model_string, _model_id: dict(fixed_facts),
+    )
+
+    facts = derive_capabilities(_openai_compatible_conn(), "gpt-4o", {"id": "gpt-4o"})
+
+    assert facts == fixed_facts
 
 
 @pytest.mark.asyncio
@@ -420,6 +524,130 @@ def test_model_test_error_keeps_statusless_connection_failure_unreachable() -> N
 
     assert result.status == "UNREACHABLE"
     assert result.ok is False
+
+
+def _model_stub(
+    model_id: str,
+    *,
+    supports_chat: bool | None,
+    supports_image_generation: bool | None,
+    capabilities_override: dict | None = None,
+) -> SimpleNamespace:
+    return SimpleNamespace(
+        model_id=model_id,
+        supports_chat=supports_chat,
+        supports_image_generation=supports_image_generation,
+        capabilities_override=capabilities_override or {},
+    )
+
+
+@pytest.mark.asyncio
+async def test_model_test_probes_image_generation_for_an_image_model(
+    monkeypatch,
+) -> None:
+    """An image model must be probed with aimage_generation, never a chat
+    completion -- litellm.acompletion fails on an image-only model, which is
+    exactly the symptom the reporter hit (SurfSense #1518)."""
+    calls = {"acompletion": 0, "aimage_generation": 0}
+
+    async def fake_acompletion(**_kwargs):
+        calls["acompletion"] += 1
+        raise AssertionError("acompletion must not be called for an image model")
+
+    async def fake_aimage_generation(**kwargs):
+        calls["aimage_generation"] += 1
+        assert kwargs["model"] == "openai/FLUX.2-klein-4B"
+        assert kwargs["prompt"] == "test"
+        assert kwargs["n"] == 1
+        assert kwargs["timeout"] == model_connection_service.TEST_TIMEOUT_SECONDS
+        return SimpleNamespace()
+
+    monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
+    monkeypatch.setattr(litellm, "aimage_generation", fake_aimage_generation)
+
+    conn = _openai_compatible_conn()
+    model = _model_stub(
+        "FLUX.2-klein-4B", supports_chat=False, supports_image_generation=True
+    )
+
+    result = await model_connection_service.test_model(conn, model)
+
+    assert result.ok is True
+    assert calls["aimage_generation"] == 1
+    assert calls["acompletion"] == 0
+    assert model.supports_image_generation is True
+
+
+@pytest.mark.asyncio
+async def test_model_test_probes_chat_completion_for_a_chat_model(
+    monkeypatch,
+) -> None:
+    """Regression guard: a chat model's Connect test must keep calling
+    acompletion byte for byte, unaffected by the new image branch."""
+    calls = {"acompletion": 0, "aimage_generation": 0}
+
+    async def fake_acompletion(**kwargs):
+        calls["acompletion"] += 1
+        assert kwargs["messages"] == [{"role": "user", "content": "Hello"}]
+        assert kwargs["timeout"] == model_connection_service.TEST_TIMEOUT_SECONDS
+        return SimpleNamespace()
+
+    async def fake_aimage_generation(**_kwargs):
+        calls["aimage_generation"] += 1
+        raise AssertionError("aimage_generation must not be called for a chat model")
+
+    monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
+    monkeypatch.setattr(litellm, "aimage_generation", fake_aimage_generation)
+
+    conn = _openai_compatible_conn()
+    model = _model_stub("some-llm", supports_chat=True, supports_image_generation=False)
+
+    result = await model_connection_service.test_model(conn, model)
+
+    assert result.ok is True
+    assert calls["acompletion"] == 1
+    assert calls["aimage_generation"] == 0
+    assert model.supports_chat is True
+
+
+@pytest.mark.asyncio
+async def test_model_test_probes_chat_completion_for_a_dual_capability_model(
+    monkeypatch,
+) -> None:
+    """Half of the guard in test_model (`and not has_capability(model,
+    "chat")`) is otherwise untested: a model that is both chat AND
+    image-generation capable (an Xinference LLM entry whose ability list
+    includes text2image, or a capabilities_override that sets both) must
+    still be probed with acompletion, since a dual-capability model is
+    reachable through ordinary chat and the Connect button tests that
+    path."""
+    calls = {"acompletion": 0, "aimage_generation": 0}
+
+    async def fake_acompletion(**kwargs):
+        calls["acompletion"] += 1
+        assert kwargs["messages"] == [{"role": "user", "content": "Hello"}]
+        return SimpleNamespace()
+
+    async def fake_aimage_generation(**_kwargs):
+        calls["aimage_generation"] += 1
+        raise AssertionError(
+            "aimage_generation must not be called for a dual-capability model"
+        )
+
+    monkeypatch.setattr(litellm, "acompletion", fake_acompletion)
+    monkeypatch.setattr(litellm, "aimage_generation", fake_aimage_generation)
+
+    conn = _openai_compatible_conn()
+    model = _model_stub(
+        "dual-capability-model", supports_chat=True, supports_image_generation=True
+    )
+
+    result = await model_connection_service.test_model(conn, model)
+
+    assert result.ok is True
+    assert calls["acompletion"] == 1
+    assert calls["aimage_generation"] == 0
+    assert model.supports_chat is True
 
 
 @pytest.mark.asyncio
