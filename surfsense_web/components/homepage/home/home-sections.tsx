@@ -10,6 +10,7 @@ import {
 	PROOF_POINTS,
 	STORIES,
 } from "@/components/homepage/home/home-content";
+import { HomeHeroDither } from "@/components/homepage/home/home-hero-dither";
 
 /**
  * Homepage sections.
@@ -20,8 +21,9 @@ import {
  * no interior rule ever doubles up. Nothing here has a radius or a shadow; only
  * controls keep the palette's `--radius`.
  *
- * All server components — the page has no interactive state, so nothing needs
- * "use client".
+ * All server components — the page has no interactive state. The single
+ * exception is the hero's backdrop, which is a WebGL shader and so lives in its
+ * own "use client" module rather than pulling this file across the boundary.
  *
  * The heading order is not editorial. It is the SEO skeleton from
  * `plans/community-local/seo/02-page-briefs.md`: H1, then seven H2s in a fixed
@@ -32,7 +34,8 @@ import {
 export function HomeHero() {
 	return (
 		<section className="ss-home-hero ss-home-pad">
-			<div className="mx-auto max-w-4xl text-center">
+			<HomeHeroDither />
+			<div className="relative mx-auto max-w-4xl text-center">
 				<h1 className="ss-home-display">
 					Air-gapped, open source <span className="ss-home-accent">NotebookLM alternative</span>
 				</h1>
