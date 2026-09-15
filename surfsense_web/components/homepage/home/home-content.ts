@@ -114,7 +114,7 @@ export const PILLARS: (Cell & { action: Action })[] = [
 	},
 	{
 		title: "Install and go: no Docker, no terminal, no GPU",
-		body: "A normal desktop installer for Windows, macOS and Linux. No compose file, no environment variables, no CUDA. The bundled small model runs on a laptop CPU.",
+		body: "A normal desktop installer for Windows, macOS and Linux. No compose file, no environment variables, no CUDA. Ollama ships in the box; pick a model on first launch and it runs on a laptop CPU.",
 		action: { label: "Download the installer", href: DOWNLOADS_URL },
 	},
 ];
@@ -229,7 +229,7 @@ export const COMPARE_ROWS: CompareRow[] = [
 	},
 	{
 		label: "Model bundled",
-		ours: "Yes, 0.5 GB",
+		ours: "No, pick one during setup",
 		notebooklm: "Not applicable",
 		anythingllm: "Yes",
 		openNotebook: "No",
@@ -255,7 +255,7 @@ export const HOME_FAQ = [
 	{
 		question: "Is there an AI I can use without internet?",
 		answer:
-			"Yes. SurfSense bundles a small language model that runs on the CPU, so once it is installed you can add documents and ask questions with no network connection. An internet connection is only needed if you choose a hosted model such as GPT or Claude, or when you download an update.",
+			"Yes. SurfSense installs with Ollama built in, and its one-time setup screen has you pick a small language model that runs on the CPU. Once that one download finishes, you can add documents and ask questions with no network connection. An internet connection is only needed for that initial model download, if you choose a hosted model such as GPT or Claude, or when you download an update.",
 	},
 	{
 		question: "Can I run NotebookLM locally?",
@@ -270,6 +270,6 @@ export const HOME_FAQ = [
 	{
 		question: "Is there a free version of NotebookLM?",
 		answer:
-			"NotebookLM has a free tier with usage limits and requires a Google account. SurfSense is free and open source with no account, no quota and no trial: you download it, install it, and use the bundled model at no cost. You only pay a provider if you choose to connect a hosted model of your own.",
+			"NotebookLM has a free tier with usage limits and requires a Google account. SurfSense is free and open source with no account, no quota and no trial: you download it, install it, pick a local model in the one-time setup screen, and chat at no cost. You only pay a provider if you choose to connect a hosted model of your own.",
 	},
 ];

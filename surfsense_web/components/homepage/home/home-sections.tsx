@@ -1,7 +1,6 @@
-import { ArrowRight, Check, Download } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifact-illustration";
-import { HomeButton } from "@/components/homepage/home/home-button";
 import {
 	type Cell,
 	COMPARE_ROWS,
@@ -12,6 +11,7 @@ import {
 	STORIES,
 } from "@/components/homepage/home/home-content";
 import { HomeHeroDither } from "@/components/homepage/home/home-hero-dither";
+import { FlowButton } from "@/components/ui/flow-button";
 
 /**
  * Homepage sections.
@@ -45,12 +45,7 @@ export function HomeHero() {
 					model keys, no cloud, no account.
 				</p>
 				<div className="mt-10 flex justify-center">
-					<HomeButton asChild size="xl">
-						<Link href={DOWNLOADS_URL}>
-							<Download aria-hidden="true" />
-							Download for desktop
-						</Link>
-					</HomeButton>
+					<FlowButton href={DOWNLOADS_URL} text="Download for desktop" />
 				</div>
 			</div>
 		</section>

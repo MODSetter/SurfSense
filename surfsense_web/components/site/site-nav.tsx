@@ -4,6 +4,7 @@ import { IconChevronDown, IconMenu2, IconX } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { NAV_LINKS, NAV_RESOURCES, SIGN_IN_URL } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
@@ -151,9 +152,9 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 					{/* The bar's one action is signing in. Downloading is the landing
 					    page's job: repeating it here would put two primary calls to
 					    action on the same screen, competing with each other. */}
-					<Link href={SIGN_IN_URL} className="ss-home-nav-cta">
-						Sign in
-					</Link>
+					<HomeButton asChild>
+						<Link href={SIGN_IN_URL}>Sign in</Link>
+					</HomeButton>
 
 					<button
 						type="button"
