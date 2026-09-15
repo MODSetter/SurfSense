@@ -97,7 +97,7 @@ export const PLANS: Plan[] = [
 			"Add seats without redistributing files",
 			"SSO, SAML and on-prem hosting available",
 		],
-		action: { label: "Get a team licence", href: LICENSE_URL },
+		action: { label: "Get a team licence", href: "/contact" },
 	},
 ];
 

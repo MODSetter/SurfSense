@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { CircleCheck } from "lucide-react";
 import Link from "next/link";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { PlatformsTooltip } from "@/components/pricing/platforms-tooltip";
@@ -118,7 +118,7 @@ function PlanCell({ plan }: { plan: Plan }) {
 			<ul className="ss-home-plan-features">
 				{plan.features.map((feature) => (
 					<li key={feature}>
-						<Check aria-hidden="true" className="ss-home-plan-check" />
+						<CircleCheck aria-hidden="true" className="ss-home-plan-check" />
 						<span>{renderFeature(feature)}</span>
 					</li>
 				))}
