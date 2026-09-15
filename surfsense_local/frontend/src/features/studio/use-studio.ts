@@ -19,7 +19,7 @@ export function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
 
-function isRunning(artifact: Artifact) {
+export function isRunning(artifact: Artifact) {
   return artifact.status === "pending" || artifact.status === "processing"
 }
 
