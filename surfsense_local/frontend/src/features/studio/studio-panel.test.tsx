@@ -53,7 +53,6 @@ function StudioHarness({
         onOpen={vi.fn()}
         onRegenerate={(id) => void studio.regenerate(id)}
         onDelete={(id) => void studio.remove(id)}
-        onRetry={(id) => void studio.retry(id)}
       />
     </>
   )

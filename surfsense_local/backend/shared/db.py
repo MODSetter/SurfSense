@@ -18,6 +18,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
+from shared.sqlite import enable_wal
+
 # SQLite is the only backend that lets constraints stay unnamed, and Alembic's
 # batch mode cannot drop what it cannot name. Retrofitting this later would not
 # match the names already on disk, so it has to hold from the first migration.
@@ -94,10 +96,11 @@ def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     dbapi_connection.enable_load_extension(False)
 
     cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode = WAL")
-    cursor.execute("PRAGMA foreign_keys = ON")
+    # First, so what follows waits for a concurrent writer instead of failing.
     cursor.execute("PRAGMA busy_timeout = 5000")
+    cursor.execute("PRAGMA foreign_keys = ON")
     cursor.close()
+    enable_wal(dbapi_connection)
 
 
 # The API sets this for the span of one request. Waiting for the write lock on
