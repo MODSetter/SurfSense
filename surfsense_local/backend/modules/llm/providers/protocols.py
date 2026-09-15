@@ -39,6 +39,7 @@ class ImageGenerator(Protocol):
 class Voice:
     id: str
     label: str
+    language: str  # BCP-47, e.g. "en-US", "pt-BR"
 
 
 @dataclass(frozen=True)

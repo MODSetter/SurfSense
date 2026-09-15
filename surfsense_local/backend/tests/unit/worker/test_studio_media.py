@@ -80,7 +80,7 @@ class FakeVoice:
         self.turns: list[SpokenTurn] = []
 
     def voices(self) -> list[Voice]:
-        return [Voice("lead", "Lead"), Voice("guest", "Guest")]
+        return [Voice("lead", "Lead", "en-US"), Voice("guest", "Guest", "en-US")]
 
     async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
         self.turns = turns

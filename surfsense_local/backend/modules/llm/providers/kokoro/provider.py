@@ -20,9 +20,42 @@ logger = logging.getLogger(__name__)
 SAMPLE_RATE = 24_000  # Kokoro's output rate.
 GAP_SECONDS = 0.35  # Silence between turns, so the hosts do not run together.
 
-# ponytail: the two voices the podcast has always used; the packed voices file
-# holds ~50 more, listing them is a voices-file read away when a picker exists.
-VOICES = [Voice("af_heart", "Heart"), Voice("am_adam", "Adam")]
+# Voice ids are "<language><gender>_<name>"; the prefix picks the language and
+# the espeak code the phonemiser needs for it. ponytail: Japanese and Mandarin
+# voices exist in the file but espeak voices them poorly; they join when a
+# proper G2P for them is bundled. The "santa" novelty voices are left out.
+_LANGUAGES = {
+    "a": ("en-US", "en-us"),
+    "b": ("en-GB", "en-gb"),
+    "e": ("es", "es"),
+    "f": ("fr", "fr-fr"),
+    "h": ("hi", "hi"),
+    "i": ("it", "it"),
+    "p": ("pt-BR", "pt-br"),
+}
+# fmt: off
+_VOICE_IDS = [
+    "af_heart", "af_bella", "af_nicole", "af_nova", "af_sarah", "af_sky", "af_alloy",
+    "af_aoede", "af_jessica", "af_kore", "af_river",
+    "am_adam", "am_echo", "am_eric", "am_liam", "am_michael", "am_onyx", "am_puck",
+    "am_fenrir",
+    "bf_alice", "bf_emma", "bf_isabella", "bf_lily",
+    "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
+    "ef_dora", "em_alex",
+    "ff_siwis",
+    "hf_alpha", "hf_beta", "hm_omega", "hm_psi",
+    "if_sara", "im_nicola",
+    "pf_dora", "pm_alex",
+]
+# fmt: on
+VOICES = [
+    Voice(voice_id, voice_id.split("_")[1].title(), _LANGUAGES[voice_id[0]][0])
+    for voice_id in _VOICE_IDS
+]
+
+
+def _espeak_code(voice_id: str) -> str:
+    return _LANGUAGES[voice_id[0]][1]
 
 
 def kokoro_dir() -> Path:
@@ -64,7 +97,7 @@ class KokoroProvider:
                 len(turn.text),
             )
             samples, _ = kokoro.create(
-                turn.text, voice=turn.voice, speed=1.0, lang="en-us"
+                turn.text, voice=turn.voice, speed=1.0, lang=_espeak_code(turn.voice)
             )
             logger.info(
                 "kokoro: turn %s/%s done in %.1fs",

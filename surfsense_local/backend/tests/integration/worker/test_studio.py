@@ -392,7 +392,7 @@ def test_podcast_synthesizes_a_wav_from_the_transcript(
 
     class FakeVoice:
         def voices(self) -> list[Voice]:
-            return [Voice("a", "A")]
+            return [Voice("a", "A", "en-US")]
 
         async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
             return SynthesizedAudio(b"RIFF" + b"\x00" * 40, "audio/wav")
