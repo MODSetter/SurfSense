@@ -66,15 +66,17 @@ def _generate(session: Session, artifact: Artifact) -> None:
             sum(len(source.content) for source in sources),
         )
         kind = job_router.Kind(artifact.format)
+        fmt = FORMATS_BY_KEY[kind]
         models = [
-            _choose_model(session, ModelRole(role))
-            for role in FORMATS_BY_KEY[kind].requires_roles
+            _choose_model(session, ModelRole(role)) for role in fmt.requires_roles
         ]
+        # Options were checked at job creation; only formats that take them get them.
+        extras = [meta.get("options")] if fmt.validate_options else []
         # Generation runs for minutes; a transaction held across it fails on the
         # first write after (SQLITE_BUSY_SNAPSHOT) as soon as the API writes.
         session.commit()
 
-        built = job_router.pipeline_for(kind)(*models, sources, prompt)
+        built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
 
         logger.info(
             "studio: artifact %s render done in %.1fs; persisting",

@@ -3,7 +3,9 @@
 import pytest
 
 from modules.artifacts.podcast.brief import Duration, PodcastBrief, Speaker, Style
-from worker.studio.media.audio.podcast import draft, outline
+from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
+from modules.llm.resolution import ModelResolutionError
+from worker.studio.media.audio.podcast import draft, outline, pipeline
 
 pytestmark = pytest.mark.unit
 
@@ -32,15 +34,18 @@ def test_the_outline_prompt_is_sized_to_the_preset_and_names_the_cast() -> None:
 def test_segments_are_kept_in_order_and_sized_when_the_model_forgets() -> None:
     """Titles are required; missing target words get an even share of the total."""
     raw = (
-        '{"segments": [{"title": "Opening", "talking_points": ["hello"]}, '
-        '{"talking_points": ["no title"]}, {"title": "Close", "target_words": 200}]}'
+        '{"title": "Saturn", "segments": [{"title": "Opening", "talking_points": '
+        '["hello"]}, {"talking_points": ["no title"]}, '
+        '{"title": "Close", "target_words": 200}]}'
     )
-    segments = outline.parse(raw, BRIEF)
+    planned = outline.parse(raw, BRIEF)
 
-    assert [segment.title for segment in segments] == ["Opening", "Close"]
-    assert segments[0].talking_points == ["hello"]
-    assert segments[0].target_words == 600
-    assert segments[1].target_words == 200
+    assert planned.title == "Saturn"
+    assert [segment.title for segment in planned.segments] == ["Opening", "Close"]
+    assert planned.segments[0].talking_points == ["hello"]
+    assert planned.segments[0].target_words == 600
+    assert planned.segments[1].target_words == 200
+    assert outline.parse('{"segments": [{"title": "x"}]}', BRIEF).title == "Podcast"
 
 
 def test_an_outline_without_segments_is_an_error() -> None:
@@ -116,3 +121,92 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
     assert len(prompts) == 4
     assert "only the JSON" in prompts[1] and "only the JSON" not in prompts[0]
     assert "Sam: Hi." in prompts[2]
+
+
+class FakeVoice:
+    """A TextToSpeech that records what it was asked to say."""
+
+    def __init__(self) -> None:
+        self.turns: list[SpokenTurn] = []
+
+    def voices(self) -> list[Voice]:
+        return [Voice("pm_alex", "Alex", "pt-BR"), Voice("pf_dora", "Dora", "pt-BR")]
+
+    async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+        self.turns = turns
+        return SynthesizedAudio(b"RIFFfake", "audio/wav")
+
+
+def _episode(monkeypatch: pytest.MonkeyPatch, *replies: str) -> tuple[FakeVoice, list]:
+    voice = FakeVoice()
+    monkeypatch.setattr(
+        "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech",
+        lambda: voice,
+    )
+    queue = iter(replies)
+    prompts: list[str] = []
+
+    def fake_run_model(model: object, system: str, sources: list) -> str:
+        prompts.append(system)
+        return next(queue)
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", fake_run_model)
+    return voice, prompts
+
+
+def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """One outline call, one call per segment; each line is voiced by its speaker's
+    chosen voice; the transcript names the speakers and is the searchable body."""
+    voice, prompts = _episode(
+        monkeypatch,
+        '{"title": "Saturn Rings", "segments": [{"title": "Open"}, {"title": "Close"}]}',
+        '{"turns": [{"speaker": 1, "text": "Welcome."}]}',
+        '{"turns": [{"speaker": 2, "text": "Goodbye."}]}',
+    )
+
+    built = pipeline.render(object(), [], "the risks", BRIEF.model_dump(mode="json"))
+
+    assert len(prompts) == 3 and "the risks" in prompts[0]
+    assert [(t.voice, t.text) for t in voice.turns] == [
+        ("pm_alex", "Welcome."),
+        ("pf_dora", "Goodbye."),
+    ]
+    assert built.title == "Saturn Rings"
+    assert built.primary == b"RIFFfake"
+    assert built.primary_filename == "saturn-rings.wav"
+    assert "**Sam:** Welcome." in built.markdown
+    assert "**Lee:** Goodbye." in built.markdown
+
+
+def test_an_episode_too_short_to_voice_fails_before_synthesis(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A single line is not an episode; no CPU minutes go into voicing it."""
+    voice, _ = _episode(
+        monkeypatch,
+        '{"title": "T", "segments": [{"title": "Only"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}]}',
+    )
+
+    with pytest.raises(ValueError, match="too short"):
+        pipeline.render(object(), [], None, BRIEF.model_dump(mode="json"))
+    assert voice.turns == []
+
+
+def test_without_a_voice_engine_the_text_model_is_never_called(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A missing voice engine fails before any model tokens are spent."""
+    monkeypatch.setattr(
+        "modules.llm.providers.kokoro.provider.missing_files",
+        lambda: ["kokoro-v1.0.onnx"],
+    )
+    monkeypatch.setattr(
+        "worker.studio.shared.generate.run_model",
+        lambda *a: pytest.fail("the text model was called"),
+    )
+
+    with pytest.raises(ModelResolutionError, match="Kokoro"):
+        pipeline.render(None, [], None, BRIEF.model_dump(mode="json"))

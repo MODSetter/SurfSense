@@ -44,6 +44,7 @@ def make_artifact(
     source: str = "Saturn facts.",
     fmt: str = "summary",
     prompt: str | None = None,
+    options: dict | None = None,
 ) -> Artifact:
     """A workspace with one ready source and a pending artifact over it."""
     workspace = Workspace(name="Saturn")
@@ -73,7 +74,11 @@ def make_artifact(
         document_id=document.id,
         workspace_id=workspace.id,
         format=fmt,
-        artifact_metadata={"source_document_ids": [source_doc.id], "prompt": prompt},
+        artifact_metadata={
+            "source_document_ids": [source_doc.id],
+            "prompt": prompt,
+            "options": options,
+        },
     )
     session.add(artifact)
     session.commit()
@@ -85,8 +90,9 @@ def make_artifact(
 # the user's prompt reached it.
 
 
-def _capture_model(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
-    """Stub the generation model to return `reply`, recording each system prompt.
+def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
+    """Stub the generation model to answer `replies` in turn (the last one repeats),
+    recording each system prompt.
 
     Every builder and office format assembles its real prompt and calls
     `run_model`, so recording here lets a test assert the user's focus reached it.
@@ -95,7 +101,7 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
 
     def fake(_session: object, system: str, _sources: object) -> str:
         seen.append(system)
-        return reply
+        return replies[min(len(seen), len(replies)) - 1]
 
     monkeypatch.setattr("worker.studio.shared.generate.run_model", fake)
     return seen
@@ -379,28 +385,45 @@ def test_pdf_runs_generated_reportlab_code(
 # --- Media: audio synthesised offline, images drawn over a BYO key. ---
 
 
-def test_podcast_synthesizes_a_wav_from_the_transcript(
+def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Podcast: the model writes a two-host transcript, the voice engine voices it."""
+    """Podcast: the brief the user reviewed reaches the pipeline; the model plans an
+    outline, drafts each segment, and the voice engine voices every line."""
     seen = _capture_model(
         monkeypatch,
-        '{"title": "Cassini", "turns": '
-        '[{"speaker": "A", "text": "It reached Saturn in 2004."}, '
-        '{"speaker": "B", "text": "Remarkable."}]}',
+        '{"title": "Cassini", "segments": [{"title": "Arrival"}, {"title": "Legacy"}]}',
+        '{"turns": [{"speaker": 1, "text": "It reached Saturn in 2004."}]}',
+        '{"turns": [{"speaker": 2, "text": "Remarkable."}]}',
     )
+    spoken: list[SpokenTurn] = []
 
     class FakeVoice:
         def voices(self) -> list[Voice]:
-            return [Voice("a", "A", "en-US")]
+            return [
+                Voice("af_heart", "Heart", "en-US"),
+                Voice("am_adam", "Adam", "en-US"),
+            ]
 
         async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+            spoken.extend(turns)
             return SynthesizedAudio(b"RIFF" + b"\x00" * 40, "audio/wav")
 
     monkeypatch.setattr(
         "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech", FakeVoice
     )
-    artifact = make_artifact(session, fmt="podcast", prompt="keep it short")
+    brief = {
+        "language": "en-US",
+        "style": "interview",
+        "duration": "short",
+        "speakers": [
+            {"name": "Ada", "role": "host", "voice": "am_adam"},
+            {"name": "Bea", "role": "expert", "voice": "af_heart"},
+        ],
+    }
+    artifact = make_artifact(
+        session, fmt="podcast", prompt="keep it short", options=brief
+    )
 
     run(artifact.id)
 
@@ -409,7 +432,9 @@ def test_podcast_synthesizes_a_wav_from_the_transcript(
         artifact.document.error_message
     )
     _one_file(artifact, "audio/wav", b"RIFF")
-    assert "keep it short" in seen[0]
+    assert len(seen) == 3 and "keep it short" in seen[0] and "Ada (host)" in seen[1]
+    assert [turn.voice for turn in spoken] == ["am_adam", "af_heart"]
+    assert "**Bea:** Remarkable." in artifact.document.content
 
 
 def test_image_draws_a_png_over_the_selected_connection(

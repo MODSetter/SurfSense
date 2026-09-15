@@ -21,9 +21,10 @@ def test_every_kind_has_a_pipeline() -> None:
         assert callable(job_router.pipeline_for(kind)), kind
 
 
-def test_every_pipeline_takes_the_models_its_format_declares() -> None:
-    """The harness passes requires_roles positionally, then sources and prompt."""
+def test_every_pipeline_takes_what_its_format_declares() -> None:
+    """The harness passes requires_roles positionally, then sources and prompt,
+    then the checked options for the formats that take them."""
     for fmt in FORMATS:
         render = job_router.pipeline_for(job_router.Kind(fmt.key))
-        expected = len(fmt.requires_roles) + 2
+        expected = len(fmt.requires_roles) + 2 + (fmt.validate_options is not None)
         assert len(inspect.signature(render).parameters) == expected, fmt.key

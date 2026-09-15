@@ -19,6 +19,12 @@ class Segment:
     target_words: int
 
 
+@dataclass(frozen=True)
+class Outline:
+    title: str
+    segments: list[Segment]
+
+
 def target_words(brief: PodcastBrief) -> int:
     return MINUTES[brief.duration] * WORDS_PER_MINUTE
 
@@ -35,25 +41,27 @@ def prompt(brief: PodcastBrief, focus: str | None) -> str:
         f"{brief.style.value}.\nSpeakers:\n{roster(brief)}\n{focus_line}\n"
         f"Plan an outline that, fully drafted, reaches about {words} words of "
         f"spoken dialogue in about {segments} segments: an opening, distinct topic "
-        "areas grounded in the sources, and a closing. For each segment give a "
-        "short title, 2-5 concrete talking_points drawn from the sources, and "
-        "target_words (the sum should approximate the total).\n"
-        'Return only JSON, no prose: {"segments": [{"title": str, '
+        "areas grounded in the sources, and a closing. Give the episode a short "
+        "title. For each segment give a short title, 2-5 concrete talking_points "
+        "drawn from the sources, and target_words (the sum should approximate the "
+        "total).\n"
+        'Return only JSON, no prose: {"title": str, "segments": [{"title": str, '
         '"talking_points": [str], "target_words": int}]}'
     )
 
 
-def parse(raw: str, brief: PodcastBrief) -> list[Segment]:
-    """The planned segments; untitled ones are dropped, unsized ones share evenly."""
+def parse(raw: str, brief: PodcastBrief) -> Outline:
+    """The plan; untitled segments are dropped, unsized ones share the words evenly."""
+    spec = parse_json(raw)
     entries = [
         entry
-        for entry in as_list(parse_json(raw).get("segments"))
+        for entry in as_list(spec.get("segments"))
         if isinstance(entry, dict) and as_text(entry.get("title"))
     ]
     if not entries:
         raise ValueError("the outline came back without segments")
     even_share = target_words(brief) // len(entries)
-    return [
+    segments = [
         Segment(
             title=as_text(entry["title"]),
             talking_points=[as_text(p) for p in as_list(entry.get("talking_points"))],
@@ -61,6 +69,7 @@ def parse(raw: str, brief: PodcastBrief) -> list[Segment]:
         )
         for entry in entries
     ]
+    return Outline(as_text(spec.get("title")) or "Podcast", segments)
 
 
 def _words(value: object, fallback: int) -> int:
