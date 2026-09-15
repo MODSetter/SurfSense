@@ -17,15 +17,15 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, Literal, cast
 
 from app.config import config
+from app.license import keygen
+from app.license.delivery.email import fold_email, normalize_email
+from app.license.keygen import LicensePlan
 from app.mailer import (
     build_license_email,
     get_mailer,
     is_mail_enabled,
 )
 from app.mailer.templates import LicenseEmailKind
-from app.services import keygen
-from app.services.keygen import LicensePlan
-from app.services.license_email import fold_email, normalize_email
 
 logger = logging.getLogger(__name__)
 
@@ -65,10 +65,6 @@ class IssuedLicense:
     max_users: int | None = None
 
 
-# --------------------------------------------------------------------------
-# License identity
-# --------------------------------------------------------------------------
-
 # Changing this namespace changes every derived id, so an in-flight purchase
 # could be fulfilled twice across the deploy that changes it. It is a constant
 # for that reason, not configuration.
@@ -91,11 +87,6 @@ def derive_license_id(scope: str, identity: str) -> str:
     so it costs no secret to make it predictable.
     """
     return str(uuid.uuid5(_LICENSE_NAMESPACE, f"{scope}:{identity}"))
-
-
-# --------------------------------------------------------------------------
-# Stripe session parsing
-# --------------------------------------------------------------------------
 
 
 def _metadata_of(obj: Any) -> dict[str, str]:
@@ -208,11 +199,6 @@ def resolve_license_plan(
                 raise LicenseIssueError("Team license quantity must be at least 1")
             return "team", quantity
     return None
-
-
-# --------------------------------------------------------------------------
-# Issuing
-# --------------------------------------------------------------------------
 
 
 def _trial_expiry(now: datetime | None = None) -> datetime:
@@ -448,11 +434,6 @@ async def trial_exists(folded_email: str) -> bool:
     return bool(matches)
 
 
-# --------------------------------------------------------------------------
-# Lookups
-# --------------------------------------------------------------------------
-
-
 _SUSPENDED_STATUSES = {"SUSPENDED", "BANNED"}
 
 
@@ -524,11 +505,6 @@ async def suspend_licenses_for_customer(
         if license_id:
             await keygen.suspend_license(license_id)
     return len(matches)
-
-
-# --------------------------------------------------------------------------
-# Support corrections
-# --------------------------------------------------------------------------
 
 
 class LicenseNotFoundError(RuntimeError):
@@ -611,11 +587,6 @@ async def correct_license_email(
         email=corrected,
         max_users=record.max_users,
     )
-
-
-# --------------------------------------------------------------------------
-# Delivery
-# --------------------------------------------------------------------------
 
 
 async def deliver_licenses(

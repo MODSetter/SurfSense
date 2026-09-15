@@ -15,18 +15,18 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from app.config import config
-from app.mailer import MailerRejectedError, MailerUnavailableError, is_mail_enabled
-from app.routes.stripe_routes import get_stripe_client
-from app.schemas.license import LicenseAckResponse, LicenseEmailRequest
-from app.services.license_email import is_disposable, normalize_email
-from app.services.license_rate_limit import enforce_license_rate_limit
-from app.services.license_service import (
+from app.license.delivery.email import is_disposable, normalize_email
+from app.license.rate_limit import enforce_license_rate_limit
+from app.license.schemas import LicenseAckResponse, LicenseEmailRequest
+from app.license.service import (
     TrialAlreadyClaimedError,
     certificate_for_checkout_session,
     certificates_for_email,
     deliver_licenses,
     issue_trial_license,
 )
+from app.mailer import MailerRejectedError, MailerUnavailableError, is_mail_enabled
+from app.routes.stripe_routes import get_stripe_client
 
 logger = logging.getLogger(__name__)
 

@@ -41,7 +41,7 @@ from app.schemas.stripe import (
     StripeWebhookResponse,
     UpdateAutoReloadSettingsRequest,
 )
-from app.services.license_service import (
+from app.license.service import (
     LicenseIssueError,
     deliver_licenses,
     fulfill_license_session,

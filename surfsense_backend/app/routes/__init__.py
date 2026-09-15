@@ -58,7 +58,7 @@ from .google_gmail_add_connector_route import (
 )
 from .incentive_tasks_routes import router as incentive_tasks_router
 from .jira_add_connector_route import router as jira_add_connector_router
-from .license_routes import router as license_router
+from app.license.router import router as license_router
 from .linear_add_connector_route import router as linear_add_connector_router
 from .logs_routes import router as logs_router
 from .luma_add_connector_route import router as luma_add_connector_router

@@ -26,7 +26,7 @@ import argparse
 import asyncio
 import sys
 
-from app.services.license_service import (
+from app.license.service import (
     LicenseNotFoundError,
     correct_license_email,
     deliver_licenses,
