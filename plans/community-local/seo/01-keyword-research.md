@@ -11,6 +11,7 @@ This is the demand document. The rest of the set:
 | [`03-international.md`](03-international.md) | 26 markets in 15 languages: market sizes, localisation tiers, per-language glossaries, hreflang plan |
 | [`04-competitors.md`](04-competitors.md) | domain authority, competitor footprints, keyword gaps, patterns to copy; the edtech set that owns the Studio SERPs |
 | [`05-serp-landscape.md`](05-serp-landscape.md) | what the results page looks like for the four priority terms and the study-guide head, AI Overview citations, PAA |
+| [`06-repo-readme.md`](06-repo-readme.md) | the repo as a ranking page: description, topics, and a paste-ready README draft in [`drafts/`](drafts/README.md) |
 | [`data/master-keywords.csv`](data/master-keywords.csv) | 565 keywords scored and clustered, the single list to work from |
 
 **Source:** DataForSEO, pulled 14 Sep 2026, Google **United States** desktop

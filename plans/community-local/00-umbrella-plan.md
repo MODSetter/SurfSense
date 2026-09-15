@@ -57,8 +57,8 @@ each is ◐ rather than ✓ for a named reason, and **[`00d-pivot-plan.md`](00d-
 carries the live status — this table is the map, not the scoreboard**. Phase 4:
 every artifact type builds, but DOCX, PPTX, XLSX and PDF `exec()` model-written
 Python instead of rendering a structured spec, `GET /artifacts/{id}/manifest` is
-absent, and the panel renders mind map, flashcards, quiz and HTML as plain
-markdown. Phase 5: `05c` packaging is green on Mac and Linux and still fails on
+absent, and the panel still renders the HTML artifact as plain text with no
+sandboxed iframe — mind map, flashcards and quiz got real viewers on 15 Sep. Phase 5: `05c` packaging is green on Mac and Linux and still fails on
 Windows at the NSIS step. Phase 6: the API side is built but the license verifier
 compiles in the public test key, `allowPrerelease` is missing from the updater,
 and import has no summary endpoint.

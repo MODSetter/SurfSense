@@ -610,6 +610,8 @@ formats are X, Y, Z" — are liftable. Marketing voice is not.
 ## The GitHub repo is a page too
 
 Probably the highest-return item in this research, and it costs nothing.
+**The drafts are written:** description, topics and a paste-ready README in
+[`06-repo-readme.md`](06-repo-readme.md). What follows is the brief they answer.
 GitHub ranks **#1** for `open source notebooklm`, `local notebooklm`,
 `notebooklm mcp` and `notebooklm api`, and appears in the top ten for 11 of our
 18 tracked keywords at an average position of 5.7. The repo outranks anything
