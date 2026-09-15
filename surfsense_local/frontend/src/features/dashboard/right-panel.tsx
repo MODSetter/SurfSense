@@ -15,7 +15,6 @@ export function RightPanel({
   inspect,
   tab,
   onTabChange,
-  generating,
   studio,
   sources,
   artifacts,
@@ -23,8 +22,6 @@ export function RightPanel({
   inspect: ReactNode
   tab: RightTab
   onTabChange: (tab: RightTab) => void
-  /** Artifacts still pending or processing; shown as a count on the tab. */
-  generating: number
   studio: ReactNode
   sources: ReactNode
   artifacts: ReactNode
@@ -33,7 +30,7 @@ export function RightPanel({
 
   return (
     <aside
-      className="flex h-full min-w-0 flex-col border-l bg-background select-none"
+      className="flex h-full min-w-0 select-none flex-col border-l bg-background"
       aria-label={
         tab === "sources" ? "Workspace sources" : "Workspace artifacts"
       }
@@ -71,19 +68,10 @@ export function RightPanel({
                 <TooltipTrigger asChild>
                   <TabsTrigger
                     value="artifacts"
-                    aria-label={
-                      generating > 0
-                        ? `Artifacts, ${generating} generating`
-                        : "Artifacts"
-                    }
-                    className="relative h-full px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+                    aria-label="Artifacts"
+                    className="h-full px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
                   >
                     <Shapes01Icon />
-                    {generating > 0 ? (
-                      <span className="absolute -top-0.5 -right-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[9px] leading-none font-medium text-primary-foreground tabular-nums">
-                        {generating}
-                      </span>
-                    ) : null}
                   </TabsTrigger>
                 </TooltipTrigger>
                 <TooltipContent side="bottom" collisionPadding={8}>
