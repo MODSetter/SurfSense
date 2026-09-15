@@ -28,6 +28,24 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
 
 export const LICENSE_URL = "/license";
 
+/**
+ * The nine scraper platforms behind the "9 platforms" feature line, in the
+ * same order as the `PLUGINS` list on `/plugins` (`app/(home)/plugins/page.tsx`),
+ * minus the web crawler — that one is called out separately in the copy
+ * ("9 platforms and the web crawler") and in this list's consumer.
+ */
+export const PLUGIN_PLATFORMS = [
+	"Reddit",
+	"YouTube",
+	"Instagram",
+	"TikTok",
+	"Google Maps",
+	"Google Search",
+	"Indeed",
+	"Amazon",
+	"Walmart",
+];
+
 export type Plan = {
 	name: string;
 	price: string;
@@ -77,7 +95,7 @@ export const PLANS: Plan[] = [
 			"Everything in Individual",
 			"One key for the whole team",
 			"Add seats without redistributing files",
-			"No early-bird discount",
+			"SSO, SAML and on-prem hosting available",
 		],
 		action: { label: "Get a team licence", href: LICENSE_URL },
 	},

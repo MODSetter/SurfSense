@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
 import Link from "next/link";
 import { HomeButton } from "@/components/homepage/home/home-button";
+import { PlatformsTooltip } from "@/components/pricing/platforms-tooltip";
 import {
 	ENTERPRISE_NOTE,
 	PLANS,
@@ -10,6 +11,24 @@ import {
 	SELF_BUILD_URL,
 } from "@/components/pricing/pricing-content";
 import { FAQJsonLd } from "@/components/seo/json-ld";
+
+/**
+ * Splits a feature string around "9 platforms" so that segment alone can be
+ * wrapped in `PlatformsTooltip` — the rest of the line renders as plain text.
+ */
+function renderFeature(feature: string) {
+	const marker = "9 platforms";
+	const index = feature.indexOf(marker);
+	if (index === -1) return feature;
+
+	return (
+		<>
+			{feature.slice(0, index)}
+			<PlatformsTooltip>{marker}</PlatformsTooltip>
+			{feature.slice(index + marker.length)}
+		</>
+	);
+}
 
 /**
  * Pricing sections.
@@ -100,7 +119,7 @@ function PlanCell({ plan }: { plan: Plan }) {
 				{plan.features.map((feature) => (
 					<li key={feature}>
 						<Check aria-hidden="true" className="ss-home-plan-check" />
-						<span>{feature}</span>
+						<span>{renderFeature(feature)}</span>
 					</li>
 				))}
 			</ul>
