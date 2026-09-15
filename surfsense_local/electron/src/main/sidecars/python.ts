@@ -1,8 +1,7 @@
 /**
- * The two Python sidecars. They are the same shape: a frozen onedir binary in
- * the packaged app, `uv run` in dev, over the same SURFSENSE_LOCAL_* env. Chat
- * hits Ollama from the API; Studio generation hits it from the worker — both
- * need the bundled address.
+ * The Python sidecars: the API, and the worker once per queue. Same shape: a
+ * frozen onedir binary when packaged, `uv run` in dev, same SURFSENSE_LOCAL_*
+ * env. Both reach Ollama, so both need the bundled address.
  */
 import { join } from "node:path"
 
@@ -29,10 +28,11 @@ function pythonCmd(
   ctx: SidecarContext,
   name: string,
   devEntry: string,
+  args: string[] = [],
 ): { cmd: string; args: string[]; cwd: string } {
   return ctx.packaged
-    ? { cmd: join(ctx.binariesDir, "backend", name, exe(name)), args: [], cwd: ctx.binariesDir }
-    : { cmd: "uv", args: ["run", devEntry], cwd: ctx.backendDir }
+    ? { cmd: join(ctx.binariesDir, "backend", name, exe(name)), args, cwd: ctx.binariesDir }
+    : { cmd: "uv", args: ["run", devEntry, ...args], cwd: ctx.backendDir }
 }
 
 export function apiSpec(ctx: SidecarContext): SidecarSpec {
@@ -46,10 +46,12 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
   }
 }
 
-export function workerSpec(ctx: SidecarContext): SidecarSpec {
+export type WorkerQueue = "ingest" | "studio"
+
+export function workerSpec(ctx: SidecarContext, queue: WorkerQueue): SidecarSpec {
   return {
-    name: "worker",
-    ...pythonCmd(ctx, "worker", "worker.py"),
+    name: `worker-${queue}`,
+    ...pythonCmd(ctx, "worker", "worker.py", [queue]),
     env: pythonEnv(ctx),
   }
 }

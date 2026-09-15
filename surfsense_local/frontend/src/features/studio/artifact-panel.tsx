@@ -5,6 +5,8 @@ import { DetailPanel } from "@/components/ui/detail-panel"
 import { DownloadIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { fileUrl, readArtifact, type ArtifactDetail } from "./api"
+import { MindmapViewer } from "./viewers/mindmap-viewer"
+import { StudyViewer } from "./viewers/study-viewer"
 
 function Preview({ artifact }: { artifact: ArtifactDetail }) {
   const primary = artifact.files.find((file) => file.role === "primary")
@@ -79,14 +81,28 @@ export function ArtifactPanel({
       ) : null}
       {!isLoading && !error && data ? (
         <div className="h-full overflow-y-auto px-5 py-4">
-          <div className="space-y-4">
-            <Preview artifact={data} />
-            <p className="text-sm leading-6 whitespace-pre-wrap">
-              {data.content || "This artifact has no text body."}
-            </p>
-          </div>
+          <Body artifact={data} />
         </div>
       ) : null}
     </DetailPanel>
   )
+}
+
+function Body({ artifact }: { artifact: ArtifactDetail }) {
+  switch (artifact.format) {
+    case "flashcards":
+    case "quiz":
+      return <StudyViewer artifactId={artifact.id} format={artifact.format} />
+    case "mindmap":
+      return <MindmapViewer markdown={artifact.content ?? ""} />
+    default:
+      return (
+        <div className="space-y-4">
+          <Preview artifact={artifact} />
+          <p className="text-sm leading-6 whitespace-pre-wrap">
+            {artifact.content || "This artifact has no text body."}
+          </p>
+        </div>
+      )
+  }
 }

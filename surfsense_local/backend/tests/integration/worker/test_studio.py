@@ -1,3 +1,5 @@
+import json
+import time
 from collections.abc import Iterator
 
 import pytest
@@ -7,13 +9,23 @@ from sqlalchemy.orm import Session
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.providers.openai_compatible import NonRetryableImageError
-from modules.llm.providers.protocols import GeneratedImage
-from modules.llm.resolution import ResolvedImageGeneration
+from modules.llm.providers.protocols import (
+    GeneratedImage,
+    SpokenTurn,
+    SynthesizedAudio,
+    Voice,
+)
+from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
-from worker.studio import office, persist, run
-from worker.studio.artifact import Built
+from worker.studio import run
+from worker.studio.office.docx import docx
+from worker.studio.office.pdf import pdf
+from worker.studio.office.pptx import pptx
+from worker.studio.office.xlsx import xlsx
+from worker.studio.shared import persist
+from worker.studio.shared.artifact import Built
 
 pytestmark = pytest.mark.integration
 
@@ -33,6 +45,7 @@ def make_artifact(
     source: str = "Saturn facts.",
     fmt: str = "summary",
     prompt: str | None = None,
+    options: dict | None = None,
 ) -> Artifact:
     """A workspace with one ready source and a pending artifact over it."""
     workspace = Workspace(name="Saturn")
@@ -62,7 +75,11 @@ def make_artifact(
         document_id=document.id,
         workspace_id=workspace.id,
         format=fmt,
-        artifact_metadata={"source_document_ids": [source_doc.id], "prompt": prompt},
+        artifact_metadata={
+            "source_document_ids": [source_doc.id],
+            "prompt": prompt,
+            "options": options,
+        },
     )
     session.add(artifact)
     session.commit()
@@ -74,8 +91,9 @@ def make_artifact(
 # the user's prompt reached it.
 
 
-def _capture_model(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
-    """Stub the generation model to return `reply`, recording each system prompt.
+def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
+    """Stub the generation model to answer `replies` in turn (the last one repeats),
+    recording each system prompt.
 
     Every builder and office format assembles its real prompt and calls
     `run_model`, so recording here lets a test assert the user's focus reached it.
@@ -84,9 +102,9 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, reply: str) -> list[str]:
 
     def fake(_session: object, system: str, _sources: object) -> str:
         seen.append(system)
-        return reply
+        return replies[min(len(seen), len(replies)) - 1]
 
-    monkeypatch.setattr("worker.studio.generate.run_model", fake)
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", fake)
     return seen
 
 
@@ -99,19 +117,24 @@ def _capture_image(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             seen.append(content)
             return GeneratedImage(b"\x89PNG\r\n\x1a\n" + b"\x00" * 8, "image/png")
 
-    selection = type("Selection", (), {"name": "flux"})()
+    selection = type("Selection", (), {"provider": "fake", "name": "flux"})()
     monkeypatch.setattr(
-        "worker.studio.media.image.resolve_image_generation",
+        "worker.studio.job.resolve_image_generation",
         lambda _session: ResolvedImageGeneration(selection, FakeImageGenerator()),
     )
     return seen
 
 
+def _primary_bytes(artifact: Artifact) -> bytes:
+    return (
+        get_storage_settings().data_dir / artifact.files[0].storage_key
+    ).read_bytes()
+
+
 def _one_file(artifact: Artifact, mime: str, magic: bytes) -> None:
     """The artifact holds exactly one file of `mime` whose bytes start with `magic`."""
     assert [file.mime_type for file in artifact.files] == [mime]
-    path = get_storage_settings().data_dir / artifact.files[0].storage_key
-    assert path.read_bytes().startswith(magic)
+    assert _primary_bytes(artifact).startswith(magic)
 
 
 # --- Builders: the model returns markdown/JSON, a builder renders the body. ---
@@ -122,7 +145,8 @@ def test_summary_becomes_a_searchable_markdown_body(
 ) -> None:
     """Summary: the model's markdown is the body, indexed for search, with no file."""
     seen = _capture_model(
-        monkeypatch, "# Cassini\n\nThe orbiter reached Saturn in 2004, carrying Huygens."
+        monkeypatch,
+        "# Cassini\n\nThe orbiter reached Saturn in 2004, carrying Huygens.",
     )
     artifact = make_artifact(session, fmt="summary", prompt="the arrival date")
 
@@ -184,10 +208,10 @@ def test_mindmap_becomes_a_nested_outline_body(
     assert "key milestones" in seen[0]
 
 
-def test_flashcards_become_a_study_list_body(
+def test_flashcards_become_a_deck_file_and_a_study_list_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Flashcards: the model's front/back pairs render to a markdown list, no file."""
+    """Flashcards: a JSON deck for the study viewer, markdown to search."""
     seen = _capture_model(
         monkeypatch,
         '{"title": "Cassini", "cards": [{"front": "Arrival?", "back": "2004"}]}',
@@ -200,19 +224,26 @@ def test_flashcards_become_a_study_list_body(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    assert artifact.files == []
+    _one_file(artifact, "application/json", b"{")
+    deck = json.loads(_primary_bytes(artifact))
+    assert deck == {
+        "schema_version": 1,
+        "title": "Cassini",
+        "cards": [{"front_text": "Arrival?", "back_text": "2004"}],
+    }
     assert "Arrival?" in artifact.document.content
     assert "dates only" in seen[0]
 
 
-def test_quiz_becomes_a_question_list_body(
+def test_quiz_becomes_a_question_file_and_a_question_list_body(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Quiz: the model's multiple-choice questions render to a markdown body, no file."""
+    """Quiz: a JSON quiz for the study viewer, markdown to search."""
     seen = _capture_model(
         monkeypatch,
-        '{"title": "Cassini", "questions": '
-        '[{"question": "Arrival?", "options": ["2004", "2010"], "answer": "2004"}]}',
+        '{"title": "Cassini", "questions": [{"question": "Arrival?", '
+        '"options": ["1997", "2004", "2010", "2017"], "answer": "2004", '
+        '"explanation": "Cassini reached Saturn in July 2004."}]}',
     )
     artifact = make_artifact(session, fmt="quiz", prompt="arrival facts")
 
@@ -222,7 +253,19 @@ def test_quiz_becomes_a_question_list_body(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    assert artifact.files == []
+    _one_file(artifact, "application/json", b"{")
+    assert json.loads(_primary_bytes(artifact)) == {
+        "schema_version": 1,
+        "title": "Cassini",
+        "questions": [
+            {
+                "question_text": "Arrival?",
+                "options": ["1997", "2004", "2010", "2017"],
+                "correct_option_index": 1,
+                "explanation_text": "Cassini reached Saturn in July 2004.",
+            }
+        ],
+    }
     assert "Answer: 2004" in artifact.document.content
     assert "arrival facts" in seen[0]
 
@@ -285,7 +328,7 @@ def test_docx_runs_generated_python_docx_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["docx"].mime, b"PK\x03\x04")
+    _one_file(artifact, docx.mime, b"PK\x03\x04")
     assert "a one-page brief" in seen[0]
 
 
@@ -302,7 +345,7 @@ def test_pptx_runs_generated_python_pptx_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["pptx"].mime, b"PK\x03\x04")
+    _one_file(artifact, pptx.mime, b"PK\x03\x04")
     assert "three slides" in seen[0]
 
 
@@ -319,7 +362,7 @@ def test_xlsx_runs_generated_xlsxwriter_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["xlsx"].mime, b"PK\x03\x04")
+    _one_file(artifact, xlsx.mime, b"PK\x03\x04")
     assert "one column" in seen[0]
 
 
@@ -336,27 +379,52 @@ def test_pdf_runs_generated_reportlab_code(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, office.OFFICE["pdf"].mime, b"%PDF")
+    _one_file(artifact, pdf.mime, b"%PDF")
     assert "a cover page" in seen[0]
 
 
 # --- Media: audio synthesised offline, images drawn over a BYO key. ---
 
 
-def test_podcast_synthesizes_a_wav_from_the_transcript(
+def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Podcast: the model writes a two-host transcript, Kokoro renders it to WAV."""
+    """Podcast: the brief the user reviewed reaches the pipeline; the model plans an
+    outline, drafts each segment, and the voice engine voices every line."""
     seen = _capture_model(
         monkeypatch,
-        '{"title": "Cassini", "turns": '
-        '[{"speaker": "A", "text": "It reached Saturn in 2004."}, '
-        '{"speaker": "B", "text": "Remarkable."}]}',
+        '{"title": "Cassini", "segments": [{"title": "Arrival"}, {"title": "Legacy"}]}',
+        '{"turns": [{"speaker": 1, "text": "It reached Saturn in 2004."}]}',
+        '{"turns": [{"speaker": 2, "text": "Remarkable."}]}',
     )
+    spoken: list[SpokenTurn] = []
+
+    class FakeVoice:
+        def voices(self) -> list[Voice]:
+            return [
+                Voice("af_heart", "Heart", "en-US"),
+                Voice("am_adam", "Adam", "en-US"),
+            ]
+
+        async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+            spoken.extend(turns)
+            return SynthesizedAudio(b"RIFF" + b"\x00" * 40, "audio/wav")
+
     monkeypatch.setattr(
-        "worker.studio.media.podcast.tts.synthesize", lambda turns: b"RIFF" + b"\x00" * 40
+        "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech", FakeVoice
     )
-    artifact = make_artifact(session, fmt="podcast", prompt="keep it short")
+    brief = {
+        "language": "en-US",
+        "style": "interview",
+        "duration": "short",
+        "speakers": [
+            {"name": "Ada", "role": "host", "voice": "am_adam"},
+            {"name": "Bea", "role": "expert", "voice": "af_heart"},
+        ],
+    }
+    artifact = make_artifact(
+        session, fmt="podcast", prompt="keep it short", options=brief
+    )
 
     run(artifact.id)
 
@@ -365,13 +433,19 @@ def test_podcast_synthesizes_a_wav_from_the_transcript(
         artifact.document.error_message
     )
     _one_file(artifact, "audio/wav", b"RIFF")
-    assert "keep it short" in seen[0]
+    assert len(seen) == 3 and "keep it short" in seen[0] and "Ada (host)" in seen[1]
+    assert [turn.voice for turn in spoken] == ["am_adam", "af_heart"]
+    assert "**Bea:** Remarkable." in artifact.document.content
 
 
 def test_image_draws_a_png_over_the_selected_connection(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Image: the selected remote model's bytes become the primary file."""
+    """Image: the chat model writes the prompt and the title, the selected remote
+    model's bytes become the primary file."""
+    asked = _capture_model(
+        monkeypatch, '{"title": "Bright Poster", "prompt": "a sunlit poster wall"}'
+    )
     seen = _capture_image(monkeypatch)
     artifact = make_artifact(session, fmt="image", prompt="a bright poster")
 
@@ -381,20 +455,27 @@ def test_image_draws_a_png_over_the_selected_connection(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
+    assert "a bright poster" in asked[0]
+    assert seen == ["a sunlit poster wall"]
+    assert artifact.document.title == "Bright Poster"
     _one_file(artifact, "image/png", b"\x89PNG")
-    assert "a bright poster" in seen[0]
 
 
-def test_infographic_builds_a_deterministic_svg(
+def test_a_two_model_format_gets_both_models_in_catalog_order(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Infographic: a chat model returns facts and the builder renders safe SVG."""
-    seen = _capture_model(
-        monkeypatch,
-        '{"title":"Cassini","summary":"Saturn mission",'
-        '"sections":[{"label":"Arrival","value":"2004","detail":"Reached Saturn"}]}',
+    """Infographic declares (image_generation, generation); render gets them so."""
+    _capture_image(monkeypatch)
+    received: list[object] = []
+
+    def record(*models: object, **_kwargs: object) -> Built:
+        received.extend(models[:-2])  # trailing two are sources and prompt
+        return Built(title="Cassini", markdown="# Cassini")
+
+    monkeypatch.setattr(
+        "worker.studio.media.visual.infographic.pipeline.render", record
     )
-    artifact = make_artifact(session, fmt="infographic", prompt="the key figures")
+    artifact = make_artifact(session, fmt="infographic")
 
     run(artifact.id)
 
@@ -402,8 +483,54 @@ def test_infographic_builds_a_deterministic_svg(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, "image/svg+xml", b"<svg")
-    assert "the key figures" in seen[0]
+    assert [type(model) for model in received] == [
+        ResolvedImageGeneration,
+        ResolvedGeneration,
+    ]
+
+
+def test_studio_threads_persist_side_by_side_with_a_busy_api(
+    session: Session, engine: Engine, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The studio consumer runs STUDIO_WORKERS jobs at once on the one SQLite
+    file the API writes to; every job must land, none may hit a lock error."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from worker.consumer import STUDIO_WORKERS
+
+    artifacts = [make_artifact(session) for _ in range(STUDIO_WORKERS * 2)]
+    ids = [artifact.id for artifact in artifacts]
+    workspace_id = artifacts[0].workspace_id
+
+    def slow_model(*_args: object, **_kwargs: object) -> str:
+        time.sleep(0.05)  # long enough for the other threads to be persisting
+        return SUMMARY
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", slow_model)
+
+    def api_keeps_writing() -> None:
+        for n in range(40):
+            with create_session_factory(engine)() as other:
+                other.add(
+                    Document(
+                        workspace_id=workspace_id,
+                        title=f"typed {n}",
+                        document_type=DocumentType.NOTE,
+                        status=DocumentStatus.READY,
+                        content="a chat turn",
+                    )
+                )
+                other.commit()
+
+    with ThreadPoolExecutor(STUDIO_WORKERS + 1) as pool:
+        api = pool.submit(api_keeps_writing)
+        jobs = [pool.submit(run, artifact_id) for artifact_id in ids]
+        for job in jobs:
+            job.result()  # raises OperationalError if a lock timed out
+        api.result()
+
+    session.expire_all()
+    assert all(a.document.status is DocumentStatus.READY for a in artifacts)
 
 
 def test_a_generation_failure_leaves_a_reason(
@@ -414,7 +541,7 @@ def test_a_generation_failure_leaves_a_reason(
     def boom(*args: object, **kwargs: object) -> str:
         raise RuntimeError("the model refused")
 
-    monkeypatch.setattr("worker.studio.generate.generate", boom)
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", boom)
     artifact = make_artifact(session)
 
     with pytest.raises(RuntimeError, match="refused"):
@@ -422,7 +549,8 @@ def test_a_generation_failure_leaves_a_reason(
 
     session.expire_all()
     assert artifact.document.status is DocumentStatus.FAILED
-    assert "refused" in (artifact.document.error_message or "")
+    # The tooltip line: what went wrong, without a Python type name in front.
+    assert artifact.document.error_message == "the model refused"
     assert session.scalar(text("SELECT count(*) FROM chunks")) == 0
 
 
@@ -434,7 +562,7 @@ def test_an_image_failure_is_recorded_without_requesting_a_huey_retry(
     def fail(*_args: object, **_kwargs: object) -> Built:
         raise NonRetryableImageError("image endpoint returned HTTP 500")
 
-    monkeypatch.setattr("worker.studio.media.render", fail)
+    monkeypatch.setattr("worker.studio.media.visual.image.pipeline.render", fail)
     artifact = make_artifact(session, fmt="image")
 
     run(artifact.id)

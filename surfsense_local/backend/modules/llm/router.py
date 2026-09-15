@@ -4,8 +4,9 @@ from collections.abc import AsyncIterator
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from api.dependencies import SessionDep
+from api.dependencies import SessionDep, transact
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.egress import service as egress
 from modules.llm.activity import ModelBusyError, model_activity, model_key
@@ -108,17 +109,7 @@ async def delete_model(
             status.HTTP_409_CONFLICT,
             f"model does not support generation: {model_name}",
         )
-    # ponytail: Studio does not persist the model used by each job, so block all
-    # local deletes while one runs. Record provider/model per job to narrow this.
-    studio_running = session.scalar(
-        select(Document.id)
-        .where(
-            Document.document_type == DocumentType.ARTIFACT,
-            Document.status == DocumentStatus.PROCESSING,
-        )
-        .limit(1)
-    )
-    if studio_running is not None:
+    if await transact(session, _studio_running):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "a model cannot be deleted while Studio is generating",
@@ -140,15 +131,39 @@ async def delete_model(
     finally:
         install_lock.release()
 
+    selection_cleared = await transact(
+        session, _clear_selection, store.name, model_name
+    )
+    return ModelDeleteRead(name=model_name, selection_cleared=selection_cleared)
+
+
+def _studio_running(session: Session) -> bool:
+    # ponytail: Studio does not persist the model used by each job, so block all
+    # local deletes while one runs. Record provider/model per job to narrow this.
+    return (
+        session.scalar(
+            select(Document.id)
+            .where(
+                Document.document_type == DocumentType.ARTIFACT,
+                Document.status == DocumentStatus.PROCESSING,
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
+def _clear_selection(session: Session, provider: str, model_name: str) -> bool:
+    """Drop the generation selection if it named the model just deleted."""
     selected = session.get(SelectedModel, ModelRole.GENERATION)
-    selection_cleared = (
+    cleared = (
         selected is not None
-        and selected.provider == store.name
+        and selected.provider == provider
         and selected.name == model_name
     )
-    if selection_cleared:
+    if cleared:
         session.delete(selected)
-    return ModelDeleteRead(name=model_name, selection_cleared=selection_cleared)
+    return cleared
 
 
 @router.get(
@@ -184,7 +199,7 @@ async def pull_model(
     service: CatalogServiceDep,
     session: SessionDep,
 ) -> StreamingResponse:
-    egress.require(session, egress.OLLAMA_PULL)
+    await transact(session, egress.require, egress.OLLAMA_PULL)
     lock = service.install_lock(store.name)
     if lock.locked():
         raise HTTPException(

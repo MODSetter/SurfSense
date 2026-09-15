@@ -23,7 +23,7 @@ class FormatRead(BaseModel):
 
     key: str
     label: str
-    requires_role: str | None
+    requires_roles: list[str]
     available: bool
     unavailable_reason: str | None
 

@@ -21,6 +21,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -62,7 +63,9 @@ function readStoredFormats(workspaceId: number): string[] {
     const parsed: unknown = JSON.parse(
       localStorage.getItem(artifactFilterKey(workspaceId)) ?? "[]"
     )
-    return Array.isArray(parsed) ? parsed.filter((v) => typeof v === "string") : []
+    return Array.isArray(parsed)
+      ? parsed.filter((v) => typeof v === "string")
+      : []
   } catch {
     return []
   }
@@ -82,13 +85,13 @@ function writeStoredFormats(workspaceId: number, formats: string[]) {
 function ArtifactRow({
   artifact,
   onOpen,
+  onRegenerate,
   onDelete,
-  onRetry,
 }: {
   artifact: Artifact
   onOpen: () => void
+  onRegenerate: () => void
   onDelete: () => void
-  onRetry: () => void
 }) {
   const ready = artifact.status === "ready"
   const failed = artifact.status === "failed"
@@ -133,7 +136,7 @@ function ArtifactRow({
                     variant="ghost"
                     aria-label={`Generation failed. Retry ${artifact.title}`}
                     className="relative hover:bg-transparent"
-                    onClick={onRetry}
+                    onClick={onRegenerate}
                   >
                     <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
                     <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-visible/button:opacity-100" />
@@ -156,6 +159,15 @@ function ArtifactRow({
           >
             {artifact.title}
           </button>
+          {/* Two runs of one format share a title; the date tells them apart. */}
+          <RelativeTime
+            date={new Date(artifact.created_at)}
+            compact
+            className={cn(
+              "shrink-0 text-[11px] text-muted-foreground/70 tabular-nums transition-opacity group-focus-within/artifact:opacity-0 group-hover/artifact:opacity-0",
+              dropdownOpen && "opacity-0"
+            )}
+          />
           <div className="absolute inset-y-0 right-0 flex items-center pr-1">
             <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
               <DropdownMenuTrigger asChild>
@@ -181,10 +193,12 @@ function ArtifactRow({
                       Open
                     </DropdownMenuItem>
                   ) : null}
-                  {failed ? (
-                    <DropdownMenuItem onSelect={onRetry}>
+                  {ready || failed ? (
+                    // One route, two words: after a failure it is a retry,
+                    // after a success a fresh run of the same job.
+                    <DropdownMenuItem onSelect={onRegenerate}>
                       <RefreshCwIcon />
-                      Retry
+                      {failed ? "Retry" : "Regenerate"}
                     </DropdownMenuItem>
                   ) : null}
                   {ingesting ? (
@@ -216,22 +230,94 @@ function ArtifactRow({
   )
 }
 
+function TypeFilter({
+  formats,
+  labels,
+  selected,
+  onToggle,
+  onClear,
+}: {
+  formats: [string, number][]
+  labels: Map<string, string>
+  selected: string[]
+  onToggle: (format: string, checked: boolean) => void
+  onClear: () => void
+}) {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          className={cn(
+            "relative size-6 shrink-0 text-muted-foreground data-[state=open]:bg-accent",
+            selected.length > 0 && "text-foreground"
+          )}
+          aria-label={
+            selected.length > 0
+              ? `Filter artifacts (${selected.length} active)`
+              : "Filter artifacts"
+          }
+        >
+          <FilterIcon className="size-4" />
+          {selected.length > 0 ? (
+            <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-primary" />
+          ) : null}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent
+        align="end"
+        sideOffset={8}
+        className="w-52 select-none"
+      >
+        <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
+        <DropdownMenuGroup>
+          {formats.map(([format, count]) => {
+            const FormatIcon = FORMAT_ICONS[format] ?? FileIcon
+            return (
+              <DropdownMenuCheckboxItem
+                key={format}
+                checked={selected.includes(format)}
+                onCheckedChange={(checked) => onToggle(format, checked === true)}
+                onSelect={(event) => event.preventDefault()} // stay open for a second pick
+              >
+                <FormatIcon className="size-4 text-muted-foreground" />
+                <span className="flex-1">
+                  {labels.get(format) ?? format}{" "}
+                  <span className="text-muted-foreground">({count})</span>
+                </span>
+              </DropdownMenuCheckboxItem>
+            )
+          })}
+        </DropdownMenuGroup>
+        {selected.length > 0 ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={onClear}>Clear filter</DropdownMenuItem>
+          </>
+        ) : null}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
+}
+
 export function ArtifactList({
   workspaceId,
   artifacts,
   formats = [],
   isLoading = false,
   onOpen,
+  onRegenerate,
   onDelete,
-  onRetry,
 }: {
   workspaceId: number
   artifacts: Artifact[]
   formats?: StudioFormat[]
   isLoading?: boolean
   onOpen: (id: number) => void
+  onRegenerate: (id: number) => void
   onDelete: (id: number) => void
-  onRetry: (id: number) => void
 }) {
   // The backend's format catalog is the single source of truth for labels;
   // fall back to the raw key only for a format the catalog doesn't know yet.
@@ -295,68 +381,15 @@ export function ArtifactList({
         >
           All generated artifacts
         </h3>
-        {availableFormats.length > 0 ? (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                size="icon-sm"
-                variant="ghost"
-                className={cn(
-                  "relative size-6 shrink-0 text-muted-foreground data-[state=open]:bg-accent",
-                  selectedFormats.length > 0 && "text-foreground"
-                )}
-                aria-label={
-                  selectedFormats.length > 0
-                    ? `Filter artifacts (${selectedFormats.length} active)`
-                    : "Filter artifacts"
-                }
-              >
-                <FilterIcon className="size-4" />
-                {selectedFormats.length > 0 ? (
-                  <span className="absolute top-0.5 right-0.5 size-1.5 rounded-full bg-primary" />
-                ) : null}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              sideOffset={8}
-              className="w-52 select-none"
-            >
-              <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
-              <DropdownMenuGroup>
-                {availableFormats.map(([format, count]) => {
-                  const FormatIcon = FORMAT_ICONS[format] ?? FileIcon
-                  return (
-                    <DropdownMenuCheckboxItem
-                      key={format}
-                      checked={selectedFormats.includes(format)}
-                      onCheckedChange={(checked) =>
-                        toggleFormat(format, checked === true)
-                      }
-                      onSelect={(event) => event.preventDefault()}
-                    >
-                      <FormatIcon className="size-4 text-muted-foreground" />
-                      <span className="flex-1">
-                        {formatLabels.get(format) ?? format}{" "}
-                        <span className="text-muted-foreground">
-                          ({count})
-                        </span>
-                      </span>
-                    </DropdownMenuCheckboxItem>
-                  )
-                })}
-              </DropdownMenuGroup>
-              {selectedFormats.length > 0 ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={clearFormats}>
-                    Clear filter
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
+        {/* One type is no choice at all; the filter appears with the second. */}
+        {availableFormats.length > 1 ? (
+          <TypeFilter
+            formats={availableFormats}
+            labels={formatLabels}
+            selected={selectedFormats}
+            onToggle={toggleFormat}
+            onClear={clearFormats}
+          />
         ) : null}
       </div>
       <ScrollShadow className="min-h-0 flex-1" from="from-background">
@@ -395,8 +428,8 @@ export function ArtifactList({
                 key={artifact.id}
                 artifact={artifact}
                 onOpen={() => onOpen(artifact.id)}
+                onRegenerate={() => onRegenerate(artifact.id)}
                 onDelete={() => setDeleteTarget(artifact)}
-                onRetry={() => onRetry(artifact.id)}
               />
             ))}
           </div>

@@ -7,7 +7,7 @@ from zipfile import ZipFile
 import pytest
 from httpx import AsyncClient, Response
 
-from shared.queue import huey
+from shared.queue import ingest_queue
 
 pytestmark = pytest.mark.integration
 
@@ -65,7 +65,7 @@ async def test_listed_documents_are_created_pending_and_queued(
         "index",
     ]
     assert {document["status"] for document in documents} == {"pending"}
-    assert sorted(job.args[0] for job in huey.pending()) == sorted(
+    assert sorted(job.args[0] for job in ingest_queue.pending()) == sorted(
         document["id"] for document in documents
     )
 

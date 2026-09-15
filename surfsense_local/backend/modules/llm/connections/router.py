@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from api.dependencies import SessionDep
+from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
 from modules.llm.connections.service import (
     discover_models,
@@ -68,10 +68,35 @@ def _candidate(payload: ConnectionWrite) -> tuple[str, str, str | None]:
     return label, base_url, api_key
 
 
+def _stored(session: Session, connection_id: int) -> ProviderConnection:
+    connection = session.get(ProviderConnection, connection_id)
+    if connection is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+    return connection
+
+
+def allowed_connection(session: Session, connection_id: int) -> ProviderConnection:
+    """The stored connection, once egress to its host is allowed."""
+    connection = _stored(session, connection_id)
+    egress.require(session, egress.host_destination(connection.base_url))
+    return connection
+
+
+def _save(session: Session, connection: ProviderConnection) -> ConnectionRead:
+    session.add(connection)
+    try:
+        session.flush()
+    except IntegrityError as error:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "a connection with this label already exists"
+        ) from error
+    return _read(connection)
+
+
 async def _probe_or_reject(
     session: Session, base_url: str, api_key: str | None, allow_unverified: bool
 ) -> None:
-    egress.require(session, egress.host_destination(base_url))
+    await transact(session, egress.require, egress.host_destination(base_url))
     try:
         await probe_connection(base_url, api_key)
     except (httpx.HTTPError, ValueError) as error:
@@ -106,23 +131,14 @@ async def create_connection(
         base_url=base_url,
         api_key=api_key,
     )
-    session.add(connection)
-    try:
-        session.flush()
-    except IntegrityError as error:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "a connection with this label already exists"
-        ) from error
-    return _read(connection)
+    return await transact(session, _save, connection)
 
 
 @router.put("/{connection_id}", response_model=ConnectionRead)
 async def update_connection(
     connection_id: int, payload: ConnectionWrite, session: SessionDep
 ) -> ConnectionRead:
-    connection = session.get(ProviderConnection, connection_id)
-    if connection is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
+    connection = await transact(session, _stored, connection_id)
     label, base_url, submitted_key = _candidate(payload)
     api_key = (
         submitted_key if "api_key" in payload.model_fields_set else connection.api_key
@@ -132,13 +148,7 @@ async def update_connection(
     connection.provider = payload.provider
     connection.base_url = base_url
     connection.api_key = api_key
-    try:
-        session.flush()
-    except IntegrityError as error:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "a connection with this label already exists"
-        ) from error
-    return _read(connection)
+    return await transact(session, _save, connection)
 
 
 @router.delete("/{connection_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -155,10 +165,7 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
 async def list_connection_models(
     connection_id: int, session: SessionDep
 ) -> list[ConnectionModelRead]:
-    connection = session.get(ProviderConnection, connection_id)
-    if connection is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
-    egress.require(session, egress.host_destination(connection.base_url))
+    connection = await transact(session, allowed_connection, connection_id)
     try:
         models = await discover_models(connection)
     except httpx.HTTPError as error:
@@ -183,10 +190,7 @@ async def list_connection_models(
 async def test_connection_image(
     connection_id: int, payload: ImageTestWrite, session: SessionDep
 ) -> Response:
-    connection = session.get(ProviderConnection, connection_id)
-    if connection is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
-    egress.require(session, egress.host_destination(connection.base_url))
+    connection = await transact(session, allowed_connection, connection_id)
     provider = OpenAICompatibleImageProvider(
         connection.id, connection.base_url, connection.api_key
     )

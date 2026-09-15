@@ -4,7 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.types import ASGIApp, Receive, Scope, Send
 
+from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
@@ -19,8 +21,29 @@ from modules.migration.router import router as migration_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_storage_settings
-from shared.db import create_db_engine, create_session_factory, import_models
+from shared.db import (
+    create_db_engine,
+    create_session_factory,
+    import_models,
+    serving_request,
+)
 from shared.migrations import upgrade_to_head
+
+
+class MarkRequest:
+    """Flag the span of each HTTP request, so shared.db can refuse a SQLite
+    transaction opened on the event loop. Lifespan work stays unflagged: it
+    runs alone, before any request could be stalled by it."""
+
+    def __init__(self, app: ASGIApp) -> None:
+        self.app = app
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        token = serving_request.set(scope["type"] == "http")
+        try:
+            await self.app(scope, receive, send)
+        finally:
+            serving_request.reset(token)
 
 
 @asynccontextmanager
@@ -44,6 +67,7 @@ def create_app() -> FastAPI:
     import_models()
 
     app = FastAPI(title="SurfSense Community Local", lifespan=lifespan)
+    app.add_middleware(MarkRequest)
     # The packaged renderer loads from file:// and calls the 127.0.0.1 sidecar,
     # a cross-origin request; the API is loopback-only single-user, so allow any.
     app.add_middleware(
@@ -59,6 +83,7 @@ def create_app() -> FastAPI:
     app.include_router(llm_router)
     app.include_router(chat_router)
     app.include_router(artifacts_router)
+    app.include_router(podcast_router)
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)

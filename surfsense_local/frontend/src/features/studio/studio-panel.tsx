@@ -11,7 +11,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -22,7 +21,9 @@ import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
-import { FORMAT_ICONS } from "./studio-formats"
+import { PodcastBriefForm } from "./podcast-brief-form"
+import { FORMAT_ICONS, STUDIO_CATALOG } from "./studio-formats"
+import { usePodcastBrief } from "./use-podcast-brief"
 
 const FORMAT_HINTS: Record<string, string> = {
   summary: "Generate an AI summary based on your sources",
@@ -39,21 +40,6 @@ const FORMAT_HINTS: Record<string, string> = {
   infographic: "Generate an AI infographic based on your sources",
 }
 
-const STUDIO_CATALOG: StudioFormat[] = [
-  { key: "summary", label: "Summary", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "docx", label: "Document", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "pptx", label: "Slides", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "xlsx", label: "Spreadsheet", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "html", label: "Web page", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "pdf", label: "PDF", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "mindmap", label: "Mind map", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "flashcards", label: "Flashcards", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "quiz", label: "Quiz", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "podcast", label: "Podcast", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "image", label: "Image", requires_role: "image_generation", available: true, unavailable_reason: null },
-  { key: "infographic", label: "Infographic", requires_role: "generation", available: true, unavailable_reason: null },
-]
-
 function catalogFormats(formats: StudioFormat[]) {
   if (formats.length === 0) return STUDIO_CATALOG
   const loaded = new Map(formats.map((entry) => [entry.key, entry]))
@@ -63,7 +49,7 @@ function catalogFormats(formats: StudioFormat[]) {
 function unavailableReason(entry: StudioFormat) {
   return (
     entry.unavailable_reason ??
-    `Needs a ${entry.requires_role?.replace("_", " ")} model`
+    `Needs a ${entry.requires_roles.join(" and ").replaceAll("_", " ")} model`
   )
 }
 
@@ -78,25 +64,24 @@ function formatHint(entry: StudioFormat) {
 }
 
 function Composer({
+  workspaceId,
   format,
   documents,
   isCreating,
   onGenerate,
 }: {
+  workspaceId: number
   format: string
   documents: WorkspaceDocument[]
   isCreating: boolean
-  onGenerate: (job: {
-    format: string
-    document_ids: number[]
-    prompt?: string
-  }) => void
+  onGenerate: (job: StudioJobCreate) => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
   const [selected, setSelected] = useState(
     () => new Set(ready.map((document) => document.id))
   )
   const [prompt, setPrompt] = useState("")
+  const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
   const allSelected = ready.length > 0 && selected.size === ready.length
 
   const toggle = (id: number) =>
@@ -110,10 +95,26 @@ function Composer({
       return next
     })
 
-  const canGenerate = selected.size > 0 && !isCreating
+  // A podcast is generated from its reviewed brief, so it waits for the brief.
+  const briefReady = format !== "podcast" || podcast.brief != null
+  const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
     <div className="space-y-3">
+      {format === "podcast" ? (
+        podcast.brief ? (
+          <PodcastBriefForm
+            brief={podcast.brief}
+            voices={podcast.voices}
+            onChange={podcast.setBrief}
+          />
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            {podcast.error ?? "Preparing the brief…"}
+          </p>
+        )
+      ) : null}
+
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <p className="text-xs font-medium text-muted-foreground">
@@ -142,7 +143,7 @@ function Composer({
             Add and index a source first — only ready documents can be used.
           </p>
         ) : (
-          <ScrollArea className="max-h-40">
+          <div className="max-h-40 overflow-y-auto">
             <div className="space-y-1 pr-2">
               {ready.map((document) => {
                 const on = selected.has(document.id)
@@ -173,7 +174,7 @@ function Composer({
                 )
               })}
             </div>
-          </ScrollArea>
+          </div>
         )}
       </div>
 
@@ -197,6 +198,7 @@ function Composer({
             format,
             document_ids: [...selected],
             prompt: prompt.trim() || undefined,
+            options: podcast.brief ?? undefined,
           })
         }}
       >
@@ -245,12 +247,14 @@ function FormatCard({
 }
 
 export function StudioPanel({
+  workspaceId,
   documents,
   formats,
   isCreating,
   error,
   onGenerate,
 }: {
+  workspaceId: number
   documents: WorkspaceDocument[]
   formats: StudioFormat[]
   isCreating: boolean
@@ -306,6 +310,7 @@ export function StudioPanel({
               </DialogHeader>
               <Composer
                 key={selectedFormat.key}
+                workspaceId={workspaceId}
                 format={selectedFormat.key}
                 documents={documents}
                 isCreating={isCreating}

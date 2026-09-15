@@ -14,7 +14,11 @@ from modules.artifacts.schemas import (
     FormatRead,
     StudioJobCreate,
 )
-from modules.artifacts.service import create_artifact_job, list_formats, retry_artifact
+from modules.artifacts.service import (
+    create_artifact_job,
+    list_formats,
+    regenerate_artifact,
+)
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
@@ -77,6 +81,16 @@ def read_artifact(artifact: ArtifactDep) -> ArtifactDetail:
     return ArtifactDetail.of(artifact)
 
 
+@router.post(
+    "/artifacts/{artifact_id}/regenerate",
+    response_model=ArtifactRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    summary="Generate a finished or failed artifact again",
+)
+def regenerate(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+    return ArtifactRead.of(regenerate_artifact(session, artifact))
+
+
 @router.get(
     "/artifacts/{artifact_id}/files/{role}",
     response_class=FileResponse,
@@ -91,25 +105,14 @@ def read_artifact_file(artifact: ArtifactDep, role: ArtifactFileRole) -> FileRes
     if not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "the file is no longer on disk")
 
-    inline = file.mime_type not in _INLINE_UNSAFE or (
-        artifact.format == "infographic" and file.mime_type == "image/svg+xml"
-    )
     return FileResponse(
         path,
         filename=file.original_filename,
         media_type=file.mime_type,
-        content_disposition_type="inline" if inline else "attachment",
+        content_disposition_type=(
+            "attachment" if file.mime_type in _INLINE_UNSAFE else "inline"
+        ),
     )
-
-
-@router.post(
-    "/artifacts/{artifact_id}/retry",
-    response_model=ArtifactRead,
-    summary="Requeue a failed artifact",
-)
-def retry_studio_artifact(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
-    artifact = retry_artifact(session, artifact)
-    return ArtifactRead.of(artifact)
 
 
 @router.delete(

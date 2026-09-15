@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { cleanup, render, screen } from "@testing-library/react"
+import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -39,6 +39,7 @@ function StudioHarness({
   return (
     <>
       <StudioPanel
+        workspaceId={1}
         documents={documents}
         formats={studio.formats}
         isCreating={studio.isCreating}
@@ -50,6 +51,7 @@ function StudioHarness({
         artifacts={studio.artifacts}
         isLoading={studio.isLoading}
         onOpen={vi.fn()}
+        onRegenerate={(id) => void studio.regenerate(id)}
         onDelete={(id) => void studio.remove(id)}
         onRetry={(id) => void studio.retry(id)}
       />
@@ -86,6 +88,7 @@ describe("studio panel", () => {
     render(
       <TooltipProvider>
         <StudioPanel
+          workspaceId={1}
           documents={[]}
           formats={[]}
           isCreating={false}
@@ -109,7 +112,7 @@ describe("studio panel", () => {
             {
               key: "summary",
               label: "Summary",
-              requires_role: "generation",
+              requires_roles: ["generation"],
               available: true,
               unavailable_reason: null,
             },
@@ -157,6 +160,87 @@ describe("studio panel", () => {
     ).toBeTruthy()
   })
 
+  it("opens the podcast brief for review and sends it with the job", async () => {
+    const brief = {
+      language: "en-US",
+      style: "conversational",
+      duration: "standard",
+      speakers: [
+        { name: "Host", role: "host", voice: "af_heart" },
+        { name: "Guest", role: "guest", voice: "am_adam" },
+      ],
+    }
+    const voices = [
+      { id: "af_heart", label: "Heart", language: "en-US" },
+      { id: "am_adam", label: "Adam", language: "en-US" },
+    ]
+    let openBrief = () => {}
+    const briefGate = new Promise<void>((resolve) => {
+      openBrief = resolve
+    })
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "podcast",
+              label: "Podcast",
+              requires_roles: ["generation"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/studio/podcast/brief") {
+          await briefGate
+          return Response.json({ brief, voices })
+        }
+        if (path === "/workspaces/1/studio/jobs" && init?.method === "POST") {
+          return Response.json(
+            { ...pendingArtifact, format: "podcast", title: "Podcast" },
+            { status: 201 }
+          )
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    renderStudio()
+
+    await user.click(await screen.findByRole("button", { name: "Podcast" }))
+    const generate = screen.getByRole("button", { name: /Generate/ })
+    expect(generate.hasAttribute("disabled")).toBe(true) // until the brief loads
+    openBrief()
+
+    const name = within(
+      await screen.findByRole("group", { name: "Speaker 1" })
+    ).getByLabelText("Name")
+    await user.clear(name)
+    await user.type(name, "Ada")
+    await user.click(screen.getByRole("button", { name: /Long/ }))
+    await user.click(generate)
+
+    const jobCall = await vi.waitFor(() =>
+      fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/workspaces/1/studio/jobs" && init?.method === "POST"
+      )
+    )
+    expect(JSON.parse(String(jobCall?.[1]?.body))).toEqual({
+      format: "podcast",
+      document_ids: [4],
+      options: {
+        ...brief,
+        duration: "long",
+        speakers: [{ ...brief.speakers[0], name: "Ada" }, brief.speakers[1]],
+      },
+    })
+  })
+
   it("selects every ready source and can clear them from the header", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)
@@ -165,7 +249,7 @@ describe("studio panel", () => {
           {
             key: "summary",
             label: "Summary",
-            requires_role: "generation",
+            requires_roles: ["generation"],
             available: true,
             unavailable_reason: null,
           },
@@ -200,7 +284,7 @@ describe("studio panel", () => {
             {
               key: "image",
               label: "Image",
-              requires_role: "image_generation",
+              requires_roles: ["image_generation", "generation"],
               available: false,
               unavailable_reason: "Image model required",
             },
@@ -234,7 +318,7 @@ describe("studio panel", () => {
             {
               key: "quiz",
               label: "Quiz",
-              requires_role: "generation",
+              requires_roles: ["generation"],
               available: true,
               unavailable_reason: null,
             },

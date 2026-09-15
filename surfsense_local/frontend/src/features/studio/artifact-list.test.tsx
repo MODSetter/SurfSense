@@ -26,8 +26,8 @@ function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
         workspaceId={1}
         artifacts={[artifact]}
         onOpen={vi.fn()}
+        onRegenerate={vi.fn()}
         onDelete={vi.fn()}
-        onRetry={vi.fn()}
         {...props}
       />
     </TooltipProvider>
@@ -50,6 +50,46 @@ describe("artifact list", () => {
     expect(
       document.querySelectorAll("[data-slot=skeleton]").length
     ).toBeGreaterThan(0)
+  })
+
+  it("dates every row, so two artifacts with one title are told apart", () => {
+    const twin = { ...artifact, id: 13, created_at: "2026-09-07T00:00:00Z" }
+    renderList({ artifacts: [artifact, twin] })
+
+    const times = document.querySelectorAll("time")
+    expect([...times].map((t) => t.getAttribute("datetime"))).toEqual([
+      "2026-09-06T00:00:00.000Z",
+      "2026-09-07T00:00:00.000Z",
+    ])
+  })
+
+  it("dates rows in short units", () => {
+    vi.useFakeTimers({ now: new Date("2026-09-08T03:04:05Z") })
+    try {
+      renderList({
+        artifacts: [
+          { ...artifact, id: 1, created_at: "2026-09-08T03:03:50Z" },
+          { ...artifact, id: 2, created_at: "2026-09-08T02:59:00Z" },
+          { ...artifact, id: 3, created_at: "2026-09-07T22:00:00Z" },
+          { ...artifact, id: 4, created_at: "2026-09-05T00:00:00Z" },
+          { ...artifact, id: 5, created_at: "2026-08-20T00:00:00Z" },
+          { ...artifact, id: 6, created_at: "2026-05-01T00:00:00Z" },
+          { ...artifact, id: 7, created_at: "2024-01-01T00:00:00Z" },
+        ],
+      })
+      const times = [...document.querySelectorAll("time")]
+      expect(times.map((t) => t.textContent)).toEqual([
+        "15s",
+        "5m",
+        "5h",
+        "3d",
+        "2w",
+        "4mo",
+        "2y",
+      ])
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it("opens ready artifacts", async () => {
@@ -119,6 +159,30 @@ describe("artifact list", () => {
     expect(onOpen).not.toHaveBeenCalled()
   })
 
+  it("regenerates a ready artifact from the overflow menu", async () => {
+    const onRegenerate = vi.fn()
+    const user = userEvent.setup()
+    renderList({ onRegenerate })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Weekly summary" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Regenerate" }))
+    expect(onRegenerate).toHaveBeenCalledWith(12)
+  })
+
+  it("offers neither while an artifact is generating", async () => {
+    const user = userEvent.setup()
+    renderList({ artifacts: [{ ...artifact, status: "processing" }] })
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Weekly summary" })
+    )
+    expect(
+      screen.queryByRole("menuitem", { name: /Regenerate|Retry/ })
+    ).toBeNull()
+  })
+
   it("deletes from the overflow menu after confirm", async () => {
     const onDelete = vi.fn()
     const user = userEvent.setup()
@@ -134,24 +198,25 @@ describe("artifact list", () => {
   })
 
   it("retries a failed artifact from the icon and from the dropdown", async () => {
-    const onRetry = vi.fn()
+    const onRegenerate = vi.fn()
     const user = userEvent.setup()
     renderList({
       artifacts: [{ ...artifact, status: "failed", error_message: "boom" }],
-      onRetry,
+      onRegenerate,
     })
 
     await user.click(
       screen.getByLabelText("Generation failed. Retry Weekly summary")
     )
-    expect(onRetry).toHaveBeenCalledExactlyOnceWith(12)
+    expect(onRegenerate).toHaveBeenCalledExactlyOnceWith(12)
 
     await user.click(
       screen.getByRole("button", { name: "Actions for Weekly summary" })
     )
     expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull()
+    // The same route as Regenerate, named for what a failed row needs.
     await user.click(screen.getByRole("menuitem", { name: "Retry" }))
-    expect(onRetry).toHaveBeenCalledTimes(2)
+    expect(onRegenerate).toHaveBeenCalledTimes(2)
   })
 
   it("shows a generic retry hint on plain hover of just the icon", async () => {
@@ -220,6 +285,12 @@ describe("artifact list", () => {
       expect(screen.queryByLabelText("Filter artifacts")).toBeNull()
     })
 
+    it("hides the filter control when every artifact is the same type", () => {
+      renderList({ artifacts: [artifact, { ...artifact, id: 15 }] })
+
+      expect(screen.queryByLabelText(/^Filter artifacts/)).toBeNull()
+    })
+
     it("lists each type once with a count and filters the list on check", async () => {
       const user = userEvent.setup()
       const podcastTwo = { ...podcast, id: 22, title: "Episode two" }
@@ -230,12 +301,42 @@ describe("artifact list", () => {
         screen.getByRole("menuitemcheckbox", { name: /podcast/i })
       ).toBeTruthy()
       expect(screen.getByText("(2)")).toBeTruthy()
+      // Only the types on hand: nothing here was generated as an image.
+      expect(
+        screen.queryByRole("menuitemcheckbox", { name: /image/i })
+      ).toBeNull()
 
-      await user.click(screen.getByRole("menuitemcheckbox", { name: /podcast/i }))
+      await user.click(
+        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+      )
       expect(screen.queryByRole("button", { name: "Weekly summary" })).toBeNull()
       expect(screen.queryByRole("button", { name: "At a glance" })).toBeNull()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode two" })).toBeTruthy()
+    })
+
+    it("keeps the menu open to add a second type, and clears back to all", async () => {
+      const user = userEvent.setup()
+      renderList({ artifacts: [artifact, podcast] })
+
+      await user.click(screen.getByLabelText("Filter artifacts"))
+      await user.click(
+        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+      )
+      expect(
+        screen.getByLabelText("Filter artifacts (1 active)")
+      ).toBeTruthy()
+
+      await user.click(
+        screen.getByRole("menuitemcheckbox", { name: /summary/i })
+      )
+      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+      expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
+
+      await user.click(screen.getByRole("menuitem", { name: "Clear filter" }))
+      expect(screen.getByLabelText("Filter artifacts")).toBeTruthy()
+      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+      expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
     })
 
     it("shows an empty state with a way to clear when a stored filter matches nothing here", async () => {

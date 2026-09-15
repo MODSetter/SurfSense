@@ -27,7 +27,7 @@ def import_certificate(session: Session, certificate: str) -> LicenseStatus:
     verified = verify(certificate, instant)
     row = _row(session, instant)
     row.certificate = certificate
-    row.imported_at = _naive(instant)
+    row.imported_at = instant
     return _status(row, verified, instant)
 
 
@@ -48,10 +48,8 @@ def status(session: Session) -> LicenseStatus:
 def _status(row: LicenseState, verified: Verified, instant: datetime) -> LicenseStatus:
     # ponytail: the watermark lives in user-writable SQLite, so this is honesty
     # for the UI, not enforcement; the plugin scraper API is where money is kept.
-    row.clock_watermark = max(
-        row.clock_watermark, _naive(instant), _naive(verified.issued)
-    )
-    if _naive(instant) < row.clock_watermark - MAX_CLOCK_DRIFT:
+    row.clock_watermark = max(row.clock_watermark, instant, verified.issued)
+    if instant < row.clock_watermark - MAX_CLOCK_DRIFT:
         state: State = "clock_untrusted"
     elif verified.expiry > instant:
         state = "active"
@@ -69,12 +67,7 @@ def _status(row: LicenseState, verified: Verified, instant: datetime) -> License
 def _row(session: Session, instant: datetime) -> LicenseState:
     row = session.get(LicenseState, 1)
     if row is None:
-        row = LicenseState(clock_watermark=_naive(instant))
+        row = LicenseState(clock_watermark=instant)
         session.add(row)
         session.flush()
     return row
-
-
-def _naive(instant: datetime) -> datetime:
-    """SQLite keeps no offset, so rows hold UTC wall time."""
-    return instant.astimezone(UTC).replace(tzinfo=None)

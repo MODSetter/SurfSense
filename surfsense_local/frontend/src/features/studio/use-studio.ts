@@ -6,7 +6,7 @@ import {
   deleteArtifact,
   listArtifacts,
   listFormats,
-  retryArtifact,
+  regenerateArtifact,
   type Artifact,
   type StudioFormat,
   type StudioJobCreate,
@@ -16,7 +16,7 @@ function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
 }
 
-function messageFrom(error: unknown) {
+export function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
 
@@ -141,27 +141,27 @@ export function useStudio(workspaceId: number) {
     }
   }
 
-  const remove = async (artifactId: number) => {
-    setError(null)
-    try {
-      await deleteArtifact(artifactId)
-      setArtifacts((current) => current.filter((a) => a.id !== artifactId))
-    } catch (cause) {
-      setError(messageFrom(cause))
-    }
-  }
-
   // Puts the artifact back to "pending" in state; the poll effect picks it up
   // the same way it does a freshly created one.
-  const retry = async (artifactId: number) => {
+  const regenerate = async (artifactId: number) => {
     setError(null)
     try {
-      const updated = await retryArtifact(artifactId)
+      const updated = await regenerateArtifact(artifactId)
       setArtifacts((current) =>
         current.map((artifact) =>
           artifact.id === artifactId ? updated : artifact
         )
       )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
+  const remove = async (artifactId: number) => {
+    setError(null)
+    try {
+      await deleteArtifact(artifactId)
+      setArtifacts((current) => current.filter((a) => a.id !== artifactId))
     } catch (cause) {
       setError(messageFrom(cause))
     }
@@ -174,8 +174,8 @@ export function useStudio(workspaceId: number) {
     isCreating,
     error,
     create,
+    regenerate,
     remove,
-    retry,
     clearError: () => setError(null),
   }
 }

@@ -1,11 +1,15 @@
+from pathlib import Path
+
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import Engine, text
+from sqlalchemy import Engine
 
+from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.providers.kokoro import provider as kokoro
 from shared.db import create_session_factory
-from shared.queue import huey
+from shared.queue import studio_queue
 
 pytestmark = pytest.mark.integration
 
@@ -51,14 +55,145 @@ async def test_formats_lists_summary_as_available(
     assert response.status_code == 200
     summary = next(f for f in response.json() if f["key"] == "summary")
     assert summary["available"] is True
-    assert summary["requires_role"] == "generation"
+    assert summary["requires_roles"] == ["generation"]
     assert summary["unavailable_reason"] is None
 
-    infographic = next(f for f in response.json() if f["key"] == "infographic")
-    assert infographic["available"] is True
     image = next(f for f in response.json() if f["key"] == "image")
     assert image["available"] is False
-    assert image["requires_role"] == "image_generation"
+    assert image["requires_roles"] == ["image_generation", "generation"]
+
+
+async def test_infographic_needs_the_image_model_and_the_chat_model(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """The chat model writes the brief, the image model paints it: both gate it."""
+    listed = await client.get(f"/workspaces/{workspace_id}/studio/formats")
+    infographic = next(f for f in listed.json() if f["key"] == "infographic")
+    assert infographic["requires_roles"] == ["image_generation", "generation"]
+    assert infographic["available"] is False
+    assert infographic["unavailable_reason"] == "Image model required"
+
+    with create_session_factory(engine)() as session:
+        session.add(
+            SelectedModel(
+                role=ModelRole.IMAGE_GENERATION, provider="ollama", name="x/flux2-klein"
+            )
+        )
+        session.commit()
+
+    listed = await client.get(f"/workspaces/{workspace_id}/studio/formats")
+    infographic = next(f for f in listed.json() if f["key"] == "infographic")
+    assert infographic["available"] is True
+
+
+async def test_podcast_is_gated_on_the_voice_engine(
+    client: AsyncClient, workspace_id: int, choose_model: None, data_dir: Path
+) -> None:
+    """Without the voice weights the button is disabled with why; with them, on."""
+    url = f"/workspaces/{workspace_id}/studio/formats"
+    podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
+    assert podcast["available"] is False
+    assert podcast["unavailable_reason"] == "Voice model required"
+
+    weights = data_dir / "models" / kokoro.MODEL_DIR_NAME
+    weights.mkdir(parents=True)
+    for name in (kokoro.MODEL_FILE, kokoro.VOICES_FILE):
+        (weights / name).write_bytes(b"")
+
+    podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
+    assert podcast["available"] is True
+
+
+@pytest.fixture
+def voice_weights(data_dir: Path) -> None:
+    """Stand-in Kokoro files so the podcast format is available."""
+    weights = data_dir / "models" / kokoro.MODEL_DIR_NAME
+    weights.mkdir(parents=True)
+    for name in (kokoro.MODEL_FILE, kokoro.VOICES_FILE):
+        (weights / name).write_bytes(b"")
+
+
+async def test_a_podcast_job_checks_and_stores_its_brief(
+    client: AsyncClient,
+    engine: Engine,
+    workspace_id: int,
+    choose_model: None,
+    voice_weights: None,
+) -> None:
+    """A brief with a wrong voice is refused at the door; a good one is stored."""
+    source_id = make_ready_source(engine, workspace_id)
+    url = f"/workspaces/{workspace_id}/studio/jobs"
+    speakers = [{"name": "Ana", "role": "host", "voice": "pf_dora"}]
+
+    refused = await client.post(
+        url,
+        json={
+            "format": "podcast",
+            "document_ids": [source_id],
+            "options": {"language": "en-US", "speakers": speakers},
+        },
+    )
+    assert refused.status_code == 422
+    assert "Ana" in refused.json()["detail"]
+
+    created = await client.post(
+        url,
+        json={
+            "format": "podcast",
+            "document_ids": [source_id],
+            "options": {"language": "pt-BR", "speakers": speakers},
+        },
+    )
+    assert created.status_code == 201
+    with create_session_factory(engine)() as session:
+        artifact = session.get(Artifact, created.json()["id"])
+        assert artifact is not None
+        stored = artifact.artifact_metadata["options"]
+    assert stored["style"] == "conversational"
+    assert stored["duration"] == "standard"
+    assert stored["speakers"] == speakers
+
+
+async def test_the_brief_opens_with_defaults_then_with_the_last_episode(
+    client: AsyncClient,
+    engine: Engine,
+    workspace_id: int,
+    choose_model: None,
+    voice_weights: None,
+) -> None:
+    """First visit: two English speakers and the voice catalog. After an episode:
+    that episode's brief, so the user only changes what differs."""
+    url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+
+    opened = (await client.get(url)).json()
+    assert opened["brief"]["language"] == "en-US"
+    assert [s["role"] for s in opened["brief"]["speakers"]] == ["host", "guest"]
+    assert {"id", "label", "language"} <= set(opened["voices"][0])
+    assert {voice["language"] for voice in opened["voices"]} >= {"en-US", "pt-BR"}
+
+    speakers = [{"name": "Ana", "role": "narrator", "voice": "pf_dora"}]
+    await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={
+            "format": "podcast",
+            "document_ids": [make_ready_source(engine, workspace_id)],
+            "options": {"language": "pt-BR", "duration": "long", "speakers": speakers},
+        },
+    )
+
+    reopened = (await client.get(url)).json()["brief"]
+    assert reopened["language"] == "pt-BR"
+    assert reopened["duration"] == "long"
+    assert reopened["speakers"] == speakers
+
+
+async def test_the_brief_needs_the_voice_engine(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """No weights, no voices to choose from: the same reason the format shows."""
+    opened = await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
+    assert opened.status_code == 409
+    assert opened.json()["detail"] == "Voice model required"
 
 
 async def test_a_job_creates_a_pending_artifact(
@@ -145,51 +280,6 @@ async def test_a_job_waits_for_a_source_to_index(
     assert response.status_code == 409
 
 
-async def test_a_failed_artifact_can_be_retried(
-    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
-) -> None:
-    """Mirrors document retry: reset the backing document and requeue in place."""
-    source_id = make_ready_source(engine, workspace_id)
-    created = await client.post(
-        f"/workspaces/{workspace_id}/studio/jobs",
-        json={"format": "summary", "document_ids": [source_id]},
-    )
-    artifact_id = created.json()["id"]
-    document_id = created.json()["document_id"]
-    with engine.begin() as connection:
-        connection.execute(
-            text(
-                "UPDATE documents SET status = 'failed', "
-                "error_message = 'model server down' WHERE id = :id"
-            ),
-            {"id": document_id},
-        )
-    huey.flush()
-
-    response = await client.post(f"/artifacts/{artifact_id}/retry")
-
-    assert response.status_code == 200
-    assert response.json()["status"] == "pending"
-    assert response.json()["error_message"] is None
-    assert [job.args for job in huey.pending()] == [(artifact_id,)]
-
-
-async def test_only_a_failed_artifact_is_retried(
-    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
-) -> None:
-    """Requeueing one already pending or processing would run it twice."""
-    source_id = make_ready_source(engine, workspace_id)
-    created = await client.post(
-        f"/workspaces/{workspace_id}/studio/jobs",
-        json={"format": "summary", "document_ids": [source_id]},
-    )
-    artifact_id = created.json()["id"]
-
-    response = await client.post(f"/artifacts/{artifact_id}/retry")
-
-    assert response.status_code == 409
-
-
 async def test_an_artifact_can_be_deleted(
     client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
 ) -> None:
@@ -206,3 +296,34 @@ async def test_an_artifact_can_be_deleted(
 
     gone = await client.get(f"/artifacts/{artifact_id}")
     assert gone.status_code == 404
+
+
+async def test_a_failed_artifact_can_be_regenerated(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """Regenerate requeues the same job, clears the reason, bumps the generation."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+
+    # Still queued: the worker is absent here, so the row is as the API left it.
+    busy = await client.post(f"/artifacts/{artifact_id}/regenerate")
+    assert busy.status_code == 409
+
+    with create_session_factory(engine)() as session:
+        document = session.get(Document, created.json()["document_id"])
+        document.status = DocumentStatus.FAILED
+        document.error_message = "the model refused"
+        session.commit()
+    studio_queue.flush()  # Drop the job the first request enqueued.
+
+    again = await client.post(f"/artifacts/{artifact_id}/regenerate")
+    assert again.status_code == 202
+    body = again.json()
+    assert body["status"] == "pending"
+    assert body["error_message"] is None
+    assert body["generation"] == 2
+    assert [job.args for job in studio_queue.pending()] == [(artifact_id,)]

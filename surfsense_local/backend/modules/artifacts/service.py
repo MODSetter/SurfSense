@@ -10,6 +10,7 @@ from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
 from modules.workspaces.models import Workspace
 
 logger = logging.getLogger(__name__)
@@ -22,9 +23,9 @@ def list_formats(session: Session) -> list[FormatRead]:
         available, reason = _availability(session, fmt)
         formats.append(
             FormatRead(
-            key=fmt.key,
-            label=fmt.label,
-                requires_role=fmt.requires_role,
+                key=fmt.key,
+                label=fmt.label,
+                requires_roles=list(fmt.requires_roles),
                 available=available,
                 unavailable_reason=reason,
             )
@@ -54,6 +55,7 @@ def create_artifact_job(
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
     documents = _resolve_sources(session, workspace, payload.document_ids)
+    options = _resolve_options(fmt, payload.options)
 
     document = Document(
         workspace_id=workspace.id,
@@ -72,7 +74,7 @@ def create_artifact_job(
         artifact_metadata={
             "source_document_ids": [doc.id for doc in documents],
             "prompt": payload.prompt,
-            "options": payload.options,
+            "options": options,
         },
     )
     session.add(artifact)
@@ -86,25 +88,29 @@ def create_artifact_job(
     return artifact
 
 
-def retry_artifact(session: Session, artifact: Artifact) -> Artifact:
-    """Requeue a failed artifact's generation, in place.
+def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
+    """Run a finished or failed artifact's job again: same sources and prompt.
 
-    Mirrors retry_document: the same artifact_metadata (sources, prompt,
-    options) that created the artifact is still there, so this just resets
-    the backing document and re-enqueues the same job — no new row.
+    The artifact_metadata that created it (sources, prompt, options) is still
+    there, so this resets the backing document and re-enqueues — no new row.
     """
     document = artifact.document
-    if document.status is not DocumentStatus.FAILED:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "only a failed artifact can be retried"
-        )
+    if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
+        raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
+    available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
+    if not available:
+        raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
     document.status = DocumentStatus.PENDING
     document.error_message = None
+    artifact.generation += 1
     session.commit()
-
     studio_job(artifact.id)
-    logger.info("studio: retrying artifact %s", artifact.id)
+    logger.info(
+        "studio: re-enqueued artifact %s generation=%s",
+        artifact.id,
+        artifact.generation,
+    )
     return artifact
 
 
@@ -135,12 +141,26 @@ def _resolve_sources(
     return list(documents)
 
 
+def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:
+    if fmt.validate_options is None:
+        return raw
+    try:
+        return fmt.validate_options(raw)
+    except ValueError as error:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
+        ) from error
+
+
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    if fmt.requires_role is None:
-        return True, None
-    role = ModelRole(fmt.requires_role)
-    if session.get(SelectedModel, role) is not None:
-        return True, None
-    if role is ModelRole.IMAGE_GENERATION:
-        return False, "Image model required"
-    return False, "Chat model required"
+    for role in map(ModelRole, fmt.requires_roles):
+        if session.get(SelectedModel, role) is None:
+            if role is ModelRole.IMAGE_GENERATION:
+                return False, "Image model required"
+            return False, "Chat model required"
+    if fmt.requires_voice:
+        try:
+            resolve_text_to_speech()
+        except ModelResolutionError:
+            return False, "Voice model required"
+    return True, None

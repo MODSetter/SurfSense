@@ -224,6 +224,7 @@ function WorkspaceDashboard({
               artifactCount={studio.artifacts.length}
               studio={
                 <StudioPanel
+                  workspaceId={workspace.id}
                   documents={sources.documents}
                   formats={studio.formats}
                   isCreating={studio.isCreating}
@@ -263,8 +264,10 @@ function WorkspaceDashboard({
                     openSources()
                     setInspect({ kind: "artifact", artifactId })
                   }}
+                  onRegenerate={(artifactId) =>
+                    void studio.regenerate(artifactId)
+                  }
                   onDelete={(artifactId) => void studio.remove(artifactId)}
-                  onRetry={(artifactId) => void studio.retry(artifactId)}
                 />
               }
             />
