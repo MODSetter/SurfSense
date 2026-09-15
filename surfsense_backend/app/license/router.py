@@ -15,7 +15,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from app.config import config
-from app.license.delivery.email import is_disposable, normalize_email
+from app.license.email.address import is_disposable, normalize_email
 from app.license.rate_limit import enforce_license_rate_limit
 from app.license.schemas import LicenseAckResponse, LicenseEmailRequest
 from app.license.service import (

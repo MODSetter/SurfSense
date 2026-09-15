@@ -15,7 +15,7 @@ import pytest
 
 from app.config import config
 from app.license import keygen
-from app.license.delivery.email import fold_email, is_disposable, normalize_email
+from app.license.email.address import fold_email, is_disposable, normalize_email
 from app.license.service import (
     LicenseIssueError,
     _trial_expiry,

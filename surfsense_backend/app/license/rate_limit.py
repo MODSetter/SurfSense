@@ -15,7 +15,7 @@ from app.config import config
 from app.gateway.ratelimit import acquire_token
 from app.rate_limiter import get_real_client_ip
 
-from .delivery.email import fold_email
+from .email.address import fold_email
 
 _SECONDS_PER_HOUR = 3600.0
 

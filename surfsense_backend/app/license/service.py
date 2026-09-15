@@ -18,14 +18,10 @@ from typing import Any, Literal, cast
 
 from app.config import config
 from app.license import keygen
-from app.license.delivery.email import fold_email, normalize_email
+from app.license.email.address import fold_email, normalize_email
+from app.license.email.message import LicenseEmailKind, build_license_email
 from app.license.keygen import LicensePlan
-from app.mailer import (
-    build_license_email,
-    get_mailer,
-    is_mail_enabled,
-)
-from app.mailer.templates import LicenseEmailKind
+from app.mailer import get_mailer, is_mail_enabled
 
 logger = logging.getLogger(__name__)
 
