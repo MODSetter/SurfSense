@@ -74,7 +74,7 @@ export const PLANS: Plan[] = [
 		name: "Individual",
 		price: "$120",
 		period: "/year",
-		note: "$60 for the first 30 days after launch",
+		note: "$60 for the first 30 days",
 		summary: "Adds the scraper plugins and priority support for one person.",
 		features: [
 			"Everything in Free",
