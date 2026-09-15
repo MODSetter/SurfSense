@@ -12,9 +12,16 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  * than on every render.
  */
 
-/** Pinned release tag. The brief requires a pinned tag above the fold: the
- * shared `desktop-download-utils` resolves `/releases/latest`, which currently
- * serves a legacy build. */
+/**
+ * Pinned release tag.
+ *
+ * Currently unreferenced: the hero's "grab v0.0.40 directly" line was removed,
+ * so nothing on this page links a release any more. Kept because the rule it
+ * encodes still holds — `/releases/latest` is pinned to a legacy build, and the
+ * shared `desktop-download-utils` resolves exactly that, so any future download
+ * link must name the tag rather than go through it
+ * (`plans/community-local/seo/02-page-briefs.md`, `/downloads`).
+ */
 export const PINNED_RELEASE_TAG = "v0.0.40";
 export const RELEASE_URL = `${REPO_URL}/releases/tag/${PINNED_RELEASE_TAG}`;
 

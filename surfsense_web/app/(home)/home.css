@@ -356,32 +356,44 @@
 }
 
 .ss-home-plan-head {
+	position: relative;
 	display: flex;
 	flex-direction: column;
 	padding: 2rem var(--home-gutter);
-	border-bottom: 1px solid var(--border);
+}
+
+/* The rule under the call to action is inset to the cell's own gutter rather
+ * than drawn as a border, which would run the full width and meet the vertical
+ * rules between tiers, closing each head into a box. Inset by `--home-gutter`
+ * it lines up with the text above and below it at every width, since that token
+ * is what the padding uses too. */
+.ss-home-plan-head::after {
+	content: "";
+	position: absolute;
+	right: var(--home-gutter);
+	bottom: 0;
+	left: var(--home-gutter);
+	height: 1px;
+	background-color: var(--border);
 }
 
 .ss-home-plan-features {
 	margin: 0;
-	padding: 0;
+	padding: 1rem 0;
 	list-style: none;
 }
 
+/* No rule between rows: the list is short enough to read as a group, and a
+ * hairline under every line turned each tier into a table. Vertical rhythm
+ * separates them instead. */
 .ss-home-plan-features li {
 	display: flex;
 	align-items: flex-start;
 	gap: 0.75rem;
-	padding: 0.875rem var(--home-gutter);
+	padding: 0.5rem var(--home-gutter);
 	font-size: 0.875rem;
 	line-height: 1.55;
 	color: var(--muted-foreground);
-}
-
-/* The rule belongs to the row, not to a grid gap, so a tier with five features
- * ends after five rows instead of stretching them to match a tier with nine. */
-.ss-home-plan-features li + li {
-	border-top: 1px solid var(--border);
 }
 
 .ss-home-plan-check {
@@ -395,10 +407,9 @@
 /* ---------------------------------------------------------------------------
  * Hero
  *
- * The reference paints two blurred, clipped polygons behind the headline —
- * one above, one below — rather than a plain radial wash. Both are decorative,
- * sit behind everything on their own stacking context, and never take pointer
- * events.
+ * No backdrop: the headline sits on the page's own ground. `isolation` and
+ * `overflow` are kept so anything added behind it later stays inside the
+ * section rather than sliding under the page.
  * ------------------------------------------------------------------------ */
 
 .ss-home-hero {
@@ -406,82 +417,6 @@
 	isolation: isolate;
 	overflow: hidden;
 	padding-block: clamp(5rem, 14vh, 8rem);
-}
-
-.ss-home-blob-wrap {
-	pointer-events: none;
-	position: absolute;
-	inset-inline: 0;
-	z-index: -1;
-	overflow: hidden;
-	transform: translateZ(0);
-	filter: blur(64px);
-}
-
-.ss-home-blob-wrap[data-pos="top"] {
-	top: -10rem;
-}
-
-.ss-home-blob-wrap[data-pos="bottom"] {
-	top: calc(100% - 13rem);
-}
-
-.ss-home-blob {
-	position: relative;
-	left: 50%;
-	aspect-ratio: 1155 / 678;
-	width: 36rem;
-	translate: -50% 0;
-	opacity: 0.14;
-	background-image: linear-gradient(
-		to top right,
-		color-mix(in oklab, var(--home-accent) 25%, var(--background)),
-		var(--home-accent)
-	);
-	clip-path: polygon(
-		74.1% 44.1%,
-		100% 61.6%,
-		97.5% 26.9%,
-		85.5% 0.1%,
-		80.7% 2%,
-		72.5% 32.5%,
-		60.2% 62.4%,
-		52.4% 68.1%,
-		47.5% 58.3%,
-		45.2% 34.5%,
-		27.5% 76.7%,
-		0.1% 64.9%,
-		17.9% 100%,
-		27.6% 76.8%,
-		76.1% 97.7%,
-		74.1% 44.1%
-	);
-}
-
-.ss-home-blob-wrap[data-pos="top"] .ss-home-blob {
-	rotate: 30deg;
-}
-
-@media (min-width: 640px) {
-	.ss-home-blob-wrap[data-pos="top"] {
-		top: -20rem;
-	}
-
-	.ss-home-blob-wrap[data-pos="bottom"] {
-		top: calc(100% - 24rem);
-	}
-
-	.ss-home-blob {
-		width: 72rem;
-	}
-
-	.ss-home-blob-wrap[data-pos="top"] .ss-home-blob {
-		left: calc(50% - 18rem);
-	}
-
-	.ss-home-blob-wrap[data-pos="bottom"] .ss-home-blob {
-		left: calc(50% + 20rem);
-	}
 }
 
 /* ---------------------------------------------------------------------------
@@ -801,15 +736,17 @@
 	border-radius: 2px;
 	padding: 0.375rem 0.625rem;
 	font-size: 0.8125rem;
-	color: var(--secondary-foreground);
-	transition:
-		background-color 100ms ease-out,
-		color 100ms ease-out;
+	/* Dimmed at rest so hover has somewhere to go. Previously this was
+	 * `--secondary-foreground` and the hover was `--accent-foreground`, which are
+	 * the same value — the only thing that actually marked hover was the fill, so
+	 * removing the fill would have left no feedback at all. */
+	color: var(--muted-foreground);
+	transition: color 100ms ease-out;
 }
 
+/* Text only: no fill behind the bar's links. */
 .ss-home-nav-link:hover {
-	background-color: var(--accent);
-	color: var(--accent-foreground);
+	color: var(--foreground);
 }
 
 .ss-home-nav-link:focus-visible {
@@ -829,14 +766,11 @@
 	font-weight: 500;
 	font-variant-numeric: tabular-nums;
 	color: var(--muted-foreground);
-	transition:
-		background-color 100ms ease-out,
-		color 100ms ease-out;
+	transition: color 100ms ease-out;
 }
 
 .ss-home-nav-stars:hover {
-	background-color: var(--accent);
-	color: var(--accent-foreground);
+	color: var(--foreground);
 }
 
 .ss-home-nav-stars:focus-visible {

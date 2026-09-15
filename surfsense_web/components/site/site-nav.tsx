@@ -33,7 +33,7 @@ function Wordmark() {
 	return (
 		<Link
 			href="/"
-			className="flex shrink-0 items-center gap-1.5 rounded-[2px] px-1 py-1 transition-colors duration-100 hover:bg-[color:var(--accent)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--ring)]"
+			className="flex shrink-0 items-center gap-1.5 rounded-[2px] px-1 py-1 transition-colors duration-100 hover:text-[color:var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--ring)]"
 		>
 			<Image
 				src="/icon-128.svg"

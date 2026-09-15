@@ -33,10 +33,6 @@ import { FAQJsonLd } from "@/components/seo/json-ld";
 export function PricingHero() {
 	return (
 		<section className="ss-home-hero ss-home-pad">
-			<div className="ss-home-blob-wrap" data-pos="top" aria-hidden="true">
-				<div className="ss-home-blob" />
-			</div>
-
 			<div className="mx-auto max-w-3xl text-center">
 				<h1 className="ss-home-display">Pricing</h1>
 				<p className="ss-home-lede mx-auto mt-8 max-w-2xl">
@@ -85,7 +81,7 @@ function PlanCell({ plan }: { plan: Plan }) {
 				    height across the three tiers, so the buttons sit on one line
 				    however each summary wraps. */}
 				<div className="mt-auto pt-6">
-					<HomeButton asChild size="lg" variant={plan.featured ? "default" : "outline"}>
+					<HomeButton asChild size="lg" variant={plan.featured ? "default" : "secondary"}>
 						{plan.action.external ? (
 							<a href={plan.action.href} target="_blank" rel="noreferrer noopener">
 								{plan.action.label}
@@ -121,9 +117,9 @@ export function PricingPlans() {
 				))}
 			</div>
 
-			<div className="ss-home-rule ss-home-pad flex flex-col gap-3 py-8">
-				<p className="ss-home-body max-w-3xl text-sm">{PLUGIN_NOTE}</p>
-				<p className="ss-home-body max-w-3xl text-sm">
+			<div className="ss-home-rule ss-home-pad flex flex-col gap-8 py-8">
+				<p className="ss-home-body max-w-4xl text-sm">{PLUGIN_NOTE}</p>
+				<p className="ss-home-body max-w-4xl text-sm">
 					{ENTERPRISE_NOTE}{" "}
 					<Link className="ss-home-link" href="/contact">
 						Talk to us

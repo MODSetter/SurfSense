@@ -1,4 +1,4 @@
-import { ArrowRight, Check, Download } from "lucide-react";
+import { Check, Download } from "lucide-react";
 import Link from "next/link";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import {
@@ -7,10 +7,7 @@ import {
 	DOWNLOADS_URL,
 	ON_YOUR_MACHINE,
 	PILLARS,
-	PINNED_RELEASE_TAG,
 	PROOF_POINTS,
-	RELEASE_URL,
-	REPO_URL,
 	STORIES,
 } from "@/components/homepage/home/home-content";
 
@@ -35,12 +32,6 @@ import {
 export function HomeHero() {
 	return (
 		<section className="ss-home-hero ss-home-pad">
-			{/* Decorative. Two blurred, clipped washes behind the headline, the
-			    reference's own shape and placement. */}
-			<div className="ss-home-blob-wrap" data-pos="top" aria-hidden="true">
-				<div className="ss-home-blob" />
-			</div>
-
 			<div className="mx-auto max-w-4xl text-center">
 				<h1 className="ss-home-display">
 					Air-gapped, open source <span className="ss-home-accent">NotebookLM alternative</span>
@@ -49,34 +40,14 @@ export function HomeHero() {
 					A private research notebook that runs entirely on your own machine. Your documents, your
 					model keys, no cloud, no account.
 				</p>
-				<div className="mt-10 flex flex-wrap items-center justify-center gap-3">
+				<div className="mt-10 flex justify-center">
 					<HomeButton asChild size="xl">
 						<Link href={DOWNLOADS_URL}>
 							<Download aria-hidden="true" />
 							Download for desktop
 						</Link>
 					</HomeButton>
-					<HomeButton asChild size="xl" variant="outline">
-						<a href={REPO_URL} target="_blank" rel="noreferrer noopener">
-							View the source
-							<ArrowRight aria-hidden="true" />
-						</a>
-					</HomeButton>
 				</div>
-				<p className="ss-home-body mt-6 text-sm">
-					Free and open source. Windows, macOS and Linux, or{" "}
-					{/* The brief requires a pinned tag above the fold. `desktop-download-utils`
-					    resolves /releases/latest, which currently serves a legacy build, so this
-					    link names the release explicitly instead of going through it. */}
-					<a className="ss-home-link" href={RELEASE_URL} target="_blank" rel="noreferrer noopener">
-						grab {PINNED_RELEASE_TAG} directly
-					</a>
-					.
-				</p>
-			</div>
-
-			<div className="ss-home-blob-wrap" data-pos="bottom" aria-hidden="true">
-				<div className="ss-home-blob" />
 			</div>
 		</section>
 	);
