@@ -19,8 +19,23 @@ export type ChatStreamEvent =
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
   | { type: "completed"; assistant_completed_at: string; text?: string }
-  | { type: "error"; message: string }
+  | {
+      type: "error"
+      kind: ChatErrorKind
+      message: string
+      provider: string
+    }
   | { type: "done" }
+
+// Mirrors modules/chat/errors.py's ChatErrorKind — keep the two in sync.
+export type ChatErrorKind =
+  | "provider_auth"
+  | "provider_not_found"
+  | "provider_rate_limited"
+  | "provider_unavailable"
+  | "network"
+  | "timeout"
+  | "unknown"
 
 function parseFrame(frame: string): ChatStreamEvent | null {
   const data = frame
