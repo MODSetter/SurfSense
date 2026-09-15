@@ -172,7 +172,6 @@ function WorkspaceDashboard({
             thread={chat.activeThread}
             view={chat.conversationView}
             model={selection}
-            error={chat.error}
             isLoading={chat.isLoadingMessages}
             isRunning={chat.isRunning}
             isUploading={sources.isUploading}
@@ -184,6 +183,7 @@ function WorkspaceDashboard({
             }}
             onModelSetup={onModelRequired}
             onModelSelected={onModelSelected}
+            onRetry={chat.retry}
             onUpload={(files) => void sources.upload(files)}
             onTitleAnimationComplete={chat.finishTitleAnimation}
             autoNamingThreadId={chat.autoNamingThreadId}
