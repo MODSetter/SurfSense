@@ -55,6 +55,7 @@ def create_artifact_job(
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
     documents = _resolve_sources(session, workspace, payload.document_ids)
+    options = _resolve_options(fmt, payload.options)
 
     document = Document(
         workspace_id=workspace.id,
@@ -73,7 +74,7 @@ def create_artifact_job(
         artifact_metadata={
             "source_document_ids": [doc.id for doc in documents],
             "prompt": payload.prompt,
-            "options": payload.options,
+            "options": options,
         },
     )
     session.add(artifact)
@@ -134,6 +135,17 @@ def _resolve_sources(
             f"sources are still indexing: {not_ready}",
         )
     return list(documents)
+
+
+def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:
+    if fmt.validate_options is None:
+        return raw
+    try:
+        return fmt.validate_options(raw)
+    except ValueError as error:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
+        ) from error
 
 
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:

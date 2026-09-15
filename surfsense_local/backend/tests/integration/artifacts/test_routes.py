@@ -4,6 +4,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
+from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.providers.kokoro import provider as kokoro
@@ -100,6 +101,56 @@ async def test_podcast_is_gated_on_the_voice_engine(
 
     podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
     assert podcast["available"] is True
+
+
+@pytest.fixture
+def voice_weights(data_dir: Path) -> None:
+    """Stand-in Kokoro files so the podcast format is available."""
+    weights = data_dir / "models" / kokoro.MODEL_DIR_NAME
+    weights.mkdir(parents=True)
+    for name in (kokoro.MODEL_FILE, kokoro.VOICES_FILE):
+        (weights / name).write_bytes(b"")
+
+
+async def test_a_podcast_job_checks_and_stores_its_brief(
+    client: AsyncClient,
+    engine: Engine,
+    workspace_id: int,
+    choose_model: None,
+    voice_weights: None,
+) -> None:
+    """A brief with a wrong voice is refused at the door; a good one is stored."""
+    source_id = make_ready_source(engine, workspace_id)
+    url = f"/workspaces/{workspace_id}/studio/jobs"
+    speakers = [{"name": "Ana", "role": "host", "voice": "pf_dora"}]
+
+    refused = await client.post(
+        url,
+        json={
+            "format": "podcast",
+            "document_ids": [source_id],
+            "options": {"language": "en-US", "speakers": speakers},
+        },
+    )
+    assert refused.status_code == 422
+    assert "Ana" in refused.json()["detail"]
+
+    created = await client.post(
+        url,
+        json={
+            "format": "podcast",
+            "document_ids": [source_id],
+            "options": {"language": "pt-BR", "speakers": speakers},
+        },
+    )
+    assert created.status_code == 201
+    with create_session_factory(engine)() as session:
+        artifact = session.get(Artifact, created.json()["id"])
+        assert artifact is not None
+        stored = artifact.artifact_metadata["options"]
+    assert stored["style"] == "conversational"
+    assert stored["duration"] == "standard"
+    assert stored["speakers"] == speakers
 
 
 async def test_a_job_creates_a_pending_artifact(
