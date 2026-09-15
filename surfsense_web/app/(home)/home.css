@@ -723,14 +723,6 @@
 	}
 }
 
-/* Hovering a cell holds whatever is in it. The old carousel's real problem was
- * that a visitor could not stop a logo that was about to leave; this gives them
- * the control back. */
-.ss-home-logo-card:hover .ss-home-logo,
-.ss-home-logo-card:focus-within .ss-home-logo {
-	animation-play-state: paused;
-}
-
 @media (prefers-reduced-motion: reduce) {
 	/* biome-ignore-start lint/complexity/noImportantStyles: the page-wide
 	 * reduced-motion kill switch below forces `animation-duration` with
