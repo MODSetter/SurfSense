@@ -35,6 +35,8 @@ const SITE_DESIGN_ROUTES = new Set([
 	"/contact",
 	"/plugins",
 	"/blog",
+	"/license",
+	"/license/success",
 	...getAllConnectorSlugs().map((slug) => `/${slug}`),
 ]);
 

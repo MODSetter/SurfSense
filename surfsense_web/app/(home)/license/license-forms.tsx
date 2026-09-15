@@ -1,12 +1,21 @@
 "use client";
 
-import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { useId, useState } from "react";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { Spinner } from "@/components/ui/spinner";
 import { buildBackendUrl } from "@/lib/env-config";
+
+/**
+ * The two forms on `/license`, each rendered in its own section on the page
+ * (`page.tsx`): the trial is the one most visitors want and gets the primary
+ * button; resending an existing license is secondary.
+ *
+ * Built from the same `ss-home-*` primitives as the rest of the site design:
+ * a flush hairline-bordered panel rather than a floating shadcn `Card`, and
+ * plain inputs styled like the blog search box, so this page reads as part of
+ * the same document as the homepage and pricing rather than an older surface
+ * left behind.
+ */
 
 type Outcome = { kind: "ok" | "error"; message: string } | null;
 
@@ -36,7 +45,51 @@ async function postEmail(path: string, email: string): Promise<Response> {
 	});
 }
 
-function ResendForm() {
+function EmailField({
+	id,
+	value,
+	onChange,
+}: {
+	id: string;
+	value: string;
+	onChange: (value: string) => void;
+}) {
+	return (
+		<div className="flex flex-col gap-2">
+			<label htmlFor={id} className="text-sm font-medium">
+				Email address
+			</label>
+			<input
+				id={id}
+				type="email"
+				autoComplete="email"
+				placeholder="you@company.com"
+				value={value}
+				onChange={(event) => onChange(event.target.value)}
+				required
+				className="w-full rounded-(--radius) border border-border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+			/>
+		</div>
+	);
+}
+
+/**
+ * The form itself, unlabelled and unboxed: each one now sits under its own
+ * section heading (`Start a trial`, `Get your license again`), which already
+ * marks it off from the section before and after, so a border around the
+ * form too would be a second frame around the same thing.
+ */
+function FormPanel({ description, children }: { description: string; children: React.ReactNode }) {
+	return (
+		<div>
+			<p className="ss-home-body text-sm">{description}</p>
+			<div className="mt-5">{children}</div>
+		</div>
+	);
+}
+
+export function ResendForm() {
+	const id = useId();
 	const [email, setEmail] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [outcome, setOutcome] = useState<Outcome>(null);
@@ -68,48 +121,27 @@ function ResendForm() {
 	}
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Get your license file again</CardTitle>
-				<CardDescription>
-					Enter the email address you bought with. We will send your license file back to that same
-					address.
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="resend-email">Email address</Label>
-						<Input
-							id="resend-email"
-							type="email"
-							autoComplete="email"
-							placeholder="you@company.com"
-							value={email}
-							onChange={(event) => setEmail(event.target.value)}
-							required
-						/>
-					</div>
-					<Button type="submit" disabled={busy} className="self-start">
-						{busy ? <Spinner /> : null}
-						{busy ? "Sending" : "Send my license"}
-					</Button>
-					{outcome ? (
-						<p
-							className={
-								outcome.kind === "ok" ? "text-sm text-muted-foreground" : "text-sm text-destructive"
-							}
-						>
-							{outcome.message}
-						</p>
-					) : null}
-				</form>
-			</CardContent>
-		</Card>
+		<FormPanel description="Enter the email address you bought with. We will send your license file back to that inbox.">
+			<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+				<EmailField id={`resend-email-${id}`} value={email} onChange={setEmail} />
+				<HomeButton type="submit" disabled={busy} variant="secondary" className="self-start">
+					{busy ? <Spinner size="sm" /> : null}
+					{busy ? "Sending" : "Send my license"}
+				</HomeButton>
+				{outcome ? (
+					<p
+						className={outcome.kind === "ok" ? "ss-home-body text-sm" : "text-sm text-destructive"}
+					>
+						{outcome.message}
+					</p>
+				) : null}
+			</form>
+		</FormPanel>
 	);
 }
 
-function TrialForm() {
+export function TrialForm() {
+	const id = useId();
 	const [email, setEmail] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [outcome, setOutcome] = useState<Outcome>(null);
@@ -155,51 +187,21 @@ function TrialForm() {
 	}
 
 	return (
-		<Card>
-			<CardHeader>
-				<CardTitle>Start a 14-day trial</CardTitle>
-				<CardDescription>
-					One trial per email address. We will send the license file to the address you enter.
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<form onSubmit={handleSubmit} className="flex flex-col gap-4">
-					<div className="flex flex-col gap-2">
-						<Label htmlFor="trial-email">Email address</Label>
-						<Input
-							id="trial-email"
-							type="email"
-							autoComplete="email"
-							placeholder="you@company.com"
-							value={email}
-							onChange={(event) => setEmail(event.target.value)}
-							required
-						/>
-					</div>
-					<Button type="submit" disabled={busy} variant="secondary" className="self-start">
-						{busy ? <Spinner /> : null}
-						{busy ? "Sending" : "Email me a trial"}
-					</Button>
-					{outcome ? (
-						<p
-							className={
-								outcome.kind === "ok" ? "text-sm text-muted-foreground" : "text-sm text-destructive"
-							}
-						>
-							{outcome.message}
-						</p>
-					) : null}
-				</form>
-			</CardContent>
-		</Card>
-	);
-}
-
-export function LicenseForms() {
-	return (
-		<div className="flex flex-col gap-6">
-			<ResendForm />
-			<TrialForm />
-		</div>
+		<FormPanel description="One trial per email address. We will send the license file to your inbox.">
+			<form onSubmit={handleSubmit} className="flex flex-col gap-4">
+				<EmailField id={`trial-email-${id}`} value={email} onChange={setEmail} />
+				<HomeButton type="submit" disabled={busy} className="self-start">
+					{busy ? <Spinner size="sm" /> : null}
+					{busy ? "Sending" : "Email me a trial"}
+				</HomeButton>
+				{outcome ? (
+					<p
+						className={outcome.kind === "ok" ? "ss-home-body text-sm" : "text-sm text-destructive"}
+					>
+						{outcome.message}
+					</p>
+				) : null}
+			</form>
+		</FormPanel>
 	);
 }

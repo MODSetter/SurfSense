@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { Spinner } from "@/components/ui/spinner";
 import { buildBackendUrl } from "@/lib/env-config";
 
@@ -74,7 +74,7 @@ export function LicenseDownload() {
 			<p className="text-sm text-destructive">
 				This link is missing its checkout reference. Use the copy we emailed you, or request it
 				again at{" "}
-				<a className="underline" href="/license">
+				<a className="ss-home-link" href="/license">
 					surfsense.com/license
 				</a>
 				.
@@ -84,27 +84,27 @@ export function LicenseDownload() {
 
 	return (
 		<div className="flex flex-col gap-3">
-			<Button onClick={download} disabled={state === "loading"} className="self-start">
-				{state === "loading" ? <Spinner /> : null}
+			<HomeButton onClick={download} disabled={state === "loading"} className="self-start">
+				{state === "loading" ? <Spinner size="sm" /> : null}
 				{state === "loading" ? "Preparing" : "Download license file"}
-			</Button>
+			</HomeButton>
 			{state === "ready" ? (
-				<p className="text-sm text-muted-foreground">
-					Saved as <code className="font-mono">{LICENSE_FILENAME}</code>. A copy is on its way to
+				<p className="ss-home-body text-sm">
+					Saved as <code className="ss-home-mono">{LICENSE_FILENAME}</code>. A copy is on its way to
 					your email as well.
 				</p>
 			) : null}
 			{state === "missing" ? (
 				<p className="text-sm text-destructive">
-					We cannot find a license for this checkout yet. Payment can take a moment to settle
-					&mdash; wait a few seconds and press the button again. If it keeps failing, contact
-					support with your payment details.
+					We cannot find a license for this checkout yet. Payment can take a moment to settle, so
+					wait a few seconds and press the button again. If it keeps failing, contact support with
+					your payment details.
 				</p>
 			) : null}
 			{state === "error" ? (
 				<p className="text-sm text-destructive">
 					Something went wrong preparing your file. Press the button to try again, or request it at{" "}
-					<a className="underline" href="/license">
+					<a className="ss-home-link" href="/license">
 						surfsense.com/license
 					</a>
 					.

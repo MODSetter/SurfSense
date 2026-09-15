@@ -140,13 +140,22 @@
 /* Section header: an H2 (or eyebrow) and a one-line subtitle, ruled off from
  * the content it introduces. */
 .ss-home-head {
-	/* More air above than below: the hairline above already marks where the
-	 * previous section ends, but 2rem of padding alone reads as barely more
-	 * than the rule itself. This is what actually makes a new section feel
-	 * like a new section rather than a continuation of the last one. */
-	padding-block: clamp(8rem, 20vw, 12rem) 2rem;
+	/* On mobile the hairline above is enough to mark a new section; the large
+	 * desktop lead-in just pushes content down a phone-length scroll. */
+	padding-block: 2.5rem 2rem;
 	padding-inline: var(--home-gutter);
 	border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 768px) {
+	.ss-home-head {
+		/* More air above than below: the hairline above already marks where
+		 * the previous section ends, but 2rem of padding alone reads as
+		 * barely more than the rule itself. This is what actually makes a
+		 * new section feel like a new section rather than a continuation of
+		 * the last one. */
+		padding-block-start: clamp(8rem, 20vw, 12rem);
+	}
 }
 
 /* Where the only dividers that should show are the ones between the cells

@@ -1,5 +1,23 @@
+import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
-import { LicenseForms } from "./license-forms";
+import { ResendForm, TrialForm } from "./license-forms";
+
+/**
+ * Rendered in the site design: the palette, ruled column, navigation and
+ * footer all come from `app/(home)/layout.tsx`, and every style resolves from
+ * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
+ * `components/site/site-shell.tsx`.
+ *
+ * The trial is the main path most visitors want, so it gets the first section
+ * and the primary button; resending an existing license is secondary and gets
+ * its own section below, in the same eyebrow-plus-headline shape.
+ *
+ * The three explanatory blocks the old page ran as plain paragraphs are FAQ
+ * content in substance: a reader arrives here with one of exactly three
+ * questions, so they render as the same native `<details>` accordion the
+ * homepage, pricing and plugins pages use, rather than a fourth design for
+ * the same pattern.
+ */
 
 export const metadata: Metadata = {
 	title: "Your license | SurfSense",
@@ -7,54 +25,99 @@ export const metadata: Metadata = {
 	alternates: { canonical: "https://www.surfsense.com/license" },
 };
 
+const FAQ: { question: string; answer: React.ReactNode }[] = [
+	{
+		question: "Where does the file go?",
+		answer: (
+			<>
+				Save the attached <code className="ss-home-mono">surfsense.lic</code>, open SurfSense, go to
+				Settings, then License{" "}
+				<ArrowRight aria-hidden="true" className="inline size-3.5 align-[-0.1em]" /> and drop it in.
+				Your license never expires the app: when it runs out, SurfSense keeps working and your data
+				stays put.
+			</>
+		),
+	},
+	{
+		question: "Bought for a team?",
+		answer:
+			"A team license is one file for everyone. It is sent only to the address that bought it, so ask whoever made the purchase to forward it to you.",
+	},
+	{
+		question: "Cannot get into that inbox?",
+		answer: (
+			<>
+				If you mistyped your email when buying, or no longer have access to it, we cannot send the
+				file anywhere else automatically, since anyone could otherwise type your address and receive
+				your license. Email{" "}
+				<a className="ss-home-link" href="mailto:support@surfsense.com?subject=License%20recovery">
+					support@surfsense.com
+				</a>{" "}
+				with your payment details (the charge on your card statement, or the last 4 digits, amount
+				and date) and we will verify the purchase and fix it.
+			</>
+		),
+	},
+];
+
 export default function LicensePage() {
 	return (
-		<div className="container mx-auto max-w-2xl px-4 pt-28 pb-16">
-			<div className="flex flex-col gap-8">
-				<div className="flex flex-col gap-4">
-					<h1 className="text-4xl font-bold text-balance">Your SurfSense license</h1>
-					<p className="text-lg text-pretty text-muted-foreground">
-						There is no account to sign in to. Your license lives in a file, and your email address
-						is how we find it.
+		<>
+			<section className="ss-home-hero ss-home-pad">
+				<div className="mx-auto max-w-2xl text-center">
+					<h1 className="ss-home-display">Your SurfSense license</h1>
+					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
+						Your license is a file, not an account.
 					</p>
 				</div>
+			</section>
 
-				<LicenseForms />
-
-				<div className="flex flex-col gap-4 border-t pt-8 text-sm text-muted-foreground">
-					<div className="flex flex-col gap-2">
-						<h2 className="font-medium text-foreground">Where the file goes</h2>
-						<p>
-							Save the attached <code className="font-mono">surfsense.lic</code>, open SurfSense, go
-							to Settings &rarr; License, and drop it in. Your license never expires the app: when
-							it runs out, SurfSense keeps working and your data stays put.
-						</p>
-					</div>
-					<div className="flex flex-col gap-2">
-						<h2 className="font-medium text-foreground">Bought for a team?</h2>
-						<p>
-							A team license is one file for everyone. It is sent only to the address that bought
-							it, so ask whoever made the purchase to forward it to you.
-						</p>
-					</div>
-					<div className="flex flex-col gap-2">
-						<h2 className="font-medium text-foreground">Cannot get into that inbox?</h2>
-						<p>
-							If you mistyped your email when buying, or no longer have access to it, we cannot send
-							the file anywhere else automatically &mdash; otherwise anyone could type your address
-							and receive your license. Email{" "}
-							<a
-								className="underline"
-								href="mailto:support@surfsense.com?subject=License%20recovery"
-							>
-								support@surfsense.com
-							</a>{" "}
-							with your payment details (the charge on your card statement, or the last 4 digits,
-							amount and date) and we will verify the purchase and fix it.
-						</p>
+			<section className="ss-home-rule">
+				<div className="ss-home-head">
+					<p className="ss-home-eyebrow">Get started</p>
+					<h2 className="ss-home-h2 mt-2">Start a 14-day trial</h2>
+				</div>
+				<div className="ss-home-pad py-12">
+					<div className="max-w-xl">
+						<TrialForm />
 					</div>
 				</div>
-			</div>
-		</div>
+			</section>
+
+			<section className="ss-home-rule">
+				<div className="ss-home-head">
+					<p className="ss-home-eyebrow">Already licensed</p>
+					<h2 className="ss-home-h2 mt-2">Get your license again</h2>
+				</div>
+				<div className="ss-home-pad py-12">
+					<div className="max-w-xl">
+						<ResendForm />
+					</div>
+				</div>
+			</section>
+
+			<section className="ss-home-rule" aria-labelledby="ss-license-faq-label">
+				<div className="ss-home-head">
+					<p className="ss-home-eyebrow">FAQ</p>
+					<h2 id="ss-license-faq-label" className="ss-home-h2 mt-2">
+						Common questions
+					</h2>
+				</div>
+
+				<div className="ss-home-grid border-t border-border">
+					{FAQ.map((item) => (
+						<details key={item.question} className="ss-home-faq">
+							<summary className="ss-home-faq-summary">
+								<span className="ss-home-h3">{item.question}</span>
+								<span aria-hidden="true" className="ss-home-faq-marker" />
+							</summary>
+							<div className="ss-home-faq-answer">
+								<p className="ss-home-body">{item.answer}</p>
+							</div>
+						</details>
+					))}
+				</div>
+			</section>
+		</>
 	);
 }

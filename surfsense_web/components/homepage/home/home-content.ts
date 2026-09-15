@@ -87,12 +87,12 @@ export type Action = {
 /** H2 #1 — the offline / local / air-gapped claim, stated concretely. */
 export const ON_YOUR_MACHINE: Cell[] = [
 	{
-		title: "Runs entirely on your machine",
+		title: "No cloud in the loop",
 		body: "The index is a file on your disk, not a row in someone else's database. Pull the network cable and it keeps answering questions about the sources you already added.",
 	},
 	{
-		title: "Your keys, your provider",
-		body: "Point it at a local model through Ollama, or paste a key for a provider you already pay for. The key stays on the machine that uses it.",
+		title: "Local model or your own key",
+		body: "Use SurfSense with a local model, or paste a key for a provider you already pay for. The key stays on the machine that uses it.",
 	},
 	{
 		title: "Sources become artifacts",
