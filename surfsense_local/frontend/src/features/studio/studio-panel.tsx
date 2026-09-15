@@ -70,18 +70,18 @@ export const FORMAT_ICONS: Record<string, ComponentType<{ className?: string }>>
 }
 
 const STUDIO_CATALOG: StudioFormat[] = [
-  { key: "summary", label: "Summary", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "docx", label: "Document", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "pptx", label: "Slides", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "xlsx", label: "Spreadsheet", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "html", label: "Web page", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "pdf", label: "PDF", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "mindmap", label: "Mind map", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "flashcards", label: "Flashcards", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "quiz", label: "Quiz", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "podcast", label: "Podcast", requires_role: "generation", available: true, unavailable_reason: null },
-  { key: "image", label: "Image", requires_role: "image_generation", available: true, unavailable_reason: null },
-  { key: "infographic", label: "Infographic", requires_role: "generation", available: true, unavailable_reason: null },
+  { key: "summary", label: "Summary", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "docx", label: "Document", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "pptx", label: "Slides", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "xlsx", label: "Spreadsheet", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "html", label: "Web page", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "pdf", label: "PDF", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "mindmap", label: "Mind map", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "flashcards", label: "Flashcards", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "quiz", label: "Quiz", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "podcast", label: "Podcast", requires_roles: ["generation"], available: true, unavailable_reason: null },
+  { key: "image", label: "Image", requires_roles: ["image_generation"], available: true, unavailable_reason: null },
+  { key: "infographic", label: "Infographic", requires_roles: ["image_generation", "generation"], available: true, unavailable_reason: null },
 ]
 
 function catalogFormats(formats: StudioFormat[]) {
@@ -93,7 +93,7 @@ function catalogFormats(formats: StudioFormat[]) {
 function unavailableReason(entry: StudioFormat) {
   return (
     entry.unavailable_reason ??
-    `Needs a ${entry.requires_role?.replace("_", " ")} model`
+    `Needs a ${entry.requires_roles.join(" and ").replaceAll("_", " ")} model`
   )
 }
 

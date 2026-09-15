@@ -13,7 +13,7 @@ from modules.llm.providers.protocols import (
     SynthesizedAudio,
     Voice,
 )
-from modules.llm.resolution import ResolvedImageGeneration
+from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
@@ -404,16 +404,21 @@ def test_image_draws_a_png_over_the_selected_connection(
     assert "a bright poster" in seen[0]
 
 
-def test_infographic_builds_a_deterministic_svg(
+def test_a_two_model_format_gets_both_models_in_catalog_order(
     session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Infographic: a chat model returns facts and the builder renders safe SVG."""
-    seen = _capture_model(
-        monkeypatch,
-        '{"title":"Cassini","summary":"Saturn mission",'
-        '"sections":[{"label":"Arrival","value":"2004","detail":"Reached Saturn"}]}',
+    """Infographic declares (image_generation, generation); render gets them so."""
+    _capture_image(monkeypatch)
+    received: list[object] = []
+
+    def record(*models: object, **_kwargs: object) -> Built:
+        received.extend(models[:-2])  # trailing two are sources and prompt
+        return Built(title="Cassini", markdown="# Cassini")
+
+    monkeypatch.setattr(
+        "worker.studio.media.visual.infographic.pipeline.render", record
     )
-    artifact = make_artifact(session, fmt="infographic", prompt="the key figures")
+    artifact = make_artifact(session, fmt="infographic")
 
     run(artifact.id)
 
@@ -421,8 +426,10 @@ def test_infographic_builds_a_deterministic_svg(
     assert artifact.document.status is DocumentStatus.READY, (
         artifact.document.error_message
     )
-    _one_file(artifact, "image/svg+xml", b"<svg")
-    assert "the key figures" in seen[0]
+    assert [type(model) for model in received] == [
+        ResolvedImageGeneration,
+        ResolvedGeneration,
+    ]
 
 
 def test_a_write_during_generation_does_not_lock_the_job_out(

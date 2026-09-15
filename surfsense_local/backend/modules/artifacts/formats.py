@@ -7,9 +7,10 @@ class Format:
 
     key: str
     label: str
-    requires_role: str | None = "generation"
+    # In the order the pipeline's render() takes its models.
+    requires_roles: tuple[str, ...] = ("generation",)
     # ponytail: the voice engine is not a selectable role yet, so it is a flag;
-    # it folds into requires_role when a text_to_speech role exists.
+    # it folds into requires_roles when a text_to_speech role exists.
     requires_voice: bool = False
 
 
@@ -27,8 +28,10 @@ FORMATS: tuple[Format, ...] = (
     Format("flashcards", "Flashcards"),
     Format("quiz", "Quiz"),
     Format("podcast", "Podcast", requires_voice=True),
-    Format("image", "Image", requires_role="image_generation"),
-    Format("infographic", "Infographic"),
+    Format("image", "Image", requires_roles=("image_generation",)),
+    Format(
+        "infographic", "Infographic", requires_roles=("image_generation", "generation")
+    ),
 )
 
 FORMATS_BY_KEY: dict[str, Format] = {fmt.key: fmt for fmt in FORMATS}

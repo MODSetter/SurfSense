@@ -105,14 +105,13 @@ def read_artifact_file(artifact: ArtifactDep, role: ArtifactFileRole) -> FileRes
     if not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "the file is no longer on disk")
 
-    inline = file.mime_type not in _INLINE_UNSAFE or (
-        artifact.format == "infographic" and file.mime_type == "image/svg+xml"
-    )
     return FileResponse(
         path,
         filename=file.original_filename,
         media_type=file.mime_type,
-        content_disposition_type="inline" if inline else "attachment",
+        content_disposition_type=(
+            "attachment" if file.mime_type in _INLINE_UNSAFE else "inline"
+        ),
     )
 
 

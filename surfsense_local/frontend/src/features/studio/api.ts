@@ -4,7 +4,7 @@ import type { DocumentStatus } from "@/features/sources/api"
 export type StudioFormat = {
   key: string
   label: string
-  requires_role: "generation" | "image_generation" | null
+  requires_roles: ("generation" | "image_generation")[]
   available: boolean
   unavailable_reason: string | null
 }

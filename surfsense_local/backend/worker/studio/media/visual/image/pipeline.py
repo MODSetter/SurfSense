@@ -1,16 +1,10 @@
 import asyncio
 
 from modules.llm.resolution import ResolvedImageGeneration
+from worker.studio.media.visual import EXTENSIONS
 from worker.studio.shared.artifact import Built, Source
 
 GROUNDING_CHARS = 6_000
-_EXTENSIONS = {
-    "image/png": "png",
-    "image/jpeg": "jpg",
-    "image/gif": "gif",
-    "image/webp": "webp",
-    "image/svg+xml": "svg",
-}
 
 
 def render(
@@ -26,7 +20,7 @@ def render(
         model.generator.generate(model.selection.name, f"{instruction}\n\n{grounding}")
     )
     title = (user_prompt or "Image").strip()[:200] or "Image"
-    extension = _EXTENSIONS[image.media_type]
+    extension = EXTENSIONS[image.media_type]
     return Built(
         title=title,
         markdown=f"# {title}\n\n{instruction}",

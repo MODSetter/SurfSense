@@ -66,12 +66,15 @@ def _generate(session: Session, artifact: Artifact) -> None:
             sum(len(source.content) for source in sources),
         )
         kind = job_router.Kind(artifact.format)
-        model = _choose_model(session, kind)
+        models = [
+            _choose_model(session, ModelRole(role))
+            for role in FORMATS_BY_KEY[kind].requires_roles
+        ]
         # Generation runs for minutes; a transaction held across it fails on the
         # first write after (SQLITE_BUSY_SNAPSHOT) as soon as the API writes.
         session.commit()
 
-        built = job_router.pipeline_for(kind)(model, sources, prompt)
+        built = job_router.pipeline_for(kind)(*models, sources, prompt)
 
         logger.info(
             "studio: artifact %s render done in %.1fs; persisting",
@@ -115,11 +118,11 @@ def _reason(failure: Exception) -> str:
 
 
 def _choose_model(
-    session: Session, kind: job_router.Kind
+    session: Session, role: ModelRole
 ) -> ResolvedGeneration | ResolvedImageGeneration:
-    """The catalog says which role a format needs; pick that role's model."""
+    """The model the user selected for one of the roles a format declares."""
     try:
-        if FORMATS_BY_KEY[kind].requires_role == ModelRole.IMAGE_GENERATION:
+        if role is ModelRole.IMAGE_GENERATION:
             return resolve_image_generation(session)
         return resolve_generation(session)
     except ModelResolutionError as error:

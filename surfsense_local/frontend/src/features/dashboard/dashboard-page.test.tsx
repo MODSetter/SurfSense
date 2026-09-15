@@ -1086,7 +1086,7 @@ describe("dashboard chat", () => {
             {
               key: "summary",
               label: "Summary",
-              requires_role: "generation",
+              requires_roles: ["generation"],
               available: true,
               unavailable_reason: null,
             },

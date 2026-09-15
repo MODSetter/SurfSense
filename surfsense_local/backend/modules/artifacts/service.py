@@ -25,7 +25,7 @@ def list_formats(session: Session) -> list[FormatRead]:
             FormatRead(
                 key=fmt.key,
                 label=fmt.label,
-                requires_role=fmt.requires_role,
+                requires_roles=list(fmt.requires_roles),
                 available=available,
                 unavailable_reason=reason,
             )
@@ -137,8 +137,7 @@ def _resolve_sources(
 
 
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    if fmt.requires_role is not None:
-        role = ModelRole(fmt.requires_role)
+    for role in map(ModelRole, fmt.requires_roles):
         if session.get(SelectedModel, role) is None:
             if role is ModelRole.IMAGE_GENERATION:
                 return False, "Image model required"

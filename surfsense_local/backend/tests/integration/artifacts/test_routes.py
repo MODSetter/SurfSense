@@ -53,14 +53,35 @@ async def test_formats_lists_summary_as_available(
     assert response.status_code == 200
     summary = next(f for f in response.json() if f["key"] == "summary")
     assert summary["available"] is True
-    assert summary["requires_role"] == "generation"
+    assert summary["requires_roles"] == ["generation"]
     assert summary["unavailable_reason"] is None
 
-    infographic = next(f for f in response.json() if f["key"] == "infographic")
-    assert infographic["available"] is True
     image = next(f for f in response.json() if f["key"] == "image")
     assert image["available"] is False
-    assert image["requires_role"] == "image_generation"
+    assert image["requires_roles"] == ["image_generation"]
+
+
+async def test_infographic_needs_the_image_model_and_the_chat_model(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """The chat model writes the brief, the image model paints it: both gate it."""
+    listed = await client.get(f"/workspaces/{workspace_id}/studio/formats")
+    infographic = next(f for f in listed.json() if f["key"] == "infographic")
+    assert infographic["requires_roles"] == ["image_generation", "generation"]
+    assert infographic["available"] is False
+    assert infographic["unavailable_reason"] == "Image model required"
+
+    with create_session_factory(engine)() as session:
+        session.add(
+            SelectedModel(
+                role=ModelRole.IMAGE_GENERATION, provider="ollama", name="x/flux2-klein"
+            )
+        )
+        session.commit()
+
+    listed = await client.get(f"/workspaces/{workspace_id}/studio/formats")
+    infographic = next(f for f in listed.json() if f["key"] == "infographic")
+    assert infographic["available"] is True
 
 
 async def test_podcast_is_gated_on_the_voice_engine(

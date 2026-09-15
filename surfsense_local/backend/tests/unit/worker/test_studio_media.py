@@ -38,17 +38,38 @@ def test_image_stores_the_returned_png() -> None:
     assert built.title == "make it bold"
 
 
-def test_infographic_is_deterministic_escaped_svg() -> None:
-    """Infographic facts become safe SVG and searchable markdown without an image API."""
-    raw = (
-        '{"title":"Saturn <script>","summary":"Rings",'
-        '"sections":[{"label":"Count","value":"7","detail":"Main rings"}]}'
+def test_infographic_paints_the_brief_the_chat_model_wrote(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Two steps, as the cloud does: chat model distils facts, image model draws them."""
+    monkeypatch.setattr(
+        "worker.studio.shared.generate.run_model",
+        lambda *_: (
+            '{"title":"Saturn","summary":"Rings","sections":'
+            '[{"label":"Count","value":"7","detail":"Main rings"}]}'
+        ),
     )
-    built = infographic.build(raw, [])
+    painted: list[str] = []
 
-    assert built.primary_mime == "image/svg+xml"
-    assert b"<script>" not in built.primary
-    assert b"Saturn &lt;script&gt;" in built.primary
+    class FakeImageGenerator:
+        async def generate(self, model: str, prompt: str) -> GeneratedImage:
+            painted.append(prompt)
+            return GeneratedImage(PNG, "image/png")
+
+    selection = type("Selection", (), {"name": "flux"})()
+    painter = ResolvedImageGeneration(selection, FakeImageGenerator())
+    sources = [Source(1, "Saturn", "Galileo saw the rings in 1610.")]
+    built = infographic.render(painter, None, sources, None)
+
+    # The image prompt carries the brief and a style, not the raw sources.
+    assert "Saturn" in painted[0] and "Count: 7" in painted[0]
+    assert "1610" not in painted[0]
+    assert "sketchnote" in painted[0]
+    assert built.primary == PNG
+    assert built.primary_mime == "image/png"
+    assert built.primary_filename == "saturn.png"
+    # The brief is the searchable body, so the picture is findable by its facts.
+    assert built.title == "Saturn"
     assert "**7**" in built.markdown
 
 

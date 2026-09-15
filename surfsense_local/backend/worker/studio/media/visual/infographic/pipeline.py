@@ -1,31 +1,65 @@
-import html
-import textwrap
+"""Infographic: the chat model writes a factual brief, the image model paints it.
 
-from modules.llm.resolution import ResolvedGeneration
+The same two steps as the cloud (app/artifacts/infographic): distilling first
+keeps the picture grounded and gives the image model a short prompt, which is
+what image models draw well from.
+"""
+
+import asyncio
+
+from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
+from worker.studio.media.visual import EXTENSIONS
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
 
-
-def render(
-    model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
-) -> Built:
-    return build(
-        generate.run_model(model, prompt(sources, user_prompt), sources), sources
-    )
-
-
-MIME = "image/svg+xml"
-WIDTH = 1200
-CARD_HEIGHT = 190
 _SCHEMA = (
     'Return only JSON, no prose: {"title": str, "summary": str, "sections": '
     '[{"label": str, "value": str, "detail": str}]}. Use at most 6 sections. '
     "Keep every value factual and grounded in the supplied sources."
 )
+_TASK = (
+    "Create a polished, complete infographic from the supplied factual source. "
+    "Choose the clearest visual hierarchy and composition. Summarize or omit "
+    "secondary detail when necessary for readability. Keep all important content "
+    "fully visible within the canvas, preserve factual accuracy, and follow the "
+    "selected visual style."
+)
+# ponytail: one style, the cloud's default. A picker rides on the job's
+# `options` once the panel offers one.
+_STYLE = (
+    "Use a hand-drawn editorial sketchnote style with mostly black ink on a warm "
+    "white background, one restrained accent color, simple icons, arrows, "
+    "connectors, loose organic lines, generous whitespace, short hand-lettered "
+    "headings, and highly legible labels. Avoid photorealism, dense paragraphs, "
+    "decorative illegible handwriting, and watermarks."
+)
 
 
-def prompt(_sources: list[Source], user_prompt: str | None) -> str:
+def render(
+    painter: ResolvedImageGeneration,
+    writer: ResolvedGeneration,
+    sources: list[Source],
+    user_prompt: str | None,
+) -> Built:
+    brief = _brief(generate.run_model(writer, _brief_prompt(user_prompt), sources))
+    image = asyncio.run(
+        painter.generator.generate(painter.selection.name, _image_prompt(brief))
+    )
+    title = brief[0]
+    return Built(
+        title=title,
+        markdown=_markdown(brief),
+        primary=image.content,
+        primary_mime=image.media_type,
+        primary_filename=f"{slug(title, 'infographic')}.{EXTENSIONS[image.media_type]}",
+    )
+
+
+Brief = tuple[str, str, list[tuple[str, str, str]]]  # title, summary, sections
+
+
+def _brief_prompt(user_prompt: str | None) -> str:
     focus = f" Emphasise: {user_prompt}." if user_prompt else ""
     return (
         "Create the structured content for a concise factual infographic from "
@@ -33,72 +67,36 @@ def prompt(_sources: list[Source], user_prompt: str | None) -> str:
     )
 
 
-def _lines(value: str, width: int, maximum: int) -> list[str]:
-    return textwrap.wrap(value, width=width, break_long_words=False)[:maximum]
-
-
-def _text(x: int, y: int, value: str, css: str) -> str:
-    return f'<text x="{x}" y="{y}" class="{css}">{html.escape(value)}</text>'
-
-
-def build(raw: str, _sources: list[Source]) -> Built:
+def _brief(raw: str) -> Brief:
     spec = parse_json(raw)
-    title = as_text(spec.get("title")) or "Infographic"
-    summary = as_text(spec.get("summary"))
     sections = [
-        section
+        (
+            as_text(section.get("label"))[:60],
+            as_text(section.get("value"))[:80],
+            as_text(section.get("detail")),
+        )
         for section in as_list(spec.get("sections"))[:6]
         if isinstance(section, dict)
     ]
-    rows = max(1, (len(sections) + 1) // 2)
-    height = 270 + rows * (CARD_HEIGHT + 24)
-
-    nodes = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {WIDTH} {height}" '
-        'role="img">',
-        f"<title>{html.escape(title)}</title>",
-        "<style>",
-        ".bg{fill:#f8fafc}.card{fill:#fff;stroke:#cbd5e1;stroke-width:2}"
-        ".title{font:700 42px system-ui;fill:#0f172a}"
-        ".summary{font:400 21px system-ui;fill:#475569}"
-        ".label{font:600 18px system-ui;fill:#475569}"
-        ".value{font:700 34px system-ui;fill:#0f766e}"
-        ".detail{font:400 17px system-ui;fill:#334155}",
-        "</style>",
-        f'<rect class="bg" width="{WIDTH}" height="{height}"/>',
-        _text(64, 72, title[:80], "title"),
-    ]
-    for index, line in enumerate(_lines(summary, 88, 2)):
-        nodes.append(_text(64, 116 + index * 30, line, "summary"))
-
-    markdown = [f"# {title}"]
-    if summary:
-        markdown.append(summary)
-    for index, section in enumerate(sections):
-        column = index % 2
-        row = index // 2
-        x = 64 + column * 548
-        y = 190 + row * (CARD_HEIGHT + 24)
-        label = as_text(section.get("label"))[:60]
-        value = as_text(section.get("value"))[:80]
-        detail = as_text(section.get("detail"))
-        nodes.append(
-            f'<rect class="card" x="{x}" y="{y}" width="524" '
-            f'height="{CARD_HEIGHT}" rx="18"/>'
-        )
-        nodes.append(_text(x + 28, y + 40, label, "label"))
-        nodes.append(_text(x + 28, y + 88, value, "value"))
-        for line_index, line in enumerate(_lines(detail, 54, 3)):
-            nodes.append(_text(x + 28, y + 126 + line_index * 23, line, "detail"))
-        markdown.append(f"\n## {label}\n\n**{value}**\n\n{detail}")
-    nodes.append("</svg>")
-
-    # ponytail: SVG is the deterministic primary; add a packaged rasterizer
-    # only if downstream consumers prove they need PNG previews.
-    return Built(
-        title=title,
-        markdown="\n".join(markdown),
-        primary="\n".join(nodes).encode(),
-        primary_mime=MIME,
-        primary_filename=f"{slug(title, 'infographic')}.svg",
+    return (
+        as_text(spec.get("title")) or "Infographic",
+        as_text(spec.get("summary")),
+        sections,
     )
+
+
+def _image_prompt(brief: Brief) -> str:
+    title, summary, sections = brief
+    facts = "\n".join(
+        f"- {label}: {value}. {detail}" for label, value, detail in sections
+    )
+    content = f"{title}\n{summary}\n{facts}"
+    return f"{_TASK}\n\nCONTENT\n{content}\n\nVISUAL STYLE\n{_STYLE}"
+
+
+def _markdown(brief: Brief) -> str:
+    title, summary, sections = brief
+    lines = [f"# {title}"] + ([summary] if summary else [])
+    for label, value, detail in sections:
+        lines.append(f"\n## {label}\n\n**{value}**\n\n{detail}")
+    return "\n".join(lines)
