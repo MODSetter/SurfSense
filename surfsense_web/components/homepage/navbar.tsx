@@ -81,7 +81,6 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 		{ name: "Connectors", link: "/connectors" },
 		{ name: "Pricing", link: "/pricing" },
 		{ name: "Contact\u00A0Us", link: "/contact" },
-		{ name: "Free\u00A0AI", link: "/free" },
 	];
 
 	useEffect(() => {
@@ -97,7 +96,7 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 	}, []);
 
 	return (
-		<div className="fixed top-1 left-0 right-0 z-60 w-full select-none">
+		<div className="fixed top-0 left-0 right-0 z-60 w-full select-none">
 			<DesktopNav
 				navItems={navItems}
 				isScrolled={isScrolled}
@@ -146,8 +145,8 @@ const ResourcesDropdown = () => {
 				aria-haspopup="menu"
 				onClick={() => setOpen((prev) => !prev)}
 				className={cn(
-					"flex cursor-pointer items-center gap-1 rounded-full px-4 py-2 text-neutral-600 outline-none transition-colors dark:text-neutral-300",
-					open && "bg-gray-100 dark:bg-neutral-800"
+					"flex cursor-pointer items-center gap-1 rounded-lg px-3 py-2 text-muted-foreground outline-none transition-colors duration-150 ease-out hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50",
+					open && "bg-accent text-accent-foreground"
 				)}
 			>
 				Resources
@@ -172,25 +171,21 @@ const ResourcesDropdown = () => {
 								transition: { duration: 0.12, ease: "easeIn" },
 							}}
 							transition={{ type: "spring", duration: 0.3, bounce: 0.15 }}
-							className="w-72 origin-top overflow-hidden rounded-2xl border border-white/20 bg-white/90 p-2 shadow-2xl backdrop-blur-xl dark:border-neutral-800/50 dark:bg-neutral-950/90"
+							className="w-72 origin-top overflow-hidden rounded-lg border border-border bg-popover p-2 supports-backdrop-filter:backdrop-blur-xl"
 						>
 							{resourceItems.map((item) => (
 								<Link
 									key={item.link}
 									href={item.link}
 									onClick={() => setOpen(false)}
-									className="group flex items-start gap-3 rounded-xl px-3 py-2.5 transition-colors hover:bg-gray-100 dark:hover:bg-neutral-800"
+									className="group flex items-start gap-3 rounded-lg px-3 py-2.5 transition-colors duration-150 ease-out hover:bg-accent"
 								>
-									<span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-neutral-200 bg-white text-neutral-500 transition-colors group-hover:text-neutral-900 dark:border-neutral-800 dark:bg-neutral-900 dark:text-neutral-400 dark:group-hover:text-white">
+									<span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-muted-foreground transition-colors duration-150 ease-out group-hover:text-foreground">
 										<item.icon className="h-4 w-4" aria-hidden />
 									</span>
 									<span className="flex flex-col">
-										<span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">
-											{item.name}
-										</span>
-										<span className="text-xs text-neutral-500 dark:text-neutral-400">
-											{item.description}
-										</span>
+										<span className="text-sm font-medium text-foreground">{item.name}</span>
+										<span className="text-xs text-muted-foreground">{item.description}</span>
 									</span>
 								</Link>
 							))}
@@ -210,10 +205,10 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 				setHovered(null);
 			}}
 			className={cn(
-				"mx-auto hidden w-full max-w-7xl flex-row items-center justify-between self-start rounded-full px-4 py-2 lg:flex transition-[background-color,border-color,box-shadow] duration-300",
+				"mx-auto hidden w-full max-w-[var(--home-max,88rem)] flex-row items-center justify-between self-start px-6 py-3 lg:flex transition-[background-color,border-color] duration-200 ease-out",
 				isScrolled
 					? (scrolledBgClassName ??
-							"bg-white/80 backdrop-blur-md border border-white/20 shadow-lg dark:bg-neutral-950/80 dark:border-neutral-800/50")
+							"bg-background/85 supports-backdrop-filter:backdrop-blur-md border-b border-border")
 					: "bg-transparent border border-transparent"
 			)}
 		>
@@ -222,7 +217,7 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 				className="flex flex-1 flex-row items-center gap-0.5 hover:opacity-80 transition-opacity"
 			>
 				<Logo className="h-8 w-8 rounded-md" disableLink />
-				<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
+				<span className="text-foreground text-lg font-bold tracking-tight">SurfSense</span>
 			</Link>
 			<div className="hidden flex-1 flex-row items-center justify-center space-x-2 text-sm font-medium text-zinc-600 transition duration-200 hover:text-zinc-800 lg:flex lg:space-x-2">
 				{navItems.map((navItem: NavItem, idx: number) => (
@@ -230,13 +225,13 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 						<Link
 							onMouseEnter={() => setHovered(idx)}
 							onMouseLeave={() => setHovered(null)}
-							className="relative px-4 py-2 text-neutral-600 dark:text-neutral-300"
+							className="relative rounded-lg px-3 py-2 text-muted-foreground transition-colors duration-150 ease-out hover:text-foreground"
 							href={navItem.link}
 						>
 							{hovered === idx && (
 								<motion.div
 									layoutId="hovered"
-									className="absolute inset-0 h-full w-full rounded-full bg-gray-100 dark:bg-neutral-800"
+									className="absolute inset-0 size-full rounded-lg bg-accent"
 								/>
 							)}
 							<span className="relative z-20">{navItem.name}</span>
@@ -251,24 +246,23 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 					target="_blank"
 					rel="noopener noreferrer"
 					aria-label="SurfSense on Discord"
-					className="hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
+					className="hidden rounded-lg p-2 hover:bg-accent transition-colors duration-150 ease-out md:flex items-center justify-center focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
 				>
-					<IconBrandDiscord
-						className="h-5 w-5 text-neutral-600 dark:text-neutral-300"
-						aria-hidden
-					/>
+					<IconBrandDiscord className="size-5 text-muted-foreground" aria-hidden />
 				</Link>
 				<Link
 					href="https://www.reddit.com/r/SurfSense/"
 					target="_blank"
 					rel="noopener noreferrer"
 					aria-label="SurfSense on Reddit"
-					className="hidden rounded-full p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors md:flex items-center justify-center"
+					className="hidden rounded-lg p-2 hover:bg-accent transition-colors duration-150 ease-out md:flex items-center justify-center focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
 				>
-					<IconBrandReddit className="h-5 w-5 text-neutral-600 dark:text-neutral-300" aria-hidden />
+					<IconBrandReddit className="size-5 text-muted-foreground" aria-hidden />
 				</Link>
 				<NavbarGitHubStars className="hidden md:flex" />
-				<ThemeTogglerComponent />
+				<span className="ss-theme-toggle">
+					<ThemeTogglerComponent />
+				</span>
 				<SignInButton variant="desktop" />
 			</div>
 		</motion.div>
@@ -305,7 +299,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 				"relative mx-auto flex w-full max-w-[calc(100vw-2rem)] flex-col items-center justify-between px-4 py-2 lg:hidden transition-[background-color,border-color,box-shadow] duration-300",
 				isScrolled
 					? (scrolledBgClassName ??
-							"bg-white/80 backdrop-blur-md border border-white/20 shadow-lg dark:bg-neutral-950/80 dark:border-neutral-800/50")
+							"bg-background/85 supports-backdrop-filter:backdrop-blur-md border-b border-border")
 					: "bg-transparent border border-transparent"
 			)}
 		>
@@ -315,20 +309,20 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 					className="flex flex-row items-center gap-2 hover:opacity-80 transition-opacity"
 				>
 					<Logo className="h-8 w-8 rounded-md" disableLink />
-					<span className="dark:text-white/90 text-gray-800 text-lg font-bold">SurfSense</span>
+					<span className="text-foreground text-lg font-bold tracking-tight">SurfSense</span>
 				</Link>
 				<Button
 					type="button"
 					variant="ghost"
 					size="icon"
 					onClick={() => setOpen((prev) => !prev)}
-					className="relative z-50 -mr-2 rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 touch-manipulation"
+					className="relative z-50 -mr-2 rounded-lg p-2 hover:bg-accent transition-colors duration-150 ease-out touch-manipulation focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
 					aria-label={open ? "Close menu" : "Open menu"}
 				>
 					{open ? (
-						<IconX className="h-6 w-6 text-black dark:text-white" />
+						<IconX className="size-6 text-foreground" />
 					) : (
-						<IconMenu2 className="h-6 w-6 text-black dark:text-white" />
+						<IconMenu2 className="size-6 text-foreground" />
 					)}
 				</Button>
 			</div>
@@ -340,13 +334,13 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 						animate={{ opacity: 1, y: 0 }}
 						exit={{ opacity: 0, y: -10 }}
 						transition={{ duration: 0.2, ease: "easeOut" }}
-						className="absolute inset-x-0 top-full mt-1 z-20 flex w-full flex-col items-start justify-start gap-4 rounded-xl bg-white/90 backdrop-blur-xl border border-white/20 shadow-2xl px-4 py-6 dark:bg-neutral-950/90 dark:border-neutral-800/50"
+						className="absolute inset-x-0 top-full z-20 flex w-full flex-col items-start justify-start gap-4 border-b border-border bg-popover supports-backdrop-filter:backdrop-blur-xl px-4 py-6"
 					>
 						{navItems.map((navItem: NavItem) => (
 							<Fragment key={navItem.link}>
 								<Link
 									href={navItem.link}
-									className="relative text-neutral-600 dark:text-neutral-300"
+									className="relative text-muted-foreground transition-colors duration-150 ease-out hover:text-foreground"
 								>
 									<motion.span className="block">{navItem.name} </motion.span>
 								</Link>
@@ -355,7 +349,7 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 										<Link
 											key={item.link}
 											href={item.link}
-											className="relative text-neutral-600 dark:text-neutral-300"
+											className="relative text-muted-foreground transition-colors duration-150 ease-out hover:text-foreground"
 										>
 											<motion.span className="block">{item.name} </motion.span>
 										</Link>
@@ -368,27 +362,23 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 								target="_blank"
 								rel="noopener noreferrer"
 								aria-label="SurfSense on Discord"
-								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
+								className="flex items-center justify-center rounded-lg p-2 hover:bg-accent transition-colors duration-150 ease-out touch-manipulation focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
 							>
-								<IconBrandDiscord
-									className="h-5 w-5 text-neutral-600 dark:text-neutral-300"
-									aria-hidden
-								/>
+								<IconBrandDiscord className="size-5 text-muted-foreground" aria-hidden />
 							</Link>
 							<Link
 								href="https://www.reddit.com/r/SurfSense/"
 								target="_blank"
 								rel="noopener noreferrer"
 								aria-label="SurfSense on Reddit"
-								className="flex items-center justify-center rounded-lg p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors touch-manipulation"
+								className="flex items-center justify-center rounded-lg p-2 hover:bg-accent transition-colors duration-150 ease-out touch-manipulation focus-visible:ring-3 focus-visible:ring-ring/50 outline-none"
 							>
-								<IconBrandReddit
-									className="h-5 w-5 text-neutral-600 dark:text-neutral-300"
-									aria-hidden
-								/>
+								<IconBrandReddit className="size-5 text-muted-foreground" aria-hidden />
 							</Link>
 							<NavbarGitHubStars className="rounded-lg" />
-							<ThemeTogglerComponent />
+							<span className="ss-theme-toggle">
+								<ThemeTogglerComponent />
+							</span>
 						</div>
 						<SignInButton variant="mobile" />
 					</motion.div>
