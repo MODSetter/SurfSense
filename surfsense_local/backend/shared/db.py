@@ -67,10 +67,7 @@ def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
 
 
 def _begin(connection: Connection) -> None:
-    # Take the write lock up front: a read-then-write transaction then waits on
-    # busy_timeout instead of failing with SQLITE_BUSY_SNAPSHOT. In return, no
-    # transaction may stay open across a slow call (a model, a stream).
-    connection.exec_driver_sql("BEGIN IMMEDIATE")
+    connection.exec_driver_sql("BEGIN")
 
 
 def create_db_engine(path: Path) -> Engine:
