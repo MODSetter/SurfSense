@@ -7,10 +7,10 @@ import {
 } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
-import { REPO_URL } from "@/components/homepage/home/home-content";
+import { FOOTER_COLUMNS, REPO_URL } from "@/components/site/site-content";
 
 /**
- * Homepage footer.
+ * Site footer.
  *
  * A port of the reference design's `Footer.svelte`: identity and legal on the
  * left, link columns on the right, all inside the same ruled column as the
@@ -20,40 +20,10 @@ import { REPO_URL } from "@/components/homepage/home/home-content";
  * The oversized wordmark that closes the page is kept from the previous
  * footer.
  *
- * Homepage-only: the shared `FooterNew` still serves every other route under
- * `(home)`.
+ * Rendered by `app/(home)/layout.tsx` for every route under `(home)` except the
+ * auth pages. On a site-design route it sits inside the ruled column; elsewhere
+ * it is held to the same width without the side borders.
  */
-
-type FooterLink = { title: string; href: string; external?: boolean };
-
-const COLUMNS: { heading: string; links: FooterLink[] }[] = [
-	{
-		heading: "Product",
-		links: [
-			{ title: "Download", href: "/downloads" },
-			{ title: "Connectors", href: "/connectors" },
-			{ title: "Pricing", href: "/pricing" },
-			{ title: "Docs", href: "/docs" },
-		],
-	},
-	{
-		heading: "Resources",
-		links: [
-			{ title: "Blog", href: "/blog" },
-			{ title: "Announcements", href: "/announcements" },
-			{ title: "Changelog", href: "/changelog" },
-			{ title: "Contact us", href: "/contact" },
-		],
-	},
-	{
-		heading: "Company",
-		links: [
-			{ title: "Privacy Policy", href: "/privacy" },
-			{ title: "Terms of Service", href: "/terms" },
-			{ title: "Sign in", href: "/login" },
-		],
-	},
-];
 
 const SOCIALS = [
 	{ title: "GitHub", href: REPO_URL, icon: IconBrandGithub },
@@ -67,7 +37,7 @@ const SOCIALS = [
 	},
 ];
 
-export function HomeFooter() {
+export function SiteFooter() {
 	return (
 		<footer className="ss-home-rule overflow-hidden">
 			<div className="ss-home-pad flex flex-col gap-12 py-12 lg:flex-row lg:gap-16">
@@ -110,7 +80,7 @@ export function HomeFooter() {
 				</div>
 
 				<div className="grid flex-1 grid-cols-2 gap-x-8 gap-y-10 sm:grid-cols-3">
-					{COLUMNS.map((column) => (
+					{FOOTER_COLUMNS.map((column) => (
 						<div key={column.heading}>
 							<p className="text-sm font-semibold text-[color:var(--foreground)]">
 								{column.heading}

@@ -1,3 +1,5 @@
+import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
+
 /**
  * Homepage copy and data.
  *
@@ -14,9 +16,9 @@
  * shared `desktop-download-utils` resolves `/releases/latest`, which currently
  * serves a legacy build. */
 export const PINNED_RELEASE_TAG = "v0.0.40";
-export const DOWNLOADS_URL = "/downloads";
-export const REPO_URL = "https://github.com/MODSetter/SurfSense";
 export const RELEASE_URL = `${REPO_URL}/releases/tag/${PINNED_RELEASE_TAG}`;
+
+export { DOWNLOADS_URL, REPO_URL };
 
 /**
  * Real self-serve signups pulled from prod, curated to the most recognisable
@@ -108,7 +110,7 @@ export const PILLARS: (Cell & { action: Action })[] = [
 		action: { label: "Supported models", href: "/docs" },
 	},
 	{
-		title: "Install and go — no Docker, no terminal, no GPU",
+		title: "Install and go: no Docker, no terminal, no GPU",
 		body: "A normal desktop installer for Windows, macOS and Linux. No compose file, no environment variables, no CUDA. The bundled small model runs on a laptop CPU.",
 		action: { label: "Download the installer", href: DOWNLOADS_URL },
 	},
@@ -149,7 +151,7 @@ export const STORIES: {
 		key: "private",
 		heading: "Private by construction",
 		body: [
-			"Most tools promise privacy as a policy — a commitment about what a company will choose not to do with data it nonetheless holds. A policy can change, and it can be compelled.",
+			"Most tools promise privacy as a policy: a commitment about what a company will choose not to do with data it nonetheless holds. A policy can change, and it can be compelled.",
 			"Data that never left your machine cannot be handed over, subpoenaed, breached at a vendor, or repriced. That is a structural guarantee rather than a promise, and it is the only kind that survives a change of owner.",
 		],
 		action: { label: "Read the compliance notes", href: "/privacy" },

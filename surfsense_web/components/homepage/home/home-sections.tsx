@@ -64,7 +64,7 @@ export function HomeHero() {
 					</HomeButton>
 				</div>
 				<p className="ss-home-body mt-6 text-sm">
-					Free and open source. Windows, macOS and Linux — or{" "}
+					Free and open source. Windows, macOS and Linux, or{" "}
 					{/* The brief requires a pinned tag above the fold. `desktop-download-utils`
 					    resolves /releases/latest, which currently serves a legacy build, so this
 					    link names the release explicitly instead of going through it. */}
@@ -121,7 +121,7 @@ export function HomeOnYourMachine() {
 						else can read your sources does not arise.
 					</p>
 					<p className="ss-home-body mt-3">
-						That is what air-gapped means here in the literal sense — the application keeps working
+						That is what air-gapped means here in the literal sense: the application keeps working
 						with no network at all.
 					</p>
 				</div>

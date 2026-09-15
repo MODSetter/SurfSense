@@ -22,12 +22,12 @@ export function HomeQuestions() {
 			<div className="ss-home-grid">
 				{HOME_FAQ.map((item) => (
 					<details key={item.question} className="ss-home-faq">
-						<summary className="ss-home-faq-summary ss-home-pad py-5">
+						<summary className="ss-home-faq-summary">
 							<span className="ss-home-h3">{item.question}</span>
 							<span aria-hidden="true" className="ss-home-faq-marker" />
 						</summary>
-						<div className="ss-home-pad pb-6">
-							<p className="ss-home-body max-w-prose">{item.answer}</p>
+						<div className="ss-home-faq-answer">
+							<p className="ss-home-body">{item.answer}</p>
 						</div>
 					</details>
 				))}

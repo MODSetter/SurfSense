@@ -4,41 +4,30 @@ import { IconChevronDown, IconMenu2, IconX } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { HomeStars } from "@/components/homepage/home/home-stars";
+import { NAV_LINKS, NAV_RESOURCES, SIGN_IN_URL } from "@/components/site/site-content";
+import { SiteStars } from "@/components/site/site-stars";
+import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 
 /**
- * Homepage navigation.
+ * Site navigation.
  *
- * A port of the reference design's `Nav.svelte`: a flush bar the width of the
- * page column, ruled on three sides so it reads as the first cell of the grid
- * rather than as a floating pill.
+ * Rendered once by `app/(home)/layout.tsx`, above any route branch, so it is a
+ * single element in a single slot for every page. React therefore keeps it
+ * mounted across navigations: the drawer, the dropdown, the scroll listener and
+ * the star query all survive, and only the content below it changes. Rendering
+ * a different nav per route — which is what this replaced — made React unmount
+ * one component and mount another, resetting all of that on every link click.
  *
- * It is sticky and visually identical at every scroll position — opaque, no
- * blur, no border that appears on scroll. A bar that restyles itself as the
- * page moves is motion the visitor did not ask for, and the reference does not
- * do it.
+ * It is sticky and visually identical at every scroll position: opaque, no
+ * blur, no border that appears on scroll.
  *
- * This is homepage-only on purpose. The shared `Navbar` still serves every
- * other route under `(home)`, so nothing here changes those pages.
+ * It carries no palette of its own. Inside `.ss-home` it picks up the pinned
+ * dark palette; everywhere else it picks up the same token names from
+ * `globals.css` and follows the visitor's theme.
+ *
+ * The star count arrives as a prop rather than being fetched here: it is read
+ * and cached on the server, so it is already in the HTML on first paint.
  */
-
-const SIGN_IN_URL = "/login";
-
-type NavLink = { name: string; href: string; external?: boolean };
-type NavMenuItem = NavLink & { description: string };
-
-const LINKS: NavLink[] = [
-	{ name: "Connectors", href: "/connectors" },
-	{ name: "Docs", href: "/docs" },
-	{ name: "Pricing", href: "/pricing" },
-];
-
-const RESOURCES: NavMenuItem[] = [
-	{ name: "Blog", href: "/blog", description: "Guides, comparisons and deep dives" },
-	{ name: "Announcements", href: "/announcements", description: "Product news and updates" },
-	{ name: "Changelog", href: "/changelog", description: "What's new in SurfSense" },
-	{ name: "Contact us", href: "/contact", description: "Questions, bugs and feedback" },
-];
 
 function Wordmark() {
 	return (
@@ -52,7 +41,7 @@ function Wordmark() {
 				width={20}
 				height={20}
 				priority
-				className="size-5 select-none invert"
+				className="size-5 select-none dark:invert"
 			/>
 			<span className="text-[0.9375rem] font-semibold tracking-tight text-[color:var(--foreground)]">
 				SurfSense
@@ -61,14 +50,14 @@ function Wordmark() {
 	);
 }
 
-export function HomeNav() {
+export function SiteNav({ starCount, starsHref }: { starCount: number | null; starsHref: string }) {
 	const [menuOpen, setMenuOpen] = useState(false);
 	const [resourcesOpen, setResourcesOpen] = useState(false);
 	const headerRef = useRef<HTMLElement>(null);
 
 	// Escape closes whatever is open; a click outside the header closes the
-	// dropdown. Both match the reference's behaviour and are what a visitor
-	// expects from a menu regardless of how it was opened.
+	// dropdown. Both match what a visitor expects from a menu regardless of how
+	// it was opened.
 	useEffect(() => {
 		if (!menuOpen && !resourcesOpen) {
 			return;
@@ -105,7 +94,7 @@ export function HomeNav() {
 				<Wordmark />
 
 				<nav className="hidden items-center md:flex" aria-label="Main">
-					{LINKS.map((link) => (
+					{NAV_LINKS.map((link) => (
 						<Link key={link.href} href={link.href} className="ss-home-nav-link">
 							{link.name}
 						</Link>
@@ -129,7 +118,7 @@ export function HomeNav() {
 
 						{resourcesOpen ? (
 							<div className="ss-home-nav-panel">
-								{RESOURCES.map((item) => (
+								{NAV_RESOURCES.map((item) => (
 									<Link
 										key={item.href}
 										href={item.href}
@@ -150,11 +139,18 @@ export function HomeNav() {
 				</nav>
 
 				<div className="flex items-center gap-1">
-					{/* The bar's one action is signing in. Downloading is the hero's job:
-					    repeating it here would put two primary calls to action on the
-					    same screen, competing with each other. */}
-					<HomeStars />
+					<SiteStars count={starCount} href={starsHref} />
 
+					{/* Hidden inside `.ss-home`, which pins one palette and so gives the
+					    toggle nothing to switch. Everywhere else it is the only way to
+					    change theme, so it cannot simply be dropped. */}
+					<span className="ss-theme-toggle">
+						<ThemeTogglerComponent />
+					</span>
+
+					{/* The bar's one action is signing in. Downloading is the landing
+					    page's job: repeating it here would put two primary calls to
+					    action on the same screen, competing with each other. */}
 					<Link href={SIGN_IN_URL} className="ss-home-nav-cta">
 						Sign in
 					</Link>
@@ -191,12 +187,12 @@ export function HomeNav() {
 						onClick={closeAll}
 					/>
 
+					{/* No Sign in here: the bar's own button stays visible while the
+					    drawer is open, so repeating it would show the same control
+					    twice on one screen. */}
 					<div className="ss-home-nav-drawer">
-						{/* No Sign in here: the bar's own button stays visible while the
-						    drawer is open, so repeating it would show the same control
-						    twice on one screen. */}
 						<div className="flex flex-col gap-0.5 px-4 py-3">
-							{LINKS.map((link) => (
+							{NAV_LINKS.map((link) => (
 								<Link
 									key={link.href}
 									href={link.href}
@@ -210,7 +206,7 @@ export function HomeNav() {
 							<div className="my-1.5 border-t border-[color:var(--border)]" />
 							<p className="ss-home-eyebrow px-2.5 pt-1 pb-1">Resources</p>
 
-							{RESOURCES.map((item) => (
+							{NAV_RESOURCES.map((item) => (
 								<Link
 									key={item.href}
 									href={item.href}

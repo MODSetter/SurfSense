@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import "./home.css";
 import { HomeLogos } from "@/components/homepage/home/home-logos";
 import { HomeQuestions } from "@/components/homepage/home/home-questions";
 import {
@@ -57,8 +56,8 @@ const APPLICATION_SCHEMA = {
 
 export default function HomePage() {
 	return (
-		// The dark scope and the ruled column are applied by app/(home)/layout.tsx
-		// so that the shared Navbar and FooterNew sit inside them too.
+		// The palette, the ruled column, the navigation and the footer all come
+		// from app/(home)/layout.tsx, which renders them for every site-design route.
 		<>
 			<JsonLd data={APPLICATION_SCHEMA} />
 			<HomeHero />

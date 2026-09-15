@@ -24,6 +24,24 @@
  * border colour so interior rules never double up.
  */
 
+/**
+ * The site column width.
+ *
+ * Declared at the root rather than inside `.ss-home` because the navigation and
+ * footer are now shared: they render on routes that have not been moved onto
+ * this design, where `.ss-home` is absent and a scoped token would resolve to
+ * nothing, leaving the bar full-bleed. The legacy navbar and footer already read
+ * this token with their own fallback, so they follow the same width for free.
+ */
+:root {
+	/* 88rem is what the legacy pages' chrome has always used — it was the
+	 * fallback baked into the old navbar and footer. Keeping it here means
+	 * migrating the navigation changes nothing about the routes that have not
+	 * moved to the site design yet; a narrower bar would read as broken over
+	 * their wider content. `.ss-home` overrides it below. */
+	--home-max: 88rem;
+}
+
 .ss-home {
 	/* Canonical SurfSense palette — the `.dark` block of index.css, pinned. */
 	--app-shell: #101010;
@@ -64,8 +82,11 @@
 	/* Layout rhythm. The column is deliberately narrower than the viewport: long
 	 * measures are hard to read, and the ruled side borders only read as a frame
 	 * when there is ground either side of them. */
-	--home-max: 72rem;
 	--home-gutter: 1.5rem;
+	/* Narrower than the rest of the site: long measures are hard to read, and
+	 * the ruled side borders only read as a frame when there is ground either
+	 * side of them. */
+	--home-max: 72rem;
 
 	background-color: var(--background);
 	color: var(--foreground);
@@ -239,6 +260,138 @@
 	color: var(--home-accent);
 }
 
+/* The early-bird or seat-count line under a price: a qualifier on the figure
+ * above it, so it is tinted with the accent rather than set as body copy. */
+.ss-home-plan-note {
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--home-accent);
+}
+
+/* A tier's headline figure. Tabular so the three cells' prices sit on the same
+ * optical baseline regardless of digit widths. */
+.ss-home-price {
+	font-size: clamp(2rem, 4vw, 2.75rem);
+	line-height: 1;
+	letter-spacing: -0.03em;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--foreground);
+}
+
+/* ---------------------------------------------------------------------------
+ * Pricing tiers
+ *
+ * Three cells of one ruled grid, not three floating cards: the plans meet flush
+ * and are told apart by their ground and their weight, which is the same
+ * language the rest of the page uses.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The tier row.
+ *
+ * Two rows, not three columns of independent cards: the heads share one grid
+ * row and the feature lists share the next, so every tier's call to action sits
+ * on the same line no matter how its billing note wraps. Matching them with a
+ * `min-height` guess instead only holds until one of them wraps to an extra
+ * line at some width.
+ */
+.ss-home-plans {
+	display: grid;
+	gap: 1px;
+	background-color: var(--border);
+}
+
+.ss-home-plans > * {
+	background-color: var(--background);
+	min-width: 0;
+}
+
+.ss-home-plan {
+	display: flex;
+	flex-direction: column;
+}
+
+@media (min-width: 768px) {
+	.ss-home-plans {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+/* Guarded: without subgrid, `grid-row: span 2` would place each tier across two
+ * rows that do not exist and the row would fall apart. Browsers that lack it
+ * keep the flex column above, where the heads simply size themselves. */
+@supports (grid-template-rows: subgrid) {
+	@media (min-width: 768px) {
+		.ss-home-plans {
+			grid-template-rows: auto 1fr;
+		}
+
+		.ss-home-plan {
+			display: grid;
+			grid-row: span 2;
+			grid-template-rows: subgrid;
+		}
+	}
+}
+
+/* Names the recommended tier outright. The tint alone is a weak signal, and it
+ * carries no meaning for anyone who cannot separate two near-neighbour greys. */
+.ss-home-plan-badge {
+	border-radius: 2px;
+	padding: 0.125rem 0.375rem;
+	background-color: var(--home-accent);
+	color: var(--background);
+	font-size: 0.625rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+/* Tints the recommended tier. `.ss-home-plans > *` paints every cell with the
+ * page background, so this needs the extra specificity of the class to win. */
+.ss-home-plan[data-featured] {
+	background-color: var(--secondary);
+}
+
+.ss-home-plan-head {
+	display: flex;
+	flex-direction: column;
+	padding: 2rem var(--home-gutter);
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-plan-features {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.ss-home-plan-features li {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	padding: 0.875rem var(--home-gutter);
+	font-size: 0.875rem;
+	line-height: 1.55;
+	color: var(--muted-foreground);
+}
+
+/* The rule belongs to the row, not to a grid gap, so a tier with five features
+ * ends after five rows instead of stretching them to match a tier with nine. */
+.ss-home-plan-features li + li {
+	border-top: 1px solid var(--border);
+}
+
+.ss-home-plan-check {
+	flex: none;
+	width: 0.875rem;
+	height: 0.875rem;
+	margin-top: 0.3125rem;
+	color: var(--home-accent);
+}
+
 /* ---------------------------------------------------------------------------
  * Hero
  *
@@ -377,10 +530,10 @@
  * ------------------------------------------------------------------------ */
 
 /* Centred and set at reading size rather than as one of the page's left-aligned
- * eyebrows: the cloud below it is a symmetric, full-width band, and an eyebrow
- * pinned to its left edge reads as a label for the left column rather than for
- * the whole grid. */
-.ss-home-logos-label {
+ * eyebrows. Used where the band below is symmetric and full-width — a logo grid,
+ * a list of questions — because an eyebrow pinned to the left edge there reads
+ * as a label for the left column rather than for the whole band. */
+.ss-home-section-label {
 	text-align: center;
 	font-size: 1.125rem;
 	line-height: 1.4;
@@ -390,7 +543,7 @@
 }
 
 @media (min-width: 768px) {
-	.ss-home-logos-label {
+	.ss-home-section-label {
 		font-size: 1.5rem;
 	}
 }
@@ -398,7 +551,7 @@
 /* The emphasised word, lifted out of the muted label onto the palette's light
  * foreground — `--primary` is the cream the canonical dark theme already uses
  * for its highest-contrast type. */
-.ss-home-logos-label-accent {
+.ss-home-section-label-accent {
 	color: var(--primary);
 	font-weight: 600;
 }
@@ -691,10 +844,14 @@
 	outline-offset: -2px;
 }
 
-/* Holds its width before the count arrives and while it is unavailable, so the
- * bar never reflows around it. */
+/* Holds the width of the widest count the formatter can produce, so the bar is
+ * the same size whether the number is there or not.
+ *
+ * Measured rather than guessed: "16.2k" is 32px, "1.2M" 29px, "100k" 28px.
+ * In `rem` rather than `ch`, because `ch` is derived from the font and so
+ * changes again when the webfont swaps in. */
 .ss-home-nav-stars-count {
-	min-width: 2.25ch;
+	min-width: 2rem;
 }
 
 /* The bar's single action. Sized and coloured like the primary button so it
@@ -812,6 +969,14 @@
 	outline-offset: -2px;
 }
 
+/* The palette is pinned inside this scope, so the theme toggle has nothing to
+ * switch here — leaving it would be a control that visibly does nothing. It is
+ * hidden rather than removed from the navigation, because the same navigation
+ * serves the routes that are still theme-aware. */
+.ss-home .ss-theme-toggle {
+	display: none;
+}
+
 /* ---------------------------------------------------------------------------
  * Footer
  *
@@ -890,10 +1055,19 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 1rem;
+	padding: 1.25rem var(--home-gutter);
 	cursor: pointer;
 	list-style: none;
 	font-weight: 500;
 	transition: color 120ms ease-out;
+}
+
+/* The answer fills the row, like every other band on the page. It is already
+ * held to a sensible measure by the ruled column itself, so it needs no cap of
+ * its own — and a `ch` cap here only produced a narrow ribbon of text with the
+ * rest of the row left empty beside it. */
+.ss-home-faq-answer {
+	padding: 0 var(--home-gutter) 1.5rem;
 }
 
 .ss-home-faq-summary::-webkit-details-marker {

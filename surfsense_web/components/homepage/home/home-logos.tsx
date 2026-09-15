@@ -93,8 +93,8 @@ export function HomeLogos() {
 	return (
 		<section className="ss-home-rule" aria-labelledby="ss-home-logos-label">
 			<div className="ss-home-pad pt-12 pb-8">
-				<p id="ss-home-logos-label" className="ss-home-logos-label">
-					Trusted by <span className="ss-home-logos-label-accent">experts</span> at
+				<p id="ss-home-logos-label" className="ss-home-section-label">
+					Trusted by <span className="ss-home-section-label-accent">experts</span> at
 				</p>
 			</div>
 
