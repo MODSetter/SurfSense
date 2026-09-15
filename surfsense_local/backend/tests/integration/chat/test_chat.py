@@ -188,6 +188,31 @@ async def test_title_failure_does_not_block_the_answer(
     assert threads[0]["title"] == "New chat"
 
 
+async def test_a_failed_reply_is_classified_and_leaves_no_trace(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    ollama_server_unauthorized: None,
+) -> None:
+    """A generation failure is classified, not shown raw, and the turn is discarded."""
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened?")
+
+    error = next(event for event in events if event["type"] == "error")
+    assert error["kind"] == "provider_auth"
+    assert "HTTPStatusError" not in error["message"]
+    assert "401" not in error["message"]
+    assert not any(event["type"] == "completed" for event in events)
+    assert not any(event["type"] == "thread-title-update" for event in events)
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored == []
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "New chat"
+
+
 async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> None:
     """Refused before retrieval, so the frontend can route the user to setup."""
     workspace = (await client.post("/workspaces", json={"name": "w"})).json()
