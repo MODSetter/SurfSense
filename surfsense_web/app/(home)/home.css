@@ -1,0 +1,1015 @@
+/**
+ * Homepage-only stylesheet.
+ *
+ * Everything here is scoped to `.ss-home`. The homepage does not read the
+ * semantic tokens in `globals.css`; it declares its own copy of the canonical
+ * SurfSense palette so the page can be restyled without touching any other
+ * route.
+ *
+ * `globals.css` still loads — it is imported by the root `app/layout.tsx` and
+ * carries Tailwind's preflight for the whole site — but nothing on the homepage
+ * depends on the tokens it defines.
+ *
+ * Every value below is copied verbatim from
+ * `surfsense_local/frontend/src/index.css`. No colour is invented here: the
+ * accent is `--chart-1`, which that file already declares in both themes.
+ *
+ * The homepage is deliberately dark-only: it pins the canonical `.dark` values
+ * regardless of the visitor's theme, so the marketing page reads the same for
+ * everyone. Product surfaces remain theme-aware.
+ *
+ * The structure is a port of the reference design in `homepage-reference/`:
+ * one bordered column down the middle of the viewport, sections separated by
+ * hairlines rather than gaps, and cell grids drawn with a 1px gap over the
+ * border colour so interior rules never double up.
+ */
+
+.ss-home {
+	/* Canonical SurfSense palette — the `.dark` block of index.css, pinned. */
+	--app-shell: #101010;
+	--background: #141414;
+	--foreground: #e8e3da;
+	--card: #1c1c1c;
+	--card-foreground: #e8e3da;
+	--popover: #1c1c1c;
+	--popover-foreground: #e8e3da;
+	--primary: #d1cfc0;
+	--primary-foreground: #363636;
+	--secondary: #222222;
+	--secondary-foreground: #d1cfc0;
+	--muted: #2a2a2a;
+	--muted-foreground: #8e8a83;
+	--accent: #363636;
+	--accent-foreground: #d1cfc0;
+	--destructive: #ef4444;
+	--destructive-foreground: #ffffff;
+	--notice: #3f74c8;
+	--border: #2c2c2c;
+	--input: #2c2c2c;
+	--ring: #d1cfc0;
+	--chart-1: #f26a4b;
+	--chart-2: #d9cfc2;
+	--chart-3: #8e8a83;
+	--chart-4: #5c5a56;
+	--chart-5: #3b3b3b;
+	--radius: 0.5rem;
+
+	/* The reference marks its one accent clause, its "ours" table column and its
+	 * forward links in a single warm tone. `--chart-1` is the only warm hue the
+	 * canonical palette carries, and it is identical in both themes, so it is
+	 * the accent here rather than a new token. On `--background` it measures
+	 * 6.1:1, which clears WCAG AA for text at any size. */
+	--home-accent: var(--chart-1);
+
+	/* Layout rhythm. The column is deliberately narrower than the viewport: long
+	 * measures are hard to read, and the ruled side borders only read as a frame
+	 * when there is ground either side of them. */
+	--home-max: 72rem;
+	--home-gutter: 1.5rem;
+
+	background-color: var(--background);
+	color: var(--foreground);
+	color-scheme: dark;
+	-webkit-font-smoothing: antialiased;
+}
+
+@media (min-width: 768px) {
+	.ss-home {
+		--home-gutter: 2.5rem;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Structure
+ *
+ * The reference has no shadows and no rounded sections: it is a grid of
+ * hairline-bordered cells that meet flush. Sections are square; only controls
+ * keep the palette's --radius.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-shell {
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--home-max);
+	border-inline: 1px solid var(--border);
+}
+
+.ss-home-pad {
+	padding-inline: var(--home-gutter);
+}
+
+/* A hairline that separates stacked sections. Applied to every section after
+ * the first, so the rule between two sections is drawn exactly once. */
+.ss-home-rule {
+	border-top: 1px solid var(--border);
+}
+
+/* Section header: an H2 (or eyebrow) and a one-line subtitle, ruled off from
+ * the content it introduces. */
+.ss-home-head {
+	padding: 2rem var(--home-gutter);
+	border-bottom: 1px solid var(--border);
+}
+
+/**
+ * Cell grid.
+ *
+ * Interior rules are drawn by letting the grid's own background show through a
+ * 1px gap, rather than by giving each cell a border. With borders, two adjacent
+ * cells each contribute one line and the interior rule renders 2px; this way
+ * every rule is a true hairline and the outer edge stays clean.
+ */
+.ss-home-grid {
+	display: grid;
+	gap: 1px;
+	background-color: var(--border);
+}
+
+.ss-home-grid > * {
+	background-color: var(--background);
+	min-width: 0;
+}
+
+@media (min-width: 640px) {
+	.ss-home-grid-2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 768px) {
+	.ss-home-grid-3 {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+/* A cell that spans the full width of a two-column grid. */
+.ss-home-grid-wide {
+	grid-column: 1 / -1;
+}
+
+.ss-home-cell {
+	padding: 2rem var(--home-gutter);
+}
+
+/* Two halves of a section, split by a vertical hairline on wide screens and
+ * stacked with a horizontal one when narrow. */
+.ss-home-split {
+	display: grid;
+	gap: 1px;
+	background-color: var(--border);
+}
+
+.ss-home-split > * {
+	background-color: var(--background);
+	min-width: 0;
+}
+
+@media (min-width: 1024px) {
+	.ss-home-split {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* The prose half of a split: vertically centred against the cells opposite. */
+.ss-home-statement {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: 3rem var(--home-gutter);
+}
+
+@media (min-width: 1024px) {
+	.ss-home-statement {
+		padding-block: 4rem;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Type
+ *
+ * Negative tracking on display sizes, near-zero on body — type that changes
+ * shape with size rather than one tracking value everywhere.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-display {
+	font-size: clamp(2.25rem, 6vw, 3.75rem);
+	line-height: 1.05;
+	letter-spacing: -0.03em;
+	font-weight: 600;
+	text-wrap: balance;
+}
+
+.ss-home-h2 {
+	font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+	line-height: 1.15;
+	letter-spacing: -0.025em;
+	font-weight: 600;
+	text-wrap: balance;
+}
+
+.ss-home-h3 {
+	font-size: 1.125rem;
+	line-height: 1.35;
+	letter-spacing: -0.01em;
+	font-weight: 600;
+}
+
+.ss-home-lede {
+	font-size: clamp(1rem, 1.6vw, 1.25rem);
+	line-height: 1.6;
+	color: var(--muted-foreground);
+	text-wrap: pretty;
+}
+
+.ss-home-body {
+	line-height: 1.65;
+	color: var(--muted-foreground);
+	text-wrap: pretty;
+}
+
+.ss-home-eyebrow {
+	font-size: 0.6875rem;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	font-weight: 500;
+	color: var(--muted-foreground);
+}
+
+.ss-home-accent {
+	color: var(--home-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Hero
+ *
+ * The reference paints two blurred, clipped polygons behind the headline —
+ * one above, one below — rather than a plain radial wash. Both are decorative,
+ * sit behind everything on their own stacking context, and never take pointer
+ * events.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-hero {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	padding-block: clamp(5rem, 14vh, 8rem);
+}
+
+.ss-home-blob-wrap {
+	pointer-events: none;
+	position: absolute;
+	inset-inline: 0;
+	z-index: -1;
+	overflow: hidden;
+	transform: translateZ(0);
+	filter: blur(64px);
+}
+
+.ss-home-blob-wrap[data-pos="top"] {
+	top: -10rem;
+}
+
+.ss-home-blob-wrap[data-pos="bottom"] {
+	top: calc(100% - 13rem);
+}
+
+.ss-home-blob {
+	position: relative;
+	left: 50%;
+	aspect-ratio: 1155 / 678;
+	width: 36rem;
+	translate: -50% 0;
+	opacity: 0.14;
+	background-image: linear-gradient(
+		to top right,
+		color-mix(in oklab, var(--home-accent) 25%, var(--background)),
+		var(--home-accent)
+	);
+	clip-path: polygon(
+		74.1% 44.1%,
+		100% 61.6%,
+		97.5% 26.9%,
+		85.5% 0.1%,
+		80.7% 2%,
+		72.5% 32.5%,
+		60.2% 62.4%,
+		52.4% 68.1%,
+		47.5% 58.3%,
+		45.2% 34.5%,
+		27.5% 76.7%,
+		0.1% 64.9%,
+		17.9% 100%,
+		27.6% 76.8%,
+		76.1% 97.7%,
+		74.1% 44.1%
+	);
+}
+
+.ss-home-blob-wrap[data-pos="top"] .ss-home-blob {
+	rotate: 30deg;
+}
+
+@media (min-width: 640px) {
+	.ss-home-blob-wrap[data-pos="top"] {
+		top: -20rem;
+	}
+
+	.ss-home-blob-wrap[data-pos="bottom"] {
+		top: calc(100% - 24rem);
+	}
+
+	.ss-home-blob {
+		width: 72rem;
+	}
+
+	.ss-home-blob-wrap[data-pos="top"] .ss-home-blob {
+		left: calc(50% - 18rem);
+	}
+
+	.ss-home-blob-wrap[data-pos="bottom"] .ss-home-blob {
+		left: calc(50% + 20rem);
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Decorated cell
+ *
+ * The reference's widest bento cell carries a pattern bled in from the right
+ * and faded out towards the copy, so the artwork never sits behind text. The
+ * pattern is drawn in CSS rather than loaded as an SVG: it is a hairline grid
+ * in the same border colour as every rule on the page, which is the texture
+ * the reference is after, and it costs no request.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-figure {
+	pointer-events: none;
+	user-select: none;
+	position: absolute;
+	inset-block: 0;
+	right: 0;
+	width: 55%;
+	background-image:
+		linear-gradient(to right, var(--border) 1px, transparent 1px),
+		linear-gradient(to bottom, var(--border) 1px, transparent 1px);
+	background-size: 2rem 2rem;
+	/* Fades out towards the copy on the left and off the top and bottom edges,
+	 * so the grid never reads as a box drawn inside the cell. */
+	-webkit-mask-image:
+		linear-gradient(to left, #000, transparent 85%),
+		linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
+	mask-image:
+		linear-gradient(to left, #000, transparent 85%),
+		linear-gradient(to bottom, transparent, #000 30%, #000 70%, transparent);
+	-webkit-mask-composite: source-in;
+	mask-composite: intersect;
+}
+
+/* ---------------------------------------------------------------------------
+ * Logo cloud
+ *
+ * A fixed 4 x 2 stack of cells holding twenty marks, so each cell stacks its
+ * share and cross-fades between them.
+ *
+ * The cross-fade is keyframes on stacked images rather than a timer swapping
+ * `src`, which keeps every logo and its alt text in the markup at once. Cells
+ * hold two or three marks, so they drift out of step rather than flipping
+ * together.
+ * ------------------------------------------------------------------------ */
+
+/* Centred and set at reading size rather than as one of the page's left-aligned
+ * eyebrows: the cloud below it is a symmetric, full-width band, and an eyebrow
+ * pinned to its left edge reads as a label for the left column rather than for
+ * the whole grid. */
+.ss-home-logos-label {
+	text-align: center;
+	font-size: 1.125rem;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	font-weight: 500;
+	color: var(--muted-foreground);
+}
+
+@media (min-width: 768px) {
+	.ss-home-logos-label {
+		font-size: 1.5rem;
+	}
+}
+
+/* The emphasised word, lifted out of the muted label onto the palette's light
+ * foreground — `--primary` is the cream the canonical dark theme already uses
+ * for its highest-contrast type. */
+.ss-home-logos-label-accent {
+	color: var(--primary);
+	font-weight: 600;
+}
+
+@property --logo-blur {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+/* The marks are taken out of flow so they can stack, so the cell needs a height
+ * of its own. */
+.ss-home-logo-card {
+	min-height: 6.5rem;
+}
+
+@media (min-width: 768px) {
+	.ss-home-logo-card {
+		min-height: 7.5rem;
+	}
+}
+
+/* Registration marks at the interior corners. Dim: they are grid notation, not
+ * content, and should not out-weigh the logos they sit between. */
+.ss-home-logo-plus {
+	/* `--border` is tuned to read as a hairline across a whole edge; at a 1px
+	 * stroke over six pixels it disappears entirely, so the mark is mixed up
+	 * from the text colour instead. */
+	color: color-mix(in oklab, var(--muted-foreground) 60%, transparent);
+}
+
+.ss-home-logo {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	translate: -50% -50%;
+	height: 2.5rem;
+	width: auto;
+	max-width: calc(100% - 2rem);
+	object-fit: contain;
+	/* Inverted by default: most of these marks are drawn dark, and several have
+	 * paths with no fill at all, which renders as black. Desaturating keeps the
+	 * row from competing with the headline; inverting rather than flattening
+	 * keeps the interior drawing of a crest readable. */
+	--logo-tone: grayscale(1) invert(1) brightness(1.05);
+	/* `filter` is a single property, so the colour treatment and the blur the
+	 * keyframes drive have to compose here rather than fight over it. */
+	filter: var(--logo-tone) blur(var(--logo-blur, 0px));
+	opacity: 0;
+	animation-delay: calc(var(--slot) * 4s);
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+	animation-fill-mode: both;
+}
+
+/* Artwork that is already light needs no inversion — it would go black. */
+.ss-home-logo[data-light] {
+	--logo-tone: grayscale(1) brightness(1.1);
+}
+
+/* One cycle gives every mark the same four seconds on screen, so a cell of two
+ * runs an eight-second loop and a cell of three a twelve-second one. */
+.ss-home-logo[data-slots="2"] {
+	animation-name: ss-home-logo-cycle-2;
+	animation-duration: 8s;
+}
+
+.ss-home-logo[data-slots="3"] {
+	animation-name: ss-home-logo-cycle-3;
+	animation-duration: 12s;
+}
+
+@keyframes ss-home-logo-cycle-2 {
+	0% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	5% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	45% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	50% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	100% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+}
+
+@keyframes ss-home-logo-cycle-3 {
+	0% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	3.5% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	29.8% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	33.333% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	100% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+}
+
+/* Hovering a cell holds whatever is in it. The old carousel's real problem was
+ * that a visitor could not stop a logo that was about to leave; this gives them
+ * the control back. */
+.ss-home-logo-card:hover .ss-home-logo,
+.ss-home-logo-card:focus-within .ss-home-logo {
+	animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* biome-ignore-start lint/complexity/noImportantStyles: the page-wide
+	 * reduced-motion kill switch below forces `animation-duration` with
+	 * !important, which would snap these to their final keyframe — opacity 0 —
+	 * and blank every logo. Stopping the animation by name and painting the
+	 * first mark of each cell is the only way to outrank it. The remaining marks
+	 * stay in the markup, so nothing is removed from the page's content. */
+	.ss-home-logo {
+		animation-name: none !important;
+		opacity: 0;
+	}
+
+	.ss-home-logo[data-first] {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	/* biome-ignore-end lint/complexity/noImportantStyles: see above */
+}
+
+/* ---------------------------------------------------------------------------
+ * Comparison table
+ * ------------------------------------------------------------------------ */
+
+.ss-home-table-scroll {
+	overflow-x: auto;
+}
+
+.ss-home-table-scroll:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+.ss-home-table {
+	width: 100%;
+	min-width: 40rem;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.ss-home-table th,
+.ss-home-table td {
+	padding: 1rem 1.25rem;
+	text-align: left;
+	vertical-align: middle;
+}
+
+.ss-home-table th:first-child,
+.ss-home-table td:first-child {
+	padding-inline-start: var(--home-gutter);
+	width: 11rem;
+}
+
+.ss-home-table thead tr,
+.ss-home-table tbody tr + tr {
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-table tbody tr {
+	border-top: 1px solid var(--border);
+}
+
+.ss-home-table thead th {
+	font-weight: 500;
+	color: var(--muted-foreground);
+}
+
+.ss-home-table tbody th {
+	font-weight: 400;
+	color: var(--muted-foreground);
+}
+
+.ss-home-table td {
+	color: var(--foreground);
+}
+
+/* The SurfSense column is the one being argued for. */
+.ss-home-table [data-col="ours"] {
+	color: var(--home-accent);
+	font-weight: 600;
+}
+
+.ss-home-table thead [data-col="ours"] {
+	color: var(--foreground);
+	font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+ * Navbar
+ *
+ * Sticky, and visually unchanged by scrolling: the bar is painted with the
+ * page background at every scroll position, with no blur and no translucency,
+ * so nothing behind it shows through and nothing shifts as the page moves.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-nav {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	background-color: var(--background);
+}
+
+.ss-home-nav-bar {
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--home-max);
+	display: flex;
+	height: 3.25rem;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding-inline: 1rem;
+	border-inline: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-nav-link {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	border-radius: 2px;
+	padding: 0.375rem 0.625rem;
+	font-size: 0.8125rem;
+	color: var(--secondary-foreground);
+	transition:
+		background-color 100ms ease-out,
+		color 100ms ease-out;
+}
+
+.ss-home-nav-link:hover {
+	background-color: var(--accent);
+	color: var(--accent-foreground);
+}
+
+.ss-home-nav-link:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* Star count. Reads as a quiet piece of evidence next to the action beside it,
+ * so it is given the bar's link treatment rather than a button's. */
+.ss-home-nav-stars {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	border-radius: 2px;
+	padding: 0.375rem 0.5rem;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	color: var(--muted-foreground);
+	transition:
+		background-color 100ms ease-out,
+		color 100ms ease-out;
+}
+
+.ss-home-nav-stars:hover {
+	background-color: var(--accent);
+	color: var(--accent-foreground);
+}
+
+.ss-home-nav-stars:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* Holds its width before the count arrives and while it is unavailable, so the
+ * bar never reflows around it. */
+.ss-home-nav-stars-count {
+	min-width: 2.25ch;
+}
+
+/* The bar's single action. Sized and coloured like the primary button so it
+ * reads as the same control at a smaller scale, but square-cornered like every
+ * other edge in the bar. */
+.ss-home-nav-cta {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.25rem;
+	border-radius: 2px;
+	padding: 0.375rem 0.75rem;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	background-color: var(--primary);
+	color: var(--primary-foreground);
+	transition: background-color 100ms ease-out;
+}
+
+.ss-home-nav-cta:hover {
+	background-color: color-mix(in oklab, var(--primary) 85%, var(--background));
+}
+
+.ss-home-nav-cta:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Mobile drawer
+ *
+ * Positioned against the sticky bar rather than placed in the flow, so opening
+ * the menu lays it over the page instead of pushing every section down and
+ * back up again. `.ss-home-nav` is sticky, which makes it the containing block
+ * for both of these.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-nav-drawer {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	z-index: 1;
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--home-max);
+	max-height: calc(100vh - 100%);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	background-color: var(--background);
+	border-inline: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-nav-scrim {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	height: 100vh;
+	width: 100%;
+	border: 0;
+	padding: 0;
+	background-color: color-mix(in oklab, var(--app-shell) 60%, transparent);
+	cursor: default;
+}
+
+@media (min-width: 768px) {
+	.ss-home-nav-drawer,
+	.ss-home-nav-scrim {
+		display: none;
+	}
+}
+
+/* The mobile menu toggle. Hidden with a media query rather than Tailwind's
+ * `md:hidden`, because the rules in this file are unlayered and outrank the
+ * layered utility — the utility would lose and the toggle would show on every
+ * width. */
+.ss-home-nav-toggle {
+	display: flex;
+}
+
+@media (min-width: 768px) {
+	.ss-home-nav-toggle {
+		display: none;
+	}
+}
+
+.ss-home-nav-panel {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	margin-top: 0.625rem;
+	width: 16rem;
+	overflow: hidden;
+	border-radius: 2px;
+	border: 1px solid var(--border);
+	background-color: var(--popover);
+	color: var(--popover-foreground);
+}
+
+.ss-home-nav-item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.125rem;
+	padding: 0.75rem 0.875rem;
+	transition: background-color 100ms ease-out;
+}
+
+.ss-home-nav-item:hover {
+	background-color: var(--accent);
+}
+
+.ss-home-nav-item:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Footer
+ *
+ * Part of the page, not chrome around it: it sits inside the same ruled column
+ * as every section above, so the side borders run unbroken from the hero to
+ * the wordmark.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-footer-link {
+	color: var(--muted-foreground);
+	font-size: 0.875rem;
+	transition: color 100ms ease-out;
+}
+
+.ss-home-footer-link:hover {
+	color: var(--foreground);
+}
+
+.ss-home-footer-link:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* The oversized wordmark that closes the page. It is decorative type: the
+ * gradient fades it into the ground so it reads as a watermark rather than as
+ * a heading, and it is not selectable. */
+.ss-home-wordmark {
+	margin: 0;
+	padding-block: 2rem 0;
+	text-align: center;
+	font-size: clamp(3.5rem, 19vw, 14rem);
+	line-height: 0.9;
+	font-weight: 700;
+	letter-spacing: -0.06em;
+	user-select: none;
+	background-image: linear-gradient(to bottom, var(--border), transparent);
+	background-clip: text;
+	-webkit-background-clip: text;
+	color: transparent;
+}
+
+/* ---------------------------------------------------------------------------
+ * Shared auth control
+ *
+ * `SignInButton` hardcodes a white pill (`bg-white`, `rounded-full`,
+ * `text-[#1f1f1f]`) and is also rendered on /login and /register, so restyling
+ * the component would reach past this page. These scoped overrides restyle it
+ * only where the landing shell applies, using its existing stable hooks.
+ * ------------------------------------------------------------------------ */
+
+.ss-home .runtime-auth-local,
+.ss-home .runtime-auth-google {
+	border-radius: var(--radius);
+	border-color: var(--border);
+	background-color: transparent;
+	color: var(--foreground);
+	box-shadow: none;
+}
+
+.ss-home .runtime-auth-local:hover,
+.ss-home .runtime-auth-google:hover {
+	background-color: var(--accent);
+	color: var(--accent-foreground);
+}
+
+/* ---------------------------------------------------------------------------
+ * FAQ
+ *
+ * Native details/summary: no client JS, keyboard operable by default, and the
+ * answers are in the markup for crawlers rather than behind a state toggle.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-faq-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	cursor: pointer;
+	list-style: none;
+	font-weight: 500;
+	transition: color 120ms ease-out;
+}
+
+.ss-home-faq-summary::-webkit-details-marker {
+	display: none;
+}
+
+.ss-home-faq-summary:hover {
+	color: var(--home-accent);
+}
+
+.ss-home-faq-summary:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 4px;
+}
+
+/* A plus that becomes a minus. The rotation is decorative; the open state is
+ * already exposed by details/summary itself, so assistive technology and a
+ * reduced-motion visitor both still get the state. */
+.ss-home-faq-marker {
+	position: relative;
+	flex: none;
+	width: 0.75rem;
+	height: 0.75rem;
+}
+
+.ss-home-faq-marker::before,
+.ss-home-faq-marker::after {
+	content: "";
+	position: absolute;
+	inset: 50% 0 auto;
+	height: 1px;
+	background: currentColor;
+	transition: transform 150ms ease-out;
+}
+
+.ss-home-faq-marker::after {
+	transform: rotate(90deg);
+}
+
+.ss-home-faq[open] .ss-home-faq-marker::after {
+	transform: rotate(0deg);
+}
+
+/* ---------------------------------------------------------------------------
+ * Links
+ * ------------------------------------------------------------------------ */
+
+.ss-home-link {
+	color: var(--home-accent);
+	text-underline-offset: 0.25em;
+	text-decoration-line: underline;
+	text-decoration-color: color-mix(in oklab, var(--home-accent) 40%, transparent);
+	transition-property: color, text-decoration-color;
+	transition-duration: 120ms;
+	transition-timing-function: ease-out;
+}
+
+.ss-home-link:hover {
+	text-decoration-color: currentColor;
+}
+
+.ss-home-link:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* The reference's forward link: accent, no underline, an arrow that is not
+ * the only thing carrying the meaning. */
+.ss-home-forward {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--home-accent);
+	transition: color 100ms ease-out;
+}
+
+.ss-home-forward:hover {
+	color: color-mix(in oklab, var(--home-accent) 75%, #ffffff);
+}
+
+.ss-home-forward:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion
+ *
+ * The homepage is a read-only marketing surface: no gestures, nothing
+ * interruptible. Transitions are short, on colour only, and every one of them
+ * is also carried by a non-motion cue.
+ * ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+	.ss-home *,
+	.ss-home *::before,
+	.ss-home *::after {
+		/* biome-ignore-start lint/complexity/noImportantStyles: a reduced-motion
+		 * kill switch has to outrank the Tailwind utility that set the duration
+		 * in the first place. Without !important the utility wins and the
+		 * preference is silently ignored. Nothing here removes a state cue —
+		 * colour, the FAQ open state and focus rings are all unaffected. */
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		/* biome-ignore-end lint/complexity/noImportantStyles: see above */
+	}
+}
+
+@media (prefers-contrast: more) {
+	.ss-home {
+		--border: #5c5a56;
+		--muted-foreground: #d1cfc0;
+	}
+}
