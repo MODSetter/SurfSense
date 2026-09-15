@@ -5,8 +5,9 @@ from collections.abc import AsyncIterator
 
 from fastapi import APIRouter, HTTPException, Request, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy.orm import Session
 
-from api.dependencies import SessionDep
+from api.dependencies import SessionDep, transact
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.recommendations.catalog import (
     InsufficientDiskError,
@@ -43,13 +44,16 @@ async def recommendation_catalog(
     session: SessionDep,
     refresh: bool = False,
 ):
-    selected = session.get(SelectedModel, ModelRole.GENERATION)
-    selected_key = (
-        (selected.provider, selected.name)
-        if selected is not None and selected.connection_id is None
-        else None
-    )
+    selected_key = await transact(session, _selected_local_model)
     return await service.catalog(selected=selected_key, refresh=refresh)
+
+
+def _selected_local_model(session: Session) -> tuple[str, str] | None:
+    """The chosen generation model, if it is a local one the catalog can mark."""
+    selected = session.get(SelectedModel, ModelRole.GENERATION)
+    if selected is None or selected.connection_id is not None:
+        return None
+    return selected.provider, selected.name
 
 
 @router.post("/install", summary="Install and optionally select a catalog model")
@@ -123,7 +127,6 @@ async def install_model(
                         runtime.name,
                         plan.model_name,
                     )
-                    session.commit()
                     selection = SelectionRead.model_validate(selection).model_dump(
                         mode="json"
                     )

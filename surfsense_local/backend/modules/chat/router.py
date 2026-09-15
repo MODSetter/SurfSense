@@ -7,8 +7,9 @@ from datetime import UTC, datetime
 from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
-from api.dependencies import SessionDep
+from api.dependencies import SessionDep, transact
 from modules.chat.dependencies import ThreadDep
 from modules.chat.history import build_messages
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
@@ -22,9 +23,13 @@ from modules.chat.schemas import (
 )
 from modules.chat.title import generate_title
 from modules.llm.activity import ModelBusyError, model_activity, model_key
-from modules.llm.resolution import ModelResolutionError, resolve_generation
+from modules.llm.resolution import (
+    ModelResolutionError,
+    ResolvedGeneration,
+    resolve_generation,
+)
 from modules.workspaces.dependencies import WorkspaceDep
-from shared.search import retrieve
+from shared.search import Hit, retrieve
 
 router = APIRouter(tags=["chat"])
 logger = logging.getLogger(__name__)
@@ -98,62 +103,25 @@ def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
 async def send_message(
     thread: ThreadDep, payload: MessageCreate, session: SessionDep
 ) -> StreamingResponse:
-    try:
-        resolved = resolve_generation(session)
-    except ModelResolutionError as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    resolved, history, hits = await transact(session, _ground, thread, payload)
     selected = resolved.selection
     generator = resolved.generator
-    # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
-    from worker.ingestion.embedding import missing_embedding_files
-
-    if missing_embedding_files():
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE,
-            "local embedding model is not installed; "
-            "run `uv run scripts/fetch_embedding_model.py`",
-        )
-
-    # History is the turns already stored; the new user turn is appended after.
-    history = session.scalars(
-        select(ChatMessage)
-        .where(ChatMessage.chat_thread_id == thread.id)
-        .order_by(ChatMessage.created_at)
-    ).all()
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
-    )
-    hits = retrieve(
-        session,
-        thread.workspace_id,
-        payload.text,
-        document_ids=payload.document_ids,
     )
     context, citations = build_context(hits)
     messages = build_messages(context, history, payload.text)
 
-    activity_key = model_key(
-        selected.provider, selected.name, selected.connection_id
-    )
+    activity_key = model_key(selected.provider, selected.name, selected.connection_id)
     try:
         await model_activity.acquire_use(activity_key)
     except ModelBusyError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     try:
-        user_message = ChatMessage(
-            chat_thread_id=thread.id,
-            role=MessageRole.USER,
-            content={"text": payload.text},
+        # The IDs are the stable identities the client uses throughout the stream.
+        user_message, assistant_message = await transact(
+            session, _open_turn, thread, payload.text
         )
-        assistant_message = ChatMessage(
-            chat_thread_id=thread.id,
-            role=MessageRole.ASSISTANT,
-            content={"text": "", "citations": []},
-        )
-        session.add_all((user_message, assistant_message))
-        # Do not hold a write transaction open while the model generates. The IDs
-        # are also the stable identities the client uses throughout the stream.
-        session.commit()
         user_created_at = _iso(user_message.created_at)
     except Exception:
         await model_activity.release_use(activity_key)
@@ -181,8 +149,7 @@ async def send_message(
             try:
                 title = await generate_title(generator, selected.name, payload.text)
                 if title:
-                    thread.title = title
-                    session.commit()
+                    await transact(session, _rename, thread, title)
                     yield _frame({"type": "thread-title-update", "title": title})
             except Exception:
                 session.rollback()
@@ -203,10 +170,7 @@ async def send_message(
             # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
             answer, used = resolve_citations("".join(parts), citations)
             cited = [asdict(citation) for citation in used]
-            assistant_message.content = {"text": answer, "citations": cited}
-            assistant_message.completed_at = datetime.now(UTC)
-            session.commit()
-            session.refresh(assistant_message, attribute_names=["completed_at"])
+            await transact(session, _complete, assistant_message, answer, cited)
             assistant_completed_at = _iso(assistant_message.completed_at)
 
         if cited:
@@ -240,6 +204,66 @@ async def _release_model_after(
             yield frame
     finally:
         await model_activity.release_use(key)
+
+
+# The stream's session work, each piece one short transaction off the event loop.
+
+
+def _ground(
+    session: Session, thread: ChatThread, payload: MessageCreate
+) -> tuple[ResolvedGeneration, Sequence[ChatMessage], list[Hit]]:
+    """The model to answer with, the turns so far, and the passages to cite."""
+    try:
+        resolved = resolve_generation(session)
+    except ModelResolutionError as error:
+        raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+    # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
+    from worker.ingestion.embedding import missing_embedding_files
+
+    if missing_embedding_files():
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            "local embedding model is not installed; "
+            "run `uv run scripts/fetch_embedding_model.py`",
+        )
+    # History is the turns already stored; the new user turn is appended after.
+    history = session.scalars(
+        select(ChatMessage)
+        .where(ChatMessage.chat_thread_id == thread.id)
+        .order_by(ChatMessage.created_at)
+    ).all()
+    hits = retrieve(
+        session, thread.workspace_id, payload.text, document_ids=payload.document_ids
+    )
+    return resolved, history, hits
+
+
+def _open_turn(
+    session: Session, thread: ChatThread, text: str
+) -> tuple[ChatMessage, ChatMessage]:
+    user_message = ChatMessage(
+        chat_thread_id=thread.id, role=MessageRole.USER, content={"text": text}
+    )
+    assistant_message = ChatMessage(
+        chat_thread_id=thread.id,
+        role=MessageRole.ASSISTANT,
+        content={"text": "", "citations": []},
+    )
+    session.add_all((user_message, assistant_message))
+    session.flush()
+    session.refresh(user_message)  # created_at is server-side; load it here
+    return user_message, assistant_message
+
+
+def _rename(_session: Session, thread: ChatThread, title: str) -> None:
+    thread.title = title
+
+
+def _complete(
+    _session: Session, message: ChatMessage, answer: str, cited: list[dict]
+) -> None:
+    message.content = {"text": answer, "citations": cited}
+    message.completed_at = datetime.now(UTC)
 
 
 def _iso(instant: datetime) -> str:

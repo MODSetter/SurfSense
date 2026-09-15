@@ -72,6 +72,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
         ]
         # Options were checked at job creation; only formats that take them get them.
         extras = [meta.get("options")] if fmt.validate_options else []
+        # Generation runs for minutes; the write lock must not be held across it.
+        session.commit()
 
         built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
 

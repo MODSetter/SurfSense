@@ -2,14 +2,10 @@ import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
-from modules.egress import service as egress
+from api.dependencies import transact
 from modules.llm.connections import discover_models
-from modules.llm.models import (
-    ModelRole,
-    OnboardingCompletion,
-    ProviderConnection,
-    SelectedModel,
-)
+from modules.llm.connections.router import allowed_connection
+from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider
 
 
@@ -39,6 +35,18 @@ async def choose_model(
             f"unknown provider: {provider_name}",
         )
 
+    return await transact(
+        session, _store, role, provider_name, connection_id, model_name
+    )
+
+
+def _store(
+    session: Session,
+    role: ModelRole,
+    provider_name: str,
+    connection_id: int | None,
+    model_name: str,
+) -> SelectedModel:
     selected = session.get(SelectedModel, role)
     if selected is None:
         selected = SelectedModel(
@@ -53,6 +61,8 @@ async def choose_model(
         selected.connection_id = connection_id
         selected.name = model_name
     session.flush()
+    # updated_at is set by the database; load it here rather than lazily on the loop.
+    session.refresh(selected)
     return selected
 
 
@@ -112,10 +122,7 @@ async def _validate_remote(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "remote selections require a connection",
         )
-    connection = session.get(ProviderConnection, connection_id)
-    if connection is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
-    egress.require(session, egress.host_destination(connection.base_url))
+    connection = await transact(session, allowed_connection, connection_id)
     try:
         models = await discover_models(connection)
     except (httpx.HTTPError, ValueError) as error:

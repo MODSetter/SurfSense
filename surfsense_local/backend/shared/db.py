@@ -1,4 +1,6 @@
+import asyncio
 import enum
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, ClassVar
@@ -98,8 +100,31 @@ def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     cursor.close()
 
 
+# The API sets this for the span of one request. Waiting for the write lock on
+# the event loop would stall every request, including the one about to release
+# it, so a transaction opened there is a programming error, not a slow path.
+serving_request: ContextVar[bool] = ContextVar("serving_request", default=False)
+
+
+def _on_event_loop() -> bool:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
+
+
 def _begin(connection: Connection) -> None:
-    connection.exec_driver_sql("BEGIN")
+    if serving_request.get() and _on_event_loop():
+        raise RuntimeError(
+            "SQLite transaction opened on the event loop; "
+            "run session work through api.dependencies.transact"
+        )
+    # Take the write lock up front: a read-then-write transaction then waits on
+    # busy_timeout instead of failing at once with SQLITE_BUSY_SNAPSHOT. The
+    # price is that no transaction may stay open across a slow call (a model,
+    # a probe, a stream), which is what the guard above and transact() enforce.
+    connection.exec_driver_sql("BEGIN IMMEDIATE")
 
 
 def create_db_engine(path: Path) -> Engine:

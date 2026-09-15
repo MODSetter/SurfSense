@@ -1,3 +1,5 @@
+import asyncio
+
 import pytest
 from httpx import AsyncClient
 
@@ -55,6 +57,36 @@ async def test_connection_update_distinguishes_omitted_and_null_secret(
     assert preserved.json()["has_api_key"] is True
     cleared = await client.put(endpoint, json={**common, "api_key": None})
     assert cleared.json()["has_api_key"] is False
+
+
+async def test_model_discovery_does_not_hold_the_write_lock(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A slow remote probe must not stall the app: the handler ends its
+    transaction before the network call, so another request writes meanwhile."""
+    connection = await _connect(client, openai_server)
+    probing, answered = asyncio.Event(), asyncio.Event()
+
+    async def slow_discovery(_connection: object) -> list:
+        probing.set()
+        await answered.wait()
+        return []
+
+    monkeypatch.setattr(
+        "modules.llm.connections.router.discover_models", slow_discovery
+    )
+    discovery = asyncio.create_task(
+        client.get(f"/llm/connections/{connection['id']}/models")
+    )
+    await probing.wait()
+
+    # Were the lock still held, this would wait out busy_timeout (5s) and fail.
+    written = await asyncio.wait_for(
+        client.post("/workspaces", json={"name": "meanwhile"}), timeout=2
+    )
+    assert written.status_code == 201
+    answered.set()
+    assert (await discovery).status_code == 200
 
 
 async def test_openai_compatible_chat_streams_standard_deltas(
