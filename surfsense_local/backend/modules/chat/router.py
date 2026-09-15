@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.chat.dependencies import ThreadDep
+from modules.chat.errors import classify_chat_error
 from modules.chat.history import build_messages
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
@@ -129,8 +130,8 @@ async def send_message(
 
     async def stream() -> AsyncIterator[bytes]:
         parts: list[str] = []
-        cited: list[dict] = []
-        assistant_completed_at: str | None = None
+        failed = False
+        title: str | None = None
         yield _frame(
             {
                 "type": "accepted",
@@ -149,7 +150,9 @@ async def send_message(
             try:
                 title = await generate_title(generator, selected.name, payload.text)
                 if title:
-                    await transact(session, _rename, thread, title)
+                    # Shown optimistically; the rename only commits below if
+                    # this turn ends up with a real reply, keeping a thread
+                    # from staying renamed with nothing in it after a reload.
                     yield _frame({"type": "thread-title-update", "title": title})
             except Exception:
                 session.rollback()
@@ -158,20 +161,49 @@ async def send_message(
                     thread.id,
                     exc_info=True,
                 )
+        cited: list[dict] = []
+        answer = ""
+        assistant_completed_at: str | None = None
         try:
             try:
                 async for delta in generator.chat(selected.name, messages):
                     parts.append(delta)
                     yield _frame({"type": "delta", "text": delta})
             except Exception as exc:
-                # Surfaced as an event; the partial turn is still stored below.
-                yield _frame({"type": "error", "message": str(exc)})
+                # Surfaced as an event; a turn with no content at all is
+                # discarded below rather than left as an empty, unexplained
+                # reply. `finally` still runs on a client disconnect (that
+                # raises outside Exception), so a partial reply is never lost.
+                kind, message = classify_chat_error(exc, selected.provider)
+                yield _frame(
+                    {
+                        "type": "error",
+                        "kind": kind,
+                        "message": message,
+                        "provider": selected.provider,
+                    }
+                )
+                failed = True
         finally:
-            # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
-            answer, used = resolve_citations("".join(parts), citations)
-            cited = [asdict(citation) for citation in used]
-            await transact(session, _complete, assistant_message, answer, cited)
-            assistant_completed_at = _iso(assistant_message.completed_at)
+            if failed and not parts:
+                await transact(
+                    session, _discard_turn, user_message, assistant_message
+                )
+            else:
+                # A turn worth keeping: commit the deferred rename alongside
+                # it, so a thread is never renamed unless it ends up with a
+                # real first reply.
+                if should_generate_title and title:
+                    await transact(session, _rename, thread, title)
+                # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
+                answer, used = resolve_citations("".join(parts), citations)
+                cited = [asdict(citation) for citation in used]
+                await transact(session, _complete, assistant_message, answer, cited)
+                assistant_completed_at = _iso(assistant_message.completed_at)
+
+        if failed and not parts:
+            yield _DONE
+            return
 
         if cited:
             yield _frame({"type": "citations", "items": cited})
@@ -257,6 +289,14 @@ def _open_turn(
 
 def _rename(_session: Session, thread: ChatThread, title: str) -> None:
     thread.title = title
+
+
+def _discard_turn(
+    session: Session, user_message: ChatMessage, assistant_message: ChatMessage
+) -> None:
+    """A turn that produced no content at all leaves no trace, not a blank reply."""
+    session.delete(assistant_message)
+    session.delete(user_message)
 
 
 def _complete(
