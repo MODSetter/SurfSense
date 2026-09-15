@@ -29,10 +29,15 @@ def _freeze(spec: str, tmp_path: Path) -> Path:
     name = spec.removesuffix(".spec")
     subprocess.run(
         [
-            sys.executable, "-m", "PyInstaller", str(BUNDLING / spec),
+            sys.executable,
+            "-m",
+            "PyInstaller",
+            str(BUNDLING / spec),
             "--noconfirm",
-            "--distpath", str(tmp_path / "dist"),
-            "--workpath", str(tmp_path / "build"),
+            "--distpath",
+            str(tmp_path / "dist"),
+            "--workpath",
+            str(tmp_path / "build"),
         ],
         cwd=BACKEND,
         check=True,
@@ -100,12 +105,12 @@ def test_worker_binary_starts(tmp_path: Path) -> None:
     )
     assert "vision imports OK" in vision.stdout
 
-    proc = subprocess.Popen([str(binary)], env=_env(tmp_path))
-    try:
-        # A dropped hidden import crashes the consumer on startup; staying up for
-        # a few seconds is the binary importing its tasks without error.
-        time.sleep(5)
-        assert proc.poll() is None, f"worker binary exited with {proc.returncode}"
-    finally:
-        proc.terminate()
-        proc.wait(timeout=10)
+    # A dropped hidden import crashes a consumer at startup; staying up is the proof.
+    for queue in ("ingest", "studio"):
+        proc = subprocess.Popen([str(binary), queue], env=_env(tmp_path))
+        try:
+            time.sleep(5)
+            assert proc.poll() is None, f"{queue} worker exited with {proc.returncode}"
+        finally:
+            proc.terminate()
+            proc.wait(timeout=10)

@@ -1,4 +1,5 @@
 import json
+import time
 from collections.abc import Iterator
 
 import pytest
@@ -511,6 +512,50 @@ def test_a_write_during_generation_does_not_lock_the_job_out(
     session.expire_all()
     assert artifact.document.status is DocumentStatus.READY
     assert artifact.document.content == SUMMARY
+
+
+def test_studio_threads_persist_side_by_side_with_a_busy_api(
+    session: Session, engine: Engine, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The studio consumer runs STUDIO_WORKERS jobs at once on the one SQLite
+    file the API writes to; every job must land, none may hit a lock error."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    from worker.consumer import STUDIO_WORKERS
+
+    artifacts = [make_artifact(session) for _ in range(STUDIO_WORKERS * 2)]
+    ids = [artifact.id for artifact in artifacts]
+    workspace_id = artifacts[0].workspace_id
+
+    def slow_model(*_args: object, **_kwargs: object) -> str:
+        time.sleep(0.05)  # long enough for the other threads to be persisting
+        return SUMMARY
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", slow_model)
+
+    def api_keeps_writing() -> None:
+        for n in range(40):
+            with create_session_factory(engine)() as other:
+                other.add(
+                    Document(
+                        workspace_id=workspace_id,
+                        title=f"typed {n}",
+                        document_type=DocumentType.NOTE,
+                        status=DocumentStatus.READY,
+                        content="a chat turn",
+                    )
+                )
+                other.commit()
+
+    with ThreadPoolExecutor(STUDIO_WORKERS + 1) as pool:
+        api = pool.submit(api_keeps_writing)
+        jobs = [pool.submit(run, artifact_id) for artifact_id in ids]
+        for job in jobs:
+            job.result()  # raises OperationalError if a lock timed out
+        api.result()
+
+    session.expire_all()
+    assert all(a.document.status is DocumentStatus.READY for a in artifacts)
 
 
 def test_a_generation_failure_leaves_a_reason(

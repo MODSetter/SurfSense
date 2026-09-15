@@ -39,7 +39,8 @@ cd backend
 uv sync
 uv run scripts/fetch_embedding_model.py  # one-time local retrieval model
 uv run main.py                # API on http://127.0.0.1:8000
-uv run worker.py              # consumer; uploads stay pending without it
+uv run worker.py ingest       # consumer; uploads stay pending without it
+uv run worker.py studio       # consumer; Studio jobs stay pending without it
 uv run pytest
 ```
 
@@ -60,13 +61,14 @@ first (`op.get_bind()`, `sa.inspect`) rather than assuming its shape.
 
 ## Architecture
 
-Electron spawns two Python sidecars. The UI only talks HTTP to the API; heavy work is queued to a single serial worker.
+Electron spawns three Python sidecars: the API and one worker per queue. The UI only talks HTTP to the API; heavy work is queued. Ingestion is CPU-bound and runs one job at a time; Studio mostly waits on a model and runs four at once, so an import never sits in front of a summary.
 
 ```text
-Electron ─┬─> FastAPI (127.0.0.1)  ──> surfsense.db
-          └─> Huey worker (-w 1)   ──> surfsense.db, huey.db
-                                   └─> Docling, embeddings
-Vite SPA  ───> FastAPI                 Ollama / llama.cpp
+Electron ─┬─> FastAPI (127.0.0.1)        ──> surfsense.db
+          ├─> Huey worker ingest (-w 1)  ──> surfsense.db, huey.db
+          │                              └─> Docling, embeddings
+          └─> Huey worker studio (-w 4)  ──> surfsense.db, huey.db
+Vite SPA  ───> FastAPI                       Ollama / llama.cpp
 ```
 
 | Path | Contents |

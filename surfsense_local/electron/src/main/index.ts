@@ -101,7 +101,12 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   }
 
   // ollamaSpec is null in dev (the developer runs their own `ollama serve`)
-  const specs = [apiSpec(ctx), workerSpec(ctx), ollamaSpec(ctx)].filter(
+  const specs = [
+    apiSpec(ctx),
+    workerSpec(ctx, "ingest"),
+    workerSpec(ctx, "studio"),
+    ollamaSpec(ctx),
+  ].filter(
     (s): s is SidecarSpec => s !== null
   )
   sidecars = startAll(specs, onSidecarCrash)

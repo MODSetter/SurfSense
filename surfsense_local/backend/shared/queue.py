@@ -6,9 +6,12 @@ _settings = get_storage_settings()
 # SqliteHuey opens the file as it is constructed.
 _settings.data_dir.mkdir(parents=True, exist_ok=True)
 
-# Its own file: the consumer polls constantly, and would otherwise hold the
-# write lock against the database serving requests.
-huey = SqliteHuey(filename=str(_settings.queue_path))
+# Its own file: constant polling must not hold the write lock on the database.
+_QUEUE_FILE = str(_settings.queue_path)
+
+# One queue per consumer, so an import never queues ahead of a summary.
+ingest_queue = SqliteHuey(name="ingest", filename=_QUEUE_FILE)
+studio_queue = SqliteHuey(name="studio", filename=_QUEUE_FILE)
 
 
 def import_tasks() -> None:
