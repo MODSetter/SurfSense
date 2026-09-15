@@ -168,6 +168,16 @@
 	grid-column: 1 / -1;
 }
 
+/* A trailing filler cell that completes an otherwise incomplete last row of
+ * the three-column grid (used where the item count is not a multiple of 3) —
+ * an empty `.ss-home-grid` cell has no element to paint the background over,
+ * so it shows the grid's own border colour instead. */
+@media (min-width: 768px) {
+	.ss-home-grid-span-2 {
+		grid-column: span 2;
+	}
+}
+
 .ss-home-cell {
 	padding: 2rem var(--home-gutter);
 }
@@ -347,6 +357,22 @@
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	white-space: nowrap;
+}
+
+/* A standalone status pill, for a claim that sits above a heading rather than
+ * inline with one, like the plan badge above. Tinted rather than outlined or
+ * filled: it reads as a state, not as the accent's one emphasis clause. */
+.ss-home-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	padding: 0.375rem 0.875rem;
+	background-color: color-mix(in oklab, var(--home-accent) 12%, transparent);
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--home-accent);
 }
 
 /* Tints the recommended tier. `.ss-home-plans > *` paints every cell with the
@@ -1143,6 +1169,42 @@
 	outline: 2px solid var(--ring);
 	outline-offset: 2px;
 	border-radius: 2px;
+}
+
+/* A grid cell that is itself the link, for a plain list of tiles that all lead
+ * somewhere (the plugins list). The background swap on hover is the same cue
+ * `.ss-home-logo-card` uses; the arrow's nudge repeats `.ss-home-forward`'s
+ * language at cell scale. */
+.ss-home-cell-link {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	color: inherit;
+	transition: background-color 100ms ease-out;
+}
+
+.ss-home-cell-link:hover,
+.ss-home-cell-link:focus-visible {
+	background-color: var(--secondary);
+}
+
+.ss-home-cell-link:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+.ss-home-cell-link-arrow {
+	margin-left: auto;
+	color: var(--muted-foreground);
+	transition:
+		transform 150ms ease-out,
+		color 100ms ease-out;
+}
+
+.ss-home-cell-link:hover .ss-home-cell-link-arrow,
+.ss-home-cell-link:focus-visible .ss-home-cell-link-arrow {
+	transform: translate(0.125rem, -0.125rem);
+	color: var(--home-accent);
 }
 
 /* ---------------------------------------------------------------------------

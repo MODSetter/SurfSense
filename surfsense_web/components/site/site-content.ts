@@ -15,7 +15,7 @@ export type SiteLink = { name: string; href: string; external?: boolean };
 export type SiteMenuItem = SiteLink & { description: string };
 
 export const NAV_LINKS: SiteLink[] = [
-	{ name: "Connectors", href: "/connectors" },
+	{ name: "Plugins", href: "/plugins" },
 	{ name: "Docs", href: "/docs" },
 	{ name: "Pricing", href: "/pricing" },
 ];
@@ -34,7 +34,7 @@ export const FOOTER_COLUMNS: { heading: string; links: FooterLink[] }[] = [
 		heading: "Product",
 		links: [
 			{ title: "Download", href: DOWNLOADS_URL },
-			{ title: "Connectors", href: "/connectors" },
+			{ title: "Plugins", href: "/plugins" },
 			{ title: "Pricing", href: "/pricing" },
 			{ title: "Docs", href: "/docs" },
 		],

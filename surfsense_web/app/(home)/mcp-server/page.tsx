@@ -211,7 +211,7 @@ export default function McpServerPage() {
 							<BreadcrumbNav
 								className="mb-6"
 								items={[
-									{ name: "Connectors", href: "/connectors" },
+									{ name: "Plugins", href: "/plugins" },
 									{ name: "SurfSense MCP Server", href: "/mcp-server" },
 								]}
 							/>
@@ -397,7 +397,7 @@ export default function McpServerPage() {
 
 							<nav aria-label="Other connectors" className="flex flex-wrap justify-center gap-2">
 								<Button asChild variant="ghost" size="sm">
-									<Link href="/connectors">All connectors</Link>
+									<Link href="/plugins">All plugins</Link>
 								</Button>
 								<Button asChild variant="ghost" size="sm">
 									<Link href="/external-mcp-connectors">External MCP Connectors</Link>

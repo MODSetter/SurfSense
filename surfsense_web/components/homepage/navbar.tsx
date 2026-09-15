@@ -78,7 +78,7 @@ export const Navbar = ({ scrolledBgClassName }: NavbarProps = {}) => {
 	const [isScrolled, setIsScrolled] = useState(false);
 
 	const navItems: NavItem[] = [
-		{ name: "Connectors", link: "/connectors" },
+		{ name: "Plugins", link: "/plugins" },
 		{ name: "Pricing", link: "/pricing" },
 		{ name: "Contact\u00A0Us", link: "/contact" },
 	];

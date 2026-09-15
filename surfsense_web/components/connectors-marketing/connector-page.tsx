@@ -67,7 +67,7 @@ export function ConnectorPage({ content }: { content: ConnectorPageContent }) {
 						<BreadcrumbNav
 							className="mb-6"
 							items={[
-								{ name: "Connectors", href: "/connectors" },
+								{ name: "Plugins", href: "/plugins" },
 								{ name: content.name, href: `/${content.slug}` },
 							]}
 						/>
