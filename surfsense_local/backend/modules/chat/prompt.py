@@ -4,8 +4,8 @@ from dataclasses import dataclass
 
 from shared.search import Hit
 
-# Same contract as the cloud chat: the model copies a visible [n], the server
-# rewrites it to [citation:<chunk_id>] for the renderer.
+# The model copies a visible [n]; the server rewrites it to
+# [citation:<chunk_id>] for the renderer.
 INSTRUCTION = (
     "Answer the question using the sources in the context below.\n"
     "Cite with one token: the bracket label [n].\n"
@@ -38,7 +38,7 @@ _TAGS = re.compile(
 )
 
 # Fenced (```...```) and inline (`...`) code, so citation-shaped examples remain
-# literal. Mirrors the frontend Markdown renderer and the cloud normalizer.
+# literal. Mirrors the frontend Markdown renderer.
 _CODE = re.compile(r"```[\s\S]*?```|`[^`\n]+`")
 # Citation wrapper first so `[citation:1]` is not eaten as a trailing `[1]`.
 _TOKEN = re.compile(r"\[citation:\s*(\d+)\s*\]|\[\s*(\d+)\s*\]")
@@ -59,9 +59,9 @@ class Citation:
 def build_context(hits: list[Hit]) -> tuple[str, list[Citation]]:
     """The grounding system message and the citations its ids point at.
 
-    Hits become `[n]`-labelled excerpts grouped by document, matching the cloud
-    retrieved_context block. The model cites `[n]`; resolve_citations rewrites
-    those to `[citation:<chunk_id>]`. No hits leaves the instruction alone.
+    Hits become `[n]`-labelled excerpts grouped by document. The model cites
+    `[n]`; resolve_citations rewrites those to `[citation:<chunk_id>]`. No hits
+    leaves the instruction alone.
     """
     if not hits:
         return INSTRUCTION, []

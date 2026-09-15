@@ -71,7 +71,7 @@ async def test_the_same_bytes_are_not_ingested_twice(
 async def test_a_different_file_of_the_same_name_is_kept(
     client: AsyncClient, workspace_id: int
 ) -> None:
-    """Cloud keys dedup on the filename, so report.pdf could be uploaded once, ever."""
+    """Dedup is on content, not filename: two different report.pdf files both land."""
     await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
         files={"files": ("report.pdf", b"%PDF-january", "application/pdf")},

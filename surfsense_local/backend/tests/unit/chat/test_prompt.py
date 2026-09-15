@@ -21,7 +21,7 @@ def _hit(chunk_id: int, document_id: int, lines: tuple[int, int], title: str) ->
 
 
 def test_each_hit_becomes_a_numbered_source() -> None:
-    """N hits produce N [n] labels grouped by document, like the cloud context."""
+    """N hits produce N [n] labels grouped by document."""
     context, citations = build_context(
         [_hit(10, 42, (1, 4), "Report.pdf"), _hit(11, 7, (9, 20), 'Q3 "notes"')]
     )
