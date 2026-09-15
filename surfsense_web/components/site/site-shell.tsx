@@ -37,6 +37,10 @@ const SITE_DESIGN_ROUTES = new Set([
 	"/blog",
 	"/license",
 	"/license/success",
+	"/downloads",
+	"/changelog",
+	"/announcements",
+	"/login",
 	...getAllConnectorSlugs().map((slug) => `/${slug}`),
 ]);
 
@@ -92,7 +96,7 @@ export function SiteShell({
 				// unbroken from the top of the page to the footer panel.
 				<div className="ss-home-shell">
 					{children}
-					<SiteFooter />
+					{!isAuthPage ? <SiteFooter /> : null}
 				</div>
 			) : (
 				<>
