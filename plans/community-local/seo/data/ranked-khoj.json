@@ -1,0 +1,1709 @@
+{
+  "id": "09150134-1766-0381-0000-70ad75db530f",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "total_count": 15,
+  "items": [
+    {
+      "keyword_data": {
+        "keyword": "khoj",
+        "keyword_info": {
+          "last_updated_time": "2026-08-22 07:06:28 +00:00",
+          "competition": 0.01,
+          "competition_level": "LOW",
+          "search_volume": 1300,
+          "low_top_of_page_bid": 3,
+          "high_top_of_page_bid": 27.74,
+          "categories": [
+            10108,
+            13691
+          ],
+          "monthly_searches": {
+            "2026-07": 880,
+            "2026-06": 880,
+            "2026-05": 1000,
+            "2026-04": 1000,
+            "2026-03": 1000,
+            "2026-02": 1600,
+            "2026-01": 1900,
+            "2025-12": 3600,
+            "2025-11": 2400,
+            "2025-10": 1300,
+            "2025-09": 1000,
+            "2025-08": 720
+          },
+          "search_volume_trend": {
+            "quarterly": -12,
+            "yearly": 22
+          }
+        },
+        "keyword_properties": {
+          "synonym_clustering_algorithm": "text_processing",
+          "keyword_difficulty": 29,
+          "detected_language": "tr",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khoj&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "people_also_ask",
+            "related_searches",
+            "knowledge_graph",
+            "google_reviews",
+            "images"
+          ],
+          "se_results_count": 97,
+          "last_updated_time": "2026-08-01 03:55:41 +00:00",
+          "previous_updated_time": "2026-05-19 00:20:56 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 982.4,
+          "dofollow": 363.5,
+          "referring_pages": 874.7,
+          "referring_domains": 105.7,
+          "referring_main_domains": 99.3,
+          "rank": 136.8,
+          "main_domain_rank": 571.9,
+          "last_updated_time": "2026-08-01 03:55:41 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-29 12:55:20 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 2,
+          "rank_absolute": 2,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Khoj is an applied artificial intelligence company. We're a tiny team of hackers doing applied research and building safe, useful ai software for humans.",
+          "highlighted": [
+            "Khoj is an applied artificial intelligence company"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 210.6,
+          "rank_changes": {
+            "previous_rank_absolute": 2
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 333,
+            "main_domain_rank": 299
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khoj&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "related_searches",
+          "knowledge_graph",
+          "google_reviews",
+          "images"
+        ],
+        "se_results_count": 97,
+        "keyword_difficulty": 29,
+        "last_updated_time": "2026-08-01 03:55:41 +00:00",
+        "previous_updated_time": "2026-05-19 00:20:56 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "skej",
+        "keyword_info": {
+          "last_updated_time": "2026-08-29 00:46:29 +00:00",
+          "competition": 0.12,
+          "competition_level": "LOW",
+          "cpc": 0.9,
+          "search_volume": 260,
+          "low_top_of_page_bid": 0.46,
+          "high_top_of_page_bid": 6.87,
+          "categories": [
+            10016,
+            10141,
+            11029
+          ],
+          "monthly_searches": {
+            "2026-07": 210,
+            "2026-06": 210,
+            "2026-05": 260,
+            "2026-04": 320,
+            "2026-03": 320,
+            "2026-02": 390,
+            "2026-01": 320,
+            "2025-12": 260,
+            "2025-11": 260,
+            "2025-10": 260,
+            "2025-09": 260,
+            "2025-08": 320
+          },
+          "search_volume_trend": {
+            "quarterly": -19,
+            "yearly": -34
+          }
+        },
+        "keyword_properties": {
+          "detected_language": "sk",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=skej&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "related_searches",
+            "knowledge_graph",
+            "google_reviews"
+          ],
+          "se_results_count": 99,
+          "last_updated_time": "2026-07-05 01:00:47 +00:00",
+          "previous_updated_time": "2026-05-23 10:46:16 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 43.8,
+          "dofollow": 42.8,
+          "referring_pages": 43,
+          "referring_domains": 1.4,
+          "referring_main_domains": 1.3,
+          "rank": 42.2,
+          "main_domain_rank": 620.2,
+          "last_updated_time": "2026-07-05 01:01:26 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-29 22:29:44 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 37,
+          "rank_absolute": 40,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Your AI co-worker. Research, create, and automate. Assign tasks, track progress, and get polished deliverables - all running safely on your computer. Khoj app. Read more",
+          "highlighted": [
+            "Your AI co-worker"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 0.546,
+          "estimated_paid_traffic_cost": 0.491,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 330,
+            "main_domain_rank": 300
+          }
+        },
+        "check_url": "https://www.google.com/search?q=skej&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "related_searches",
+          "knowledge_graph",
+          "google_reviews"
+        ],
+        "se_results_count": 99,
+        "last_updated_time": "2026-07-05 01:00:47 +00:00",
+        "previous_updated_time": "2026-05-23 10:46:16 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "keiji ai",
+        "keyword_info": {
+          "last_updated_time": "2026-08-25 02:45:19 +00:00",
+          "competition": 0.1,
+          "competition_level": "LOW",
+          "cpc": 21.95,
+          "search_volume": 170,
+          "low_top_of_page_bid": 4.44,
+          "high_top_of_page_bid": 10.11,
+          "categories": [
+            10013,
+            13417,
+            13518,
+            13663
+          ],
+          "monthly_searches": {
+            "2026-07": 140,
+            "2026-06": 110,
+            "2026-05": 170,
+            "2026-04": 210,
+            "2026-03": 210,
+            "2026-02": 260,
+            "2026-01": 260,
+            "2025-12": 140,
+            "2025-11": 140,
+            "2025-10": 140,
+            "2025-09": 140,
+            "2025-08": 110
+          },
+          "search_volume_trend": {
+            "monthly": 27,
+            "quarterly": -18,
+            "yearly": 27
+          }
+        },
+        "keyword_properties": {
+          "detected_language": "fr",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=keiji%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "related_searches",
+            "images"
+          ],
+          "se_results_count": 140,
+          "last_updated_time": "2026-07-09 06:45:14 +00:00",
+          "previous_updated_time": "2026-05-26 11:58:35 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 7.4,
+          "dofollow": 6.4,
+          "referring_pages": 7.1,
+          "referring_domains": 2.8,
+          "referring_main_domains": 2.7,
+          "rank": 15.6,
+          "main_domain_rank": 640.8,
+          "last_updated_time": "2026-07-09 06:48:25 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-28 13:45:49 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 53,
+          "rank_absolute": 58,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Khoj is an applied artificial intelligence company building safe, useful AI software for humans.",
+          "highlighted": [
+            "artificial intelligence",
+            "AI"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 0.357,
+          "estimated_paid_traffic_cost": 7.836,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 330,
+            "main_domain_rank": 300
+          }
+        },
+        "check_url": "https://www.google.com/search?q=keiji%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 140,
+        "last_updated_time": "2026-07-09 06:45:14 +00:00",
+        "previous_updated_time": "2026-05-26 11:58:35 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "khoj ai",
+        "keyword_info": {
+          "last_updated_time": "2026-08-28 20:06:38 +00:00",
+          "competition": 0.05,
+          "competition_level": "LOW",
+          "search_volume": 110,
+          "low_top_of_page_bid": 2.4,
+          "high_top_of_page_bid": 13.77,
+          "categories": [
+            10013,
+            10109,
+            13560
+          ],
+          "monthly_searches": {
+            "2026-07": 70,
+            "2026-06": 90,
+            "2026-05": 140,
+            "2026-04": 140,
+            "2026-03": 170,
+            "2026-02": 170,
+            "2026-01": 110,
+            "2025-12": 110,
+            "2025-11": 110,
+            "2025-10": 110,
+            "2025-09": 140,
+            "2025-08": 70
+          },
+          "search_volume_trend": {
+            "monthly": -22,
+            "quarterly": -50
+          }
+        },
+        "keyword_properties": {
+          "synonym_clustering_algorithm": "text_processing",
+          "keyword_difficulty": 16,
+          "detected_language": "it",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khoj%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "people_also_ask",
+            "related_searches"
+          ],
+          "se_results_count": 96,
+          "last_updated_time": "2026-07-13 06:30:23 +00:00",
+          "previous_updated_time": "2026-05-01 19:10:57 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 766.6,
+          "dofollow": 279.4,
+          "referring_pages": 660.6,
+          "referring_domains": 81.8,
+          "referring_main_domains": 76.5,
+          "rank": 114.6,
+          "main_domain_rank": 627.6,
+          "last_updated_time": "2026-07-13 06:30:24 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-28 06:20:01 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 1,
+          "rank_absolute": 1,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Khoj app. Your AI second brain. Build agents, schedule automations, and research across your docs and the web. Turn any AI model into your personal assistant.",
+          "highlighted": [
+            "Khoj",
+            "AI"
+          ],
+          "links": [
+            {
+              "type": "link_element",
+              "title": "Khoj Cloud",
+              "url": "https://app.khoj.dev/"
+            },
+            {
+              "type": "link_element",
+              "title": "Desktop",
+              "url": "https://docs.khoj.dev/clients/desktop/"
+            },
+            {
+              "type": "link_element",
+              "title": "Docs",
+              "url": "https://docs.khoj.dev/"
+            },
+            {
+              "type": "link_element",
+              "title": "Self-Host",
+              "url": "https://docs.khoj.dev/get-started/setup/"
+            },
+            {
+              "type": "link_element",
+              "title": "Get Started",
+              "url": "https://docs.khoj.dev/category/get-started/"
+            }
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 33.44,
+          "rank_changes": {
+            "previous_rank_absolute": 1
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 331,
+            "main_domain_rank": 300
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khoj%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 96,
+        "keyword_difficulty": 16,
+        "last_updated_time": "2026-07-13 06:30:23 +00:00",
+        "previous_updated_time": "2026-05-01 19:10:57 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "khoj-ai",
+        "keyword_info": {
+          "last_updated_time": "2026-08-18 19:03:27 +00:00",
+          "competition": 0.05,
+          "competition_level": "LOW",
+          "search_volume": 110,
+          "low_top_of_page_bid": 2.4,
+          "high_top_of_page_bid": 13.77,
+          "categories": [
+            10013,
+            10109,
+            13560
+          ],
+          "monthly_searches": {
+            "2026-07": 70,
+            "2026-06": 90,
+            "2026-05": 140,
+            "2026-04": 140,
+            "2026-03": 170,
+            "2026-02": 170,
+            "2026-01": 110,
+            "2025-12": 110,
+            "2025-11": 110,
+            "2025-10": 110,
+            "2025-09": 140,
+            "2025-08": 70
+          },
+          "search_volume_trend": {
+            "monthly": -22,
+            "quarterly": -50
+          }
+        },
+        "keyword_properties": {
+          "core_keyword": "khoj ai",
+          "synonym_clustering_algorithm": "text_processing",
+          "keyword_difficulty": 15,
+          "detected_language": "ro",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khoj-ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "people_also_ask",
+            "video",
+            "related_searches"
+          ],
+          "se_results_count": 95,
+          "last_updated_time": "2026-07-13 06:21:12 +00:00",
+          "previous_updated_time": "2026-02-17 03:13:13 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 766.6,
+          "dofollow": 279.4,
+          "referring_pages": 660.6,
+          "referring_domains": 81.8,
+          "referring_main_domains": 76.5,
+          "rank": 114.6,
+          "main_domain_rank": 607.2,
+          "last_updated_time": "2026-07-13 06:21:12 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-28 13:46:40 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 1,
+          "rank_absolute": 1,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Khoj app. Your AI second brain. Build agents, schedule automations, and research across your docs and the web. Turn any AI model into your personal assistant.",
+          "highlighted": [
+            "Khoj",
+            "AI"
+          ],
+          "links": [
+            {
+              "type": "link_element",
+              "title": "Khoj Cloud",
+              "url": "https://app.khoj.dev/"
+            },
+            {
+              "type": "link_element",
+              "title": "Desktop",
+              "url": "https://docs.khoj.dev/clients/desktop/"
+            },
+            {
+              "type": "link_element",
+              "title": "Docs",
+              "url": "https://docs.khoj.dev/"
+            },
+            {
+              "type": "link_element",
+              "title": "Self-Host",
+              "url": "https://docs.khoj.dev/get-started/setup/"
+            },
+            {
+              "type": "link_element",
+              "title": "Get Started",
+              "url": "https://docs.khoj.dev/category/get-started/"
+            }
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 33.44,
+          "rank_changes": {
+            "previous_rank_absolute": 1
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 331,
+            "main_domain_rank": 300
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khoj-ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 95,
+        "keyword_difficulty": 15,
+        "last_updated_time": "2026-07-13 06:21:12 +00:00",
+        "previous_updated_time": "2026-02-17 03:13:13 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "koji: ai",
+        "keyword_info": {
+          "last_updated_time": "2026-08-21 02:53:47 +00:00",
+          "competition": 0.07,
+          "competition_level": "LOW",
+          "cpc": 8.53,
+          "search_volume": 110,
+          "low_top_of_page_bid": 5.7,
+          "high_top_of_page_bid": 88.79,
+          "categories": [
+            10013,
+            10015,
+            10016,
+            10141
+          ],
+          "monthly_searches": {
+            "2026-07": 70,
+            "2026-06": 260,
+            "2026-05": 720,
+            "2026-04": 50,
+            "2026-03": 20,
+            "2026-02": 30,
+            "2026-01": 50,
+            "2025-12": 30,
+            "2025-11": 40,
+            "2025-10": 20,
+            "2025-09": 20,
+            "2025-08": 20
+          },
+          "search_volume_trend": {
+            "monthly": -73,
+            "quarterly": -90,
+            "yearly": 250
+          }
+        },
+        "keyword_properties": {
+          "core_keyword": "koji ai",
+          "synonym_clustering_algorithm": "text_processing",
+          "keyword_difficulty": 8,
+          "detected_language": "bs",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=koji%3A%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "ai_overview",
+            "perspectives",
+            "related_searches"
+          ],
+          "se_results_count": 114,
+          "last_updated_time": "2026-06-16 05:47:09 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 575.7,
+          "dofollow": 242.3,
+          "referring_pages": 490.2,
+          "referring_domains": 82.1,
+          "referring_main_domains": 76,
+          "rank": 89.6,
+          "main_domain_rank": 520.4,
+          "last_updated_time": "2026-06-16 05:47:13 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-05-26 01:40:15 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 10,
+          "rank_absolute": 13,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj AI",
+          "description": "Your AI co-worker. Research, create, and automate. Assign tasks, track progress, and get polished deliverables - all running safely on your computer. Khoj app. Read more",
+          "highlighted": [
+            "Your AI co-worker"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 1.243,
+          "estimated_paid_traffic_cost": 10.603,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 329,
+            "main_domain_rank": 300
+          }
+        },
+        "check_url": "https://www.google.com/search?q=koji%3A%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 114,
+        "keyword_difficulty": 8,
+        "last_updated_time": "2026-06-16 05:47:09 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "khodai",
+        "keyword_info": {
+          "last_updated_time": "2026-08-29 04:09:36 +00:00",
+          "competition": 0,
+          "competition_level": "LOW",
+          "search_volume": 90,
+          "categories": [
+            10002,
+            10231,
+            13475
+          ],
+          "monthly_searches": {
+            "2026-07": 70,
+            "2026-06": 70,
+            "2026-05": 70,
+            "2026-04": 90,
+            "2026-03": 110,
+            "2026-02": 90,
+            "2026-01": 90,
+            "2025-12": 90,
+            "2025-11": 70,
+            "2025-10": 90,
+            "2025-09": 70,
+            "2025-08": 70
+          }
+        },
+        "keyword_properties": {
+          "detected_language": "vi",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khodai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "related_searches",
+            "knowledge_graph",
+            "google_reviews",
+            "third_party_reviews",
+            "images"
+          ],
+          "se_results_count": 229000,
+          "last_updated_time": "2026-07-15 19:16:06 +00:00",
+          "previous_updated_time": "2026-05-28 20:45:42 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 2.1,
+          "dofollow": 1.2,
+          "referring_pages": 1.5,
+          "referring_domains": 1,
+          "referring_main_domains": 0.9,
+          "rank": 34.9,
+          "main_domain_rank": 531.5,
+          "last_updated_time": "2026-07-15 19:16:10 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-29 15:45:19 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 84,
+          "rank_absolute": 98,
+          "domain": "docs.khoj.dev",
+          "title": "Khoj AI: Overview",
+          "url": "https://docs.khoj.dev/",
+          "breadcrumb": "https://docs.khoj.dev",
+          "website_name": "Khoj Documentation",
+          "description": "Introduction​. Welcome to the Khoj Docs! This is the best place to get setup and explore Khoj's features. Khoj is an open source, personal AI; You can chat ... Read more",
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 0.189,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 120,
+            "referring_main_domains": 112,
+            "referring_pages": 207,
+            "dofollow": 182,
+            "backlinks": 240,
+            "time_update": "2026-09-01 04:26:53 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 230,
+            "main_domain_rank": 299
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khodai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "related_searches",
+          "knowledge_graph",
+          "google_reviews",
+          "third_party_reviews",
+          "images"
+        ],
+        "se_results_count": 229000,
+        "last_updated_time": "2026-07-15 19:16:06 +00:00",
+        "previous_updated_time": "2026-05-28 20:45:42 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "openai proxy",
+        "keyword_info": {
+          "last_updated_time": "2026-08-17 23:47:39 +00:00",
+          "competition": 0.13,
+          "competition_level": "LOW",
+          "cpc": 5.75,
+          "search_volume": 90,
+          "low_top_of_page_bid": 1.8,
+          "high_top_of_page_bid": 5.64,
+          "categories": [
+            10019,
+            10168,
+            10885,
+            13114
+          ],
+          "monthly_searches": {
+            "2026-07": 90,
+            "2026-06": 70,
+            "2026-05": 90,
+            "2026-04": 110,
+            "2026-03": 110,
+            "2026-02": 90,
+            "2026-01": 70,
+            "2025-12": 90,
+            "2025-11": 70,
+            "2025-10": 110,
+            "2025-09": 90,
+            "2025-08": 110
+          },
+          "search_volume_trend": {
+            "monthly": 29,
+            "yearly": -36
+          }
+        },
+        "keyword_properties": {
+          "synonym_clustering_algorithm": "text_processing",
+          "detected_language": "en"
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=openai%20proxy&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "ai_overview",
+            "people_also_ask",
+            "related_searches"
+          ],
+          "se_results_count": 105,
+          "last_updated_time": "2026-07-15 09:31:00 +00:00",
+          "previous_updated_time": "2026-05-28 00:42:48 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 9.6,
+          "dofollow": 2.1,
+          "referring_pages": 9.6,
+          "referring_domains": 9.5,
+          "referring_main_domains": 9.5,
+          "rank": 12,
+          "main_domain_rank": 614.3,
+          "last_updated_time": "2026-07-15 09:32:08 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "navigational",
+          "last_updated_time": "2026-04-29 19:25:02 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 22,
+          "rank_absolute": 26,
+          "domain": "docs.khoj.dev",
+          "title": "Use OpenAI Proxy",
+          "url": "https://docs.khoj.dev/advanced/use-openai-proxy/",
+          "breadcrumb": "https://docs.khoj.dev › ... › Use OpenAI Proxy",
+          "website_name": "Khoj Documentation",
+          "description": "Khoj can use any OpenAI API compatible server including local providers like Ollama, LMStudio and LiteLLM and commercial providers like HuggingFace, OpenRouter ... Read more",
+          "highlighted": [
+            "Khoj can use any OpenAI API compatible server"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/advanced/use-openai-proxy/",
+          "etv": 0.198,
+          "estimated_paid_traffic_cost": 1.138,
+          "rank_changes": {
+            "previous_rank_absolute": 18,
+            "is_down": true
+          },
+          "backlinks_info": {
+            "referring_domains": 6,
+            "referring_main_domains": 6,
+            "referring_pages": 6,
+            "dofollow": 3,
+            "backlinks": 6,
+            "time_update": "2026-09-01 03:52:17 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 146,
+            "main_domain_rank": 299
+          }
+        },
+        "check_url": "https://www.google.com/search?q=openai%20proxy&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 105,
+        "last_updated_time": "2026-07-15 09:31:00 +00:00",
+        "previous_updated_time": "2026-05-28 00:42:48 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "kaaj ai",
+        "keyword_info": {
+          "last_updated_time": "2026-08-21 21:30:17 +00:00",
+          "competition": 0.34,
+          "competition_level": "MEDIUM",
+          "search_volume": 70,
+          "low_top_of_page_bid": 7.73,
+          "high_top_of_page_bid": 23.69,
+          "categories": [
+            10108,
+            13691
+          ],
+          "monthly_searches": {
+            "2026-07": 40,
+            "2026-06": 70,
+            "2026-05": 110,
+            "2026-04": 70,
+            "2026-03": 70,
+            "2026-02": 50,
+            "2026-01": 70,
+            "2025-12": 70,
+            "2025-11": 110,
+            "2025-10": 50,
+            "2025-09": 90,
+            "2025-08": 50
+          },
+          "search_volume_trend": {
+            "monthly": -43,
+            "quarterly": -64,
+            "yearly": 33
+          }
+        },
+        "keyword_properties": {
+          "keyword_difficulty": 4,
+          "detected_language": "it",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=kaaj%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "related_searches"
+          ],
+          "se_results_count": 135,
+          "last_updated_time": "2026-07-19 07:06:25 +00:00",
+          "previous_updated_time": "2026-05-09 10:38:06 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 40.8,
+          "dofollow": 35.8,
+          "referring_pages": 39.6,
+          "referring_domains": 11.3,
+          "referring_main_domains": 10.4,
+          "rank": 65,
+          "main_domain_rank": 588.8,
+          "last_updated_time": "2026-07-19 07:06:26 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-28 06:14:43 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 43,
+          "rank_absolute": 47,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Khoj is an applied artificial intelligence company building safe, useful AI software for humans.",
+          "highlighted": [
+            "artificial intelligence",
+            "AI"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 0.147,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 331,
+            "main_domain_rank": 299
+          }
+        },
+        "check_url": "https://www.google.com/search?q=kaaj%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "related_searches"
+        ],
+        "se_results_count": 135,
+        "keyword_difficulty": 4,
+        "last_updated_time": "2026-07-19 07:06:25 +00:00",
+        "previous_updated_time": "2026-05-09 10:38:06 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "khoji",
+        "keyword_info": {
+          "last_updated_time": "2026-08-29 07:16:21 +00:00",
+          "competition": 0,
+          "competition_level": "LOW",
+          "search_volume": 70,
+          "categories": [
+            10108,
+            13691
+          ],
+          "monthly_searches": {
+            "2026-07": 30,
+            "2026-06": 50,
+            "2026-05": 50,
+            "2026-04": 50,
+            "2026-03": 40,
+            "2026-02": 90,
+            "2026-01": 110,
+            "2025-12": 170,
+            "2025-11": 110,
+            "2025-10": 90,
+            "2025-09": 70,
+            "2025-08": 70
+          },
+          "search_volume_trend": {
+            "monthly": -40,
+            "quarterly": -40,
+            "yearly": -57
+          }
+        },
+        "keyword_properties": {
+          "detected_language": "vi",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khoji&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "images",
+            "organic",
+            "people_also_ask",
+            "related_searches"
+          ],
+          "se_results_count": 106,
+          "last_updated_time": "2026-07-15 19:06:42 +00:00",
+          "previous_updated_time": "2026-05-28 20:45:51 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 0.8,
+          "dofollow": 0.8,
+          "referring_pages": 0.8,
+          "referring_domains": 0.1,
+          "referring_main_domains": 0.1,
+          "rank": 5.8,
+          "main_domain_rank": 566.6,
+          "last_updated_time": "2026-07-15 19:06:44 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-28 20:43:07 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 12,
+          "rank_absolute": 15,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Your AI co-worker. Research, create, and automate. Assign tasks, track progress, and get polished deliverables - all running safely on your computer. Khoj app. Read more",
+          "highlighted": [
+            "Your AI co-worker"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 0.525,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 331,
+            "main_domain_rank": 299
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khoji&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "images",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 106,
+        "last_updated_time": "2026-07-15 19:06:42 +00:00",
+        "previous_updated_time": "2026-05-28 20:45:51 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "kksj",
+        "keyword_info": {
+          "last_updated_time": "2026-08-24 11:05:59 +00:00",
+          "competition": 0,
+          "competition_level": "LOW",
+          "search_volume": 50,
+          "categories": [
+            10108,
+            13691
+          ],
+          "monthly_searches": {
+            "2026-07": 30,
+            "2026-06": 40,
+            "2026-05": 50,
+            "2026-04": 40,
+            "2026-03": 140,
+            "2026-02": 40,
+            "2026-01": 40,
+            "2025-12": 70,
+            "2025-11": 50,
+            "2025-10": 40,
+            "2025-09": 30,
+            "2025-08": 30
+          },
+          "search_volume_trend": {
+            "monthly": -25,
+            "quarterly": -40
+          }
+        },
+        "keyword_properties": {
+          "detected_language": "br",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=kksj&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "ai_overview",
+            "images",
+            "organic",
+            "video",
+            "related_searches"
+          ],
+          "se_results_count": 100,
+          "last_updated_time": "2026-07-27 22:50:14 +00:00",
+          "previous_updated_time": "2026-05-11 23:23:47 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-29 12:36:43 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 26,
+          "rank_absolute": 31,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj - AI",
+          "description": "Khoj is an applied artificial intelligence company. We're a tiny team of hackers doing applied research and building safe, useful ai software for humans. Our ... Read more",
+          "highlighted": [
+            "Khoj is an applied artificial intelligence company"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 0.105,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 333,
+            "main_domain_rank": 299
+          }
+        },
+        "check_url": "https://www.google.com/search?q=kksj&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "images",
+          "organic",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 100,
+        "last_updated_time": "2026-07-27 22:50:14 +00:00",
+        "previous_updated_time": "2026-05-11 23:23:47 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "khojki",
+        "keyword_info": {
+          "last_updated_time": "2026-08-22 17:03:24 +00:00",
+          "competition": 0,
+          "competition_level": "LOW",
+          "search_volume": 40,
+          "categories": [
+            10015
+          ],
+          "monthly_searches": {
+            "2026-07": 20,
+            "2026-06": 30,
+            "2026-05": 20,
+            "2026-04": 30,
+            "2026-03": 30,
+            "2026-02": 50,
+            "2026-01": 40,
+            "2025-12": 70,
+            "2025-11": 90,
+            "2025-10": 50,
+            "2025-09": 40,
+            "2025-08": 30
+          },
+          "search_volume_trend": {
+            "monthly": -33,
+            "yearly": -33
+          }
+        },
+        "keyword_properties": {
+          "synonym_clustering_algorithm": "text_processing",
+          "detected_language": "en"
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khojki&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "images",
+            "related_searches"
+          ],
+          "se_results_count": 103,
+          "last_updated_time": "2026-08-15 19:32:55 +00:00",
+          "previous_updated_time": "2026-05-09 10:13:20 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 13.2,
+          "dofollow": 11.3,
+          "referring_pages": 12.7,
+          "referring_domains": 7.1,
+          "referring_main_domains": 6,
+          "rank": 27.3,
+          "main_domain_rank": 545.6,
+          "last_updated_time": "2026-08-15 19:32:56 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-05-01 16:23:36 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 62,
+          "rank_absolute": 69,
+          "domain": "docs.khoj.dev",
+          "title": "Support Multilingual Docs",
+          "url": "https://docs.khoj.dev/advanced/support-multilingual-docs",
+          "breadcrumb": "https://docs.khoj.dev › advanced › support-multilingual...",
+          "website_name": "Khoj Documentation",
+          "description": "Khoj uses an embedding model to understand documents. Multilingual embedding models improve the search quality for documents not in English.",
+          "main_domain": "khoj.dev",
+          "relative_url": "/advanced/support-multilingual-docs",
+          "etv": 0.084,
+          "rank_changes": {
+            "is_new": true
+          },
+          "rank_info": {
+            "main_domain_rank": 300
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khojki&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "images",
+          "related_searches"
+        ],
+        "se_results_count": 103,
+        "last_updated_time": "2026-08-15 19:32:55 +00:00",
+        "previous_updated_time": "2026-05-09 10:13:20 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "open ai proxy",
+        "keyword_info": {
+          "last_updated_time": "2026-08-14 17:19:53 +00:00",
+          "competition": 0.25,
+          "competition_level": "LOW",
+          "cpc": 3.17,
+          "search_volume": 40,
+          "low_top_of_page_bid": 1.67,
+          "high_top_of_page_bid": 4.21,
+          "categories": [
+            10019,
+            10168,
+            10885,
+            12204,
+            13097
+          ],
+          "monthly_searches": {
+            "2026-07": 30,
+            "2026-06": 40,
+            "2026-05": 20,
+            "2026-04": 30,
+            "2026-03": 30,
+            "2026-02": 40,
+            "2026-01": 30,
+            "2025-12": 50,
+            "2025-11": 40,
+            "2025-10": 30,
+            "2025-09": 40,
+            "2025-08": 30
+          },
+          "search_volume_trend": {
+            "monthly": -25,
+            "quarterly": 50,
+            "yearly": -40
+          }
+        },
+        "keyword_properties": {
+          "synonym_clustering_algorithm": "text_processing",
+          "detected_language": "it",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=open%20ai%20proxy&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "ai_overview",
+            "people_also_ask",
+            "related_searches"
+          ],
+          "se_results_count": 101,
+          "last_updated_time": "2026-08-14 19:29:31 +00:00",
+          "previous_updated_time": "2026-06-08 06:31:27 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 80.5,
+          "dofollow": 49.3,
+          "referring_pages": 62.3,
+          "referring_domains": 15.8,
+          "referring_main_domains": 15.5,
+          "rank": 24.8,
+          "main_domain_rank": 600.2,
+          "last_updated_time": "2026-08-14 19:31:20 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "informational",
+          "last_updated_time": "2026-04-29 20:15:50 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 20,
+          "rank_absolute": 24,
+          "domain": "docs.khoj.dev",
+          "title": "Use OpenAI Proxy",
+          "url": "https://docs.khoj.dev/advanced/use-openai-proxy/",
+          "breadcrumb": "https://docs.khoj.dev › ... › Use OpenAI Proxy",
+          "website_name": "Khoj Documentation",
+          "description": "Khoj can use any OpenAI API compatible server including local providers like Ollama, LMStudio and LiteLLM and commercial providers like HuggingFace, ... Read more",
+          "highlighted": [
+            "Khoj can use any OpenAI API compatible server"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/advanced/use-openai-proxy/",
+          "etv": 0.096,
+          "estimated_paid_traffic_cost": 0.304,
+          "rank_changes": {
+            "is_new": true
+          },
+          "backlinks_info": {
+            "referring_domains": 6,
+            "referring_main_domains": 6,
+            "referring_pages": 6,
+            "dofollow": 3,
+            "backlinks": 6,
+            "time_update": "2026-09-01 03:52:17 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 146,
+            "main_domain_rank": 300
+          }
+        },
+        "check_url": "https://www.google.com/search?q=open%20ai%20proxy&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 101,
+        "last_updated_time": "2026-08-14 19:29:31 +00:00",
+        "previous_updated_time": "2026-06-08 06:31:27 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "khoj github",
+        "keyword_info": {
+          "last_updated_time": "2026-08-28 15:54:44 +00:00",
+          "competition": 0.02,
+          "competition_level": "LOW",
+          "search_volume": 30,
+          "categories": [
+            10019,
+            10168,
+            10885,
+            12197,
+            13642
+          ],
+          "monthly_searches": {
+            "2026-07": 50,
+            "2026-06": 40,
+            "2026-05": 40,
+            "2026-04": 40,
+            "2026-03": 70,
+            "2026-02": 30,
+            "2026-01": 30,
+            "2025-12": 30,
+            "2025-11": 20,
+            "2025-10": 30,
+            "2025-09": 10,
+            "2025-08": 10
+          },
+          "search_volume_trend": {
+            "monthly": 25,
+            "quarterly": 25,
+            "yearly": 400
+          }
+        },
+        "keyword_properties": {
+          "keyword_difficulty": 6,
+          "detected_language": "tr",
+          "is_another_language": true
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khoj%20github&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "related_searches"
+          ],
+          "se_results_count": 109,
+          "last_updated_time": "2026-08-28 20:05:24 +00:00",
+          "previous_updated_time": "2026-06-16 08:07:14 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 766.9,
+          "dofollow": 268.8,
+          "referring_pages": 681.4,
+          "referring_domains": 81,
+          "referring_main_domains": 75.9,
+          "rank": 80,
+          "main_domain_rank": 526.8,
+          "last_updated_time": "2026-08-28 20:05:25 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "navigational",
+          "last_updated_time": "2026-04-28 10:47:12 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 2,
+          "rank_absolute": 2,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj AI",
+          "description": "Khoj is an applied artificial intelligence company building safe, useful AI software for humans. Build agents, schedule automations, and research across your ...",
+          "highlighted": [
+            "Khoj is an applied artificial intelligence company"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 4.86,
+          "rank_changes": {
+            "previous_rank_absolute": 2
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 348,
+            "main_domain_rank": 302
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khoj%20github&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "related_searches"
+        ],
+        "se_results_count": 109,
+        "keyword_difficulty": 6,
+        "last_updated_time": "2026-08-28 20:05:24 +00:00",
+        "previous_updated_time": "2026-06-16 08:07:14 +00:00"
+      }
+    },
+    {
+      "keyword_data": {
+        "keyword": "khoj information technology",
+        "keyword_info": {
+          "last_updated_time": "2026-08-23 03:46:18 +00:00",
+          "competition": 0.1,
+          "competition_level": "LOW",
+          "search_volume": 30,
+          "categories": [
+            10019,
+            10168,
+            10882
+          ],
+          "monthly_searches": {
+            "2026-07": 10,
+            "2026-06": 30,
+            "2026-05": 20,
+            "2026-04": 20,
+            "2026-03": 30,
+            "2026-02": 20,
+            "2026-01": 30,
+            "2025-12": 30,
+            "2025-11": 30,
+            "2025-10": 30,
+            "2025-09": 30,
+            "2025-08": 30
+          },
+          "search_volume_trend": {
+            "monthly": -67,
+            "quarterly": -50,
+            "yearly": -75
+          }
+        },
+        "keyword_properties": {
+          "keyword_difficulty": 7,
+          "detected_language": "en"
+        },
+        "serp_info": {
+          "check_url": "https://www.google.com/search?q=khoj%20information%20technology&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+          "serp_item_types": [
+            "organic",
+            "related_searches",
+            "knowledge_graph",
+            "google_reviews"
+          ],
+          "se_results_count": 98,
+          "last_updated_time": "2026-08-28 20:05:27 +00:00",
+          "previous_updated_time": "2026-06-16 08:13:17 +00:00"
+        },
+        "avg_backlinks_info": {
+          "backlinks": 402.6,
+          "dofollow": 136.3,
+          "referring_pages": 352.2,
+          "referring_domains": 44.3,
+          "referring_main_domains": 41.6,
+          "rank": 81,
+          "main_domain_rank": 568.4,
+          "last_updated_time": "2026-08-28 20:05:28 +00:00"
+        },
+        "search_intent_info": {
+          "main_intent": "navigational",
+          "last_updated_time": "2026-04-28 12:22:31 +00:00"
+        }
+      },
+      "ranked_serp_element": {
+        "serp_item": {
+          "type": "organic",
+          "rank_group": 5,
+          "rank_absolute": 5,
+          "domain": "khoj.dev",
+          "title": "Khoj - AI for Humans",
+          "url": "https://khoj.dev/",
+          "breadcrumb": "https://khoj.dev",
+          "website_name": "Khoj AI",
+          "description": "Khoj is an applied artificial intelligence company building safe, useful AI software for humans. Build agents, schedule automations, and research across your ...",
+          "highlighted": [
+            "Khoj is an applied artificial intelligence company"
+          ],
+          "main_domain": "khoj.dev",
+          "relative_url": "/",
+          "etv": 1.407,
+          "rank_changes": {
+            "previous_rank_absolute": 14,
+            "is_up": true
+          },
+          "backlinks_info": {
+            "referring_domains": 436,
+            "referring_main_domains": 413,
+            "referring_pages": 3535,
+            "dofollow": 1282,
+            "backlinks": 4061,
+            "time_update": "2026-09-01 03:54:52 +00:00"
+          },
+          "rank_info": {
+            "page_rank": 348,
+            "main_domain_rank": 302
+          }
+        },
+        "check_url": "https://www.google.com/search?q=khoj%20information%20technology&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "related_searches",
+          "knowledge_graph",
+          "google_reviews"
+        ],
+        "se_results_count": 98,
+        "keyword_difficulty": 7,
+        "last_updated_time": "2026-08-28 20:05:27 +00:00",
+        "previous_updated_time": "2026-06-16 08:13:17 +00:00"
+      }
+    }
+  ]
+}

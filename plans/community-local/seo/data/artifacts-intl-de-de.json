@@ -1,0 +1,2378 @@
+{
+ "id": "09150409-1766-0607-0000-8a679f2bb2cf",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "endpoint": "dataforseo_labs/google/keyword_overview/live",
+ "market": "de-de",
+ "location_code": 2276,
+ "language_code": "de",
+ "pulled": "2026-09-14",
+ "note": "46 rows came back; trimmed by hand to the fields parse.py reads. German Studio-output forms (karteikarten, lernzettel, quiz/test/prüfungsfragen erstellen ki, präsentation/powerpoint ki, zusammenfassung/zusammenfassen ki, mindmap ki, infografik ki, klausurvorbereitung ki, ki zum lernen) plus five English anchors (ai presentation maker, ai quiz generator, ai summarizer, flashcard generator, study guide maker), all pulled under language_code de like intl/de-de.json. AI-mode response, so the request is not echoed and there is no `missing` list; anything requested and absent from `items` fell below DataForSEO's reporting threshold in this market.",
+ "items": [
+  {
+   "keyword": "ai presentation maker",
+   "keyword_info": {
+    "last_updated_time": "2026-08-24 23:06:55 +00:00",
+    "competition": 0.75,
+    "competition_level": "HIGH",
+    "cpc": 3.16,
+    "search_volume": 1300,
+    "low_top_of_page_bid": 0.75,
+    "high_top_of_page_bid": 3.32,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11274,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 590,
+     "2026-06": 1300,
+     "2026-05": 1300,
+     "2026-04": 1000,
+     "2026-03": 1300,
+     "2026-02": 1300,
+     "2026-01": 1600,
+     "2025-12": 1300,
+     "2025-11": 1600,
+     "2025-10": 1300,
+     "2025-09": 1300,
+     "2025-08": 880
+    },
+    "search_volume_trend": {
+     "monthly": -55,
+     "quarterly": -55,
+     "yearly": -55
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 62,
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 9711.7,
+    "dofollow": 6762,
+    "referring_pages": 8486.7,
+    "referring_domains": 1686.2,
+    "referring_main_domains": 1496.3,
+    "rank": 298.4,
+    "main_domain_rank": 520,
+    "last_updated_time": "2026-09-01 04:06:22 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-29 00:05:59 +00:00"
+   }
+  },
+  {
+   "keyword": "ai quiz generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 19:57:02 +00:00",
+    "competition": 0.68,
+    "competition_level": "HIGH",
+    "cpc": 1.34,
+    "search_volume": 110,
+    "low_top_of_page_bid": 0.59,
+    "high_top_of_page_bid": 1.74,
+    "categories": [
+     10013,
+     13425,
+     13489
+    ],
+    "monthly_searches": {
+     "2026-08": 30,
+     "2026-07": 50,
+     "2026-06": 40,
+     "2026-05": 70,
+     "2026-04": 90,
+     "2026-03": 110,
+     "2026-02": 140,
+     "2026-01": 170,
+     "2025-12": 140,
+     "2025-11": 170,
+     "2025-10": 90,
+     "2025-09": 90
+    },
+    "search_volume_trend": {
+     "monthly": -40,
+     "quarterly": -25,
+     "yearly": -57
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "quiz ai generator",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 30,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1030.4,
+    "dofollow": 498.1,
+    "referring_pages": 899.4,
+    "referring_domains": 306.5,
+    "referring_main_domains": 218.8,
+    "rank": 180.6,
+    "main_domain_rank": 461.4,
+    "last_updated_time": "2026-08-16 12:56:48 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 07:04:58 +00:00"
+   }
+  },
+  {
+   "keyword": "ai summarizer",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 10:27:58 +00:00",
+    "competition": 0.27,
+    "competition_level": "LOW",
+    "cpc": 2.26,
+    "search_volume": 320,
+    "low_top_of_page_bid": 0.66,
+    "high_top_of_page_bid": 2.62,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11274,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 170,
+     "2026-06": 170,
+     "2026-05": 260,
+     "2026-04": 320,
+     "2026-03": 320,
+     "2026-02": 320,
+     "2026-01": 390,
+     "2025-12": 320,
+     "2025-11": 590,
+     "2025-10": 480,
+     "2025-09": 590
+    },
+    "search_volume_trend": {
+     "monthly": -47,
+     "quarterly": -47,
+     "yearly": -72
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 64,
+    "detected_language": "pt",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1231.6,
+    "dofollow": 690.6,
+    "referring_pages": 1073.9,
+    "referring_domains": 333.6,
+    "referring_main_domains": 259.3,
+    "rank": 218.9,
+    "main_domain_rank": 499.1,
+    "last_updated_time": "2026-09-04 21:20:54 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "last_updated_time": "2026-04-29 01:04:55 +00:00"
+   }
+  },
+  {
+   "keyword": "anki karten erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-15 02:32:58 +00:00",
+    "competition": 0.45,
+    "competition_level": "MEDIUM",
+    "cpc": 1.28,
+    "search_volume": 30,
+    "low_top_of_page_bid": 0.66,
+    "high_top_of_page_bid": 1.47,
+    "categories": [
+     10006,
+     10364,
+     11448
+    ],
+    "monthly_searches": {
+     "2026-08": 20,
+     "2026-07": 30,
+     "2026-06": 30,
+     "2026-05": 20,
+     "2026-04": 20,
+     "2026-03": 20,
+     "2026-02": 30,
+     "2026-01": 50,
+     "2025-12": 10,
+     "2025-11": 40,
+     "2025-10": 30,
+     "2025-09": 10
+    },
+    "search_volume_trend": {
+     "monthly": -33,
+     "quarterly": -33,
+     "yearly": 100
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-04-29 02:27:45 +00:00"
+   }
+  },
+  {
+   "keyword": "flashcard generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 05:07:26 +00:00",
+    "competition": 0.31,
+    "competition_level": "LOW",
+    "cpc": 2.27,
+    "search_volume": 320,
+    "low_top_of_page_bid": 0.43,
+    "high_top_of_page_bid": 1.9,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 110,
+     "2026-07": 210,
+     "2026-06": 210,
+     "2026-05": 320,
+     "2026-04": 260,
+     "2026-03": 320,
+     "2026-02": 390,
+     "2026-01": 390,
+     "2025-12": 320,
+     "2025-11": 320,
+     "2025-10": 320,
+     "2025-09": 320
+    },
+    "search_volume_trend": {
+     "monthly": -48,
+     "quarterly": -48,
+     "yearly": -35
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 71,
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1973.9,
+    "dofollow": 1060.1,
+    "referring_pages": 1737.7,
+    "referring_domains": 358.9,
+    "referring_main_domains": 313.3,
+    "rank": 286.5,
+    "main_domain_rank": 429.2,
+    "last_updated_time": "2026-03-06 18:06:44 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-27 18:56:58 +00:00"
+   }
+  },
+  {
+   "keyword": "infografik generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 00:38:51 +00:00",
+    "search_volume": 10,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12204,
+     13597
+    ],
+    "monthly_searches": {
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    },
+    "search_volume_trend": {
+     "monthly": -100,
+     "quarterly": -100,
+     "yearly": -100
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "nb",
+    "is_another_language": true
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-04-28 04:06:12 +00:00"
+   }
+  },
+  {
+   "keyword": "infografik ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-28 00:00:40 +00:00",
+    "competition": 0.2,
+    "competition_level": "LOW",
+    "search_volume": 40,
+    "low_top_of_page_bid": 0.67,
+    "high_top_of_page_bid": 2.3,
+    "categories": [
+     10108,
+     13691
+    ],
+    "monthly_searches": {
+     "2026-07": 20,
+     "2026-06": 30,
+     "2026-05": 30,
+     "2026-04": 40,
+     "2026-03": 50,
+     "2026-02": 50,
+     "2026-01": 40,
+     "2025-12": 40,
+     "2025-11": 50,
+     "2025-10": 50,
+     "2025-09": 30,
+     "2025-08": 30
+    },
+    "search_volume_trend": {
+     "monthly": -33,
+     "quarterly": -33
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 1,
+    "detected_language": "hu",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 23.6,
+    "dofollow": 12.2,
+    "referring_pages": 21.4,
+    "referring_domains": 15.2,
+    "referring_main_domains": 14.3,
+    "rank": 69.3,
+    "main_domain_rank": 544.6,
+    "last_updated_time": "2026-01-10 00:59:27 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-27 23:52:36 +00:00"
+   }
+  },
+  {
+   "keyword": "karteikarten aus pdf",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 04:06:00 +00:00",
+    "competition": 0.79,
+    "competition_level": "HIGH",
+    "search_volume": 10,
+    "categories": [
+     10108,
+     11867
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 20,
+     "2026-01": 30,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 20:40:17 +00:00"
+   }
+  },
+  {
+   "keyword": "karteikarten erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-28 08:47:57 +00:00",
+    "competition": 0.77,
+    "competition_level": "HIGH",
+    "cpc": 2.7,
+    "search_volume": 390,
+    "low_top_of_page_bid": 0.75,
+    "high_top_of_page_bid": 2.37,
+    "categories": [
+     10019,
+     10168,
+     10883,
+     12194,
+     13079
+    ],
+    "monthly_searches": {
+     "2026-07": 390,
+     "2026-06": 320,
+     "2026-05": 320,
+     "2026-04": 390,
+     "2026-03": 480,
+     "2026-02": 590,
+     "2026-01": 880,
+     "2025-12": 480,
+     "2025-11": 590,
+     "2025-10": 390,
+     "2025-09": 320,
+     "2025-08": 170
+    },
+    "search_volume_trend": {
+     "monthly": 22,
+     "quarterly": 22,
+     "yearly": -34
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki karteikarten erstellen",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 46.1,
+    "dofollow": 1.5,
+    "referring_pages": 45.8,
+    "referring_domains": 45.5,
+    "referring_main_domains": 24.8,
+    "rank": 15.1,
+    "main_domain_rank": 414.7,
+    "last_updated_time": "2026-08-11 15:13:25 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-29 16:14:36 +00:00"
+   }
+  },
+  {
+   "keyword": "karteikarten generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 01:50:50 +00:00",
+    "competition": 0.43,
+    "competition_level": "MEDIUM",
+    "search_volume": 30,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 20,
+     "2026-06": 30,
+     "2026-05": 30,
+     "2026-04": 30,
+     "2026-03": 40,
+     "2026-02": 40,
+     "2026-01": 50,
+     "2025-12": 40,
+     "2025-11": 40,
+     "2025-10": 40,
+     "2025-09": 20
+    },
+    "search_volume_trend": {
+     "monthly": -50,
+     "quarterly": -67,
+     "yearly": -67
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "last_updated_time": "2026-04-28 15:12:53 +00:00"
+   }
+  },
+  {
+   "keyword": "karteikarten ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 09:08:59 +00:00",
+    "competition": 0.74,
+    "competition_level": "HIGH",
+    "cpc": 2.66,
+    "search_volume": 320,
+    "low_top_of_page_bid": 0.79,
+    "high_top_of_page_bid": 2.33,
+    "categories": [
+     10012,
+     10097,
+     11842
+    ],
+    "monthly_searches": {
+     "2026-07": 260,
+     "2026-06": 260,
+     "2026-05": 260,
+     "2026-04": 260,
+     "2026-03": 320,
+     "2026-02": 480,
+     "2026-01": 720,
+     "2025-12": 390,
+     "2025-11": 480,
+     "2025-10": 320,
+     "2025-09": 260,
+     "2025-08": 140
+    },
+    "search_volume_trend": {
+     "yearly": -33
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 53.6,
+    "dofollow": 2.8,
+    "referring_pages": 50.7,
+    "referring_domains": 49,
+    "referring_main_domains": 27.7,
+    "rank": 31.6,
+    "main_domain_rank": 416.3,
+    "last_updated_time": "2026-09-04 08:36:04 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 15:26:25 +00:00"
+   }
+  },
+  {
+   "keyword": "ki für schüler",
+   "keyword_info": {
+    "last_updated_time": "2026-08-28 09:24:34 +00:00",
+    "competition": 0.38,
+    "competition_level": "MEDIUM",
+    "cpc": 3.09,
+    "search_volume": 140,
+    "low_top_of_page_bid": 0.57,
+    "high_top_of_page_bid": 1.63,
+    "categories": [
+     10016,
+     10141,
+     11029
+    ],
+    "monthly_searches": {
+     "2026-07": 50,
+     "2026-06": 170,
+     "2026-05": 140,
+     "2026-04": 140,
+     "2026-03": 170,
+     "2026-02": 170,
+     "2026-01": 170,
+     "2025-12": 140,
+     "2025-11": 210,
+     "2025-10": 140,
+     "2025-09": 140,
+     "2025-08": 50
+    },
+    "search_volume_trend": {
+     "monthly": -71,
+     "quarterly": -64,
+     "yearly": -29
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "schul ki",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 31,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 393.2,
+    "dofollow": 172.9,
+    "referring_pages": 325.7,
+    "referring_domains": 204.9,
+    "referring_main_domains": 131.8,
+    "rank": 179.7,
+    "main_domain_rank": 490.2,
+    "last_updated_time": "2026-09-11 22:59:27 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 06:23:41 +00:00"
+   }
+  },
+  {
+   "keyword": "ki für studenten",
+   "keyword_info": {
+    "last_updated_time": "2026-08-25 06:19:23 +00:00",
+    "competition": 0.55,
+    "competition_level": "MEDIUM",
+    "cpc": 2.97,
+    "search_volume": 260,
+    "low_top_of_page_bid": 0.9,
+    "high_top_of_page_bid": 2.9,
+    "categories": [
+     10016,
+     10141,
+     10763,
+     13514
+    ],
+    "monthly_searches": {
+     "2026-07": 210,
+     "2026-06": 260,
+     "2026-05": 260,
+     "2026-04": 320,
+     "2026-03": 260,
+     "2026-02": 320,
+     "2026-01": 390,
+     "2025-12": 260,
+     "2025-11": 260,
+     "2025-10": 260,
+     "2025-09": 110,
+     "2025-08": 70
+    },
+    "search_volume_trend": {
+     "monthly": -19,
+     "quarterly": -19,
+     "yearly": 91
+    }
+   },
+   "keyword_properties": {
+    "keyword_difficulty": 7,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 453.9,
+    "dofollow": 324.6,
+    "referring_pages": 406.6,
+    "referring_domains": 163.7,
+    "referring_main_domains": 119.8,
+    "rank": 91.4,
+    "main_domain_rank": 436.8,
+    "last_updated_time": "2026-08-13 09:11:47 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 15:51:24 +00:00"
+   }
+  },
+  {
+   "keyword": "ki infografik erstellen",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 21:06:15 +00:00",
+    "competition": 0.62,
+    "competition_level": "MEDIUM",
+    "cpc": 1.6,
+    "search_volume": 40,
+    "low_top_of_page_bid": 0.56,
+    "high_top_of_page_bid": 1.72,
+    "categories": [
+     10004,
+     10307
+    ],
+    "monthly_searches": {
+     "2026-07": 20,
+     "2026-06": 40,
+     "2026-05": 30,
+     "2026-04": 50,
+     "2026-03": 50,
+     "2026-02": 50,
+     "2026-01": 50,
+     "2025-12": 40,
+     "2025-11": 50,
+     "2025-10": 40,
+     "2025-09": 40,
+     "2025-08": 20
+    },
+    "search_volume_trend": {
+     "monthly": -50,
+     "quarterly": -33,
+     "yearly": -71
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "infografik erstellen ki",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 23.5,
+    "dofollow": 7.7,
+    "referring_pages": 21.3,
+    "referring_domains": 17.6,
+    "referring_main_domains": 14.5,
+    "rank": 44.4,
+    "main_domain_rank": 578.5,
+    "last_updated_time": "2026-04-02 14:51:39 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 15:53:53 +00:00"
+   }
+  },
+  {
+   "keyword": "ki karteikarten erstellen",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 23:04:57 +00:00",
+    "competition": 0.72,
+    "competition_level": "HIGH",
+    "cpc": 3.18,
+    "search_volume": 480,
+    "low_top_of_page_bid": 0.82,
+    "high_top_of_page_bid": 2.65,
+    "categories": [
+     10004,
+     10300,
+     11325
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 390,
+     "2026-06": 390,
+     "2026-05": 320,
+     "2026-04": 480,
+     "2026-03": 480,
+     "2026-02": 720,
+     "2026-01": 1000,
+     "2025-12": 590,
+     "2025-11": 720,
+     "2025-10": 590,
+     "2025-09": 390
+    },
+    "search_volume_trend": {
+     "monthly": -77,
+     "quarterly": -77,
+     "yearly": -65
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 45.5,
+    "dofollow": 1.4,
+    "referring_pages": 45.3,
+    "referring_domains": 45,
+    "referring_main_domains": 24.6,
+    "rank": 15.1,
+    "main_domain_rank": 414.7,
+    "last_updated_time": "2026-08-10 07:00:14 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-04-28 10:18:51 +00:00"
+   }
+  },
+  {
+   "keyword": "ki lern app",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 12:27:43 +00:00",
+    "competition": 0.68,
+    "competition_level": "HIGH",
+    "cpc": 2.25,
+    "search_volume": 140,
+    "low_top_of_page_bid": 0.7,
+    "high_top_of_page_bid": 2.3,
+    "categories": [
+     10019
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 110,
+     "2026-06": 170,
+     "2026-05": 170,
+     "2026-04": 140,
+     "2026-03": 170,
+     "2026-02": 170,
+     "2026-01": 210,
+     "2025-12": 170,
+     "2025-11": 170,
+     "2025-10": 140,
+     "2025-09": 70
+    },
+    "search_volume_trend": {
+     "monthly": -18,
+     "quarterly": -47,
+     "yearly": 29
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 24,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 5125.3,
+    "dofollow": 5015.8,
+    "referring_pages": 5054.5,
+    "referring_domains": 72.6,
+    "referring_main_domains": 60.6,
+    "rank": 140.4,
+    "main_domain_rank": 600,
+    "last_updated_time": "2026-09-11 22:59:56 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "navigational"
+    ],
+    "last_updated_time": "2026-04-28 11:02:03 +00:00"
+   }
+  },
+  {
+   "keyword": "ki lernhilfe",
+   "keyword_info": {
+    "last_updated_time": "2026-08-23 23:08:25 +00:00",
+    "competition": 0.7,
+    "competition_level": "HIGH",
+    "cpc": 2.57,
+    "search_volume": 50,
+    "low_top_of_page_bid": 0.72,
+    "high_top_of_page_bid": 2.51,
+    "categories": [
+     10016,
+     10141,
+     11029
+    ],
+    "monthly_searches": {
+     "2026-07": 30,
+     "2026-06": 40,
+     "2026-05": 50,
+     "2026-04": 50,
+     "2026-03": 50,
+     "2026-02": 90,
+     "2026-01": 90,
+     "2025-12": 50,
+     "2025-11": 40,
+     "2025-10": 40,
+     "2025-09": 50,
+     "2025-08": 20
+    },
+    "search_volume_trend": {
+     "monthly": -25,
+     "quarterly": -40
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 16:14:03 +00:00"
+   }
+  },
+  {
+   "keyword": "ki mindmap erstellen",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 14:43:16 +00:00",
+    "competition": 0.66,
+    "competition_level": "MEDIUM",
+    "cpc": 1.99,
+    "search_volume": 170,
+    "low_top_of_page_bid": 0.62,
+    "high_top_of_page_bid": 1.87,
+    "categories": [
+     10004,
+     10276,
+     11089
+    ],
+    "monthly_searches": {
+     "2026-08": 40,
+     "2026-07": 70,
+     "2026-06": 140,
+     "2026-05": 140,
+     "2026-04": 140,
+     "2026-03": 260,
+     "2026-02": 210,
+     "2026-01": 260,
+     "2025-12": 170,
+     "2025-11": 260,
+     "2025-10": 210,
+     "2025-09": 260
+    },
+    "search_volume_trend": {
+     "monthly": -43,
+     "quarterly": -71,
+     "yearly": -56
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "mindmap erstellen ki",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 176.8,
+    "dofollow": 146.6,
+    "referring_pages": 168.5,
+    "referring_domains": 65.3,
+    "referring_main_domains": 53.6,
+    "rank": 69.8,
+    "main_domain_rank": 375.9,
+    "last_updated_time": "2026-09-09 11:04:47 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 16:46:30 +00:00"
+   }
+  },
+  {
+   "keyword": "ki powerpoint erstellen",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 10:12:42 +00:00",
+    "competition": 0.71,
+    "competition_level": "HIGH",
+    "cpc": 1.88,
+    "search_volume": 1600,
+    "low_top_of_page_bid": 0.56,
+    "high_top_of_page_bid": 1.71,
+    "categories": [
+     10019,
+     10167,
+     10873,
+     12140
+    ],
+    "monthly_searches": {
+     "2026-08": 590,
+     "2026-07": 880,
+     "2026-06": 1900,
+     "2026-05": 1600,
+     "2026-04": 1900,
+     "2026-03": 1900,
+     "2026-02": 1900,
+     "2026-01": 1900,
+     "2025-12": 1600,
+     "2025-11": 1900,
+     "2025-10": 1600,
+     "2025-09": 1300
+    },
+    "search_volume_trend": {
+     "monthly": -33,
+     "quarterly": -69,
+     "yearly": -18
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 5,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 102.5,
+    "dofollow": 31.9,
+    "referring_pages": 99.5,
+    "referring_domains": 79.9,
+    "referring_main_domains": 47.7,
+    "rank": 70.9,
+    "main_domain_rank": 561.2,
+    "last_updated_time": "2026-09-01 01:35:01 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 15:10:08 +00:00"
+   }
+  },
+  {
+   "keyword": "ki präsentation generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 05:22:11 +00:00",
+    "competition": 0.86,
+    "competition_level": "HIGH",
+    "search_volume": 10,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 175.8,
+    "dofollow": 46.3,
+    "referring_pages": 47,
+    "referring_domains": 3.2,
+    "referring_main_domains": 3.1,
+    "rank": 40.5,
+    "main_domain_rank": 479.6,
+    "last_updated_time": "2024-11-13 08:08:15 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 18:24:38 +00:00"
+   }
+  },
+  {
+   "keyword": "ki quiz generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 05:45:19 +00:00",
+    "competition": 0.14,
+    "competition_level": "LOW",
+    "cpc": 1.17,
+    "search_volume": 30,
+    "low_top_of_page_bid": 0.82,
+    "high_top_of_page_bid": 1.61,
+    "categories": [
+     10013,
+     13425,
+     13489
+    ],
+    "monthly_searches": {
+     "2026-08": 30,
+     "2026-07": 10,
+     "2026-06": 20,
+     "2026-05": 20,
+     "2026-04": 10,
+     "2026-03": 30,
+     "2026-02": 40,
+     "2026-01": 70,
+     "2025-12": 20,
+     "2025-11": 30,
+     "2025-10": 20,
+     "2025-09": 110
+    },
+    "search_volume_trend": {
+     "monthly": 200,
+     "quarterly": 50,
+     "yearly": 200
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 13:25:03 +00:00"
+   }
+  },
+  {
+   "keyword": "ki tabelle erstellen",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 14:54:33 +00:00",
+    "competition": 0.61,
+    "competition_level": "MEDIUM",
+    "cpc": 3.34,
+    "search_volume": 110,
+    "low_top_of_page_bid": 0.63,
+    "high_top_of_page_bid": 3.79,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11271,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 70,
+     "2026-06": 90,
+     "2026-05": 70,
+     "2026-04": 90,
+     "2026-03": 110,
+     "2026-02": 110,
+     "2026-01": 140,
+     "2025-12": 110,
+     "2025-11": 110,
+     "2025-10": 110,
+     "2025-09": 90
+    },
+    "search_volume_trend": {
+     "monthly": 29
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki tabellen erstellen",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 3,
+    "dofollow": 1.4,
+    "referring_pages": 2.1,
+    "referring_domains": 1.5,
+    "referring_main_domains": 1.4,
+    "rank": 13.4,
+    "main_domain_rank": 525.6,
+    "last_updated_time": "2026-07-15 05:17:36 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 19:53:58 +00:00"
+   }
+  },
+  {
+   "keyword": "ki zum lernen",
+   "keyword_info": {
+    "last_updated_time": "2026-09-15 03:24:28 +00:00",
+    "competition": 0.64,
+    "competition_level": "MEDIUM",
+    "cpc": 3.36,
+    "search_volume": 880,
+    "low_top_of_page_bid": 0.8,
+    "high_top_of_page_bid": 3.6,
+    "categories": [
+     10002,
+     10028,
+     11063
+    ],
+    "monthly_searches": {
+     "2026-08": 390,
+     "2026-07": 720,
+     "2026-06": 880,
+     "2026-05": 1000,
+     "2026-04": 880,
+     "2026-03": 1000,
+     "2026-02": 1000,
+     "2026-01": 1300,
+     "2025-12": 720,
+     "2025-11": 880,
+     "2025-10": 590,
+     "2025-09": 390
+    },
+    "search_volume_trend": {
+     "monthly": -46,
+     "quarterly": -56,
+     "yearly": 86
+    }
+   },
+   "keyword_properties": {
+    "keyword_difficulty": 14,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 507,
+    "dofollow": 340.5,
+    "referring_pages": 452.4,
+    "referring_domains": 200.9,
+    "referring_main_domains": 145.7,
+    "rank": 110.1,
+    "main_domain_rank": 523.3,
+    "last_updated_time": "2026-08-09 23:40:55 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 18:24:38 +00:00"
+   }
+  },
+  {
+   "keyword": "ki zusammenfassung",
+   "keyword_info": {
+    "last_updated_time": "2026-08-28 08:29:12 +00:00",
+    "competition": 0.63,
+    "competition_level": "MEDIUM",
+    "cpc": 1.94,
+    "search_volume": 720,
+    "low_top_of_page_bid": 0.6,
+    "high_top_of_page_bid": 1.75,
+    "categories": [
+     10011,
+     10090
+    ],
+    "monthly_searches": {
+     "2026-07": 480,
+     "2026-06": 590,
+     "2026-05": 590,
+     "2026-04": 720,
+     "2026-03": 720,
+     "2026-02": 880,
+     "2026-01": 1000,
+     "2025-12": 720,
+     "2025-11": 1000,
+     "2025-10": 880,
+     "2025-09": 590,
+     "2025-08": 390
+    },
+    "search_volume_trend": {
+     "monthly": -19,
+     "quarterly": -19,
+     "yearly": -33
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "zusammenfassen ki",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 11,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 19.7,
+    "dofollow": 15.2,
+    "referring_pages": 15.9,
+    "referring_domains": 8.8,
+    "referring_main_domains": 8.1,
+    "rank": 72.8,
+    "main_domain_rank": 455.4,
+    "last_updated_time": "2026-09-01 19:09:30 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 16:14:03 +00:00"
+   }
+  },
+  {
+   "keyword": "klausurvorbereitung ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 17:39:06 +00:00",
+    "competition": 0.66,
+    "competition_level": "MEDIUM",
+    "cpc": 2.85,
+    "search_volume": 20,
+    "low_top_of_page_bid": 0.82,
+    "high_top_of_page_bid": 2.54,
+    "categories": [
+     10016,
+     10141
+    ],
+    "monthly_searches": {
+     "2026-07": 30,
+     "2026-06": 30,
+     "2026-05": 30,
+     "2026-04": 20,
+     "2026-03": 20,
+     "2026-02": 20,
+     "2026-01": 30,
+     "2025-12": 10,
+     "2025-11": 20,
+     "2025-10": 10,
+     "2025-09": 10,
+     "2025-08": 10
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-05-04 18:59:14 +00:00"
+   }
+  },
+  {
+   "keyword": "lernen mit ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 03:53:33 +00:00",
+    "competition": 0.57,
+    "competition_level": "MEDIUM",
+    "cpc": 2.8,
+    "search_volume": 480,
+    "low_top_of_page_bid": 0.71,
+    "high_top_of_page_bid": 2.15,
+    "categories": [
+     10002,
+     10028,
+     11063
+    ],
+    "monthly_searches": {
+     "2026-07": 320,
+     "2026-06": 390,
+     "2026-05": 390,
+     "2026-04": 480,
+     "2026-03": 590,
+     "2026-02": 590,
+     "2026-01": 720,
+     "2025-12": 390,
+     "2025-11": 480,
+     "2025-10": 480,
+     "2025-09": 390,
+     "2025-08": 210
+    },
+    "search_volume_trend": {
+     "monthly": -18,
+     "quarterly": -18,
+     "yearly": -18
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki lernen",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 13,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 479.5,
+    "dofollow": 340.6,
+    "referring_pages": 428.1,
+    "referring_domains": 169.8,
+    "referring_main_domains": 125.6,
+    "rank": 111.2,
+    "main_domain_rank": 470.6,
+    "last_updated_time": "2026-09-02 14:08:48 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 16:20:11 +00:00"
+   }
+  },
+  {
+   "keyword": "lernzettel erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 23:25:31 +00:00",
+    "competition": 0.79,
+    "competition_level": "HIGH",
+    "cpc": 2.32,
+    "search_volume": 1000,
+    "low_top_of_page_bid": 0.67,
+    "high_top_of_page_bid": 2.21,
+    "categories": [
+     10016,
+     10139,
+     10743,
+     12018
+    ],
+    "monthly_searches": {
+     "2026-07": 590,
+     "2026-06": 880,
+     "2026-05": 880,
+     "2026-04": 1000,
+     "2026-03": 1300,
+     "2026-02": 1300,
+     "2026-01": 1600,
+     "2025-12": 1300,
+     "2025-11": 1900,
+     "2025-10": 1000,
+     "2025-09": 880,
+     "2025-08": 320
+    },
+    "search_volume_trend": {
+     "monthly": -33,
+     "quarterly": -33,
+     "yearly": -33
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki lernzettel erstellen",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 67.1,
+    "dofollow": 54,
+    "referring_pages": 60.2,
+    "referring_domains": 7,
+    "referring_main_domains": 6.3,
+    "rank": 46.4,
+    "main_domain_rank": 345.5,
+    "last_updated_time": "2026-09-01 05:54:15 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 13:17:23 +00:00"
+   }
+  },
+  {
+   "keyword": "lernzettel ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 09:24:11 +00:00",
+    "competition": 0.67,
+    "competition_level": "HIGH",
+    "cpc": 2.63,
+    "search_volume": 140,
+    "low_top_of_page_bid": 0.68,
+    "high_top_of_page_bid": 2.52,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-08": 20,
+     "2026-07": 70,
+     "2026-06": 140,
+     "2026-05": 210,
+     "2026-04": 170,
+     "2026-03": 210,
+     "2026-02": 140,
+     "2026-01": 170,
+     "2025-12": 140,
+     "2025-11": 210,
+     "2025-10": 110,
+     "2025-09": 90
+    },
+    "search_volume_trend": {
+     "monthly": -71,
+     "quarterly": -86
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 66.8,
+    "dofollow": 54.4,
+    "referring_pages": 60.7,
+    "referring_domains": 7.1,
+    "referring_main_domains": 6.4,
+    "rank": 46.4,
+    "main_domain_rank": 349,
+    "last_updated_time": "2026-09-11 19:30:41 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "navigational"
+    ],
+    "last_updated_time": "2026-04-28 11:46:38 +00:00"
+   }
+  },
+  {
+   "keyword": "mindmap erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 09:10:55 +00:00",
+    "competition": 0.71,
+    "competition_level": "HIGH",
+    "cpc": 2.39,
+    "search_volume": 260,
+    "low_top_of_page_bid": 0.64,
+    "high_top_of_page_bid": 2.03,
+    "categories": [
+     10004,
+     10276,
+     11089
+    ],
+    "monthly_searches": {
+     "2026-07": 90,
+     "2026-06": 170,
+     "2026-05": 260,
+     "2026-04": 210,
+     "2026-03": 320,
+     "2026-02": 320,
+     "2026-01": 390,
+     "2025-12": 260,
+     "2025-11": 390,
+     "2025-10": 260,
+     "2025-09": 390,
+     "2025-08": 140
+    },
+    "search_volume_trend": {
+     "monthly": -47,
+     "quarterly": -65,
+     "yearly": -57
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 2,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 176.8,
+    "dofollow": 146.6,
+    "referring_pages": 168.5,
+    "referring_domains": 65.3,
+    "referring_main_domains": 53.6,
+    "rank": 69.8,
+    "main_domain_rank": 451.4,
+    "last_updated_time": "2026-09-05 14:21:41 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 18:19:48 +00:00"
+   }
+  },
+  {
+   "keyword": "mindmap ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 01:54:03 +00:00",
+    "competition": 0.68,
+    "competition_level": "HIGH",
+    "cpc": 2.2,
+    "search_volume": 320,
+    "low_top_of_page_bid": 0.6,
+    "high_top_of_page_bid": 2.16,
+    "categories": [
+     10002,
+     10231,
+     13703
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 90,
+     "2026-06": 210,
+     "2026-05": 260,
+     "2026-04": 320,
+     "2026-03": 390,
+     "2026-02": 480,
+     "2026-01": 590,
+     "2025-12": 390,
+     "2025-11": 480,
+     "2025-10": 480,
+     "2025-09": 480
+    },
+    "search_volume_trend": {
+     "quarterly": -57,
+     "yearly": -65
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 156.3,
+    "dofollow": 142.2,
+    "referring_pages": 148,
+    "referring_domains": 45,
+    "referring_main_domains": 41.3,
+    "rank": 56.5,
+    "main_domain_rank": 496.1,
+    "last_updated_time": "2026-08-12 17:00:18 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 16:51:50 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm infografik",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 11:55:00 +00:00",
+    "competition": 0.02,
+    "competition_level": "LOW",
+    "search_volume": 30,
+    "categories": [
+     10019,
+     10168,
+     10883,
+     10885,
+     12187,
+     13069
+    ],
+    "monthly_searches": {
+     "2026-08": 20,
+     "2026-07": 30,
+     "2026-06": 40,
+     "2026-05": 40,
+     "2026-04": 40,
+     "2026-03": 50,
+     "2026-02": 50,
+     "2026-01": 50,
+     "2025-12": 40,
+     "2025-11": 30
+    },
+    "search_volume_trend": {
+     "monthly": -33,
+     "quarterly": -50
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "search_intent_info": {
+    "main_intent": "navigational",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-09-04 03:46:40 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm mindmap",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 09:06:02 +00:00",
+    "competition": 0.15,
+    "competition_level": "LOW",
+    "cpc": 1.3,
+    "search_volume": 70,
+    "low_top_of_page_bid": 1,
+    "high_top_of_page_bid": 1.67,
+    "categories": [
+     10019,
+     10168,
+     10883,
+     12187,
+     13069
+    ],
+    "monthly_searches": {
+     "2026-07": 40,
+     "2026-06": 40,
+     "2026-05": 50,
+     "2026-04": 50,
+     "2026-03": 70,
+     "2026-02": 90,
+     "2026-01": 70,
+     "2025-12": 50,
+     "2025-11": 70,
+     "2025-10": 90,
+     "2025-09": 50,
+     "2025-08": 70
+    },
+    "search_volume_trend": {
+     "quarterly": -20,
+     "yearly": -64
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 3.5,
+    "dofollow": 0.7,
+    "referring_pages": 2.1,
+    "referring_domains": 1.2,
+    "referring_main_domains": 1.1,
+    "rank": 20.5,
+    "main_domain_rank": 591.6,
+    "last_updated_time": "2026-07-26 09:02:51 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-05-02 03:20:41 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm video",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 14:42:50 +00:00",
+    "competition": 0.01,
+    "competition_level": "LOW",
+    "cpc": 1.41,
+    "search_volume": 110,
+    "categories": [
+     10019,
+     10168,
+     10883,
+     12187,
+     13069
+    ],
+    "monthly_searches": {
+     "2026-08": 20,
+     "2026-07": 90,
+     "2026-06": 70,
+     "2026-05": 70,
+     "2026-04": 90,
+     "2026-03": 170,
+     "2026-02": 110,
+     "2026-01": 140,
+     "2025-12": 110,
+     "2025-11": 170,
+     "2025-10": 110,
+     "2025-09": 110
+    },
+    "search_volume_trend": {
+     "monthly": -78,
+     "quarterly": -71,
+     "yearly": -92
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 49.2,
+    "dofollow": 40.9,
+    "referring_pages": 46.3,
+    "referring_domains": 26.5,
+    "referring_main_domains": 25.2,
+    "rank": 51.5,
+    "main_domain_rank": 520.3,
+    "last_updated_time": "2026-09-14 09:43:51 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-29 16:06:05 +00:00"
+   }
+  },
+  {
+   "keyword": "pdf zu karteikarten",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 09:33:39 +00:00",
+    "competition": 0.57,
+    "competition_level": "MEDIUM",
+    "cpc": 0.83,
+    "search_volume": 20,
+    "low_top_of_page_bid": 0.3,
+    "high_top_of_page_bid": 1.89,
+    "categories": [
+     10017,
+     10578,
+     11872
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 30,
+     "2026-01": 30,
+     "2025-12": 20,
+     "2025-11": 30,
+     "2025-10": 30,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-05-06 02:50:43 +00:00"
+   }
+  },
+  {
+   "keyword": "pdf zusammenfassen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-25 04:24:31 +00:00",
+    "competition": 0.65,
+    "competition_level": "MEDIUM",
+    "cpc": 1.55,
+    "search_volume": 590,
+    "low_top_of_page_bid": 0.53,
+    "high_top_of_page_bid": 1.37,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 210,
+     "2026-06": 320,
+     "2026-05": 390,
+     "2026-04": 480,
+     "2026-03": 480,
+     "2026-02": 480,
+     "2026-01": 720,
+     "2025-12": 590,
+     "2025-11": 1000,
+     "2025-10": 880,
+     "2025-09": 590,
+     "2025-08": 1000
+    },
+    "search_volume_trend": {
+     "monthly": -34,
+     "quarterly": -46,
+     "yearly": -84
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 8.3,
+    "dofollow": 6.9,
+    "referring_pages": 7.4,
+    "referring_domains": 3.9,
+    "referring_main_domains": 3.4,
+    "rank": 34.6,
+    "main_domain_rank": 496.6,
+    "last_updated_time": "2026-09-02 02:33:43 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 19:22:25 +00:00"
+   }
+  },
+  {
+   "keyword": "powerpoint ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 22:06:29 +00:00",
+    "competition": 0.7,
+    "competition_level": "HIGH",
+    "cpc": 2.17,
+    "search_volume": 2400,
+    "low_top_of_page_bid": 0.45,
+    "high_top_of_page_bid": 1.89,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 720,
+     "2026-07": 1000,
+     "2026-06": 2400,
+     "2026-05": 2400,
+     "2026-04": 2400,
+     "2026-03": 2900,
+     "2026-02": 2900,
+     "2026-01": 3600,
+     "2025-12": 2400,
+     "2025-11": 2900,
+     "2025-10": 2400,
+     "2025-09": 2400
+    },
+    "search_volume_trend": {
+     "monthly": -28,
+     "quarterly": -70,
+     "yearly": -28
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 91.1,
+    "dofollow": 16,
+    "referring_pages": 88.1,
+    "referring_domains": 84.5,
+    "referring_main_domains": 49.8,
+    "rank": 50.7,
+    "main_domain_rank": 514.6,
+    "last_updated_time": "2026-08-31 22:04:06 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "transactional",
+     "navigational"
+    ],
+    "last_updated_time": "2026-04-29 19:26:28 +00:00"
+   }
+  },
+  {
+   "keyword": "präsentation erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 09:40:37 +00:00",
+    "competition": 0.71,
+    "competition_level": "HIGH",
+    "cpc": 1.64,
+    "search_volume": 5400,
+    "low_top_of_page_bid": 0.58,
+    "high_top_of_page_bid": 1.6,
+    "categories": [
+     10016,
+     10139,
+     10743,
+     12018
+    ],
+    "monthly_searches": {
+     "2026-08": 1900,
+     "2026-07": 2900,
+     "2026-06": 6600,
+     "2026-05": 6600,
+     "2026-04": 6600,
+     "2026-03": 6600,
+     "2026-02": 5400,
+     "2026-01": 6600,
+     "2025-12": 4400,
+     "2025-11": 5400,
+     "2025-10": 4400,
+     "2025-09": 3600
+    },
+    "search_volume_trend": {
+     "monthly": -34,
+     "quarterly": -71
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 11,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 103.7,
+    "dofollow": 32.9,
+    "referring_pages": 100.5,
+    "referring_domains": 80.7,
+    "referring_main_domains": 48.5,
+    "rank": 92.1,
+    "main_domain_rank": 595.2,
+    "last_updated_time": "2026-08-31 15:47:57 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 17:56:59 +00:00"
+   }
+  },
+  {
+   "keyword": "präsentation ki kostenlos",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 14:51:41 +00:00",
+    "competition": 0.73,
+    "competition_level": "HIGH",
+    "cpc": 1.86,
+    "search_volume": 140,
+    "low_top_of_page_bid": 0.48,
+    "high_top_of_page_bid": 1.8,
+    "categories": [
+     10002,
+     10028
+    ],
+    "monthly_searches": {
+     "2026-07": 70,
+     "2026-06": 210,
+     "2026-05": 140,
+     "2026-04": 140,
+     "2026-03": 170,
+     "2026-02": 170,
+     "2026-01": 170,
+     "2025-12": 140,
+     "2025-11": 170,
+     "2025-10": 70,
+     "2025-09": 90,
+     "2025-08": 40
+    },
+    "search_volume_trend": {
+     "monthly": -67,
+     "quarterly": -50,
+     "yearly": -22
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 6,
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 91.6,
+    "dofollow": 16.3,
+    "referring_pages": 88.9,
+    "referring_domains": 85.5,
+    "referring_main_domains": 50.5,
+    "rank": 70.8,
+    "main_domain_rank": 585,
+    "last_updated_time": "2026-09-11 08:25:15 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 17:56:11 +00:00"
+   }
+  },
+  {
+   "keyword": "prüfungsfragen erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-23 12:57:38 +00:00",
+    "competition": 0.75,
+    "competition_level": "HIGH",
+    "cpc": 1.78,
+    "search_volume": 10,
+    "low_top_of_page_bid": 0.64,
+    "high_top_of_page_bid": 2.17,
+    "categories": [
+     10013,
+     13425,
+     13489
+    ],
+    "monthly_searches": {
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 20,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10,
+     "2025-08": 10
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki prüfungsfragen erstellen",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-05-04 09:38:25 +00:00"
+   }
+  },
+  {
+   "keyword": "quiz erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 20:00:15 +00:00",
+    "competition": 0.63,
+    "competition_level": "MEDIUM",
+    "cpc": 3.68,
+    "search_volume": 70,
+    "low_top_of_page_bid": 0.66,
+    "high_top_of_page_bid": 2.57,
+    "categories": [
+     10013,
+     10013,
+     13425,
+     13425,
+     13489
+    ],
+    "monthly_searches": {
+     "2026-08": 20,
+     "2026-07": 70,
+     "2026-06": 110,
+     "2026-05": 70,
+     "2026-04": 70,
+     "2026-03": 110,
+     "2026-02": 90,
+     "2026-01": 90,
+     "2025-12": 40,
+     "2025-11": 50,
+     "2025-10": 70,
+     "2025-09": 70
+    },
+    "search_volume_trend": {
+     "monthly": -71,
+     "quarterly": -82,
+     "yearly": -33
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki quiz erstellen",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 18:27:38 +00:00"
+   }
+  },
+  {
+   "keyword": "study guide maker",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 19:47:30 +00:00",
+    "competition": 0.36,
+    "competition_level": "MEDIUM",
+    "search_volume": 10,
+    "categories": [
+     10016,
+     10141,
+     11871
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 50,
+     "2025-11": 10,
+     "2025-10": 20,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "keyword_metrics",
+    "detected_language": "en",
+    "is_another_language": true
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "informational",
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-30 00:43:28 +00:00"
+   }
+  },
+  {
+   "keyword": "tabelle aus pdf extrahieren",
+   "keyword_info": {
+    "last_updated_time": "2026-08-24 06:58:53 +00:00",
+    "competition": 0.36,
+    "competition_level": "MEDIUM",
+    "search_volume": 40,
+    "low_top_of_page_bid": 0.39,
+    "high_top_of_page_bid": 1.59,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 10,
+     "2026-06": 20,
+     "2026-05": 20,
+     "2026-04": 30,
+     "2026-03": 40,
+     "2026-02": 40,
+     "2026-01": 40,
+     "2025-12": 40,
+     "2025-11": 50,
+     "2025-10": 50,
+     "2025-09": 30,
+     "2025-08": 40
+    },
+    "search_volume_trend": {
+     "monthly": -50,
+     "quarterly": -50,
+     "yearly": -80
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "tabellen aus pdf extrahieren",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 50,
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 23:05:32 +00:00"
+   }
+  },
+  {
+   "keyword": "test erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-28 08:18:04 +00:00",
+    "competition": 0.67,
+    "competition_level": "HIGH",
+    "cpc": 1.98,
+    "search_volume": 20,
+    "low_top_of_page_bid": 0.55,
+    "high_top_of_page_bid": 1.89,
+    "categories": [
+     10013,
+     10013,
+     13425,
+     13425,
+     13489
+    ],
+    "monthly_searches": {
+     "2026-07": 10,
+     "2026-06": 20,
+     "2026-05": 20,
+     "2026-04": 20,
+     "2026-03": 20,
+     "2026-02": 20,
+     "2026-01": 30,
+     "2025-12": 30,
+     "2025-11": 40,
+     "2025-10": 20,
+     "2025-09": 20,
+     "2025-08": 10
+    },
+    "search_volume_trend": {
+     "monthly": -50,
+     "quarterly": -50
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki test erstellen",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-05-04 21:45:16 +00:00"
+   }
+  },
+  {
+   "keyword": "text zusammenfassen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 06:41:53 +00:00",
+    "competition": 0.56,
+    "competition_level": "MEDIUM",
+    "cpc": 1.27,
+    "search_volume": 390,
+    "low_top_of_page_bid": 0.48,
+    "high_top_of_page_bid": 1.34,
+    "categories": [
+     10016,
+     10141,
+     10755
+    ],
+    "monthly_searches": {
+     "2026-08": 170,
+     "2026-07": 260,
+     "2026-06": 390,
+     "2026-05": 390,
+     "2026-04": 390,
+     "2026-03": 390,
+     "2026-02": 390,
+     "2026-01": 590,
+     "2025-12": 480,
+     "2025-11": 590,
+     "2025-10": 390,
+     "2025-09": 260
+    },
+    "search_volume_trend": {
+     "monthly": -35,
+     "quarterly": -56
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ki textzusammenfassung",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 13.6,
+    "dofollow": 9.6,
+    "referring_pages": 10.1,
+    "referring_domains": 4.8,
+    "referring_main_domains": 4.6,
+    "rank": 54.5,
+    "main_domain_rank": 501.2,
+    "last_updated_time": "2026-09-02 23:53:56 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 23:18:20 +00:00"
+   }
+  },
+  {
+   "keyword": "youtube video zusammenfassen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 06:33:17 +00:00",
+    "competition": 0.16,
+    "competition_level": "LOW",
+    "cpc": 0.96,
+    "search_volume": 140,
+    "low_top_of_page_bid": 0.17,
+    "high_top_of_page_bid": 0.97,
+    "categories": [
+     10007,
+     10007,
+     11492,
+     11492,
+     13418,
+     13418,
+     13873
+    ],
+    "monthly_searches": {
+     "2026-08": 140,
+     "2026-07": 140,
+     "2026-06": 210,
+     "2026-05": 210,
+     "2026-04": 170,
+     "2026-03": 210,
+     "2026-02": 170,
+     "2026-01": 170,
+     "2025-12": 70,
+     "2025-11": 70,
+     "2025-10": 30,
+     "2025-09": 70
+    },
+    "search_volume_trend": {
+     "quarterly": -33,
+     "yearly": 367
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-30 02:34:29 +00:00"
+   }
+  },
+  {
+   "keyword": "zusammenfassung erstellen ki",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 04:13:31 +00:00",
+    "competition": 0.76,
+    "competition_level": "HIGH",
+    "cpc": 2.71,
+    "search_volume": 170,
+    "low_top_of_page_bid": 0.78,
+    "high_top_of_page_bid": 2.34,
+    "categories": [
+     10016,
+     10141,
+     10755
+    ],
+    "monthly_searches": {
+     "2026-07": 170,
+     "2026-06": 210,
+     "2026-05": 170,
+     "2026-04": 140,
+     "2026-03": 140,
+     "2026-02": 210,
+     "2026-01": 260,
+     "2025-12": 170,
+     "2025-11": 320,
+     "2025-10": 210,
+     "2025-09": 140,
+     "2025-08": 90
+    },
+    "search_volume_trend": {
+     "monthly": -19,
+     "yearly": -35
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "zusammenfassungen erstellen ki",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "de"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 16.7,
+    "dofollow": 12.6,
+    "referring_pages": 13.5,
+    "referring_domains": 4.1,
+    "referring_main_domains": 3.7,
+    "rank": 54.2,
+    "main_domain_rank": 516,
+    "last_updated_time": "2026-05-17 08:26:31 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-30 03:22:17 +00:00"
+   }
+  }
+ ]
+}

@@ -1,0 +1,566 @@
+keyword,volume,recent,spike,kd,intent,cpc,trend,aio,cluster,page,score
+private ai chatbot,5400,5400,spike,12,comm,4.31,4525,,private,/ landing,59.1
+best private ai,5400,5400,spike,15,comm,4.37,98900,AIO,private,/ landing,57.1
+self hosted ai,2900,2900,spike,10,comm,13.88,2408,AIO,self-hosted,/ landing,56.1
+ai powered study companion,3600,3600,spike,14,comm,0,3782,,study,feature: study guide,55.1
+ai-powered research assistant,27100,27100,spike,33,comm,5.99,1258,AIO,research,blog: research,53.5
+on premise ai,2400,2400,spike,13~,comm,15.03,10547,AIO,self-hosted,/ landing,52.9
+secure ai,3600,3600,spike,19,comm,27.04,1985,,compliance,page: compliance,51.9
+ai powered research assistant,27100,27100,spike,33,comm,4.45,175,AIO,research,blog: research,51.2
+best local ai,720,720,spike,5,comm,14.62,488,AIO,local,/ landing,48.9
+self hosted llm,2400,2400,spike,5,info,12.77,1956,AIO,self-hosted,/ landing,48.2
+private ai,8100,5400,spike,14,info,4.08,3681,AIO,private,/ landing,48.1
+open source ai platforms,14800,14800,spike,36,comm,35.32,15757,AIO,open-source,repo + / landing,48.0
+local ai models,1600,1600,,18,comm,11.73,303,AIO,local,/ landing,47.3
+obsidian ai,4400,4400,,16,info,24.47,662,AIO,pkm,blog: pkm,45.9
+self-hosted llm,1300,1300,spike,2,info,4.27,817,,self-hosted,/ landing,45.8
+local ai server,880,880,spike,14,comm,13.3,9329,AIO,local,/ landing,45.6
+sovereign ai,8100,3600,spike,15,info,18.36,1275,AIO,self-hosted,/ landing,45.3
+air gap ai,1900,1900,spike,9,info,21.78,20011,AIO,offline,/ landing,44.8
+air-gapped ai,1900,1900,spike,9,info,21.78,20011,AIO,offline,/ landing,44.8
+study guide generator,2400,1600,,7,info,8.76,233,AIO,study,feature: study guide,44.7
+offline ai,1600,1600,,7,info,6.57,303,AIO,offline,/ landing,44.7
+on-premise ai,1000,1000,spike,18~,comm,16.42,4614,,self-hosted,/ landing,44.3
+on-premise llm,720,720,spike,1,info,0,4809,,self-hosted,/ landing,42.4
+open source ai platform,14800,14800,spike,45,comm,35.32,15757,AIO,open-source,repo + / landing,41.3
+knowt,135000,33100,,9,info,2.86,,,competitor,compare pages,41.1
+private llm,2900,2900,spike,21,info,5.92,2414,AIO,private,/ landing,41.0
+surfsense,590,590,,7,comm,7.66,127,,brand,/ landing,40.8
+notebooklm for students,590,390,spike,21,trans,6.59,255,AIO,notebooklm-brand,blog: notebooklm how-to,39.9
+notebooklm,823000,673000,,64,trans,1.67,173,AIO,notebooklm-nav,not ours: brand navigation,39.1
+notegpt,49500,27100,,14,info,8.71,,,competitor,compare pages,38.1
+airgap ai,590,590,spike,9,info,7.36,4809,,offline,/ landing,37.8
+private ai assistant,590,210,spike,10,comm,7.4,320,AIO,private,/ landing,37.7
+on premise llm,720,720,spike,13~,info,0,4809,,self-hosted,/ landing,37.3
+msty,110000,49500,,10,info,6.43,-80,AIO,competitor,compare pages,37.0
+how many sources can you add to notebooklm,320,320,,3,info,0,333,AIO,notebooklm-pricing,/pricing,36.5
+notebooklm plans,210,210,,13,comm,6.16,200,AIO,notebooklm-pricing,/pricing,36.4
+best local llm,1600,1600,,8,info,20.65,90,AIO,local,/ landing,36.1
+is notebooklm down,320,320,,4~,info,0,320,AIO,notebooklm-brand,blog: notebooklm how-to,36.1
+jan ai,4400,4400,,13,info,5.33,50,,competitor,compare pages,35.7
+anythingllm,8100,8100,,19,info,11.66,50,,competitor,compare pages,35.6
+private ai app,320,320,spike,21,comm,9.43,875,AIO,private,/ landing,35.6
+notebooklm pricing,1300,1000,,2,comm,5.29,,AIO,notebooklm-pricing,/pricing,35.3
+notebooklm price,1300,1000,,2,comm,5.29,,AIO,notebooklm-pricing,/pricing,35.3
+study guide maker,8100,1900,,6,comm,4.1,-21,AIO,study,feature: study guide,35.0
+gamma ai,110000,60500,,21,info,3.58,-33,,competitor,compare pages,34.7
+notebooklm for studying,590,320,spike,31,trans,14.29,680,AIO,study,feature: study guide,33.7
+privategpt,880,720,,13,info,9.6,140,,competitor,compare pages,33.6
+ollama,135000,135000,,42,info,8.1,50,,competitor,compare pages,33.5
+flashcards for studying,14800,14800,spike,47,info,1.73,311,AIO,flashcards,feature: flashcards,33.2
+best ai for research,2400,2400,,19,comm,11.32,,,research,blog: research,32.9
+ai second brain,390,390,,16,info,9.11,700,AIO,pkm,blog: pkm,32.7
+best ai for studying,1300,880,,18,comm,6.85,49,,study,feature: study guide,32.5
+notebooklm free for students,210,140,,16,comm,5.35,350,AIO,notebooklm-pricing,/pricing,32.5
+notebooklm sign up,170,170,,26,trans,5.55,767,,notebooklm-brand,blog: notebooklm how-to,32.2
+ai notebook,2400,1300,,22,trans,4.76,,AIO,category,/ landing,31.6
+napkin ai,22200,12100,,12,info,7.31,-63,,competitor,compare pages,31.4
+notebooklm student discount,260,170,,13,comm,6.37,133,AIO,notebooklm-pricing,/pricing,31.1
+ai podcast generator,5400,2400,,13,comm,6.42,-65,,podcast,feature: podcast,30.9
+study ai,18100,8100,,22,info,3.51,,,study,feature: study guide,30.5
+obsidian vs notebooklm,140,140,,13~,comm,0,143,AIO,notebooklm-switch,/ landing,30.5
+how to use notebooklm to study,210,170,,6,info,4.08,180,AIO,study,feature: study guide,30.4
+notebooklm vs claude,140,140,,6~,info,0,325,AIO,notebooklm-switch,/ landing,30.3
+notebooklm for teachers,90,90,,14,comm,7.12,250,AIO,notebooklm-brand,blog: notebooklm how-to,30.3
+google notebooklm,33100,27100,,48,info,2.15,124,,notebooklm-nav,not ours: brand navigation,30.2
+gemini notebooklm,590,590,spike,45,trans,3,1614,AIO,notebooklm-nav,not ours: brand navigation,29.7
+notebooklm skill,320,260,,8,trans,0,,AIO,notebooklm-brand,blog: notebooklm how-to,28.9
+lm studio,60500,60500,,18,nav,10.21,83,,competitor,compare pages,28.4
+does notebooklm have a limit,210,210,,19,info,0,425,AIO,notebooklm-pricing,/pricing,28.2
+best ai for privacy,170,170,,8,comm,1.29,55,AIO,private,/ landing,28.0
+how much is notebooklm,320,260,,10,comm,7.65,24,AIO,notebooklm-pricing,/pricing,27.7
+notebooklm web importer chrome extension,90,90,,10,trans,0,80,AIO,notebooklm-brand,blog: notebooklm how-to,27.5
+ai study guide maker,2900,720,,10,comm,6.74,-45,AIO,study,feature: study guide,27.4
+ai summarizer,22200,6600,,33,comm,3.95,-45,,summary,feature: summary,27.3
+notebooklm to pdf chrome extension,320,260,,13~,trans,0,,AIO,notebooklm-brand,blog: notebooklm how-to,27.3
+open source ai,6600,6600,,33,info,8.92,23,AIO,open-source,repo + / landing,27.1
+surfsense ai,90,90,spike,8,info,21.94,4700,,brand,/ landing,27.0
+local llm,9900,8100,spike,24,nav,11.41,1956,AIO,local,/ landing,26.7
+open source ai assistant,4400,3600,spike,50,info,7.11,1157,AIO,open-source,repo + / landing,26.7
+notebooklm down,140,70,,4~,info,0,250,,notebooklm-brand,blog: notebooklm how-to,26.7
+notebooklm download,720,720,,50,trans,3.85,175,AIO,notebooklm-install,/downloads,26.7
+self-hosted ai models,140,140,,23~,comm,12.62,133,,self-hosted,/ landing,26.5
+notebooklm for windows,210,210,,42,trans,10.03,420,AIO,notebooklm-install,/downloads,26.3
+notebooklm extension,170,110,,7,trans,4.6,22,,notebooklm-brand,blog: notebooklm how-to,26.1
+notebooklm subscription,110,110,,14,trans,6.05,57,AIO,notebooklm-pricing,/pricing,26.1
+most private ai,140,140,,1,info,0,89,AIO,private,/ landing,26.0
+ai study tools,6600,1900,,27,info,6.1,30,,study,feature: study guide,25.7
+private chatgpt,1900,1900,spike,13,nav,2.83,6862,AIO,private,/ landing,25.7
+summary ai,5400,3600,,32,info,3.39,23,AIO,summary,feature: summary,25.6
+mindgrasp ai,4400,1600,,13,info,2.05,-34,,competitor,compare pages,25.5
+on prem llm,720,720,spike,1,nav,0,4809,AIO,self-hosted,/ landing,25.5
+youlearn ai,6600,1900,,11,info,4.25,-64,,competitor,compare pages,25.5
+notebooklm mcp,720,720,,1,nav,16.97,556,AIO,mcp,/mcp-server,25.5
+is notebooklm good for studying,90,50,,2,info,0,300,AIO,notebooklm-brand,blog: notebooklm how-to,25.1
+download notebooklm,210,210,,38,trans,3.31,133,AIO,notebooklm-install,/downloads,25.0
+ai quiz maker,2900,1300,,30,comm,5.31,-19,,quiz,feature: quiz,24.9
+is notebooklm good,260,170,,7,info,0,80,AIO,notebooklm-brand,blog: notebooklm how-to,24.9
+how to download sources from notebooklm,70,70,,2,info,0,150,AIO,notebooklm-brand,blog: notebooklm how-to,24.9
+notebooklm tool,170,170,,43,trans,6.66,267,,notebooklm-brand,blog: notebooklm how-to,24.8
+pdf to ppt,18100,12100,,34,info,0.8,-33,,slides,feature: slides,24.7
+notebooklm ai,1600,1600,,54,trans,4.55,116,AIO,notebooklm-nav,not ours: brand navigation,24.7
+quizlet ai,2400,1000,,18,info,2.75,,AIO,competitor,compare pages,24.6
+how to use notebooklm,2900,1900,,25,info,6.37,,,notebooklm-brand,blog: notebooklm how-to,24.6
+how many notebooks can you have in notebooklm,170,170,,10,info,0,89,AIO,notebooklm-brand,blog: notebooklm how-to,24.6
+ai spreadsheet generator,480,390,,14,comm,18.01,-34,,spreadsheet,feature: spreadsheet,24.5
+notebooklm-skill,320,170,,9,comm,0,,,notebooklm-brand,blog: notebooklm how-to,24.4
+notebooklm plan,210,170,,13,info,3.71,100,,notebooklm-pricing,/pricing,24.3
+open source llm model,720,720,,25,info,3.39,49,AIO,open-source,repo + / landing,24.1
+notebook ai,8100,4400,,45,trans,3.89,-33,,category,/ landing,23.9
+most secure ai,70,70,,11,comm,24.43,80,AIO,compliance,page: compliance,23.7
+private ai tools,50,50,,16,comm,9.64,150,AIO,private,/ landing,23.7
+notebooklm tools,170,170,,41,comm,6.66,267,AIO,notebooklm-brand,blog: notebooklm how-to,23.7
+ai slide generator,4400,2400,,44,trans,7.84,-17,,slides,feature: slides,23.6
+document intelligence,590,590,,23,comm,14.8,-33,AIO,rag,feature: sources,23.5
+youtube video summarizer,8100,4400,,30,info,2.96,-33,,summary,feature: summary,23.4
+turbolearn ai,14800,1900,spike,19,info,4.42,-93,,competitor,compare pages,23.2
+ai flashcard maker,3600,1000,,33,trans,2.91,-46,,flashcards,feature: flashcards,23.1
+run llm locally,720,590,,9,info,10.59,-33,AIO,local,/ landing,23.1
+gemini vs notebooklm,210,170,,10,comm,0,-18,AIO,notebooklm-switch,/ landing,23.0
+best ai study tools,880,320,,20,comm,5.43,-19,,study,feature: study guide,22.9
+ai quiz,1300,880,,45,info,4.52,164,,quiz,feature: quiz,22.8
+pdf table extractor,480,260,,17,trans,8.49,-64,,spreadsheet,feature: spreadsheet,22.8
+notebooklm alternative,590,480,,4~,info,13.16,-46,AIO,notebooklm-switch,/ landing,22.8
+gpt4all,3600,1900,,21,info,8.83,-76,AIO,competitor,compare pages,22.7
+is notebooklm free,2900,2400,,36,info,6.73,19,AIO,notebooklm-pricing,/pricing,22.7
+ai study tool,6600,1900,,31,info,5.22,,,study,feature: study guide,22.6
+best self-hosted llm,90,90,,4,comm,6.84,,,self-hosted,/ landing,22.6
+make flashcards,6600,2900,,39,info,2.56,26,,flashcards,feature: flashcards,22.5
+notebooklm upgrade,70,50,,13,trans,8.1,67,AIO,notebooklm-brand,blog: notebooklm how-to,22.5
+how to run ai locally,260,260,,13,info,10.14,24,AIO,local,/ landing,22.3
+how to use notebooklm for studying,70,50,,5,info,0,150,AIO,study,feature: study guide,22.3
+pdf summarizer,4400,880,,14,info,4.57,-80,,summary,feature: summary,22.2
+notebooklm cost,480,320,,3,info,3.82,-34,AIO,notebooklm-pricing,/pricing,22.2
+flashcard generator,33100,9900,,42,info,2.12,-18,,flashcards,feature: flashcards,22.1
+khoj,1600,880,,29,info,0,22,,competitor,compare pages,22.1
+local ai for mac,40,40,,30,trans,28.45,300,AIO,local,/ landing,22.0
+alternatives to notebooklm,170,170,,8~,info,7.94,27,AIO,notebooklm-brand,blog: notebooklm how-to,21.9
+ai study assistant,170,170,,35,info,5.07,875,AIO,study,feature: study guide,21.8
+notebooklm alternatives,590,480,,8~,info,13.16,-46,AIO,notebooklm-switch,/ landing,21.8
+best self hosted ai,70,70,,9,comm,0,29,AIO,self-hosted,/ landing,21.7
+ollama alternative,880,880,,30?,info,5.39,22,,competitor,compare pages,21.7
+how does notebooklm work,720,590,,26,info,5.09,23,AIO,notebooklm-brand,blog: notebooklm how-to,21.7
+alternative to notebooklm,170,170,,9~,info,7.94,27,AIO,notebooklm-brand,blog: notebooklm how-to,21.7
+hipaa compliant ai,4400,4400,spike,34,nav,46.33,2610,AIO,compliance,page: compliance,21.6
+how much does notebooklm cost,260,210,,3,info,7.34,-18,AIO,notebooklm-pricing,/pricing,21.5
+ai excel generator,170,110,,8,trans,10.37,-65,AIO,spreadsheet,feature: spreadsheet,21.4
+summarize youtube video,3600,1900,,26,info,3.05,-47,,summary,feature: summary,21.4
+local rag,170,170,,4,info,0,,AIO,local,/ landing,21.4
+notegpt ai homework helper,6600,590,spike,12,info,0,-96,,competitor,compare pages,21.3
+notebooklm #ai,1600,1600,,54,info,4.27,173,,notebooklm-brand,blog: notebooklm how-to,21.1
+ai-powered study tools,8100,590,spike,28,comm,5.7,-89,AIO,study,feature: study guide,21.0
+quillbot summarizer,5400,1900,spike,27,info,1.31,-56,,competitor,compare pages,20.9
+ai powered study tool,8100,590,spike,29,comm,5.7,-89,AIO,study,feature: study guide,20.7
+notebooklm vs gemini,590,390,,13,info,0,-33,AIO,notebooklm-switch,/ landing,20.7
+how to run llm locally,320,260,,7,info,0,-34,AIO,local,/ landing,20.6
+is notebooklm free for students,110,90,,30,info,7.43,350,AIO,notebooklm-pricing,/pricing,20.6
+best offline ai,90,90,,13,comm,9.21,,,offline,/ landing,20.5
+ai powered study tools,8100,590,spike,30,comm,5.7,-89,AIO,study,feature: study guide,20.4
+ai pdf summarizer,1300,320,,23,comm,5.47,-93,AIO,summary,feature: summary,20.3
+ai presentation generator,1300,1000,,55,info,10.53,233,AIO,slides,feature: slides,20.3
+notion vs notebooklm,140,110,,9~,comm,0,-36,AIO,notebooklm-switch,/ landing,20.3
+notebooklm cli,260,210,spike,4,nav,0,600,AIO,notebooklm-brand,blog: notebooklm how-to,20.1
+studyfetch,33100,12100,,23,nav,0.37,22,,competitor,compare pages,19.9
+ai tools for studying,590,260,spike,18,info,6.71,,AIO,study,feature: study guide,19.8
+what is notebooklm,5400,5400,,47,info,3.67,,AIO,notebooklm-brand,blog: notebooklm how-to,19.8
+best ai presentation maker,1000,720,,36,comm,15.76,-41,AIO,slides,feature: slides,19.7
+notebooklm mind map,320,260,,7~,info,4.74,-64,AIO,mindmap,feature: mind map,19.7
+open webui,14800,14800,,26,nav,19.46,22,,competitor,compare pages,19.5
+notebooklm login,12100,12100,,47,nav,1.39,317,AIO,notebooklm-nav,not ours: brand navigation,19.5
+ai for studying,880,390,,25,info,5.73,,AIO,study,feature: study guide,19.4
+offline ai chatbot,390,320,,19,info,4.44,-18,AIO,offline,/ landing,19.4
+google notebooklm for students,90,90,spike,45,comm,0.35,1600,AIO,notebooklm-brand,blog: notebooklm how-to,19.4
+ai study guide,590,260,,16,info,5.48,-19,AIO,study,feature: study guide,19.3
+notebooklm free,320,320,,37,info,6.5,88,AIO,notebooklm-pricing,/pricing,19.3
+ai for legal documents,140,110,,10,comm,82.76,-57,,compliance,page: compliance,19.3
+what does notebooklm stand for,90,90,,26,info,0,133,AIO,notebooklm-brand,blog: notebooklm how-to,19.3
+notebooklm watermark remover,140,140,,11~,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,19.1
+can you share notebooklm with others,70,40,,4,trans,0,-20,AIO,notebooklm-brand,blog: notebooklm how-to,19.1
+literature review ai,720,390,,17,info,8.46,-46,AIO,report,feature: report,19.0
+youtube to notebooklm,590,320,,14,nav,0,189,AIO,notebooklm-brand,blog: notebooklm how-to,19.0
+ai infographic generator,1600,1600,,47,info,8.73,46,AIO,infographic,feature: infographic,18.9
+quiz ai,3600,1000,,29,info,4.22,-45,,quiz,feature: quiz,18.9
+notebooklm api,1000,590,,22,info,10.36,-61,AIO,mcp,/mcp-server,18.9
+ai html generator,90,50,,3,trans,9.1,-55,,webpage,feature: web page,18.8
+best ai summarizer,170,140,,27,comm,7.98,,AIO,summary,feature: summary,18.8
+revisely,4400,1900,,35~,info,3.82,-47,,competitor,compare pages,18.8
+offline ai chatbot free,110,110,,8,info,4.67,,AIO,offline,/ landing,18.8
+notebooklm mcp server,210,140,,3,nav,16.8,367,AIO,mcp,/mcp-server,18.8
+ai tools for students,880,320,,29,comm,4.38,-75,AIO,study,feature: study guide,18.7
+local ai assistant,140,110,,24,comm,16.34,,AIO,local,/ landing,18.7
+what does notebooklm do,720,590,,29,info,1.41,-19,AIO,notebooklm-brand,blog: notebooklm how-to,18.7
+ai ppt generator,6600,3600,,54,trans,9.99,-56,,slides,feature: slides,18.6
+quiz maker ai,720,260,,33,comm,6,-18,,quiz,feature: quiz,18.6
+ai for researchers,4400,2900,,53,comm,10.57,-19,,research,blog: research,18.6
+claude notebooklm,140,140,spike,4,nav,8.32,1000,AIO,notebooklm-brand,blog: notebooklm how-to,18.6
+how long does it take notebooklm to generate a podcast,70,40,,11,comm,0,33,AIO,notebooklm-brand,blog: notebooklm how-to,18.6
+notebooklm pricing plans,70,70,,7,comm,7.54,-40,AIO,notebooklm-pricing,/pricing,18.6
+ai flashcard generator,1000,480,,31,info,3.84,,,flashcards,feature: flashcards,18.5
+notebooklm obsidian,90,70,,12~,trans,0,-79,AIO,notebooklm-brand,blog: notebooklm how-to,18.5
+ai slides generator,4400,2400,,43,info,7.84,-17,AIO,slides,feature: slides,18.4
+notebooklm for research,50,40,,24,info,7.63,450,AIO,notebooklm-switch,/ landing,18.4
+notebooklm vs chatgpt,320,170,,6~,info,0,-65,AIO,notebooklm-switch,/ landing,18.4
+offline chatgpt,210,140,,2~,info,3.92,-58,AIO,offline,/ landing,18.4
+ai presentation maker,9900,5400,,54,comm,9.24,-45,,slides,feature: slides,18.3
+google notebooklm pro,210,170,spike,28,trans,15.14,-80,AIO,notebooklm-pricing,/pricing,18.3
+notebooklm quiz feature,140,140,spike,29,comm,0,,AIO,quiz,feature: quiz,18.3
+notebooklm ultra exporter,70,70,,1,info,0,,,notebooklm-brand,blog: notebooklm how-to,18.3
+ai document writer,170,140,,38,comm,14.37,56,AIO,report,feature: report,18.2
+ai powerpoint generator,6600,3600,,55,trans,9.99,-56,AIO,slides,feature: slides,18.2
+notebooklm review,260,170,,7,info,3.94,-58,AIO,notebooklm-brand,blog: notebooklm how-to,18.2
+notebooklm plus,590,260,,34,trans,3.13,-83,AIO,notebooklm-pricing,/pricing,18.1
+how to remove notebooklm watermark,90,70,,2~,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,18.1
+ai quiz generator,3600,1000,,32,info,5.4,-47,,quiz,feature: quiz,18.0
+article summarizer,5400,1300,,34,info,4.03,-64,,summary,feature: summary,18.0
+notebooklm claude,110,110,,2,nav,9.53,800,AIO,notebooklm-brand,blog: notebooklm how-to,18.0
+notebooklm pro plan,90,30,,33,comm,4.73,400,AIO,notebooklm-pricing,/pricing,18.0
+does notebooklm train on your data,110,70,,8,comm,0,-50,AIO,notebooklm-brand,blog: notebooklm how-to,17.9
+mcp server,60500,49500,,34,nav,31.38,-18,AIO,mcp,/mcp-server,17.8
+notebooklm limitations,320,170,,9,info,0,-66,AIO,notebooklm-pricing,/pricing,17.8
+notebooklm vs obsidian,170,140,,13~,info,0,-21,AIO,notebooklm-switch,/ landing,17.7
+how accurate is notebooklm,50,40,,27,info,0,200,AIO,notebooklm-brand,blog: notebooklm how-to,17.7
+is google notebooklm free,260,260,,40,info,11.56,86,AIO,notebooklm-pricing,/pricing,17.6
+notebooklm is it free,90,90,,33,info,7.32,133,AIO,notebooklm-brand,blog: notebooklm how-to,17.5
+free ai quiz generator,390,170,,18,info,4.59,-19,AIO,quiz,feature: quiz,17.4
+ai report writer,320,210,,30~,comm,14.42,-47,AIO,report,feature: report,17.2
+notebooklm use cases,210,110,,4,info,0.01,-76,AIO,notebooklm-brand,blog: notebooklm how-to,17.2
+best offline llm,70,70,,7,info,0,,AIO,offline,/ landing,17.2
+ollama rag,260,110,,4,info,5.12,-72,AIO,rag,feature: sources,17.2
+why is notebooklm not working,90,50,,20~,info,0,100,AIO,notebooklm-brand,blog: notebooklm how-to,17.1
+notebooklm open-source alternative,70,40,,7,comm,0,-20,AIO,notebooklm-brand,blog: notebooklm how-to,17.1
+anki ai,390,320,,32,info,7.62,,AIO,flashcards,feature: flashcards,17.0
+what is notebooklm used for,1000,720,,32,info,5.61,-52,AIO,notebooklm-brand,blog: notebooklm how-to,17.0
+notebooklm to pdf,90,20,,1,trans,0,,AIO,notebooklm-brand,blog: notebooklm how-to,17.0
+notebooklm vs onenote,70,50,,5~,comm,0,-55,AIO,notebooklm-switch,/ landing,17.0
+how long does notebooklm take to generate podcast,110,40,,6,comm,0,-29,AIO,notebooklm-brand,blog: notebooklm how-to,16.9
+gemini notebook vs notebooklm,70,70,spike,24,comm,0.02,,AIO,notebooklm-switch,/ landing,16.9
+notebooklm reports,50,30,,6,comm,0,,AIO,report,feature: report,16.8
+self-hosted ai chatbot,50,40,,1,comm,7.75,-57,AIO,self-hosted,/ landing,16.8
+notebooklm remover,70,70,,30?,trans,0,,,notebooklm-brand,blog: notebooklm how-to,16.8
+notebooklm app,2900,2400,,62,trans,3.3,,AIO,notebooklm-install,/downloads,16.7
+google's notebooklm,33100,27100,,52,nav,2.15,124,AIO,notebooklm-brand,blog: notebooklm how-to,16.7
+notebooklm infographic,210,110,,10~,nav,11.7,800,AIO,infographic,feature: infographic,16.6
+summarize pdf,880,390,,27,info,4.67,-75,,summary,feature: summary,16.6
+notebooklm limits,320,170,,15,info,0,-66,AIO,notebooklm-pricing,/pricing,16.6
+lm studio alternative,390,390,,5,nav,14.71,50,AIO,competitor,compare pages,16.6
+does notebooklm cost money,110,90,,24,comm,0,-29,AIO,notebooklm-pricing,/pricing,16.6
+how long does notebooklm take to generate video,90,50,,19,comm,0,,AIO,notebooklm-brand,blog: notebooklm how-to,16.6
+notebooklm source limit,210,140,,16,info,0,-35,AIO,notebooklm-pricing,/pricing,16.5
+ai question generator,880,320,,25,info,4.37,-64,,quiz,feature: quiz,16.4
+audio overview,170,110,,12,info,5.45,-35,AIO,podcast,feature: podcast,16.4
+summarize ai,9900,2900,,46,info,5.12,-76,,summary,feature: summary,16.4
+how to use google notebooklm,320,260,,32,info,4.71,,AIO,notebooklm-brand,blog: notebooklm how-to,16.4
+notebooklm tools extension,50,50,,20,comm,0,,AIO,notebooklm-brand,blog: notebooklm how-to,16.4
+is notebooklm generative ai,70,40,,24,info,0,133,AIO,notebooklm-brand,blog: notebooklm how-to,16.3
+ai study buddy,210,110,,35~,info,5.58,88,AIO,study,feature: study guide,16.2
+offline ai assistant,90,70,spike,4,info,5.67,-36,AIO,offline,/ landing,16.2
+hipaa compliant chatgpt,390,260,,27,info,63.56,-33,AIO,compliance,page: compliance,16.2
+what is google notebooklm,1300,1300,,48,info,2.95,,AIO,notebooklm-brand,blog: notebooklm how-to,16.2
+is notebooklm ai,140,90,,38,info,0,133,AIO,notebooklm-brand,blog: notebooklm how-to,16.2
+what is a mind map in notebooklm,50,50,,5~,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,16.2
+que es notebooklm,90,70,,6,info,0,-29,AIO,notebooklm-brand,blog: notebooklm how-to,16.1
+notebooklm cinematic video,70,30,spike,10,comm,0,,AIO,video,feature: video (WIP),16.1
+quizlet alternative,2900,1000,,42~,info,3.53,-32,AIO,competitor,compare pages,16.0
+practice test generator,480,140,,26,info,5.34,,,quiz,feature: quiz,15.9
+what is notebooklm good for,140,140,,26,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,15.9
+does notebooklm use gemini,110,50,,14,comm,0,-40,AIO,notebooklm-brand,blog: notebooklm how-to,15.9
+flashcard maker ai,320,110,,35,trans,3.39,-35,AIO,flashcards,feature: flashcards,15.8
+notes to podcast,480,140,,16,info,8.66,-59,,podcast,feature: podcast,15.8
+notebooklm pro,880,320,,40,comm,5.4,-87,AIO,notebooklm-pricing,/pricing,15.8
+qué es notebooklm,90,70,,8,info,0,-29,,notebooklm-brand,blog: notebooklm how-to,15.8
+notebooklm 2.0,90,90,spike,59,trans,4.35,400,AIO,notebooklm-brand,blog: notebooklm how-to,15.7
+use cases for notebooklm,50,30,,3,comm,0,-40,AIO,notebooklm-brand,blog: notebooklm how-to,15.6
+notebooklm max sources,70,50,,16,info,0,33,AIO,notebooklm-brand,blog: notebooklm how-to,15.5
+is notebooklm private,140,70,,5,info,0,-71,AIO,notebooklm-switch,/ landing,15.4
+ai podcast from notes,480,110,,14,info,9.6,-73,AIO,podcast,feature: podcast,15.4
+notebooklm training,110,110,,30,info,3.16,29,AIO,notebooklm-brand,blog: notebooklm how-to,15.4
+notebooklm rag,50,30,,12,trans,0,-40,AIO,notebooklm-brand,blog: notebooklm how-to,15.4
+ai study app,590,320,,58,comm,4.61,86,AIO,study,feature: study guide,15.3
+notebooklm app for mac,70,50,,31,trans,3.48,,AIO,notebooklm-install,/downloads,15.3
+privacy focused ai,50,50,,16,info,8.73,25,AIO,private,/ landing,15.2
+notebooklm-py,720,480,spike,6,nav,0,,,notebooklm-brand,blog: notebooklm how-to,15.1
+notebooklm download windows,90,70,,41,trans,0,25,AIO,notebooklm-install,/downloads,15.1
+who created notebooklm,70,50,,17,info,0,25,AIO,notebooklm-brand,blog: notebooklm how-to,15.1
+ai flashcards,1600,480,,37,info,3.33,-46,AIO,flashcards,feature: flashcards,15.0
+google ai podcast generator,390,170,,23,info,4.48,-56,AIO,podcast,feature: podcast,15.0
+llm mcp,390,260,,29,info,8.63,-71,AIO,mcp,/mcp-server,15.0
+notebooklm file size limit,90,70,,19,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,15.0
+second brain app,260,260,,3,nav,5.27,24,AIO,pkm,blog: pkm,14.9
+notebooklm vs notion,140,70,,8~,info,0,-71,AIO,notebooklm-switch,/ landing,14.9
+how to use notebooklm effectively,90,70,,8,info,3.2,-50,AIO,notebooklm-brand,blog: notebooklm how-to,14.9
+notebooklm upgrades,70,50,,13,info,6.67,,,notebooklm-brand,blog: notebooklm how-to,14.9
+google notebooklm pricing,70,40,,12,comm,4.28,-64,,notebooklm-pricing,/pricing,14.9
+google podcast generator,390,210,,27,info,4.67,-64,AIO,podcast,feature: podcast,14.8
+notebooklm what is it,320,320,,38,info,20.85,-19,AIO,notebooklm-brand,blog: notebooklm how-to,14.8
+ai practice test generator,320,90,,25,info,8.23,,AIO,quiz,feature: quiz,14.7
+pdf to anki,170,70,,9,info,2.43,-67,AIO,flashcards,feature: flashcards,14.7
+apps like notebooklm,50,40,,9~,info,6.79,,AIO,notebooklm-switch,/ landing,14.7
+notebooklm android,70,70,,31,trans,3.05,-47,AIO,notebooklm-brand,blog: notebooklm how-to,14.7
+notebooklm gemini,210,210,,67,trans,1.86,189,AIO,notebooklm-brand,blog: notebooklm how-to,14.7
+notebooklm ppt,170,70,,12,nav,4.67,200,AIO,slides,feature: slides,14.7
+youtube to notebooklm extension,110,110,,11,nav,0,133,,notebooklm-brand,blog: notebooklm how-to,14.6
+download ai,880,720,,59,trans,5.95,-18,,download,/downloads,14.5
+ai report generator,480,320,,35~,info,15.73,-46,,report,feature: report,14.4
+notebooklm cinematic video overviews,110,20,spike,9,comm,0,,AIO,video,feature: video (WIP),14.4
+does notebooklm hallucinate,70,40,,6~,info,0,-20,AIO,notebooklm-brand,blog: notebooklm how-to,14.4
+ai summarizer free,480,170,,39,comm,6.14,-64,AIO,summary,feature: summary,14.3
+turn notes into podcast,880,260,,33~,info,8.43,-46,AIO,podcast,feature: podcast,14.3
+document summarizer,590,210,,31,info,6.19,-46,AIO,summary,feature: summary,14.2
+pdf to quiz,390,90,,17,info,4.2,-72,AIO,quiz,feature: quiz,14.2
+slides ai,5400,1900,,62,trans,6.58,-71,,slides,feature: slides,14.2
+notebooklm vs perplexity,70,50,,5~,info,0,-57,AIO,notebooklm-switch,/ landing,14.2
+how much is notebooklm pro,90,30,,9,comm,9.21,-80,AIO,notebooklm-pricing,/pricing,14.2
+notebooklm download for windows 11,70,70,,41,trans,12.31,,AIO,notebooklm-install,/downloads,14.2
+ai document summarizer,260,140,,25,info,6.48,-56,AIO,summary,feature: summary,14.1
+ai flashcard generator free,320,110,,31,info,3.82,,AIO,flashcards,feature: flashcards,14.1
+ppt ai,4400,2900,,54,info,7.61,-45,,slides,feature: slides,14.1
+notebooklm update,320,170,,34,info,0,-19,AIO,notebooklm-brand,blog: notebooklm how-to,14.0
+notebooklm enterprise api,210,70,,16~,nav,31.11,600,AIO,notebooklm-switch,/ landing,14.0
+anki flashcard generator,90,50,spike,12,info,0,-29,,flashcards,feature: flashcards,13.9
+www notebooklm,590,590,,37,nav,2.64,129,AIO,notebooklm-brand,blog: notebooklm how-to,13.9
+why does notebooklm take so long,90,30,spike,17~,info,0,50,AIO,notebooklm-brand,blog: notebooklm how-to,13.9
+notebooklm macos,70,30,,18,trans,5.27,-75,AIO,notebooklm-install,/downloads,13.9
+notebooklm video,210,110,,23,info,4.58,-81,AIO,video,feature: video (WIP),13.8
+does notebooklm have an api,110,70,,15,info,0,-71,,mcp,/mcp-server,13.8
+notebooklm audio overview,140,140,,5,nav,3.36,50,AIO,podcast,feature: podcast,13.8
+notebooklm audio overviews,140,140,,5,nav,3.36,50,,podcast,feature: podcast,13.8
+what does lm stand for in notebooklm,140,110,,26,info,0,-36,AIO,notebooklm-brand,blog: notebooklm how-to,13.8
+google notebooklm audio overview,50,50,,24,info,6.68,25,AIO,podcast,feature: podcast,13.8
+is notebooklm better than chatgpt,50,20,,5~,comm,0,-33,AIO,notebooklm-brand,blog: notebooklm how-to,13.8
+turn notes into flashcards,320,90,,30,info,3.85,,AIO,flashcards,feature: flashcards,13.7
+notebooklm free limits,140,70,,17,info,0,-44,AIO,notebooklm-pricing,/pricing,13.7
+pdf to presentation,110,70,,19,info,3,-36,,slides,feature: slides,13.6
+mapify ai,260,110,,24,info,3.22,-58,AIO,competitor,compare pages,13.6
+what model does notebooklm use,170,110,,30,info,0,-21,AIO,notebooklm-brand,blog: notebooklm how-to,13.6
+notebooklm enterprise pricing,90,30,,13,comm,23.86,-86,AIO,notebooklm-switch,/ landing,13.6
+can notebooklm read handwritten notes,50,20,,2,comm,0,-86,AIO,notebooklm-brand,blog: notebooklm how-to,13.6
+ai pdf to excel,70,40,,16,info,10.67,,AIO,spreadsheet,feature: spreadsheet,13.5
+infographic maker ai,210,110,,37,comm,9.46,-59,AIO,infographic,feature: infographic,13.5
+notebooklm slides,170,90,,17,nav,5.19,150,AIO,slides,feature: slides,13.4
+notebooklm chrome extension,170,90,,22,info,6.7,-71,AIO,notebooklm-brand,blog: notebooklm how-to,13.4
+google notebooklm app,110,110,,59,trans,3.26,91,AIO,notebooklm-install,/downloads,13.4
+ai slide maker,3600,1900,,66,trans,8.05,-32,,slides,feature: slides,13.3
+youtube to notebooklm chrome extension,260,260,,8,nav,2.24,,AIO,notebooklm-brand,blog: notebooklm how-to,13.3
+can notebooklm transcribe audio,140,40,,6,info,0,-76,AIO,notebooklm-brand,blog: notebooklm how-to,13.3
+notebooklm pro price,90,30,,15,comm,10.2,-60,AIO,notebooklm-pricing,/pricing,13.3
+notebooklm pro pricing,90,30,,15,comm,10.2,-60,,notebooklm-pricing,/pricing,13.3
+notebooklm vs,70,40,,6~,info,7.77,-57,AIO,notebooklm-switch,/ landing,13.3
+ai for academic research,210,140,,42,comm,11.66,-46,AIO,research,blog: research,13.2
+flashcards ai,590,170,,33,info,2.96,-56,AIO,flashcards,feature: flashcards,13.1
+pdf to video ai,170,90,,30~,info,3.73,-18,AIO,video,feature: video (WIP),13.1
+notebooklm website,390,390,,44,nav,3.24,555,AIO,notebooklm-brand,blog: notebooklm how-to,13.1
+notebooklm web,390,390,,44,nav,3.24,555,AIO,notebooklm-brand,blog: notebooklm how-to,13.1
+is notebooklm owned by google,50,50,,49,info,0,300,AIO,notebooklm-brand,blog: notebooklm how-to,13.1
+ai slide deck generator,720,390,,56,trans,11.98,-68,AIO,slides,feature: slides,13.0
+chat with pdf,390,140,,31,info,3.9,-76,,rag,feature: sources,13.0
+notebooklm mac,260,170,,67,trans,15.64,143,AIO,notebooklm-install,/downloads,13.0
+ai study guide generator,320,110,,37~,info,8.53,,AIO,study,feature: study guide,12.9
+offline ai chat,390,390,,17,nav,4.13,,,offline,/ landing,12.9
+notebooklm free vs paid,90,30,,1,info,0,-91,AIO,notebooklm-pricing,/pricing,12.9
+practice questions generator,170,70,,27,info,3.56,-20,AIO,quiz,feature: quiz,12.8
+quiz generator from pdf,140,50,,14,info,3.42,-55,AIO,quiz,feature: quiz,12.8
+ai exam generator,110,40,,21,info,5.93,,AIO,quiz,feature: quiz,12.7
+quiz generator ai,320,50,,15,info,5.86,-67,AIO,quiz,feature: quiz,12.7
+notebooklm for mac,260,260,,67,trans,6.07,89,AIO,notebooklm-install,/downloads,12.7
+how to edit notebooklm slides,90,30,,15~,info,0,,AIO,slides,feature: slides,12.7
+ai quiz generator free,320,70,,22,info,5.27,-59,AIO,quiz,feature: quiz,12.6
+presentation generator ai,210,90,,42,comm,13.32,-29,AIO,slides,feature: slides,12.6
+what is google notebooklm used for,90,90,,57,info,3.51,350,AIO,notebooklm-brand,blog: notebooklm how-to,12.6
+gemini and notebooklm,90,50,,31,comm,5.63,-44,AIO,notebooklm-brand,blog: notebooklm how-to,12.6
+notebooklm not working,70,50,,20~,info,0,-33,AIO,notebooklm-brand,blog: notebooklm how-to,12.5
+notebooklm plus price,50,20,spike,10,comm,7.18,-93,AIO,notebooklm-pricing,/pricing,12.5
+ai summary generator,1000,590,,49,info,3.95,-63,,summary,feature: summary,12.4
+make flashcards from notes,260,70,,24,info,2.83,-47,AIO,flashcards,feature: flashcards,12.4
+how to share notebooklm with others,50,30,,5,info,0,-82,AIO,notebooklm-brand,blog: notebooklm how-to,12.4
+notebooklm icon,210,170,,8~,nav,0,,,notebooklm-brand,blog: notebooklm how-to,12.3
+how to share notebooklm,140,30,,8,info,0,-40,AIO,notebooklm-brand,blog: notebooklm how-to,12.3
+notebooklm vs copilot,50,30,,6~,info,0,-67,AIO,notebooklm-switch,/ landing,12.3
+ai infographic maker,320,140,,46,comm,8.16,-59,AIO,infographic,feature: infographic,12.2
+ai ppt maker,2400,1300,,66,trans,10.06,-46,AIO,slides,feature: slides,12.2
+share notebooklm,90,50,,37,trans,0,-78,AIO,notebooklm-brand,blog: notebooklm how-to,12.2
+free pdf summarizer,110,40,spike,14,info,4.26,-64,,summary,feature: summary,12.1
+can notebooklm create slides,90,40,,16~,info,0,-43,AIO,notebooklm-brand,blog: notebooklm how-to,12.1
+who made notebooklm,70,30,,19,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,12.1
+notebooklm ultra,70,40,,50,info,2.95,200,AIO,notebooklm-brand,blog: notebooklm how-to,12.1
+ai generated flashcards,110,70,,26,info,2.1,-89,,flashcards,feature: flashcards,12.0
+notebooklm presentation,70,50,,22,nav,6.55,300,AIO,slides,feature: slides,12.0
+local ai app,260,260,,38,nav,5.39,136,AIO,local,/ landing,12.0
+pdf to flashcards,320,110,,34~,info,2.4,-46,AIO,flashcards,feature: flashcards,11.9
+ai research assistant,1900,1600,,58,info,9.72,-63,AIO,research,blog: research,11.8
+notebooklm how to use,140,70,,27,info,17.45,-55,AIO,notebooklm-brand,blog: notebooklm how-to,11.8
+how does google notebooklm work,50,40,,31,info,7.49,25,AIO,notebooklm-brand,blog: notebooklm how-to,11.8
+notes to flashcards,210,50,,28,info,2.33,-18,AIO,flashcards,feature: flashcards,11.7
+open notebook vs notebooklm,40,30,,13,nav,0,200,AIO,notebooklm-switch,/ landing,11.7
+self hosted chatgpt,70,30,,25~,comm,0,-82,AIO,self-hosted,/ landing,11.7
+notebooklm reddit,590,320,,11~,nav,0,-56,,notebooklm-brand,blog: notebooklm how-to,11.7
+how to access notebooklm,110,70,,37,info,10.12,,AIO,notebooklm-brand,blog: notebooklm how-to,11.7
+notebooklm and gemini,70,40,,31,comm,0,-60,AIO,notebooklm-brand,blog: notebooklm how-to,11.7
+pdf summarizer free,210,50,,24,info,4.5,-85,AIO,summary,feature: summary,11.4
+summarize pdf ai,260,50,spike,24,info,4.56,-81,AIO,summary,feature: summary,11.4
+anythingllm alternative,70,70,,46~,info,13.21,57,AIO,competitor,compare pages,11.4
+notebooklm logo,1300,880,,29,nav,0,-41,,notebooklm-brand,blog: notebooklm how-to,11.3
+https notebooklm google login,390,320,,29,nav,3.66,24,AIO,notebooklm-brand,blog: notebooklm how-to,11.3
+is notebooklm hipaa compliant,50,40,,22~,info,0,-40,AIO,notebooklm-brand,blog: notebooklm how-to,11.3
+infographic ai,590,210,,45,info,13.33,-64,AIO,infographic,feature: infographic,11.2
+research paper summarizer,170,70,,31,info,9.56,-59,AIO,summary,feature: summary,11.2
+notebooklm for business,40,40,,39,trans,0,-67,AIO,notebooklm-switch,/ landing,11.2
+notebooklm reviews,260,210,,9,nav,1.47,-47,AIO,notebooklm-brand,blog: notebooklm how-to,11.2
+notebooklm github,170,140,,24,nav,0,57,AIO,notebooklm-brand,blog: notebooklm how-to,11.2
+how to use notebooklm for research,70,40,,27,info,0.05,-20,AIO,notebooklm-switch,/ landing,11.2
+is notebooklm free to use,70,50,,38,info,0,25,AIO,notebooklm-pricing,/pricing,11.2
+is notebooklm part of gemini,70,70,,20,nav,0,100,AIO,notebooklm-brand,blog: notebooklm how-to,11.1
+notes to quiz,170,30,,16,info,3.98,-50,AIO,quiz,feature: quiz,11.0
+is notebooklm secure,50,20,,5,info,0,-82,AIO,notebooklm-switch,/ landing,11.0
+notebooklm enterprise,320,210,,10,nav,7.15,-73,AIO,notebooklm-switch,/ landing,11.0
+notebooklm prompts,210,110,,5,nav,0,-21,AIO,notebooklm-pricing,/pricing,11.0
+when did notebooklm come out,140,90,,39,info,0,-36,AIO,notebooklm-brand,blog: notebooklm how-to,10.9
+notebooklm py github,110,110,spike,11,nav,0,,,notebooklm-brand,blog: notebooklm how-to,10.9
+ai word document generator,70,10,,9,trans,18.64,-94,,report,feature: report,10.8
+free ai infographic generator,260,140,,45,info,8.77,-35,AIO,infographic,feature: infographic,10.8
+notebooklm podcast,720,480,,25,nav,4.77,-45,AIO,podcast,feature: podcast,10.7
+reddit notebooklm,170,140,,5,nav,0,-57,AIO,notebooklm-brand,blog: notebooklm how-to,10.7
+notebooklm-py github,110,110,spike,13,nav,0,,,notebooklm-brand,blog: notebooklm how-to,10.7
+notebooklm-mcp-cli,90,90,,9,nav,9.27,,AIO,mcp,/mcp-server,10.7
+notebooklm mcp cli,90,90,,9,nav,9.27,,AIO,mcp,/mcp-server,10.7
+gamma alternative,110,110,,55~,info,16.74,56,AIO,competitor,compare pages,10.5
+local mcp server,590,320,spike,30,nav,45.04,,AIO,mcp,/mcp-server,10.5
+notebooklm tutorial,320,260,,17,nav,4.81,-56,,notebooklm-brand,blog: notebooklm how-to,10.5
+notebooklm web importer,210,110,,4,nav,0,-44,AIO,notebooklm-brand,blog: notebooklm how-to,10.5
+notebooklm examples,90,40,,26,info,0,-71,AIO,notebooklm-brand,blog: notebooklm how-to,10.4
+notebooklm what does it do,50,50,,39,info,7.54,,AIO,notebooklm-brand,blog: notebooklm how-to,10.4
+book summarizer ai,140,50,,31~,info,4.91,-55,,summary,feature: summary,10.3
+google notebooklm ai podcast,110,110,,28,nav,0,67,AIO,notebooklm-brand,blog: notebooklm how-to,10.3
+notebooklm video overview,390,110,spike,5,nav,0.68,-93,AIO,video,feature: video (WIP),10.2
+notes into podcast,320,70,,37~,info,5.55,-59,AIO,podcast,feature: podcast,10.2
+notebooklm google com,2400,1600,,42,nav,1.9,-33,,notebooklm-brand,blog: notebooklm how-to,10.2
+what does google notebooklm do,70,70,,56,info,1.97,100,AIO,notebooklm-brand,blog: notebooklm how-to,10.2
+offline llm,260,260,,24~,nav,0,-34,AIO,offline,/ landing,10.1
+notebooklm podcast generator,480,260,,20,nav,5.74,-56,AIO,podcast,feature: podcast,10.1
+notebooklm slide deck,210,90,,15~,nav,7.69,,AIO,slides,feature: slides,10.0
+summarize document ai,90,30,,23,info,8.6,-73,AIO,summary,feature: summary,10.0
+surfsense github,50,40,,5,nav,0,33,,brand,/ landing,10.0
+ai that reads pdf,140,40,,29,info,6.43,-71,AIO,rag,feature: sources,10.0
+notebooklm maximum sources,70,70,,15,nav,0,25,AIO,notebooklm-brand,blog: notebooklm how-to,10.0
+try notebooklm,70,50,,47,info,5.08,40,AIO,notebooklm-brand,blog: notebooklm how-to,10.0
+pdf to excel ai,70,20,,14,info,7,-86,AIO,spreadsheet,feature: spreadsheet,9.9
+notebooklm slide,170,90,,39,nav,5.19,150,,slides,feature: slides,9.9
+notebooklm demo,50,30,,24,info,1.38,-71,AIO,notebooklm-brand,blog: notebooklm how-to,9.9
+ai multiple choice question generator,70,20,,15,info,0,-75,,quiz,feature: quiz,9.8
+notebooklm quiz,50,30,,34,info,5.64,,AIO,quiz,feature: quiz,9.8
+notebooklm video overviews,260,90,,5,nav,7.7,-96,,video,feature: video (WIP),9.8
+notebooklm google.com,2400,1600,,46,nav,2.52,-21,,notebooklm-brand,blog: notebooklm how-to,9.8
+is notebooklm a google product,110,110,,60,info,0,80,AIO,notebooklm-brand,blog: notebooklm how-to,9.8
+notebooklm powerpoint,70,40,,19,nav,6.71,100,AIO,slides,feature: slides,9.8
+pdf to ppt ai,40,20,,16,info,8.65,-71,AIO,slides,feature: slides,9.7
+notebooklm tools chrome extension,110,110,,21,nav,0,,AIO,notebooklm-brand,blog: notebooklm how-to,9.7
+ai research paper summarizer,70,20,,17,info,7.48,-71,,summary,feature: summary,9.6
+ollama web ui,590,480,,32,nav,0,-56,AIO,competitor,compare pages,9.6
+best ai flashcard generator,90,30,,27,info,4.1,-79,AIO,flashcards,feature: flashcards,9.5
+local notebooklm,110,90,,19,nav,0,,AIO,notebooklm-switch,/ landing,9.5
+ai paper checker,5400,2900,,79,trans,5.42,,,research,blog: research,9.5
+notebooklm logo png,90,70,,2~,nav,0,-78,,notebooklm-brand,blog: notebooklm how-to,9.5
+mcp host,260,210,,23,nav,21.07,-64,AIO,mcp,/mcp-server,9.4
+notebooklm videos,260,140,,17,nav,5.02,-71,,video,feature: video (WIP),9.4
+how do you use notebooklm,90,70,,49,info,2.8,,,notebooklm-brand,blog: notebooklm how-to,9.4
+does notebooklm use gemini 3,50,10,,25,comm,0,,AIO,notebooklm-brand,blog: notebooklm how-to,9.4
+notebooklm news,260,40,spike,34,info,0,-78,AIO,notebooklm-brand,blog: notebooklm how-to,9.3
+ai document generator,1300,1000,,65,info,12.7,-55,,report,feature: report,9.2
+notebooklm claude code,50,40,spike,5,nav,0,,AIO,notebooklm-brand,blog: notebooklm how-to,9.2
+notebooklm the system was unable to answer,90,10,,1~,info,0,-91,AIO,notebooklm-brand,blog: notebooklm how-to,9.0
+notebooklm competitors,140,70,,8~,nav,3.44,-59,AIO,notebooklm-switch,/ landing,8.9
+notebooklm new features,110,30,,43,comm,0,-78,AIO,notebooklm-brand,blog: notebooklm how-to,8.9
+notebooklm sign in,720,590,,50,nav,4.23,22,AIO,notebooklm-nav,not ours: brand navigation,8.8
+notebooklm open source alternative,70,40,,4,nav,0,-20,AIO,notebooklm-brand,blog: notebooklm how-to,8.8
+notebooklm flashcards,140,70,,29,nav,8.19,40,AIO,flashcards,feature: flashcards,8.7
+notebooklm windows,90,90,,37,nav,0,67,AIO,notebooklm-install,/downloads,8.6
+ai infographic generator free,70,40,,40,info,8.66,-56,AIO,infographic,feature: infographic,8.5
+notebooklm desktop app,320,260,,36,nav,5.66,-35,AIO,notebooklm-install,/downloads,8.5
+open source notebooklm,140,90,,17,nav,0,-50,AIO,notebooklm-switch,/ landing,8.5
+ollama desktop app,140,140,spike,56,nav,0,333,AIO,competitor,compare pages,8.5
+notebooklm prompt,210,110,,27~,nav,0,-21,,notebooklm-pricing,/pricing,8.5
+notebooklm privacy,140,50,,6,nav,0,-90,AIO,notebooklm-switch,/ landing,8.4
+notebooklm youtube,110,110,,23,nav,0,-44,AIO,notebooklm-brand,blog: notebooklm how-to,8.4
+notebooklm updates,320,170,,34,nav,0,-19,AIO,notebooklm-brand,blog: notebooklm how-to,8.4
+notebooklm ai tool,140,140,,56,info,3.88,-84,AIO,notebooklm-brand,blog: notebooklm how-to,8.3
+youtube notebooklm,110,70,,19,nav,0,-29,,notebooklm-brand,blog: notebooklm how-to,8.3
+notebooklm local,70,50,,9,nav,0,-44,AIO,notebooklm-brand,blog: notebooklm how-to,8.3
+how to share notebooklm audio,70,10,,20,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,8.3
+how long does notebooklm take to generate audio,50,10,,24~,comm,0,-50,AIO,notebooklm-brand,blog: notebooklm how-to,8.3
+free ai flashcard generator,170,20,,29,info,2.95,-71,AIO,flashcards,feature: flashcards,8.2
+notebooklm open source,110,90,,26,nav,0,-22,AIO,notebooklm-brand,blog: notebooklm how-to,8.2
+notebooklm study guide,110,50,,21,nav,0,,AIO,notebooklm-brand,blog: notebooklm how-to,8.1
+notebooklm online,110,110,,56,nav,4.09,200,,notebooklm-brand,blog: notebooklm how-to,8.1
+when was notebooklm released,90,40,,44,info,0,-43,AIO,notebooklm-brand,blog: notebooklm how-to,8.1
+free ai presentation maker,1600,880,,69,info,8.75,-54,AIO,slides,feature: slides,8.0
+self hosted knowledge base,50,40,,25,nav,25.48,40,,self-hosted,/ landing,8.0
+mind map notebooklm,70,50,,11,nav,0,-60,,mindmap,feature: mind map,8.0
+github notebooklm,70,50,,48,nav,0,400,,notebooklm-brand,blog: notebooklm how-to,8.0
+notebooklm students,110,70,,30,nav,4.53,,,notebooklm-brand,blog: notebooklm how-to,7.8
+ai quiz generator from pdf,50,10,,16,info,7.94,-86,AIO,quiz,feature: quiz,7.7
+flashcards from pdf,70,20,,35~,info,4.78,-40,AIO,flashcards,feature: flashcards,7.7
+summarize research paper ai,40,10,,16,info,10.64,-80,AIO,summary,feature: summary,7.7
+ai article summarizer,720,210,,69,comm,5.44,-71,AIO,summary,feature: summary,7.6
+interactive study guide,40,20,,58,info,1.83,150,AIO,study,feature: study guide,7.6
+obsidian notebooklm,90,40,,12~,nav,0,-56,AIO,notebooklm-brand,blog: notebooklm how-to,7.5
+text to infographic,50,30,,43,info,1.73,-78,,infographic,feature: infographic,7.4
+notebooklm offline,40,30,,5,nav,0,-50,AIO,notebooklm-switch,/ landing,7.4
+google notebooklm login,320,320,,67,nav,1.26,743,AIO,notebooklm-nav,not ours: brand navigation,7.4
+notebooklm student,110,70,,33,nav,4.53,,,notebooklm-brand,blog: notebooklm how-to,7.4
+notebooklm-skill github,50,30,,17,nav,0,,,notebooklm-brand,blog: notebooklm how-to,7.4
+notebooklm issues,50,30,spike,17~,nav,0,,AIO,notebooklm-brand,blog: notebooklm how-to,7.4
+flashcards from notes,50,10,,20,info,5.49,-50,,flashcards,feature: flashcards,7.3
+notebooklm com,320,320,,67,nav,1.2,191,AIO,notebooklm-brand,blog: notebooklm how-to,7.3
+google cloud notebooklm,140,10,spike,30,info,0,,AIO,notebooklm-brand,blog: notebooklm how-to,7.3
+notebooklm de google,70,70,,56,nav,4.09,400,,notebooklm-brand,blog: notebooklm how-to,7.3
+notebooklm cinematic video overview,110,20,spike,9,nav,0,,,video,feature: video (WIP),7.2
+mcp llm,480,210,,42,nav,4.17,-79,AIO,mcp,/mcp-server,7.1
+local llm app,40,40,,27,nav,3.81,,AIO,local,/ landing,7.1
+notebooklm deep research,90,30,spike,29,nav,6.78,50,AIO,notebooklm-brand,blog: notebooklm how-to,7.1
+what can i do with notebooklm,70,50,,55,info,6.69,-29,AIO,notebooklm-brand,blog: notebooklm how-to,7.1
+ollama gui,590,480,,50,nav,0,-63,AIO,competitor,compare pages,7.0
+google notebooklm podcast,90,70,,43,nav,14.14,40,,podcast,feature: podcast,7.0
+notebooklm data privacy,50,30,,12,nav,0,-91,AIO,notebooklm-switch,/ landing,6.9
+notebooklm features,170,90,,34,nav,2.01,-90,AIO,notebooklm-brand,blog: notebooklm how-to,6.8
+notes to video ai,70,10,,25,info,4.1,-75,,video,feature: video (WIP),6.8
+question generator from text,110,10,spike,25,info,2.64,-89,,quiz,feature: quiz,6.8
+notebooklm plus subscription,110,10,,43,trans,0,-94,AIO,notebooklm-pricing,/pricing,6.8
+notebooklm guide,90,70,,30,nav,0,-56,AIO,notebooklm-brand,blog: notebooklm how-to,6.8
+notebooklm uses,70,70,,39,nav,0,,AIO,notebooklm-brand,blog: notebooklm how-to,6.8
+infographic generator ai,140,50,,55,info,12.6,-71,AIO,infographic,feature: infographic,6.7
+open notebooklm,390,260,,52,nav,7.55,-19,,notebooklm-brand,blog: notebooklm how-to,6.6
+notebooklm sharing,50,30,,16,nav,0,-80,AIO,notebooklm-brand,blog: notebooklm how-to,6.6
+notebooklm by google,210,140,,42,nav,5.24,-66,AIO,notebooklm-brand,blog: notebooklm how-to,6.5
+notebooklm example,90,40,,26,nav,0,-71,AIO,notebooklm-brand,blog: notebooklm how-to,6.3
+notebooklm wiki,70,40,,28,nav,0,-40,AIO,notebooklm-brand,blog: notebooklm how-to,6.3
+https notebooklm google sign in,50,50,,43,nav,7.06,33,,notebooklm-brand,blog: notebooklm how-to,6.3
+notebooklm download mac,70,50,,72,trans,0,,AIO,notebooklm-install,/downloads,6.2
+ai mind map generator,260,90,,65,info,8.04,-72,AIO,mindmap,feature: mind map,6.0
+ollama frontend,90,70,,38,nav,0,-50,AIO,competitor,compare pages,6.0
+mind map generator free,880,590,,77,info,10.13,-33,AIO,mindmap,feature: mind map,5.8
+presentation ai,5400,2900,,84,comm,9.14,-56,AIO,slides,feature: slides,5.8
+notebooklm gemini integration,110,20,spike,16,nav,0,-67,AIO,notebooklm-brand,blog: notebooklm how-to,5.8
+notebooklm windows app,70,50,,37,nav,8.41,-40,AIO,notebooklm-install,/downloads,5.8
+video overview notebooklm,70,30,,26,nav,9.21,-88,AIO,video,feature: video (WIP),5.8
+google workspace notebooklm,70,40,,33,nav,2.08,-73,AIO,notebooklm-brand,blog: notebooklm how-to,5.7
+notebooklm tips,40,20,,22,nav,0,-86,AIO,notebooklm-brand,blog: notebooklm how-to,5.4
+mind map ai,1000,590,,78,info,12.51,-52,,mindmap,feature: mind map,5.3
+what is notebooklm on chromebook,70,20,,55,info,0,-91,AIO,notebooklm-brand,blog: notebooklm how-to,5.2
+notebooklm usage,50,30,,35,nav,0,-75,AIO,notebooklm-brand,blog: notebooklm how-to,5.1
+ai mind mapping tool,50,20,,65,comm,6.33,-60,AIO,mindmap,feature: mind map,4.9
+notebooklm studio,90,70,,50,nav,7.12,-56,AIO,notebooklm-brand,blog: notebooklm how-to,4.9
+notebooklm mac app,140,140,,67,nav,11.69,57,AIO,notebooklm-install,/downloads,4.9
+notebooklm overview,70,50,,45,nav,4.55,-64,AIO,notebooklm-brand,blog: notebooklm how-to,4.9
+ai mind map,390,260,,78,info,8.12,-46,,mindmap,feature: mind map,4.7
+ai mind map maker,70,40,,73,comm,12.29,-43,,mindmap,feature: mind map,4.7
+mind map maker ai,70,20,,66,comm,10.14,-71,AIO,mindmap,feature: mind map,4.7
+does notebooklm have an app,90,70,,72,info,0,-36,AIO,notebooklm-brand,blog: notebooklm how-to,4.7
+free ai mind map generator,90,70,,73,info,10.37,-44,AIO,mindmap,feature: mind map,4.4
+ollama client,140,90,,57,nav,0,-67,AIO,competitor,compare pages,4.4
+notebooklm google español,70,70,,60,nav,2.05,,AIO,notebooklm-brand,blog: notebooklm how-to,4.4
+notebooklm desktop,140,140,,67,nav,3.42,,AIO,notebooklm-install,/downloads,4.3
+notebooklm app download,90,70,,62,nav,4.63,,AIO,notebooklm-install,/downloads,4.2
+ai test generator,1000,390,,84,info,6.95,-19,,quiz,feature: quiz,4.0
+text to presentation ai,50,20,,69,info,11.17,-82,AIO,slides,feature: slides,3.6
+notebooklm google ai,50,20,,72,info,6.87,-82,,notebooklm-brand,blog: notebooklm how-to,3.2
+notebooklm google com app,70,10,spike,62,nav,1.05,100,AIO,notebooklm-brand,blog: notebooklm how-to,3.0
+google notebooklm sign in,70,70,,100,nav,4.38,,,notebooklm-nav,not ours: brand navigation,0.0

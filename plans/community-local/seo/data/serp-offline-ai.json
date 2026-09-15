@@ -1,0 +1,38 @@
+{
+  "_note": "serp/google/organic/live/advanced, 14 Sep 2026, US desktop, depth 20, load_async_ai_overview. Response arrived inline and is trimmed to the fields parse.py --mode serp reads.",
+  "items": [
+    {"type": "ai_overview", "rank_absolute": 1, "references": [
+      {"domain": "www.reddit.com", "url": "https://www.reddit.com/r/LocalLLM/comments/1qwjgj4/anyone_here_actually_using_ai_fully_offline/", "title": "Anyone here actually using AI fully offline? : r/LocalLLM"},
+      {"domain": "www.youtube.com", "url": "https://www.youtube.com/watch?v=5JBIzZm_RzA", "title": "How to Run AI Offline for FREE in 2025"},
+      {"domain": "medium.com", "url": "https://medium.com/@srinidhisrinivasan163/running-ai-offline-on-my-own-computer-without-being-a-tech-expert-1a8683484684", "title": "Running AI Offline on My Own Computer — Without Being a Tech Expert"},
+      {"domain": "swmansion.com", "url": "https://swmansion.com/blog/top-6-local-ai-models-for-maximum-privacy-and-offline-capabilities-888160243a94/", "title": "Top 6 Local AI Models to Run Offline (2026)"},
+      {"domain": "www.jan.ai", "url": "https://www.jan.ai/post/offline-chatgpt-alternative", "title": "You can't run ChatGPT offline, do this instead - Jan.ai"},
+      {"domain": "gamma.app", "url": "https://gamma.app/docs/Building-Offline-AI-onpmp7zx8n74h0t", "title": "Building Offline AI"},
+      {"domain": "www.layla-network.ai", "url": "https://www.layla-network.ai/", "title": "Layla: Private Offline AI Assistant for Android & iOS"},
+      {"domain": "overchat.ai", "url": "https://overchat.ai/ai-hub/best-offline-ai-apps", "title": "Best Offline AI Apps in 2026: Use AI Without Internet"}
+    ]},
+    {"type": "organic", "rank_absolute": 2, "domain": "www.reddit.com", "url": "https://www.reddit.com/r/LocalLLM/comments/1qwjgj4/anyone_here_actually_using_ai_fully_offline/", "title": "Anyone here actually using AI fully offline? : r/LocalLLM"},
+    {"type": "people_also_ask", "rank_absolute": 3, "items": [
+      {"title": "Is there any AI that is offline?"}, {"title": "Can AI be run offline?"},
+      {"title": "Which AI tool can I use offline?"}, {"title": "Is there an AI I can use without internet?"}]},
+    {"type": "organic", "rank_absolute": 4, "domain": "swmansion.com", "url": "https://swmansion.com/blog/top-6-local-ai-models-for-maximum-privacy-and-offline-capabilities-888160243a94/", "title": "Top 6 Local AI Models to Run Offline (2026)"},
+    {"type": "organic", "rank_absolute": 5, "domain": "play.google.com", "url": "https://play.google.com/store/apps/details?id=com.ishanvohra2.localai", "title": "Local AI - Offline AI chatbot - Apps on Google Play"},
+    {"type": "organic", "rank_absolute": 6, "domain": "github.com", "url": "https://github.com/Wakoma/OfflineAI", "title": "Wakoma/OfflineAI: Local/Offline Machine Learning ..."},
+    {"type": "organic", "rank_absolute": 7, "domain": "www.layla-network.ai", "url": "https://www.layla-network.ai/", "title": "Layla: Private Offline AI Assistant for Android & iOS"},
+    {"type": "discussions_and_forums", "rank_absolute": 8},
+    {"type": "organic", "rank_absolute": 9, "domain": "www.reddit.com", "url": "https://www.reddit.com/r/learnprogramming/comments/1niankc/looking_to_build_my_own_offline_ai_where_do_i/", "title": "Looking to Build My Own Offline AI — Where Do I Start?"},
+    {"type": "organic", "rank_absolute": 10, "domain": "www.youtube.com", "url": "https://www.youtube.com/watch?v=QStlklhGSkY", "title": "I Found an AI That Works Offline (And It's 100% Free)"},
+    {"type": "organic", "rank_absolute": 11, "domain": "gamma.app", "url": "https://gamma.app/docs/Building-Offline-AI-onpmp7zx8n74h0t", "title": "Building Offline AI"},
+    {"type": "related_searches", "rank_absolute": 12, "items": ["Offline ai chatbot", "Offline ai free", "Offline AI Ollama", "Offline ai apk", "Offline AI app for Windows", "Offline AI by Google", "Offline AI download", "Offline AI chatbot free"]},
+    {"type": "organic", "rank_absolute": 13, "domain": "community.deeplearning.ai", "url": "https://community.deeplearning.ai/t/offline-ai-is-it-possible-to-use-ai-in-an-offline-mode/815711", "title": "Offline AI. Is it possible to use AI in an offline mode?"},
+    {"type": "organic", "rank_absolute": 14, "domain": "medium.com", "url": "https://medium.com/@srinidhisrinivasan163/running-ai-offline-on-my-own-computer-without-being-a-tech-expert-1a8683484684", "title": "Running AI Offline on My Own Computer — Without Being ..."},
+    {"type": "organic", "rank_absolute": 15, "domain": "chromewebstore.google.com", "url": "https://chromewebstore.google.com/detail/offline-chat-with-ai/ndejijikabpibbcjdpoobfdecjfamlan", "title": "Offline Chat with AI - Chrome Web Store"},
+    {"type": "organic", "rank_absolute": 16, "domain": "a-bots.com", "url": "https://a-bots.com/blog/Offline-AI-Assistant-Guide", "title": "Offline AI Assistant Guide"},
+    {"type": "organic", "rank_absolute": 17, "domain": "atomic.chat", "url": "https://atomic.chat/blog/llm-updates/offline-ai-apps-2026", "title": "6 Offline AI Apps for iPhone and Android (2026)"},
+    {"type": "organic", "rank_absolute": 18, "domain": "www.makeuseof.com", "url": "https://www.makeuseof.com/i-now-use-this-offline-ai-assistant-instead-of-cloud-chatbots/", "title": "I now use this offline AI assistant instead of cloud chatbots"},
+    {"type": "organic", "rank_absolute": 19, "domain": "www.youtube.com", "url": "https://www.youtube.com/watch?v=5JBIzZm_RzA", "title": "How to Run AI Offline for FREE in 2025"},
+    {"type": "organic", "rank_absolute": 20, "domain": "blog.marketingdatascience.ai", "url": "https://blog.marketingdatascience.ai/offline-ai-made-easy-how-to-run-large-language-models-locally-1dd3bbbf214e", "title": "Offline AI Made Easy: How to Run Large Language Models ..."},
+    {"type": "organic", "rank_absolute": 21, "domain": "localai.io", "url": "https://localai.io/", "title": "LocalAI · Make AI run on every machine"},
+    {"type": "organic", "rank_absolute": 22, "domain": "overchat.ai", "url": "https://overchat.ai/ai-hub/best-offline-ai-apps", "title": "Best Offline AI Apps in 2026: Use AI Without Internet"}
+  ]
+}

@@ -1,0 +1,1668 @@
+{
+  "id": "09150134-1766-0607-0000-8ce1b092e66c",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "items": [
+    {
+      "keyword": "ai for academic research",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 04:52:21 +00:00",
+        "competition": 0.56,
+        "competition_level": "MEDIUM",
+        "cpc": 11.66,
+        "search_volume": 210,
+        "low_top_of_page_bid": 2.97,
+        "high_top_of_page_bid": 11.99,
+        "categories": [
+          10016,
+          10141,
+          13828
+        ],
+        "monthly_searches": {
+          "2026-07": 140,
+          "2026-06": 140,
+          "2026-05": 210,
+          "2026-04": 260,
+          "2026-03": 260,
+          "2026-02": 210,
+          "2026-01": 210,
+          "2025-12": 170,
+          "2025-11": 260,
+          "2025-10": 260,
+          "2025-09": 260,
+          "2025-08": 260
+        },
+        "search_volume_trend": {
+          "quarterly": -33,
+          "yearly": -46
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 42,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20for%20academic%20research&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "scholarly_articles",
+          "related_searches"
+        ],
+        "se_results_count": 123,
+        "last_updated_time": "2026-09-12 10:37:46 +00:00",
+        "previous_updated_time": "2026-07-08 06:39:54 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 95786.6,
+        "dofollow": 92325.9,
+        "referring_pages": 94405.3,
+        "referring_domains": 1410.3,
+        "referring_main_domains": 1191.4,
+        "rank": 241.2,
+        "main_domain_rank": 510.9,
+        "last_updated_time": "2026-09-12 10:37:52 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-28 23:51:59 +00:00"
+      }
+    },
+    {
+      "keyword": "ai for legal documents",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 20:39:44 +00:00",
+        "competition": 0.78,
+        "competition_level": "HIGH",
+        "cpc": 82.76,
+        "search_volume": 140,
+        "low_top_of_page_bid": 14.08,
+        "high_top_of_page_bid": 64.66,
+        "categories": [
+          10018,
+          10163
+        ],
+        "monthly_searches": {
+          "2026-08": 90,
+          "2026-07": 140,
+          "2026-06": 110,
+          "2026-05": 140,
+          "2026-04": 140,
+          "2026-03": 210,
+          "2026-02": 170,
+          "2026-01": 90,
+          "2025-12": 110,
+          "2025-11": 140,
+          "2025-10": 170,
+          "2025-09": 170
+        },
+        "search_volume_trend": {
+          "monthly": -36,
+          "quarterly": -18,
+          "yearly": -57
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "legal document ai",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 10,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20for%20legal%20documents&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "discussions_and_forums",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 120,
+        "last_updated_time": "2026-07-10 14:36:23 +00:00",
+        "previous_updated_time": "2026-05-26 17:52:31 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 172.7,
+        "dofollow": 57.1,
+        "referring_pages": 164.6,
+        "referring_domains": 134.1,
+        "referring_main_domains": 77.3,
+        "rank": 101,
+        "main_domain_rank": 497.7,
+        "last_updated_time": "2026-07-10 14:36:24 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 08:06:58 +00:00"
+      }
+    },
+    {
+      "keyword": "ai for researchers",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 18:19:35 +00:00",
+        "competition": 0.52,
+        "competition_level": "MEDIUM",
+        "cpc": 10.57,
+        "search_volume": 4400,
+        "low_top_of_page_bid": 2.59,
+        "high_top_of_page_bid": 10.71,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 2900,
+          "2026-07": 2400,
+          "2026-06": 3600,
+          "2026-05": 4400,
+          "2026-04": 4400,
+          "2026-03": 5400,
+          "2026-02": 4400,
+          "2026-01": 3600,
+          "2025-12": 2900,
+          "2025-11": 4400,
+          "2025-10": 4400,
+          "2025-09": 4400
+        },
+        "search_volume_trend": {
+          "monthly": 21,
+          "quarterly": -19,
+          "yearly": -19
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "research ai",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 53,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20for%20researchers&num=100&hl=en&gl=US&gws_rd=cr&ie=UTF-8&oe=UTF-8&glp=1&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "product_considerations",
+          "related_searches"
+        ],
+        "se_results_count": 2100000000,
+        "last_updated_time": "2024-10-04 20:47:25 +00:00",
+        "previous_updated_time": "2024-08-25 13:30:32 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 11191.5,
+        "dofollow": 9486.6,
+        "referring_pages": 9712.9,
+        "referring_domains": 357.2,
+        "referring_main_domains": 313.6,
+        "rank": 273.3,
+        "main_domain_rank": 580,
+        "last_updated_time": "2024-10-04 20:47:31 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 06:26:38 +00:00"
+      }
+    },
+    {
+      "keyword": "ai tool for phd students",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 01:13:11 +00:00",
+        "competition": 0.86,
+        "competition_level": "HIGH",
+        "cpc": 10.81,
+        "search_volume": 10,
+        "low_top_of_page_bid": 3.01,
+        "high_top_of_page_bid": 6.88,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 20,
+          "2025-10": 10,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 06:09:55 +00:00"
+      }
+    },
+    {
+      "keyword": "air gap ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-15 00:13:33 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "cpc": 21.78,
+        "search_volume": 1900,
+        "low_top_of_page_bid": 7.11,
+        "high_top_of_page_bid": 18.95,
+        "categories": [
+          10008
+        ],
+        "monthly_searches": {
+          "2026-08": 18100,
+          "2026-07": 5400,
+          "2026-06": 1300,
+          "2026-05": 260,
+          "2026-04": 210,
+          "2026-03": 210,
+          "2026-02": 170,
+          "2026-01": 110,
+          "2025-12": 50,
+          "2025-11": 70,
+          "2025-10": 110,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "monthly": 235,
+          "quarterly": 1292,
+          "yearly": 20011
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "airgap ai",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 9,
+        "detected_language": "it",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=air%20gap%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "people_also_ask",
+          "images",
+          "related_searches"
+        ],
+        "se_results_count": 263000000,
+        "last_updated_time": "2026-03-07 18:39:21 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 251.8,
+        "dofollow": 206.2,
+        "referring_pages": 239.1,
+        "referring_domains": 83,
+        "referring_main_domains": 76.9,
+        "rank": 118.6,
+        "main_domain_rank": 504.6,
+        "last_updated_time": "2026-03-07 18:42:13 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-05-03 12:56:21 +00:00"
+      }
+    },
+    {
+      "keyword": "air-gapped ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 21:02:25 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "cpc": 21.78,
+        "search_volume": 1900,
+        "low_top_of_page_bid": 7.11,
+        "high_top_of_page_bid": 18.95,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12197,
+          12211
+        ],
+        "monthly_searches": {
+          "2026-08": 18100,
+          "2026-07": 5400,
+          "2026-06": 1300,
+          "2026-05": 260,
+          "2026-04": 210,
+          "2026-03": 210,
+          "2026-02": 170,
+          "2026-01": 110,
+          "2025-12": 50,
+          "2025-11": 70,
+          "2025-10": 110,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "monthly": 235,
+          "quarterly": 1292,
+          "yearly": 20011
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "airgap ai",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 9,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=air-gapped%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 322000000,
+        "last_updated_time": "2026-02-04 07:56:46 +00:00",
+        "previous_updated_time": "2025-12-21 08:56:38 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 22.3,
+        "dofollow": 16,
+        "referring_pages": 17.7,
+        "referring_domains": 7.9,
+        "referring_main_domains": 7.7,
+        "rank": 67,
+        "main_domain_rank": 440.4,
+        "last_updated_time": "2026-02-04 07:56:47 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-05-05 04:27:50 +00:00"
+      }
+    },
+    {
+      "keyword": "desktop ai app",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 13:17:27 +00:00",
+        "competition": 0.32,
+        "competition_level": "LOW",
+        "cpc": 19.54,
+        "search_volume": 30,
+        "low_top_of_page_bid": 3.25,
+        "high_top_of_page_bid": 12.99,
+        "categories": [
+          10019
+        ],
+        "monthly_searches": {
+          "2026-07": 20,
+          "2026-06": 30,
+          "2026-05": 30,
+          "2026-04": 30,
+          "2026-03": 30,
+          "2026-02": 30,
+          "2026-01": 20,
+          "2025-12": 40,
+          "2025-11": 30,
+          "2025-10": 30,
+          "2025-09": 30,
+          "2025-08": 40
+        },
+        "search_volume_trend": {
+          "monthly": -33,
+          "quarterly": -33
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai desktop app",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 23,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=desktop%20ai%20app&num=100&hl=en&gl=US&gws_rd=cr&ie=UTF-8&oe=UTF-8&glp=1&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "perspectives",
+          "images",
+          "people_also_search",
+          "related_searches"
+        ],
+        "se_results_count": 1240000000,
+        "last_updated_time": "2025-08-31 09:28:04 +00:00",
+        "previous_updated_time": "2025-07-20 12:47:09 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 51871.3,
+        "dofollow": 39351.4,
+        "referring_pages": 43722.1,
+        "referring_domains": 4071.7,
+        "referring_main_domains": 3737.7,
+        "rank": 357.9,
+        "main_domain_rank": 538.1,
+        "last_updated_time": "2025-08-31 09:28:08 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "transactional"
+        ],
+        "last_updated_time": "2026-04-27 14:24:00 +00:00"
+      }
+    },
+    {
+      "keyword": "hipaa compliant ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 01:08:54 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "cpc": 46.33,
+        "search_volume": 4400,
+        "low_top_of_page_bid": 10.21,
+        "high_top_of_page_bid": 49.72,
+        "categories": [
+          10008
+        ],
+        "monthly_searches": {
+          "2026-08": 27100,
+          "2026-07": 9900,
+          "2026-06": 1300,
+          "2026-05": 1300,
+          "2026-04": 1600,
+          "2026-03": 1600,
+          "2026-02": 1300,
+          "2026-01": 1000,
+          "2025-12": 720,
+          "2025-11": 880,
+          "2025-10": 1000,
+          "2025-09": 1000
+        },
+        "search_volume_trend": {
+          "monthly": 174,
+          "quarterly": 1985,
+          "yearly": 2610
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 34,
+        "detected_language": "it",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=hipaa%20compliant%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 125,
+        "last_updated_time": "2026-08-01 11:31:07 +00:00",
+        "previous_updated_time": "2026-05-19 08:02:08 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 407.9,
+        "dofollow": 195.6,
+        "referring_pages": 322.9,
+        "referring_domains": 186.4,
+        "referring_main_domains": 153.8,
+        "rank": 156.1,
+        "main_domain_rank": 444.6,
+        "last_updated_time": "2026-08-01 11:31:07 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-27 21:04:33 +00:00"
+      }
+    },
+    {
+      "keyword": "hipaa compliant chatgpt",
+      "keyword_info": {
+        "last_updated_time": "2026-08-24 10:22:56 +00:00",
+        "competition": 0.67,
+        "competition_level": "HIGH",
+        "cpc": 63.56,
+        "search_volume": 390,
+        "low_top_of_page_bid": 8.25,
+        "high_top_of_page_bid": 60.24,
+        "categories": [
+          10007,
+          11499,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-07": 260,
+          "2026-06": 260,
+          "2026-05": 260,
+          "2026-04": 320,
+          "2026-03": 390,
+          "2026-02": 390,
+          "2026-01": 880,
+          "2025-12": 320,
+          "2025-11": 390,
+          "2025-10": 480,
+          "2025-09": 480,
+          "2025-08": 480
+        },
+        "search_volume_trend": {
+          "yearly": -33
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 27,
+        "detected_language": "ca",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=hipaa%20compliant%20chatgpt&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 107,
+        "last_updated_time": "2026-09-08 06:12:57 +00:00",
+        "previous_updated_time": "2026-07-03 13:45:44 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 275.3,
+        "dofollow": 158.1,
+        "referring_pages": 213.1,
+        "referring_domains": 92.5,
+        "referring_main_domains": 79.8,
+        "rank": 131.2,
+        "main_domain_rank": 499.8,
+        "last_updated_time": "2026-09-08 06:12:57 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-27 20:57:39 +00:00"
+      }
+    },
+    {
+      "keyword": "homelab ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 23:19:04 +00:00",
+        "competition": 0.09,
+        "competition_level": "LOW",
+        "cpc": 1.52,
+        "search_volume": 40,
+        "categories": [
+          10004,
+          10306,
+          11386,
+          13464
+        ],
+        "monthly_searches": {
+          "2026-08": 70,
+          "2026-07": 30,
+          "2026-06": 40,
+          "2026-05": 40,
+          "2026-04": 50,
+          "2026-03": 50,
+          "2026-02": 50,
+          "2026-01": 50,
+          "2025-12": 30,
+          "2025-11": 30,
+          "2025-10": 30,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "monthly": 133,
+          "quarterly": 75,
+          "yearly": 133
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai homelab",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=homelab%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "discussions_and_forums",
+          "video",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 116,
+        "last_updated_time": "2026-08-16 02:54:14 +00:00",
+        "previous_updated_time": "2026-05-12 05:45:57 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 1.4,
+        "dofollow": 1.4,
+        "referring_pages": 1.4,
+        "referring_domains": 0.5,
+        "referring_main_domains": 0.5,
+        "rank": 16,
+        "main_domain_rank": 393,
+        "last_updated_time": "2026-08-16 02:54:19 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "commercial",
+          "informational"
+        ],
+        "last_updated_time": "2026-04-27 21:30:33 +00:00"
+      }
+    },
+    {
+      "keyword": "homelab llm",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 03:41:17 +00:00",
+        "competition": 0.06,
+        "competition_level": "LOW",
+        "search_volume": 30,
+        "categories": [
+          10004,
+          10306,
+          11386,
+          13464
+        ],
+        "monthly_searches": {
+          "2026-08": 30,
+          "2026-07": 20,
+          "2026-06": 30,
+          "2026-05": 30,
+          "2026-04": 30,
+          "2026-03": 30,
+          "2026-02": 40,
+          "2026-01": 10,
+          "2025-12": 30,
+          "2025-11": 20,
+          "2025-10": 30,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "monthly": 50
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "de",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=homelab%20llm&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "related_searches"
+        ],
+        "se_results_count": 125,
+        "last_updated_time": "2026-08-29 15:04:04 +00:00",
+        "previous_updated_time": "2025-12-23 20:51:48 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 9.6,
+        "dofollow": 5.7,
+        "referring_pages": 7.5,
+        "referring_domains": 4.6,
+        "referring_main_domains": 4.2,
+        "rank": 18.8,
+        "main_domain_rank": 524.7,
+        "last_updated_time": "2026-08-29 15:04:06 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-27 23:22:39 +00:00"
+      }
+    },
+    {
+      "keyword": "local ai for mac",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 17:38:24 +00:00",
+        "competition": 0.23,
+        "competition_level": "LOW",
+        "cpc": 28.45,
+        "search_volume": 40,
+        "low_top_of_page_bid": 4.99,
+        "high_top_of_page_bid": 16.25,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          13112
+        ],
+        "monthly_searches": {
+          "2026-08": 40,
+          "2026-07": 40,
+          "2026-06": 40,
+          "2026-05": 50,
+          "2026-04": 110,
+          "2026-03": 30,
+          "2026-02": 30,
+          "2026-01": 20,
+          "2025-12": 20,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "yearly": 300
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "locally ai mac",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 30,
+        "detected_language": "it",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=local%20ai%20for%20mac&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "video",
+          "organic",
+          "discussions_and_forums",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 103,
+        "last_updated_time": "2026-08-28 14:14:06 +00:00",
+        "previous_updated_time": "2026-06-15 20:55:46 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 8945.3,
+        "dofollow": 5659.7,
+        "referring_pages": 8179.4,
+        "referring_domains": 902.1,
+        "referring_main_domains": 801.5,
+        "rank": 176.8,
+        "main_domain_rank": 574.3,
+        "last_updated_time": "2026-08-28 14:14:06 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "foreign_intent": [
+          "commercial"
+        ],
+        "last_updated_time": "2026-04-28 15:34:24 +00:00"
+      }
+    },
+    {
+      "keyword": "local ai for windows",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 23:01:41 +00:00",
+        "competition": 0.23,
+        "competition_level": "LOW",
+        "cpc": 61.03,
+        "search_volume": 10,
+        "low_top_of_page_bid": 3.84,
+        "high_top_of_page_bid": 20.2,
+        "categories": [
+          10019,
+          10019,
+          10168,
+          10168,
+          10885,
+          10885,
+          12197,
+          12211
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 20,
+          "2026-04": 20,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "local ai windows",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 50,
+        "detected_language": "it",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-05 05:00:20 +00:00"
+      }
+    },
+    {
+      "keyword": "local ai linux",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 03:54:29 +00:00",
+        "competition": 0.11,
+        "competition_level": "LOW",
+        "cpc": 15.24,
+        "search_volume": 30,
+        "low_top_of_page_bid": 4.46,
+        "high_top_of_page_bid": 10,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          13114
+        ],
+        "monthly_searches": {
+          "2026-08": 30,
+          "2026-07": 30,
+          "2026-06": 20,
+          "2026-05": 30,
+          "2026-04": 40,
+          "2026-03": 20,
+          "2026-02": 30,
+          "2026-01": 30,
+          "2025-12": 30,
+          "2025-11": 20,
+          "2025-10": 20,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "quarterly": 50,
+          "yearly": 50
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 15,
+        "detected_language": "it",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=local%20ai%20linux&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "discussions_and_forums",
+          "related_searches"
+        ],
+        "se_results_count": 102,
+        "last_updated_time": "2026-08-28 14:14:20 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 3274.8,
+        "dofollow": 2297.4,
+        "referring_pages": 2911,
+        "referring_domains": 357.7,
+        "referring_main_domains": 297.6,
+        "rank": 122.9,
+        "main_domain_rank": 507.7,
+        "last_updated_time": "2026-08-28 14:14:22 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-28 12:50:56 +00:00"
+      }
+    },
+    {
+      "keyword": "ollama client",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 00:19:21 +00:00",
+        "competition": 0.03,
+        "competition_level": "LOW",
+        "search_volume": 140,
+        "categories": [
+          10004,
+          10276,
+          11088
+        ],
+        "monthly_searches": {
+          "2026-07": 70,
+          "2026-06": 90,
+          "2026-05": 90,
+          "2026-04": 110,
+          "2026-03": 140,
+          "2026-02": 110,
+          "2026-01": 110,
+          "2025-12": 140,
+          "2025-11": 110,
+          "2025-10": 170,
+          "2025-09": 170,
+          "2025-08": 210
+        },
+        "search_volume_trend": {
+          "monthly": -22,
+          "quarterly": -22,
+          "yearly": -67
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 57,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ollama%20client&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 98,
+        "last_updated_time": "2026-09-14 23:06:46 +00:00",
+        "previous_updated_time": "2026-07-11 05:17:10 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 130248.1,
+        "dofollow": 75982.9,
+        "referring_pages": 88450.1,
+        "referring_domains": 2338.7,
+        "referring_main_domains": 2138.3,
+        "rank": 281.1,
+        "main_domain_rank": 594.9,
+        "last_updated_time": "2026-09-14 23:06:46 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 19:27:58 +00:00"
+      }
+    },
+    {
+      "keyword": "ollama desktop app",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 16:09:39 +00:00",
+        "competition": 0.01,
+        "competition_level": "LOW",
+        "search_volume": 140,
+        "low_top_of_page_bid": 6.7,
+        "high_top_of_page_bid": 20.46,
+        "categories": [
+          10019
+        ],
+        "monthly_searches": {
+          "2026-07": 390,
+          "2026-06": 320,
+          "2026-05": 210,
+          "2026-04": 170,
+          "2026-03": 90,
+          "2026-02": 70,
+          "2026-01": 70,
+          "2025-12": 50,
+          "2025-11": 40,
+          "2025-10": 50,
+          "2025-09": 90,
+          "2025-08": 210
+        },
+        "search_volume_trend": {
+          "monthly": 22,
+          "quarterly": 86,
+          "yearly": 333
+        }
+      },
+      "keyword_properties": {
+        "keyword_difficulty": 56,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ollama%20desktop%20app&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 128,
+        "last_updated_time": "2026-09-14 22:47:00 +00:00",
+        "previous_updated_time": "2026-07-12 22:49:27 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 22008.8,
+        "dofollow": 9984.8,
+        "referring_pages": 19723.4,
+        "referring_domains": 2283.6,
+        "referring_main_domains": 2086.8,
+        "rank": 233.2,
+        "main_domain_rank": 528.5,
+        "last_updated_time": "2026-09-14 22:47:02 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 17:36:33 +00:00"
+      }
+    },
+    {
+      "keyword": "ollama document chat",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 14:56:04 +00:00",
+        "search_volume": 10,
+        "categories": [
+          10007,
+          11499,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-05": 10,
+          "2026-03": 10,
+          "2026-02": 10
+        },
+        "search_volume_trend": {
+          "yearly": -100
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 17:00:46 +00:00"
+      }
+    },
+    {
+      "keyword": "ollama frontend",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 09:53:04 +00:00",
+        "competition": 0.01,
+        "competition_level": "LOW",
+        "search_volume": 90,
+        "categories": [
+          10007,
+          11493,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-08": 70,
+          "2026-07": 50,
+          "2026-06": 70,
+          "2026-05": 70,
+          "2026-04": 110,
+          "2026-03": 90,
+          "2026-02": 90,
+          "2026-01": 70,
+          "2025-12": 70,
+          "2025-11": 90,
+          "2025-10": 90,
+          "2025-09": 110
+        },
+        "search_volume_trend": {
+          "monthly": 40,
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 38,
+        "detected_language": "es",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ollama%20frontend&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "related_searches"
+        ],
+        "se_results_count": 108,
+        "last_updated_time": "2026-07-15 09:44:50 +00:00",
+        "previous_updated_time": "2026-05-28 01:36:05 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 20081.4,
+        "dofollow": 9578.4,
+        "referring_pages": 18240.3,
+        "referring_domains": 2078.3,
+        "referring_main_domains": 1873.8,
+        "rank": 219.8,
+        "main_domain_rank": 555.3,
+        "last_updated_time": "2026-07-15 09:45:07 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 18:58:05 +00:00"
+      }
+    },
+    {
+      "keyword": "ollama pdf",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 11:15:00 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 30,
+        "categories": [
+          10108,
+          10112
+        ],
+        "monthly_searches": {
+          "2026-07": 10,
+          "2026-06": 20,
+          "2026-05": 20,
+          "2026-04": 30,
+          "2026-03": 20,
+          "2026-02": 30,
+          "2026-01": 20,
+          "2025-12": 20,
+          "2025-11": 30,
+          "2025-10": 40,
+          "2025-09": 20,
+          "2025-08": 50
+        },
+        "search_volume_trend": {
+          "monthly": -50,
+          "quarterly": -50,
+          "yearly": -75
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "de",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ollama%20pdf&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "people_also_ask",
+          "video",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 105,
+        "last_updated_time": "2026-08-27 21:15:02 +00:00",
+        "previous_updated_time": "2026-06-18 10:52:06 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 6.6,
+        "dofollow": 4.8,
+        "referring_pages": 5.7,
+        "referring_domains": 2.7,
+        "referring_main_domains": 2.7,
+        "rank": 32.4,
+        "main_domain_rank": 585.5,
+        "last_updated_time": "2026-08-27 21:15:02 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 18:58:05 +00:00"
+      }
+    },
+    {
+      "keyword": "ollama rag",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 22:07:17 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "cpc": 5.12,
+        "search_volume": 260,
+        "low_top_of_page_bid": 0.17,
+        "high_top_of_page_bid": 1.96,
+        "categories": [
+          10004,
+          13804
+        ],
+        "monthly_searches": {
+          "2026-08": 110,
+          "2026-07": 110,
+          "2026-06": 140,
+          "2026-05": 170,
+          "2026-04": 260,
+          "2026-03": 260,
+          "2026-02": 260,
+          "2026-01": 260,
+          "2025-12": 260,
+          "2025-11": 320,
+          "2025-10": 320,
+          "2025-09": 390
+        },
+        "search_volume_trend": {
+          "quarterly": -21,
+          "yearly": -72
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "rag for ollama",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 4,
+        "detected_language": "fi",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ollama%20rag&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "people_also_ask",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 163,
+        "last_updated_time": "2026-09-10 08:50:08 +00:00",
+        "previous_updated_time": "2026-07-04 22:57:28 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 63.9,
+        "dofollow": 49.9,
+        "referring_pages": 53.1,
+        "referring_domains": 6.1,
+        "referring_main_domains": 5.6,
+        "rank": 52.7,
+        "main_domain_rank": 703.3,
+        "last_updated_time": "2026-09-10 08:51:09 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "transactional",
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 19:37:42 +00:00"
+      }
+    },
+    {
+      "keyword": "personal knowledge management ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 04:13:54 +00:00",
+        "competition": 0.01,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10002,
+          10231,
+          13703
+        ],
+        "monthly_searches": {
+          "2026-08": 20,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "monthly": 100,
+          "quarterly": 100
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-08 11:21:46 +00:00"
+      }
+    },
+    {
+      "keyword": "pkm ai",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 13:37:09 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 20,
+        "categories": [
+          10008
+        ],
+        "monthly_searches": {
+          "2026-07": 20,
+          "2026-06": 30,
+          "2026-05": 20,
+          "2026-04": 30,
+          "2026-03": 20,
+          "2026-02": 20,
+          "2026-01": 10,
+          "2025-12": 20,
+          "2025-11": 20,
+          "2025-10": 10,
+          "2025-09": 10,
+          "2025-08": 10
+        },
+        "search_volume_trend": {
+          "monthly": -33
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai pkm",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "fr",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 21:22:41 +00:00"
+      }
+    },
+    {
+      "keyword": "second brain app",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 09:56:38 +00:00",
+        "competition": 0.22,
+        "competition_level": "LOW",
+        "cpc": 5.27,
+        "search_volume": 260,
+        "low_top_of_page_bid": 1.66,
+        "high_top_of_page_bid": 6.67,
+        "categories": [
+          10007,
+          10878,
+          13378,
+          13381
+        ],
+        "monthly_searches": {
+          "2026-08": 260,
+          "2026-07": 260,
+          "2026-06": 260,
+          "2026-05": 260,
+          "2026-04": 320,
+          "2026-03": 390,
+          "2026-02": 260,
+          "2026-01": 320,
+          "2025-12": 260,
+          "2025-11": 210,
+          "2025-10": 210,
+          "2025-09": 260
+        },
+        "search_volume_trend": {
+          "yearly": 24
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "second brain apps",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 3,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=second%20brain%20app&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 141,
+        "last_updated_time": "2026-07-06 19:47:01 +00:00",
+        "previous_updated_time": "2026-07-06 08:37:25 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 118,
+        "dofollow": 98.8,
+        "referring_pages": 113.3,
+        "referring_domains": 12.1,
+        "referring_main_domains": 10.5,
+        "rank": 65,
+        "main_domain_rank": 536,
+        "last_updated_time": "2026-07-06 19:48:32 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational",
+          "transactional"
+        ],
+        "last_updated_time": "2026-04-29 23:05:54 +00:00"
+      }
+    },
+    {
+      "keyword": "self hosted chatgpt alternative",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 19:36:27 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10007,
+          11499,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "self-hosted chat gpt alternative",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 23:11:40 +00:00"
+      }
+    },
+    {
+      "keyword": "self hosted knowledge base",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 09:51:08 +00:00",
+        "competition": 0.21,
+        "competition_level": "LOW",
+        "cpc": 25.48,
+        "search_volume": 50,
+        "low_top_of_page_bid": 3.11,
+        "high_top_of_page_bid": 15.23,
+        "categories": [
+          10007,
+          10019,
+          10168,
+          10296,
+          10885,
+          11272,
+          11504,
+          12209,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-08": 70,
+          "2026-07": 30,
+          "2026-06": 40,
+          "2026-05": 40,
+          "2026-04": 40,
+          "2026-03": 70,
+          "2026-02": 40,
+          "2026-01": 50,
+          "2025-12": 50,
+          "2025-11": 50,
+          "2025-10": 70,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "monthly": 133,
+          "quarterly": 75,
+          "yearly": 40
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 25,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=self%20hosted%20knowledge%20base&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "discussions_and_forums",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 131,
+        "last_updated_time": "2026-07-26 21:17:47 +00:00",
+        "previous_updated_time": "2026-06-02 04:57:16 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 6949.4,
+        "dofollow": 6058.8,
+        "referring_pages": 6291.4,
+        "referring_domains": 103.8,
+        "referring_main_domains": 80.4,
+        "rank": 170.5,
+        "main_domain_rank": 465.5,
+        "last_updated_time": "2026-07-26 21:17:48 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 20:37:36 +00:00"
+      }
+    },
+    {
+      "keyword": "self hosted llm",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 17:27:05 +00:00",
+        "competition": 0.01,
+        "competition_level": "LOW",
+        "cpc": 12.77,
+        "search_volume": 2400,
+        "low_top_of_page_bid": 2,
+        "high_top_of_page_bid": 10.93,
+        "categories": [
+          10007,
+          11504,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-08": 14800,
+          "2026-07": 6600,
+          "2026-06": 3600,
+          "2026-05": 720,
+          "2026-04": 590,
+          "2026-03": 720,
+          "2026-02": 720,
+          "2026-01": 590,
+          "2025-12": 480,
+          "2025-11": 720,
+          "2025-10": 480,
+          "2025-09": 480
+        },
+        "search_volume_trend": {
+          "monthly": 124,
+          "quarterly": 311,
+          "yearly": 1956
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "self-host llm",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 5,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=self%20hosted%20llm&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "discussions_and_forums",
+          "ai_overview",
+          "people_also_ask",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 99,
+        "last_updated_time": "2026-09-05 07:39:41 +00:00",
+        "previous_updated_time": "2026-05-20 23:44:19 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 16,
+        "dofollow": 10,
+        "referring_pages": 11.4,
+        "referring_domains": 6.5,
+        "referring_main_domains": 6.1,
+        "rank": 61.8,
+        "main_domain_rank": 505.5,
+        "last_updated_time": "2026-09-05 07:39:41 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational",
+          "commercial"
+        ],
+        "last_updated_time": "2026-04-29 20:59:37 +00:00"
+      }
+    },
+    {
+      "keyword": "zettelkasten ai",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 14:57:56 +00:00",
+        "competition": 0.29,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10008
+        ],
+        "monthly_searches": {
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10,
+          "2025-08": 10
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "fi",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "last_updated_time": "2026-04-30 01:41:27 +00:00"
+      }
+    }
+  ]
+}
