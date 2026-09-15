@@ -20,6 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { RelativeTime } from "@/components/relative-time"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -114,6 +115,13 @@ function ArtifactRow({
       >
         {artifact.title}
       </button>
+      <RelativeTime
+        date={new Date(artifact.created_at)}
+        className={cn(
+          "shrink-0 text-muted-foreground transition-opacity group-focus-within/artifact:opacity-0 group-hover/artifact:opacity-0",
+          dropdownOpen && "opacity-0"
+        )}
+      />
       <div className="absolute inset-y-0 right-0 flex items-center pr-1">
         <DropdownMenu open={dropdownOpen} onOpenChange={setDropdownOpen}>
           <DropdownMenuTrigger asChild>

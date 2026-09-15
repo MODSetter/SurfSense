@@ -51,6 +51,17 @@ describe("artifact list", () => {
     ).toBeGreaterThan(0)
   })
 
+  it("dates every row, so two artifacts with one title are told apart", () => {
+    const twin = { ...artifact, id: 13, created_at: "2026-09-07T00:00:00Z" }
+    renderList({ artifacts: [artifact, twin] })
+
+    const times = document.querySelectorAll("time")
+    expect([...times].map((t) => t.getAttribute("datetime"))).toEqual([
+      "2026-09-06T00:00:00.000Z",
+      "2026-09-07T00:00:00.000Z",
+    ])
+  })
+
   it("opens ready artifacts", async () => {
     const onOpen = vi.fn()
     const user = userEvent.setup()
