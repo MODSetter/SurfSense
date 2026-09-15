@@ -47,7 +47,7 @@ import {
 import { cn } from "@/lib/utils"
 
 import type { Artifact } from "./api"
-import { FORMAT_ICONS } from "./studio-panel"
+import { FORMAT_ICONS, formatLabel } from "./studio-panel"
 
 function ArtifactRow({
   artifact,
@@ -173,6 +173,42 @@ function ArtifactRow({
   )
 }
 
+function TypeChip({
+  format,
+  pressed,
+  onToggle,
+}: {
+  format: string
+  pressed: boolean
+  onToggle: () => void
+}) {
+  const Icon = FORMAT_ICONS[format] ?? FileIcon
+  const label = formatLabel(format)
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <Button
+          type="button"
+          size="icon-xs"
+          variant="ghost"
+          aria-pressed={pressed}
+          aria-label={`${label} artifacts`}
+          className={cn(
+            "text-muted-foreground",
+            pressed && "bg-accent text-accent-foreground"
+          )}
+          onClick={onToggle}
+        >
+          <Icon />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" collisionPadding={8}>
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function ArtifactList({
   artifacts,
   isLoading = false,
@@ -187,19 +223,45 @@ export function ArtifactList({
   onDelete: (id: number) => void
 }) {
   const [deleteTarget, setDeleteTarget] = useState<Artifact | null>(null)
+  const [shown, setShown] = useState<Set<string>>(() => new Set())
+  const formats = [...new Set(artifacts.map((artifact) => artifact.format))]
+  // A pressed type whose last artifact was deleted no longer filters anything.
+  const active = formats.filter((format) => shown.has(format))
+  const visible = active.length
+    ? artifacts.filter((artifact) => active.includes(artifact.format))
+    : artifacts
+
+  const toggle = (format: string) =>
+    setShown((current) => {
+      const next = new Set(current)
+      if (!next.delete(format)) next.add(format)
+      return next
+    })
 
   return (
     <section
       className="flex h-full min-h-0 w-full min-w-0 flex-col"
       aria-labelledby="all-artifacts"
     >
-      <div className="mb-2 flex min-h-7 shrink-0 items-center">
+      <div className="mb-2 flex min-h-7 shrink-0 items-center gap-2">
         <h3
           id="all-artifacts"
           className="text-xs font-medium text-muted-foreground"
         >
           All generated artifacts
         </h3>
+        {formats.length > 1 ? (
+          <div className="ml-auto flex flex-wrap justify-end gap-0.5">
+            {formats.map((format) => (
+              <TypeChip
+                key={format}
+                format={format}
+                pressed={shown.has(format)}
+                onToggle={() => toggle(format)}
+              />
+            ))}
+          </div>
+        ) : null}
       </div>
       <ScrollShadow className="min-h-0 flex-1" from="from-background">
         {isLoading ? (
@@ -218,7 +280,7 @@ export function ArtifactList({
           </Empty>
         ) : (
           <div className="flex flex-col gap-1">
-            {artifacts.map((artifact) => (
+            {visible.map((artifact) => (
               <ArtifactRow
                 key={artifact.id}
                 artifact={artifact}

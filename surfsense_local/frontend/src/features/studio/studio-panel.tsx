@@ -86,6 +86,10 @@ const STUDIO_CATALOG: StudioFormat[] = [
   { key: "infographic", label: "Infographic", requires_roles: ["image_generation", "generation"], available: true, unavailable_reason: null },
 ]
 
+export function formatLabel(key: string) {
+  return STUDIO_CATALOG.find((entry) => entry.key === key)?.label ?? key
+}
+
 function catalogFormats(formats: StudioFormat[]) {
   if (formats.length === 0) return STUDIO_CATALOG
   const loaded = new Map(formats.map((entry) => [entry.key, entry]))

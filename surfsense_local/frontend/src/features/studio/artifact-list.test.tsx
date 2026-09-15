@@ -62,6 +62,40 @@ describe("artifact list", () => {
     ])
   })
 
+  it("filters by type with one chip per type present", async () => {
+    const podcast = { ...artifact, id: 14, format: "podcast", title: "Ep. 1" }
+    const user = userEvent.setup()
+    renderList({ artifacts: [artifact, podcast] })
+
+    const summaryChip = screen.getByRole("button", {
+      name: "Summary artifacts",
+    })
+    const podcastChip = screen.getByRole("button", {
+      name: "Podcast artifacts",
+    })
+    expect(screen.queryByRole("button", { name: "Image artifacts" })).toBeNull()
+    expect(summaryChip.getAttribute("aria-pressed")).toBe("false")
+
+    await user.click(podcastChip)
+    expect(podcastChip.getAttribute("aria-pressed")).toBe("true")
+    expect(screen.getByText("Ep. 1")).toBeTruthy()
+    expect(screen.queryByText("Weekly summary")).toBeNull()
+
+    await user.click(summaryChip) // two pressed: both types
+    expect(screen.getByText("Weekly summary")).toBeTruthy()
+
+    await user.click(podcastChip)
+    await user.click(summaryChip) // none pressed: everything
+    expect(screen.getByText("Ep. 1")).toBeTruthy()
+    expect(screen.getByText("Weekly summary")).toBeTruthy()
+  })
+
+  it("offers no filter when every artifact is the same type", () => {
+    renderList({ artifacts: [artifact, { ...artifact, id: 15 }] })
+
+    expect(screen.queryByRole("button", { name: /artifacts$/ })).toBeNull()
+  })
+
   it("opens ready artifacts", async () => {
     const onOpen = vi.fn()
     const user = userEvent.setup()
