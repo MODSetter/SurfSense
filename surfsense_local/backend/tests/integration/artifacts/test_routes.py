@@ -153,6 +153,48 @@ async def test_a_podcast_job_checks_and_stores_its_brief(
     assert stored["speakers"] == speakers
 
 
+async def test_the_brief_opens_with_defaults_then_with_the_last_episode(
+    client: AsyncClient,
+    engine: Engine,
+    workspace_id: int,
+    choose_model: None,
+    voice_weights: None,
+) -> None:
+    """First visit: two English speakers and the voice catalog. After an episode:
+    that episode's brief, so the user only changes what differs."""
+    url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+
+    opened = (await client.get(url)).json()
+    assert opened["brief"]["language"] == "en-US"
+    assert [s["role"] for s in opened["brief"]["speakers"]] == ["host", "guest"]
+    assert {"id", "label", "language"} <= set(opened["voices"][0])
+    assert {voice["language"] for voice in opened["voices"]} >= {"en-US", "pt-BR"}
+
+    speakers = [{"name": "Ana", "role": "narrator", "voice": "pf_dora"}]
+    await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={
+            "format": "podcast",
+            "document_ids": [make_ready_source(engine, workspace_id)],
+            "options": {"language": "pt-BR", "duration": "long", "speakers": speakers},
+        },
+    )
+
+    reopened = (await client.get(url)).json()["brief"]
+    assert reopened["language"] == "pt-BR"
+    assert reopened["duration"] == "long"
+    assert reopened["speakers"] == speakers
+
+
+async def test_the_brief_needs_the_voice_engine(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """No weights, no voices to choose from: the same reason the format shows."""
+    opened = await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
+    assert opened.status_code == 409
+    assert opened.json()["detail"] == "Voice model required"
+
+
 async def test_a_job_creates_a_pending_artifact(
     client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
 ) -> None:

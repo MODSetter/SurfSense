@@ -5,6 +5,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
@@ -59,6 +60,7 @@ def create_app() -> FastAPI:
     app.include_router(llm_router)
     app.include_router(chat_router)
     app.include_router(artifacts_router)
+    app.include_router(podcast_router)
     app.include_router(events_router)
     app.include_router(migration_router)
     app.include_router(license_router)
