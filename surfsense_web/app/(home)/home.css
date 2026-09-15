@@ -459,6 +459,45 @@
 	);
 }
 
+/**
+ * Mobile.
+ *
+ * The dither cell is a fixed 3px, so its size relative to the hero changes with
+ * the viewport: about 383 cells across a 1150px desktop hero, but only ~129
+ * across 388px. What reads as fine texture on a wide screen reads as a coarse
+ * checkerboard on a narrow one.
+ *
+ * `fit="cover"` compounds it — the artwork is landscape and the mobile hero is
+ * portrait (0.72), so it is cropped hard and mostly what survives is flat
+ * stipple plus one bright diagonal, directly behind the copy.
+ *
+ * Both are handled by pulling the pattern back rather than by changing the
+ * shader: less of it, and a wider clear area under the text.
+ */
+@media (max-width: 767px) {
+	.ss-home-hero-dither {
+		opacity: 0.4;
+		-webkit-mask-image: linear-gradient(
+			to bottom,
+			transparent 0%,
+			#000 22%,
+			#000 60%,
+			transparent 92%
+		);
+		mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 60%, transparent 92%);
+	}
+
+	/* A larger, denser scrim: on a portrait hero the copy occupies far more of
+	 * the area, so the calm middle has to grow with it. */
+	.ss-home-hero-dither::after {
+		background: radial-gradient(
+			78% 62% at 50% 46%,
+			color-mix(in srgb, var(--background) 92%, transparent) 0%,
+			transparent 86%
+		);
+	}
+}
+
 /* The shader mounts a canvas into its own wrapper div; neither carries
  * intrinsic size, so both have to be told to fill the layer. */
 .ss-home-hero-dither canvas {
