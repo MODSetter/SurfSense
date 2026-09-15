@@ -34,8 +34,15 @@ const SITE_DESIGN_ROUTES = new Set([
 	"/pricing",
 	"/contact",
 	"/plugins",
+	"/blog",
 	...getAllConnectorSlugs().map((slug) => `/${slug}`),
 ]);
+
+/**
+ * Prefixes for site-design routes with their own dynamic children, e.g. every
+ * `/blog/<slug>` post under the `/blog` index.
+ */
+const SITE_DESIGN_PREFIXES = ["/blog/"];
 
 export function SiteShell({
 	children,
@@ -54,7 +61,9 @@ export function SiteShell({
 		return <>{children}</>;
 	}
 
-	const usesSiteDesign = SITE_DESIGN_ROUTES.has(pathname);
+	const usesSiteDesign =
+		SITE_DESIGN_ROUTES.has(pathname) ||
+		SITE_DESIGN_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
 	return (
 		<main

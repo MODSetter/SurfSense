@@ -1348,6 +1348,59 @@
 }
 
 /* ---------------------------------------------------------------------------
+ * Blog
+ *
+ * The one place on the site with photographs rather than icons or type. Cards
+ * get their own hairline border and a normal gap instead of the shared-
+ * background grid the rest of the site uses — the archive's length is
+ * unbounded, so there is no item count to make an even row out of.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-post-card {
+	display: flex;
+	height: 100%;
+	flex-direction: column;
+	border: 1px solid var(--border);
+	background-color: var(--background);
+	transition: border-color 100ms ease-out;
+}
+
+.ss-home-post-card:hover,
+.ss-home-post-card:focus-visible {
+	border-color: var(--muted-foreground);
+}
+
+.ss-home-post-card:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+
+.ss-home-post-card-media {
+	position: relative;
+	aspect-ratio: 16 / 10;
+	overflow: hidden;
+	background-color: var(--muted);
+}
+
+.ss-home-post-card-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform 300ms ease-out;
+}
+
+.ss-home-post-card:hover .ss-home-post-card-media img {
+	transform: scale(1.03);
+}
+
+.ss-home-post-card-body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	padding: 1.25rem 1.5rem 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------
  * Motion
  *
  * The homepage is a read-only marketing surface: no gestures, nothing
