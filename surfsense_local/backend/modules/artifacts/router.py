@@ -7,11 +7,30 @@ from sqlalchemy import select
 
 from api.dependencies import SessionDep
 from modules.artifacts.dependencies import ArtifactDep
+from modules.artifacts.flashcard_progress import (
+    apply_flashcard_mark,
+    apply_flashcard_order,
+    read_flashcard_count,
+    reset_flashcard_progress,
+)
 from modules.artifacts.models import Artifact, ArtifactFileRole
+from modules.artifacts.quiz_progress import (
+    apply_quiz_answer,
+    apply_quiz_retake,
+    apply_quiz_skip,
+    read_quiz_questions,
+)
 from modules.artifacts.schemas import (
     ArtifactDetail,
     ArtifactRead,
+    FlashcardMarkUpdate,
+    FlashcardOrderUpdate,
+    FlashcardStateRead,
     FormatRead,
+    QuizAnswerUpdate,
+    QuizRetakeUpdate,
+    QuizSkipUpdate,
+    QuizStateRead,
     StudioJobCreate,
 )
 from modules.artifacts.service import (
@@ -113,6 +132,142 @@ def read_artifact_file(artifact: ArtifactDep, role: ArtifactFileRole) -> FileRes
             "attachment" if file.mime_type in _INLINE_UNSAFE else "inline"
         ),
     )
+
+
+def _require_quiz(artifact: Artifact) -> None:
+    if artifact.format != "quiz":
+        raise HTTPException(status.HTTP_409_CONFLICT, "artifact is not a quiz")
+
+
+@router.put(
+    "/artifacts/{artifact_id}/quiz-state/answer",
+    response_model=QuizStateRead,
+    summary="Record an answer in the artifact's in-progress quiz run",
+)
+def answer_quiz_question(
+    artifact: ArtifactDep, payload: QuizAnswerUpdate, session: SessionDep
+) -> QuizStateRead:
+    _require_quiz(artifact)
+    questions = read_quiz_questions(artifact)
+    metadata, state = apply_quiz_answer(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        question_count=len(questions),
+        question_index=payload.question_index,
+        selected_option_index=payload.selected_option_index,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return QuizStateRead(**state)
+
+
+@router.put(
+    "/artifacts/{artifact_id}/quiz-state/skip",
+    response_model=QuizStateRead,
+    summary="Skip a question in the artifact's in-progress quiz run",
+)
+def skip_quiz_question(
+    artifact: ArtifactDep, payload: QuizSkipUpdate, session: SessionDep
+) -> QuizStateRead:
+    _require_quiz(artifact)
+    questions = read_quiz_questions(artifact)
+    metadata, state = apply_quiz_skip(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        question_count=len(questions),
+        question_index=payload.question_index,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return QuizStateRead(**state)
+
+
+@router.put(
+    "/artifacts/{artifact_id}/quiz-state/retake",
+    response_model=QuizStateRead,
+    summary="Start a new quiz run over all or just the missed questions",
+)
+def retake_quiz(
+    artifact: ArtifactDep, payload: QuizRetakeUpdate, session: SessionDep
+) -> QuizStateRead:
+    _require_quiz(artifact)
+    questions = read_quiz_questions(artifact)
+    correct_option_indices = [q.get("correct_option_index") for q in questions]
+    metadata, state = apply_quiz_retake(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        correct_option_indices=correct_option_indices,
+        mode=payload.mode,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return QuizStateRead(**state)
+
+
+def _require_flashcards(artifact: Artifact) -> None:
+    if artifact.format != "flashcards":
+        raise HTTPException(status.HTTP_409_CONFLICT, "artifact is not a flashcard deck")
+
+
+@router.put(
+    "/artifacts/{artifact_id}/flashcard-state/mark",
+    response_model=FlashcardStateRead,
+    summary="Mark a flashcard as recalled or needing review",
+)
+def mark_flashcard(
+    artifact: ArtifactDep, payload: FlashcardMarkUpdate, session: SessionDep
+) -> FlashcardStateRead:
+    _require_flashcards(artifact)
+    card_count = read_flashcard_count(artifact)
+    metadata, state = apply_flashcard_mark(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        card_count=card_count,
+        card_index=payload.card_index,
+        mark=payload.mark,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return FlashcardStateRead(**state)
+
+
+@router.put(
+    "/artifacts/{artifact_id}/flashcard-state/reset",
+    response_model=FlashcardStateRead,
+    summary="Clear every mark in the artifact's flashcard deck",
+)
+def reset_flashcard_state(artifact: ArtifactDep, session: SessionDep) -> FlashcardStateRead:
+    _require_flashcards(artifact)
+    card_count = read_flashcard_count(artifact)
+    metadata, state = reset_flashcard_progress(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        card_count=card_count,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return FlashcardStateRead(**state)
+
+
+@router.put(
+    "/artifacts/{artifact_id}/flashcard-state/order",
+    response_model=FlashcardStateRead,
+    summary="Set the shuffle order for the artifact's flashcard deck",
+)
+def reorder_flashcards(
+    artifact: ArtifactDep, payload: FlashcardOrderUpdate, session: SessionDep
+) -> FlashcardStateRead:
+    _require_flashcards(artifact)
+    card_count = read_flashcard_count(artifact)
+    metadata, state = apply_flashcard_order(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        card_count=card_count,
+        order=payload.order,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return FlashcardStateRead(**state)
 
 
 @router.delete(

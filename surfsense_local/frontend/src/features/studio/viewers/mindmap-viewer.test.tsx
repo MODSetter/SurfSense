@@ -18,12 +18,23 @@ import { MindmapViewer } from "./mindmap-viewer"
 
 const outline = ["# Saturn", "- Rings", "  - Made of ice", "- Moons"].join("\n")
 
-afterEach(cleanup)
+afterEach(() => {
+  cleanup()
+  document.body.replaceChildren()
+})
 
 describe("mind map viewer", () => {
   it("draws the outline and exposes it as a tree, with a Fit control", async () => {
     const user = userEvent.setup()
-    render(<MindmapViewer markdown={outline} />)
+    // The Fit control portals into the panel header's actions slot, so the
+    // test provides a stand-in for it, attached to the document like the
+    // real one so `screen` queries (which search document.body) find it.
+    const actionsContainer = document.body.appendChild(
+      document.createElement("div")
+    )
+    render(
+      <MindmapViewer markdown={outline} actionsContainer={actionsContainer} />
+    )
 
     const tree = await screen.findByRole("list", { name: "Mind map" })
     expect(tree.textContent).toContain("Saturn")

@@ -9,7 +9,11 @@ OPTIONS = 4
 _SCHEMA = (
     'Return only JSON, no prose: {"title": str, "questions": [{"question": str, '
     f'"options": [str] (exactly {OPTIONS}, distinct), "answer": str (one of the '
-    'options, verbatim), "explanation": str (why, in one or two sentences)}]}.'
+    'options, verbatim), "explanation": str (why, in one or two sentences)}]}. '
+    "Content is plain text. The only formatting syntax is LaTeX: use \\(...\\) "
+    "for inline math and \\[...\\] for display math. Escape each backslash as "
+    "\\\\ in JSON. Keep delimiters and braces balanced and do not nest math "
+    "delimiters."
 )
 
 

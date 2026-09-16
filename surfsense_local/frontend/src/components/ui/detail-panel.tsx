@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils"
 
 export function DetailPanel({
   title,
+  titleClassName,
   ariaLabel,
   actions,
   onClose,
@@ -16,6 +17,7 @@ export function DetailPanel({
   children,
 }: {
   title: string
+  titleClassName?: string
   ariaLabel: string
   actions?: ReactNode
   onClose: () => void
@@ -30,7 +32,14 @@ export function DetailPanel({
       aria-label={ariaLabel}
     >
       <div className="grid h-14 shrink-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3">
-        <p className="min-w-0 truncate text-sm text-muted-foreground">{title}</p>
+        <p
+          className={cn(
+            "min-w-0 truncate text-sm text-muted-foreground",
+            titleClassName
+          )}
+        >
+          {title}
+        </p>
         <div className="flex items-center gap-1">
           {actions}
           <Separator

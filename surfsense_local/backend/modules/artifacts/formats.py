@@ -24,7 +24,7 @@ class Format:
 # (asserted in tests/unit/worker).
 FORMATS: tuple[Format, ...] = (
     Format("summary", "Summary"),
-    Format("docx", "Document"),
+    Format("docx", "Word"),
     Format("pptx", "Slides"),
     Format("xlsx", "Spreadsheet"),
     Format("html", "Web page"),
