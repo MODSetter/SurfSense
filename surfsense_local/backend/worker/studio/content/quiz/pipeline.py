@@ -1,36 +1,32 @@
 import json
 
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
 
 OPTIONS = 4
-_SCHEMA = (
-    'Return only JSON, no prose: {"title": str, "questions": [{"question": str, '
-    f'"options": [str] (exactly {OPTIONS}, distinct), "answer": str (one of the '
-    'options, verbatim), "explanation": str (why, in one or two sentences)}]}. '
-    "Content is plain text. The only formatting syntax is LaTeX: use \\(...\\) "
-    "for inline math and \\[...\\] for display math. Escape each backslash as "
-    "\\\\ in JSON. Keep delimiters and braces balanced and do not nest math "
-    "delimiters."
-)
+# The frontier prompt leaves the count to the material, so the ceiling is kept here.
+QUESTIONS = 10
 
 
 def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
     return build(
-        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
     )
 
 
-def prompt(_sources: list[Source], user_prompt: str | None) -> str:
-    focus = f" Focus on: {user_prompt}." if user_prompt else ""
-    return (
-        "Write a multiple-choice quiz from the sources below — each question "
-        f"with {OPTIONS} options, the correct answer and a short explanation, "
-        "using their facts only." + focus + " " + _SCHEMA
+def prompt(tier: Tier, user_prompt: str | None) -> str:
+    return prompting.load(
+        __package__,
+        tier,
+        focus=prompting.focus(user_prompt),
+        options=OPTIONS,
+        ceiling=QUESTIONS,
     )
 
 
@@ -41,6 +37,8 @@ def build(raw: str, _sources: list[Source]) -> Built:
     questions = []
 
     for item in as_list(spec.get("questions")):
+        if len(questions) == QUESTIONS:
+            break
         if not isinstance(item, dict):
             continue
         question = as_text(item.get("question"))

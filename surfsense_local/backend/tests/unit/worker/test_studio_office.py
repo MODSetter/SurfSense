@@ -2,6 +2,8 @@
 
 import pytest
 
+from modules.llm.profile import Tier
+from modules.llm.resolution import ResolvedGeneration
 from worker.studio.office import pipeline as office
 from worker.studio.office import runner
 from worker.studio.office.docx import docx
@@ -12,6 +14,10 @@ from worker.studio.shared import generate
 from worker.studio.shared.artifact import Source
 
 pytestmark = pytest.mark.unit
+
+MODEL = ResolvedGeneration(
+    type("Selection", (), {"name": "qwen3:8b", "tier": Tier.CAPABLE})(), None
+)
 
 
 def _model(raw: str, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -32,7 +38,7 @@ def test_render_executes_generated_code_and_keeps_its_bytes(
         monkeypatch,
     )
 
-    built = office.render(pdf, None, [Source(1, "Saturn", "rings")], None)
+    built = office.render(pdf, MODEL, [Source(1, "Saturn", "rings")], None)
 
     assert built.primary == b"%PDF-1.7 fake"
     assert built.primary_mime == "application/pdf"
@@ -47,7 +53,7 @@ def test_render_uses_the_picked_formats_mime_and_extension(
     """The user's button fixes the type: a docx job stores a .docx, not whatever."""
     _model("output_bytes = b'PK\\x03\\x04'\ntitle = 'Deck'", monkeypatch)
 
-    built = office.render(docx, None, [], None)
+    built = office.render(docx, MODEL, [], None)
 
     assert built.primary_filename == "deck.docx"
     assert built.primary_mime.endswith("wordprocessingml.document")
@@ -61,7 +67,7 @@ def test_code_that_forgets_output_bytes_fails_the_job(
     _model("title = 'oops'", monkeypatch)
 
     with pytest.raises(RuntimeError, match="output_bytes"):
-        office.render(pdf, None, [], None)
+        office.render(pdf, MODEL, [], None)
 
 
 def test_code_that_raises_surfaces_the_reason(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -69,7 +75,7 @@ def test_code_that_raises_surfaces_the_reason(monkeypatch: pytest.MonkeyPatch) -
     _model("raise ValueError('bad layout')", monkeypatch)
 
     with pytest.raises(RuntimeError, match="bad layout"):
-        office.render(pptx, None, [], None)
+        office.render(pptx, MODEL, [], None)
 
 
 def test_render_retries_failed_code_then_keeps_the_fix(
@@ -82,19 +88,30 @@ def test_render_retries_failed_code_then_keeps_the_fix(
             "output_bytes = b'%PDF-ok'\ntitle = 'Cassini'",
         ]
     )
-    seen: list[str] = []
+    seen: list[generate.Repair | None] = []
 
-    def fake_model(_session: object, system: str, _sources: object) -> str:
-        seen.append(system)
+    def fake_model(
+        _session: object,
+        _system: str,
+        _sources: object,
+        *,
+        repair: generate.Repair | None = None,
+    ) -> str:
+        seen.append(repair)
         return next(replies)
 
     monkeypatch.setattr(generate, "run_model", fake_model)
 
-    built = office.render(pdf, None, [], None)
+    built = office.render(pdf, MODEL, [], None)
 
     assert built.primary == b"%PDF-ok"
     assert len(seen) == 2
-    assert "pagesMS" in seen[1] or "failed" in seen[1].lower()
+    # The retry replays the script that failed: an error naming a line is only
+    # actionable against code the model can see.
+    assert seen[0] is None
+    assert seen[1] is not None
+    assert "pagesMS" in seen[1].reply
+    assert "pagesMS" in seen[1].instruction
 
 
 def test_render_stops_after_three_code_failures(
@@ -111,7 +128,7 @@ def test_render_stops_after_three_code_failures(
     monkeypatch.setattr(generate, "run_model", fake_model)
 
     with pytest.raises(RuntimeError, match="still broken"):
-        office.render(pdf, None, [], None)
+        office.render(pdf, MODEL, [], None)
     assert calls == 3
 
 

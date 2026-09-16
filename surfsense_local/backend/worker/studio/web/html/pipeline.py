@@ -1,32 +1,28 @@
 import html
 
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
+
+MIME = "text/html"
+# The frontier prompt leaves the count to the material, so the ceiling is kept here.
+SECTIONS = 10
 
 
 def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
     return build(
-        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
     )
 
 
-MIME = "text/html"
-
-_SCHEMA = (
-    'Return only JSON, no prose: {"title": str, "sections": '
-    '[{"heading": str, "paragraphs": [str]}]}.'
-)
-
-
-def prompt(_sources: list[Source], user_prompt: str | None) -> str:
-    focus = f" Emphasise: {user_prompt}." if user_prompt else ""
-    return (
-        "Write a structured web page from the sources below, using their facts "
-        "only." + focus + " " + _SCHEMA
+def prompt(tier: Tier, user_prompt: str | None) -> str:
+    return prompting.load(
+        __package__, tier, focus=prompting.focus(user_prompt), ceiling=SECTIONS
     )
 
 
@@ -38,7 +34,7 @@ def build(raw: str, _sources: list[Source]) -> Built:
     # template, so a generated page cannot carry a script.
     body: list[str] = [f"<h1>{html.escape(title)}</h1>"]
     lines = [f"# {title}"]
-    for section in as_list(spec.get("sections")):
+    for section in as_list(spec.get("sections"))[:SECTIONS]:
         if not isinstance(section, dict):
             continue
         heading = as_text(section.get("heading"))

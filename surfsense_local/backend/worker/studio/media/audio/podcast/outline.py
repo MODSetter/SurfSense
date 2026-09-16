@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
 from modules.artifacts.podcast.brief import MINUTES, PodcastBrief
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from worker.studio.media.audio.podcast.roster import roster
 from worker.studio.shared.text import as_list, as_text, parse_json
 
@@ -29,24 +31,18 @@ def target_words(brief: PodcastBrief) -> int:
     return MINUTES[brief.duration] * WORDS_PER_MINUTE
 
 
-def prompt(brief: PodcastBrief, focus: str | None) -> str:
+def prompt(tier: Tier, brief: PodcastBrief, focus: str | None) -> str:
     words = target_words(brief)
-    segments = max(1, round(words / WORDS_PER_SEGMENT))
-    focus_line = (
-        f"\nThe listener asked the episode to focus on: {focus}\n" if focus else ""
-    )
-    return (
-        "You are a podcast showrunner planning an episode before any dialogue is "
-        f"written. The episode language is {brief.language}. The format is "
-        f"{brief.style.value}.\nSpeakers:\n{roster(brief)}\n{focus_line}\n"
-        f"Plan an outline that, fully drafted, reaches about {words} words of "
-        f"spoken dialogue in about {segments} segments: an opening, distinct topic "
-        "areas grounded in the sources, and a closing. Give the episode a short "
-        "title. For each segment give a short title, 2-5 concrete talking_points "
-        "drawn from the sources, and target_words (the sum should approximate the "
-        "total).\n"
-        'Return only JSON, no prose: {"title": str, "segments": [{"title": str, '
-        '"talking_points": [str], "target_words": int}]}'
+    return prompting.load(
+        __package__,
+        tier,
+        case="outline",
+        focus=prompting.focus(focus),
+        language=brief.language,
+        style=brief.style.value,
+        roster=roster(brief),
+        words=words,
+        segments=max(1, round(words / WORDS_PER_SEGMENT)),
     )
 
 

@@ -1,5 +1,6 @@
 import pytest
 
+from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from shared.config import get_search_settings
 
@@ -24,7 +25,10 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:
         "worker.ingestion.chunking._default_tokenizer", lambda: "character"
     )
 
-    selection = type("Selection", (), {"provider": "fake", "name": "fake"})()
+    # Compact is what a bundled local model gets, so that is the path under test.
+    selection = type(
+        "Selection", (), {"provider": "fake", "name": "fake", "tier": Tier.COMPACT}
+    )()
     monkeypatch.setattr(
         "worker.studio.job.resolve_generation",
         lambda _session: ResolvedGeneration(selection, None),

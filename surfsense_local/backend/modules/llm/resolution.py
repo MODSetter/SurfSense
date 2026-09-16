@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
 from modules.llm.models import ModelRole, ProviderConnection, SelectedModel
+from modules.llm.profile import Tier
 from modules.llm.providers import get_provider
 from modules.llm.providers.kokoro import provider as kokoro
 from modules.llm.providers.openai_compatible import (
@@ -22,6 +23,11 @@ class ModelResolutionError(RuntimeError):
 class ResolvedGeneration:
     selection: SelectedModel
     generator: Generator
+
+    @property
+    def tier(self) -> Tier:
+        """Which prompt every case writing through this model should load."""
+        return self.selection.tier
 
 
 @dataclass(frozen=True)

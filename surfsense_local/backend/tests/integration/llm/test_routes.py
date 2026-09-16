@@ -87,6 +87,20 @@ async def test_the_selection_is_read_after_it_is_set(
     assert read.json() == written.json()
 
 
+async def test_the_selection_says_which_prompt_tier_the_model_gets(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """A 1.7B model asks for a different prompt than a hosted frontier one."""
+    await client.put(
+        "/llm/selection/generation",
+        json={"provider": "ollama", "name": "qwen3:1.7b"},
+    )
+
+    read = (await client.get("/llm/selection/generation")).json()
+
+    assert read["tier"] == "compact"
+
+
 async def test_selecting_a_chat_model_does_not_complete_onboarding(
     client: AsyncClient, ollama_server: str
 ) -> None:

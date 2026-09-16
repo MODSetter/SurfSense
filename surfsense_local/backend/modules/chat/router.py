@@ -111,7 +111,14 @@ async def send_message(
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
     )
-    context, citations = build_context(hits)
+    context, citations = build_context(hits, resolved.tier)
+    logger.info(
+        "chat: model %s/%s answering on the %s prompt (%s excerpts)",
+        selected.provider,
+        selected.name,
+        resolved.tier,
+        len(citations),
+    )
     messages = build_messages(context, history, payload.text)
 
     activity_key = model_key(selected.provider, selected.name, selected.connection_id)

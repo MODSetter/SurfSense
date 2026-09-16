@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator
 import httpx
 
 from modules.llm.connections.service import parse_models
+from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.types import Message, Model
 
 TIMEOUT = httpx.Timeout(120.0, connect=5.0)
@@ -43,6 +44,15 @@ class OpenAICompatibleChatProvider:
             )
             for model in discovered
         ]
+
+    async def inspect(self, name: str) -> Fingerprint:
+        """What this endpoint's listing reveals about one model, for prompt tiering."""
+        async with self._client() as client:
+            reply = await client.get(f"{self._base_url}/models")
+            reply.raise_for_status()
+            payload = reply.json()
+        rows = payload.get("data") if isinstance(payload, dict) else None
+        return from_remote(name, rows if isinstance(rows, list) else [])
 
     async def chat(
         self,

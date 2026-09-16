@@ -1,7 +1,10 @@
 """Content kinds: the model writes markdown or JSON, the worker renders it as-is."""
 
+import json
+
 import pytest
 
+from modules.llm.profile import Tier
 from worker.studio.content.flashcards import pipeline as flashcards
 from worker.studio.content.mindmap import pipeline as mindmap
 from worker.studio.content.quiz import pipeline as quiz
@@ -9,6 +12,66 @@ from worker.studio.content.summary import pipeline as summary
 from worker.studio.shared.text import parse_json
 
 pytestmark = pytest.mark.unit
+
+
+def test_a_quiz_is_asked_for_differently_depending_on_the_model() -> None:
+    """A 3B model scores best on the shortest prompt, a frontier one on the fullest."""
+    compact = quiz.prompt(Tier.COMPACT, None)
+    capable = quiz.prompt(Tier.CAPABLE, None)
+    frontier = quiz.prompt(Tier.FRONTIER, None)
+
+    assert len({compact, capable, frontier}) == 3
+    assert len(compact) < len(capable)
+
+
+def test_a_quiz_carries_the_users_focus_and_its_own_numbers_at_every_tier() -> None:
+    """A steer the user typed, or a count the builder enforces, must reach the model."""
+    for tier in Tier:
+        filled = quiz.prompt(tier, "  the 2031 rainfall figures  ")
+
+        assert "Focus on: the 2031 rainfall figures" in filled
+        assert f"exactly {quiz.OPTIONS}" in filled
+        assert "$" not in filled
+
+
+def test_a_quiz_is_capped_where_its_prompt_says_it_is() -> None:
+    """Open counts are a prompt's request; the ceiling is the builder's contract."""
+    question = {
+        "question": "Q?",
+        "options": ["a", "b", "c", "d"],
+        "answer": "a",
+        "explanation": "Because.",
+    }
+    raw = json.dumps({"title": "Long", "questions": [question] * 40})
+
+    built = quiz.build(raw, [])
+
+    assert len(json.loads(built.primary)["questions"]) == quiz.QUESTIONS
+
+
+def test_every_content_kind_is_asked_for_in_its_own_words_at_every_tier() -> None:
+    """One prompt per kind and tier: a wording that suits a quiz never reaches a deck."""
+    asked = {
+        module.prompt(tier, "the 2031 rainfall figures")
+        for module in (quiz, flashcards, mindmap, summary)
+        for tier in Tier
+    }
+
+    assert len(asked) == 12
+    assert all("Focus on: the 2031 rainfall figures" in text for text in asked)
+    assert not any("$" in text for text in asked)
+
+
+def test_a_deck_and_a_map_are_capped_where_their_prompts_say_they_are() -> None:
+    """Open counts are a prompt's request; the ceiling is the builder's contract."""
+    card = {"front": "Q?", "back": "A."}
+    deck = flashcards.build(json.dumps({"cards": [card] * 40}), [])
+
+    branch = {"label": "Branch", "children": [{"label": "Leaf"}]}
+    map_body = mindmap.build(json.dumps({"nodes": [branch] * 40}), []).markdown
+
+    assert len(json.loads(deck.primary)["cards"]) == flashcards.CARDS
+    assert map_body.count("\n- ") == mindmap.BRANCHES
 
 
 def test_a_summary_takes_its_title_from_the_first_h1() -> None:

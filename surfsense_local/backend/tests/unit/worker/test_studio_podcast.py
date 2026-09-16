@@ -3,11 +3,17 @@
 import pytest
 
 from modules.artifacts.podcast.brief import Duration, PodcastBrief, Speaker, Style
+from modules.llm.profile import Tier
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
-from modules.llm.resolution import ModelResolutionError
+from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline, pipeline
+from worker.studio.shared import generate
 
 pytestmark = pytest.mark.unit
+
+MODEL = ResolvedGeneration(
+    type("Selection", (), {"name": "qwen3:8b", "tier": Tier.CAPABLE})(), None
+)
 
 BRIEF = PodcastBrief(
     language="pt-BR",
@@ -22,7 +28,7 @@ BRIEF = PodcastBrief(
 
 def test_the_outline_prompt_is_sized_to_the_preset_and_names_the_cast() -> None:
     """Standard is 8 minutes: about 1200 words in about 5 segments."""
-    prompt = outline.prompt(BRIEF, "the risks")
+    prompt = outline.prompt(Tier.CAPABLE, BRIEF, "the risks")
 
     assert "1200 words" in prompt
     assert "5 segments" in prompt
@@ -62,12 +68,12 @@ SEGMENTS = [
 
 def test_the_segment_prompt_places_the_beat_and_continues_from_the_recap() -> None:
     """The model knows where it is in the episode and what was just said."""
-    opening = draft.prompt(BRIEF, SEGMENTS[0], 1, 2, None)
+    opening = draft.prompt(Tier.CAPABLE, BRIEF, SEGMENTS[0], 1, 2, None)
     assert "segment 1 of 2" in opening
     assert "opening segment" in opening
     assert "- say hi" in opening and "about 100 words" in opening
 
-    middle = draft.prompt(BRIEF, SEGMENTS[1], 2, 2, "Sam: Welcome.")
+    middle = draft.prompt(Tier.CAPABLE, BRIEF, SEGMENTS[1], 2, 2, "Sam: Welcome.")
     assert "Sam: Welcome." in middle and "do not repeat" in middle
     assert "1. Sam (host)" in middle and "pt-BR" in middle
 
@@ -108,18 +114,32 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
         ["not json", '{"turns": [{"speaker": 1, "text": "Hi."}]}', "no", "no"]
     )
     prompts: list[str] = []
+    repairs: list[generate.Repair | None] = []
 
-    def fake_run_model(model: object, system: str, sources: list) -> str:
+    def fake_run_model(
+        model: object,
+        system: str,
+        sources: list,
+        *,
+        repair: generate.Repair | None = None,
+    ) -> str:
         prompts.append(system)
+        repairs.append(repair)
         return next(replies)
 
     monkeypatch.setattr("worker.studio.shared.generate.run_model", fake_run_model)
 
     with pytest.raises(ValueError, match="Segment 2 of 2 could not be drafted"):
-        draft.draft(object(), BRIEF, SEGMENTS, [])
+        draft.draft(MODEL, BRIEF, SEGMENTS, [])
 
     assert len(prompts) == 4
-    assert "only the JSON" in prompts[1] and "only the JSON" not in prompts[0]
+    # The nudge rides a repair turn carrying the bad reply, not the prompt, so
+    # "your previous reply" refers to something the model was actually shown.
+    assert repairs[0] is None
+    assert repairs[1] is not None
+    assert repairs[1].reply == "not json"
+    assert "not valid JSON" in repairs[1].instruction
+    assert "not valid JSON" not in prompts[1]
     assert "Sam: Hi." in prompts[2]
 
 
@@ -166,7 +186,7 @@ def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
         '{"turns": [{"speaker": 2, "text": "Goodbye."}]}',
     )
 
-    built = pipeline.render(object(), [], "the risks", BRIEF.model_dump(mode="json"))
+    built = pipeline.render(MODEL, [], "the risks", BRIEF.model_dump(mode="json"))
 
     assert len(prompts) == 3 and "the risks" in prompts[0]
     assert [(t.voice, t.text) for t in voice.turns] == [
@@ -191,7 +211,7 @@ def test_an_episode_too_short_to_voice_fails_before_synthesis(
     )
 
     with pytest.raises(ValueError, match="too short"):
-        pipeline.render(object(), [], None, BRIEF.model_dump(mode="json"))
+        pipeline.render(MODEL, [], None, BRIEF.model_dump(mode="json"))
     assert voice.turns == []
 
 
