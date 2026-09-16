@@ -33,7 +33,11 @@ export function ArtifactPanel({
           {/* Where a viewer's own controls (mindmap's fit, pdf's zoom)
               portal in — see ArtifactViewerProps.actionsContainer. */}
           <div ref={setActionsContainer} className="flex items-center gap-1" />
-          {data?.files.length
+          {/* A flashcard deck's or quiz's only file is its raw JSON —
+              nothing a user should download. */}
+          {data?.files.length &&
+          data.format !== "flashcards" &&
+          data.format !== "quiz"
             ? data.files.map((file) => (
                 <Button
                   key={file.role}
