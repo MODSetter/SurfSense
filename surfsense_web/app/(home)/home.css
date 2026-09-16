@@ -156,6 +156,13 @@
 		 * the last one. */
 		padding-block-start: clamp(8rem, 20vw, 12rem);
 	}
+
+	/* For a head that sits directly under a hero: the hero already supplies
+	 * its own bottom padding, so the large desktop lead-in above would double
+	 * up into a gap far taller than either section intends. */
+	.ss-home-head-tight {
+		padding-block-start: clamp(2.5rem, 6vw, 4rem);
+	}
 }
 
 /* Where the only dividers that should show are the ones between the cells
@@ -435,22 +442,6 @@
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	white-space: nowrap;
-}
-
-/* A standalone status pill, for a claim that sits above a heading rather than
- * inline with one, like the plan badge above. Tinted rather than outlined or
- * filled: it reads as a state, not as the accent's one emphasis clause. */
-.ss-home-badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 999px;
-	padding: 0.375rem 0.875rem;
-	background-color: color-mix(in oklab, var(--home-accent) 12%, transparent);
-	font-size: 0.75rem;
-	font-weight: 600;
-	letter-spacing: 0.01em;
-	color: var(--home-accent);
 }
 
 /* Tints the recommended tier. `.ss-home-plans > *` paints every cell with the

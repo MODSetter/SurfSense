@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, ExternalLink, Info, type LucideIcon, Rocket, Wrench, Zap } from "lucide-react";
+import { Bell, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
@@ -20,28 +20,25 @@ import { formatRelativeDate } from "@/lib/format-date";
  * which stays on its own shadcn styling untouched by this page's redesign.
  */
 
-const categoryConfig: Record<AnnouncementCategory, { label: string; icon: LucideIcon }> = {
-	feature: { label: "Feature", icon: Rocket },
-	update: { label: "Update", icon: Zap },
-	maintenance: { label: "Maintenance", icon: Wrench },
-	info: { label: "Info", icon: Info },
+const categoryConfig: Record<AnnouncementCategory, { label: string }> = {
+	feature: { label: "Feature" },
+	update: { label: "Update" },
+	maintenance: { label: "Maintenance" },
+	info: { label: "Info" },
 };
 
 function AnnouncementRow({ announcement }: { announcement: AnnouncementWithState }) {
 	const config = categoryConfig[announcement.category] ?? categoryConfig.info;
-	const Icon = config.icon;
 
 	return (
 		<article className="ss-home-cell flex flex-col gap-4 md:flex-row md:gap-8">
 			<div className="flex h-min shrink-0 flex-col items-start gap-3 md:w-48 md:sticky md:top-24">
 				<time className="ss-home-eyebrow">{formatRelativeDate(announcement.date)}</time>
-				<Badge variant="secondary">
-					<Icon className="mr-1 size-3" />
+				<Badge variant="secondary" className="rounded-full px-3 py-1">
 					{config.label}
 				</Badge>
 				{announcement.isImportant && (
-					<Badge variant="secondary">
-						<Bell className="mr-1 size-3" />
+					<Badge variant="secondary" className="rounded-full px-3 py-1">
 						Important
 					</Badge>
 				)}

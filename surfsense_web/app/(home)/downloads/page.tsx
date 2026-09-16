@@ -37,7 +37,7 @@ export default function DownloadsPage() {
 			</section>
 
 			<section className="ss-home-rule ss-home-rule-plain">
-				<div className="ss-home-head ss-home-head-plain">
+				<div className="ss-home-head ss-home-head-plain ss-home-head-tight">
 					<p className="ss-home-eyebrow">Choose your platform</p>
 					<h2 className="ss-home-h2 mt-2">Windows, macOS and Linux</h2>
 				</div>

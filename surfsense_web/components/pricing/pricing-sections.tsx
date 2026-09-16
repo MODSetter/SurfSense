@@ -161,7 +161,7 @@ export function PricingQuestions() {
 			<div className="ss-home-head">
 				<p className="ss-home-eyebrow">FAQ</p>
 				<h2 id="ss-pricing-faq-label" className="ss-home-h2 mt-2">
-					Questions about <span className="ss-home-accent">licences</span>
+					Questions about licences
 				</h2>
 			</div>
 

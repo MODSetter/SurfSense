@@ -1,9 +1,9 @@
 "use client";
 
-import type { LucideIcon } from "lucide-react";
-import { Apple, AppWindow, Download, TerminalSquare } from "lucide-react";
+import { Download } from "lucide-react";
 import { FlowButton } from "@/components/ui/flow-button";
 import {
+	ASSET_LABELS,
 	GITHUB_RELEASES_URL,
 	getAssetLabel,
 	useLatestRelease,
@@ -17,7 +17,7 @@ import {
  */
 
 export function PrimaryDownloadButton() {
-	const { os, primary, isMobileOS } = usePrimaryDownload();
+	const { os, primary, isMobileOS, isLoading } = usePrimaryDownload();
 
 	if (isMobileOS) {
 		return (
@@ -31,28 +31,44 @@ export function PrimaryDownloadButton() {
 		);
 	}
 
+	if (isLoading) {
+		return (
+			<FlowButton
+				className="mt-8 opacity-50 pointer-events-none"
+				text={`Download for ${os}`}
+				disabled
+			/>
+		);
+	}
+
 	return (
 		<FlowButton
 			className="mt-8"
 			href={primary?.url ?? GITHUB_RELEASES_URL}
-			text={primary ? `Download for ${os}` : `Fetching the latest release for ${os}…`}
+			text={`Download for ${os}`}
 		/>
 	);
 }
 
 type OSPanel = {
 	title: string;
-	icon: LucideIcon;
 	match: (assetName: string) => boolean;
+	/** Asset-label suffixes expected for this platform, used to size the
+	 * disabled placeholder links while the real list is still loading. */
+	suffixes: (keyof typeof ASSET_LABELS)[];
 };
 
 const OS_PANELS: OSPanel[] = [
-	{ title: "Windows", icon: AppWindow, match: (name) => name.endsWith(".exe") },
-	{ title: "macOS", icon: Apple, match: (name) => name.endsWith(".dmg") },
+	{ title: "Windows", match: (name) => name.endsWith(".exe"), suffixes: [".exe"] },
+	{
+		title: "macOS",
+		match: (name) => name.endsWith(".dmg"),
+		suffixes: ["-arm64.dmg", "-x64.dmg"],
+	},
 	{
 		title: "Linux",
-		icon: TerminalSquare,
 		match: (name) => name.endsWith(".AppImage") || name.endsWith(".deb"),
+		suffixes: [".deb", ".AppImage"],
 	},
 ];
 
@@ -69,27 +85,43 @@ export function AllReleasesLink() {
 }
 
 export function OSDownloadGrid() {
-	const assets = useLatestRelease();
+	const { assets, isLoading } = useLatestRelease();
 
 	return (
 		<div className="ss-home-grid ss-home-grid-3 ss-home-grid-dashed">
 			{OS_PANELS.map((panel) => {
-				const panelAssets = assets.filter((asset) => panel.match(asset.name));
+				// Sorted to the same fixed order as the loading placeholders below,
+				// since GitHub doesn't guarantee asset order is stable across
+				// releases — without this the real links can swap position right
+				// as they replace the placeholders.
+				const panelAssets = assets
+					.filter((asset) => panel.match(asset.name))
+					.toSorted(
+						(a, b) =>
+							panel.suffixes.findIndex((suffix) => a.name.endsWith(suffix)) -
+							panel.suffixes.findIndex((suffix) => b.name.endsWith(suffix))
+					);
 				return (
 					<div key={panel.title} className="ss-home-cell flex flex-col">
-						<panel.icon aria-hidden="true" className="size-6 text-muted-foreground" />
-						<h3 className="ss-home-h3 mt-4">{panel.title}</h3>
+						<h3 className="ss-home-h3">{panel.title}</h3>
 						<div className="mt-4 flex flex-col items-start gap-2">
-							{panelAssets.length > 0 ? (
-								panelAssets.map((asset) => (
-									<a key={asset.name} className="ss-home-forward" href={asset.url}>
-										{getAssetLabel(asset.name)}
-										<Download aria-hidden="true" className="size-3.5" />
-									</a>
-								))
-							) : (
-								<p className="ss-home-body text-sm">Fetching the latest release…</p>
-							)}
+							{isLoading
+								? panel.suffixes.map((suffix) => (
+										<span
+											key={suffix}
+											aria-disabled="true"
+											className="ss-home-forward pointer-events-none opacity-50"
+										>
+											{ASSET_LABELS[suffix]}
+											<Download aria-hidden="true" className="size-3.5" />
+										</span>
+									))
+								: panelAssets.map((asset) => (
+										<a key={asset.name} className="ss-home-forward" href={asset.url}>
+											{getAssetLabel(asset.name)}
+											<Download aria-hidden="true" className="size-3.5" />
+										</a>
+									))}
 						</div>
 					</div>
 				);
