@@ -10,6 +10,7 @@ import { MindmapViewer } from "./mindmap-viewer"
 import { PdfViewer } from "./pdf-viewer"
 import { PptxViewer } from "./pptx-viewer"
 import { QuizViewer } from "./quiz/quiz-viewer"
+import { SummaryViewer } from "./summary-viewer"
 import { XlsxViewer } from "./xlsx-viewer"
 
 export interface ArtifactViewerProps {
@@ -57,6 +58,7 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
   pptx: PptxViewer,
   html: HtmlViewer,
   docx: DocxViewer,
+  summary: SummaryViewer,
 }
 
 export function getArtifactViewer(
