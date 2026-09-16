@@ -156,7 +156,7 @@ export function ChatsDialog({
         }}
       >
         <DialogContent
-          className="select-none sm:max-w-2xl"
+          className="select-none sm:max-w-3xl"
           onOpenAutoFocus={(event) => {
             event.preventDefault()
             searchRef.current?.focus()
