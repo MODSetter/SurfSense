@@ -7,6 +7,12 @@ from sqlalchemy import select
 
 from api.dependencies import SessionDep
 from modules.artifacts.dependencies import ArtifactDep
+from modules.artifacts.flashcard_progress import (
+    apply_flashcard_mark,
+    apply_flashcard_order,
+    read_flashcard_count,
+    reset_flashcard_progress,
+)
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import (
     apply_quiz_answer,
@@ -17,6 +23,9 @@ from modules.artifacts.quiz_progress import (
 from modules.artifacts.schemas import (
     ArtifactDetail,
     ArtifactRead,
+    FlashcardMarkUpdate,
+    FlashcardOrderUpdate,
+    FlashcardStateRead,
     FormatRead,
     QuizAnswerUpdate,
     QuizRetakeUpdate,
@@ -193,6 +202,72 @@ def retake_quiz(
     artifact.artifact_metadata = metadata
     session.commit()
     return QuizStateRead(**state)
+
+
+def _require_flashcards(artifact: Artifact) -> None:
+    if artifact.format != "flashcards":
+        raise HTTPException(status.HTTP_409_CONFLICT, "artifact is not a flashcard deck")
+
+
+@router.put(
+    "/artifacts/{artifact_id}/flashcard-state/mark",
+    response_model=FlashcardStateRead,
+    summary="Mark a flashcard as recalled or needing review",
+)
+def mark_flashcard(
+    artifact: ArtifactDep, payload: FlashcardMarkUpdate, session: SessionDep
+) -> FlashcardStateRead:
+    _require_flashcards(artifact)
+    card_count = read_flashcard_count(artifact)
+    metadata, state = apply_flashcard_mark(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        card_count=card_count,
+        card_index=payload.card_index,
+        mark=payload.mark,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return FlashcardStateRead(**state)
+
+
+@router.put(
+    "/artifacts/{artifact_id}/flashcard-state/reset",
+    response_model=FlashcardStateRead,
+    summary="Clear every mark in the artifact's flashcard deck",
+)
+def reset_flashcard_state(artifact: ArtifactDep, session: SessionDep) -> FlashcardStateRead:
+    _require_flashcards(artifact)
+    card_count = read_flashcard_count(artifact)
+    metadata, state = reset_flashcard_progress(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        card_count=card_count,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return FlashcardStateRead(**state)
+
+
+@router.put(
+    "/artifacts/{artifact_id}/flashcard-state/order",
+    response_model=FlashcardStateRead,
+    summary="Set the shuffle order for the artifact's flashcard deck",
+)
+def reorder_flashcards(
+    artifact: ArtifactDep, payload: FlashcardOrderUpdate, session: SessionDep
+) -> FlashcardStateRead:
+    _require_flashcards(artifact)
+    card_count = read_flashcard_count(artifact)
+    metadata, state = apply_flashcard_order(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        card_count=card_count,
+        order=payload.order,
+    )
+    artifact.artifact_metadata = metadata
+    session.commit()
+    return FlashcardStateRead(**state)
 
 
 @router.delete(

@@ -24,6 +24,7 @@ export function ArtifactPanel({
   return (
     <DetailPanel
       title={data?.title ?? (isLoading ? "Loading…" : "Artifact")}
+      titleClassName="select-none"
       ariaLabel="Artifact"
       closeLabel="Close artifact"
       onClose={onClose}

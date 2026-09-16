@@ -45,6 +45,7 @@ const artifact: ArtifactDetail = {
     },
   ],
   quiz_state: null,
+  flashcard_state: null,
 }
 
 afterEach(() => {

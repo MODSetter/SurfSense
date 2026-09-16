@@ -7,7 +7,11 @@ from worker.studio.shared.text import as_list, as_text, parse_json, slug
 
 _SCHEMA = (
     'Return only JSON, no prose: {"title": str, "cards": '
-    '[{"front": str, "back": str}]}.'
+    '[{"front": str, "back": str}]}. '
+    "Content is plain text. The only formatting syntax is LaTeX: use \\(...\\) "
+    "for inline math and \\[...\\] for display math. Escape each backslash as "
+    "\\\\ in JSON. Keep delimiters and braces balanced and do not nest math "
+    "delimiters."
 )
 
 

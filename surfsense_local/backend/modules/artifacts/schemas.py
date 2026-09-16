@@ -3,6 +3,10 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from modules.artifacts.flashcard_progress import (
+    read_flashcard_count,
+    sanitize_flashcard_state,
+)
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.artifacts.quiz_progress import read_quiz_questions, sanitize_quiz_state
 from modules.documents.models import DocumentStatus
@@ -70,6 +74,31 @@ class QuizRetakeUpdate(BaseModel):
     mode: Literal["all", "missed"]
 
 
+class FlashcardStateRead(BaseModel):
+    """A flashcard deck's study progress: marks and shuffle order.
+    Generation-scoped — see flashcard_progress.py."""
+
+    generation: int
+    marks: dict[str, Literal["good", "again"]]
+    order: list[int]
+
+
+CardIndex = Annotated[int, Field(strict=True, ge=0)]
+
+
+class FlashcardMarkUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    card_index: CardIndex
+    mark: Literal["good", "again"] | None
+
+
+class FlashcardOrderUpdate(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    order: list[CardIndex]
+
+
 class ArtifactRead(BaseModel):
     """An artifact and the state of its underlying ARTIFACT document."""
 
@@ -105,6 +134,7 @@ class ArtifactDetail(ArtifactRead):
     content: str | None
     files: list[ArtifactFileRead]
     quiz_state: QuizStateRead | None = None
+    flashcard_state: FlashcardStateRead | None = None
 
     @classmethod
     def of(cls, artifact: Artifact) -> "ArtifactDetail":
@@ -122,6 +152,7 @@ class ArtifactDetail(ArtifactRead):
                 for file in artifact.files
             ],
             quiz_state=_quiz_state(artifact),
+            flashcard_state=_flashcard_state(artifact),
         )
 
 
@@ -135,3 +166,15 @@ def _quiz_state(artifact: Artifact) -> QuizStateRead | None:
         question_count=len(questions),
     )
     return QuizStateRead(**state)
+
+
+def _flashcard_state(artifact: Artifact) -> FlashcardStateRead | None:
+    if artifact.format != "flashcards" or not artifact.files:
+        return None
+    card_count = read_flashcard_count(artifact)
+    state = sanitize_flashcard_state(
+        artifact.artifact_metadata,
+        generation=artifact.generation,
+        card_count=card_count,
+    )
+    return FlashcardStateRead(**state)

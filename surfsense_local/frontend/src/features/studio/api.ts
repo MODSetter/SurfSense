@@ -42,10 +42,21 @@ export type QuizState = {
   skipped_question_indices: number[]
 }
 
+export type FlashcardMark = "good" | "again"
+
+// A flashcard deck's study progress, persisted server-side the same way as
+// QuizState — see backend/modules/artifacts/flashcard_progress.py.
+export type FlashcardState = {
+  generation: number
+  marks: Record<string, FlashcardMark>
+  order: number[]
+}
+
 export type ArtifactDetail = Artifact & {
   content: string | null
   files: ArtifactFile[]
   quiz_state: QuizState | null
+  flashcard_state: FlashcardState | null
 }
 
 export type StudioJobCreate = {
@@ -198,6 +209,48 @@ export function retakeQuiz(
     headers: { "Content-Type": "application/json" },
     signal,
   })
+}
+
+export function markFlashcard(
+  artifactId: number,
+  body: { card_index: number; mark: FlashcardMark | null },
+  signal?: AbortSignal
+): Promise<FlashcardState> {
+  return requestJson<FlashcardState>(
+    `/artifacts/${artifactId}/flashcard-state/mark`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      signal,
+    }
+  )
+}
+
+export function resetFlashcardProgress(
+  artifactId: number,
+  signal?: AbortSignal
+): Promise<FlashcardState> {
+  return requestJson<FlashcardState>(
+    `/artifacts/${artifactId}/flashcard-state/reset`,
+    { method: "PUT", signal }
+  )
+}
+
+export function reorderFlashcards(
+  artifactId: number,
+  body: { order: number[] },
+  signal?: AbortSignal
+): Promise<FlashcardState> {
+  return requestJson<FlashcardState>(
+    `/artifacts/${artifactId}/flashcard-state/order`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      signal,
+    }
+  )
 }
 
 // A plain URL for <a>/<img>/<audio>, which need the absolute sidecar address the

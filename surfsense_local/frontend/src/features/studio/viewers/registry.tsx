@@ -2,13 +2,13 @@ import type { ComponentType } from "react"
 
 import type { ArtifactDetail } from "../api"
 import { DocumentViewer } from "./document-viewer"
+import { FlashcardsViewer } from "./flashcards/flashcards-viewer"
 import { HtmlViewer } from "./html-viewer"
 import { MediaViewer } from "./media-viewer"
 import { MindmapViewer } from "./mindmap-viewer"
 import { PdfViewer } from "./pdf-viewer"
 import { PptxViewer } from "./pptx-viewer"
 import { QuizViewer } from "./quiz/quiz-viewer"
-import { StudyViewer } from "./study-viewer"
 import { XlsxViewer } from "./xlsx-viewer"
 
 export interface ArtifactViewerProps {
@@ -36,10 +36,16 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
       actionsContainer={actionsContainer}
     />
   ),
-  flashcards: ({ artifact }) => <StudyViewer artifactId={artifact.id} />,
-  // Keyed by id+generation so switching quizzes — or a regenerate bumping
+  // Keyed by id+generation so switching decks — or a regenerate bumping
   // generation — remounts with a clean run instead of carrying over stale
   // in-memory progress from the useState seeded at mount.
+  flashcards: ({ artifact, actionsContainer }) => (
+    <FlashcardsViewer
+      key={`${artifact.id}:${artifact.generation}`}
+      artifact={artifact}
+      actionsContainer={actionsContainer}
+    />
+  ),
   quiz: ({ artifact }) => (
     <QuizViewer key={`${artifact.id}:${artifact.generation}`} artifact={artifact} />
   ),
