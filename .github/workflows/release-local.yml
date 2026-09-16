@@ -127,6 +127,11 @@ jobs:
         working-directory: surfsense_local/backend
         run: uv sync
 
+      - name: Refuse to build with the test signing key
+        working-directory: surfsense_local/backend
+        # addopts pins -m 'not packaging'; the later -m on the command line wins.
+        run: uv run pytest tests/packaging/test_license_key.py -m packaging
+
       - name: Freeze API + worker binaries
         working-directory: surfsense_local/backend
         run: uv run scripts/build_binaries.py

@@ -24,8 +24,12 @@ TODAY = datetime(2026, 9, 11, 12, 0, tzinfo=UTC)
 @pytest.fixture(autouse=True)
 def test_key_and_clock(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify with the fixture key on a fixed day, whatever the shipped key and date."""
+    # The trailing comma matters: a bare string would iterate its characters and
+    # bytes.fromhex would raise out of verify() on the first one.
     monkeypatch.setattr(
-        verify, "KEYGEN_PUBLIC_KEY_HEX", (SAMPLE / "public-key.hex").read_text().strip()
+        verify,
+        "KEYGEN_PUBLIC_KEYS_HEX",
+        ((SAMPLE / "public-key.hex").read_text().strip(),),
     )
     monkeypatch.setattr(service, "now", lambda: TODAY)
 
