@@ -133,19 +133,19 @@ export const PILLARS: (Cell & { action: Action })[] = [
  * that structure.
  */
 export const STORIES: {
-	key: "podcasts" | "open" | "private";
+	key: "artifacts" | "open" | "private";
 	heading: string;
 	body: string[];
 	action: Action;
 }[] = [
 	{
-		key: "podcasts",
-		heading: "Turn sources into podcasts, offline",
+		key: "artifacts",
+		heading: "Artifacts: podcasts, flashcards, quizzes, mind maps",
 		body: [
-			"Hand it a folder of papers and get back a two-voice conversation you can listen to on a commute. The script is written by the model you chose and the audio is synthesised on your machine, so a private document stays private even when it becomes a recording.",
-			"The same sources also become summaries, study guides, flashcards and mind maps without a second pass over your data.",
+			"Every source can become more than an answer: a study guide, a flashcard deck, a practice quiz, a mind map or a two-voice podcast, each one built on your own machine.",
+			"Every format is generated and stored in the same local database as everything else. No cloud model in the loop, no per-minute fee, no second pass over your data to make them.",
 		],
-		action: { label: "How the podcast generator works", href: "/mcp-server" },
+		action: { label: "See which artifacts are supported", href: "/mcp-server" },
 	},
 	{
 		key: "open",
@@ -168,12 +168,12 @@ export const STORIES: {
 ];
 
 export const PROOF_POINTS: Record<(typeof STORIES)[number]["key"], string[]> = {
-	podcasts: [
-		"Two-voice conversational scripts",
-		"Speech synthesised locally",
-		"Summaries and study guides",
-		"Flashcards and mind maps",
-		"Export as plain audio files",
+	artifacts: [
+		"Study guides from your sources",
+		"AI flashcard decks",
+		"Practice quizzes with citations",
+		"Mind maps",
+		"Two-voice podcasts, synthesised offline",
 		"No per-minute generation fee",
 	],
 	open: [

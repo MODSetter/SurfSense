@@ -1,4 +1,4 @@
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifact-illustration";
 import {
@@ -8,9 +8,8 @@ import {
 	type IllustratedCell,
 	ON_YOUR_MACHINE,
 	PILLARS,
-	PROOF_POINTS,
-	STORIES,
 } from "@/components/homepage/home/home-content";
+import { HomeFeaturesTabs } from "@/components/homepage/home/home-features-tabs";
 import { HomeHeroDither } from "@/components/homepage/home/home-hero-dither";
 import { FlowButton } from "@/components/ui/flow-button";
 
@@ -23,9 +22,9 @@ import { FlowButton } from "@/components/ui/flow-button";
  * no interior rule ever doubles up. Nothing here has a radius or a shadow; only
  * controls keep the palette's `--radius`.
  *
- * All server components — the page has no interactive state. The single
- * exception is the hero's backdrop, which is a WebGL shader and so lives in its
- * own "use client" module rather than pulling this file across the boundary.
+ * Mostly server components. Two exceptions live in their own "use client"
+ * modules rather than pulling this file across the boundary: the hero's
+ * backdrop, a WebGL shader, and `HomeFeaturesTabs`, the claims switcher below.
  *
  * The heading order is not editorial. It is the SEO skeleton from
  * `plans/community-local/seo/02-page-briefs.md`: H1, then seven H2s in a fixed
@@ -207,57 +206,18 @@ export function HomeCompare() {
  * next.
  *
  * The band's own headline is a `<p>` styled like an H2, not a real one — the
- * three real H2s the brief wants are each story's own heading below it.
+ * three real H2s the brief wants are each story's own heading, rendered by
+ * `HomeFeaturesTabs` below.
  */
 export function HomeFeatures() {
 	return (
 		<section className="ss-home-rule">
 			<div className="ss-home-head">
 				<p className="ss-home-eyebrow">What you get</p>
-				<p className="ss-home-h2 mt-2">Three claims, and why each one holds</p>
+				<p className="ss-home-h2 mt-2">Three things worth knowing before you install</p>
 			</div>
 
-			<div className="ss-home-grid">
-				{STORIES.map((story) => (
-					<div key={story.heading} className="flex flex-col">
-						<div className="ss-home-split">
-							<div className="ss-home-statement">
-								<h2 className="ss-home-h2">{story.heading}</h2>
-								<div className="ss-home-body mt-5 flex flex-col gap-4">
-									{story.body.map((paragraph) => (
-										<p key={paragraph}>{paragraph}</p>
-									))}
-								</div>
-								<p className="mt-6">
-									{story.action.external ? (
-										<a
-											className="ss-home-forward"
-											href={story.action.href}
-											target="_blank"
-											rel="noreferrer noopener"
-										>
-											{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
-										</a>
-									) : (
-										<Link className="ss-home-forward" href={story.action.href}>
-											{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
-										</Link>
-									)}
-								</p>
-							</div>
-
-							<ul className="ss-home-grid m-0 list-none p-0">
-								{PROOF_POINTS[story.key].map((point) => (
-									<li key={point} className="flex items-center gap-3 px-(--home-gutter) py-3.5">
-										<Check aria-hidden="true" className="size-3.5 shrink-0 text-(--home-accent)" />
-										<span className="ss-home-body text-sm">{point}</span>
-									</li>
-								))}
-							</ul>
-						</div>
-					</div>
-				))}
-			</div>
+			<HomeFeaturesTabs />
 		</section>
 	);
 }

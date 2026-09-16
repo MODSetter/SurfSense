@@ -300,6 +300,97 @@
 	}
 }
 
+/**
+ * Claims tabs (`HomeFeaturesTabs`).
+ *
+ * The tab list reuses the cell-grid vocabulary above instead of the
+ * underline tabs further down — three equal-width cells ruled off by
+ * hairlines, matching the "Runs entirely on your machine" row right above it
+ * rather than the API code sample's tab strip.
+ *
+ * The panels sit in one grid cell (`grid-area: 1 / 1`), all three always
+ * mounted so their headings stay in the markup regardless of which is open.
+ * Every panel therefore contributes to the row's height, so the row is
+ * always as tall as the tallest panel and switching tabs never changes it —
+ * nothing below the section moves. The inactive ones are hidden with
+ * `visibility` rather than `display: none`, which would drop them out of
+ * that height calculation and bring the shift back.
+ */
+/* Height/radius/alignment reset: `TabsList`/`TabsTrigger` (components/ui/tabs)
+ * ship a fixed-height pill-tab look (`h-10`, `rounded-md`, `items-center`,
+ * `rounded-sm`) meant for a short single-line label — this tab list holds a
+ * full heading and needs to wrap to two lines and sit flush with square
+ * corners instead. */
+.ss-home-features-tablist {
+	height: auto;
+	align-items: stretch;
+	padding: 0;
+	border-bottom: 1px solid var(--border);
+	border-radius: 0;
+}
+
+.ss-home-features-tab {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.5rem;
+	padding: 1.25rem var(--home-gutter);
+	border-top: 2px solid transparent;
+	border-radius: 0;
+	box-shadow: none;
+	text-align: left;
+	transition: background-color 100ms ease-out;
+}
+
+.ss-home-features-tab:hover {
+	background-color: var(--secondary);
+}
+
+.ss-home-features-tab:focus-visible {
+	box-shadow: none;
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+.ss-home-features-tab[data-state="active"] {
+	border-top-color: var(--home-accent);
+	background-color: var(--secondary);
+	box-shadow: none;
+}
+
+.ss-home-features-tab-num {
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.75rem;
+	color: var(--muted-foreground);
+}
+
+.ss-home-features-tab[data-state="active"] .ss-home-features-tab-num {
+	color: var(--home-accent);
+}
+
+.ss-home-features-tab-title {
+	font-size: 0.875rem;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	color: var(--foreground);
+}
+
+.ss-home-features-panels {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.ss-home-features-panels > * {
+	grid-area: 1 / 1;
+	min-width: 0;
+}
+
+.ss-home-features-panels > [data-state="inactive"] {
+	visibility: hidden;
+	pointer-events: none;
+}
+
 /* ---------------------------------------------------------------------------
  * Type
  *
