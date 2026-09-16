@@ -4,6 +4,7 @@ import { HomeQuestions } from "@/components/homepage/home/home-questions";
 import {
 	HomeCompare,
 	HomeFeatures,
+	HomeFormats,
 	HomeHero,
 	HomeOnYourMachine,
 	HomePillars,
@@ -66,6 +67,7 @@ export default function HomePage() {
 			<HomePillars />
 			<HomeCompare />
 			<HomeFeatures />
+			<HomeFormats />
 			<HomeQuestions />
 		</>
 	);

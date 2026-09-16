@@ -202,6 +202,16 @@
 	}
 }
 
+/* Same equal-tie-breaks-to-source-order trick as `.ss-home-grid-2` /
+ * `.ss-home-grid-3`: paired on one grid (`HomeFormats`), this wins from
+ * 1024px up and `.ss-home-grid-2` covers 640–1023px, so twelve cells step
+ * 1 → 2 → 4 rather than jumping straight from one column to four. */
+@media (min-width: 1024px) {
+	.ss-home-grid-4 {
+		grid-template-columns: repeat(4, minmax(0, 1fr));
+	}
+}
+
 /**
  * A dashed variant of the interior rule, in `--home-divider` rather than
  * `--border`: for a grid whose only dividers are the ones between its own
@@ -265,6 +275,15 @@
 .ss-home-cell img {
 	user-select: none;
 	-webkit-user-drag: none;
+}
+
+/* A format's lucide icon in `HomeFormats`, sized well above the 16px/20px
+ * lucide ships at by default so it reads at a glance in a twelve-cell row. */
+.ss-home-format-icon {
+	width: 1.75rem;
+	height: 1.75rem;
+	stroke-width: 1.5;
+	color: var(--home-accent);
 }
 
 /* Two halves of a section, split by a vertical hairline on wide screens and

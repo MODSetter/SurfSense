@@ -1,10 +1,24 @@
-import { ArrowRight } from "lucide-react";
+import {
+	ArrowRight,
+	AudioLines,
+	FileCode,
+	FileSpreadsheet,
+	FileText,
+	ImageIcon,
+	ListChecks,
+	type LucideIcon,
+	Network,
+	PlayingCardsFan,
+	Presentation,
+} from "lucide-react";
 import Link from "next/link";
 import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifact-illustration";
 import {
 	type Cell,
 	COMPARE_ROWS,
 	DOWNLOADS_URL,
+	FORMATS,
+	type Format,
 	type IllustratedCell,
 	ON_YOUR_MACHINE,
 	PILLARS,
@@ -218,6 +232,60 @@ export function HomeFeatures() {
 			</div>
 
 			<HomeFeaturesTabs />
+		</section>
+	);
+}
+
+/**
+ * Icon per format key, copied from the in-app Studio library's own catalog
+ * (`features/artifacts/lib/artifact-format-catalog.ts`) rather than picked
+ * fresh — the app already decided flashcards are a card fan and a mind map is
+ * a network, and this row should draw the same formats the same way.
+ */
+const FORMAT_ICONS: Record<string, LucideIcon> = {
+	summary: FileText,
+	docx: FileText,
+	pptx: Presentation,
+	xlsx: FileSpreadsheet,
+	html: FileCode,
+	pdf: FileText,
+	mindmap: Network,
+	flashcards: PlayingCardsFan,
+	quiz: ListChecks,
+	podcast: AudioLines,
+	image: ImageIcon,
+	infographic: ImageIcon,
+};
+
+function FormatCell({ format }: { format: Format }) {
+	const Icon = FORMAT_ICONS[format.key] ?? FileText;
+	return (
+		<div className="ss-home-cell">
+			<Icon aria-hidden="true" className="ss-home-format-icon" />
+			<p className="ss-home-h3 mt-4">{format.label}</p>
+			<p className="ss-home-body mt-1.5 max-w-sm text-sm">{format.body}</p>
+		</div>
+	);
+}
+
+/**
+ * Not one of the brief's seven H2s (see `FORMATS`'s own doc comment in
+ * `home-content.ts`) — a bento row of the twelve Studio formats, below the
+ * claims tabs.
+ */
+export function HomeFormats() {
+	return (
+		<section className="ss-home-rule">
+			<div className="ss-home-head ss-home-head-plain">
+				<p className="ss-home-eyebrow">Artifacts</p>
+				<p className="ss-home-h2 mt-2">Twelve things one set of sources can become</p>
+			</div>
+
+			<div className="ss-home-grid ss-home-grid-2 ss-home-grid-4 ss-home-grid-dashed">
+				{FORMATS.map((format) => (
+					<FormatCell key={format.key} format={format} />
+				))}
+			</div>
 		</section>
 	);
 }
