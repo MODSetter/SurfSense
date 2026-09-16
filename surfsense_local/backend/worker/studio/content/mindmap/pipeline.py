@@ -1,30 +1,27 @@
 from typing import Any
 
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json
+
+# The frontier prompt leaves the count to the material, so the ceiling is kept here.
+BRANCHES = 10
 
 
 def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
     return build(
-        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
     )
 
 
-_SCHEMA = (
-    'Return only JSON, no prose: {"title": str, "nodes": '
-    '[{"label": str, "children": [{"label": str, "children": [...]}]}]}.'
-)
-
-
-def prompt(_sources: list[Source], user_prompt: str | None) -> str:
-    focus = f" Centre it on: {user_prompt}." if user_prompt else ""
-    return (
-        "Organise the sources below into a mind map — a shallow tree of short "
-        "labels, using their facts only." + focus + " " + _SCHEMA
+def prompt(tier: Tier, user_prompt: str | None) -> str:
+    return prompting.load(
+        __package__, tier, focus=prompting.focus(user_prompt), ceiling=BRANCHES
     )
 
 
@@ -34,7 +31,7 @@ def build(raw: str, _sources: list[Source]) -> Built:
     spec = parse_json(raw)
     title = as_text(spec.get("title")) or "Mind map"
     lines = [f"# {title}"]
-    _render(as_list(spec.get("nodes")), lines, depth=0)
+    _render(as_list(spec.get("nodes"))[:BRANCHES], lines, depth=0)
     return Built(title=title, markdown="\n".join(lines))
 
 

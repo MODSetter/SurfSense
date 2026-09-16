@@ -3,18 +3,13 @@ sources; the image model paints that prompt."""
 
 import asyncio
 
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_text, parse_json, slug
-
-_SCHEMA = (
-    'Return only JSON, no prose: {"title": str, "prompt": str}. The title names '
-    "the image in a few words. The prompt is a single self-contained paragraph an "
-    "image model paints from: subject, composition, lighting, style; no text to "
-    "render, no source names."
-)
 
 
 def render(
@@ -23,7 +18,9 @@ def render(
     sources: list[Source],
     user_prompt: str | None,
 ) -> Built:
-    spec = parse_json(generate.run_model(writer, _brief_prompt(user_prompt), sources))
+    spec = parse_json(
+        generate.run_model(writer, prompt(writer.tier, user_prompt), sources)
+    )
     image_prompt = as_text(spec.get("prompt"))
     if not image_prompt:
         raise ValueError("the writer returned no image prompt")
@@ -41,8 +38,5 @@ def render(
     )
 
 
-def _brief_prompt(user_prompt: str | None) -> str:
-    focus = f" Emphasise: {user_prompt}." if user_prompt else ""
-    return (
-        f"Design one illustrative image grounded in the sources below.{focus} {_SCHEMA}"
-    )
+def prompt(tier: Tier, user_prompt: str | None) -> str:
+    return prompting.load(__package__, tier, focus=prompting.focus(user_prompt))

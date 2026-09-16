@@ -2,8 +2,9 @@
 
 import pytest
 
+from modules.llm.profile import Tier
 from modules.llm.providers.protocols import GeneratedImage
-from modules.llm.resolution import ResolvedImageGeneration
+from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual.image import pipeline as image
 from worker.studio.media.visual.infographic import pipeline as infographic
 from worker.studio.shared.artifact import Source
@@ -11,6 +12,12 @@ from worker.studio.shared.artifact import Source
 pytestmark = pytest.mark.unit
 
 PNG = b"\x89PNG\r\n\x1a\nfake image bytes"
+
+
+def _writer() -> ResolvedGeneration:
+    """The chat model that briefs the painter; its call is stubbed, its tier is not."""
+    selection = type("Selection", (), {"name": "qwen3:8b", "tier": Tier.CAPABLE})()
+    return ResolvedGeneration(selection, None)
 
 
 def _painter(painted: list[str]) -> ResolvedImageGeneration:
@@ -39,7 +46,10 @@ def test_image_paints_the_prompt_the_writer_crafted_and_takes_its_title(
     painted: list[str] = []
 
     built = image.render(
-        _painter(painted), None, [Source(1, "Saturn", "rings, 1610")], "make it bold"
+        _painter(painted),
+        _writer(),
+        [Source(1, "Saturn", "rings, 1610")],
+        "make it bold",
     )
 
     assert "make it bold" in asked[0]
@@ -60,7 +70,7 @@ def test_an_image_the_writer_left_untitled_is_named_after_its_sources(
     )
     sources = [Source(1, "Saturn facts", "rings"), Source(2, "Titan", "methane")]
 
-    built = image.render(_painter([]), None, sources, None)
+    built = image.render(_painter([]), _writer(), sources, None)
 
     assert built.title == "Saturn facts and 1 more"
     assert built.primary_filename == "saturn-facts-and-1-more.png"
@@ -72,7 +82,7 @@ def test_an_image_needs_a_prompt_from_the_writer(
     """No prompt is a readable failure, not a blank painting."""
     monkeypatch.setattr("worker.studio.shared.generate.run_model", lambda *_: "{}")
     with pytest.raises(ValueError, match="prompt"):
-        image.render(_painter([]), None, [Source(1, "Saturn", "rings")], None)
+        image.render(_painter([]), _writer(), [Source(1, "Saturn", "rings")], None)
 
 
 def test_infographic_paints_the_brief_the_chat_model_wrote(
@@ -96,7 +106,7 @@ def test_infographic_paints_the_brief_the_chat_model_wrote(
     selection = type("Selection", (), {"name": "flux"})()
     painter = ResolvedImageGeneration(selection, FakeImageGenerator())
     sources = [Source(1, "Saturn", "Galileo saw the rings in 1610.")]
-    built = infographic.render(painter, None, sources, None)
+    built = infographic.render(painter, _writer(), sources, None)
 
     # The image prompt carries the brief and a style, not the raw sources.
     assert "Saturn" in painted[0] and "Count: 7" in painted[0]

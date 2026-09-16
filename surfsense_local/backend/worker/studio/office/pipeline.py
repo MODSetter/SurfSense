@@ -27,7 +27,7 @@ def render(
 ) -> Built:
     """Generate and run the code for one spec's format, then store its bytes."""
     fmt = spec.key
-    system = prompt.build(spec, user_prompt)
+    system = prompt.build(model.tier, spec, user_prompt)
 
     for attempt in range(CODE_ATTEMPTS):
         logger.info(
@@ -58,7 +58,7 @@ def render(
             if attempt == CODE_ATTEMPTS - 1:
                 raise
             system = (
-                f"{prompt.build(spec, user_prompt)}\n\n"
+                f"{prompt.build(model.tier, spec, user_prompt)}\n\n"
                 f"Your previous script failed: {error}. Fix that and return "
                 "only a corrected script."
             )

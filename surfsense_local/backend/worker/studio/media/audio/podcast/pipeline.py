@@ -28,7 +28,10 @@ def render(
     brief = PodcastBrief.model_validate(options)
 
     plan = outline.parse(
-        generate.run_model(model, outline.prompt(brief, user_prompt), sources), brief
+        generate.run_model(
+            model, outline.prompt(model.tier, brief, user_prompt), sources
+        ),
+        brief,
     )
     turns = draft.draft(model, brief, plan.segments, sources)
     if len(turns) < MIN_TURNS:

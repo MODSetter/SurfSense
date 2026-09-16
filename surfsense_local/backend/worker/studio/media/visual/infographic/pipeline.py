@@ -6,17 +6,17 @@ prompt it draws well from.
 
 import asyncio
 
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from worker.studio.media.visual import EXTENSIONS
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source, fallback_title
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
 
-_SCHEMA = (
-    'Return only JSON, no prose: {"title": str, "summary": str, "sections": '
-    '[{"label": str, "value": str, "detail": str}]}. Use at most 6 sections. '
-    "Keep every value factual and grounded in the supplied sources."
-)
+# The frontier prompt leaves the count to the material, so the ceiling is kept
+# here: past this a drawn panel stops being readable.
+SECTIONS = 8
 _TASK = (
     "Create a polished, complete infographic from the supplied factual source. "
     "Choose the clearest visual hierarchy and composition. Summarize or omit "
@@ -42,7 +42,7 @@ def render(
     user_prompt: str | None,
 ) -> Built:
     brief = _brief(
-        generate.run_model(writer, _brief_prompt(user_prompt), sources),
+        generate.run_model(writer, prompt(writer.tier, user_prompt), sources),
         fallback_title(user_prompt, sources, "Infographic"),
     )
     image = asyncio.run(
@@ -61,11 +61,9 @@ def render(
 Brief = tuple[str, str, list[tuple[str, str, str]]]  # title, summary, sections
 
 
-def _brief_prompt(user_prompt: str | None) -> str:
-    focus = f" Emphasise: {user_prompt}." if user_prompt else ""
-    return (
-        "Create the structured content for a concise factual infographic from "
-        f"the sources below.{focus} {_SCHEMA}"
+def prompt(tier: Tier, user_prompt: str | None) -> str:
+    return prompting.load(
+        __package__, tier, focus=prompting.focus(user_prompt), ceiling=SECTIONS
     )
 
 
@@ -77,7 +75,7 @@ def _brief(raw: str, untitled: str) -> Brief:
             as_text(section.get("value"))[:80],
             as_text(section.get("detail")),
         )
-        for section in as_list(spec.get("sections"))[:6]
+        for section in as_list(spec.get("sections"))[:SECTIONS]
         if isinstance(section, dict)
     ]
     return (

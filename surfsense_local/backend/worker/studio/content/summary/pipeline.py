@@ -1,3 +1,5 @@
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
@@ -9,17 +11,12 @@ def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
     return build(
-        generate.run_model(model, prompt(sources, user_prompt), sources), sources
+        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
     )
 
 
-def prompt(sources: list[Source], user_prompt: str | None) -> str:
-    focus = f"\n\nFocus especially on: {user_prompt}" if user_prompt else ""
-    return (
-        "Summarise the sources below in Markdown. Open with a one-line title as "
-        "an H1 (`# ...`), then the key points as short sections. Stay faithful "
-        "to the sources and add nothing they do not support." + focus
-    )
+def prompt(tier: Tier, user_prompt: str | None) -> str:
+    return prompting.load(__package__, tier, focus=prompting.focus(user_prompt))
 
 
 def build(raw: str, _sources: list[Source]) -> Built:
