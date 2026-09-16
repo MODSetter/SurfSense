@@ -2,6 +2,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from modules.llm.connections.service import CapabilitySource
 from modules.llm.models import ModelRole
 from modules.llm.recommendations.types import FitLevel
 
@@ -69,12 +70,18 @@ class ConnectionModelRead(BaseModel):
     connection_label: str
     name: str
     capabilities: list[str]
-    capability_known: bool
+    capability_source: CapabilitySource
 
 
-class ImageTestWrite(BaseModel):
+class ModelTestWrite(BaseModel):
+    """Asks one model to do its job once, for either role."""
+
     model: str = Field(min_length=1, max_length=512)
     prompt: str | None = Field(default=None, max_length=2000)
+
+
+class ChatTestRead(BaseModel):
+    reply: str
 
 
 class SelectionWrite(BaseModel):

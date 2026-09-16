@@ -1,3 +1,5 @@
+from contextlib import aclosing
+
 import httpx
 from fastapi import APIRouter, HTTPException, Response, status
 from sqlalchemy import select
@@ -14,18 +16,25 @@ from modules.llm.connections.service import (
 from modules.llm.models import ProviderConnection
 from modules.llm.providers.openai_compatible import (
     NonRetryableImageError,
+    OpenAICompatibleChatProvider,
     OpenAICompatibleImageProvider,
 )
+from modules.llm.providers.types import Message
 from modules.llm.schemas import (
+    ChatTestRead,
     ConnectionModelRead,
     ConnectionRead,
     ConnectionWrite,
-    ImageTestWrite,
+    ModelTestWrite,
 )
 
 router = APIRouter(prefix="/connections")
 
 DEFAULT_IMAGE_TEST_PROMPT = "A simple blue circle centered on a plain white background."
+DEFAULT_CHAT_TEST_PROMPT = "Reply with one short sentence confirming you can answer."
+# Enough to show the model answers, little enough that testing cannot run a bill up.
+CHAT_TEST_MAX_TOKENS = 64
+CHAT_TEST_MAX_CHARS = 600
 
 
 def _read(connection: ProviderConnection) -> ConnectionRead:
@@ -80,6 +89,16 @@ def allowed_connection(session: Session, connection_id: int) -> ProviderConnecti
     connection = _stored(session, connection_id)
     egress.require(session, egress.host_destination(connection.base_url))
     return connection
+
+
+def _requested_model(payload: ModelTestWrite) -> str:
+    model = payload.model.strip()
+    if not model:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "model name must not be empty",
+        )
+    return model
 
 
 def _save(session: Session, connection: ProviderConnection) -> ConnectionRead:
@@ -180,26 +199,60 @@ async def list_connection_models(
             connection_label=connection.label,
             name=model.name,
             capabilities=list(model.capabilities),
-            capability_known=model.capability_known,
+            capability_source=model.capability_source,
         )
         for model in models
     ]
 
 
+@router.post("/{connection_id}/chat-test")
+async def test_connection_chat(
+    connection_id: int, payload: ModelTestWrite, session: SessionDep
+) -> ChatTestRead:
+    """Answer once with this model, so a chat pick can be seen before it is made."""
+    connection = await transact(session, allowed_connection, connection_id)
+    model = _requested_model(payload)
+    provider = OpenAICompatibleChatProvider(connection.base_url, connection.api_key)
+    reply = ""
+    try:
+        # Closed explicitly: breaking on the cap leaves the stream open otherwise.
+        async with aclosing(
+            provider.chat(
+                model,
+                [Message("user", payload.prompt or DEFAULT_CHAT_TEST_PROMPT)],
+                max_tokens=CHAT_TEST_MAX_TOKENS,
+            )
+        ) as stream:
+            async for delta in stream:
+                reply += delta
+                if len(reply) >= CHAT_TEST_MAX_CHARS:
+                    break
+    except httpx.HTTPError as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, f"chat request failed: {error}"
+        ) from error
+    except (ValueError, KeyError) as error:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "chat response could not be read"
+        ) from error
+
+    reply = reply.strip()
+    if not reply:
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "the model answered with no text"
+        )
+    return ChatTestRead(reply=reply[:CHAT_TEST_MAX_CHARS])
+
+
 @router.post("/{connection_id}/image-test")
 async def test_connection_image(
-    connection_id: int, payload: ImageTestWrite, session: SessionDep
+    connection_id: int, payload: ModelTestWrite, session: SessionDep
 ) -> Response:
     connection = await transact(session, allowed_connection, connection_id)
     provider = OpenAICompatibleImageProvider(
         connection.id, connection.base_url, connection.api_key
     )
-    model = payload.model.strip()
-    if not model:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "model name must not be empty",
-        )
+    model = _requested_model(payload)
     try:
         image = await provider.generate(
             model, payload.prompt or DEFAULT_IMAGE_TEST_PROMPT

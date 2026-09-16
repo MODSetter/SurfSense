@@ -136,11 +136,7 @@ async function fetchSelectionState(
         models = [
           ...models,
           ...connectionModels
-            .filter(
-              (model) =>
-                !model.capability_known ||
-                model.capabilities.includes("completion")
-            )
+            .filter((model) => model.capabilities.includes("completion"))
             .map((model) => ({
               ...model,
               provider: "openai_compatible",

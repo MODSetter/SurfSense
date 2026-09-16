@@ -14,6 +14,13 @@ export type ProviderModel = {
   capabilities: string[]
 }
 
+/**
+ * Where a model's capabilities came from. Only "declared" is the endpoint's own
+ * word for it; "inferred" is read off the name, because OpenAI and Gemini return
+ * nothing but an id from /models.
+ */
+export type CapabilitySource = "declared" | "inferred" | "unknown"
+
 export type ModelSelection = {
   role: "generation" | "image_generation"
   provider: string
@@ -26,7 +33,7 @@ export type SelectableModel = ProviderModel & {
   provider: string
   connection_id: number | null
   connection_label?: string
-  capability_known?: boolean
+  capability_source?: CapabilitySource
 }
 
 export type Connection = {
@@ -52,7 +59,7 @@ export type ConnectionModel = {
   connection_label: string
   name: string
   capabilities: string[]
-  capability_known: boolean
+  capability_source: CapabilitySource
 }
 
 export type OnboardingStatus = {
@@ -232,6 +239,23 @@ export function getConnectionModels(
   })
 }
 
+export async function testConnectionChat(
+  id: number,
+  model: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const { reply } = await requestJson<{ reply: string }>(
+    `/llm/connections/${id}/chat-test`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+      signal,
+    }
+  )
+  return reply
+}
+
 export async function testConnectionImage(
   id: number,
   model: string,
@@ -263,11 +287,9 @@ export async function getAvailableGenerationModels(
         try {
           const models = await getConnectionModels(connection.id, signal)
           return models
-            .filter(
-              (model) =>
-                !model.capability_known ||
-                model.capabilities.includes("completion")
-            )
+            // Speech, embedding, and moderation models are classified as
+            // neither, and a chat picker is no place for them.
+            .filter((model) => model.capabilities.includes("completion"))
             .map((model) => ({
               ...model,
               provider: "openai_compatible",

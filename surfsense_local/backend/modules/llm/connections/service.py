@@ -1,5 +1,7 @@
 import asyncio
+import re
 from dataclasses import dataclass
+from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
@@ -8,12 +10,22 @@ from modules.llm.models import ProviderConnection
 
 DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 
+# Where a model's capabilities came from. Only "declared" is the endpoint's own
+# word for it; "inferred" is read off the name and must never block a choice.
+CapabilitySource = Literal["declared", "inferred", "unknown"]
+_SOURCE_RANK: dict[str, int] = {"unknown": 0, "inferred": 1, "declared": 2}
+
 
 @dataclass(frozen=True)
 class DiscoveredModel:
     name: str
     capabilities: tuple[str, ...]
-    capability_known: bool
+    capability_source: CapabilitySource
+
+    @property
+    def capability_known(self) -> bool:
+        """Whether the endpoint itself vouched for these capabilities."""
+        return self.capability_source == "declared"
 
 
 def normalize_base_url(value: str) -> str:
@@ -55,6 +67,36 @@ def _modalities(entry: dict) -> set[str]:
     } - {None}
 
 
+# output_modalities is an OpenRouter extension. OpenAI and Gemini answer /models
+# with nothing but an id, so every row used to arrive unclassified and both the
+# chat and image filters came back empty over a 138-row list. The name is the
+# only signal those endpoints leave, and it is a good one: checked against the
+# 443 models OpenRouter does declare, these patterns raise no false positive,
+# and they catch every image model OpenAI and Gemini publish.
+_IMAGE_NAME = re.compile(r"(^|[-/_.])(image|imagen|dall-?e)([-/_.0-9]|$)", re.IGNORECASE)
+_NOT_CHAT_NAME = re.compile(
+    r"(^|[-/_.])(embedding|embed|tts|whisper|transcribe|audio|realtime"
+    r"|moderation|sora|video|rerank)([-/_.0-9]|$)",
+    re.IGNORECASE,
+)
+
+
+def _infer_capabilities(name: str) -> tuple[str, ...]:
+    """Read capabilities off a model name, for endpoints that declare none.
+
+    Empty means the name says it is neither: an embedding or speech model, which
+    this app has no role for. Vendors who brand image models without the word
+    (Recraft, Seedream) are missed, and all of them are OpenRouter-only, which
+    declares its modalities and never reaches here.
+    """
+    tail = name.rsplit("/", 1)[-1]
+    if _IMAGE_NAME.search(tail):
+        return ("image_generation",)
+    if _NOT_CHAT_NAME.search(tail):
+        return ()
+    return ("completion",)
+
+
 def parse_models(payload: object) -> list[DiscoveredModel]:
     if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
         raise ValueError("model endpoint did not return an OpenAI list envelope")
@@ -67,17 +109,17 @@ def parse_models(payload: object) -> list[DiscoveredModel]:
         if not name:
             continue
         modalities = _modalities(entry)
-        capabilities: list[str] = []
-        if "text" in modalities:
-            capabilities.append("completion")
-        if "image" in modalities:
-            capabilities.append("image_generation")
+        if modalities:
+            capabilities = []
+            if "text" in modalities:
+                capabilities.append("completion")
+            if "image" in modalities:
+                capabilities.append("image_generation")
+            models.append(DiscoveredModel(name, tuple(capabilities), "declared"))
+            continue
+        inferred = _infer_capabilities(name)
         models.append(
-            DiscoveredModel(
-                name=name,
-                capabilities=tuple(capabilities),
-                capability_known=bool(modalities),
-            )
+            DiscoveredModel(name, inferred, "inferred" if inferred else "unknown")
         )
     return models
 
@@ -119,7 +161,11 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
         merged[model.name] = DiscoveredModel(
             name=model.name,
             capabilities=capabilities,
-            capability_known=existing.capability_known or model.capability_known,
+            capability_source=max(
+                existing.capability_source,
+                model.capability_source,
+                key=_SOURCE_RANK.__getitem__,
+            ),
         )
     return sorted(merged.values(), key=lambda model: model.name.casefold())
 

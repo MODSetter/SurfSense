@@ -33,18 +33,41 @@ def test_base_url_is_normalized_without_weakening_internal_network_support() -> 
         normalize_base_url("https://example.test/v1?token=secret")
 
 
-def test_model_metadata_is_progressive_and_unknown_is_kept() -> None:
-    """Rich endpoints expose roles; standard OpenAI rows remain selectable."""
-    models = parse_models(
-        {
-            "data": [
-                {"id": "unknown"},
-                {"id": "image", "output_modalities": ["image"]},
-            ]
-        }
-    )
-    assert models[0].capability_known is False
-    assert models[1].capabilities == ("image_generation",)
+def test_capabilities_are_declared_inferred_or_read_as_unknown() -> None:
+    """An endpoint that publishes modalities is believed; the rest go by name.
+
+    The bare ids are real: OpenAI and Gemini return nothing else from /models,
+    so without the fallback every row lands unclassified and the chat and image
+    filters both come back empty over a list 138 long.
+    """
+    models = {
+        model.name: model
+        for model in parse_models(
+            {
+                "data": [
+                    {"id": "openai/gpt-4o", "output_modalities": ["text"]},
+                    {"id": "gpt-image-2.5-flare"},
+                    {"id": "models/gemini-3.1-flash-image"},
+                    {"id": "gpt-4o-mini"},
+                    {"id": "text-embedding-3-large"},
+                ]
+            }
+        )
+    }
+
+    declared = models["openai/gpt-4o"]
+    assert declared.capabilities == ("completion",)
+    assert declared.capability_source == "declared"
+    assert declared.capability_known is True
+
+    for name in ("gpt-image-2.5-flare", "models/gemini-3.1-flash-image"):
+        assert models[name].capabilities == ("image_generation",)
+        assert models[name].capability_source == "inferred"
+        # A guess must stay out of the gate a declaration passes through.
+        assert models[name].capability_known is False
+
+    assert models["gpt-4o-mini"].capabilities == ("completion",)
+    assert models["text-embedding-3-large"].capability_source == "unknown"
 
 
 def test_delta_reads_openai_sse_and_ignores_done() -> None:
