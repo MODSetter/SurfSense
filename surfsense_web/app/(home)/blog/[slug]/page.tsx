@@ -86,7 +86,7 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
 	const faqEntries = await extractFaqFromBlogPost(slug);
 
 	return (
-		<div className="min-h-screen relative pt-20">
+		<div className="ss-home-pad pt-16 pb-20">
 			<ArticleJsonLd
 				title={page.data.title}
 				description={page.data.description}
@@ -97,9 +97,9 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
 				image={page.data.image ? `https://www.surfsense.com${page.data.image}` : undefined}
 			/>
 			{faqEntries.length > 0 && <FAQJsonLd questions={faqEntries} />}
-			<div className="max-w-3xl mx-auto px-6 lg:px-10 pt-10 pb-20">
+			<div className="mx-auto max-w-3xl">
 				{page.data.image && (
-					<div className="relative aspect-2/1 overflow-hidden rounded-2xl mb-8">
+					<div className="relative mb-8 aspect-2/1 overflow-hidden border border-border">
 						<Image
 							src={page.data.image}
 							alt={page.data.title}
@@ -111,17 +111,15 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
 					</div>
 				)}
 
-				<div className="space-y-4 mb-10">
-					<h1 className="text-3xl md:text-4xl font-bold tracking-tight text-balance">
-						{page.data.title}
-					</h1>
+				<div className="mb-10 space-y-4">
+					<h1 className="ss-home-h2">{page.data.title}</h1>
 
 					{page.data.tags && page.data.tags.length > 0 && (
 						<div className="flex flex-wrap gap-2">
 							{page.data.tags.map((tag: string) => (
 								<span
 									key={tag}
-									className="h-6 w-fit px-2.5 text-xs font-medium bg-muted text-muted-foreground rounded-full border flex items-center justify-center"
+									className="rounded-full bg-secondary px-3 py-1 text-xs font-medium text-secondary-foreground"
 								>
 									{tag}
 								</span>
@@ -147,7 +145,7 @@ export default async function BlogPostPage(props: { params: Promise<{ slug: stri
 					</div>
 				</div>
 
-				<div className="prose dark:prose-invert max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-a:no-underline prose-headings:tracking-tight prose-headings:text-balance prose-p:tracking-tight prose-p:text-balance prose-img:rounded-xl prose-img:shadow-lg">
+				<div className="prose prose-invert max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-a:no-underline prose-headings:tracking-tight prose-headings:text-balance prose-p:tracking-tight prose-p:text-balance prose-img:rounded-none prose-img:border prose-img:border-border prose-img:shadow-none">
 					<MDX components={getMDXComponents()} />
 				</div>
 			</div>

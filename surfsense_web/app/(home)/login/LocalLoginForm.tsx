@@ -83,7 +83,7 @@ export function LocalLoginForm() {
 	};
 
 	return (
-		<div className="w-full max-w-md px-6 md:px-0">
+		<div className="w-full max-w-md">
 			<form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
 				{/* Error Display */}
 				<AnimatePresence>

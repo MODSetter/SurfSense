@@ -26,12 +26,10 @@ import argparse
 import asyncio
 import sys
 
-from app.services.license_service import (
-    LicenseNotFoundError,
-    correct_license_email,
-    deliver_licenses,
-    find_license_by_checkout_session,
-)
+from app.license.admin import correct_license_email
+from app.license.email.deliver import deliver_licenses
+from app.license.models import LicenseNotFoundError
+from app.license.records import find_license_by_checkout_session
 
 
 async def main() -> int:

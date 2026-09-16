@@ -61,9 +61,7 @@ export function SunsetExport() {
 			}
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
-				throw new Error(
-					typeof errorData.detail === "string" ? errorData.detail : "Export failed"
-				);
+				throw new Error(typeof errorData.detail === "string" ? errorData.detail : "Export failed");
 			}
 
 			const blob = await response.blob();

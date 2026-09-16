@@ -681,6 +681,11 @@ class Config:
     # plans/community-local/portal/01-license-routes.md.
     KEYGEN_ACCOUNT_ID = os.getenv("KEYGEN_ACCOUNT_ID")
     KEYGEN_API_TOKEN = os.getenv("KEYGEN_API_TOKEN")
+    # Self-hosted CE only; unset means Keygen Cloud. KEYGEN_HOST is the dotted
+    # name the instance answers to, which is not the host in KEYGEN_API_URL when
+    # that is an internal container alias.
+    KEYGEN_API_URL = os.getenv("KEYGEN_API_URL", "").strip()
+    KEYGEN_HOST = os.getenv("KEYGEN_HOST", "").strip()
     KEYGEN_POLICY_TRIAL = os.getenv("KEYGEN_POLICY_TRIAL")
     KEYGEN_POLICY_INDIVIDUAL = os.getenv("KEYGEN_POLICY_INDIVIDUAL")
     KEYGEN_POLICY_TEAM = os.getenv("KEYGEN_POLICY_TEAM")

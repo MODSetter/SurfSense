@@ -1,0 +1,1494 @@
+/**
+ * Homepage-only stylesheet.
+ *
+ * Everything here is scoped to `.ss-home`. The homepage does not read the
+ * semantic tokens in `globals.css`; it declares its own copy of the canonical
+ * SurfSense palette so the page can be restyled without touching any other
+ * route.
+ *
+ * `globals.css` still loads — it is imported by the root `app/layout.tsx` and
+ * carries Tailwind's preflight for the whole site — but nothing on the homepage
+ * depends on the tokens it defines.
+ *
+ * Every value below is copied verbatim from
+ * `surfsense_local/frontend/src/index.css`. No colour is invented here: the
+ * accent is `--chart-1`, which that file already declares in both themes.
+ *
+ * The homepage is deliberately dark-only: it pins the canonical `.dark` values
+ * regardless of the visitor's theme, so the marketing page reads the same for
+ * everyone. Product surfaces remain theme-aware.
+ *
+ * The structure is a port of the reference design in `homepage-reference/`:
+ * one bordered column down the middle of the viewport, sections separated by
+ * hairlines rather than gaps, and cell grids drawn with a 1px gap over the
+ * border colour so interior rules never double up.
+ */
+
+/**
+ * The site column width.
+ *
+ * Declared at the root rather than inside `.ss-home` because the navigation and
+ * footer are now shared: they render on routes that have not been moved onto
+ * this design, where `.ss-home` is absent and a scoped token would resolve to
+ * nothing, leaving the bar full-bleed. The legacy navbar and footer already read
+ * this token with their own fallback, so they follow the same width for free.
+ */
+:root {
+	/* 88rem is what the legacy pages' chrome has always used — it was the
+	 * fallback baked into the old navbar and footer. Keeping it here means
+	 * migrating the navigation changes nothing about the routes that have not
+	 * moved to the site design yet; a narrower bar would read as broken over
+	 * their wider content. `.ss-home` overrides it below. */
+	--home-max: 88rem;
+}
+
+.ss-home {
+	/* Canonical SurfSense palette — the `.dark` block of index.css, pinned. */
+	--app-shell: #101010;
+	--background: #141414;
+	--foreground: #e8e3da;
+	--card: #1c1c1c;
+	--card-foreground: #e8e3da;
+	--popover: #1c1c1c;
+	--popover-foreground: #e8e3da;
+	--primary: #d1cfc0;
+	--primary-foreground: #363636;
+	--secondary: #222222;
+	--secondary-foreground: #d1cfc0;
+	--muted: #2a2a2a;
+	--muted-foreground: #8e8a83;
+	--accent: #363636;
+	--accent-foreground: #d1cfc0;
+	--destructive: #ef4444;
+	--destructive-foreground: #ffffff;
+	--notice: #3f74c8;
+	--border: #2c2c2c;
+	/* A darker line for dividers *inside* a group of things (cells in one
+	 * bento row, columns in one table) as opposed to `--border`, which marks
+	 * where one section ends and the next begins. Derived from `--border`
+	 * rather than a new literal, so it darkens with the palette if that ever
+	 * changes. */
+	--home-divider: color-mix(in oklab, var(--border) 90%, black);
+	--input: #2c2c2c;
+	--ring: #d1cfc0;
+	--chart-1: #f26a4b;
+	--chart-2: #d9cfc2;
+	--chart-3: #8e8a83;
+	--chart-4: #5c5a56;
+	--chart-5: #3b3b3b;
+	--radius: 0.5rem;
+
+	/* The reference marks its one accent clause, its "ours" table column and its
+	 * forward links in a single warm tone. `--chart-1` is the only warm hue the
+	 * canonical palette carries, and it is identical in both themes, so it is
+	 * the accent here rather than a new token. On `--background` it measures
+	 * 6.1:1, which clears WCAG AA for text at any size. */
+	--home-accent: var(--chart-1);
+
+	/* Layout rhythm. The column is deliberately narrower than the viewport: long
+	 * measures are hard to read, and the ruled side borders only read as a frame
+	 * when there is ground either side of them. */
+	--home-gutter: 1.5rem;
+	/* Narrower than the rest of the site: long measures are hard to read, and
+	 * the ruled side borders only read as a frame when there is ground either
+	 * side of them. */
+	--home-max: 72rem;
+
+	background-color: var(--background);
+	color: var(--foreground);
+	color-scheme: dark;
+	-webkit-font-smoothing: antialiased;
+}
+
+@media (min-width: 768px) {
+	.ss-home {
+		--home-gutter: 2.5rem;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Structure
+ *
+ * The reference has no shadows and no rounded sections: it is a grid of
+ * hairline-bordered cells that meet flush. Sections are square; only controls
+ * keep the palette's --radius.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-shell {
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--home-max);
+	border-inline: 1px solid var(--border);
+}
+
+.ss-home-pad {
+	padding-inline: var(--home-gutter);
+}
+
+/* A hairline that separates stacked sections. Applied to every section after
+ * the first, so the rule between two sections is drawn exactly once. */
+.ss-home-rule {
+	border-top: 1px solid var(--border);
+}
+
+/* For the one section whose only dividers should be the ones between its own
+ * cells — no rule where it meets the section before it either. */
+.ss-home-rule-plain {
+	border-top: none;
+}
+
+/* Section header: an H2 (or eyebrow) and a one-line subtitle, ruled off from
+ * the content it introduces. */
+.ss-home-head {
+	/* On mobile the hairline above is enough to mark a new section; the large
+	 * desktop lead-in just pushes content down a phone-length scroll. */
+	padding-block: 2.5rem 2rem;
+	padding-inline: var(--home-gutter);
+	border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 768px) {
+	.ss-home-head {
+		/* More air above than below: the hairline above already marks where
+		 * the previous section ends, but 2rem of padding alone reads as
+		 * barely more than the rule itself. This is what actually makes a
+		 * new section feel like a new section rather than a continuation of
+		 * the last one. */
+		padding-block-start: clamp(8rem, 20vw, 12rem);
+	}
+}
+
+/* Where the only dividers that should show are the ones between the cells
+ * below it — no rule between the heading and the grid it introduces. */
+.ss-home-head-plain {
+	border-bottom: none;
+}
+
+/**
+ * Cell grid.
+ *
+ * Interior rules are drawn by letting the grid's own background show through a
+ * 1px gap, rather than by giving each cell a border. With borders, two adjacent
+ * cells each contribute one line and the interior rule renders 2px; this way
+ * every rule is a true hairline and the outer edge stays clean.
+ */
+.ss-home-grid {
+	display: grid;
+	gap: 1px;
+	background-color: var(--border);
+}
+
+.ss-home-grid > * {
+	background-color: var(--background);
+	min-width: 0;
+}
+
+@media (min-width: 640px) {
+	.ss-home-grid-2 {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (min-width: 768px) {
+	.ss-home-grid-3 {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+/**
+ * A dashed variant of the interior rule, in `--home-divider` rather than
+ * `--border`: for a grid whose only dividers are the ones between its own
+ * cells, with no rule at the top or bottom marking it off from its
+ * neighbours. The shared-background gap trick above only draws solid lines,
+ * so this switches to a pseudo-element instead — inset from both ends
+ * rather than run edge-to-edge, so it reads as a mark between cells rather
+ * than a full structural rule. On the leading edge in a row, on the top
+ * edge once cells stack to one column.
+ */
+.ss-home-grid-dashed {
+	gap: 0;
+	background-color: transparent;
+}
+
+.ss-home-grid-dashed > * {
+	position: relative;
+	background-color: transparent;
+}
+
+.ss-home-grid-dashed > *:not(:first-child)::before {
+	content: "";
+	position: absolute;
+	top: 0;
+	right: 6%;
+	left: 6%;
+	border-top: 1px dashed var(--home-divider);
+}
+
+@media (min-width: 768px) {
+	.ss-home-grid-dashed > *:not(:first-child)::before {
+		top: 10%;
+		bottom: 10%;
+		left: 0;
+		right: auto;
+		width: 0;
+		border-top: none;
+		border-left: 1px dashed var(--home-divider);
+	}
+}
+
+/* A cell that spans the full width of a two-column grid. */
+.ss-home-grid-wide {
+	grid-column: 1 / -1;
+}
+
+/* A trailing filler cell that completes an otherwise incomplete last row of
+ * the three-column grid (used where the item count is not a multiple of 3) —
+ * an empty `.ss-home-grid` cell has no element to paint the background over,
+ * so it shows the grid's own border colour instead. */
+@media (min-width: 768px) {
+	.ss-home-grid-span-2 {
+		grid-column: span 2;
+	}
+}
+
+.ss-home-cell {
+	padding: 2rem var(--home-gutter);
+}
+
+.ss-home-cell img {
+	user-select: none;
+	-webkit-user-drag: none;
+}
+
+/* Two halves of a section, split by a vertical hairline on wide screens and
+ * stacked with a horizontal one when narrow. */
+.ss-home-split {
+	display: grid;
+	gap: 1px;
+	background-color: var(--border);
+}
+
+.ss-home-split > * {
+	background-color: var(--background);
+	min-width: 0;
+}
+
+@media (min-width: 1024px) {
+	.ss-home-split {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+/* The prose half of a split: vertically centred against the cells opposite. */
+.ss-home-statement {
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+	padding: 3rem var(--home-gutter);
+}
+
+@media (min-width: 1024px) {
+	.ss-home-statement {
+		padding-block: 4rem;
+	}
+}
+
+/* ---------------------------------------------------------------------------
+ * Type
+ *
+ * Negative tracking on display sizes, near-zero on body — type that changes
+ * shape with size rather than one tracking value everywhere.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-display {
+	font-size: clamp(2.25rem, 6vw, 3.75rem);
+	line-height: 1.05;
+	letter-spacing: -0.03em;
+	font-weight: 600;
+	text-wrap: balance;
+}
+
+.ss-home-h2 {
+	font-size: clamp(1.75rem, 3.5vw, 2.25rem);
+	line-height: 1.15;
+	letter-spacing: -0.025em;
+	font-weight: 600;
+	text-wrap: balance;
+}
+
+.ss-home-h3 {
+	font-size: 1.125rem;
+	line-height: 1.35;
+	letter-spacing: -0.01em;
+	font-weight: 600;
+}
+
+.ss-home-lede {
+	font-size: clamp(1rem, 1.6vw, 1.25rem);
+	line-height: 1.6;
+	color: var(--muted-foreground);
+	text-wrap: pretty;
+}
+
+.ss-home-body {
+	line-height: 1.65;
+	color: var(--muted-foreground);
+	text-wrap: pretty;
+}
+
+.ss-home-eyebrow {
+	font-size: 0.6875rem;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	font-weight: 500;
+	color: var(--muted-foreground);
+}
+
+.ss-home-accent {
+	color: var(--home-accent);
+}
+
+/* The early-bird or seat-count line under a price: a qualifier on the figure
+ * above it, so it is tinted with the accent rather than set as body copy. */
+.ss-home-plan-note {
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--home-accent);
+}
+
+/* A tier's headline figure. Tabular so the three cells' prices sit on the same
+ * optical baseline regardless of digit widths. */
+.ss-home-price {
+	font-size: clamp(2rem, 4vw, 2.75rem);
+	line-height: 1;
+	letter-spacing: -0.03em;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--foreground);
+}
+
+/* ---------------------------------------------------------------------------
+ * Pricing tiers
+ *
+ * Three cells of one ruled grid, not three floating cards: the plans meet flush
+ * and are told apart by their ground and their weight, which is the same
+ * language the rest of the page uses.
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The tier row.
+ *
+ * Two rows, not three columns of independent cards: the heads share one grid
+ * row and the feature lists share the next, so every tier's call to action sits
+ * on the same line no matter how its billing note wraps. Matching them with a
+ * `min-height` guess instead only holds until one of them wraps to an extra
+ * line at some width.
+ */
+.ss-home-plans {
+	display: grid;
+	gap: 1px;
+	background-color: var(--border);
+}
+
+.ss-home-plans > * {
+	background-color: var(--background);
+	min-width: 0;
+}
+
+.ss-home-plan {
+	display: flex;
+	flex-direction: column;
+}
+
+@media (min-width: 768px) {
+	.ss-home-plans {
+		grid-template-columns: repeat(3, minmax(0, 1fr));
+	}
+}
+
+/* Guarded: without subgrid, `grid-row: span 2` would place each tier across two
+ * rows that do not exist and the row would fall apart. Browsers that lack it
+ * keep the flex column above, where the heads simply size themselves. */
+@supports (grid-template-rows: subgrid) {
+	@media (min-width: 768px) {
+		.ss-home-plans {
+			grid-template-rows: auto 1fr;
+		}
+
+		.ss-home-plan {
+			display: grid;
+			grid-row: span 2;
+			grid-template-rows: subgrid;
+		}
+	}
+}
+
+/* Names the recommended tier outright. The tint alone is a weak signal, and it
+ * carries no meaning for anyone who cannot separate two near-neighbour greys. */
+.ss-home-plan-badge {
+	border-radius: 2px;
+	padding: 0.125rem 0.375rem;
+	background-color: var(--home-accent);
+	color: var(--background);
+	font-size: 0.625rem;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+
+/* A standalone status pill, for a claim that sits above a heading rather than
+ * inline with one, like the plan badge above. Tinted rather than outlined or
+ * filled: it reads as a state, not as the accent's one emphasis clause. */
+.ss-home-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border-radius: 999px;
+	padding: 0.375rem 0.875rem;
+	background-color: color-mix(in oklab, var(--home-accent) 12%, transparent);
+	font-size: 0.75rem;
+	font-weight: 600;
+	letter-spacing: 0.01em;
+	color: var(--home-accent);
+}
+
+/* Tints the recommended tier. `.ss-home-plans > *` paints every cell with the
+ * page background, so this needs the extra specificity of the class to win. */
+.ss-home-plan[data-featured] {
+	background-color: var(--secondary);
+}
+
+.ss-home-plan-head {
+	position: relative;
+	display: flex;
+	flex-direction: column;
+	padding: 2rem var(--home-gutter);
+}
+
+/* The rule under the call to action is inset to the cell's own gutter rather
+ * than drawn as a border, which would run the full width and meet the vertical
+ * rules between tiers, closing each head into a box. Inset by `--home-gutter`
+ * it lines up with the text above and below it at every width, since that token
+ * is what the padding uses too. */
+.ss-home-plan-head::after {
+	content: "";
+	position: absolute;
+	right: var(--home-gutter);
+	bottom: 0;
+	left: var(--home-gutter);
+	height: 1px;
+	background-color: var(--border);
+}
+
+.ss-home-plan-features {
+	margin: 0;
+	padding: 1rem 0;
+	list-style: none;
+}
+
+/* No rule between rows: the list is short enough to read as a group, and a
+ * hairline under every line turned each tier into a table. Vertical rhythm
+ * separates them instead. */
+.ss-home-plan-features li {
+	display: flex;
+	align-items: flex-start;
+	gap: 0.75rem;
+	padding: 0.5rem var(--home-gutter);
+	font-size: 0.875rem;
+	line-height: 1.55;
+	color: var(--muted-foreground);
+}
+
+.ss-home-plan-check {
+	flex: none;
+	width: 0.875rem;
+	height: 0.875rem;
+	margin-top: 0.3125rem;
+	color: var(--home-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Hero
+ *
+ * The headline sits over a dithered backdrop rendered by `HomeHeroDither`.
+ * `isolation` and `overflow` keep that canvas inside the section: the stacking
+ * context stops its negative z-index from sliding under the page ground, and
+ * the clip stops the artwork from bleeding past the band's hairlines.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-hero {
+	position: relative;
+	isolation: isolate;
+	overflow: hidden;
+	padding-block: clamp(5rem, 14vh, 8rem);
+}
+
+/* The backdrop layer itself.
+ *
+ * `z-index: -1` puts it behind the hero copy without needing a z-index on the
+ * copy — the section's `isolation` bounds how far back it can go. The mask
+ * dissolves the top and bottom edges into the page so the band ends in the
+ * ground colour rather than at a visible seam against the section rules. */
+.ss-home-hero-dither {
+	pointer-events: none;
+	user-select: none;
+	position: absolute;
+	inset: 0;
+	z-index: -1;
+	opacity: 0.75;
+	-webkit-mask-image: linear-gradient(
+		to bottom,
+		transparent 0%,
+		#000 30%,
+		#000 72%,
+		transparent 100%
+	);
+	mask-image: linear-gradient(to bottom, transparent 0%, #000 30%, #000 72%, transparent 100%);
+}
+
+/* A scrim over the middle of the artwork.
+ *
+ * The source image is brightest exactly where the H1 and lede sit, and cream
+ * text on a lit stipple loses contrast. This pools the ground colour behind the
+ * copy and falls away before the edges, so the wave still reads at the sides. */
+.ss-home-hero-dither::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	background: radial-gradient(
+		56% 58% at 50% 48%,
+		color-mix(in srgb, var(--background) 84%, transparent) 0%,
+		transparent 80%
+	);
+}
+
+/**
+ * Mobile.
+ *
+ * The dither cell is a fixed 3px, so its size relative to the hero changes with
+ * the viewport: about 383 cells across a 1150px desktop hero, but only ~129
+ * across 388px. What reads as fine texture on a wide screen reads as a coarse
+ * checkerboard on a narrow one.
+ *
+ * `fit="cover"` compounds it — the artwork is landscape and the mobile hero is
+ * portrait (0.72), so it is cropped hard and mostly what survives is flat
+ * stipple plus one bright diagonal, directly behind the copy.
+ *
+ * Both are handled by pulling the pattern back rather than by changing the
+ * shader: less of it, and a wider clear area under the text.
+ */
+@media (max-width: 767px) {
+	.ss-home-hero-dither {
+		opacity: 0.4;
+		-webkit-mask-image: linear-gradient(
+			to bottom,
+			transparent 0%,
+			#000 22%,
+			#000 60%,
+			transparent 92%
+		);
+		mask-image: linear-gradient(to bottom, transparent 0%, #000 22%, #000 60%, transparent 92%);
+	}
+
+	/* A larger, denser scrim: on a portrait hero the copy occupies far more of
+	 * the area, so the calm middle has to grow with it. */
+	.ss-home-hero-dither::after {
+		background: radial-gradient(
+			78% 62% at 50% 46%,
+			color-mix(in srgb, var(--background) 92%, transparent) 0%,
+			transparent 86%
+		);
+	}
+}
+
+/* The shader mounts a canvas into its own wrapper div; neither carries
+ * intrinsic size, so both have to be told to fill the layer. */
+.ss-home-hero-dither canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+
+/* ---------------------------------------------------------------------------
+ * Bento cell illustrations
+ *
+ * "No cloud in the loop" and "sources become artifacts". Each artwork is a
+ * designed SVG with its own built-in SMIL loop (see
+ * `home-artifact-illustration.tsx`), so there is nothing to animate here —
+ * only how big it sits in the cell.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-artifact {
+	display: block;
+	width: 100%;
+	max-width: 18rem;
+	height: auto;
+	aspect-ratio: 4 / 3;
+	margin-bottom: 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Logo cloud
+ *
+ * A fixed 4 x 2 stack of cells holding twenty marks, so each cell stacks its
+ * share and cross-fades between them.
+ *
+ * The cross-fade is keyframes on stacked images rather than a timer swapping
+ * `src`, which keeps every logo and its alt text in the markup at once. Cells
+ * hold two or three marks, so they drift out of step rather than flipping
+ * together.
+ * ------------------------------------------------------------------------ */
+
+/* Centred and set at reading size rather than as one of the page's left-aligned
+ * eyebrows. Used where the band below is symmetric and full-width — a logo grid,
+ * a list of questions — because an eyebrow pinned to the left edge there reads
+ * as a label for the left column rather than for the whole band. */
+.ss-home-section-label {
+	text-align: center;
+	font-size: 1.125rem;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	font-weight: 500;
+	color: var(--muted-foreground);
+}
+
+@media (min-width: 768px) {
+	.ss-home-section-label {
+		font-size: 1.5rem;
+	}
+}
+
+/* The emphasised word, lifted out of the muted label onto the palette's light
+ * foreground — `--primary` is the cream the canonical dark theme already uses
+ * for its highest-contrast type. */
+.ss-home-section-label-accent {
+	color: var(--primary);
+	font-weight: 600;
+}
+
+@property --logo-blur {
+	syntax: "<length>";
+	inherits: false;
+	initial-value: 0px;
+}
+
+/* The marks are taken out of flow so they can stack, so the cell needs a height
+ * of its own. */
+.ss-home-logo-card {
+	min-height: 6.5rem;
+}
+
+@media (min-width: 768px) {
+	.ss-home-logo-card {
+		min-height: 7.5rem;
+	}
+}
+
+/* Registration marks at the interior corners. Dim: they are grid notation, not
+ * content, and should not out-weigh the logos they sit between. */
+.ss-home-logo-plus {
+	/* `--border` is tuned to read as a hairline across a whole edge; at a 1px
+	 * stroke over six pixels it disappears entirely, so the mark is mixed up
+	 * from the text colour instead. */
+	color: color-mix(in oklab, var(--muted-foreground) 60%, transparent);
+}
+
+.ss-home-logo {
+	position: absolute;
+	left: 50%;
+	top: 50%;
+	translate: -50% -50%;
+	height: 2.5rem;
+	width: auto;
+	max-width: calc(100% - 2rem);
+	object-fit: contain;
+	/* Inverted by default: most of these marks are drawn dark, and several have
+	 * paths with no fill at all, which renders as black. Desaturating keeps the
+	 * row from competing with the headline; inverting rather than flattening
+	 * keeps the interior drawing of a crest readable. */
+	--logo-tone: grayscale(1) invert(1) brightness(1.05);
+	/* `filter` is a single property, so the colour treatment and the blur the
+	 * keyframes drive have to compose here rather than fight over it. */
+	filter: var(--logo-tone) blur(var(--logo-blur, 0px));
+	opacity: 0;
+	animation-delay: calc(var(--slot) * 4s);
+	animation-iteration-count: infinite;
+	animation-timing-function: linear;
+	animation-fill-mode: both;
+}
+
+/* Artwork that is already light needs no inversion — it would go black. */
+.ss-home-logo[data-light] {
+	--logo-tone: grayscale(1) brightness(1.1);
+}
+
+/* One cycle gives every mark the same four seconds on screen, so a cell of two
+ * runs an eight-second loop and a cell of three a twelve-second one. */
+.ss-home-logo[data-slots="2"] {
+	animation-name: ss-home-logo-cycle-2;
+	animation-duration: 8s;
+}
+
+.ss-home-logo[data-slots="3"] {
+	animation-name: ss-home-logo-cycle-3;
+	animation-duration: 12s;
+}
+
+@keyframes ss-home-logo-cycle-2 {
+	0% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	5% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	45% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	50% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	100% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+}
+
+@keyframes ss-home-logo-cycle-3 {
+	0% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	3.5% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	29.8% {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	33.333% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+	100% {
+		opacity: 0;
+		--logo-blur: 4px;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	/* biome-ignore-start lint/complexity/noImportantStyles: the page-wide
+	 * reduced-motion kill switch below forces `animation-duration` with
+	 * !important, which would snap these to their final keyframe — opacity 0 —
+	 * and blank every logo. Stopping the animation by name and painting the
+	 * first mark of each cell is the only way to outrank it. The remaining marks
+	 * stay in the markup, so nothing is removed from the page's content. */
+	.ss-home-logo {
+		animation-name: none !important;
+		opacity: 0;
+	}
+
+	.ss-home-logo[data-first] {
+		opacity: 0.8;
+		--logo-blur: 0px;
+	}
+	/* biome-ignore-end lint/complexity/noImportantStyles: see above */
+}
+
+/* ---------------------------------------------------------------------------
+ * Comparison table
+ * ------------------------------------------------------------------------ */
+
+.ss-home-table-scroll {
+	overflow-x: auto;
+}
+
+.ss-home-table-scroll:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+.ss-home-table {
+	width: 100%;
+	min-width: 40rem;
+	border-collapse: collapse;
+	font-size: 0.875rem;
+	font-variant-numeric: tabular-nums;
+}
+
+.ss-home-table th,
+.ss-home-table td {
+	padding: 1rem 1.25rem;
+	text-align: left;
+	vertical-align: middle;
+}
+
+.ss-home-table th:first-child,
+.ss-home-table td:first-child {
+	padding-inline-start: var(--home-gutter);
+	width: 11rem;
+}
+
+.ss-home-table thead tr,
+.ss-home-table tbody tr + tr {
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-table tbody tr {
+	border-top: 1px solid var(--border);
+}
+
+.ss-home-table thead th {
+	font-weight: 500;
+	color: var(--muted-foreground);
+}
+
+.ss-home-table tbody th {
+	font-weight: 400;
+	color: var(--muted-foreground);
+}
+
+.ss-home-table td {
+	color: var(--foreground);
+}
+
+/* The SurfSense column is the one being argued for. */
+.ss-home-table [data-col="ours"] {
+	color: var(--home-accent);
+	font-weight: 600;
+}
+
+.ss-home-table thead [data-col="ours"] {
+	color: var(--foreground);
+	font-weight: 600;
+}
+
+/* ---------------------------------------------------------------------------
+ * Navbar
+ *
+ * Sticky, and visually unchanged by scrolling: the bar is painted with the
+ * page background at every scroll position, with no blur and no translucency,
+ * so nothing behind it shows through and nothing shifts as the page moves.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-nav {
+	position: sticky;
+	top: 0;
+	z-index: 50;
+	background-color: var(--background);
+}
+
+.ss-home-nav-bar {
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--home-max);
+	display: flex;
+	height: 3.25rem;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding-inline: 1rem;
+	border-inline: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-nav-link {
+	display: flex;
+	align-items: center;
+	gap: 0.25rem;
+	border-radius: 2px;
+	padding: 0.375rem 0.625rem;
+	font-size: 0.8125rem;
+	/* Dimmed at rest so hover has somewhere to go. Previously this was
+	 * `--secondary-foreground` and the hover was `--accent-foreground`, which are
+	 * the same value — the only thing that actually marked hover was the fill, so
+	 * removing the fill would have left no feedback at all. */
+	color: var(--muted-foreground);
+	transition: color 100ms ease-out;
+}
+
+/* Text only: no fill behind the bar's links. */
+.ss-home-nav-link:hover {
+	color: var(--foreground);
+}
+
+.ss-home-nav-link:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* Star count. Reads as a quiet piece of evidence next to the action beside it,
+ * so it is given the bar's link treatment rather than a button's. */
+.ss-home-nav-stars {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	border-radius: 2px;
+	padding: 0.375rem 0.5rem;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	font-variant-numeric: tabular-nums;
+	color: var(--muted-foreground);
+	transition: color 100ms ease-out;
+}
+
+.ss-home-nav-stars:hover {
+	color: var(--foreground);
+}
+
+.ss-home-nav-stars:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* Holds the width of the widest count the formatter can produce, so the bar is
+ * the same size whether the number is there or not.
+ *
+ * Measured rather than guessed: "16.2k" is 32px, "1.2M" 29px, "100k" 28px.
+ * In `rem` rather than `ch`, because `ch` is derived from the font and so
+ * changes again when the webfont swaps in. */
+.ss-home-nav-stars-count {
+	min-width: 2rem;
+}
+
+
+/* ---------------------------------------------------------------------------
+ * Mobile drawer
+ *
+ * Positioned against the sticky bar rather than placed in the flow, so opening
+ * the menu lays it over the page instead of pushing every section down and
+ * back up again. `.ss-home-nav` is sticky, which makes it the containing block
+ * for both of these.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-nav-drawer {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	z-index: 1;
+	margin-inline: auto;
+	width: 100%;
+	max-width: var(--home-max);
+	max-height: calc(100vh - 100%);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	background-color: var(--background);
+	border-inline: 1px solid var(--border);
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-nav-scrim {
+	position: absolute;
+	top: 100%;
+	left: 0;
+	right: 0;
+	height: 100vh;
+	width: 100%;
+	border: 0;
+	padding: 0;
+	background-color: color-mix(in oklab, var(--app-shell) 60%, transparent);
+	cursor: default;
+}
+
+@media (min-width: 768px) {
+	.ss-home-nav-drawer,
+	.ss-home-nav-scrim {
+		display: none;
+	}
+}
+
+/* The mobile menu toggle. Hidden with a media query rather than Tailwind's
+ * `md:hidden`, because the rules in this file are unlayered and outrank the
+ * layered utility — the utility would lose and the toggle would show on every
+ * width. */
+.ss-home-nav-toggle {
+	display: flex;
+}
+
+@media (min-width: 768px) {
+	.ss-home-nav-toggle {
+		display: none;
+	}
+}
+
+.ss-home-nav-panel {
+	position: absolute;
+	top: 100%;
+	right: 0;
+	margin-top: 0.625rem;
+	width: 16rem;
+	overflow: hidden;
+	border-radius: 2px;
+	border: 1px solid var(--border);
+	background-color: var(--popover);
+	color: var(--popover-foreground);
+}
+
+.ss-home-nav-item {
+	display: flex;
+	flex-direction: column;
+	gap: 0.125rem;
+	padding: 0.75rem 0.875rem;
+	transition: background-color 100ms ease-out;
+}
+
+.ss-home-nav-item:hover {
+	background-color: var(--accent);
+}
+
+.ss-home-nav-item:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+/* The palette is pinned inside this scope, so the theme toggle has nothing to
+ * switch here — leaving it would be a control that visibly does nothing. It is
+ * hidden rather than removed from the navigation, because the same navigation
+ * serves the routes that are still theme-aware. */
+.ss-home .ss-theme-toggle {
+	display: none;
+}
+
+/* ---------------------------------------------------------------------------
+ * Footer
+ *
+ * The footer paints its own dark fluted-glass panel and its own text colours in
+ * `components/site/site-footer.tsx`, so it reads the same on the routes that
+ * have not moved onto this design. Nothing is scoped here any more; it keeps
+ * only `.ss-home-rule` and `.ss-home-pad` so it stays inside the ruled column.
+ * ------------------------------------------------------------------------ */
+
+/* ---------------------------------------------------------------------------
+ * Shared auth control
+ *
+ * `SignInButton` hardcodes a white pill (`bg-white`, `rounded-full`,
+ * `text-[#1f1f1f]`) and is also rendered on /login and /register, so restyling
+ * the component would reach past this page. These scoped overrides restyle it
+ * only where the landing shell applies, using its existing stable hooks.
+ * ------------------------------------------------------------------------ */
+
+.ss-home .runtime-auth-local,
+.ss-home .runtime-auth-google {
+	border-radius: var(--radius);
+	border-color: var(--border);
+	background-color: transparent;
+	color: var(--foreground);
+	box-shadow: none;
+}
+
+.ss-home .runtime-auth-local:hover,
+.ss-home .runtime-auth-google:hover {
+	background-color: var(--accent);
+	color: var(--accent-foreground);
+}
+
+/* ---------------------------------------------------------------------------
+ * FAQ
+ *
+ * Native details/summary: no client JS, keyboard operable by default, and the
+ * answers are in the markup for crawlers rather than behind a state toggle.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-faq-summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 1.25rem var(--home-gutter);
+	cursor: pointer;
+	list-style: none;
+	font-weight: 500;
+	transition: color 120ms ease-out;
+}
+
+/* The answer fills the row, like every other band on the page. It is already
+ * held to a sensible measure by the ruled column itself, so it needs no cap of
+ * its own — and a `ch` cap here only produced a narrow ribbon of text with the
+ * rest of the row left empty beside it. */
+.ss-home-faq-answer {
+	padding: 0 var(--home-gutter) 1.5rem;
+}
+
+/* Smooth open/close, still with no client JS: `::details-content` keeps the
+ * answer in normal flow (instead of `display: none`) so its height and
+ * opacity can transition both ways. `interpolate-size` has to sit on the
+ * `<details>` element itself (it's inherited) — set on the pseudo directly it
+ * only ever resolved the *opening* transition, since the browser had already
+ * dropped the box from rendering (content-visibility) before the closing
+ * transition's `auto` starting height could be read. `overflow: clip` (not
+ * `hidden`) matches what `content-visibility` itself expects here; `hidden`
+ * fights it and the collapse ships instantly instead of animating. Browsers
+ * without support for any of this just snap open/closed, same as before. */
+.ss-home-faq {
+	interpolate-size: allow-keywords;
+}
+
+.ss-home-faq::details-content {
+	overflow: clip;
+	height: 0;
+	opacity: 0;
+	transition:
+		height 260ms cubic-bezier(0.4, 0, 0.2, 1),
+		opacity 200ms ease-out,
+		content-visibility 260ms allow-discrete;
+}
+
+.ss-home-faq[open]::details-content {
+	height: auto;
+	opacity: 1;
+}
+
+@starting-style {
+	.ss-home-faq[open]::details-content {
+		height: 0;
+		opacity: 0;
+	}
+}
+
+.ss-home-faq-summary::-webkit-details-marker {
+	display: none;
+}
+
+.ss-home-faq-summary:hover {
+	color: var(--home-accent);
+}
+
+.ss-home-faq-summary:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 4px;
+}
+
+/* A plus that becomes a minus. The rotation is decorative; the open state is
+ * already exposed by details/summary itself, so assistive technology and a
+ * reduced-motion visitor both still get the state. */
+.ss-home-faq-marker {
+	position: relative;
+	flex: none;
+	width: 0.75rem;
+	height: 0.75rem;
+}
+
+.ss-home-faq-marker::before,
+.ss-home-faq-marker::after {
+	content: "";
+	position: absolute;
+	inset: 50% 0 auto;
+	height: 1px;
+	background: currentColor;
+	transition: transform 150ms ease-out;
+}
+
+.ss-home-faq-marker::after {
+	transform: rotate(90deg);
+}
+
+.ss-home-faq[open] .ss-home-faq-marker::after {
+	transform: rotate(0deg);
+}
+
+/* ---------------------------------------------------------------------------
+ * Links
+ * ------------------------------------------------------------------------ */
+
+.ss-home-link {
+	color: var(--home-accent);
+	text-underline-offset: 0.25em;
+	text-decoration-line: underline;
+	text-decoration-color: color-mix(in oklab, var(--home-accent) 40%, transparent);
+	transition-property: color, text-decoration-color;
+	transition-duration: 120ms;
+	transition-timing-function: ease-out;
+}
+
+.ss-home-link:hover {
+	text-decoration-color: currentColor;
+}
+
+.ss-home-link:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* The reference's forward link: accent, no underline, an arrow that is not
+ * the only thing carrying the meaning. */
+.ss-home-forward {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.375rem;
+	font-size: 0.875rem;
+	font-weight: 500;
+	color: var(--home-accent);
+	transition: color 100ms ease-out;
+}
+
+.ss-home-forward:hover {
+	color: color-mix(in oklab, var(--home-accent) 75%, #ffffff);
+}
+
+.ss-home-forward:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* A grid cell that is itself the link, for a plain list of tiles that all lead
+ * somewhere (the plugins list). The background swap on hover is the same cue
+ * `.ss-home-logo-card` uses; the arrow's nudge repeats `.ss-home-forward`'s
+ * language at cell scale. */
+.ss-home-cell-link {
+	display: flex;
+	align-items: center;
+	gap: 0.75rem;
+	color: inherit;
+	transition: background-color 100ms ease-out;
+}
+
+.ss-home-cell-link:hover,
+.ss-home-cell-link:focus-visible {
+	background-color: var(--secondary);
+}
+
+.ss-home-cell-link:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+.ss-home-cell-link-arrow {
+	margin-left: auto;
+	color: var(--muted-foreground);
+	transition:
+		transform 150ms ease-out,
+		color 100ms ease-out;
+}
+
+.ss-home-cell-link:hover .ss-home-cell-link-arrow,
+.ss-home-cell-link:focus-visible .ss-home-cell-link-arrow {
+	transform: translate(0.125rem, -0.125rem);
+	color: var(--home-accent);
+}
+
+/* ---------------------------------------------------------------------------
+ * Connector marketing pages
+ *
+ * The per-platform pages (`/reddit`, `/amazon`, ...) are built from the same
+ * primitives as the rest of the site — the same hero, the same ruled bands,
+ * the same cell grids and `.ss-home-table`. The three things below are new
+ * only because nothing before this page needed them: a breadcrumb, a static
+ * terminal illustration, and a code block.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-breadcrumb {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 0.375rem;
+	font-size: 0.8125rem;
+	color: var(--muted-foreground);
+}
+
+.ss-home-breadcrumb a {
+	color: inherit;
+	transition: color 100ms ease-out;
+}
+
+.ss-home-breadcrumb a:hover {
+	color: var(--foreground);
+}
+
+.ss-home-breadcrumb-current {
+	color: var(--foreground);
+	font-weight: 500;
+}
+
+/* A monospace stack declared locally: the site loads Roboto only, so the
+ * `font-mono` utility (which points at a Geist Mono variable nothing on this
+ * site ever loads) silently falls back to the body font. Code needs to
+ * actually be monospaced. */
+.ss-home-mono {
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* The hero's terminal illustration: a static "here is what comes back"
+ * artifact. Square-cornered like every other surface on the page — nothing
+ * here gets a radius or a shadow of its own. */
+.ss-home-terminal {
+	border: 1px solid var(--border);
+	background-color: var(--card);
+}
+
+.ss-home-terminal-bar {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	border-bottom: 1px solid var(--border);
+	padding: 0.625rem 1rem;
+}
+
+.ss-home-terminal-dot {
+	width: 0.5rem;
+	height: 0.5rem;
+	border-radius: 50%;
+	background-color: var(--muted-foreground);
+	opacity: 0.35;
+}
+
+.ss-home-code {
+	overflow-x: auto;
+	border: 1px solid var(--border);
+	background-color: var(--muted);
+	padding: 0.875rem 1rem;
+	font-size: 0.75rem;
+	line-height: 1.6;
+	color: var(--muted-foreground);
+}
+
+.ss-home-code code {
+	color: var(--foreground);
+}
+
+/* The "required" mark on a schema field, and a result row's tag in the
+ * terminal illustration. */
+.ss-home-tag {
+	display: inline-flex;
+	align-items: center;
+	border-radius: 999px;
+	border: 1px solid var(--border);
+	padding: 0.0625rem 0.5rem;
+	font-size: 0.625rem;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var(--muted-foreground);
+	white-space: nowrap;
+}
+
+.ss-home-tag[data-tone="accent"] {
+	border-color: color-mix(in oklab, var(--home-accent) 40%, transparent);
+	color: var(--home-accent);
+}
+
+/* The API/MCP language tabs: an underline, not the shadcn pill-list default —
+ * the ss-home button vocabulary is for actions, and switching a code sample
+ * is a state change on a document, not an action. */
+.ss-home-tabs-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 1.25rem;
+	border-bottom: 1px solid var(--border);
+}
+
+.ss-home-tab {
+	padding-block: 0.625rem;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -1px;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--muted-foreground);
+	transition: color 100ms ease-out;
+}
+
+.ss-home-tab:hover {
+	color: var(--foreground);
+}
+
+.ss-home-tab[data-state="active"] {
+	border-bottom-color: var(--home-accent);
+	color: var(--foreground);
+}
+
+.ss-home-tab:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+
+/* ---------------------------------------------------------------------------
+ * Blog
+ *
+ * The one place on the site with photographs rather than icons or type. Cards
+ * get their own hairline border and a normal gap instead of the shared-
+ * background grid the rest of the site uses — the archive's length is
+ * unbounded, so there is no item count to make an even row out of.
+ * ------------------------------------------------------------------------ */
+
+.ss-home-post-card {
+	display: flex;
+	height: 100%;
+	flex-direction: column;
+	border: 1px solid var(--border);
+	background-color: var(--background);
+	transition: border-color 100ms ease-out;
+}
+
+.ss-home-post-card:hover,
+.ss-home-post-card:focus-visible {
+	border-color: var(--muted-foreground);
+}
+
+.ss-home-post-card:focus-visible {
+	outline: 2px solid var(--ring);
+	outline-offset: 2px;
+}
+
+.ss-home-post-card-media {
+	position: relative;
+	aspect-ratio: 16 / 10;
+	overflow: hidden;
+	background-color: var(--muted);
+}
+
+.ss-home-post-card-media img {
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	transition: transform 300ms ease-out;
+}
+
+.ss-home-post-card:hover .ss-home-post-card-media img {
+	transform: scale(1.03);
+}
+
+.ss-home-post-card-body {
+	display: flex;
+	flex: 1;
+	flex-direction: column;
+	padding: 1.25rem 1.5rem 1.5rem;
+}
+
+/* ---------------------------------------------------------------------------
+ * Motion
+ *
+ * The homepage is a read-only marketing surface: no gestures, nothing
+ * interruptible. Transitions are short, on colour only, and every one of them
+ * is also carried by a non-motion cue.
+ * ------------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: reduce) {
+	.ss-home *,
+	.ss-home *::before,
+	.ss-home *::after {
+		/* biome-ignore-start lint/complexity/noImportantStyles: a reduced-motion
+		 * kill switch has to outrank the Tailwind utility that set the duration
+		 * in the first place. Without !important the utility wins and the
+		 * preference is silently ignored. Nothing here removes a state cue —
+		 * colour, the FAQ open state and focus rings are all unaffected. */
+		transition-duration: 0.01ms !important;
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		/* biome-ignore-end lint/complexity/noImportantStyles: see above */
+	}
+}
+
+@media (prefers-contrast: more) {
+	.ss-home {
+		--border: #5c5a56;
+		--muted-foreground: #d1cfc0;
+	}
+}

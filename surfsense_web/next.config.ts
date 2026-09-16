@@ -16,6 +16,9 @@ const nextConfig: NextConfig = {
 			// /mcp-connector was split into the two MCP directions; the external
 			// (client) side kept the original content.
 			{ source: "/mcp-connector", destination: "/external-mcp-connectors", permanent: true },
+			// The connectors index was renamed to /plugins, which is what the
+			// product calls them everywhere else.
+			{ source: "/connectors", destination: "/plugins", permanent: true },
 		];
 	},
 	outputFileTracingRoot: path.join(__dirname, ".."),

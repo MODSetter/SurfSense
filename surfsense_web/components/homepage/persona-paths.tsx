@@ -25,7 +25,7 @@ const PATHS: {
 		description:
 			"Ask for a research brief, a lead list, or a competitor teardown in plain English. The agent gathers live data, cites its sources, and automations keep watch so you hear about changes first. Start free, pay only for what you use.",
 		links: [
-			{ label: "See what teams build", href: "/connectors" },
+			{ label: "See what teams build", href: "/plugins" },
 			{ label: "Pricing", href: "/pricing" },
 		],
 	},

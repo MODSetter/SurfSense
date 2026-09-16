@@ -107,7 +107,11 @@ def main():
             "attributes": {"name": name, "duration": duration, "requireFingerprintScope": False},
             "relationships": {"product": {"data": {"type": "products", "id": product}}},
         }}, auth)["data"]["id"]
-    print(f"3. policies              OK  {', '.join(policies)}")
+    # The ids, not the names: these are what KEYGEN_POLICY_* must be set to, and
+    # re-running to recover them would create a second set of policies.
+    print("3. policies              OK")
+    for name, policy_id in policies.items():
+        print(f"     KEYGEN_POLICY_{name.upper():<12} {policy_id}")
 
     # The metadata the Stripe webhook writes. It is the only lookup index we get.
     license = api("POST", "/licenses", {"data": {

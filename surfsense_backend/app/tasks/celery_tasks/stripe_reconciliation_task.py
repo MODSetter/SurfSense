@@ -14,7 +14,7 @@ from app.db import (
     CreditPurchase,
     CreditPurchaseStatus,
 )
-from app.routes import stripe_routes
+from app.payments import credits
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
@@ -105,12 +105,12 @@ async def _reconcile_pending_credit_purchases() -> None:
 
             try:
                 if payment_status in {"paid", "no_payment_required"}:
-                    await stripe_routes._fulfill_completed_credit_purchase(
+                    await credits.fulfill_completed_credit_purchase(
                         db_session, checkout_session
                     )
                     fulfilled_count += 1
                 elif session_status == "expired":
-                    await stripe_routes._mark_credit_purchase_failed(
+                    await credits.mark_credit_purchase_failed(
                         db_session, str(checkout_session.id)
                     )
                     failed_count += 1
