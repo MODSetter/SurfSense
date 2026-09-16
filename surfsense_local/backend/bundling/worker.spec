@@ -55,9 +55,10 @@ for package in (
 
 binaries += collect_dynamic_libs("tokenizers")
 
-# The per-format SKILL.md files (worker/studio/office/*/) are read at import via
+# Every prompt a case ships, plus office's per-format SKILL.md: all read through
 # importlib.resources, so the analyser does not see them as source.
-datas += collect_data_files("worker.studio.office", includes=["**/*.md"])
+datas += collect_data_files("worker.studio", includes=["**/*.md"])
+datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 
 # Huey resolves a task by its name, so the module that registers it must be in.
 hiddenimports += ["modules.documents.tasks", "modules.artifacts.tasks"]

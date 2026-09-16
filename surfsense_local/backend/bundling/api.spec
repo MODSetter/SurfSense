@@ -10,6 +10,7 @@ import sys
 
 from PyInstaller.utils.hooks import (
     collect_all,
+    collect_data_files,
     collect_dynamic_libs,
     collect_submodules,
 )
@@ -24,6 +25,9 @@ datas.append(
         "modules/llm/recommendations",
     )
 )
+
+# Chat's three prompts are read through importlib.resources, not imported.
+datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 
 # uvicorn loads its loop, protocol, and lifespan implementations by string.
 hiddenimports += collect_submodules("uvicorn")
