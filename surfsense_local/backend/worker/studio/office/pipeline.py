@@ -28,6 +28,7 @@ def render(
     """Generate and run the code for one spec's format, then store its bytes."""
     fmt = spec.key
     system = prompt.build(model.tier, spec, user_prompt)
+    repair: generate.Repair | None = None
 
     for attempt in range(CODE_ATTEMPTS):
         logger.info(
@@ -36,7 +37,7 @@ def render(
             attempt + 1,
             CODE_ATTEMPTS,
         )
-        raw = generate.run_model(model, system, sources)
+        raw = generate.run_model(model, system, sources, repair=repair)
         try:
             logger.info(
                 "studio: office %s attempt %s running %s chars of code",
@@ -57,10 +58,12 @@ def render(
             )
             if attempt == CODE_ATTEMPTS - 1:
                 raise
-            system = (
-                f"{prompt.build(model.tier, spec, user_prompt)}\n\n"
-                f"Your previous script failed: {error}. Fix that and return "
-                "only a corrected script."
+            repair = generate.Repair(
+                reply=raw,
+                instruction=(
+                    f"That script failed: {error}. Return the whole script "
+                    "corrected, changing only what the error points to."
+                ),
             )
             continue
 

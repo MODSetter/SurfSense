@@ -100,7 +100,9 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     """
     seen: list[str] = []
 
-    def fake(_session: object, system: str, _sources: object) -> str:
+    def fake(
+        _session: object, system: str, _sources: object, **_retry: object
+    ) -> str:
         seen.append(system)
         return replies[min(len(seen), len(replies)) - 1]
 

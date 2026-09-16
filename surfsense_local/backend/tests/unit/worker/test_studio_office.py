@@ -88,10 +88,16 @@ def test_render_retries_failed_code_then_keeps_the_fix(
             "output_bytes = b'%PDF-ok'\ntitle = 'Cassini'",
         ]
     )
-    seen: list[str] = []
+    seen: list[generate.Repair | None] = []
 
-    def fake_model(_session: object, system: str, _sources: object) -> str:
-        seen.append(system)
+    def fake_model(
+        _session: object,
+        _system: str,
+        _sources: object,
+        *,
+        repair: generate.Repair | None = None,
+    ) -> str:
+        seen.append(repair)
         return next(replies)
 
     monkeypatch.setattr(generate, "run_model", fake_model)
@@ -100,7 +106,12 @@ def test_render_retries_failed_code_then_keeps_the_fix(
 
     assert built.primary == b"%PDF-ok"
     assert len(seen) == 2
-    assert "pagesMS" in seen[1] or "failed" in seen[1].lower()
+    # The retry replays the script that failed: an error naming a line is only
+    # actionable against code the model can see.
+    assert seen[0] is None
+    assert seen[1] is not None
+    assert "pagesMS" in seen[1].reply
+    assert "pagesMS" in seen[1].instruction
 
 
 def test_render_stops_after_three_code_failures(

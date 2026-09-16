@@ -7,6 +7,7 @@ from modules.llm.profile import Tier
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
 from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline, pipeline
+from worker.studio.shared import generate
 
 pytestmark = pytest.mark.unit
 
@@ -113,9 +114,17 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
         ["not json", '{"turns": [{"speaker": 1, "text": "Hi."}]}', "no", "no"]
     )
     prompts: list[str] = []
+    repairs: list[generate.Repair | None] = []
 
-    def fake_run_model(model: object, system: str, sources: list) -> str:
+    def fake_run_model(
+        model: object,
+        system: str,
+        sources: list,
+        *,
+        repair: generate.Repair | None = None,
+    ) -> str:
         prompts.append(system)
+        repairs.append(repair)
         return next(replies)
 
     monkeypatch.setattr("worker.studio.shared.generate.run_model", fake_run_model)
@@ -124,7 +133,13 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
         draft.draft(MODEL, BRIEF, SEGMENTS, [])
 
     assert len(prompts) == 4
-    assert "not valid JSON" in prompts[1] and "not valid JSON" not in prompts[0]
+    # The nudge rides a repair turn carrying the bad reply, not the prompt, so
+    # "your previous reply" refers to something the model was actually shown.
+    assert repairs[0] is None
+    assert repairs[1] is not None
+    assert repairs[1].reply == "not json"
+    assert "not valid JSON" in repairs[1].instruction
+    assert "not valid JSON" not in prompts[1]
     assert "Sam: Hi." in prompts[2]
 
 

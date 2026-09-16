@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # How much of the dialogue so far each segment sees, so it continues rather
 # than restarts, without carrying the whole episode in every call.
 RECAP_CHARS = 800
-_JSON_NUDGE = "\nYour previous reply was not valid JSON. Return only the JSON object."
+_JSON_NUDGE = "Your previous reply was not valid JSON. Return only the JSON object."
 
 
 @dataclass(frozen=True)
@@ -110,14 +110,18 @@ def _draft_one(
     total: int,
     sources: list[Source],
 ) -> list[Turn]:
+    reply = generate.run_model(model, text, sources)
     try:
-        return parse(generate.run_model(model, text, sources), brief)
+        return parse(reply, brief)
     except ValueError as first:
         logger.warning(
             "studio: podcast segment %s/%s: %s; retrying", position, total, first
         )
+    retry = generate.run_model(
+        model, text, sources, repair=generate.Repair(reply, _JSON_NUDGE)
+    )
     try:
-        return parse(generate.run_model(model, text + _JSON_NUDGE, sources), brief)
+        return parse(retry, brief)
     except ValueError as error:
         raise ValueError(
             f"Segment {position} of {total} could not be drafted: {error}"
