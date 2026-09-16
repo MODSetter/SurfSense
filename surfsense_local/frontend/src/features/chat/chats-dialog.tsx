@@ -1,20 +1,12 @@
-import {
-  useRef,
-  useState,
-  type ComponentType,
-  type ReactNode,
-  type SubmitEvent,
-} from "react"
+import { useRef, useState, type SubmitEvent } from "react"
 
 import {
-  ChevronRightIcon,
   EllipsisIcon,
   PencilEdit02Icon,
   PencilIcon,
   Trash2Icon,
 } from "@/components/ui/icons"
 
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -38,39 +30,6 @@ import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
 
 import type { ChatThread } from "./api"
-
-// A row rendered below "New chat" with the same look. Add an entry here (or
-// pass one through `actions`) rather than hand-rolling another Button.
-export type SidebarNavAction = {
-  key: string
-  label: string
-  icon: ComponentType<{ className?: string }>
-  onClick: () => void
-  badge?: string
-}
-
-function SidebarNavButton({
-  label,
-  icon: Icon,
-  onClick,
-  badge,
-}: Omit<SidebarNavAction, "key">) {
-  return (
-    <Button
-      variant="ghost"
-      className="w-full justify-start px-2"
-      onClick={onClick}
-    >
-      <Icon />
-      <span className="text-left">{label}</span>
-      {badge ? (
-        <Badge variant="secondary" className="ml-2 rounded-md">
-          {badge}
-        </Badge>
-      ) : null}
-    </Button>
-  )
-}
 
 export function RenameChatDialog({
   thread,
@@ -136,78 +95,55 @@ export function RenameChatDialog({
   )
 }
 
-export function ThreadList({
+// Every chat in the workspace, opened from the "Chats" row in the left
+// sidebar. Selecting or starting a chat here closes the dialog; renaming and
+// deleting stay inline, same as the old sidebar list.
+export function ChatsDialog({
+  open,
+  onOpenChange,
   threads,
   activeThreadId,
   autoNamingThreadId,
   animatingTitleThreadId,
   isLoading,
-  onNewChat,
   onSelect,
+  onNewChat,
   onRename,
   onDelete,
   onTitleAnimationComplete,
-  actions = [],
-  footer,
 }: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
   threads: ChatThread[]
   activeThreadId: number | null
   autoNamingThreadId: number | null
   animatingTitleThreadId: number | null
   isLoading: boolean
-  onNewChat: () => void
   onSelect: (id: number) => void
+  onNewChat: () => void
   onRename: (id: number, title: string) => Promise<boolean>
   onDelete: (id: number) => Promise<void>
   onTitleAnimationComplete: () => void
-  // Extra rows below "New chat", same look. Append here to add one.
-  actions?: SidebarNavAction[]
-  // Pinned under the scrolling Recents list, against the bottom edge.
-  footer?: ReactNode
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
-  const [recentsOpen, setRecentsOpen] = useState(true)
 
   return (
-    <aside className="flex h-full min-w-0 flex-col border-r bg-background">
-      <header className="space-y-6 px-3 py-3">
-        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
-          SurfSense
-        </h2>
-        <div className="flex flex-col">
-          <SidebarNavButton
-            label="New chat"
-            icon={PencilEdit02Icon}
-            onClick={onNewChat}
-          />
-          {actions.map(({ key, ...action }) => (
-            <SidebarNavButton key={key} {...action} />
-          ))}
-        </div>
-      </header>
-      <ScrollShadow
-        className="min-h-0 min-w-0 flex-1"
-        viewportClassName="overflow-x-hidden p-3"
-        from="from-background"
-      >
-        <div className="flex w-full max-w-full min-w-0 flex-col gap-1">
-          <button
-            type="button"
-            className="group flex min-h-7 items-center gap-1 px-2 text-xs font-semibold text-muted-foreground transition-colors select-none hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-            aria-expanded={recentsOpen}
-            onClick={() => setRecentsOpen((open) => !open)}
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="select-none sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Chats</DialogTitle>
+            <DialogDescription className="sr-only">
+              Every chat in this workspace.
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollShadow
+            className="max-h-[60vh] min-h-24"
+            viewportClassName="overflow-x-hidden"
+            from="from-background"
           >
-            Recents
-            <ChevronRightIcon
-              className={cn(
-                "size-3.5 opacity-0 transition-[opacity,transform] duration-200 group-hover:opacity-100 group-focus-visible:opacity-100",
-                recentsOpen && "rotate-90"
-              )}
-            />
-          </button>
-          {recentsOpen ? (
-            <>
+            <div className="flex w-full max-w-full min-w-0 flex-col gap-1 pr-1">
               {isLoading ? <SkeletonSlabs /> : null}
               {!isLoading && threads.length === 0 ? (
                 <p className="px-2 py-1 text-sm text-muted-foreground select-none">
@@ -232,7 +168,10 @@ export function ThreadList({
                           "bg-muted dark:bg-muted/50"
                       )}
                       aria-current={selected ? "page" : undefined}
-                      onClick={() => onSelect(thread.id)}
+                      onClick={() => {
+                        onSelect(thread.id)
+                        onOpenChange(false)
+                      }}
                     >
                       <span
                         className={cn(
@@ -299,11 +238,24 @@ export function ThreadList({
                   </div>
                 )
               })}
-            </>
-          ) : null}
-        </div>
-      </ScrollShadow>
-      {footer}
+            </div>
+          </ScrollShadow>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="ghost"
+              className="w-full justify-start px-2"
+              onClick={() => {
+                onOpenChange(false)
+                onNewChat()
+              }}
+            >
+              <PencilEdit02Icon />
+              New chat
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       {renaming ? (
         <RenameChatDialog
           key={renaming.id}
@@ -312,6 +264,6 @@ export function ThreadList({
           onRename={onRename}
         />
       ) : null}
-    </aside>
+    </>
   )
 }

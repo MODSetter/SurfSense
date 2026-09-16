@@ -274,13 +274,7 @@ export function StudioPanel({
         </Alert>
       ) : null}
 
-      <section className="space-y-2" aria-labelledby="studio-formats">
-        <h3
-          id="studio-formats"
-          className="text-xs font-medium text-muted-foreground"
-        >
-          Studio
-        </h3>
+      <section className="space-y-2" aria-label="Studio formats">
         <div className="grid grid-cols-3 gap-1.5">
           {catalog.map((entry) => (
             <FormatCard

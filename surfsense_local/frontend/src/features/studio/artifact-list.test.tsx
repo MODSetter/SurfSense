@@ -99,7 +99,7 @@ describe("artifact list", () => {
     renderList({ onOpen })
 
     expect(
-      screen.getByRole("heading", { name: "All generated artifacts" })
+      screen.getByRole("heading", { name: "Artifacts" })
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Weekly summary" }))
     expect(onOpen).toHaveBeenCalledWith(12)

@@ -74,7 +74,7 @@ function SelectableSourceRow({
   document: WorkspaceDocument
   selected: boolean
   highlighted: boolean
-  rowRef: (node: HTMLDivElement | null) => void
+  rowRef: (node: HTMLLIElement | null) => void
   onOpen: () => void
   onReveal: () => void
   onRetry: () => void
@@ -100,7 +100,7 @@ function SelectableSourceRow({
   return (
     <Tooltip open={retryable && modifierHeld && rowHovered}>
       <TooltipTrigger asChild>
-        <div
+        <li
           ref={rowRef}
           aria-current={highlighted ? "true" : undefined}
           className={cn(
@@ -233,7 +233,7 @@ function SelectableSourceRow({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </li>
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
         {document.error_message ?? (cancelled ? "Cancelled" : "Ingestion failed")}
@@ -314,7 +314,7 @@ export function SourcesPanel({
   onSelectionChange: (documentId: number, selected: boolean) => void
   onToggleAll: () => void
 }) {
-  const sourceRows = useRef(new Map<number, HTMLDivElement>())
+  const sourceRows = useRef(new Map<number, HTMLLIElement>())
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
   >(null)
@@ -343,7 +343,7 @@ export function SourcesPanel({
         id="all-sources"
         className="text-xs font-medium text-muted-foreground"
       >
-        All sources
+        Sources
       </h3>
       <div className="flex items-center gap-1">
         {readyCount > 0 ? (
@@ -379,7 +379,7 @@ export function SourcesPanel({
           {isLoading ? (
             <SkeletonSlabs />
           ) : documents.length > 0 ? (
-            <div className="flex flex-col gap-1">
+            <ul className="flex list-none flex-col gap-1">
               {documents.map((document) => (
                 <SelectableSourceRow
                   key={document.id}
@@ -401,7 +401,7 @@ export function SourcesPanel({
                   }
                 />
               ))}
-            </div>
+            </ul>
           ) : (
             <Empty className="min-h-0 border-0 px-2">
               <EmptyHeader>

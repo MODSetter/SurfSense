@@ -112,7 +112,7 @@ function ArtifactRow({
   return (
     <Tooltip open={retryable && modifierHeld && rowHovered}>
       <TooltipTrigger asChild>
-        <div
+        <li
           className={cn(
             "group group/artifact relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
             dropdownOpen && "bg-muted dark:bg-muted/50"
@@ -232,7 +232,7 @@ function ArtifactRow({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </li>
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
         {artifact.error_message ??
@@ -393,7 +393,7 @@ export function ArtifactList({
           id="all-artifacts"
           className="text-xs font-medium text-muted-foreground"
         >
-          All generated artifacts
+          Artifacts
         </h3>
         {/* One type is no choice at all; the filter appears with the second. */}
         {availableFormats.length > 1 ? (
@@ -436,7 +436,7 @@ export function ArtifactList({
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="flex flex-col gap-1">
+          <ul className="flex list-none flex-col gap-1">
             {visibleArtifacts.map((artifact) => (
               <ArtifactRow
                 key={artifact.id}
@@ -447,7 +447,7 @@ export function ArtifactList({
                 onDelete={() => setDeleteTarget(artifact)}
               />
             ))}
-          </div>
+          </ul>
         )}
       </ScrollShadow>
       <AlertDialog
