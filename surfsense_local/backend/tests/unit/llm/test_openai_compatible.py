@@ -33,12 +33,12 @@ def test_base_url_is_normalized_without_weakening_internal_network_support() -> 
         normalize_base_url("https://example.test/v1?token=secret")
 
 
-def test_capabilities_are_declared_inferred_or_read_as_unknown() -> None:
-    """An endpoint that publishes modalities is believed; the rest go by name.
+def test_capabilities_come_from_the_endpoint_then_the_catalogue_then_nowhere() -> None:
+    """Declared beats catalogued beats unknown, and nothing is read off a name.
 
-    The bare ids are real: OpenAI and Gemini return nothing else from /models,
-    so without the fallback every row lands unclassified and the chat and image
-    filters both come back empty over a list 138 long.
+    The bare ids are real: OpenAI and Gemini return nothing else from /models.
+    Every one of them is answered by the reviewed table or not at all, so a row
+    the app has never heard of says so instead of being assumed to chat.
     """
     models = {
         model.name: model
@@ -46,10 +46,13 @@ def test_capabilities_are_declared_inferred_or_read_as_unknown() -> None:
             {
                 "data": [
                     {"id": "openai/gpt-4o", "output_modalities": ["text"]},
-                    {"id": "gpt-image-2.5-flare"},
+                    {"id": "gpt-image-2"},
                     {"id": "models/gemini-3.1-flash-image"},
                     {"id": "gpt-4o-mini"},
-                    {"id": "text-embedding-3-large"},
+                    {"id": "whisper-large-v3"},
+                    {"id": "veo-3.1-generate-preview"},
+                    {"id": "babbage-002"},
+                    {"id": "a-model-nobody-has-catalogued"},
                 ]
             }
         )
@@ -60,14 +63,33 @@ def test_capabilities_are_declared_inferred_or_read_as_unknown() -> None:
     assert declared.capability_source == "declared"
     assert declared.capability_known is True
 
-    for name in ("gpt-image-2.5-flare", "models/gemini-3.1-flash-image"):
-        assert models[name].capabilities == ("image_generation",)
-        assert models[name].capability_source == "inferred"
-        # A guess must stay out of the gate a declaration passes through.
-        assert models[name].capability_known is False
+    assert models["gpt-image-2"].capabilities == ("image_generation",)
+    assert models["gpt-image-2"].capability_source == "catalog"
+
+    # Resolved by the last path segment, for the ids Gemini and gateways prefix.
+    # Both roles at once is a real answer, not a conflict: this model returns
+    # text alongside the image, and dropping either would hide it from a picker.
+    gemini = models["models/gemini-3.1-flash-image"]
+    assert gemini.capabilities == ("completion", "image_generation")
+    assert gemini.capability_source == "catalog"
 
     assert models["gpt-4o-mini"].capabilities == ("completion",)
-    assert models["text-embedding-3-large"].capability_source == "unknown"
+    assert models["gpt-4o-mini"].capability_source == "catalog"
+
+    # Knowing a model does neither is an answer, and it is what keeps the picker
+    # from offering speech and video models for chat.
+    for name in ("whisper-large-v3", "veo-3.1-generate-preview"):
+        assert models[name].capabilities == ()
+        assert models[name].capability_source == "catalog"
+        assert models[name].capability_known is True
+
+    # Absent from models.dev, so unknown rather than guessed. This is the model
+    # that used to be labelled a chat model by reading its name.
+    for name in ("babbage-002", "a-model-nobody-has-catalogued"):
+        assert models[name].capabilities == ()
+        assert models[name].capability_source == "unknown"
+        # Unknown must not gate a choice; the test dialog resolves it instead.
+        assert models[name].capability_known is False
 
 
 def test_delta_reads_openai_sse_and_ignores_done() -> None:

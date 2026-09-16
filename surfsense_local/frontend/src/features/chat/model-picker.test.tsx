@@ -178,14 +178,15 @@ describe("composer model picker", () => {
               capabilities: ["image_generation"],
               capability_source: "declared",
             },
-            // OpenAI and Gemini declare nothing, so their rows arrive read from
-            // the name. A chat picker owes the same exclusions to those.
+            // OpenAI and Gemini declare nothing, so their rows are answered
+            // by the reviewed catalogue. A chat picker owes those the same
+            // exclusions it owes a declaration.
             {
               connection_id: 7,
               connection_label: "Internal gateway",
               name: "gpt-image-1",
               capabilities: ["image_generation"],
-              capability_source: "inferred",
+              capability_source: "catalog",
             },
             {
               connection_id: 7,

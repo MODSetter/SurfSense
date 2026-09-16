@@ -47,6 +47,25 @@ def _freeze(spec: str, tmp_path: Path) -> Path:
     return tmp_path / "dist" / name / name
 
 
+def _assert_capability_catalogue_shipped(binary: Path) -> None:
+    """Both binaries classify remote models, so both must carry the table.
+
+    It is read by path, so the analyser cannot see it and only an explicit datas
+    entry puts it in the bundle. Missing it degrades silently: every remote model
+    reports its capability as unknown, in frozen builds only.
+    """
+    catalogue = (
+        binary.parent
+        / "_internal"
+        / "modules"
+        / "llm"
+        / "connections"
+        / "model-capabilities.json"
+    )
+    assert catalogue.is_file(), f"capability catalogue missing from {binary.parent}"
+    assert json.loads(catalogue.read_text())["models"]
+
+
 def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -60,6 +79,7 @@ def _env(tmp_path: Path, **extra: str) -> dict[str, str]:
 def test_api_binary_answers_health(tmp_path: Path) -> None:
     """Freeze the API and assert the running binary serves /health."""
     binary = _freeze("api.spec", tmp_path)
+    _assert_capability_catalogue_shipped(binary)
 
     # /health and /llm/catalog never touch retrieval, so an over-broad exclude in
     # api.spec would pass the checks below and only break on a user's first chat.
@@ -108,6 +128,7 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
 def test_worker_binary_starts(tmp_path: Path) -> None:
     """Freeze the worker and assert its lazy vision imports and consumer boot."""
     binary = _freeze("worker.spec", tmp_path)
+    _assert_capability_catalogue_shipped(binary)
     vision = subprocess.run(
         [str(binary), "--check-vision-runtime"],
         env=_env(tmp_path),

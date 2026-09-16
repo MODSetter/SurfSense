@@ -25,6 +25,14 @@ datas.append(
         "modules/llm/recommendations",
     )
 )
+# Read by path, so the analyser cannot see it. Without this every remote model
+# reports its capability as unknown in a frozen build only.
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "connections" / "model-capabilities.json"),
+        "modules/llm/connections",
+    )
+)
 
 # Chat's three prompts are read through importlib.resources, not imported.
 datas += collect_data_files("modules.chat", includes=["prompts/*.md"])

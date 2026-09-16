@@ -50,14 +50,14 @@ describe("OpenAI-compatible connections", () => {
             connection_label: "Chat gateway",
             name: "gpt-image-1",
             capabilities: ["image_generation"],
-            capability_source: "inferred",
+            capability_source: "catalog",
           },
           {
             connection_id: 1,
             connection_label: "Chat gateway",
             name: "gpt-4o-mini",
             capabilities: ["completion"],
-            capability_source: "inferred",
+            capability_source: "catalog",
           },
           {
             connection_id: 1,
