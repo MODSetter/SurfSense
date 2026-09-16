@@ -49,7 +49,7 @@ export const STUDIO_CATALOG: StudioFormat[] = [
   },
   {
     key: "docx",
-    label: "Document",
+    label: "Word",
     requires_roles: ["generation"],
     available: true,
     unavailable_reason: null,
