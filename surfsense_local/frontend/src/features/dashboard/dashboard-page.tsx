@@ -83,7 +83,7 @@ function WorkspaceDashboard({
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
-    selectedDocumentIds: sources.selectedDocumentIds,
+    selectedDocumentIds: sources.includedDocumentIds,
     onModelRequired,
   })
 
@@ -235,7 +235,7 @@ function WorkspaceDashboard({
               sources={
                 <SourcesPanel
                   documents={sources.documents}
-                  selectedDocumentIds={sources.selectedDocumentIds}
+                  selectedDocumentIds={sources.includedDocumentIds}
                   highlightedDocumentId={null}
                   isLoading={sources.isLoading}
                   isDeleting={sources.isDeleting}
@@ -251,7 +251,8 @@ function WorkspaceDashboard({
                   onRetry={(id) => void sources.retry(id)}
                   onDelete={(id) => void sources.deleteOne(id)}
                   onDeleteSelected={() => void sources.deleteSelected()}
-                  onSelectionChange={sources.setDocumentSelected}
+                  onSelectionChange={sources.setDocumentIncluded}
+                  onToggleAll={sources.toggleAllIncluded}
                 />
               }
               artifacts={

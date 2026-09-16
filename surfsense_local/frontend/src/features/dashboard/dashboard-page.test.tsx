@@ -699,9 +699,7 @@ describe("dashboard chat", () => {
 
     await screen.findByText("Start a conversation to see it here")
     await user.click(screen.getByRole("button", { name: "New chat" }))
-    await user.click(
-      await screen.findByRole("checkbox", { name: "Select Guide.txt" })
-    )
+    await screen.findByRole("checkbox", { name: "Select Guide.txt" })
     expect(
       fetchMock.mock.calls.filter(
         ([path, init]) =>

@@ -112,7 +112,8 @@ function toRuntimeMessage(
   // SQLite stores CURRENT_TIMESTAMP in UTC but returns it without an offset.
   const timestamp =
     value && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? `${value}Z` : value
-  const error = message.role === "assistant" ? chatErrors[String(message.id)] : undefined
+  const error =
+    message.role === "assistant" ? chatErrors[String(message.id)] : undefined
   return {
     id: String(message.id),
     role: message.role,
@@ -358,7 +359,7 @@ export function useChatRuntime({
         await streamMessage(
           threadId,
           text,
-          selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+          selectedDocumentIds,
           controller.signal,
           (event) => {
             if (requestVersion.current !== version) {

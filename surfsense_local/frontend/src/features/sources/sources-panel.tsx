@@ -8,11 +8,9 @@ import {
 import {
   Alert02Icon,
   EllipsisIcon,
-  FileIcon,
   FilePlus2Icon,
   FolderOpenIcon,
   Loader2Icon,
-  NotebookTextIcon,
   RefreshCwIcon,
   SquareDashedMousePointerIcon,
   Trash2Icon,
@@ -104,7 +102,6 @@ function SelectableSourceRow({
           className={cn(
             "group group/source relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 select-none hover:bg-muted dark:hover:bg-muted/50",
             highlighted && "border-ring",
-            selected && "bg-sidebar-accent text-white",
             dropdownOpen && "bg-muted dark:bg-muted/50"
           )}
           onMouseEnter={() => setRowHovered(true)}
@@ -112,36 +109,14 @@ function SelectableSourceRow({
         >
           <span className="relative flex size-7 shrink-0 items-center justify-center">
             {ready ? (
-              <>
-                <Checkbox
-                  checked={selected}
-                  aria-label={`Select ${document.title}`}
-                  className={cn(
-                    "peer absolute z-10 transition-opacity duration-150",
-                    selected
-                      ? "opacity-100"
-                      : "pointer-events-none opacity-0 group-hover/source:pointer-events-auto group-hover/source:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
-                  )}
-                  onClick={(event) => event.stopPropagation()}
-                  onCheckedChange={(checked) =>
-                    onSelectedChange(checked === true)
-                  }
-                />
-                <span
-                  className={cn(
-                    "pointer-events-none absolute inset-0 flex items-center justify-center text-muted-foreground transition-opacity duration-150",
-                    selected
-                      ? "opacity-0"
-                      : "opacity-100 group-hover/source:opacity-0 peer-focus-visible:opacity-0"
-                  )}
-                >
-                  {document.document_type === "NOTE" ? (
-                    <NotebookTextIcon className="size-4.5" />
-                  ) : (
-                    <FileIcon className="size-4.5" />
-                  )}
-                </span>
-              </>
+              <Checkbox
+                checked={selected}
+                aria-label={`Select ${document.title}`}
+                onClick={(event) => event.stopPropagation()}
+                onCheckedChange={(checked) =>
+                  onSelectedChange(checked === true)
+                }
+              />
             ) : null}
             {ingesting ? (
               <Spinner
@@ -308,6 +283,7 @@ export function SourcesPanel({
   onDelete,
   onDeleteSelected,
   onSelectionChange,
+  onToggleAll,
 }: {
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
@@ -322,6 +298,7 @@ export function SourcesPanel({
   onDelete: (documentId: number) => void
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
+  onToggleAll: () => void
 }) {
   const sourceRows = useRef(new Map<number, HTMLDivElement>())
   const [deleteTarget, setDeleteTarget] = useState<
@@ -341,6 +318,11 @@ export function SourcesPanel({
   }, [highlightedDocumentId])
 
   const selectedDocumentIdSet = new Set(selectedDocumentIds)
+  const readyCount = documents.filter(
+    (document) => document.status === "ready"
+  ).length
+  const allSelected =
+    readyCount > 0 && selectedDocumentIds.length === readyCount
   const listHeader = (
     <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2">
       <h3
@@ -350,15 +332,15 @@ export function SourcesPanel({
         All sources
       </h3>
       <div className="flex items-center gap-1">
-        {selectedDocumentIds.length > 0 ? (
+        {readyCount > 0 ? (
           <Button
+            type="button"
             size="xs"
-            variant="destructive"
-            disabled={isDeleting}
-            onClick={() => setDeleteTarget("selected")}
+            variant="ghost"
+            className="text-muted-foreground"
+            onClick={onToggleAll}
           >
-            <Trash2Icon data-icon="inline-start" />
-            Delete ({selectedDocumentIds.length})
+            {allSelected ? "Deselect all" : "Select all"}
           </Button>
         ) : null}
         {addAction}

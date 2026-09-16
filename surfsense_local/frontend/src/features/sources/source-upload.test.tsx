@@ -32,7 +32,7 @@ function SourceHarness() {
     <TooltipProvider>
       <SourcesPanel
         documents={sources.documents}
-        selectedDocumentIds={sources.selectedDocumentIds}
+        selectedDocumentIds={sources.includedDocumentIds}
         highlightedDocumentId={null}
         isLoading={sources.isLoading}
         isDeleting={sources.isDeleting}
@@ -48,7 +48,8 @@ function SourceHarness() {
         onRetry={(id) => void sources.retry(id)}
         onDelete={(id) => void sources.deleteOne(id)}
         onDeleteSelected={() => void sources.deleteSelected()}
-        onSelectionChange={sources.setDocumentSelected}
+        onSelectionChange={sources.setDocumentIncluded}
+        onToggleAll={sources.toggleAllIncluded}
       />
     </TooltipProvider>
   )
@@ -112,6 +113,7 @@ describe("source upload", () => {
           onDelete={vi.fn()}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -166,18 +168,9 @@ describe("source upload", () => {
     )
     expect(readyButton.parentElement?.className).not.toContain("text-white")
     expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
-    expect(
-      readyButton.previousElementSibling
-        ?.querySelector("svg")
-        ?.getAttribute("class")
-    ).toContain("size-4.5")
-    expect(readyCheckbox.className).not.toContain(
-      "group-focus-within/source:opacity-100"
-    )
-    expect(readyCheckbox.className).toContain("focus-visible:opacity-100")
-    expect(readyCheckbox.nextElementSibling?.className).toContain(
-      "peer-focus-visible:opacity-0"
-    )
+    expect(readyCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
     expect(actionsButton.className).toContain("size-6")
     expect(actionsButton.className).toContain("group-hover/source:opacity-100")
     expect(actionsButton.className).not.toContain(
@@ -210,6 +203,7 @@ describe("source upload", () => {
           onDelete={vi.fn()}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -248,6 +242,7 @@ describe("source upload", () => {
           onDelete={vi.fn()}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -304,6 +299,7 @@ describe("source upload", () => {
           onDelete={onDelete}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -443,7 +439,10 @@ describe("source upload", () => {
     )
 
     await waitFor(
-      () => expect(screen.getByLabelText("Select guide.txt")).toBeTruthy(),
+      () =>
+        expect(
+          screen.getByLabelText("Select guide.txt").getAttribute("aria-checked")
+        ).toBe("true"),
       { timeout: 3000 }
     )
   })
@@ -483,7 +482,7 @@ describe("source upload", () => {
     expect(screen.queryByText("Source action failed")).toBeNull()
   })
 
-  it("deletes every selected source after confirmation", async () => {
+  it("includes every ready source by default and can deselect them", async () => {
     const documents = [
       {
         ...pendingDocument,
@@ -498,47 +497,31 @@ describe("source upload", () => {
         status: "ready" as const,
       },
     ]
-    const fetchMock = vi.fn(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
         if (init?.method === "DELETE") {
           return new Response(null, { status: 204 })
         }
         return Response.json(documents)
-      }
+      })
     )
-    vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
     render(<SourceHarness />)
     const firstCheckbox = await screen.findByLabelText("Select first.txt")
-    await user.click(firstCheckbox)
-    const firstRow = screen.getByRole("button", {
-      name: "first.txt",
-    }).parentElement
-    expect(firstRow?.className).toContain("bg-sidebar-accent")
-    expect(firstRow?.className).toContain("text-white")
+    const secondCheckbox = screen.getByLabelText("Select second.txt")
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
 
     await user.click(firstCheckbox)
-    expect(firstRow?.className).not.toContain("bg-sidebar-accent")
-    expect(firstRow?.className).not.toContain("text-white")
-
-    await user.click(firstCheckbox)
-    await user.click(screen.getByLabelText("Select second.txt"))
-    await user.click(screen.getByRole("button", { name: "Delete (2)" }))
-
-    expect(
-      screen.getByRole("alertdialog", { name: "Delete 2 sources?" })
-    ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Delete sources" }))
-
-    await waitFor(() => {
-      expect(screen.queryByText("first.txt")).toBeNull()
-      expect(screen.queryByText("second.txt")).toBeNull()
-    })
-    expect(
-      fetchMock.mock.calls
-        .filter(([, init]) => init?.method === "DELETE")
-        .map(([path]) => path)
-    ).toEqual(["/workspaces/1/documents/7", "/workspaces/1/documents/8"])
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
   })
 })
