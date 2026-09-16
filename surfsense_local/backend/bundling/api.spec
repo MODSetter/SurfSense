@@ -24,6 +24,14 @@ datas.append(
         "modules/llm/recommendations",
     )
 )
+# Read by path, so the analyser cannot see it. Without this every remote model
+# reports its capability as unknown in a frozen build only.
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "connections" / "model-capabilities.json"),
+        "modules/llm/connections",
+    )
+)
 
 # uvicorn loads its loop, protocol, and lifespan implementations by string.
 hiddenimports += collect_submodules("uvicorn")

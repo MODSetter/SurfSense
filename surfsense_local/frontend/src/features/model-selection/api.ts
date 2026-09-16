@@ -15,11 +15,11 @@ export type ProviderModel = {
 }
 
 /**
- * Where a model's capabilities came from. Only "declared" is the endpoint's own
- * word for it; "inferred" is read off the name, because OpenAI and Gemini return
- * nothing but an id from /models.
+ * Where a model's capabilities came from. "declared" is the endpoint's own word
+ * for it, "catalog" the reviewed table shipped with the app. Nothing is guessed,
+ * so an id neither source knows stays "unknown" and the picker says so.
  */
-export type CapabilitySource = "declared" | "inferred" | "unknown"
+export type CapabilitySource = "declared" | "catalog" | "unknown"
 
 export type ModelSelection = {
   role: "generation" | "image_generation"

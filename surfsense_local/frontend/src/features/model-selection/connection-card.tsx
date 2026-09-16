@@ -451,24 +451,18 @@ export function ConnectionCard({
                         <div className="mt-1 flex flex-wrap gap-1">
                           {model.capability_source === "unknown" ? (
                             <Badge variant="outline">Capability unknown</Badge>
+                          ) : model.capabilities.length === 0 ? (
+                            // Known to fill neither role. Saying so explains the
+                            // disabled buttons, which an empty row would not.
+                            <Badge variant="outline">
+                              Not a chat or image model
+                            </Badge>
                           ) : (
                             model.capabilities.map((capability) => {
                               const badge = capabilityBadge(capability)
-                              const guessed =
-                                model.capability_source === "inferred"
                               return (
-                                <Badge
-                                  key={capability}
-                                  variant={guessed ? "outline" : badge.variant}
-                                  title={
-                                    guessed
-                                      ? `${connection.label} does not publish capabilities; this was read from the model name.`
-                                      : undefined
-                                  }
-                                >
-                                  {guessed
-                                    ? `${badge.label}?`
-                                    : badge.label}
+                                <Badge key={capability} variant={badge.variant}>
+                                  {badge.label}
                                 </Badge>
                               )
                             })
@@ -493,9 +487,9 @@ export function ConnectionCard({
                             !supportsImage(model))
                         }
                         onClick={() =>
-                          model.capability_source === "declared"
-                            ? void assign("image_generation", model)
-                            : setTrying({ role: "image_generation", model })
+                          model.capability_source === "unknown"
+                            ? setTrying({ role: "image_generation", model })
+                            : void assign("image_generation", model)
                         }
                       >
                         {imageName === model.name
@@ -520,9 +514,9 @@ export function ConnectionCard({
                             !supportsChat(model))
                         }
                         onClick={() =>
-                          model.capability_source === "declared"
-                            ? void assign("generation", model)
-                            : setTrying({ role: "generation", model })
+                          model.capability_source === "unknown"
+                            ? setTrying({ role: "generation", model })
+                            : void assign("generation", model)
                         }
                       >
                         {generationName === model.name

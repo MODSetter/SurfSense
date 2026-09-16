@@ -7,6 +7,7 @@ from modules.llm.connections.service import parse_models
 from modules.llm.providers.types import Message, Model
 
 TIMEOUT = httpx.Timeout(120.0, connect=5.0)
+MAX_ERROR_CHARS = 400
 
 
 class OpenAICompatibleChatProvider:
@@ -17,9 +18,7 @@ class OpenAICompatibleChatProvider:
         self._api_key = api_key
 
     def _client(self) -> httpx.AsyncClient:
-        headers = (
-            {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
-        )
+        headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
         return httpx.AsyncClient(timeout=TIMEOUT, headers=headers)
 
     async def health(self) -> bool:
@@ -72,11 +71,37 @@ class OpenAICompatibleChatProvider:
                 "POST", f"{self._base_url}/chat/completions", json=body
             ) as reply,
         ):
-            reply.raise_for_status()
+            if reply.status_code >= 400:
+                # Same exception raise_for_status would raise, so status-based
+                # handling upstream is unchanged, but carrying what the endpoint
+                # actually said instead of only the status line.
+                raise httpx.HTTPStatusError(
+                    await _error_message(reply),
+                    request=reply.request,
+                    response=reply,
+                )
             async for line in reply.aiter_lines():
                 delta = _delta(line)
                 if delta:
                     yield delta
+
+
+async def _error_message(reply: httpx.Response) -> str:
+    """Why the endpoint refused, which the status code alone does not say.
+
+    A model that is not a chat model is rejected with the same 400 as a
+    malformed request, and only the body tells them apart.
+    """
+    fallback = f"the endpoint returned HTTP {reply.status_code}"
+    try:
+        payload = json.loads(await reply.aread())
+    except (httpx.HTTPError, json.JSONDecodeError, UnicodeDecodeError):
+        return fallback
+    error = payload.get("error") if isinstance(payload, dict) else None
+    message = error.get("message") if isinstance(error, dict) else None
+    if isinstance(message, str) and message.strip():
+        return message.strip()[:MAX_ERROR_CHARS]
+    return fallback
 
 
 def _delta(line: str) -> str | None:

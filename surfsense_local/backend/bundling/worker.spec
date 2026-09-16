@@ -20,6 +20,15 @@ from common import BACKEND, database_inputs
 
 datas, binaries, hiddenimports = database_inputs()
 
+# The worker reaches parse_models through studio/job.py -> openai_compatible ->
+# chat.py, so it needs the capability table the api binary also ships.
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "connections" / "model-capabilities.json"),
+        "modules/llm/connections",
+    )
+)
+
 for package in (
     "onnxruntime",
     "docling",
