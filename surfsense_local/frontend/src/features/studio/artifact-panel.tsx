@@ -5,29 +5,7 @@ import { DetailPanel } from "@/components/ui/detail-panel"
 import { DownloadIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { fileUrl, readArtifact, type ArtifactDetail } from "./api"
-import { MindmapViewer } from "./viewers/mindmap-viewer"
-import { StudyViewer } from "./viewers/study-viewer"
-
-function Preview({ artifact }: { artifact: ArtifactDetail }) {
-  const primary = artifact.files.find((file) => file.role === "primary")
-  if (!primary) return null
-
-  const src = fileUrl(artifact.id, primary.role)
-  if (primary.mime_type.startsWith("audio/")) {
-    // biome-ignore lint/a11y/useMediaCaption: The generated transcript is rendered directly below the player.
-    return <audio className="w-full" controls src={src} />
-  }
-  if (primary.mime_type.startsWith("image/")) {
-    return (
-      <img
-        className="mx-auto max-w-full outline outline-[oklch(0_0_0/0.1)] dark:outline-[oklch(1_0_0/0.1)]"
-        alt={artifact.title}
-        src={src}
-      />
-    )
-  }
-  return null
-}
+import { getArtifactViewer } from "./viewers/registry"
 
 export function ArtifactPanel({
   artifactId,
@@ -67,42 +45,32 @@ export function ArtifactPanel({
           : null
       }
     >
-      {isLoading ? (
-        <div className="flex h-full items-center justify-center text-muted-foreground">
-          <Spinner />
-        </div>
-      ) : null}
-      {error ? (
-        <div className="flex h-full items-center justify-center px-5 text-center">
-          <p className="text-sm text-destructive">
-            {error instanceof Error ? error.message : "Failed to load artifact"}
-          </p>
-        </div>
-      ) : null}
-      {!isLoading && !error && data ? (
-        <div className="h-full overflow-y-auto px-5 py-4">
-          <Body artifact={data} />
-        </div>
-      ) : null}
+      {/* The one viewable stage every artifact format renders into: same
+          size and position below the shared header, regardless of format.
+          Each viewer decides internally whether it fills the stage (a
+          canvas) or scrolls within it (flowing content). */}
+      <div className="h-full overflow-y-auto px-5 py-4">
+        {isLoading ? (
+          <div className="flex h-full items-center justify-center text-muted-foreground">
+            <Spinner />
+          </div>
+        ) : null}
+        {error ? (
+          <div className="flex h-full items-center justify-center text-center">
+            <p className="text-sm text-destructive">
+              {error instanceof Error
+                ? error.message
+                : "Failed to load artifact"}
+            </p>
+          </div>
+        ) : null}
+        {!isLoading && !error && data ? <Viewer artifact={data} /> : null}
+      </div>
     </DetailPanel>
   )
 }
 
-function Body({ artifact }: { artifact: ArtifactDetail }) {
-  switch (artifact.format) {
-    case "flashcards":
-    case "quiz":
-      return <StudyViewer artifactId={artifact.id} format={artifact.format} />
-    case "mindmap":
-      return <MindmapViewer markdown={artifact.content ?? ""} />
-    default:
-      return (
-        <div className="space-y-4">
-          <Preview artifact={artifact} />
-          <p className="text-sm leading-6 whitespace-pre-wrap">
-            {artifact.content || "This artifact has no text body."}
-          </p>
-        </div>
-      )
-  }
+function Viewer({ artifact }: { artifact: ArtifactDetail }) {
+  const ArtifactViewer = getArtifactViewer(artifact.format)
+  return <ArtifactViewer artifact={artifact} />
 }
