@@ -17,6 +17,21 @@ from shared.config import get_llm_settings
 # A pull runs for minutes; a tag lookup is instant. Long read, short connect.
 TIMEOUT = httpx.Timeout(600.0, connect=5.0)
 
+# Ollama's default context window is 4096 tokens and it silently drops whatever
+# does not fit, so a 24k-char Studio grounding reached the model at a third of its
+# length (measured: 2050 of ~6900 tokens evaluated). Size the window to the prompt.
+MIN_CTX = 4096
+
+
+def num_ctx(messages: list[Message], max_tokens: int | None) -> int:
+    """The smallest power-of-two window that holds the prompt and the reply.
+
+    ~3 chars per token is conservative for prose; Ollama clamps anything above the
+    model's trained maximum, so overshooting is safe and undershooting is not.
+    """
+    needed = sum(len(m.content) for m in messages) // 3 + (max_tokens or 2048)
+    return max(MIN_CTX, 1 << (needed - 1).bit_length())
+
 
 class OllamaProvider:
     """Ollama over its native API: it both answers and holds models on disk."""
@@ -186,8 +201,7 @@ class OllamaProvider:
             )
             if value is not None
         }
-        if options:
-            body["options"] = options
+        body["options"] = {**options, "num_ctx": num_ctx(messages, max_tokens)}
         async with (
             self._client() as client,
             client.stream("POST", "/api/chat", json=body) as reply,
