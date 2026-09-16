@@ -82,6 +82,32 @@ function ComposerAction({
   )
 }
 
+function sourceCountLabel(count: number) {
+  return `${count} ${count === 1 ? "source" : "sources"}`
+}
+
+function SourceCount({
+  count,
+  onOpen,
+  className,
+}: {
+  count: number
+  onOpen: () => void
+  className?: string
+}) {
+  const label = sourceCountLabel(count)
+  return (
+    <button
+      type="button"
+      className={cn(modelControlButtonClassName, "tabular-nums", className)}
+      aria-label={`${label} included in this chat`}
+      onClick={onOpen}
+    >
+      {label}
+    </button>
+  )
+}
+
 function AddSourcesButton({
   isUploading,
   onUpload,
@@ -132,20 +158,24 @@ function AddSourcesButton({
 export function ChatComposer({
   placement,
   model,
+  sourceCount,
   isRunning,
   isUploading,
   providerAvailable,
   onModelSetup,
   onModelSelected,
+  onOpenSources,
   onUpload,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
+  sourceCount: number
   isRunning: boolean
   isUploading: boolean
   providerAvailable: boolean
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
+  onOpenSources: () => void
   onUpload: (files: File[]) => void
 }) {
   return (
@@ -201,11 +231,19 @@ export function ChatComposer({
                 onModelSelected={onModelSelected}
                 className="h-9 rounded-xl px-3 text-sm"
               />
+              <SourceCount count={sourceCount} onOpen={onOpenSources} />
               <ComposerAction isRunning={isRunning} />
             </div>
           </>
         ) : (
-          <ComposerAction isRunning={isRunning} className="mb-0.5" />
+          <>
+            <SourceCount
+              count={sourceCount}
+              onOpen={onOpenSources}
+              className="mb-0.5"
+            />
+            <ComposerAction isRunning={isRunning} className="mb-0.5" />
+          </>
         )}
       </ComposerPrimitive.Root>
       {placement === "bottom" ? (
