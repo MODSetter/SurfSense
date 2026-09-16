@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
 import { DownloadIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
-import { cn } from "@/lib/utils"
 import { fileUrl, readArtifact, type ArtifactDetail } from "./api"
 import { getArtifactViewer } from "./viewers/registry"
 
@@ -47,9 +46,7 @@ export function ArtifactPanel({
       }
     >
       {/* The one viewable stage every artifact format renders into: same
-          size and position below the shared header, regardless of format.
-          Whether the viewer fills this stage or flows within it is decided
-          once, by its registered mode (see viewers/registry.tsx). */}
+          size and position below the shared header, regardless of format. */}
       <div className="h-full overflow-y-auto px-5 py-4">
         {isLoading ? (
           <div className="flex h-full items-center justify-center text-muted-foreground">
@@ -72,11 +69,9 @@ export function ArtifactPanel({
 }
 
 function Viewer({ artifact }: { artifact: ArtifactDetail }) {
-  const { component: ArtifactViewer, mode } = getArtifactViewer(
-    artifact.format
-  )
+  const ArtifactViewer = getArtifactViewer(artifact.format)
   return (
-    <div className={cn(mode === "fill" && "h-full")}>
+    <div className="h-full">
       <ArtifactViewer artifact={artifact} />
     </div>
   )
