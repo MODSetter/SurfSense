@@ -169,14 +169,30 @@ describe("composer model picker", () => {
               connection_label: "Internal gateway",
               name: "qwen-chat",
               capabilities: ["completion"],
-              capability_known: true,
+              capability_source: "declared",
             },
             {
               connection_id: 7,
               connection_label: "Internal gateway",
               name: "flux-image",
               capabilities: ["image_generation"],
-              capability_known: true,
+              capability_source: "declared",
+            },
+            // OpenAI and Gemini declare nothing, so their rows arrive read from
+            // the name. A chat picker owes the same exclusions to those.
+            {
+              connection_id: 7,
+              connection_label: "Internal gateway",
+              name: "gpt-image-1",
+              capabilities: ["image_generation"],
+              capability_source: "inferred",
+            },
+            {
+              connection_id: 7,
+              connection_label: "Internal gateway",
+              name: "whisper-1",
+              capabilities: [],
+              capability_source: "unknown",
             },
           ])
         }
@@ -207,5 +223,7 @@ describe("composer model picker", () => {
     })
     expect(remote.textContent).toContain("Internal gateway")
     expect(screen.queryByText("flux-image")).toBeNull()
+    expect(screen.queryByText("gpt-image-1")).toBeNull()
+    expect(screen.queryByText("whisper-1")).toBeNull()
   })
 })

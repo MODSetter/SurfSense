@@ -46,6 +46,7 @@ import {
   deleteConnection,
   getConnectionModels,
   setSelection,
+  testConnectionChat,
   testConnectionImage,
   type Connection,
   type ConnectionModel,
@@ -103,9 +104,17 @@ export function ConnectionCard({
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<ModelFilter>("all")
   const [disconnecting, setDisconnecting] = useState(false)
-  const [imageModel, setImageModel] = useState<ConnectionModel | null>(null)
-  const [imageBusy, setImageBusy] = useState(false)
+  // A model awaiting a role, which it can be asked to prove it fills first.
+  // `unlisted` is set only for a hand-typed id, so a model the connection did
+  // list still goes through the server's own check.
+  const [trying, setTrying] = useState<{
+    role: ModelSelection["role"]
+    model: ConnectionModel
+    unlisted?: boolean
+  } | null>(null)
+  const [testBusy, setTestBusy] = useState(false)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
+  const [reply, setReply] = useState<string | null>(null)
   const [unlisted, setUnlisted] = useState<{
     role: ModelSelection["role"]
     model: ConnectionModel
@@ -158,7 +167,7 @@ export function ConnectionCard({
         allowUnlisted
       )
       if (role === "generation") onGenerationSelected(selection)
-      setImageModel(null)
+      setTrying(null)
       setUnlisted(null)
       onChanged()
     } catch (cause) {
@@ -170,6 +179,23 @@ export function ConnectionCard({
     }
   }
 
+  const runTest = () => {
+    if (!trying) return
+    const { role, model } = trying
+    setTestBusy(true)
+    setError(null)
+    const attempt =
+      role === "image_generation"
+        ? testConnectionImage(connection.id, model.name).then((blob) => {
+            if (previewUrl) URL.revokeObjectURL(previewUrl)
+            setPreviewUrl(URL.createObjectURL(blob))
+          })
+        : testConnectionChat(connection.id, model.name).then(setReply)
+    void attempt
+      .catch((cause: unknown) => setError(messageFrom(cause)))
+      .finally(() => setTestBusy(false))
+  }
+
   const manualModel = (): ConnectionModel | null => {
     const name = manualName.trim()
     return name
@@ -178,7 +204,7 @@ export function ConnectionCard({
           connection_label: connection.label,
           name,
           capabilities: [],
-          capability_known: false,
+          capability_source: "unknown",
         }
       : null
   }
@@ -200,7 +226,7 @@ export function ConnectionCard({
       if (!model.name.toLocaleLowerCase().includes(query)) return false
       if (filter === "chat") return supportsChat(model)
       if (filter === "image") return supportsImage(model)
-      if (filter === "unknown") return !model.capability_known
+      if (filter === "unknown") return model.capability_source === "unknown"
       return true
     })
   }, [filter, models, search])
@@ -332,7 +358,16 @@ export function ConnectionCard({
                 type="button"
                 size="sm"
                 disabled={disabled || !manualName.trim()}
-                onClick={() => setImageModel(manualModel())}
+                onClick={() => {
+                  const model = manualModel()
+                  if (model) {
+                    setTrying({
+                      role: "image_generation",
+                      model,
+                      unlisted: true,
+                    })
+                  }
+                }}
               >
                 Assign as image
               </Button>
@@ -343,11 +378,7 @@ export function ConnectionCard({
                 onClick={() => {
                   const model = manualModel()
                   if (model) {
-                    setUnlisted({
-                      role: "generation",
-                      model,
-                      message: "",
-                    })
+                    setTrying({ role: "generation", model, unlisted: true })
                   }
                 }}
               >
@@ -418,17 +449,29 @@ export function ConnectionCard({
                           {model.name}
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1">
-                          {model.capability_known ? (
+                          {model.capability_source === "unknown" ? (
+                            <Badge variant="outline">Capability unknown</Badge>
+                          ) : (
                             model.capabilities.map((capability) => {
                               const badge = capabilityBadge(capability)
+                              const guessed =
+                                model.capability_source === "inferred"
                               return (
-                                <Badge key={capability} variant={badge.variant}>
-                                  {badge.label}
+                                <Badge
+                                  key={capability}
+                                  variant={guessed ? "outline" : badge.variant}
+                                  title={
+                                    guessed
+                                      ? `${connection.label} does not publish capabilities; this was read from the model name.`
+                                      : undefined
+                                  }
+                                >
+                                  {guessed
+                                    ? `${badge.label}?`
+                                    : badge.label}
                                 </Badge>
                               )
                             })
-                          ) : (
-                            <Badge variant="outline">Capability unknown</Badge>
                           )}
                         </div>
                       </div>
@@ -446,12 +489,13 @@ export function ConnectionCard({
                         disabled={
                           disabled ||
                           imageName === model.name ||
-                          (model.capability_known && !supportsImage(model))
+                          (model.capability_source !== "unknown" &&
+                            !supportsImage(model))
                         }
                         onClick={() =>
-                          model.capability_known
+                          model.capability_source === "declared"
                             ? void assign("image_generation", model)
-                            : setImageModel(model)
+                            : setTrying({ role: "image_generation", model })
                         }
                       >
                         {imageName === model.name
@@ -472,9 +516,14 @@ export function ConnectionCard({
                         disabled={
                           disabled ||
                           generationName === model.name ||
-                          (model.capability_known && !supportsChat(model))
+                          (model.capability_source !== "unknown" &&
+                            !supportsChat(model))
                         }
-                        onClick={() => void assign("generation", model)}
+                        onClick={() =>
+                          model.capability_source === "declared"
+                            ? void assign("generation", model)
+                            : setTrying({ role: "generation", model })
+                        }
                       >
                         {generationName === model.name
                           ? "In use"
@@ -506,61 +555,71 @@ export function ConnectionCard({
       </Dialog>
 
       <Dialog
-        open={imageModel !== null}
+        open={trying !== null}
         onOpenChange={(open) => {
           if (!open) {
-            setImageModel(null)
+            setTrying(null)
             setPreviewUrl(null)
+            setReply(null)
           }
         }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign {imageModel?.name} as Image?</DialogTitle>
+            <DialogTitle>
+              {trying?.role === "image_generation"
+                ? `Assign ${trying?.model.name} as Image?`
+                : `Use ${trying?.model.name} for chat?`}
+            </DialogTitle>
             <DialogDescription>
-              Capability is unknown. This endpoint must implement
-              {" /images/generations "}or{" /images"}. Testing runs real
-              inference and may cost money.
+              {trying?.role === "image_generation" ? (
+                <>
+                  This endpoint does not publish capabilities, so image support
+                  is unconfirmed. It must implement{" /images/generations "}or
+                  {" /images"}. Testing runs real inference and may cost money.
+                </>
+              ) : (
+                <>
+                  This endpoint does not publish capabilities, so chat support
+                  is unconfirmed. Testing sends one short prompt and may cost
+                  money.
+                </>
+              )}
             </DialogDescription>
           </DialogHeader>
           {previewUrl ? (
             <img
               src={previewUrl}
-              alt={`Test generated by ${imageModel?.name}`}
+              alt={`Test generated by ${trying?.model.name}`}
               className="max-h-64 w-full rounded-md object-contain"
             />
           ) : null}
+          {reply ? (
+            <p className="max-h-48 overflow-y-auto rounded-md border bg-muted/40 p-3 text-sm whitespace-pre-wrap">
+              {reply}
+            </p>
+          ) : null}
           {error ? <p className="text-sm text-destructive">{error}</p> : null}
           <DialogFooter>
-            <Button variant="outline" onClick={() => setImageModel(null)}>
+            <Button variant="outline" onClick={() => setTrying(null)}>
               Cancel
             </Button>
             <Button
               variant="outline"
-              disabled={imageBusy || !imageModel}
-              onClick={() => {
-                if (!imageModel) return
-                setImageBusy(true)
-                setError(null)
-                void testConnectionImage(connection.id, imageModel.name)
-                  .then((blob) => {
-                    if (previewUrl) URL.revokeObjectURL(previewUrl)
-                    setPreviewUrl(URL.createObjectURL(blob))
-                  })
-                  .catch((cause: unknown) => setError(messageFrom(cause)))
-                  .finally(() => setImageBusy(false))
-              }}
+              disabled={testBusy || !trying}
+              onClick={runTest}
             >
-              {imageBusy ? <Spinner data-icon="inline-start" /> : null}
-              Test image
+              {testBusy ? <Spinner data-icon="inline-start" /> : null}
+              {trying?.role === "image_generation" ? "Test image" : "Test chat"}
             </Button>
             <Button
-              disabled={!imageModel}
+              disabled={!trying}
               onClick={() =>
-                imageModel && void assign("image_generation", imageModel, true)
+                trying &&
+                void assign(trying.role, trying.model, trying.unlisted ?? false)
               }
             >
-              {previewUrl ? "Use for image" : "Use without testing"}
+              {previewUrl || reply ? "Use this model" : "Use without testing"}
             </Button>
           </DialogFooter>
         </DialogContent>

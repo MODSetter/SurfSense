@@ -1,10 +1,13 @@
 import asyncio
+import json
 
 import pytest
 from httpx import AsyncClient
 
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.types import Message
+
+from .conftest import REMOTE_REQUESTS
 
 pytestmark = pytest.mark.integration
 
@@ -138,6 +141,27 @@ async def test_chat_and_image_roles_can_use_one_connection(
     assert tested.status_code == 200
     assert tested.headers["content-type"] == "image/png"
     assert tested.headers["cache-control"] == "no-store"
+
+
+async def test_chat_test_answers_without_selecting_or_running_up_a_bill(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """Most endpoints never say which models chat, so let one answer and show it."""
+    connection = await _connect(client, openai_server)
+
+    tested = await client.post(
+        f"/llm/connections/{connection['id']}/chat-test",
+        json={"model": "anthropic/claude-3.5-sonnet"},
+    )
+    assert tested.status_code == 200
+    assert tested.json() == {"reply": "Hello"}
+
+    path, body = REMOTE_REQUESTS[-1]
+    assert path == "/chat/completions"
+    assert json.loads(body)["max_tokens"] == 64
+
+    # Trying a model is not choosing it.
+    assert (await client.get("/llm/selection/generation")).status_code == 404
 
 
 async def test_image_selection_alone_does_not_complete_onboarding(
