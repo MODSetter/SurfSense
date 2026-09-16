@@ -27,7 +27,10 @@ import { cn } from "@/lib/utils";
 const roboto = Roboto({
 	subsets: ["latin"],
 	weight: ["400", "500", "700"],
-	display: "swap",
+	// "optional": use Roboto only if it's ready almost immediately; otherwise
+	// keep the fallback for this page view. "swap" (the default) always swaps
+	// in Roboto once it arrives, which produced a visible font jump on load.
+	display: "optional",
 	variable: "--font-roboto",
 });
 
@@ -124,7 +127,13 @@ export default function RootLayout({
 				<WebSiteJsonLd />
 				<SoftwareApplicationJsonLd />
 			</head>
-			<body className={cn(roboto.className, "bg-[#141414] antialiased h-full w-full ")}>
+			<body
+				className={cn(
+					roboto.className,
+					roboto.variable,
+					"bg-[#141414] antialiased h-full w-full "
+				)}
+			>
 				<PostHogProvider>
 					<LocaleProvider>
 						<I18nProvider>
