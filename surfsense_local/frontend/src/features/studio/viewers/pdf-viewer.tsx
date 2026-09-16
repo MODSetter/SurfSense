@@ -9,16 +9,13 @@ import { ZoomInIcon, ZoomOutIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { fileUrl, type ArtifactDetail } from "../api"
 
-// Ported from surfsense_web's components/shared/pdf-viewer.tsx, trimmed to
-// what this desktop app needs: no pinch-to-zoom touch gestures (Electron has
-// no touchscreen story here). Zoom controls portal into the shared panel
-// header (actionsContainer) instead of surfsense_web's own toolbar row.
+// Ported from surfsense_web's components/shared/pdf-viewer.tsx (trimmed:
+// no touch pinch-zoom, zoom controls portal into the shared header instead).
 //
-// pdfjs-dist itself is dynamically imported (not at module scope): its core
-// module runs a DOMMatrix feature check on import, which crashes in the
-// jsdom test environment the moment anything imports the viewer registry —
-// even a test with no PDF in sight. Loading it lazily, only once a PdfViewer
-// actually mounts, keeps that side effect out of every other test's way.
+// Loaded lazily: pdfjs-dist's core module crashes in jsdom on import (a
+// DOMMatrix check), and pdf_viewer.mjs reads the core API off
+// `globalThis.pdfjsLib` instead of importing it — so this must run first.
+// Always load pdf_viewer.mjs via loadPdfViewerModule(), never a bare import.
 let pdfjsLibPromise: Promise<typeof import("pdfjs-dist")> | null = null
 function loadPdfjsLib() {
   pdfjsLibPromise ??= import("pdfjs-dist").then((pdfjsLib) => {
@@ -26,9 +23,16 @@ function loadPdfjsLib() {
       "pdfjs-dist/build/pdf.worker.min.mjs",
       import.meta.url
     ).toString()
+    ;(
+      globalThis as typeof globalThis & { pdfjsLib: typeof pdfjsLib }
+    ).pdfjsLib = pdfjsLib
     return pdfjsLib
   })
   return pdfjsLibPromise
+}
+
+function loadPdfViewerModule() {
+  return loadPdfjsLib().then(() => import("pdfjs-dist/web/pdf_viewer.mjs"))
 }
 
 type EmbeddedPdfViewer = Omit<PDFViewerCore, "setDocument"> & {
@@ -80,13 +84,14 @@ export function PdfViewer({
 
     void (async () => {
       try {
-        const pdfjsLibPromise = loadPdfjsLib()
-        const viewerModulePromise = import("pdfjs-dist/web/pdf_viewer.mjs")
+        // loadPdfViewerModule() then fetch — not Promise.all — so
+        // pdf_viewer.mjs never starts before globalThis.pdfjsLib is set.
+        const viewerModulePromise = loadPdfViewerModule()
         const responsePromise = fetch(fileUrl(artifact.id, "primary"), {
           signal: controller.signal,
         })
         const [pdfjsLib, viewerModule, response] = await Promise.all([
-          pdfjsLibPromise,
+          loadPdfjsLib(),
           viewerModulePromise,
           responsePromise,
         ])
