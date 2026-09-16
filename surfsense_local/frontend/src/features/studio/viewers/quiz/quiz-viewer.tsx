@@ -1,25 +1,31 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { useId, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { CheckIcon, XIcon } from "@/components/ui/icons"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
+import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import {
-  emptyQuizState,
-  firstUnansweredPosition,
+  answerQuizQuestion,
+  readArtifactFile,
+  retakeQuiz as retakeQuizRequest,
+  skipQuizQuestion,
+  type ArtifactDetail,
   type QuizMode,
   type QuizState,
-  quizResults,
-  quizRunComplete,
-  retakeQuiz,
-  skipQuestion,
-  submitAnswer,
-} from "./state"
+} from "../../api"
 import { QuizReviewScreen } from "./review-screen"
 import { QuizScoreScreen } from "./score-screen"
 import { StudyText } from "../study-text"
 import { VIEWER_PADDING } from "../viewer-layout"
+import {
+  emptyQuizState,
+  firstUnansweredPosition,
+  quizResults,
+  quizRunComplete,
+} from "./state"
 
 // The quiz file's shape (schema_version 1).
 export interface Quiz {
@@ -36,31 +42,99 @@ export interface Quiz {
 const OPTION_LABELS = ["A", "B", "C", "D"] as const
 type Screen = "taking" | "score" | "review"
 
-// Local-only study state (see state.ts): nothing here is persisted, so
-// closing and reopening the panel restarts the quiz — same tradeoff the
-// previous version of this viewer made.
-export function QuizViewer({ quiz }: { quiz: Quiz }) {
+// Fetches the quiz's questions; the run's progress (answers, skips, mode)
+// comes from the artifact itself (artifact.quiz_state), already persisted
+// server-side — see backend/modules/artifacts/quiz_progress.py.
+export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
+  const { data: quiz, isLoading, error } = useQuery({
+    queryKey: ["artifact-file", artifact.id],
+    queryFn: ({ signal }) => readArtifactFile<Quiz>(artifact.id, signal),
+  })
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-muted-foreground">
+        <Spinner />
+      </div>
+    )
+  }
+  if (error || !quiz) {
+    return (
+      <p className={`${VIEWER_PADDING} text-destructive text-sm`}>
+        {error instanceof Error ? error.message : "Failed to load this quiz"}
+      </p>
+    )
+  }
+  return <QuizRunner artifact={artifact} quiz={quiz} />
+}
+
+function QuizRunner({
+  artifact,
+  quiz,
+}: {
+  artifact: ArtifactDetail
+  quiz: Quiz
+}) {
+  const queryClient = useQueryClient()
   const headingId = useId()
   const headingRef = useRef<HTMLHeadingElement>(null)
-  const [state, setState] = useState<QuizState>(() =>
-    emptyQuizState(quiz.questions.length)
+  const [state, setState] = useState<QuizState>(
+    () =>
+      artifact.quiz_state ??
+      emptyQuizState(artifact.generation, quiz.questions.length)
   )
-  const [screen, setScreen] = useState<Screen>("taking")
-  const [position, setPosition] = useState(0)
+  const [screen, setScreen] = useState<Screen>(() =>
+    quizRunComplete(state) ? "score" : "taking"
+  )
+  const [position, setPosition] = useState(() => firstUnansweredPosition(state))
   const [reviewIndex, setReviewIndex] = useState(0)
   const [selectedOption, setSelectedOption] = useState<number | null>(null)
+  const [message, setMessage] = useState("")
+
+  const answer = useMutation({
+    mutationFn: (body: { question_index: number; selected_option_index: number }) =>
+      answerQuizQuestion(artifact.id, body),
+  })
+  const skip = useMutation({
+    mutationFn: (body: { question_index: number }) =>
+      skipQuizQuestion(artifact.id, body),
+  })
+  const retake = useMutation({
+    mutationFn: (body: { mode: QuizMode }) => retakeQuizRequest(artifact.id, body),
+  })
+  const saving = answer.isPending || skip.isPending
+
+  // A mutation's returned state is the source of truth from here on; caching
+  // it keeps the next GET (a regenerate, a re-open) from showing stale
+  // progress the artifact query hasn't refetched yet.
+  function applyState(next: QuizState) {
+    setState(next)
+    queryClient.setQueryData(
+      ["artifact", artifact.id],
+      (current: ArtifactDetail | undefined) =>
+        current && { ...current, quiz_state: next }
+    )
+  }
 
   const results = quizResults(quiz, state)
-  const questionIndex = state.activeQuestionIndices[position] ?? 0
+  const questionIndex = state.active_question_indices[position] ?? 0
   const question = quiz.questions[questionIndex]
   const submittedOption = state.answers[questionIndex]
   const answerRevealed = submittedOption !== undefined
-  const isLastQuestion = position === state.activeQuestionIndices.length - 1
+  const isLastQuestion = position === state.active_question_indices.length - 1
 
-  function selectAnswer(optionIndex: number) {
-    if (answerRevealed) return
-    setSelectedOption(optionIndex)
-    setState((current) => submitAnswer(current, questionIndex, optionIndex))
+  async function selectAnswer(optionIndex: number) {
+    if (answerRevealed || saving) return
+    setMessage("")
+    try {
+      const next = await answer.mutateAsync({
+        question_index: questionIndex,
+        selected_option_index: optionIndex,
+      })
+      applyState(next)
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Answer could not be saved")
+    }
   }
 
   function moveForward() {
@@ -73,20 +147,31 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
     }
   }
 
-  function skip() {
-    if (answerRevealed) return
-    const next = skipQuestion(state, questionIndex)
-    setState(next)
-    moveForward()
+  async function skipQuestion() {
+    if (answerRevealed || saving) return
+    setMessage("")
+    try {
+      const next = await skip.mutateAsync({ question_index: questionIndex })
+      applyState(next)
+      moveForward()
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Question could not be skipped")
+    }
   }
 
-  function startRetake(mode: QuizMode) {
-    const next = retakeQuiz(quiz, state, mode)
-    setState(next)
-    setPosition(firstUnansweredPosition(next))
-    setSelectedOption(null)
-    setScreen(quizRunComplete(next) ? "score" : "taking")
-    requestAnimationFrame(() => headingRef.current?.focus())
+  async function startRetake(mode: QuizMode) {
+    if (retake.isPending) return
+    setMessage("")
+    try {
+      const next = await retake.mutateAsync({ mode })
+      applyState(next)
+      setPosition(firstUnansweredPosition(next))
+      setSelectedOption(null)
+      setScreen(quizRunComplete(next) ? "score" : "taking")
+      requestAnimationFrame(() => headingRef.current?.focus())
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Quiz could not be restarted")
+    }
   }
 
   if (screen === "score") {
@@ -127,13 +212,13 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
       <div className="mb-6 flex items-center justify-between gap-4 text-muted-foreground text-sm">
         <p className="truncate">Attempt your quiz</p>
         <p className="shrink-0 tabular-nums">
-          {position + 1} / {state.activeQuestionIndices.length}
+          {position + 1} / {state.active_question_indices.length}
         </p>
       </div>
       <Progress
         value={
           ((position + (answerRevealed ? 1 : 0)) /
-            state.activeQuestionIndices.length) *
+            state.active_question_indices.length) *
           100
         }
         className="mb-8 h-1.5"
@@ -150,8 +235,11 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
       </h2>
       <RadioGroup
         value={selectedOption === null ? "" : String(selectedOption)}
-        onValueChange={(value) => selectAnswer(Number(value))}
-        disabled={answerRevealed}
+        onValueChange={(value) => {
+          setSelectedOption(Number(value))
+          void selectAnswer(Number(value))
+        }}
+        disabled={answerRevealed || saving}
         aria-label={`Question ${questionIndex + 1} options`}
         className="gap-3"
       >
@@ -201,11 +289,17 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
       <div className="mt-6 flex justify-end">
         <Button
           type="button"
-          onClick={answerRevealed ? moveForward : skip}
+          disabled={saving}
+          onClick={answerRevealed ? moveForward : () => void skipQuestion()}
         >
           {answerRevealed ? (isLastQuestion ? "Finish" : "Next") : "Skip"}
         </Button>
       </div>
+      {message ? (
+        <p role="alert" className="mt-4 text-destructive text-sm">
+          {message}
+        </p>
+      ) : null}
     </section>
   )
 }

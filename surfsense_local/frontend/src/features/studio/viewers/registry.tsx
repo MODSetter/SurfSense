@@ -7,6 +7,7 @@ import { MediaViewer } from "./media-viewer"
 import { MindmapViewer } from "./mindmap-viewer"
 import { PdfViewer } from "./pdf-viewer"
 import { PptxViewer } from "./pptx-viewer"
+import { QuizViewer } from "./quiz/quiz-viewer"
 import { StudyViewer } from "./study-viewer"
 import { XlsxViewer } from "./xlsx-viewer"
 
@@ -35,11 +36,12 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
       actionsContainer={actionsContainer}
     />
   ),
-  flashcards: ({ artifact }) => (
-    <StudyViewer artifactId={artifact.id} format="flashcards" />
-  ),
+  flashcards: ({ artifact }) => <StudyViewer artifactId={artifact.id} />,
+  // Keyed by id+generation so switching quizzes — or a regenerate bumping
+  // generation — remounts with a clean run instead of carrying over stale
+  // in-memory progress from the useState seeded at mount.
   quiz: ({ artifact }) => (
-    <StudyViewer artifactId={artifact.id} format="quiz" />
+    <QuizViewer key={`${artifact.id}:${artifact.generation}`} artifact={artifact} />
   ),
   image: MediaViewer,
   infographic: MediaViewer,

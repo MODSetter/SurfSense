@@ -10,9 +10,9 @@ import {
   XIcon,
 } from "@/components/ui/icons"
 import { cn } from "@/lib/utils"
+import type { QuizState } from "../../api"
 import { StudyText } from "../study-text"
 import type { Quiz } from "./quiz-viewer"
-import type { QuizState } from "./state"
 
 const LABELS = ["A", "B", "C", "D"] as const
 

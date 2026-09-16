@@ -14,9 +14,9 @@ import {
 } from "@/components/ui/icons"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import type { QuizMode } from "../../api"
 import { StudyText } from "../study-text"
 import type { Quiz } from "./quiz-viewer"
-import type { QuizMode } from "./state"
 
 type ResultCategory = "correct" | "missed" | "skipped"
 

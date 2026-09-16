@@ -3,21 +3,16 @@ import { useQuery } from "@tanstack/react-query"
 import { Spinner } from "@/components/ui/spinner"
 import { readArtifactFile } from "../api"
 import { FlashcardsViewer, type FlashcardDeck } from "./flashcards-viewer"
-import { QuizViewer, type Quiz } from "./quiz/quiz-viewer"
 import { VIEWER_PADDING } from "./viewer-layout"
 
-// Flashcards and quizzes study from their JSON primary, not the markdown body.
-export function StudyViewer({
-  artifactId,
-  format,
-}: {
-  artifactId: number
-  format: "flashcards" | "quiz"
-}) {
+// Flashcards study from their JSON primary, not the markdown body. (Quiz
+// used to share this viewer too, but it now self-fetches — see
+// quiz/quiz-viewer.tsx — because its run also needs the artifact's
+// server-persisted quiz_state, not just the questions.)
+export function StudyViewer({ artifactId }: { artifactId: number }) {
   const { data, isLoading, error } = useQuery({
     queryKey: ["artifact-file", artifactId],
-    queryFn: ({ signal }) =>
-      readArtifactFile<FlashcardDeck | Quiz>(artifactId, signal),
+    queryFn: ({ signal }) => readArtifactFile<FlashcardDeck>(artifactId, signal),
   })
 
   if (isLoading) {
@@ -36,9 +31,5 @@ export function StudyViewer({
       </p>
     )
   }
-  return format === "quiz" ? (
-    <QuizViewer quiz={data as Quiz} />
-  ) : (
-    <FlashcardsViewer deck={data as FlashcardDeck} />
-  )
+  return <FlashcardsViewer deck={data} />
 }
