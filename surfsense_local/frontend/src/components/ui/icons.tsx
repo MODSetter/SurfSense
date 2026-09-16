@@ -72,6 +72,8 @@ import {
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
+import { cn } from "@/lib/utils"
+
 type IconData = React.ComponentProps<typeof HugeiconsIcon>["icon"]
 type IconProps = Omit<
   React.ComponentProps<typeof HugeiconsIcon>,
@@ -80,9 +82,9 @@ type IconProps = Omit<
   strokeWidth?: React.SVGProps<SVGSVGElement>["strokeWidth"]
 }
 
-function createIcon(icon: IconData) {
+function createIcon(icon: IconData, defaultClassName?: string) {
   return React.forwardRef<SVGSVGElement, IconProps>(function Icon(
-    { strokeWidth = 2, ...props },
+    { strokeWidth = 2, className, ...props },
     ref
   ) {
     const width =
@@ -90,7 +92,13 @@ function createIcon(icon: IconData) {
         ? strokeWidth
         : Number.parseFloat(strokeWidth) || 2
     return (
-      <HugeiconsIcon ref={ref} icon={icon} strokeWidth={width} {...props} />
+      <HugeiconsIcon
+        ref={ref}
+        icon={icon}
+        strokeWidth={width}
+        className={cn(defaultClassName, className)}
+        {...props}
+      />
     )
   })
 }
@@ -134,7 +142,7 @@ export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
 export const MoonIcon = createIcon(Moon02IconData)
-export const NetworkIcon = createIcon(NetworkIconData)
+export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
 export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const Pdf01Icon = createIcon(Pdf01IconData)

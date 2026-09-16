@@ -47,7 +47,7 @@ export function QuizReviewScreen({
             Question {index + 1} of {quiz.questions.length}
           </p>
         </div>
-        <Button type="button" variant="outline" size="sm" onClick={onExit}>
+        <Button type="button" variant="secondary" size="sm" onClick={onExit}>
           Exit review
         </Button>
       </div>

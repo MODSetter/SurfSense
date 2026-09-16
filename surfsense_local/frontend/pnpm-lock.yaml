@@ -50,6 +50,9 @@ importers:
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      docx-preview:
+        specifier: 0.4.0
+        version: 0.4.0
       exceljs:
         specifier: ^4.4.0
         version: 4.4.0
@@ -2344,6 +2347,9 @@ packages:
   diff@8.0.4:
     resolution: {integrity: sha512-DPi0FmjiSU5EvQV0++GFDOJ9ASQUVFh5kD+OzOnYdi7n3Wpm9hWWGfB/O2blfHcMVTL5WkQXSnRiK9makhrcnw==}
     engines: {node: '>=0.3.1'}
+
+  docx-preview@0.4.0:
+    resolution: {integrity: sha512-OdKtE/uj3M4RfGarLkGjahUzRg8/kBp0Sraj1r1NAY1tp/sTpHOBqDrzVf9onMBt9vxP6SdQ6bpLCUCsFwjgcA==}
 
   dom-accessibility-api@0.5.16:
     resolution: {integrity: sha512-X7BJ2yElsnOJ30pZF4uIIDfBEVgF4XEBxL9Bxhy6dnrm5hkzqmsWHGTiHqRiITNhMyFLyAiWndIJP7Z1NTteDg==}
@@ -6930,6 +6936,10 @@ snapshots:
       dequal: 2.0.3
 
   diff@8.0.4: {}
+
+  docx-preview@0.4.0:
+    dependencies:
+      jszip: 3.10.2
 
   dom-accessibility-api@0.5.16: {}
 

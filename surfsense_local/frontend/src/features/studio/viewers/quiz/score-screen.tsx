@@ -111,7 +111,7 @@ export function QuizScoreScreen({
         </div>
         <Button
           type="button"
-          variant="outline"
+          variant="secondary"
           size="sm"
           onClick={() => onReview(0)}
         >
@@ -208,7 +208,7 @@ export function QuizScoreScreen({
       <div className="mt-7 flex justify-end border-t pt-5">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button type="button" variant="outline">
+            <Button type="button" variant="secondary">
               <RefreshCwIcon /> Retake quiz <ChevronDownIcon />
             </Button>
           </DropdownMenuTrigger>

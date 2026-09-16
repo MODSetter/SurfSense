@@ -2,6 +2,7 @@ import type { ComponentType } from "react"
 
 import type { ArtifactDetail } from "../api"
 import { DocumentViewer } from "./document-viewer"
+import { DocxViewer } from "./docx-viewer"
 import { FlashcardsViewer } from "./flashcards/flashcards-viewer"
 import { HtmlViewer } from "./html-viewer"
 import { MediaViewer } from "./media-viewer"
@@ -55,6 +56,7 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
   pdf: PdfViewer,
   pptx: PptxViewer,
   html: HtmlViewer,
+  docx: DocxViewer,
 }
 
 export function getArtifactViewer(
