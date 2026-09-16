@@ -1,4 +1,10 @@
-import { useRef, useState, type ComponentType, type SubmitEvent } from "react"
+import {
+  useRef,
+  useState,
+  type ComponentType,
+  type ReactNode,
+  type SubmitEvent,
+} from "react"
 
 import {
   ChevronRightIcon,
@@ -142,6 +148,7 @@ export function ThreadList({
   onDelete,
   onTitleAnimationComplete,
   actions = [],
+  footer,
 }: {
   threads: ChatThread[]
   activeThreadId: number | null
@@ -155,6 +162,8 @@ export function ThreadList({
   onTitleAnimationComplete: () => void
   // Extra rows below "New chat", same look. Append here to add one.
   actions?: SidebarNavAction[]
+  // Pinned under the scrolling Recents list, against the bottom edge.
+  footer?: ReactNode
 }) {
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
@@ -294,6 +303,7 @@ export function ThreadList({
           ) : null}
         </div>
       </ScrollShadow>
+      {footer}
       {renaming ? (
         <RenameChatDialog
           key={renaming.id}

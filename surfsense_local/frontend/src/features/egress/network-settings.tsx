@@ -1,4 +1,3 @@
-import { useEffect, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import { RelativeTime } from "@/components/relative-time"
@@ -6,7 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { DotIcon } from "@/components/ui/icons"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SettingsSection } from "@/features/settings/settings-section"
-import type { UpdatePrefs } from "@/lib/api"
+import { useUpdatePrefs } from "@/features/updates/use-update-state"
 
 import {
   describeDestination,
@@ -55,23 +54,15 @@ function DestinationRow({
 
 // Updates are an Electron pref, not an API destination.
 function UpdatesRow() {
-  const updates =
-    typeof window === "undefined" ? undefined : window.surfsense?.updates
-  const [prefs, setPrefs] = useState<UpdatePrefs | null>(null)
-  useEffect(() => {
-    void updates?.prefs().then(setPrefs)
-  }, [updates])
-  if (!updates || prefs === null) return null
+  const { prefs, setAutomatic } = useUpdatePrefs()
+  if (prefs === null) return null
   return (
     <DestinationRow
       label="App updates"
       host="github.com"
       enabled={prefs.automatic}
       lastCallAt={prefs.lastCheckedAt ?? null}
-      onChange={(automatic) => {
-        setPrefs({ ...prefs, automatic })
-        void updates.setAutomatic(automatic).then(setPrefs)
-      }}
+      onChange={(automatic) => void setAutomatic(automatic)}
     />
   )
 }

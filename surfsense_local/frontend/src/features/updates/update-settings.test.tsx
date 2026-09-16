@@ -1,53 +1,11 @@
-import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { afterEach, describe, expect, it } from "vitest"
+import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
 
-import {
-  UpdateButton,
-  UpdateSettings,
-  type UpdateState,
-} from "./update-settings"
-
-function stubBridge(initial: { automatic: boolean; state: UpdateState }) {
-  let prefs = { automatic: initial.automatic }
-  let state = initial.state
-  const listeners = new Set<(state: UpdateState) => void>()
-  const calls: string[] = []
-  window.surfsense = {
-    apiUrl: "",
-    platform: "darwin",
-    openDocument: vi.fn(),
-    revealDocument: vi.fn(),
-    updates: {
-      prefs: async () => prefs,
-      setAutomatic: async (automatic: boolean) => {
-        calls.push(`automatic:${automatic}`)
-        prefs = { automatic }
-        return prefs
-      },
-      state: async () => state,
-      check: async () => {
-        calls.push("check")
-      },
-      install: async () => {
-        calls.push("install")
-      },
-      onState: (listener) => {
-        listeners.add(listener)
-        return () => listeners.delete(listener)
-      },
-    },
-  }
-  return {
-    calls,
-    push(next: UpdateState) {
-      state = next
-      for (const listener of listeners) listener(next)
-    },
-  }
-}
+import { stubUpdateBridge as stubBridge } from "./stub-bridge"
+import { UpdateSettings } from "./update-settings"
 
 afterEach(() => {
   cleanup()
@@ -55,25 +13,22 @@ afterEach(() => {
 })
 
 describe("UpdateSettings", () => {
-  it("is off by default and remembers being turned on", async () => {
+  it("cannot check while App updates are switched off", async () => {
     const bridge = stubBridge({ automatic: false, state: { status: "idle" } })
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
-    const toggle = await screen.findByRole("checkbox", {
-      name: "Check for updates automatically",
-    })
-    expect(toggle.getAttribute("aria-checked")).toBe("false")
-    await user.click(toggle)
+    // The one switch is a section away in Network, so this points at it
+    // rather than stacking a consent dialog on the dialog already open.
+    const check = await screen.findByRole("button", { name: "Check now" })
+    expect((check as HTMLButtonElement).disabled).toBe(true)
+    await user.click(check)
 
-    await waitFor(() =>
-      expect(toggle.getAttribute("aria-checked")).toBe("true")
-    )
-    expect(bridge.calls).toEqual(["automatic:true"])
+    expect(bridge.calls).toEqual([])
   })
 
   it("checks on demand and reports each state", async () => {
-    const bridge = stubBridge({ automatic: false, state: { status: "idle" } })
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
@@ -100,6 +55,10 @@ describe("UpdateSettings", () => {
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
+    // The version the restart lands on, named where the decision is made.
+    expect(
+      await screen.findByText("SurfSense 1.0.1 is ready to install")
+    ).toBeTruthy()
     await user.click(
       await screen.findByRole("button", { name: "Restart to update" })
     )
@@ -111,32 +70,5 @@ describe("UpdateSettings", () => {
     const { container } = render(<UpdateSettings />)
 
     expect(container.textContent).toBe("")
-  })
-})
-
-describe("UpdateButton", () => {
-  it("appears only when an update is ready and restarts on click", async () => {
-    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
-    const user = userEvent.setup()
-    render(<UpdateButton />)
-
-    // No element at all: the title bar keeps no space for it. Queried by role
-    // rather than text, since the button is icon-only and has no text content.
-    expect(screen.queryByRole("button")).toBeNull()
-    bridge.push({ status: "ready", version: "1.0.1" })
-
-    const button = await screen.findByRole("button", {
-      name: "Restart to install 1.0.1",
-    })
-    await user.click(button)
-    expect(bridge.calls).toEqual(["install"])
-  })
-
-  it("names the waiting version, the only place it is shown", async () => {
-    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
-    render(<UpdateButton />)
-    bridge.push({ status: "ready", version: "0.0.41" })
-
-    await screen.findByRole("button", { name: "Restart to install 0.0.41" })
   })
 })
