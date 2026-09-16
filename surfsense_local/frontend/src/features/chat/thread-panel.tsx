@@ -88,7 +88,6 @@ export function ThreadPanel({
   onModelSelected,
   onRetry,
   onUpload,
-  onOpenSources,
   sourceCount,
   onTitleAnimationComplete,
   autoNamingThreadId,
@@ -110,7 +109,6 @@ export function ThreadPanel({
   onModelSelected: (selection: ModelSelection) => void
   onRetry: (assistantId: string) => void
   onUpload: (files: File[]) => void
-  onOpenSources: () => void
   onTitleAnimationComplete: () => void
   autoNamingThreadId: number | null
   onRename: (id: number, title: string) => Promise<boolean>
@@ -138,7 +136,6 @@ export function ThreadPanel({
       providerAvailable={providerAvailable}
       onModelSetup={onModelSetup}
       onModelSelected={onModelSelected}
-      onOpenSources={onOpenSources}
       onUpload={onUpload}
     />
   )

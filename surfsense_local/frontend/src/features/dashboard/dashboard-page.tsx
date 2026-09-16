@@ -100,12 +100,6 @@ function WorkspaceDashboard({
     setRightPanelOpen(true)
     writeRightPanelOpen(true)
   }
-  const revealSources = () => {
-    document
-      .getElementById(LEFT_SOURCES_ID)
-      ?.scrollIntoView({ behavior: "smooth", block: "nearest" })
-  }
-
   return (
     <>
       <div className="titlebar-controls">
@@ -222,7 +216,6 @@ function WorkspaceDashboard({
             onRetry={chat.retry}
             onUpload={(files) => void sources.upload(files)}
             sourceCount={sources.includedDocumentIds.length}
-            onOpenSources={revealSources}
             onTitleAnimationComplete={chat.finishTitleAnimation}
             autoNamingThreadId={chat.autoNamingThreadId}
             onRename={chat.rename}

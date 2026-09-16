@@ -172,6 +172,7 @@ function ArtifactRow({
           <RelativeTime
             date={new Date(artifact.created_at)}
             compact
+            showTooltip={false}
             className={cn(
               "shrink-0 text-[11px] text-muted-foreground/70 tabular-nums transition-opacity group-focus-within/artifact:opacity-0 group-hover/artifact:opacity-0",
               dropdownOpen && "opacity-0"

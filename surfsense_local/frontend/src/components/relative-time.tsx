@@ -89,10 +89,12 @@ function formatCompactTime(date: Date, currentTime: number) {
 export function RelativeTime({
   date,
   compact = false,
+  showTooltip = true,
   className,
 }: {
   date: Date
   compact?: boolean
+  showTooltip?: boolean
   className?: string
 }) {
   const currentTime =
@@ -106,21 +108,25 @@ export function RelativeTime({
     hour12: true,
   })
 
+  const time = (
+    <time
+      dateTime={date.toISOString()}
+      className={cn(
+        "inline-flex h-7 cursor-default items-center text-xs select-none",
+        className
+      )}
+    >
+      {compact
+        ? formatCompactTime(date, currentTime)
+        : formatRelativeTime(date, currentTime)}
+    </time>
+  )
+
+  if (!showTooltip) return time
+
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <time
-          dateTime={date.toISOString()}
-          className={cn(
-            "inline-flex h-7 cursor-default items-center text-xs select-none",
-            className
-          )}
-        >
-          {compact
-            ? formatCompactTime(date, currentTime)
-            : formatRelativeTime(date, currentTime)}
-        </time>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{time}</TooltipTrigger>
       <TooltipContent>{exactTime}</TooltipContent>
     </Tooltip>
   )
