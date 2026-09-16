@@ -5,6 +5,7 @@ import { DocumentViewer } from "./document-viewer"
 import { MediaViewer } from "./media-viewer"
 import { MindmapViewer } from "./mindmap-viewer"
 import { PdfViewer } from "./pdf-viewer"
+import { PptxViewer } from "./pptx-viewer"
 import { StudyViewer } from "./study-viewer"
 import { XlsxViewer } from "./xlsx-viewer"
 
@@ -43,6 +44,7 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
   infographic: MediaViewer,
   xlsx: XlsxViewer,
   pdf: PdfViewer,
+  pptx: PptxViewer,
 }
 
 export function getArtifactViewer(
