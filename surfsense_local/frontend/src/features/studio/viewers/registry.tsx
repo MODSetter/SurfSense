@@ -2,6 +2,7 @@ import type { ComponentType } from "react"
 
 import type { ArtifactDetail } from "../api"
 import { DocumentViewer } from "./document-viewer"
+import { HtmlViewer } from "./html-viewer"
 import { MediaViewer } from "./media-viewer"
 import { MindmapViewer } from "./mindmap-viewer"
 import { PdfViewer } from "./pdf-viewer"
@@ -45,6 +46,7 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
   xlsx: XlsxViewer,
   pdf: PdfViewer,
   pptx: PptxViewer,
+  html: HtmlViewer,
 }
 
 export function getArtifactViewer(

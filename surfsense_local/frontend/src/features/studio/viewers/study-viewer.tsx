@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Spinner } from "@/components/ui/spinner"
 import { readArtifactFile } from "../api"
 import { FlashcardsViewer, type FlashcardDeck } from "./flashcards-viewer"
-import { QuizViewer, type Quiz } from "./quiz-viewer"
+import { QuizViewer, type Quiz } from "./quiz/quiz-viewer"
 import { VIEWER_PADDING } from "./viewer-layout"
 
 // Flashcards and quizzes study from their JSON primary, not the markdown body.

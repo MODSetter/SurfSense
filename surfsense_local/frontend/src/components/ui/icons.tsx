@@ -36,6 +36,7 @@ import {
   InformationCircleIcon as InformationCircleIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
+  LightbulbIcon as LightbulbIconData,
   Loading03Icon,
   MessageSquareIcon as MessageSquareIconData,
   Moon02Icon as Moon02IconData,
@@ -128,6 +129,7 @@ export const Image01Icon = createIcon(Image01IconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
+export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
 export const MoonIcon = createIcon(Moon02IconData)
