@@ -34,6 +34,7 @@ from modules.artifacts.schemas import (
     StudioJobCreate,
 )
 from modules.artifacts.service import (
+    cancel_artifact,
     create_artifact_job,
     list_formats,
     regenerate_artifact,
@@ -108,6 +109,15 @@ def read_artifact(artifact: ArtifactDep) -> ArtifactDetail:
 )
 def regenerate(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
     return ArtifactRead.of(regenerate_artifact(session, artifact))
+
+
+@router.post(
+    "/artifacts/{artifact_id}/cancel",
+    response_model=ArtifactRead,
+    summary="Stop a queued or running generation",
+)
+def cancel(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
+    return ArtifactRead.of(cancel_artifact(session, artifact))
 
 
 @router.get(

@@ -12,6 +12,7 @@ from modules.documents.sources import load_selected_sources
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
 from modules.workspaces.models import Workspace
+from worker.jobs import cancel_studio_job
 
 logger = logging.getLogger(__name__)
 
@@ -111,6 +112,13 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
         artifact.id,
         artifact.generation,
     )
+    return artifact
+
+
+def cancel_artifact(session: Session, artifact: Artifact) -> Artifact:
+    """Stop a queued or running generation. The worker exits without writing ready."""
+    if not cancel_studio_job(session, artifact.document, artifact.id):
+        raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
     return artifact
 
 

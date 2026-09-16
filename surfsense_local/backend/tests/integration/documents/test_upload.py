@@ -329,6 +329,71 @@ async def test_a_failed_document_can_be_retried(
     assert [job.args for job in ingest_queue.pending()] == [(document_id,)]
 
 
+async def test_a_pending_document_can_be_cancelled(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Cancel drops the queued ingest so the worker never picks it up."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    document_id = created.json()["created"][0]["id"]
+    assert ingest_queue.pending()
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{document_id}/cancel"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert response.json()["error_message"] is None
+    task = ingest_queue.pending()[0]
+    assert ingest_queue.is_revoked(task)
+
+
+async def test_a_ready_document_cannot_be_cancelled(
+    client: AsyncClient, workspace_id: int, engine: Engine
+) -> None:
+    """Stopping a finished ingest would look like success and then vanish."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "note", "content": "x"},
+    )
+    document_id = created.json()["id"]
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE documents SET status = 'ready' WHERE id = :id"),
+            {"id": document_id},
+        )
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{document_id}/cancel"
+    )
+
+    assert response.status_code == 409
+
+
+async def test_a_cancelled_document_can_be_retried(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Cancel is not delete: the bytes stay, and retry is the way back."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    document_id = created.json()["created"][0]["id"]
+    await client.post(f"/workspaces/{workspace_id}/documents/{document_id}/cancel")
+    ingest_queue.flush()
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{document_id}/retry"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "pending"
+    assert [job.args for job in ingest_queue.pending()] == [(document_id,)]
+
+
 async def test_only_a_failed_document_is_retried(
     client: AsyncClient, workspace_id: int
 ) -> None:

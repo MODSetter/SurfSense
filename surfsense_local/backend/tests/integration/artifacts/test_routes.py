@@ -327,3 +327,44 @@ async def test_a_failed_artifact_can_be_regenerated(
     assert body["error_message"] is None
     assert body["generation"] == 2
     assert [job.args for job in studio_queue.pending()] == [(artifact_id,)]
+
+
+async def test_a_pending_artifact_can_be_cancelled(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """Cancel drops the queued generation so the worker never picks it up."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+    assert studio_queue.pending()
+
+    response = await client.post(f"/artifacts/{artifact_id}/cancel")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert response.json()["error_message"] is None
+    task = studio_queue.pending()[0]
+    assert studio_queue.is_revoked(task)
+
+
+async def test_a_ready_artifact_cannot_be_cancelled(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """Stopping a finished generation would look like success and then vanish."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+    with create_session_factory(engine)() as session:
+        document = session.get(Document, created.json()["document_id"])
+        document.status = DocumentStatus.READY
+        session.commit()
+
+    response = await client.post(f"/artifacts/{artifact_id}/cancel")
+
+    assert response.status_code == 409

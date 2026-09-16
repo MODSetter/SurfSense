@@ -32,6 +32,7 @@ from modules.documents.storage import (
 from modules.documents.tasks import ingest_document
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
+from worker.jobs import cancel_ingest_job
 
 router = APIRouter(prefix="/workspaces/{workspace_id}/documents", tags=["documents"])
 
@@ -274,13 +275,14 @@ def update_document(
 @router.post(
     "/{document_id}/retry",
     response_model=DocumentRead,
-    summary="Requeue a failed document",
+    summary="Requeue a failed or cancelled document",
 )
 def retry_document(document: DocumentDep, session: SessionDep) -> Document:
-    # Otherwise failed is terminal: the same bytes re-uploaded are a duplicate.
-    if document.status is not DocumentStatus.FAILED:
+    # Otherwise failed/cancelled is terminal: the same bytes re-uploaded are a duplicate.
+    if document.status not in (DocumentStatus.FAILED, DocumentStatus.CANCELLED):
         raise HTTPException(
-            status.HTTP_409_CONFLICT, "only a failed document can be retried"
+            status.HTTP_409_CONFLICT,
+            "only a failed or cancelled document can be retried",
         )
 
     document.status = DocumentStatus.PENDING
@@ -288,6 +290,17 @@ def retry_document(document: DocumentDep, session: SessionDep) -> Document:
     session.commit()
 
     ingest_document(document.id)
+    return document
+
+
+@router.post(
+    "/{document_id}/cancel",
+    response_model=DocumentRead,
+    summary="Stop a queued or running ingest",
+)
+def cancel_ingest(document: DocumentDep, session: SessionDep) -> Document:
+    if not cancel_ingest_job(session, document):
+        raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
     return document
 
 
