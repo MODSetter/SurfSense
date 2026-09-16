@@ -212,7 +212,7 @@ export function QuizScoreScreen({
               <RefreshCwIcon /> Retake quiz <ChevronDownIcon />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem
               disabled={missed.length + skipped.length === 0}
               onSelect={() => onRetake("missed")}
