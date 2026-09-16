@@ -273,7 +273,7 @@
 	width: 1.75rem;
 	height: 1.75rem;
 	stroke-width: 1.5;
-	color: var(--home-accent);
+	color: var(--muted-foreground);
 }
 
 /**

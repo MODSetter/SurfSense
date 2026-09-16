@@ -1,10 +1,10 @@
 "use client";
 
-import { Bell, ExternalLink } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
+import { LinkSquare02Icon, Notification03Icon } from "@/components/ui/icons";
 import type { AnnouncementCategory } from "@/contracts/types/announcement.types";
 import { type AnnouncementWithState, useAnnouncements } from "@/hooks/use-announcements";
 import { formatRelativeDate } from "@/lib/format-date";
@@ -65,7 +65,7 @@ function AnnouncementRow({ announcement }: { announcement: AnnouncementWithState
 						className="ss-home-forward mt-4 self-start"
 					>
 						{announcement.link.label}
-						<ExternalLink className="size-3.5" />
+						<LinkSquare02Icon className="size-3.5" />
 					</Link>
 				)}
 			</div>
@@ -76,9 +76,11 @@ function AnnouncementRow({ announcement }: { announcement: AnnouncementWithState
 function EmptyState() {
 	return (
 		<div className="ss-home-pad flex flex-col items-center py-24 text-center">
-			<Bell className="mb-4 size-8 text-muted-foreground" />
+			<Notification03Icon className="mb-4 size-8 text-muted-foreground" />
 			<h3 className="ss-home-h3">Nothing new yet</h3>
-			<p className="ss-home-body mt-2 max-w-xs">You're all caught up! New updates will appear here.</p>
+			<p className="ss-home-body mt-2 max-w-xs">
+				You're all caught up! New updates will appear here.
+			</p>
 		</div>
 	);
 }

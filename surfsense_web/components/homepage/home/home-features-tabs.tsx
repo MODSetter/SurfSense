@@ -1,8 +1,8 @@
 "use client";
 
-import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { PROOF_POINTS, STORIES } from "@/components/homepage/home/home-content";
+import { ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /**
@@ -45,11 +45,11 @@ export function HomeFeaturesTabs() {
 										target="_blank"
 										rel="noreferrer noopener"
 									>
-										{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
+										{story.action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
 									</a>
 								) : (
 									<Link className="ss-home-forward" href={story.action.href}>
-										{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
+										{story.action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
 									</Link>
 								)}
 							</p>
@@ -58,7 +58,10 @@ export function HomeFeaturesTabs() {
 						<ul className="ss-home-grid m-0 list-none p-0">
 							{PROOF_POINTS[story.key].map((point) => (
 								<li key={point} className="flex items-center gap-3 px-(--home-gutter) py-3.5">
-									<Check aria-hidden="true" className="size-3.5 shrink-0 text-(--home-accent)" />
+									<CheckIcon
+										aria-hidden="true"
+										className="size-3.5 shrink-0 text-(--home-accent)"
+									/>
 									<span className="ss-home-body text-sm">{point}</span>
 								</li>
 							))}

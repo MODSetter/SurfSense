@@ -1,5 +1,4 @@
 import { IconBrandGithub } from "@tabler/icons-react";
-import { ArrowRight, Check, Plug, ShieldCheck, Wrench } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ConnectorFaq } from "@/components/connectors-marketing/connector-faq";
@@ -9,6 +8,13 @@ import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	ArrowRightIcon,
+	CheckIcon,
+	Plug01Icon,
+	SecurityCheckIcon,
+	Wrench01Icon,
+} from "@/components/ui/icons";
 import { Separator } from "@/components/ui/separator";
 import type { FaqItem } from "@/lib/connectors-marketing/types";
 
@@ -64,19 +70,19 @@ const HTTP_CONFIG = `{
 
 const STEPS = [
 	{
-		icon: Plug,
+		icon: Plug01Icon,
 		title: "Paste a server config",
 		description:
 			"Add any MCP server the same way you would in Cursor: a local command for stdio servers, or a URL and headers for remote HTTP and SSE servers.",
 	},
 	{
-		icon: Wrench,
+		icon: Wrench01Icon,
 		title: "Tools are auto-discovered",
 		description:
 			"SurfSense tests the connection and pulls the full tool list from the server. No manual tool configuration, no schema files to maintain.",
 	},
 	{
-		icon: ShieldCheck,
+		icon: SecurityCheckIcon,
 		title: "Your agent uses them, safely",
 		description:
 			"Read-only tools run automatically. Anything that writes asks for your approval first, and you can trust a tool once to always allow it.",
@@ -134,7 +140,7 @@ function ConfigCard() {
 				{HTTP_CONFIG}
 			</pre>
 			<p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-				<Check className="size-3.5 text-brand" aria-hidden />
+				<CheckIcon className="size-3.5 text-brand" aria-hidden />
 				Tools auto-discovered on connect
 			</p>
 		</div>
@@ -182,7 +188,7 @@ export default function ExternalMcpConnectorsPage() {
 								]}
 							/>
 							<Badge variant="outline" className="mb-5 gap-1.5 py-1">
-								<Plug className="size-3.5" />
+								<Plug01Icon className="size-3.5" />
 								External MCP connectors
 							</Badge>
 							<h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
@@ -198,7 +204,7 @@ export default function ExternalMcpConnectorsPage() {
 								<Button asChild size="lg">
 									<Link href="/register">
 										Start for free
-										<ArrowRight className="size-4" />
+										<ArrowRightIcon className="size-4" />
 									</Link>
 								</Button>
 								<Button asChild variant="outline" size="lg">
@@ -263,7 +269,7 @@ export default function ExternalMcpConnectorsPage() {
 									key={app}
 									className="inline-flex items-center gap-1.5 rounded-full border bg-card px-4 py-2 text-sm font-medium"
 								>
-									<Check className="size-3.5 text-brand" aria-hidden />
+									<CheckIcon className="size-3.5 text-brand" aria-hidden />
 									{app}
 								</span>
 							))}
@@ -338,7 +344,7 @@ export default function ExternalMcpConnectorsPage() {
 								<Button asChild size="lg">
 									<Link href="/register">
 										Start for free
-										<ArrowRight className="size-4" />
+										<ArrowRightIcon className="size-4" />
 									</Link>
 								</Button>
 								<Button asChild variant="outline" size="lg">

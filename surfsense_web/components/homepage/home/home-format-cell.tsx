@@ -1,39 +1,43 @@
-import {
-	AudioLines,
-	FileCode,
-	FileSpreadsheet,
-	FileText,
-	ImageIcon,
-	ListChecks,
-	type LucideIcon,
-	Network,
-	PlayingCardsFan,
-	PlusIcon,
-	Presentation,
-} from "lucide-react";
 import { FORMATS, type Format } from "@/components/homepage/home/home-content";
 import { CardSpotlight } from "@/components/ui/card-spotlight";
+import {
+	AiSearchLinesIcon,
+	Cards01Icon,
+	ChartHistogramIcon,
+	File02Icon,
+	type Icon,
+	Image01Icon,
+	NetworkIcon,
+	Pdf01Icon,
+	PlusIcon,
+	PodcastIcon,
+	Presentation02Icon,
+	Quiz02Icon,
+	WebDesign01Icon,
+	Xls01Icon,
+} from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 /**
- * Icon per format key, copied from the in-app Studio library's own catalog
- * (`features/artifacts/lib/artifact-format-catalog.ts`) rather than picked
- * fresh — the app already decided flashcards are a card fan and a mind map is
- * a network, and this row should draw the same formats the same way.
+ * Icon per format key, the same twelve the app's Studio panel uses for the
+ * same formats (`surfsense_local/frontend/src/features/studio/studio-formats.ts`)
+ * rather than picked fresh — the product already decided flashcards are a
+ * card fan and a quiz is a checklist, and this row should draw the same
+ * formats the same way. Keep the two in step when either changes.
  */
-const FORMAT_ICONS: Record<string, LucideIcon> = {
-	summary: FileText,
-	docx: FileText,
-	pptx: Presentation,
-	xlsx: FileSpreadsheet,
-	html: FileCode,
-	pdf: FileText,
-	mindmap: Network,
-	flashcards: PlayingCardsFan,
-	quiz: ListChecks,
-	podcast: AudioLines,
-	image: ImageIcon,
-	infographic: ImageIcon,
+const FORMAT_ICONS: Record<string, Icon> = {
+	summary: AiSearchLinesIcon,
+	docx: File02Icon,
+	pptx: Presentation02Icon,
+	xlsx: Xls01Icon,
+	html: WebDesign01Icon,
+	pdf: Pdf01Icon,
+	mindmap: NetworkIcon,
+	flashcards: Cards01Icon,
+	quiz: Quiz02Icon,
+	podcast: PodcastIcon,
+	image: Image01Icon,
+	infographic: ChartHistogramIcon,
 };
 
 /** Dot-reveal colours per format, as `[r, g, b]` pairs the reveal blends
@@ -125,7 +129,7 @@ function placement(index: number, columns: number) {
  * layer, as the card's demo does.
  */
 export function HomeFormatCell({ format, index }: { format: Format; index: number }) {
-	const Icon = FORMAT_ICONS[format.key] ?? FileText;
+	const FormatIcon = FORMAT_ICONS[format.key] ?? File02Icon;
 	const base = placement(index, 2);
 	const md = placement(index, 4);
 
@@ -151,7 +155,7 @@ export function HomeFormatCell({ format, index }: { format: Format; index: numbe
 				dotColors={FORMAT_COLORS[format.key]}
 			>
 				<div className="relative z-20">
-					<Icon aria-hidden="true" className="ss-home-format-icon" />
+					<FormatIcon aria-hidden="true" className="ss-home-format-icon" />
 					<p className="ss-home-h3 mt-4">{format.label}</p>
 					<p className="ss-home-body mt-1.5 max-w-sm text-sm">{format.body}</p>
 				</div>

@@ -1,5 +1,5 @@
-import { PlusIcon } from "lucide-react";
 import { COMPANIES } from "@/components/homepage/home/home-content";
+import { PlusIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 /**

@@ -1,9 +1,9 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Reveal } from "@/components/connectors-marketing/reveal";
 import { MarketingSection } from "@/components/marketing/section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ArrowRightIcon } from "@/components/ui/icons";
 import { getAllConnectors } from "@/lib/connectors-marketing";
 
 /** Registry-driven connector grid with a live count badge (brief: never list connectors in copy). */
@@ -48,7 +48,7 @@ export function ConnectorGrid() {
 								</p>
 								<span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-foreground">
 									Explore
-									<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+									<ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
 								</span>
 							</Link>
 						);
@@ -58,7 +58,7 @@ export function ConnectorGrid() {
 					<Button asChild variant="outline">
 						<Link href="/plugins">
 							View all plugins
-							<ArrowRight className="size-4" />
+							<ArrowRightIcon className="size-4" />
 						</Link>
 					</Button>
 				</div>

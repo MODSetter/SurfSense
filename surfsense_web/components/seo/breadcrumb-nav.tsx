@@ -1,5 +1,5 @@
-import { ChevronRight } from "lucide-react";
 import Link from "next/link";
+import { ChevronRightIcon } from "@/components/ui/icons";
 import { BreadcrumbJsonLd } from "./json-ld";
 
 interface BreadcrumbItem {
@@ -27,7 +27,7 @@ export function BreadcrumbNav({ items, className }: BreadcrumbNavProps) {
 						const isLast = index === items.length - 1;
 						return (
 							<li key={item.href} className="flex items-center gap-1.5">
-								{index > 0 && <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />}
+								{index > 0 && <ChevronRightIcon className="h-3.5 w-3.5 shrink-0" aria-hidden />}
 								{isLast ? (
 									<span className="font-medium text-foreground" aria-current="page">
 										{item.name}

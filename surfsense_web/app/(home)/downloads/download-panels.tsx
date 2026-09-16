@@ -1,7 +1,7 @@
 "use client";
 
-import { Download } from "lucide-react";
 import { FlowButton } from "@/components/ui/flow-button";
+import { DownloadIcon } from "@/components/ui/icons";
 import {
 	ASSET_LABELS,
 	GITHUB_RELEASES_URL,
@@ -113,13 +113,13 @@ export function OSDownloadGrid() {
 											className="ss-home-forward pointer-events-none opacity-50"
 										>
 											{ASSET_LABELS[suffix]}
-											<Download aria-hidden="true" className="size-3.5" />
+											<DownloadIcon aria-hidden="true" className="size-3.5" />
 										</span>
 									))
 								: panelAssets.map((asset) => (
 										<a key={asset.name} className="ss-home-forward" href={asset.url}>
 											{getAssetLabel(asset.name)}
-											<Download aria-hidden="true" className="size-3.5" />
+											<DownloadIcon aria-hidden="true" className="size-3.5" />
 										</a>
 									))}
 						</div>

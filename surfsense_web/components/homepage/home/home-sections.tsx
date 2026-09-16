@@ -1,4 +1,3 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifact-illustration";
 import {
@@ -14,6 +13,7 @@ import { HomeFeaturesTabs } from "@/components/homepage/home/home-features-tabs"
 import { HomeFormatCell } from "@/components/homepage/home/home-format-cell";
 import { HomeHeroDither } from "@/components/homepage/home/home-hero-dither";
 import { FlowButton } from "@/components/ui/flow-button";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
 /**
  * Homepage sections.
@@ -132,11 +132,11 @@ export function HomePillars() {
 									target="_blank"
 									rel="noreferrer noopener"
 								>
-									{pillar.action.label} <ArrowRight aria-hidden="true" className="size-4" />
+									{pillar.action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
 								</a>
 							) : (
 								<Link className="ss-home-forward" href={pillar.action.href}>
-									{pillar.action.label} <ArrowRight aria-hidden="true" className="size-4" />
+									{pillar.action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
 								</Link>
 							)}
 						</p>

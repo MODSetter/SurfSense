@@ -1,5 +1,5 @@
-import { ArrowRight } from "lucide-react";
 import type { Metadata } from "next";
+import { ArrowRightIcon } from "@/components/ui/icons";
 import { ResendForm, TrialForm } from "./license-forms";
 
 /**
@@ -32,9 +32,9 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 			<>
 				Save the attached <code className="ss-home-mono">surfsense.lic</code>, open SurfSense, go to
 				Settings, then License{" "}
-				<ArrowRight aria-hidden="true" className="inline size-3.5 align-[-0.1em]" /> and drop it in.
-				Your license never expires the app: when it runs out, SurfSense keeps working and your data
-				stays put.
+				<ArrowRightIcon aria-hidden="true" className="inline size-3.5 align-[-0.1em]" /> and drop it
+				in. Your license never expires the app: when it runs out, SurfSense keeps working and your
+				data stays put.
 			</>
 		),
 	},

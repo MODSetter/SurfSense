@@ -1,8 +1,8 @@
-import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
+import { ArrowUpRight01Icon } from "@/components/ui/icons";
 
 /**
  * Plugins page.
@@ -108,7 +108,7 @@ export default function PluginsPage() {
 									className="size-5 shrink-0"
 								/>
 								<span className="ss-home-h3">{plugin.name}</span>
-								<ArrowUpRight
+								<ArrowUpRight01Icon
 									aria-hidden="true"
 									className="ss-home-cell-link-arrow size-4 shrink-0"
 								/>

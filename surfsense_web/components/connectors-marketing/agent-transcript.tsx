@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { CheckIcon } from "@/components/ui/icons";
 import type { AgentTranscript as AgentTranscriptModel } from "@/lib/connectors-marketing/types";
 
 /**
@@ -54,7 +54,7 @@ export function AgentTranscript({ transcript }: { transcript: AgentTranscriptMod
 				</ul>
 
 				<p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-					<Check aria-hidden="true" className="size-3.5 text-(--home-accent)" />
+					<CheckIcon aria-hidden="true" className="size-3.5 text-(--home-accent)" />
 					{transcript.resultSummary}
 				</p>
 			</div>

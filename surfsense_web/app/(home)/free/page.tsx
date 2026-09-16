@@ -1,4 +1,3 @@
-import { SquareArrowOutUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { AdUnit } from "@/components/ads/ad-unit";
@@ -6,6 +5,7 @@ import { ADSENSE_SLOTS } from "@/components/ads/adsense-config";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { LinkSquare02Icon } from "@/components/ui/icons";
 import { Separator } from "@/components/ui/separator";
 import {
 	Table,
@@ -264,7 +264,7 @@ export default async function FreeHubPage() {
 												<Button variant="ghost" size="sm" asChild>
 													<Link href={`/free/${model.seo_slug}`}>
 														Chat
-														<SquareArrowOutUpRight className="size-3" />
+														<LinkSquare02Icon className="size-3" />
 													</Link>
 												</Button>
 											</TableCell>
