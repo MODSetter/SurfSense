@@ -23,9 +23,10 @@ def run_model(model: ResolvedGeneration, system: str, sources: list[Source]) -> 
     ]
     started = time.monotonic()
     logger.info(
-        "studio: model %s/%s starting (%s source chars)",
+        "studio: model %s/%s starting on the %s prompt (%s source chars)",
         selected.provider,
         selected.name,
+        model.tier,
         sum(len(source.content) for source in sources),
     )
     reply = asyncio.run(_collect(model.generator.chat(selected.name, messages)))

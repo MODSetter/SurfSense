@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -9,6 +11,8 @@ from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.profile import Fingerprint, from_name
 from modules.llm.providers import get_provider
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
+
+logger = logging.getLogger(__name__)
 
 
 async def choose_model(
@@ -38,9 +42,20 @@ async def choose_model(
         )
 
     fingerprint = await _collect(session, provider_name, model_name, connection_id)
-    return await transact(
+    selected = await transact(
         session, _store, role, provider_name, connection_id, model_name, fingerprint
     )
+    logger.info(
+        "llm: %s model %s/%s gets the %s prompt (params_b=%s vendor=%s line=%s)",
+        role.value,
+        provider_name,
+        model_name,
+        selected.tier,
+        fingerprint.params_b,
+        fingerprint.vendor,
+        fingerprint.line,
+    )
+    return selected
 
 
 async def _collect(
