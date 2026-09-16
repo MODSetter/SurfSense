@@ -143,6 +143,24 @@ async def test_chat_and_image_roles_can_use_one_connection(
     assert tested.headers["cache-control"] == "no-store"
 
 
+async def test_a_hosted_models_tier_is_read_from_the_listing_it_came_from(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """A closed line states no size anywhere, so only the listing places it."""
+    connection = await _connect(client, openai_server)
+
+    selected = await client.put(
+        "/llm/selection/generation",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": connection["id"],
+            "name": "anthropic/claude-3.5-sonnet",
+        },
+    )
+
+    assert selected.json()["tier"] == "frontier"
+
+
 async def test_chat_test_answers_without_selecting_or_running_up_a_bill(
     client: AsyncClient, openai_server: str
 ) -> None:

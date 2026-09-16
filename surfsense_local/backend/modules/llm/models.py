@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from modules.llm.profile import Fingerprint, Line, Tier, classify, from_name
 from shared.db import Base, text_enum
 from shared.secrets import decrypt, encrypt
 
@@ -39,9 +40,32 @@ class SelectedModel(Base):
         ForeignKey("provider_connections.id", ondelete="CASCADE"), nullable=True
     )
     name: Mapped[str]
+    # Collected when the model was chosen, so generation needs no network to
+    # know how to prompt it. Null on a row chosen before tiering shipped.
+    params_b: Mapped[float | None]
+    vendor: Mapped[str | None]
+    line: Mapped[Line | None] = mapped_column(text_enum(Line))
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
+
+    @property
+    def fingerprint(self) -> Fingerprint:
+        """What was collected when this model was chosen, else what its name says."""
+        if self.params_b is None and self.vendor is None and self.line is None:
+            return from_name(self.provider, self.name)
+        return Fingerprint(
+            provider=self.provider,
+            name=self.name,
+            params_b=self.params_b,
+            vendor=self.vendor,
+            line=self.line,
+        )
+
+    @property
+    def tier(self) -> Tier:
+        """Which of the three prompts this model gets."""
+        return classify(self.fingerprint)
 
 
 class ProviderConnection(Base):

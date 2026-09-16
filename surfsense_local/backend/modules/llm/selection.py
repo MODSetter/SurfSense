@@ -6,7 +6,9 @@ from api.dependencies import transact
 from modules.llm.connections import discover_models
 from modules.llm.connections.router import allowed_connection
 from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
+from modules.llm.profile import Fingerprint, from_name
 from modules.llm.providers import get_provider
+from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 
 
 async def choose_model(
@@ -35,9 +37,29 @@ async def choose_model(
             f"unknown provider: {provider_name}",
         )
 
+    fingerprint = await _collect(session, provider_name, model_name, connection_id)
     return await transact(
-        session, _store, role, provider_name, connection_id, model_name
+        session, _store, role, provider_name, connection_id, model_name, fingerprint
     )
+
+
+async def _collect(
+    session: Session,
+    provider_name: str,
+    model_name: str,
+    connection_id: int | None,
+) -> Fingerprint:
+    """Ask the provider what it knows, once, so generation never has to."""
+    try:
+        if provider_name == "ollama":
+            provider = get_provider("ollama")
+            return await provider.inspect(model_name)
+        connection = await transact(session, allowed_connection, connection_id)
+        remote = OpenAICompatibleChatProvider(connection.base_url, connection.api_key)
+        return await remote.inspect(model_name)
+    except (httpx.HTTPError, ValueError, AttributeError):
+        # An endpoint that will not describe its models leaves only the name.
+        return from_name(provider_name, model_name)
 
 
 def _store(
@@ -46,20 +68,18 @@ def _store(
     provider_name: str,
     connection_id: int | None,
     model_name: str,
+    fingerprint: Fingerprint,
 ) -> SelectedModel:
     selected = session.get(SelectedModel, role)
     if selected is None:
-        selected = SelectedModel(
-            role=role,
-            provider=provider_name,
-            connection_id=connection_id,
-            name=model_name,
-        )
+        selected = SelectedModel(role=role, name=model_name)
         session.add(selected)
-    else:
-        selected.provider = provider_name
-        selected.connection_id = connection_id
-        selected.name = model_name
+    selected.provider = provider_name
+    selected.connection_id = connection_id
+    selected.name = model_name
+    selected.params_b = fingerprint.params_b
+    selected.vendor = fingerprint.vendor
+    selected.line = fingerprint.line
     session.flush()
     # updated_at is set by the database; load it here rather than lazily on the loop.
     session.refresh(selected)

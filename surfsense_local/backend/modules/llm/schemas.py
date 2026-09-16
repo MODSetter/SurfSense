@@ -4,6 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from modules.llm.connections.service import CapabilitySource
 from modules.llm.models import ModelRole
+from modules.llm.profile import Tier
 from modules.llm.recommendations.types import FitLevel
 
 
@@ -102,6 +103,7 @@ class SelectionRead(BaseModel):
     provider: str
     connection_id: int | None
     name: str
+    tier: Tier
     updated_at: datetime
 
 
