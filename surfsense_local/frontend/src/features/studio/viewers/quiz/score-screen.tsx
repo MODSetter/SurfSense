@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/icons"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { cn } from "@/lib/utils"
+import { StudyText } from "../study-text"
 import type { Quiz } from "./quiz-viewer"
 import type { QuizMode } from "./state"
 
@@ -49,7 +50,7 @@ function QuestionSection({
                   {index + 1}.
                 </span>
                 <span className="min-w-0 flex-1">
-                  {quiz.questions[index].question_text}
+                  <StudyText content={quiz.questions[index].question_text} />
                 </span>
                 <ChevronRightIcon className="mt-0.5 size-4 shrink-0" />
               </button>

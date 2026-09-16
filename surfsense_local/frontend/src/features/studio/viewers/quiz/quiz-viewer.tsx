@@ -18,6 +18,7 @@ import {
 } from "./state"
 import { QuizReviewScreen } from "./review-screen"
 import { QuizScoreScreen } from "./score-screen"
+import { StudyText } from "../study-text"
 import { VIEWER_PADDING } from "../viewer-layout"
 
 // The quiz file's shape (schema_version 1).
@@ -145,7 +146,7 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
         tabIndex={-1}
         className="mb-6 font-semibold text-xl outline-none sm:text-2xl"
       >
-        {question.question_text}
+        <StudyText content={question.question_text} />
       </h2>
       <RadioGroup
         value={selectedOption === null ? "" : String(selectedOption)}
@@ -180,7 +181,7 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
                 <span className="font-medium text-muted-foreground">
                   {OPTION_LABELS[index]}.
                 </span>
-                <span>{option}</span>
+                <StudyText content={option} />
               </span>
               {answerRevealed && isCorrect ? (
                 <span className="text-emerald-600">
