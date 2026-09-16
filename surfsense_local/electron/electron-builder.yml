@@ -32,6 +32,10 @@ extraResources:
   # Pinned hardware advisor (fetch-llmfit.mjs verifies and stages it atomically).
   - from: llmfit
     to: llmfit
+  # stable-diffusion.cpp's sd-server for local image generation (fetch-sdcpp.mjs).
+  # Empty on hosts with no prebuilt binary; the sidecar then simply does not start.
+  - from: sdcpp
+    to: sdcpp
 
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml so the two feeds never cross.

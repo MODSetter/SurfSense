@@ -69,6 +69,12 @@ class LLMSettings(BaseSettings):
     ollama_base_url: str = "http://127.0.0.1:11434"
     ollama_models_dir: Path | None = None
 
+    # The bundled sd-server, same arrangement: Electron picks the port and only
+    # runs it once its model is downloaded. Absent models_dir means the host has
+    # no sd-server build, and local image generation is simply not offered.
+    image_base_url: str = "http://127.0.0.1:1234"
+    image_models_dir: Path | None = None
+
     # The packaged app passes an absolute resource path. Development resolves
     # the command from PATH and degrades recommendations when it is absent.
     llmfit_path: Path = Path("llmfit")

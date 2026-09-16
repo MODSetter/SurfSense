@@ -87,7 +87,8 @@ async def test_loopback_connections_are_not_egress(
         json={**REMOTE, "label": "Local", "base_url": openai_server},
     )
     assert created.status_code == 201, created.text
-    assert set(await _destinations(client)) == {"ollama_pull"}
+    # The two weight downloads are always listed; the connection adds no third.
+    assert set(await _destinations(client)) == {"ollama_pull", "image_model_pull"}
 
 
 async def test_unknown_destination_is_rejected(client: AsyncClient) -> None:

@@ -21,6 +21,10 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     ...(ctx.ollamaModelsDir && {
       SURFSENSE_LOCAL_OLLAMA_MODELS_DIR: ctx.ollamaModelsDir,
     }),
+    ...(ctx.imageUrl && { SURFSENSE_LOCAL_IMAGE_BASE_URL: ctx.imageUrl }),
+    ...(ctx.imageModelsDir && {
+      SURFSENSE_LOCAL_IMAGE_MODELS_DIR: ctx.imageModelsDir,
+    }),
   }
 }
 
