@@ -8,6 +8,7 @@ import { HtmlViewer } from "./html-viewer"
 import { MediaViewer } from "./media-viewer"
 import { MindmapViewer } from "./mindmap-viewer"
 import { PdfViewer } from "./pdf-viewer"
+import { PodcastViewer } from "./podcast-viewer"
 import { PptxViewer } from "./pptx-viewer"
 import { QuizViewer } from "./quiz/quiz-viewer"
 import { SummaryViewer } from "./summary-viewer"
@@ -59,6 +60,7 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
   html: HtmlViewer,
   docx: DocxViewer,
   summary: SummaryViewer,
+  podcast: PodcastViewer,
 }
 
 export function getArtifactViewer(
