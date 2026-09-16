@@ -185,7 +185,7 @@ export function ChatComposer({
     >
       <ComposerPrimitive.Root
         className={cn(
-          "relative rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring/20",
+          "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors hover:border-ring/40 focus-within:border-ring/50 focus-within:ring-1 focus-within:ring-ring/25",
           placement === "bottom" && "flex items-end gap-2"
         )}
       >

@@ -314,3 +314,61 @@
 [data-streamdown="code-block-body"] pre {
   background: transparent;
 }
+
+/* The welcome step's full-screen dither backdrop, behind the whole onboarding
+ * page rather than a hero section — see OnboardingDither. Needs
+ * `[data-onboarding-page]` to be `position: relative; isolation: isolate`, so
+ * this fills it edge to edge without a z-index on the step content above it. */
+.ss-onboarding-dither {
+  pointer-events: none;
+  user-select: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: 0.75;
+  /* The artwork is flat black right at its own top/bottom edges — see
+   * onboarding-dither-background.webp — which reads as a hard gap once this
+   * spans the full window instead of a bounded hero strip. Fading those
+   * edges to transparent blends the empty parts into the page background
+   * instead, with no change to the artwork's positioning or scale (and so no
+   * shift in anything else on the page). */
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+}
+
+/* A scrim over the middle of the artwork.
+ *
+ * The source image is brightest exactly where the welcome copy sits, and
+ * text on a lit stipple loses contrast. This pools the ground colour behind
+ * the copy and falls away before the edges, so the wave still reads at the
+ * sides. */
+.ss-onboarding-dither::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    60% 62% at 50% 46%,
+    color-mix(in srgb, var(--background) 84%, transparent) 0%,
+    transparent 80%
+  );
+}
+
+/* The shader mounts a canvas into its own wrapper div; neither carries
+ * intrinsic size, so both have to be told to fill the layer. */
+.ss-onboarding-dither canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
