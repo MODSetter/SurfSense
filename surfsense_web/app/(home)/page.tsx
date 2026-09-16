@@ -18,8 +18,9 @@ import { JsonLd } from "@/components/seo/json-ld";
  * `plans/community-local/seo/02-page-briefs.md` (B6). The headings carry demand
  * phrases and their order is load-bearing — see `home-content.ts`.
  *
- * A server component with no client JavaScript: every section is static, the
- * FAQ uses native details/summary, and the only interactive elements are links.
+ * A server component. Most sections are static and the FAQ uses native
+ * details/summary; the client exceptions are the hero's shader backdrop, the
+ * claims tabs and the formats row's hover spotlight (see `home-sections.tsx`).
  */
 
 export const metadata: Metadata = {

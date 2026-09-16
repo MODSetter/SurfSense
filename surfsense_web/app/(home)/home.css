@@ -202,16 +202,6 @@
 	}
 }
 
-/* Same equal-tie-breaks-to-source-order trick as `.ss-home-grid-2` /
- * `.ss-home-grid-3`: paired on one grid (`HomeFormats`), this wins from
- * 1024px up and `.ss-home-grid-2` covers 640–1023px, so twelve cells step
- * 1 → 2 → 4 rather than jumping straight from one column to four. */
-@media (min-width: 1024px) {
-	.ss-home-grid-4 {
-		grid-template-columns: repeat(4, minmax(0, 1fr));
-	}
-}
-
 /**
  * A dashed variant of the interior rule, in `--home-divider` rather than
  * `--border`: for a grid whose only dividers are the ones between its own
@@ -284,6 +274,20 @@
 	height: 1.75rem;
 	stroke-width: 1.5;
 	color: var(--home-accent);
+}
+
+/**
+ * `HomeFormatCell`'s `CardSpotlight` (components/ui/card-spotlight).
+ *
+ * Unlayered, so these outrank the card's own Tailwind defaults: no border at
+ * all (the card ships `border-neutral-800`; the cell's hairlines are drawn by
+ * the wrapper around it), and `overflow: hidden` so the card's spotlight
+ * layer, which reaches a pixel past its box, stays inside it. The spotlight
+ * and canvas dot-reveal themselves are the card's own.
+ */
+.ss-home-format-cell {
+	overflow: hidden;
+	border: 0;
 }
 
 /* Two halves of a section, split by a vertical hairline on wide screens and

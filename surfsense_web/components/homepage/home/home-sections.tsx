@@ -1,16 +1,4 @@
-import {
-	ArrowRight,
-	AudioLines,
-	FileCode,
-	FileSpreadsheet,
-	FileText,
-	ImageIcon,
-	ListChecks,
-	type LucideIcon,
-	Network,
-	PlayingCardsFan,
-	Presentation,
-} from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifact-illustration";
 import {
@@ -18,12 +6,12 @@ import {
 	COMPARE_ROWS,
 	DOWNLOADS_URL,
 	FORMATS,
-	type Format,
 	type IllustratedCell,
 	ON_YOUR_MACHINE,
 	PILLARS,
 } from "@/components/homepage/home/home-content";
 import { HomeFeaturesTabs } from "@/components/homepage/home/home-features-tabs";
+import { HomeFormatCell } from "@/components/homepage/home/home-format-cell";
 import { HomeHeroDither } from "@/components/homepage/home/home-hero-dither";
 import { FlowButton } from "@/components/ui/flow-button";
 
@@ -36,9 +24,11 @@ import { FlowButton } from "@/components/ui/flow-button";
  * no interior rule ever doubles up. Nothing here has a radius or a shadow; only
  * controls keep the palette's `--radius`.
  *
- * Mostly server components. Two exceptions live in their own "use client"
+ * Mostly server components. Three exceptions live in their own "use client"
  * modules rather than pulling this file across the boundary: the hero's
- * backdrop, a WebGL shader, and `HomeFeaturesTabs`, the claims switcher below.
+ * backdrop (a WebGL shader), `HomeFeaturesTabs` (the claims switcher), and
+ * `CardSpotlight` (components/ui), which `HomeFormatCell` wraps each format
+ * cell in for its hover spotlight.
  *
  * The heading order is not editorial. It is the SEO skeleton from
  * `plans/community-local/seo/02-page-briefs.md`: H1, then seven H2s in a fixed
@@ -237,41 +227,10 @@ export function HomeFeatures() {
 }
 
 /**
- * Icon per format key, copied from the in-app Studio library's own catalog
- * (`features/artifacts/lib/artifact-format-catalog.ts`) rather than picked
- * fresh — the app already decided flashcards are a card fan and a mind map is
- * a network, and this row should draw the same formats the same way.
- */
-const FORMAT_ICONS: Record<string, LucideIcon> = {
-	summary: FileText,
-	docx: FileText,
-	pptx: Presentation,
-	xlsx: FileSpreadsheet,
-	html: FileCode,
-	pdf: FileText,
-	mindmap: Network,
-	flashcards: PlayingCardsFan,
-	quiz: ListChecks,
-	podcast: AudioLines,
-	image: ImageIcon,
-	infographic: ImageIcon,
-};
-
-function FormatCell({ format }: { format: Format }) {
-	const Icon = FORMAT_ICONS[format.key] ?? FileText;
-	return (
-		<div className="ss-home-cell">
-			<Icon aria-hidden="true" className="ss-home-format-icon" />
-			<p className="ss-home-h3 mt-4">{format.label}</p>
-			<p className="ss-home-body mt-1.5 max-w-sm text-sm">{format.body}</p>
-		</div>
-	);
-}
-
-/**
  * Not one of the brief's seven H2s (see `FORMATS`'s own doc comment in
  * `home-content.ts`) — a bento row of the twelve Studio formats, below the
- * claims tabs.
+ * claims tabs. `HomeFormatCell` is the one client component in the row (a
+ * cursor-tracked hover spotlight); this section itself stays server-rendered.
  */
 export function HomeFormats() {
 	return (
@@ -281,9 +240,11 @@ export function HomeFormats() {
 				<p className="ss-home-h2 mt-2">Twelve things one set of sources can become</p>
 			</div>
 
-			<div className="ss-home-grid ss-home-grid-2 ss-home-grid-4 ss-home-grid-dashed">
-				{FORMATS.map((format) => (
-					<FormatCell key={format.key} format={format} />
+			{/* The same grid as the logo cloud: the head is plain, so the grid draws its
+			    own top edge, and each cell draws its own right and bottom hairlines. */}
+			<div className="relative grid grid-cols-2 border-t border-[color:var(--border)] md:grid-cols-4">
+				{FORMATS.map((format, index) => (
+					<HomeFormatCell key={format.key} format={format} index={index} />
 				))}
 			</div>
 		</section>
