@@ -14,7 +14,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 
-from app.services.license_service import deliver_licenses, issue_license
+from app.license.email.deliver import deliver_licenses
+from app.license.issue import issue_license
 
 
 async def main() -> None:

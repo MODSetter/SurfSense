@@ -23,7 +23,7 @@ import httpx
 import pytest
 
 from app.config import config
-from app.mailer import build_license_email
+from app.license.email.message import build_license_email
 from app.mailer.smtp import SmtpMailer
 
 pytestmark = pytest.mark.integration

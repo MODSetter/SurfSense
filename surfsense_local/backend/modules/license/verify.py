@@ -10,10 +10,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 # The Keygen account's Ed25519 public key, as the dashboard shows it. Compiled
 # in, never read from config or disk. Tests swap it for the fixture key.
-# TODO(release): this is the contracts/license-sample TEST key; replace with
-# the account key before v1.0.0.
 KEYGEN_PUBLIC_KEY_HEX = (
-    "26c9700024d49bf40cf51cbc4fe73dd9544597170f5a8682d8166ccd0ad2cbe6"
+    "cef8ffb796122d0126d29e6db03df39305417d4fe271bc234a9bc62f0521c41e"
 )
 
 # A laptop clock a few minutes fast is not tampering; keygen-go uses the same.

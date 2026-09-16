@@ -14,8 +14,7 @@ from __future__ import annotations
 from typing import Literal
 
 from app.config import config
-
-from .protocol import Attachment, OutboundEmail
+from app.mailer.protocol import Attachment, OutboundEmail
 
 LicenseEmailKind = Literal["purchase", "resend", "trial"]
 

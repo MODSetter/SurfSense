@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.mailer import build_license_email
+from app.license.email.message import build_license_email
 
 pytestmark = pytest.mark.unit
 
