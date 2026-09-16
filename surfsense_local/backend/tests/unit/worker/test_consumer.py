@@ -41,3 +41,14 @@ def test_ingestion_runs_one_job_at_a_time_and_studio_several(
     assert consumer.STUDIO_WORKERS > 1
     with pytest.raises(KeyError):
         consumer.consume("mail")
+
+
+def test_revoke_pending_skips_the_matching_job() -> None:
+    """Cancel has to stop the queued copy, not just the row."""
+    queue.ingest_queue.flush()
+    ingest_document(42)
+    queue.revoke_pending(queue.ingest_queue, "ingest_document", 42)
+
+    task = queue.ingest_queue.pending()[0]
+    assert queue.ingest_queue.is_revoked(task)
+    queue.ingest_queue.flush()

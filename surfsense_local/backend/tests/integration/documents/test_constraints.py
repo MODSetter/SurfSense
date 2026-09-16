@@ -30,6 +30,22 @@ def test_status_rejects_a_value_outside_the_enum(engine: Engine) -> None:
         )
 
 
+def test_status_accepts_cancelled(engine: Engine) -> None:
+    """A stopped job is a first-class status, not a failed row with a special message."""
+    with engine.begin() as connection:
+        connection.execute(insert(Workspace).values(id=1, name="one"))
+        connection.execute(
+            insert(Document).values(
+                workspace_id=1,
+                title="x",
+                document_type="FILE",
+                status="cancelled",
+            )
+        )
+        kept = connection.execute(select(func.count()).select_from(Document)).scalar()
+        assert kept == 1
+
+
 def test_dedup_key_is_unique_within_a_workspace(engine: Engine) -> None:
     """Re-ingesting a file must collide, while a second workspace may hold it."""
     with engine.begin() as connection:

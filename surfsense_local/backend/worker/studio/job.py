@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
-from modules.documents.models import DocumentStatus
+from modules.documents.models import Document, DocumentStatus
 from modules.llm.models import ModelRole
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.resolution import (
@@ -18,6 +18,7 @@ from modules.llm.resolution import (
 )
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
+from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
 from worker.studio.shared import gather, persist
@@ -51,8 +52,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
     document = artifact.document
     started = time.monotonic()
     logger.info("studio: artifact %s format=%s starting", artifact.id, artifact.format)
-    document.status = DocumentStatus.PROCESSING
-    session.commit()
+    if not begin_job(session, document):
+        return
     notify_artifact_updates(artifact)
 
     try:
@@ -74,8 +75,12 @@ def _generate(session: Session, artifact: Artifact) -> None:
         extras = [meta.get("options")] if fmt.validate_options else []
         # Generation runs for minutes; the write lock must not be held across it.
         session.commit()
+        raise_if_cancelled(session, document)
 
+        # ponytail: a cancel during this call waits until the model returns.
+        # Thread-kill the HTTP client if waiting the rest of the reply is too long.
         built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+        raise_if_cancelled(session, document)
 
         logger.info(
             "studio: artifact %s render done in %.1fs; persisting",
@@ -84,20 +89,28 @@ def _generate(session: Session, artifact: Artifact) -> None:
         )
         persist.persist(session, artifact, document, built)
 
-        document.status = DocumentStatus.READY
-        document.error_message = None
-        session.commit()
+        if not finish_job(session, document, DocumentStatus.READY):
+            return
         notify_artifact_updates(artifact)
         logger.info(
             "studio: artifact %s ready in %.1fs",
             artifact.id,
             time.monotonic() - started,
         )
+    except JobCancelledError:
+        session.rollback()
+        logger.info(
+            "studio: artifact %s cancelled after %.1fs",
+            artifact.id,
+            time.monotonic() - started,
+        )
     except Exception as failure:
         session.rollback()
-        document.status = DocumentStatus.FAILED
-        document.error_message = _reason(failure)
-        session.commit()
+        document = session.get(Document, artifact.document_id)
+        if document is None or document.status is DocumentStatus.CANCELLED:
+            return
+        if not finish_job(session, document, DocumentStatus.FAILED, _reason(failure)):
+            return
         notify_artifact_updates(artifact)
         logger.exception(
             "studio: artifact %s failed after %.1fs: %s",

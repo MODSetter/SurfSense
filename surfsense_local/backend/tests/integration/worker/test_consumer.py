@@ -35,7 +35,11 @@ def wait_for(engine: Engine, document_id: int) -> DocumentStatus:
     while time.monotonic() < deadline:
         with create_session_factory(engine)() as session:
             status = session.get(Document, document_id, populate_existing=True).status
-            if status in (DocumentStatus.READY, DocumentStatus.FAILED):
+            if status in (
+                DocumentStatus.READY,
+                DocumentStatus.FAILED,
+                DocumentStatus.CANCELLED,
+            ):
                 return status
         time.sleep(0.1)
 

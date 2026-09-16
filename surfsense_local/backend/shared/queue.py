@@ -26,3 +26,10 @@ def import_tasks() -> None:
     """Import every task; a job carries the name of one, not its code."""
     import modules.artifacts.tasks
     import modules.documents.tasks
+
+
+def revoke_pending(queue: SqliteHuey, name: str, argument: int) -> None:
+    """Skip queued copies of this job; the row is already cancelled."""
+    for task in queue.pending():
+        if task.name == name and task.args == (argument,):
+            queue.revoke(task)

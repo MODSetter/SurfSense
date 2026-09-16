@@ -200,6 +200,41 @@ def test_a_document_deleted_before_ingest_is_not_an_error(
     run(9999)
 
 
+def test_a_cancelled_document_is_left_alone(session: Session, stub_model: None) -> None:
+    """The API marks cancelled before the worker pops the job."""
+    note = make_note(session)
+    note.status = DocumentStatus.CANCELLED
+    session.commit()
+
+    run(note.id)
+
+    session.expire_all()
+    assert note.status is DocumentStatus.CANCELLED
+    assert session.scalar(text("SELECT count(*) FROM chunks")) == 0
+
+
+def test_ingest_stops_if_cancelled_while_parsing(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cancel mid-job must not be overwritten with ready or failed."""
+    note = make_note(session)
+
+    def parse_and_cancel(document: Document) -> str:
+        with create_session_factory(session.get_bind())() as other:
+            row = other.get(Document, document.id)
+            row.status = DocumentStatus.CANCELLED
+            other.commit()
+        return NOTE
+
+    monkeypatch.setattr("worker.ingestion.parsing.markdown_for", parse_and_cancel)
+
+    run(note.id)
+
+    session.expire_all()
+    assert note.status is DocumentStatus.CANCELLED
+    assert session.scalar(text("SELECT count(*) FROM chunks")) == 0
+
+
 def test_the_worker_opens_the_database_the_api_wrote(
     session: Session, stub_model: None, tmp_path: Path
 ) -> None:

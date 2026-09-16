@@ -600,3 +600,40 @@ def test_an_artifact_deleted_before_generation_is_not_an_error(
 ) -> None:
     """The route commits before enqueueing; a user can delete in the gap."""
     run(9999)
+
+
+def test_a_cancelled_artifact_is_left_alone(session: Session, stub_model: None) -> None:
+    """The API marks cancelled before the worker pops the job."""
+    artifact = make_artifact(session)
+    artifact.document.status = DocumentStatus.CANCELLED
+    session.commit()
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.CANCELLED
+    assert session.scalar(text("SELECT count(*) FROM chunks")) == 0
+
+
+def test_generation_stops_if_cancelled_while_the_model_runs(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A cancel mid-job must not be overwritten with ready or failed."""
+    artifact = make_artifact(session)
+
+    def pipeline_and_cancel(*_args: object, **_kwargs: object) -> str:
+        with create_session_factory(session.get_bind())() as other:
+            row = other.get(Document, artifact.document_id)
+            row.status = DocumentStatus.CANCELLED
+            other.commit()
+        return SUMMARY
+
+    monkeypatch.setattr(
+        "worker.studio.job_router.pipeline_for", lambda _kind: pipeline_and_cancel
+    )
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.CANCELLED
+    assert session.scalar(text("SELECT count(*) FROM chunks")) == 0
