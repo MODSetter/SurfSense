@@ -60,6 +60,18 @@ def _env(tmp_path: Path, **extra: str) -> dict[str, str]:
 def test_api_binary_answers_health(tmp_path: Path) -> None:
     """Freeze the API and assert the running binary serves /health."""
     binary = _freeze("api.spec", tmp_path)
+
+    # /health and /llm/catalog never touch retrieval, so an over-broad exclude in
+    # api.spec would pass the checks below and only break on a user's first chat.
+    retrieval = subprocess.run(
+        [str(binary), "--check-retrieval-runtime"],
+        env=_env(tmp_path),
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert "retrieval imports OK" in retrieval.stdout
+
     port = _free_port()
     proc = subprocess.Popen(
         [str(binary)],
