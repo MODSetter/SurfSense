@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
@@ -13,25 +13,22 @@ afterEach(() => {
 })
 
 describe("UpdateSettings", () => {
-  it("is off by default and remembers being turned on", async () => {
+  it("cannot check while App updates are switched off", async () => {
     const bridge = stubBridge({ automatic: false, state: { status: "idle" } })
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
-    const toggle = await screen.findByRole("checkbox", {
-      name: "Check for updates automatically",
-    })
-    expect(toggle.getAttribute("aria-checked")).toBe("false")
-    await user.click(toggle)
+    // The one switch is a section away in Network, so this points at it
+    // rather than stacking a consent dialog on the dialog already open.
+    const check = await screen.findByRole("button", { name: "Check now" })
+    expect((check as HTMLButtonElement).disabled).toBe(true)
+    await user.click(check)
 
-    await waitFor(() =>
-      expect(toggle.getAttribute("aria-checked")).toBe("true")
-    )
-    expect(bridge.calls).toEqual(["automatic:true"])
+    expect(bridge.calls).toEqual([])
   })
 
   it("checks on demand and reports each state", async () => {
-    const bridge = stubBridge({ automatic: false, state: { status: "idle" } })
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
     const user = userEvent.setup()
     render(<UpdateSettings />)
 
