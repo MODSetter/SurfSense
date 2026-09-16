@@ -80,7 +80,7 @@ describe("artifact list", () => {
       })
       const times = [...document.querySelectorAll("time")]
       expect(times.map((t) => t.textContent)).toEqual([
-        "15s",
+        "now",
         "5m",
         "5h",
         "3d",
