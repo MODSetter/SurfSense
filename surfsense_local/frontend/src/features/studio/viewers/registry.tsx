@@ -4,11 +4,17 @@ import type { ArtifactDetail } from "../api"
 import { DocumentViewer } from "./document-viewer"
 import { MediaViewer } from "./media-viewer"
 import { MindmapViewer } from "./mindmap-viewer"
+import { PdfViewer } from "./pdf-viewer"
 import { StudyViewer } from "./study-viewer"
 import { XlsxViewer } from "./xlsx-viewer"
 
 export interface ArtifactViewerProps {
   artifact: ArtifactDetail
+  // The header's actions slot (left of Download), shared across every
+  // format. A viewer with its own controls (mindmap's fit button, pdf's
+  // zoom buttons) portals them in there instead of drawing its own toolbar;
+  // null until ArtifactPanel's ref mounts, so most viewers just ignore it.
+  actionsContainer: HTMLElement | null
 }
 
 // Frontend-only concern, same idea as FORMAT_ICONS in studio-formats.ts: the
@@ -21,8 +27,11 @@ export interface ArtifactViewerProps {
 // flowing content (text, an image) simply doesn't fill it, which is fine —
 // the stage scrolls around whatever the viewer renders.
 const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
-  mindmap: ({ artifact }) => (
-    <MindmapViewer markdown={artifact.content ?? ""} />
+  mindmap: ({ artifact, actionsContainer }) => (
+    <MindmapViewer
+      markdown={artifact.content ?? ""}
+      actionsContainer={actionsContainer}
+    />
   ),
   flashcards: ({ artifact }) => (
     <StudyViewer artifactId={artifact.id} format="flashcards" />
@@ -33,6 +42,7 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
   image: MediaViewer,
   infographic: MediaViewer,
   xlsx: XlsxViewer,
+  pdf: PdfViewer,
 }
 
 export function getArtifactViewer(

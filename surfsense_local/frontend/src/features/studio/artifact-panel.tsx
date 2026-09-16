@@ -1,7 +1,9 @@
 import { useQuery } from "@tanstack/react-query"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
+import { Download01Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { fileUrl, readArtifact, type ArtifactDetail } from "./api"
 import { getArtifactViewer } from "./viewers/registry"
@@ -17,6 +19,7 @@ export function ArtifactPanel({
     queryKey: ["artifact-panel", artifactId],
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
+  const [actionsContainer, setActionsContainer] = useState<HTMLDivElement | null>(null)
 
   return (
     <DetailPanel
@@ -26,21 +29,33 @@ export function ArtifactPanel({
       onClose={onClose}
       flush
       actions={
-        data?.files.length
-          ? data.files.map((file) => (
-              <Button
-                key={file.role}
-                variant="default"
-                size="sm"
-                className="h-6 px-1.5 text-[11px]"
-                asChild
-              >
-                <a href={fileUrl(data.id, file.role)} download>
-                  {file.role === "primary" ? "Download" : file.role}
-                </a>
-              </Button>
-            ))
-          : null
+        <>
+          {/* Where a viewer's own controls (mindmap's fit, pdf's zoom)
+              portal in — see ArtifactViewerProps.actionsContainer. */}
+          <div ref={setActionsContainer} className="flex items-center gap-1" />
+          {data?.files.length
+            ? data.files.map((file) => (
+                <Button
+                  key={file.role}
+                  variant="secondary"
+                  size="icon-sm"
+                  asChild
+                >
+                  <a
+                    href={fileUrl(data.id, file.role)}
+                    download
+                    aria-label={
+                      file.role === "primary"
+                        ? "Download"
+                        : `Download ${file.role}`
+                    }
+                  >
+                    <Download01Icon />
+                  </a>
+                </Button>
+              ))
+            : null}
+        </>
       }
     >
       {/* The one viewable stage every artifact format renders into: same
@@ -63,13 +78,21 @@ export function ArtifactPanel({
             </p>
           </div>
         ) : null}
-        {!isLoading && !error && data ? <Viewer artifact={data} /> : null}
+        {!isLoading && !error && data ? (
+          <Viewer artifact={data} actionsContainer={actionsContainer} />
+        ) : null}
       </div>
     </DetailPanel>
   )
 }
 
-function Viewer({ artifact }: { artifact: ArtifactDetail }) {
+function Viewer({
+  artifact,
+  actionsContainer,
+}: {
+  artifact: ArtifactDetail
+  actionsContainer: HTMLElement | null
+}) {
   // getArtifactViewer looks up a stable reference from the module-level
   // ARTIFACT_VIEWERS map (see viewers/registry.tsx) — it never constructs a
   // new component type, so this is safe despite the lint rule's heuristic.
@@ -77,7 +100,7 @@ function Viewer({ artifact }: { artifact: ArtifactDetail }) {
   return (
     <div className="h-full">
       {/* eslint-disable-next-line react-hooks/static-components */}
-      <ArtifactViewer artifact={artifact} />
+      <ArtifactViewer artifact={artifact} actionsContainer={actionsContainer} />
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { Transformer } from "markmap-lib"
 import { Markmap } from "markmap-view"
 import { useEffect, useRef, useState } from "react"
+import { createPortal } from "react-dom"
 
 import { Button } from "@/components/ui/button"
 import { ArrowExpand01Icon } from "@/components/ui/icons"
@@ -45,7 +46,13 @@ function TreeItem({ node }: { node: TreeNode }) {
   )
 }
 
-export function MindmapViewer({ markdown }: { markdown: string }) {
+export function MindmapViewer({
+  markdown,
+  actionsContainer,
+}: {
+  markdown: string
+  actionsContainer: HTMLElement | null
+}) {
   const svgRef = useRef<SVGSVGElement>(null)
   const markmapRef = useRef<Markmap | null>(null)
   const [tree, setTree] = useState<TreeNode | null>(null)
@@ -73,6 +80,19 @@ export function MindmapViewer({ markdown }: { markdown: string }) {
     void Promise.resolve(markmap.setData(root)).then(() => markmap.fit())
   }, [markdown])
 
+  const fitButton = (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      aria-label="Fit mind map"
+      className="text-muted-foreground"
+      onClick={() => void markmapRef.current?.fit()}
+    >
+      <ArrowExpand01Icon />
+    </Button>
+  )
+
   return (
     <div className="relative h-full min-h-80 overflow-hidden bg-white">
       <svg
@@ -81,16 +101,7 @@ export function MindmapViewer({ markdown }: { markdown: string }) {
         aria-hidden="true"
         focusable="false"
       />
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon-sm"
-        aria-label="Fit mind map"
-        className="absolute top-2 right-2 text-muted-foreground"
-        onClick={() => void markmapRef.current?.fit()}
-      >
-        <ArrowExpand01Icon />
-      </Button>
+      {actionsContainer ? createPortal(fitButton, actionsContainer) : null}
       {tree ? (
         <ul className="sr-only" aria-label="Mind map">
           <TreeItem node={tree} />

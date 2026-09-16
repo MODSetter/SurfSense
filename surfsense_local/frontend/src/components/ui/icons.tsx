@@ -20,6 +20,7 @@ import {
   Copy01Icon,
   CpuIcon as CpuIconData,
   Delete02Icon,
+  Download01Icon as Download01IconData,
   DownloadCircle02Icon as DownloadCircle02IconData,
   DownloadIcon as DownloadIconData,
   DotIcon as DotIconData,
@@ -64,6 +65,8 @@ import {
   WebDesign01Icon as WebDesign01IconData,
   XIcon as XIconData,
   Xls01Icon as Xls01IconData,
+  ZoomInIcon as ZoomInIconData,
+  ZoomOutIcon as ZoomOutIconData,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
 
@@ -110,6 +113,7 @@ export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
 export const CpuIcon = createIcon(CpuIconData)
+export const Download01Icon = createIcon(Download01IconData)
 export const DownloadIcon = createIcon(DownloadIconData)
 export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
@@ -156,3 +160,5 @@ export const ViewIcon = createIcon(ViewIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)
 export const XIcon = createIcon(XIconData)
 export const Xls01Icon = createIcon(Xls01IconData)
+export const ZoomInIcon = createIcon(ZoomInIconData)
+export const ZoomOutIcon = createIcon(ZoomOutIconData)
