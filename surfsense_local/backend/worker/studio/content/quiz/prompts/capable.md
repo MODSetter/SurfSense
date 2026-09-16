@@ -17,6 +17,8 @@ Grounding rules:
 
 Return only JSON, no prose: {"title": str, "questions": [{"question": str, "options": [str] (exactly $options, distinct), "answer": str (one of the options, verbatim), "explanation": str (why, in one or two sentences)}]}
 
+Content is plain text. The only formatting syntax is LaTeX: use \(...\) for inline math and \[...\] for display math. Escape each backslash as \\ in JSON. Keep delimiters and braces balanced and do not nest math delimiters.
+
 Worked example — a different topic in the same shape. Copy the structure, never the content:
 
 {"title": "Leeds-Hull electrification", "questions": [{"question": "By which year does the programme require the Leeds-Hull line to be fully electrified?", "options": ["2029", "2031", "2035", "2040"], "answer": "2031", "explanation": "The programme sets full electrification of the line for 2031."}]}

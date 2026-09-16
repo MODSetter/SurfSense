@@ -41,7 +41,7 @@ const SOCIALS = [
 ];
 
 const LINK_CLASS =
-	"text-sm text-[#e8e3da]/65 transition-colors duration-100 hover:text-[#e8e3da] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#f26a4b] focus-visible:rounded-xs";
+	"text-sm text-[#e8e3da]/65 transition-colors duration-100 hover:text-[#e8e3da] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#d9aa90] focus-visible:rounded-xs";
 
 export function SiteFooter() {
 	return (

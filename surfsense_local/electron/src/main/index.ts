@@ -12,7 +12,18 @@ import { loadSecret } from "./secret.ts"
 import { ollamaSpec } from "./sidecars/ollama.ts"
 import { exe } from "./sidecars/platform.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
-import { startAll, stopAll, type Sidecars } from "./sidecars/supervisor.ts"
+import {
+  sdcppSpec,
+  SDCPP_SIDECAR,
+  type ImageRuntime,
+} from "./sidecars/sdcpp.ts"
+import {
+  startAll,
+  startOne,
+  stopAll,
+  stopNamed,
+  type Sidecars,
+} from "./sidecars/supervisor.ts"
 import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
 import {
   attachUpdater,
@@ -68,6 +79,41 @@ function onSidecarCrash(name: string, code: number | null): void {
   })
 }
 
+// sd-server takes its model as a startup argument and dies without one, so it
+// cannot be started at boot like the others: the model arrives later, on a
+// download, and changes again whenever a different one is chosen. The API is the
+// authority on which weights that is, so follow it and restart on a change.
+// ponytail: a poll, not a push. It costs one local request every few seconds and
+// needs no IPC channel of its own; a change is user-initiated and rare, so the
+// few seconds of lag are not felt.
+function watchImageModel(ctx: SidecarContext): void {
+  if (!ctx.packaged || ctx.imageModelsDir == null) return
+  const endpoint = `http://${ctx.host}:${ctx.apiPort}/llm/image/local/runtime`
+  let current: string | null = null
+
+  const reconcile = async () => {
+    if (!sidecars || shuttingDown) return
+    const response = await fetch(endpoint)
+    if (!response.ok) return
+    const runtime = (await response.json()) as ImageRuntime
+
+    const spec = sdcppSpec(ctx, runtime)
+    const wanted = spec ? spec.args.join("\u0000") : null
+    if (wanted === current) return
+
+    if (sidecars.has(SDCPP_SIDECAR)) await stopNamed(sidecars, SDCPP_SIDECAR)
+    current = wanted
+    if (spec) startOne(sidecars, spec, onSidecarCrash)
+  }
+
+  const timer = setInterval(() => {
+    void reconcile().catch(() => {
+      // The API is down or restarting; the next tick tries again.
+    })
+  }, 5000)
+  timer.unref()
+}
+
 async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
@@ -98,9 +144,14 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     ctx.ollamaPort = await getFreePort(host)
     ctx.ollamaModelsDir = join(dataDir, "ollama")
     ctx.ollamaUrl = `http://${host}:${ctx.ollamaPort}`
+    ctx.imagePort = await getFreePort(host)
+    ctx.imageModelsDir = join(dataDir, "images")
+    ctx.imageUrl = `http://${host}:${ctx.imagePort}`
   }
 
-  // ollamaSpec is null in dev (the developer runs their own `ollama serve`)
+  // ollamaSpec is null in dev (the developer runs their own `ollama serve`).
+  // sd-server is absent here on purpose: watchImageModel owns it, because only
+  // the API knows which model was chosen.
   const specs = [
     apiSpec(ctx),
     workerSpec(ctx, "ingest"),
@@ -110,6 +161,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     (s): s is SidecarSpec => s !== null
   )
   sidecars = startAll(specs, onSidecarCrash)
+  watchImageModel(ctx)
 
   // gate on the API only; fail fast if it dies during startup. Ollama is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).

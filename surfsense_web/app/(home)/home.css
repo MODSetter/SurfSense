@@ -12,7 +12,7 @@
  *
  * Every value below is copied verbatim from
  * `surfsense_local/frontend/src/index.css`. No colour is invented here: the
- * accent is `--chart-1`, which that file already declares in both themes.
+ * accent is `--primary`, which is the one value overridden here (peach).
  *
  * The homepage is deliberately dark-only: it pins the canonical `.dark` values
  * regardless of the visitor's theme, so the marketing page reads the same for
@@ -51,7 +51,7 @@
 	--card-foreground: #e8e3da;
 	--popover: #1c1c1c;
 	--popover-foreground: #e8e3da;
-	--primary: #d1cfc0;
+	--primary: #d9aa90;
 	--primary-foreground: #363636;
 	--secondary: #222222;
 	--secondary-foreground: #d1cfc0;
@@ -70,7 +70,7 @@
 	 * changes. */
 	--home-divider: color-mix(in oklab, var(--border) 90%, black);
 	--input: #2c2c2c;
-	--ring: #d1cfc0;
+	--ring: #d9aa90;
 	--chart-1: #f26a4b;
 	--chart-2: #d9cfc2;
 	--chart-3: #8e8a83;
@@ -79,11 +79,11 @@
 	--radius: 0.5rem;
 
 	/* The reference marks its one accent clause, its "ours" table column and its
-	 * forward links in a single warm tone. `--chart-1` is the only warm hue the
-	 * canonical palette carries, and it is identical in both themes, so it is
-	 * the accent here rather than a new token. On `--background` it measures
-	 * 6.1:1, which clears WCAG AA for text at any size. */
-	--home-accent: var(--chart-1);
+	 * forward links in a single tone. It is `--primary`, a warm peach that departs
+	 * from the desktop app's putty on purpose so the accent reads apart from
+	 * the cream `--foreground`. On `--background` it measures 8.9:1, which
+	 * clears WCAG AAA for text at any size. */
+	--home-accent: var(--primary);
 
 	/* Layout rhythm. The column is deliberately narrower than the viewport: long
 	 * measures are hard to read, and the ruled side borders only read as a frame
@@ -1060,7 +1060,6 @@
 .ss-home-nav-stars-count {
 	min-width: 2rem;
 }
-
 
 /* ---------------------------------------------------------------------------
  * Mobile drawer

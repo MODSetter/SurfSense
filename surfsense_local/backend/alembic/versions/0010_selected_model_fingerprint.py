@@ -1,7 +1,7 @@
 """record what is known about the selected model
 
-Revision ID: 0009
-Revises: 0008
+Revision ID: 0010
+Revises: 0009
 Create Date: 2026-09-16
 
 """
@@ -12,8 +12,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0009"
-down_revision: str | Sequence[str] | None = "0008"
+revision: str = "0010"
+down_revision: str | Sequence[str] | None = "0009"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

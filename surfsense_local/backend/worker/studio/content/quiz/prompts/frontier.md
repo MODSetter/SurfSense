@@ -15,4 +15,6 @@ How to work the material:
 
 Return only JSON, no prose: {"title": str, "questions": [{"question": str, "options": [str] (exactly $options, distinct), "answer": str (one of the options, verbatim), "explanation": str (why the answer is right, in one or two sentences)}]}
 
+Content is plain text. The only formatting syntax is LaTeX: use \(...\) for inline math and \[...\] for display math. Escape each backslash as \\ in JSON. Keep delimiters and braces balanced and do not nest math delimiters.
+
 Return only the JSON. Nothing before it, nothing after it.

@@ -12,6 +12,7 @@ from modules.llm.providers.openai_compatible import (
     OpenAICompatibleImageProvider,
 )
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
+from modules.llm.providers.sdcpp import provider as sdcpp
 
 
 class ModelResolutionError(RuntimeError):
@@ -55,6 +56,16 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
     selected = session.get(SelectedModel, ModelRole.IMAGE_GENERATION)
     if selected is None:
         raise ModelResolutionError("no image model selected")
+    if selected.provider == sdcpp.PROVIDER:
+        model = sdcpp.find(selected.name)
+        if model is None or not sdcpp.installed(model):
+            raise ModelResolutionError("the local image model is not installed")
+        # sd-server speaks /images/generations, so the OpenAI-compatible client
+        # reaches it unchanged. Connection id 0: it has no connection row, and
+        # the id only keys that client's route cache.
+        return ResolvedImageGeneration(
+            selected, OpenAICompatibleImageProvider(0, sdcpp.base_url(), None)
+        )
     connection = _connection(session, selected)
     return ResolvedImageGeneration(
         selected,

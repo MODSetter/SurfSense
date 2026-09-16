@@ -17,6 +17,8 @@ Grounding rules:
 
 Return only JSON, no prose: {"title": str, "cards": [{"front": str, "back": str}]}
 
+Content is plain text. The only formatting syntax is LaTeX: use \(...\) for inline math and \[...\] for display math. Escape each backslash as \\ in JSON. Keep delimiters and braces balanced and do not nest math delimiters.
+
 Worked example — a different topic in the same shape. Copy the structure, never the content:
 
 {"title": "Leeds-Hull electrification", "cards": [{"front": "When must the Leeds-Hull line be fully electrified?", "back": "2031. The programme moved the date from 2029 after signalling work was rescoped."}]}

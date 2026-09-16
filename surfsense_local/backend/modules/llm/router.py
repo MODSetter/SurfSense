@@ -1,7 +1,8 @@
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, HTTPException, status
+import httpx
+from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,10 +16,14 @@ from modules.llm.dependencies import ProviderDep, StoreDep
 from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, provider_names
 from modules.llm.providers.protocols import ModelStore
+from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.recommendations.dependencies import CatalogServiceDep
 from modules.llm.recommendations.router import router as recommendations_router
 from modules.llm.schemas import (
     CatalogEntryRead,
+    LocalImageCatalogRead,
+    LocalImageModelRead,
+    LocalImageRuntimeRead,
     ModelDeleteRead,
     ModelRead,
     OnboardingStatusRead,
@@ -187,6 +192,116 @@ async def list_catalog(provider: ProviderDep) -> list[CatalogEntryRead]:
         )
         for entry in provider.catalog()
     ]
+
+
+@router.get(
+    "/image/local",
+    response_model=LocalImageCatalogRead,
+    summary="The bundled image models and their state",
+)
+async def read_local_image_models(session: SessionDep) -> LocalImageCatalogRead:
+    chosen = await transact(session, _chosen_image_model)
+    selected = chosen.name if chosen and chosen.provider == sdcpp.PROVIDER else None
+    return LocalImageCatalogRead(
+        provider=sdcpp.PROVIDER,
+        offered=sdcpp.offered(),
+        # Electron starts sd-server once weights land, so a model reads as
+        # installed a few seconds before it is ready to answer.
+        ready=selected is not None and await _image_server_healthy(),
+        models=[
+            LocalImageModelRead(
+                name=model.name,
+                label=model.label,
+                detail=model.detail,
+                size_bytes=model.size_bytes,
+                installed=sdcpp.installed(model),
+                selected=model.name == selected,
+            )
+            for model in sdcpp.CATALOG
+        ],
+    )
+
+
+@router.get(
+    "/image/local/runtime",
+    response_model=LocalImageRuntimeRead,
+    summary="The image model sd-server should be running",
+)
+def read_local_image_runtime(session: SessionDep) -> LocalImageRuntimeRead:
+    chosen = _chosen_image_model(session)
+    model = (
+        sdcpp.find(chosen.name)
+        if chosen is not None and chosen.provider == sdcpp.PROVIDER
+        else None
+    )
+    if model is None or not sdcpp.installed(model):
+        return LocalImageRuntimeRead(file=None, args=[])
+    return LocalImageRuntimeRead(file=model.file, args=list(model.args))
+
+
+@router.delete(
+    "/image/local/{name}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    summary="Delete one downloaded image model",
+)
+async def delete_local_image_model(name: str, session: SessionDep) -> Response:
+    model = sdcpp.find(name)
+    if model is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"unknown image model: {name}"
+        )
+    chosen = await transact(session, _chosen_image_model)
+    if chosen is not None and chosen.provider == sdcpp.PROVIDER and chosen.name == name:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{model.label} is in use; choose another image model first",
+        )
+    sdcpp.remove(model)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post(
+    "/image/local/{name}/install",
+    summary="Download one bundled image model, streaming progress",
+)
+async def install_local_image_model(
+    name: str, session: SessionDep
+) -> StreamingResponse:
+    if not sdcpp.offered():
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "this build has no local image support",
+        )
+    model = sdcpp.find(name)
+    if model is None:
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"unknown image model: {name}"
+        )
+    await transact(session, egress.require, egress.IMAGE_MODEL_PULL)
+
+    async def progress() -> AsyncIterator[bytes]:
+        async for step in sdcpp.install(model):
+            line = {
+                "status": step.status,
+                "completed": step.completed,
+                "total": step.total,
+            }
+            yield (json.dumps(line) + "\n").encode()
+
+    return StreamingResponse(progress(), media_type="application/x-ndjson")
+
+
+def _chosen_image_model(session: Session) -> SelectedModel | None:
+    return session.get(SelectedModel, ModelRole.IMAGE_GENERATION)
+
+
+async def _image_server_healthy() -> bool:
+    try:
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            reply = await client.get(f"{sdcpp.base_url()}/models")
+            return reply.status_code == 200
+    except httpx.HTTPError:
+        return False
 
 
 @router.post(

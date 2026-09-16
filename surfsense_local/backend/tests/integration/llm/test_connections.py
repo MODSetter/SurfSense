@@ -1,11 +1,14 @@
 import asyncio
 import json
+from pathlib import Path
 
 import pytest
 from httpx import AsyncClient
 
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
+from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.types import Message
+from shared.config import get_llm_settings
 
 from .conftest import REMOTE_REQUESTS
 
@@ -180,6 +183,118 @@ async def test_chat_test_answers_without_selecting_or_running_up_a_bill(
 
     # Trying a model is not choosing it.
     assert (await client.get("/llm/selection/generation")).status_code == 404
+
+
+def _stage(
+    directory: Path, monkeypatch: pytest.MonkeyPatch
+) -> sdcpp.ImageModel:
+    """Point the catalogue at a temp dir and download its first entry, small."""
+    from dataclasses import replace
+
+    monkeypatch.setattr(get_llm_settings(), "image_models_dir", directory)
+    monkeypatch.setattr(
+        sdcpp,
+        "CATALOG",
+        tuple(replace(model, size_bytes=2048) for model in sdcpp.CATALOG),
+    )
+    model = sdcpp.CATALOG[0]
+    (directory / model.file).write_bytes(b"\0" * model.size_bytes)
+    return model
+
+
+async def test_the_local_image_model_can_take_the_image_role(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """It carries no connection, which selected_models must permit."""
+    model = _stage(tmp_path, monkeypatch)
+
+    chosen = await client.put(
+        "/llm/selection/image_generation",
+        json={
+            "provider": sdcpp.PROVIDER,
+            "connection_id": None,
+            "name": model.name,
+        },
+    )
+    assert chosen.status_code == 200, chosen.text
+    assert chosen.json()["provider"] == sdcpp.PROVIDER
+
+    read = await client.get("/llm/selection/image_generation")
+    assert read.json()["name"] == model.name
+
+    # Electron reconciles sd-server against this, so it must name the weights
+    # and the flags the chosen model needs.
+    runtime = (await client.get("/llm/image/local/runtime")).json()
+    assert runtime["file"] == model.file
+    assert runtime["args"] == list(model.args)
+
+
+async def test_an_image_model_in_use_cannot_be_deleted_out_from_under_itself(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Deleting the chosen weights would leave sd-server pointed at nothing."""
+    model = _stage(tmp_path, monkeypatch)
+    spare = sdcpp.CATALOG[1]
+    (tmp_path / spare.file).write_bytes(b"\0" * spare.size_bytes)
+
+    await client.put(
+        "/llm/selection/image_generation",
+        json={
+            "provider": sdcpp.PROVIDER,
+            "connection_id": None,
+            "name": model.name,
+        },
+    )
+
+    refused = await client.delete(f"/llm/image/local/{model.name}")
+    assert refused.status_code == 409
+    assert (tmp_path / model.file).is_file()
+
+    # One that holds no role goes without argument.
+    removed = await client.delete(f"/llm/image/local/{spare.name}")
+    assert removed.status_code == 204
+    assert not (tmp_path / spare.file).exists()
+
+    listed = (await client.get("/llm/image/local")).json()["models"]
+    assert {m["name"]: m["installed"] for m in listed}[spare.name] is False
+
+
+async def test_local_image_model_is_silent_on_a_host_without_sd_server(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No staged binary means no models dir: say so, and refuse the download."""
+    monkeypatch.setattr(get_llm_settings(), "image_models_dir", None)
+
+    read = await client.get("/llm/image/local")
+    assert read.status_code == 200
+    body = read.json()
+    assert body["offered"] is False
+    assert body["ready"] is False
+    assert body["provider"] == "sdcpp"
+    assert all(model["installed"] is False for model in body["models"])
+
+    refused = await client.post(
+        f"/llm/image/local/{sdcpp.CATALOG[0].name}/install"
+    )
+    assert refused.status_code == 409
+
+
+async def test_image_model_downloads_are_listed_and_refusable_like_ollama(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Weights come from huggingface.co, so Network must name it and hold it off."""
+    monkeypatch.setattr(get_llm_settings(), "image_models_dir", tmp_path)
+
+    listed = (await client.get("/egress")).json()
+    row = next(d for d in listed if d["destination"] == "image_model_pull")
+    assert row["host"] == "huggingface.co"
+    assert row["enabled"] is False
+
+    denied = await client.post(
+        f"/llm/image/local/{sdcpp.CATALOG[0].name}/install"
+    )
+    assert denied.status_code == 403
+    assert denied.json()["detail"]["destination"] == "image_model_pull"
 
 
 async def test_image_selection_alone_does_not_complete_onboarding(

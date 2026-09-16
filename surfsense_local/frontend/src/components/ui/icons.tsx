@@ -20,6 +20,7 @@ import {
   Copy01Icon,
   CpuIcon as CpuIconData,
   Delete02Icon,
+  Download01Icon as Download01IconData,
   DownloadCircle02Icon as DownloadCircle02IconData,
   DownloadIcon as DownloadIconData,
   DotIcon as DotIconData,
@@ -35,6 +36,7 @@ import {
   InformationCircleIcon as InformationCircleIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
+  LightbulbIcon as LightbulbIconData,
   Loading03Icon,
   MessageSquareIcon as MessageSquareIconData,
   Moon02Icon as Moon02IconData,
@@ -53,6 +55,7 @@ import {
   SidebarRight01Icon as SidebarRight01IconData,
   Settings02Icon,
   Shapes01Icon as Shapes01IconData,
+  ShuffleIcon as ShuffleIconData,
   SparklesIcon as SparklesIconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
@@ -64,8 +67,12 @@ import {
   WebDesign01Icon as WebDesign01IconData,
   XIcon as XIconData,
   Xls01Icon as Xls01IconData,
+  ZoomInIcon as ZoomInIconData,
+  ZoomOutIcon as ZoomOutIconData,
 } from "@hugeicons/core-free-icons"
 import { HugeiconsIcon } from "@hugeicons/react"
+
+import { cn } from "@/lib/utils"
 
 type IconData = React.ComponentProps<typeof HugeiconsIcon>["icon"]
 type IconProps = Omit<
@@ -75,9 +82,9 @@ type IconProps = Omit<
   strokeWidth?: React.SVGProps<SVGSVGElement>["strokeWidth"]
 }
 
-function createIcon(icon: IconData) {
+function createIcon(icon: IconData, defaultClassName?: string) {
   return React.forwardRef<SVGSVGElement, IconProps>(function Icon(
-    { strokeWidth = 2, ...props },
+    { strokeWidth = 2, className, ...props },
     ref
   ) {
     const width =
@@ -85,7 +92,13 @@ function createIcon(icon: IconData) {
         ? strokeWidth
         : Number.parseFloat(strokeWidth) || 2
     return (
-      <HugeiconsIcon ref={ref} icon={icon} strokeWidth={width} {...props} />
+      <HugeiconsIcon
+        ref={ref}
+        icon={icon}
+        strokeWidth={width}
+        className={cn(defaultClassName, className)}
+        {...props}
+      />
     )
   })
 }
@@ -110,6 +123,7 @@ export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
 export const CpuIcon = createIcon(CpuIconData)
+export const Download01Icon = createIcon(Download01IconData)
 export const DownloadIcon = createIcon(DownloadIconData)
 export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
@@ -124,10 +138,11 @@ export const Image01Icon = createIcon(Image01IconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
+export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MessageSquareIcon = createIcon(MessageSquareIconData)
 export const MoonIcon = createIcon(Moon02IconData)
-export const NetworkIcon = createIcon(NetworkIconData)
+export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
 export const NotebookTextIcon = createIcon(NotebookTextIconData)
 export const PencilEdit02Icon = createIcon(PencilEdit02IconData)
 export const Pdf01Icon = createIcon(Pdf01IconData)
@@ -143,6 +158,7 @@ export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
 export const SidebarRightIcon = createIcon(SidebarRight01IconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const Shapes01Icon = createIcon(Shapes01IconData)
+export const ShuffleIcon = createIcon(ShuffleIconData)
 export const SparklesIcon = createIcon(SparklesIconData)
 export const SunIcon = createIcon(Sun03IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
@@ -156,3 +172,5 @@ export const ViewIcon = createIcon(ViewIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)
 export const XIcon = createIcon(XIconData)
 export const Xls01Icon = createIcon(Xls01IconData)
+export const ZoomInIcon = createIcon(ZoomInIconData)
+export const ZoomOutIcon = createIcon(ZoomOutIconData)

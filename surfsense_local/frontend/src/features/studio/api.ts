@@ -28,9 +28,35 @@ export type ArtifactFile = {
   original_filename: string
 }
 
+export type QuizMode = "all" | "missed"
+
+// A quiz run in progress, persisted server-side keyed to the artifact's own
+// generation (see backend/modules/artifacts/quiz_progress.py) — a local
+// install has one user, so unlike a multi-tenant equivalent this needs no
+// per-user scoping.
+export type QuizState = {
+  generation: number
+  mode: QuizMode
+  active_question_indices: number[]
+  answers: Record<string, number>
+  skipped_question_indices: number[]
+}
+
+export type FlashcardMark = "good" | "again"
+
+// A flashcard deck's study progress, persisted server-side the same way as
+// QuizState — see backend/modules/artifacts/flashcard_progress.py.
+export type FlashcardState = {
+  generation: number
+  marks: Record<string, FlashcardMark>
+  order: number[]
+}
+
 export type ArtifactDetail = Artifact & {
   content: string | null
   files: ArtifactFile[]
+  quiz_state: QuizState | null
+  flashcard_state: FlashcardState | null
 }
 
 export type StudioJobCreate = {
@@ -144,6 +170,87 @@ export function readArtifactFile<T>(
   signal?: AbortSignal
 ): Promise<T> {
   return requestJson<T>(`/artifacts/${artifactId}/files/primary`, { signal })
+}
+
+export function answerQuizQuestion(
+  artifactId: number,
+  body: { question_index: number; selected_option_index: number },
+  signal?: AbortSignal
+): Promise<QuizState> {
+  return requestJson<QuizState>(`/artifacts/${artifactId}/quiz-state/answer`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
+export function skipQuizQuestion(
+  artifactId: number,
+  body: { question_index: number },
+  signal?: AbortSignal
+): Promise<QuizState> {
+  return requestJson<QuizState>(`/artifacts/${artifactId}/quiz-state/skip`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
+export function retakeQuiz(
+  artifactId: number,
+  body: { mode: QuizMode },
+  signal?: AbortSignal
+): Promise<QuizState> {
+  return requestJson<QuizState>(`/artifacts/${artifactId}/quiz-state/retake`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+    headers: { "Content-Type": "application/json" },
+    signal,
+  })
+}
+
+export function markFlashcard(
+  artifactId: number,
+  body: { card_index: number; mark: FlashcardMark | null },
+  signal?: AbortSignal
+): Promise<FlashcardState> {
+  return requestJson<FlashcardState>(
+    `/artifacts/${artifactId}/flashcard-state/mark`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      signal,
+    }
+  )
+}
+
+export function resetFlashcardProgress(
+  artifactId: number,
+  signal?: AbortSignal
+): Promise<FlashcardState> {
+  return requestJson<FlashcardState>(
+    `/artifacts/${artifactId}/flashcard-state/reset`,
+    { method: "PUT", signal }
+  )
+}
+
+export function reorderFlashcards(
+  artifactId: number,
+  body: { order: number[] },
+  signal?: AbortSignal
+): Promise<FlashcardState> {
+  return requestJson<FlashcardState>(
+    `/artifacts/${artifactId}/flashcard-state/order`,
+    {
+      method: "PUT",
+      body: JSON.stringify(body),
+      headers: { "Content-Type": "application/json" },
+      signal,
+    }
+  )
 }
 
 // A plain URL for <a>/<img>/<audio>, which need the absolute sidecar address the
