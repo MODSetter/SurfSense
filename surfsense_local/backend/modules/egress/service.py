@@ -9,8 +9,12 @@ from modules.egress.models import EgressDestination
 from modules.llm.models import ProviderConnection
 
 OLLAMA_PULL = "ollama_pull"
+IMAGE_MODEL_PULL = "image_model_pull"
 HOST_PREFIX = "host:"
-HOSTS = {OLLAMA_PULL: "registry.ollama.ai"}
+# Named, not host:-prefixed, so downloading weights is listed and revocable in
+# Settings > Network like any other call, and reads as a download rather than as
+# a connection that would carry prompts and documents.
+HOSTS = {OLLAMA_PULL: "registry.ollama.ai", IMAGE_MODEL_PULL: "huggingface.co"}
 
 
 class EgressDeniedError(Exception):
@@ -25,7 +29,7 @@ def host_of(destination: str) -> str:
 
 
 def is_destination(value: str) -> bool:
-    return value == OLLAMA_PULL or (
+    return value in HOSTS or (
         value.startswith(HOST_PREFIX) and len(value) > len(HOST_PREFIX)
     )
 
@@ -75,5 +79,5 @@ def list_destinations(session: Session) -> list[EgressDestination]:
     return [
         rows.get(destination)
         or EgressDestination(destination=destination, enabled=False)
-        for destination in [OLLAMA_PULL, *sorted(hosts)]
+        for destination in [OLLAMA_PULL, IMAGE_MODEL_PULL, *sorted(hosts)]
     ]

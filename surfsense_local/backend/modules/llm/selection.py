@@ -7,6 +7,7 @@ from modules.llm.connections import discover_models
 from modules.llm.connections.router import allowed_connection
 from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider
+from modules.llm.providers.sdcpp import provider as sdcpp
 
 
 async def choose_model(
@@ -27,6 +28,8 @@ async def choose_model(
 
     if provider_name == "ollama":
         await _validate_local(role, model_name, connection_id)
+    elif provider_name == sdcpp.PROVIDER:
+        _validate_local_image(role, model_name, connection_id)
     elif provider_name == "openai_compatible":
         await _validate_remote(session, role, model_name, connection_id, allow_unlisted)
     else:
@@ -76,6 +79,33 @@ def complete_onboarding(session: Session) -> bool:
         session.add(OnboardingCompletion())
         session.flush()
     return True
+
+
+def _validate_local_image(
+    role: ModelRole, model_name: str, connection_id: int | None
+) -> None:
+    """The bundled sd-server fills the image role, and only once downloaded."""
+    if role is not ModelRole.IMAGE_GENERATION:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "the local image model does not answer chat",
+        )
+    if connection_id is not None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "local selections must not include a connection",
+        )
+    model = sdcpp.find(model_name)
+    if model is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"unknown local image model: {model_name}",
+        )
+    if not sdcpp.installed(model):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"{model.label} is not installed",
+        )
 
 
 async def _validate_local(

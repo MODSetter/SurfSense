@@ -23,6 +23,7 @@ import type {
   ModelCatalog,
   RuntimeStatus,
 } from "./api"
+import { LocalImageModel } from "./local-image-model"
 import { ModelCard } from "./model-card"
 import { ModelFamilyGroup } from "./model-family-group"
 import { useModelCatalog } from "./use-model-catalog"
@@ -358,6 +359,8 @@ export function ModelCatalogPage({
               {messageFrom(rescan.error)}
             </p>
           ) : null}
+
+          <LocalImageModel disabled={busy} />
 
           {sections.map((section, index) => (
             <Fragment key={section.title}>

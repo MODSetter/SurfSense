@@ -31,4 +31,8 @@ export interface SidecarContext {
   ollamaPort?: number
   ollamaModelsDir?: string
   ollamaUrl?: string
+  /** Packaged: the bundled sd-server's port, model dir, and URL for API + worker. */
+  imagePort?: number
+  imageModelsDir?: string
+  imageUrl?: string
 }

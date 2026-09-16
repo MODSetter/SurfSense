@@ -39,6 +39,13 @@ export function describeDestination(destination: string, host: string) {
       body: `Downloading models contacts ${host}. SurfSense sends the model name and your IP address, nothing else.`,
     }
   }
+  if (destination === "image_model_pull") {
+    return {
+      label: "Image model downloads",
+      title: "Allow image model downloads?",
+      body: `Downloading an image model contacts ${host}. SurfSense sends the model name and your IP address, nothing else. The model then generates on this computer.`,
+    }
+  }
   return {
     label: host,
     title: `Allow sending data to ${host}?`,
