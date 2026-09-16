@@ -11,7 +11,14 @@
 // the tag and a locally computed SHA-256 are both pinned here. Bump deliberately.
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs"
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -75,6 +82,9 @@ rmSync(archive, { force: true })
 if (!existsSync(join(OUT, binary))) {
   throw new Error(`${target.asset} did not contain ${binary}`)
 }
+// The zips do carry the mode bit today; set it anyway rather than depend on it,
+// the way fetch-llmfit.mjs does.
+if (process.platform !== "win32") chmodSync(join(OUT, binary), 0o755)
 // MIT, and the archive does not carry it.
 writeFileSync(
   join(OUT, "LICENSE-NOTE.txt"),
