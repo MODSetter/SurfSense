@@ -255,6 +255,33 @@
   );
 }
 
+/* Same fade as sidebar-row-title-fade, but reserving less width — chats
+   dialog rows only ever show a single trailing action (the ••• menu), not
+   the sidebar's wider action cluster. */
+.chats-dialog-title-fade {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 12px),
+    transparent
+  );
+  mask-image: linear-gradient(to right, black calc(100% - 12px), transparent);
+}
+
+.group:hover .chats-dialog-title-fade,
+.group:focus-within .chats-dialog-title-fade-focus-within,
+.chats-dialog-title-fade-actions {
+  -webkit-mask-image: linear-gradient(
+    to right,
+    black calc(100% - 30px),
+    transparent calc(100% - 14px)
+  );
+  mask-image: linear-gradient(
+    to right,
+    black calc(100% - 30px),
+    transparent calc(100% - 14px)
+  );
+}
+
 [data-streamdown="code-block"] {
   gap: 0;
   overflow: visible;
