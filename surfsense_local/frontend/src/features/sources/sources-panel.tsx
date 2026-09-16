@@ -7,10 +7,10 @@ import {
 } from "react"
 import {
   Alert02Icon,
+  CircleStopIcon,
   EllipsisIcon,
   FilePlus2Icon,
   FolderOpenIcon,
-  Loader2Icon,
   RefreshCwIcon,
   SquareDashedMousePointerIcon,
   Trash2Icon,
@@ -66,6 +66,7 @@ function SelectableSourceRow({
   onOpen,
   onReveal,
   onRetry,
+  onCancel,
   onDelete,
   isDeleting,
   onSelectedChange,
@@ -77,12 +78,15 @@ function SelectableSourceRow({
   onOpen: () => void
   onReveal: () => void
   onRetry: () => void
+  onCancel: () => void
   onDelete: () => void
   isDeleting: boolean
   onSelectedChange: (selected: boolean) => void
 }) {
   const ready = document.status === "ready"
   const failed = document.status === "failed"
+  const cancelled = document.status === "cancelled"
+  const retryable = failed || cancelled
   const ingesting =
     document.status === "pending" || document.status === "processing"
   const processing = document.status === "processing"
@@ -94,7 +98,7 @@ function SelectableSourceRow({
   const modifierHeld = useModifierHeld()
 
   return (
-    <Tooltip open={failed && modifierHeld && rowHovered}>
+    <Tooltip open={retryable && modifierHeld && rowHovered}>
       <TooltipTrigger asChild>
         <div
           ref={rowRef}
@@ -124,23 +128,33 @@ function SelectableSourceRow({
                 aria-label={`Processing ${document.title}`}
               />
             ) : null}
-            {failed ? (
+            {retryable ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    aria-label={`Ingestion failed. Retry ${document.title}`}
+                    aria-label={
+                      cancelled
+                        ? `Cancelled. Retry ${document.title}`
+                        : `Ingestion failed. Retry ${document.title}`
+                    }
                     className="relative hover:bg-transparent"
                     onClick={onRetry}
                   >
-                    <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
+                    {cancelled ? (
+                      <CircleStopIcon className="size-4.5 text-muted-foreground transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
+                    ) : (
+                      <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
+                    )}
                     <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" collisionPadding={8}>
-                  Ingestion failed. Retry again.
+                  {cancelled
+                    ? "Cancelled. Retry again."
+                    : "Ingestion failed. Retry again."}
                 </TooltipContent>
               </Tooltip>
             ) : null}
@@ -195,18 +209,16 @@ function SelectableSourceRow({
                       {selected ? "Deselect" : "Select"}
                     </DropdownMenuItem>
                   ) : null}
-                  {failed ? (
+                  {retryable ? (
                     <DropdownMenuItem onSelect={onRetry}>
                       <RefreshCwIcon />
                       Retry
                     </DropdownMenuItem>
                   ) : null}
                   {ingesting ? (
-                    <DropdownMenuItem disabled>
-                      <span className="flex animate-spin" aria-hidden="true">
-                        <Loader2Icon />
-                      </span>
-                      Processing
+                    <DropdownMenuItem onSelect={onCancel}>
+                      <CircleStopIcon />
+                      Cancel
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem
@@ -224,7 +236,7 @@ function SelectableSourceRow({
         </div>
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
-        {document.error_message ?? "Ingestion failed"}
+        {document.error_message ?? (cancelled ? "Cancelled" : "Ingestion failed")}
       </TooltipContent>
     </Tooltip>
   )
@@ -280,6 +292,7 @@ export function SourcesPanel({
   onOpen,
   onReveal,
   onRetry,
+  onCancel,
   onDelete,
   onDeleteSelected,
   onSelectionChange,
@@ -295,6 +308,7 @@ export function SourcesPanel({
   onOpen: (documentId: number) => void
   onReveal: (documentId: number) => void
   onRetry: (documentId: number) => void
+  onCancel: (documentId: number) => void
   onDelete: (documentId: number) => void
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
@@ -379,6 +393,7 @@ export function SourcesPanel({
                   onOpen={() => onOpen(document.id)}
                   onReveal={() => onReveal(document.id)}
                   onRetry={() => onRetry(document.id)}
+                  onCancel={() => onCancel(document.id)}
                   onDelete={() => setDeleteTarget(document)}
                   isDeleting={isDeleting}
                   onSelectedChange={(selected) =>

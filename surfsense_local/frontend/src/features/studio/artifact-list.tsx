@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react"
 import {
   Alert02Icon,
+  CircleStopIcon,
   EllipsisIcon,
   FileIcon,
   FileTextIcon,
   FilterIcon,
-  Loader2Icon,
   RefreshCwIcon,
   Trash2Icon,
   ViewIcon,
@@ -86,15 +86,19 @@ function ArtifactRow({
   artifact,
   onOpen,
   onRegenerate,
+  onCancel,
   onDelete,
 }: {
   artifact: Artifact
   onOpen: () => void
   onRegenerate: () => void
+  onCancel: () => void
   onDelete: () => void
 }) {
   const ready = artifact.status === "ready"
   const failed = artifact.status === "failed"
+  const cancelled = artifact.status === "cancelled"
+  const retryable = failed || cancelled
   const ingesting =
     artifact.status === "pending" || artifact.status === "processing"
   const processing = artifact.status === "processing"
@@ -104,10 +108,9 @@ function ArtifactRow({
   // row (not just the retry icon) surfaces the actual error above the row.
   const modifierHeld = useModifierHeld()
   const FormatIcon = FORMAT_ICONS[artifact.format] ?? FileIcon
-  const errorMessage = artifact.error_message ?? "Generation failed"
 
   return (
-    <Tooltip open={failed && modifierHeld && rowHovered}>
+    <Tooltip open={retryable && modifierHeld && rowHovered}>
       <TooltipTrigger asChild>
         <div
           className={cn(
@@ -127,23 +130,33 @@ function ArtifactRow({
                 aria-label={`Processing ${artifact.title}`}
               />
             ) : null}
-            {failed ? (
+            {retryable ? (
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
                     size="icon-sm"
                     variant="ghost"
-                    aria-label={`Generation failed. Retry ${artifact.title}`}
+                    aria-label={
+                      cancelled
+                        ? `Cancelled. Retry ${artifact.title}`
+                        : `Generation failed. Retry ${artifact.title}`
+                    }
                     className="relative hover:bg-transparent"
                     onClick={onRegenerate}
                   >
-                    <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
+                    {cancelled ? (
+                      <CircleStopIcon className="size-4.5 text-muted-foreground transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
+                    ) : (
+                      <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
+                    )}
                     <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-visible/button:opacity-100" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="left" collisionPadding={8}>
-                  Generation failed. Retry again.
+                  {cancelled
+                    ? "Cancelled. Retry again."
+                    : "Generation failed. Retry again."}
                 </TooltipContent>
               </Tooltip>
             ) : null}
@@ -193,20 +206,18 @@ function ArtifactRow({
                       Open
                     </DropdownMenuItem>
                   ) : null}
-                  {ready || failed ? (
+                  {ready || retryable ? (
                     // One route, two words: after a failure it is a retry,
                     // after a success a fresh run of the same job.
                     <DropdownMenuItem onSelect={onRegenerate}>
                       <RefreshCwIcon />
-                      {failed ? "Retry" : "Regenerate"}
+                      {ready ? "Regenerate" : "Retry"}
                     </DropdownMenuItem>
                   ) : null}
                   {ingesting ? (
-                    <DropdownMenuItem disabled>
-                      <span className="flex animate-spin" aria-hidden="true">
-                        <Loader2Icon />
-                      </span>
-                      Processing
+                    <DropdownMenuItem onSelect={onCancel}>
+                      <CircleStopIcon />
+                      Cancel
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem
@@ -224,7 +235,8 @@ function ArtifactRow({
         </div>
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
-        {errorMessage}
+        {artifact.error_message ??
+          (cancelled ? "Cancelled" : "Generation failed")}
       </TooltipContent>
     </Tooltip>
   )
@@ -309,6 +321,7 @@ export function ArtifactList({
   isLoading = false,
   onOpen,
   onRegenerate,
+  onCancel,
   onDelete,
 }: {
   workspaceId: number
@@ -317,6 +330,7 @@ export function ArtifactList({
   isLoading?: boolean
   onOpen: (id: number) => void
   onRegenerate: (id: number) => void
+  onCancel: (id: number) => void
   onDelete: (id: number) => void
 }) {
   // The backend's format catalog is the single source of truth for labels;
@@ -429,6 +443,7 @@ export function ArtifactList({
                 artifact={artifact}
                 onOpen={() => onOpen(artifact.id)}
                 onRegenerate={() => onRegenerate(artifact.id)}
+                onCancel={() => onCancel(artifact.id)}
                 onDelete={() => setDeleteTarget(artifact)}
               />
             ))}

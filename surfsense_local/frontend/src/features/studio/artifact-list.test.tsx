@@ -27,6 +27,7 @@ function renderList(props: Partial<Parameters<typeof ArtifactList>[0]> = {}) {
         artifacts={[artifact]}
         onOpen={vi.fn()}
         onRegenerate={vi.fn()}
+        onCancel={vi.fn()}
         onDelete={vi.fn()}
         {...props}
       />
@@ -171,9 +172,13 @@ describe("artifact list", () => {
     expect(onRegenerate).toHaveBeenCalledWith(12)
   })
 
-  it("offers neither while an artifact is generating", async () => {
+  it("cancels a generating artifact from the overflow menu", async () => {
+    const onCancel = vi.fn()
     const user = userEvent.setup()
-    renderList({ artifacts: [{ ...artifact, status: "processing" }] })
+    renderList({
+      artifacts: [{ ...artifact, status: "processing" }],
+      onCancel,
+    })
 
     await user.click(
       screen.getByRole("button", { name: "Actions for Weekly summary" })
@@ -181,6 +186,8 @@ describe("artifact list", () => {
     expect(
       screen.queryByRole("menuitem", { name: /Regenerate|Retry/ })
     ).toBeNull()
+    await user.click(screen.getByRole("menuitem", { name: "Cancel" }))
+    expect(onCancel).toHaveBeenCalledWith(12)
   })
 
   it("deletes from the overflow menu after confirm", async () => {

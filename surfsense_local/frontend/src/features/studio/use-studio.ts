@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
+  cancelArtifact,
   createJob,
   deleteArtifact,
   listArtifacts,
@@ -157,6 +158,20 @@ export function useStudio(workspaceId: number) {
     }
   }
 
+  const cancel = async (artifactId: number) => {
+    setError(null)
+    try {
+      const updated = await cancelArtifact(artifactId)
+      setArtifacts((current) =>
+        current.map((artifact) =>
+          artifact.id === artifactId ? updated : artifact
+        )
+      )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
   const remove = async (artifactId: number) => {
     setError(null)
     try {
@@ -175,6 +190,7 @@ export function useStudio(workspaceId: number) {
     error,
     create,
     regenerate,
+    cancel,
     remove,
     clearError: () => setError(null),
   }
