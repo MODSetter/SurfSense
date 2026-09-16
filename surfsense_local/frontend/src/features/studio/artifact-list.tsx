@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react"
 import {
   Alert02Icon,
+  CancelCircleHalfDotIcon,
   CircleStopIcon,
   EllipsisIcon,
   FileIcon,
@@ -216,7 +217,7 @@ function ArtifactRow({
                   ) : null}
                   {ingesting ? (
                     <DropdownMenuItem onSelect={onCancel}>
-                      <CircleStopIcon />
+                      <CancelCircleHalfDotIcon />
                       Cancel
                     </DropdownMenuItem>
                   ) : null}
@@ -291,7 +292,9 @@ function TypeFilter({
               <DropdownMenuCheckboxItem
                 key={format}
                 checked={selected.includes(format)}
-                onCheckedChange={(checked) => onToggle(format, checked === true)}
+                onCheckedChange={(checked) =>
+                  onToggle(format, checked === true)
+                }
                 onSelect={(event) => event.preventDefault()} // stay open for a second pick
               >
                 <FormatIcon className="size-4 text-muted-foreground" />

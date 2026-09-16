@@ -75,14 +75,23 @@ export function ScrollShadow({
   className,
   viewportClassName,
   from,
+  scroll = true,
 }: {
   children: ReactNode
   className?: string
   viewportClassName?: string
   from?: "from-card" | "from-background"
+  // False when an ancestor already owns scrolling for this content (e.g. a
+  // dialog section that scrolls its heading and body together). Renders
+  // children at their natural height instead of a clipped, scrolling box.
+  scroll?: boolean
 }) {
   const viewportRef = useRef<HTMLDivElement>(null)
   const { edges, updateEdges } = useScrollShadowEdges(viewportRef)
+
+  if (!scroll) {
+    return <div className={cn(viewportClassName)}>{children}</div>
+  }
 
   return (
     <div className={cn("relative min-h-0", className)}>

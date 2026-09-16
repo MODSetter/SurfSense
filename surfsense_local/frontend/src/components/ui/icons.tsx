@@ -10,6 +10,7 @@ import {
   ArrowUp02Icon as ArrowUp02IconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
+  CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
   Cards01Icon as Cards01IconData,
   ChartHistogramIcon as ChartHistogramIconData,
   Chat01Icon as Chat01IconData,
@@ -20,6 +21,7 @@ import {
   ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
+  CursorRemoveSelection02Icon as CursorRemoveSelection02IconData,
   Delete02Icon,
   Download01Icon as Download01IconData,
   DownloadCircle02Icon as DownloadCircle02IconData,
@@ -110,6 +112,7 @@ export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
 export const BrainCircuitIcon = createIcon(BrainCircuitIconData)
+export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
 export const Chat01Icon = createIcon(Chat01IconData)
@@ -122,6 +125,9 @@ export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
 export const CpuIcon = createIcon(CpuIconData)
+export const CursorRemoveSelection02Icon = createIcon(
+  CursorRemoveSelection02IconData
+)
 export const Download01Icon = createIcon(Download01IconData)
 export const DownloadIcon = createIcon(DownloadIconData)
 export const DotIcon = createIcon(DotIconData)

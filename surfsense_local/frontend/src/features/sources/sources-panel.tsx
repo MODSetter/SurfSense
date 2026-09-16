@@ -7,7 +7,9 @@ import {
 } from "react"
 import {
   Alert02Icon,
+  CancelCircleHalfDotIcon,
   CircleStopIcon,
+  CursorRemoveSelection02Icon,
   EllipsisIcon,
   FilePlus2Icon,
   FolderOpenIcon,
@@ -15,7 +17,6 @@ import {
   SquareDashedMousePointerIcon,
   Trash2Icon,
   ViewIcon,
-  XIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -205,7 +206,11 @@ function SelectableSourceRow({
                     <DropdownMenuItem
                       onSelect={() => onSelectedChange(!selected)}
                     >
-                      {selected ? <XIcon /> : <SquareDashedMousePointerIcon />}
+                      {selected ? (
+                        <CursorRemoveSelection02Icon />
+                      ) : (
+                        <SquareDashedMousePointerIcon />
+                      )}
                       {selected ? "Deselect" : "Select"}
                     </DropdownMenuItem>
                   ) : null}
@@ -217,7 +222,7 @@ function SelectableSourceRow({
                   ) : null}
                   {ingesting ? (
                     <DropdownMenuItem onSelect={onCancel}>
-                      <CircleStopIcon />
+                      <CancelCircleHalfDotIcon />
                       Cancel
                     </DropdownMenuItem>
                   ) : null}
@@ -236,7 +241,8 @@ function SelectableSourceRow({
         </li>
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
-        {document.error_message ?? (cancelled ? "Cancelled" : "Ingestion failed")}
+        {document.error_message ??
+          (cancelled ? "Cancelled" : "Ingestion failed")}
       </TooltipContent>
     </Tooltip>
   )
