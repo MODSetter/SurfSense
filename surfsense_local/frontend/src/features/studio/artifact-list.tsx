@@ -2,7 +2,6 @@ import { useMemo, useState } from "react"
 import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
-  CircleStopIcon,
   EllipsisIcon,
   FileIcon,
   FileTextIcon,
@@ -146,15 +145,11 @@ function ArtifactRow({
                     className="relative hover:bg-transparent"
                     onClick={onRegenerate}
                   >
-                    {cancelled ? (
-                      <CircleStopIcon className="size-4.5 text-muted-foreground transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
-                    ) : (
-                      <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
-                    )}
+                    <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
                     <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-visible/button:opacity-100" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" collisionPadding={8}>
+                <TooltipContent side="top" collisionPadding={8}>
                   {cancelled
                     ? "Cancelled. Retry again."
                     : "Generation failed. Retry again."}

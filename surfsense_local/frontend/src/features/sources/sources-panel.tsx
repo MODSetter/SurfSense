@@ -8,7 +8,6 @@ import {
 import {
   Alert02Icon,
   CancelCircleHalfDotIcon,
-  CircleStopIcon,
   CursorRemoveSelection02Icon,
   EllipsisIcon,
   FilePlus2Icon,
@@ -144,15 +143,11 @@ function SelectableSourceRow({
                     className="relative hover:bg-transparent"
                     onClick={onRetry}
                   >
-                    {cancelled ? (
-                      <CircleStopIcon className="size-4.5 text-muted-foreground transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
-                    ) : (
-                      <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
-                    )}
+                    <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
                     <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" collisionPadding={8}>
+                <TooltipContent side="top" collisionPadding={8}>
                   {cancelled
                     ? "Cancelled. Retry again."
                     : "Ingestion failed. Retry again."}
