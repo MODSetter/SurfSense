@@ -1,10 +1,12 @@
-import { useEffect, useState } from "react"
-
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import type { UpdateState } from "@/lib/api"
 
-import { updatesBridge, useUpdateState } from "./use-update-state"
+import {
+  updatesBridge,
+  useUpdatePrefs,
+  useUpdateState,
+} from "./use-update-state"
 
 export type { UpdateState }
 
@@ -26,13 +28,9 @@ function statusText(state: UpdateState) {
 export function UpdateSettings() {
   const updates = updatesBridge()
   const state = useUpdateState()
-  const [automatic, setAutomatic] = useState<boolean | null>(null)
+  const { prefs, setAutomatic } = useUpdatePrefs()
 
-  useEffect(() => {
-    void updates?.prefs().then((prefs) => setAutomatic(prefs.automatic))
-  }, [updates])
-
-  if (!updates || automatic === null) return null
+  if (!updates || prefs === null) return null
 
   const text = statusText(state)
   return (
@@ -45,12 +43,8 @@ export function UpdateSettings() {
         </p>
         <label className="mt-2 flex items-center gap-2 text-sm">
           <Checkbox
-            checked={automatic}
-            onCheckedChange={(checked) => {
-              const next = checked === true
-              setAutomatic(next)
-              void updates.setAutomatic(next)
-            }}
+            checked={prefs.automatic}
+            onCheckedChange={(checked) => void setAutomatic(checked === true)}
           />
           Check for updates automatically
         </label>

@@ -2,9 +2,11 @@ import type { ComponentType } from "react"
 
 import { Button } from "@/components/ui/button"
 import { DownloadCircle02Icon, LicenseIcon } from "@/components/ui/icons"
+import { askEgress } from "@/features/egress/egress-prompt"
 import { useLicense } from "@/features/license/use-license"
 import {
   updatesBridge,
+  useUpdatePrefs,
   useUpdateState,
 } from "@/features/updates/use-update-state"
 import type { UpdateState } from "@/lib/api"
@@ -79,8 +81,8 @@ function updateRow(state: UpdateState): Row {
  * The sidebar's bottom edge, holding only what is worth a glance: a license
  * that needs attention, and where the app stands on updates.
  *
- * Both rows can be absent -- no bridge outside the desktop app, no license row
- * once one is active -- so the whole strip goes with them rather than leaving a
+ * Either row can be absent -- no bridge outside the desktop app, no license row
+ * once one is active -- so the strip goes with them rather than leaving a
  * bordered gap.
  */
 export function SidebarFooter({
@@ -91,11 +93,27 @@ export function SidebarFooter({
   const license = useLicense().data
   const updates = updatesBridge()
   const state = useUpdateState()
+  const { prefs, setAutomatic } = useUpdatePrefs()
 
   const licenseRow =
     license && license.state !== "active" ? LICENSE_ROWS[license.state] : null
 
   if (!licenseRow && !updates) return null
+
+  // Installing is local and needs no permission. Checking asks github.com, and
+  // Settings > Network promises that call is refused until allowed -- so the
+  // first one asks, the same way picking a remote model does.
+  const onUpdateClick = async () => {
+    if (!updates) return
+    if (state.status === "ready") return void updates.install()
+    if (prefs?.automatic) return void updates.check()
+    const allowed = await askEgress({
+      destination: "app_updates",
+      host: "github.com",
+      allow: () => setAutomatic(true),
+    })
+    if (allowed) await updates.check()
+  }
 
   return (
     <div className="flex flex-col gap-0.5 border-t p-2">
@@ -110,11 +128,7 @@ export function SidebarFooter({
         <FooterRow
           icon={DownloadCircle02Icon}
           row={updateRow(state)}
-          onClick={() =>
-            void (state.status === "ready"
-              ? updates.install()
-              : updates.check())
-          }
+          onClick={() => void onUpdateClick()}
         />
       ) : null}
     </div>

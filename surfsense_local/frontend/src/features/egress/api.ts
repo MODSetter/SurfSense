@@ -25,6 +25,13 @@ export function setDestinationEnabled(
 }
 
 export function describeDestination(destination: string, host: string) {
+  if (destination === "app_updates") {
+    return {
+      label: "App updates",
+      title: "Allow SurfSense to check for updates?",
+      body: `Checking asks ${host} for the latest release. SurfSense sends your IP address and the version you are running, nothing else. Allowing also turns on the check at launch, which you can switch off in Settings › Network.`,
+    }
+  }
   if (destination === "ollama_pull") {
     return {
       label: "Model downloads",
