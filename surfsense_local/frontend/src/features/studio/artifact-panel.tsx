@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query"
 
 import { Button } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
-import { DownloadIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { fileUrl, readArtifact, type ArtifactDetail } from "./api"
 import { getArtifactViewer } from "./viewers/registry"
@@ -37,7 +36,6 @@ export function ArtifactPanel({
                 asChild
               >
                 <a href={fileUrl(data.id, file.role)} download>
-                  <DownloadIcon data-icon="inline-start" />
                   {file.role === "primary" ? "Download" : file.role}
                 </a>
               </Button>
@@ -46,15 +44,18 @@ export function ArtifactPanel({
       }
     >
       {/* The one viewable stage every artifact format renders into: same
-          size and position below the shared header, regardless of format. */}
-      <div className="h-full overflow-y-auto px-5 py-4">
+          size and position below the shared header, regardless of format.
+          No padding here — a viewer that wants breathing room (like
+          DocumentViewer) adds its own, so a canvas viewer (mindmap, xlsx)
+          can sit flush against the panel edges. */}
+      <div className="h-full overflow-y-auto">
         {isLoading ? (
           <div className="flex h-full items-center justify-center text-muted-foreground">
             <Spinner />
           </div>
         ) : null}
         {error ? (
-          <div className="flex h-full items-center justify-center text-center">
+          <div className="flex h-full items-center justify-center px-5 text-center">
             <p className="text-sm text-destructive">
               {error instanceof Error
                 ? error.message
@@ -69,9 +70,13 @@ export function ArtifactPanel({
 }
 
 function Viewer({ artifact }: { artifact: ArtifactDetail }) {
+  // getArtifactViewer looks up a stable reference from the module-level
+  // ARTIFACT_VIEWERS map (see viewers/registry.tsx) — it never constructs a
+  // new component type, so this is safe despite the lint rule's heuristic.
   const ArtifactViewer = getArtifactViewer(artifact.format)
   return (
     <div className="h-full">
+      {/* eslint-disable-next-line react-hooks/static-components */}
       <ArtifactViewer artifact={artifact} />
     </div>
   )

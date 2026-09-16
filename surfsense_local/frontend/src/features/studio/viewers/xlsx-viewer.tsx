@@ -13,6 +13,7 @@ import {
   parseWorkbook,
   type SheetView,
 } from "./parse-workbook"
+import { VIEWER_PADDING } from "./viewer-layout"
 
 function columnLabel(index: number): string {
   let n = index
@@ -120,7 +121,9 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
 
   if (error || !view) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 px-5 py-4 text-center">
+      <div
+        className={`flex h-full flex-col items-center justify-center gap-3 text-center ${VIEWER_PADDING}`}
+      >
         <FileIcon className="size-8 text-muted-foreground" />
         <div>
           <p className="text-sm font-medium">Couldn't open this spreadsheet</p>
@@ -145,7 +148,7 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
   const sheet = view.sheets[active] ?? view.sheets[0]
 
   return (
-    <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl border bg-white text-neutral-950">
+    <div className="flex h-full min-h-0 flex-col overflow-hidden border bg-white text-neutral-950">
       {view.sheets.length > 1 ? (
         <div
           role="tablist"

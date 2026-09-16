@@ -7,6 +7,7 @@ import {
   CheckIcon,
   XIcon,
 } from "@/components/ui/icons"
+import { VIEWER_PADDING } from "./viewer-layout"
 
 // The deck file's shape (schema_version 1).
 export interface FlashcardDeck {
@@ -46,7 +47,9 @@ export function FlashcardsViewer({ deck }: { deck: FlashcardDeck }) {
 
   if (position >= queue.length) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+      <div
+        className={`flex h-full flex-col items-center justify-center gap-3 text-center ${VIEWER_PADDING}`}
+      >
         <p className="text-lg font-medium">
           {known.length} of {deck.cards.length} known
         </p>
@@ -67,7 +70,7 @@ export function FlashcardsViewer({ deck }: { deck: FlashcardDeck }) {
 
   const card = deck.cards[queue[position]]
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className={`flex h-full flex-col gap-4 ${VIEWER_PADDING}`}>
       <div className="flex justify-between text-xs text-muted-foreground">
         <span>
           {position + 1} / {queue.length}

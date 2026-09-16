@@ -4,6 +4,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { readArtifactFile } from "../api"
 import { FlashcardsViewer, type FlashcardDeck } from "./flashcards-viewer"
 import { QuizViewer, type Quiz } from "./quiz-viewer"
+import { VIEWER_PADDING } from "./viewer-layout"
 
 // Flashcards and quizzes study from their JSON primary, not the markdown body.
 export function StudyViewer({
@@ -28,7 +29,7 @@ export function StudyViewer({
   }
   if (error || !data) {
     return (
-      <p className="text-sm text-destructive">
+      <p className={`${VIEWER_PADDING} text-sm text-destructive`}>
         {error instanceof Error
           ? error.message
           : "Failed to load this artifact"}

@@ -2,6 +2,7 @@ import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
+import { VIEWER_PADDING } from "./viewer-layout"
 
 // The quiz file's shape (schema_version 1).
 export interface Quiz {
@@ -44,7 +45,12 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
         answers[question] === quiz.questions[question].correct_option_index
     ).length
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+      <div
+        className={cn(
+          "flex h-full flex-col items-center justify-center gap-3 text-center",
+          VIEWER_PADDING
+        )}
+      >
         <p className="text-lg font-medium">
           {correct} / {queue.length} correct
         </p>
@@ -73,7 +79,7 @@ export function QuizViewer({ quiz }: { quiz: Quiz }) {
   const isLast = position === queue.length - 1
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className={cn("flex h-full flex-col gap-4", VIEWER_PADDING)}>
       <p className="text-xs text-muted-foreground">
         Question {position + 1} of {queue.length}
       </p>

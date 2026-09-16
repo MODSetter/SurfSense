@@ -74,7 +74,7 @@ export function MindmapViewer({ markdown }: { markdown: string }) {
   }, [markdown])
 
   return (
-    <div className="relative h-full min-h-80 overflow-hidden rounded-xl bg-white">
+    <div className="relative h-full min-h-80 overflow-hidden bg-white">
       <svg
         ref={svgRef}
         className="absolute inset-0 h-full w-full touch-none"
