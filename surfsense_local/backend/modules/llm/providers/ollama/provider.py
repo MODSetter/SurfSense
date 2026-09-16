@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from modules.llm.profile import Fingerprint, from_ollama
 from modules.llm.providers.ollama.catalog import OFFERINGS
 from modules.llm.providers.types import CatalogEntry, DownloadProgress, Message, Model
 from modules.llm.recommendations.types import (
@@ -214,6 +215,14 @@ class OllamaProvider:
                 if delta:
                     yield delta
 
+    async def inspect(self, name: str) -> Fingerprint:
+        """What this runtime knows about an installed model, for prompt tiering."""
+        async with self._client() as client:
+            tag, show = await asyncio.gather(
+                self._tag(client, name), self._show(client, name)
+            )
+        return from_ollama(name, tag, show)
+
     async def _capabilities(
         self, client: httpx.AsyncClient, name: str
     ) -> tuple[str, ...]:
@@ -223,15 +232,23 @@ class OllamaProvider:
     async def _details(
         self, client: httpx.AsyncClient, name: str
     ) -> tuple[tuple[str, ...], str | None]:
-        reply = await client.post("/api/show", json={"model": name})
-        if reply.status_code != 200:
-            return (), None
-        body = reply.json()
+        body = await self._show(client, name)
         details = body.get("details", {})
         quantization = (
             details.get("quantization_level") if isinstance(details, dict) else None
         )
         return tuple(body.get("capabilities", [])), quantization
+
+    async def _show(self, client: httpx.AsyncClient, name: str) -> dict:
+        reply = await client.post("/api/show", json={"model": name})
+        return reply.json() if reply.status_code == 200 else {}
+
+    async def _tag(self, client: httpx.AsyncClient, name: str) -> dict:
+        reply = await client.get("/api/tags")
+        if reply.status_code != 200:
+            return {}
+        rows = reply.json().get("models", [])
+        return next((row for row in rows if row.get("name") == name), {})
 
 
 def _progress(event: dict) -> DownloadProgress:
