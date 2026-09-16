@@ -2,41 +2,11 @@ import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
-import { DownloadCircle02Icon } from "@/components/ui/icons"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
 import type { UpdateState } from "@/lib/api"
 
+import { updatesBridge, useUpdateState } from "./use-update-state"
+
 export type { UpdateState }
-
-const IDLE: UpdateState = { status: "idle" }
-
-// The preload bridge, absent in a bare browser and in the web build.
-function bridge() {
-  return typeof window === "undefined" ? undefined : window.surfsense?.updates
-}
-
-function useUpdateState() {
-  const [state, setState] = useState<UpdateState>(IDLE)
-  useEffect(() => {
-    const updates = bridge()
-    if (!updates) return
-    // An event that lands while the first read is in flight is the newer truth.
-    let pushed = false
-    const unsubscribe = updates.onState((state) => {
-      pushed = true
-      setState(state)
-    })
-    void updates.state().then((state) => {
-      if (!pushed) setState(state)
-    })
-    return unsubscribe
-  }, [])
-  return state
-}
 
 function statusText(state: UpdateState) {
   switch (state.status) {
@@ -54,7 +24,7 @@ function statusText(state: UpdateState) {
 }
 
 export function UpdateSettings() {
-  const updates = bridge()
+  const updates = updatesBridge()
   const state = useUpdateState()
   const [automatic, setAutomatic] = useState<boolean | null>(null)
 
@@ -109,39 +79,5 @@ export function UpdateSettings() {
         </Button>
       )}
     </div>
-  )
-}
-
-/**
- * Sits in the title bar and appears only once an update has been downloaded
- * and is waiting. Shaped exactly like the right-panel toggle beside it — ghost,
- * same size — so only the color sets it apart.
- *
- * The title bar is `position: fixed`, so this button is out of the document
- * flow: rendering nothing costs no space and cannot disturb the layout around
- * it.
- */
-export function UpdateButton() {
-  const state = useUpdateState()
-  if (state.status !== "ready") return null
-  const label = `Restart to install ${state.version}`
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          aria-label={label}
-          className="pointer-events-auto size-6 text-notice hover:text-notice"
-          onClick={() => void bridge()?.install()}
-        >
-          <DownloadCircle02Icon />
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent side="bottom" collisionPadding={8}>
-        {label}
-      </TooltipContent>
-    </Tooltip>
   )
 }

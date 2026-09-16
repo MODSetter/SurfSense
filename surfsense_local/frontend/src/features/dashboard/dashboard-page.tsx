@@ -45,7 +45,6 @@ import { ArtifactList } from "@/features/studio/artifact-list"
 import { ArtifactPanel } from "@/features/studio/artifact-panel"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
-import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
@@ -56,6 +55,7 @@ import {
   writeRightTab,
 } from "./chrome-prefs"
 import { RightPanel, type RightTab } from "./right-panel"
+import { SidebarFooter } from "./sidebar-footer"
 
 type Inspect =
   | { kind: "citation"; chunkId: number }
@@ -68,12 +68,14 @@ function WorkspaceDashboard({
   providerAvailable,
   onModelRequired,
   onModelSelected,
+  onOpenLicense,
 }: {
   workspace: Workspace
   selection: ModelSelection | null
   providerAvailable: boolean
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
+  onOpenLicense: () => void
 }) {
   const [tab, setTab] = useState<RightTab>(readRightTab)
   const [inspect, setInspect] = useState<Inspect>(null)
@@ -104,7 +106,6 @@ function WorkspaceDashboard({
     <>
       <div className="titlebar-controls">
         <div className="titlebar-controls-end">
-          <UpdateButton />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -164,6 +165,7 @@ function WorkspaceDashboard({
                   }),
               },
             ]}
+            footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
           />
         </div>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
@@ -407,6 +409,7 @@ export function DashboardPage({
         providerAvailable={providerAvailable}
         onModelRequired={() => openSettings("models")}
         onModelSelected={onModelSelected}
+        onOpenLicense={() => openSettings("license")}
       />
       <SettingsDialog
         open={settingsOpen}

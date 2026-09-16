@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react"
+import { useRef, useState, type ChangeEvent } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -24,6 +25,7 @@ import {
   removeLicense,
   type LicenseStatus,
 } from "./api"
+import { licenseQueryKey, useLicense } from "./use-license"
 
 const DAY = 24 * 60 * 60 * 1000
 const EXPIRY_NOTICE_DAYS = 14
@@ -182,36 +184,35 @@ function LicenseFormDialog({
 }
 
 export function LicenseSettings() {
-  const [status, setStatus] = useState<LicenseStatus | null>(null)
+  const queryClient = useQueryClient()
+  const license = useLicense()
   const [editor, setEditor] = useState<"add" | "replace" | null>(null)
   const [busy, setBusy] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [actionError, setActionError] = useState<string | null>(null)
 
-  useEffect(() => {
-    const controller = new AbortController()
-    readLicense(controller.signal)
-      .then(setStatus)
-      .catch((cause: unknown) => {
-        if (!controller.signal.aborted) setError(messageFrom(cause))
-      })
-    return () => controller.abort()
-  }, [])
+  const status = license.data ?? null
+  // Straight into the cache rather than local state, so the sidebar's license
+  // row reacts to an import here without refetching.
+  const publish = (next: LicenseStatus) =>
+    queryClient.setQueryData(licenseQueryKey, next)
 
   const remove = async () => {
     setBusy(true)
-    setError(null)
+    setActionError(null)
     try {
       await removeLicense()
-      setStatus(await readLicense())
+      publish(await readLicense())
     } catch (cause) {
-      setError(messageFrom(cause))
+      setActionError(messageFrom(cause))
     } finally {
       setBusy(false)
     }
   }
 
   const shown = status && status.state !== "none" ? notice(status) : null
-  const loading = status === null && error === null
+  const error =
+    actionError ?? (license.error ? messageFrom(license.error) : null)
+  const loading = license.isPending
 
   return (
     <SettingsSection
@@ -300,7 +301,7 @@ export function LicenseSettings() {
           onOpenChange={(open) => {
             if (!open) setEditor(null)
           }}
-          onImported={setStatus}
+          onImported={publish}
         />
       ) : null}
     </SettingsSection>
