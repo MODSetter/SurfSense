@@ -1,7 +1,8 @@
-import { ArrowUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { ArrowUpRight01Icon } from "@/components/ui/icons";
 
 /**
  * Plugins page.
@@ -74,7 +75,9 @@ export default function PluginsPage() {
 		<>
 			<section className="ss-home-hero ss-home-pad">
 				<div className="mx-auto max-w-3xl text-center">
-					<span className="ss-home-badge">Coming soon</span>
+					<Badge variant="secondary" className="rounded-full px-3 py-1">
+						Coming soon
+					</Badge>
 					<h1 className="ss-home-display mt-4">
 						Plugins for the platforms your <span className="ss-home-accent">answers live on</span>
 					</h1>
@@ -89,7 +92,7 @@ export default function PluginsPage() {
 				<div className="ss-home-head">
 					<p className="ss-home-eyebrow">Plugins</p>
 					<h2 id="ss-plugins-label" className="ss-home-h2 mt-2">
-						Shipping <span className="ss-home-accent">first</span>
+						Shipping first
 					</h2>
 				</div>
 
@@ -105,7 +108,7 @@ export default function PluginsPage() {
 									className="size-5 shrink-0"
 								/>
 								<span className="ss-home-h3">{plugin.name}</span>
-								<ArrowUpRight
+								<ArrowUpRight01Icon
 									aria-hidden="true"
 									className="ss-home-cell-link-arrow size-4 shrink-0"
 								/>

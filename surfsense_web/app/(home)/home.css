@@ -156,6 +156,13 @@
 		 * the last one. */
 		padding-block-start: clamp(8rem, 20vw, 12rem);
 	}
+
+	/* For a head that sits directly under a hero: the hero already supplies
+	 * its own bottom padding, so the large desktop lead-in above would double
+	 * up into a gap far taller than either section intends. */
+	.ss-home-head-tight {
+		padding-block-start: clamp(2.5rem, 6vw, 4rem);
+	}
 }
 
 /* Where the only dividers that should show are the ones between the cells
@@ -260,6 +267,29 @@
 	-webkit-user-drag: none;
 }
 
+/* A format's lucide icon in `HomeFormats`, sized well above the 16px/20px
+ * lucide ships at by default so it reads at a glance in a twelve-cell row. */
+.ss-home-format-icon {
+	width: 1.75rem;
+	height: 1.75rem;
+	stroke-width: 1.5;
+	color: var(--muted-foreground);
+}
+
+/**
+ * `HomeFormatCell`'s `CardSpotlight` (components/ui/card-spotlight).
+ *
+ * Unlayered, so these outrank the card's own Tailwind defaults: no border at
+ * all (the card ships `border-neutral-800`; the cell's hairlines are drawn by
+ * the wrapper around it), and `overflow: hidden` so the card's spotlight
+ * layer, which reaches a pixel past its box, stays inside it. The spotlight
+ * and canvas dot-reveal themselves are the card's own.
+ */
+.ss-home-format-cell {
+	overflow: hidden;
+	border: 0;
+}
+
 /* Two halves of a section, split by a vertical hairline on wide screens and
  * stacked with a horizontal one when narrow. */
 .ss-home-split {
@@ -291,6 +321,97 @@
 	.ss-home-statement {
 		padding-block: 4rem;
 	}
+}
+
+/**
+ * Claims tabs (`HomeFeaturesTabs`).
+ *
+ * The tab list reuses the cell-grid vocabulary above instead of the
+ * underline tabs further down — three equal-width cells ruled off by
+ * hairlines, matching the "Runs entirely on your machine" row right above it
+ * rather than the API code sample's tab strip.
+ *
+ * The panels sit in one grid cell (`grid-area: 1 / 1`), all three always
+ * mounted so their headings stay in the markup regardless of which is open.
+ * Every panel therefore contributes to the row's height, so the row is
+ * always as tall as the tallest panel and switching tabs never changes it —
+ * nothing below the section moves. The inactive ones are hidden with
+ * `visibility` rather than `display: none`, which would drop them out of
+ * that height calculation and bring the shift back.
+ */
+/* Height/radius/alignment reset: `TabsList`/`TabsTrigger` (components/ui/tabs)
+ * ship a fixed-height pill-tab look (`h-10`, `rounded-md`, `items-center`,
+ * `rounded-sm`) meant for a short single-line label — this tab list holds a
+ * full heading and needs to wrap to two lines and sit flush with square
+ * corners instead. */
+.ss-home-features-tablist {
+	height: auto;
+	align-items: stretch;
+	padding: 0;
+	border-bottom: 1px solid var(--border);
+	border-radius: 0;
+}
+
+.ss-home-features-tab {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 0.5rem;
+	padding: 1.25rem var(--home-gutter);
+	border-top: 2px solid transparent;
+	border-radius: 0;
+	box-shadow: none;
+	text-align: left;
+	transition: background-color 100ms ease-out;
+}
+
+.ss-home-features-tab:hover {
+	background-color: var(--secondary);
+}
+
+.ss-home-features-tab:focus-visible {
+	box-shadow: none;
+	outline: 2px solid var(--ring);
+	outline-offset: -2px;
+}
+
+.ss-home-features-tab[data-state="active"] {
+	border-top-color: var(--home-accent);
+	background-color: var(--secondary);
+	box-shadow: none;
+}
+
+.ss-home-features-tab-num {
+	font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	font-size: 0.75rem;
+	color: var(--muted-foreground);
+}
+
+.ss-home-features-tab[data-state="active"] .ss-home-features-tab-num {
+	color: var(--home-accent);
+}
+
+.ss-home-features-tab-title {
+	font-size: 0.875rem;
+	font-weight: 600;
+	line-height: 1.4;
+	letter-spacing: -0.01em;
+	color: var(--foreground);
+}
+
+.ss-home-features-panels {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr);
+}
+
+.ss-home-features-panels > * {
+	grid-area: 1 / 1;
+	min-width: 0;
+}
+
+.ss-home-features-panels > [data-state="inactive"] {
+	visibility: hidden;
+	pointer-events: none;
 }
 
 /* ---------------------------------------------------------------------------
@@ -435,22 +556,6 @@
 	letter-spacing: 0.06em;
 	text-transform: uppercase;
 	white-space: nowrap;
-}
-
-/* A standalone status pill, for a claim that sits above a heading rather than
- * inline with one, like the plan badge above. Tinted rather than outlined or
- * filled: it reads as a state, not as the accent's one emphasis clause. */
-.ss-home-badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	border-radius: 999px;
-	padding: 0.375rem 0.875rem;
-	background-color: color-mix(in oklab, var(--home-accent) 12%, transparent);
-	font-size: 0.75rem;
-	font-weight: 600;
-	letter-spacing: 0.01em;
-	color: var(--home-accent);
 }
 
 /* Tints the recommended tier. `.ss-home-plans > *` paints every cell with the

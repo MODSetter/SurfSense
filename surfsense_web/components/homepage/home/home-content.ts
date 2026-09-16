@@ -106,6 +106,44 @@ export const ON_YOUR_MACHINE: (Cell & { illustration?: IllustratedCell })[] = [
 	},
 ];
 
+/**
+ * Not one of the brief's seven H2s — a new band below the claims tabs, so its
+ * own headline is a `<p>` styled like an H2, the same convention `HomePillars`
+ * and `HomeCompare` use to add a section without disturbing the SEO skeleton's
+ * heading count.
+ *
+ * The twelve formats and their order come straight from the backend's own
+ * catalog (`surfsense_local/backend/modules/artifacts/formats.py`), and each
+ * `key` matches that file's format keys exactly — `HomeFormats` looks up an
+ * icon per key from the same set the in-app Studio library uses
+ * (`features/artifacts/lib/artifact-format-catalog.ts`), so the homepage and
+ * the product never draw a format with two different icons.
+ */
+export type Format = { key: string; label: string; body: string };
+
+export const FORMATS: Format[] = [
+	{ key: "summary", label: "Summary", body: "A short brief of everything you have indexed." },
+	{
+		key: "docx",
+		label: "Document",
+		body: "An editable write-up you can revise afterward.",
+	},
+	{ key: "pptx", label: "Slides", body: "An editable presentation deck." },
+	{ key: "xlsx", label: "Spreadsheet", body: "Tables pulled out of your sources." },
+	{ key: "html", label: "Web page", body: "A standalone page you can host anywhere." },
+	{ key: "pdf", label: "PDF", body: "A print-ready export of the same content." },
+	{ key: "mindmap", label: "Mind map", body: "Concepts laid out as a linked graph." },
+	{ key: "flashcards", label: "Flashcards", body: "A front-and-back deck for review." },
+	{ key: "quiz", label: "Quiz", body: "Multiple-choice questions with source citations." },
+	{
+		key: "podcast",
+		label: "Podcast",
+		body: "A two-voice audio conversation, synthesised offline.",
+	},
+	{ key: "image", label: "Image", body: "A generated illustration for a single idea." },
+	{ key: "infographic", label: "Infographic", body: "Key figures laid out as one visual." },
+];
+
 /** H2 #2, #3, #4 — the three arguments that run as a ruled row. */
 export const PILLARS: (Cell & { action: Action })[] = [
 	{
@@ -133,19 +171,19 @@ export const PILLARS: (Cell & { action: Action })[] = [
  * that structure.
  */
 export const STORIES: {
-	key: "podcasts" | "open" | "private";
+	key: "artifacts" | "open" | "private";
 	heading: string;
 	body: string[];
 	action: Action;
 }[] = [
 	{
-		key: "podcasts",
-		heading: "Turn sources into podcasts, offline",
+		key: "artifacts",
+		heading: "Artifacts: podcasts, flashcards, quizzes, mind maps",
 		body: [
-			"Hand it a folder of papers and get back a two-voice conversation you can listen to on a commute. The script is written by the model you chose and the audio is synthesised on your machine, so a private document stays private even when it becomes a recording.",
-			"The same sources also become summaries, study guides, flashcards and mind maps without a second pass over your data.",
+			"Every source can become more than an answer: a study guide, a flashcard deck, a practice quiz, a mind map or a two-voice podcast, each one built on your own machine.",
+			"Every format is generated and stored in the same local database as everything else. No cloud model in the loop, no per-minute fee, no second pass over your data to make them.",
 		],
-		action: { label: "How the podcast generator works", href: "/mcp-server" },
+		action: { label: "See which artifacts are supported", href: "/mcp-server" },
 	},
 	{
 		key: "open",
@@ -168,12 +206,12 @@ export const STORIES: {
 ];
 
 export const PROOF_POINTS: Record<(typeof STORIES)[number]["key"], string[]> = {
-	podcasts: [
-		"Two-voice conversational scripts",
-		"Speech synthesised locally",
-		"Summaries and study guides",
-		"Flashcards and mind maps",
-		"Export as plain audio files",
+	artifacts: [
+		"Study guides from your sources",
+		"AI flashcard decks",
+		"Practice quizzes with citations",
+		"Mind maps",
+		"Two-voice podcasts, synthesised offline",
 		"No per-minute generation fee",
 	],
 	open: [

@@ -107,7 +107,7 @@ function PostSearchGrid({ blogs: allBlogs }: { blogs: BlogEntry[] }) {
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 						placeholder="Search blogs"
-						className="w-full rounded-(--radius) border border-border bg-background py-2.5 pr-4 pl-11 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+						className="w-full rounded-(--radius) border-none bg-secondary py-2.5 pr-4 pl-11 text-sm text-secondary-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
 					/>
 				</label>
 			</div>

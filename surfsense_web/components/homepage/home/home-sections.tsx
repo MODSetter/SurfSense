@@ -1,18 +1,19 @@
-import { ArrowRight, Check } from "lucide-react";
 import Link from "next/link";
 import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifact-illustration";
 import {
 	type Cell,
 	COMPARE_ROWS,
 	DOWNLOADS_URL,
+	FORMATS,
 	type IllustratedCell,
 	ON_YOUR_MACHINE,
 	PILLARS,
-	PROOF_POINTS,
-	STORIES,
 } from "@/components/homepage/home/home-content";
+import { HomeFeaturesTabs } from "@/components/homepage/home/home-features-tabs";
+import { HomeFormatCell } from "@/components/homepage/home/home-format-cell";
 import { HomeHeroDither } from "@/components/homepage/home/home-hero-dither";
 import { FlowButton } from "@/components/ui/flow-button";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
 /**
  * Homepage sections.
@@ -23,9 +24,11 @@ import { FlowButton } from "@/components/ui/flow-button";
  * no interior rule ever doubles up. Nothing here has a radius or a shadow; only
  * controls keep the palette's `--radius`.
  *
- * All server components — the page has no interactive state. The single
- * exception is the hero's backdrop, which is a WebGL shader and so lives in its
- * own "use client" module rather than pulling this file across the boundary.
+ * Mostly server components. Three exceptions live in their own "use client"
+ * modules rather than pulling this file across the boundary: the hero's
+ * backdrop (a WebGL shader), `HomeFeaturesTabs` (the claims switcher), and
+ * `CardSpotlight` (components/ui), which `HomeFormatCell` wraps each format
+ * cell in for its hover spotlight.
  *
  * The heading order is not editorial. It is the SEO skeleton from
  * `plans/community-local/seo/02-page-briefs.md`: H1, then seven H2s in a fixed
@@ -129,11 +132,11 @@ export function HomePillars() {
 									target="_blank"
 									rel="noreferrer noopener"
 								>
-									{pillar.action.label} <ArrowRight aria-hidden="true" className="size-4" />
+									{pillar.action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
 								</a>
 							) : (
 								<Link className="ss-home-forward" href={pillar.action.href}>
-									{pillar.action.label} <ArrowRight aria-hidden="true" className="size-4" />
+									{pillar.action.label} <ArrowRightIcon aria-hidden="true" className="size-4" />
 								</Link>
 							)}
 						</p>
@@ -207,55 +210,41 @@ export function HomeCompare() {
  * next.
  *
  * The band's own headline is a `<p>` styled like an H2, not a real one — the
- * three real H2s the brief wants are each story's own heading below it.
+ * three real H2s the brief wants are each story's own heading, rendered by
+ * `HomeFeaturesTabs` below.
  */
 export function HomeFeatures() {
 	return (
 		<section className="ss-home-rule">
 			<div className="ss-home-head">
 				<p className="ss-home-eyebrow">What you get</p>
-				<p className="ss-home-h2 mt-2">Three claims, and why each one holds</p>
+				<p className="ss-home-h2 mt-2">Three things worth knowing before you install</p>
 			</div>
 
-			<div className="ss-home-grid">
-				{STORIES.map((story) => (
-					<div key={story.heading} className="flex flex-col">
-						<div className="ss-home-split">
-							<div className="ss-home-statement">
-								<h2 className="ss-home-h2">{story.heading}</h2>
-								<div className="ss-home-body mt-5 flex flex-col gap-4">
-									{story.body.map((paragraph) => (
-										<p key={paragraph}>{paragraph}</p>
-									))}
-								</div>
-								<p className="mt-6">
-									{story.action.external ? (
-										<a
-											className="ss-home-forward"
-											href={story.action.href}
-											target="_blank"
-											rel="noreferrer noopener"
-										>
-											{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
-										</a>
-									) : (
-										<Link className="ss-home-forward" href={story.action.href}>
-											{story.action.label} <ArrowRight aria-hidden="true" className="size-4" />
-										</Link>
-									)}
-								</p>
-							</div>
+			<HomeFeaturesTabs />
+		</section>
+	);
+}
 
-							<ul className="ss-home-grid m-0 list-none p-0">
-								{PROOF_POINTS[story.key].map((point) => (
-									<li key={point} className="flex items-center gap-3 px-(--home-gutter) py-3.5">
-										<Check aria-hidden="true" className="size-3.5 shrink-0 text-(--home-accent)" />
-										<span className="ss-home-body text-sm">{point}</span>
-									</li>
-								))}
-							</ul>
-						</div>
-					</div>
+/**
+ * Not one of the brief's seven H2s (see `FORMATS`'s own doc comment in
+ * `home-content.ts`) — a bento row of the twelve Studio formats, below the
+ * claims tabs. `HomeFormatCell` is the one client component in the row (a
+ * cursor-tracked hover spotlight); this section itself stays server-rendered.
+ */
+export function HomeFormats() {
+	return (
+		<section className="ss-home-rule">
+			<div className="ss-home-head ss-home-head-plain">
+				<p className="ss-home-eyebrow">Artifacts</p>
+				<p className="ss-home-h2 mt-2">Twelve things one set of sources can become</p>
+			</div>
+
+			{/* The same grid as the logo cloud: the head is plain, so the grid draws its
+			    own top edge, and each cell draws its own right and bottom hairlines. */}
+			<div className="relative grid grid-cols-2 border-t border-[color:var(--border)] md:grid-cols-4">
+				{FORMATS.map((format, index) => (
+					<HomeFormatCell key={format.key} format={format} index={index} />
 				))}
 			</div>
 		</section>

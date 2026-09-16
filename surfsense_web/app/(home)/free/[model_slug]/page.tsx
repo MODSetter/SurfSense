@@ -1,10 +1,10 @@
-import { SquareArrowOutUpRight } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { FreeChatClient } from "@/components/free-chat/free-chat-client";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Button } from "@/components/ui/button";
+import { LinkSquare02Icon } from "@/components/ui/icons";
 import { Separator } from "@/components/ui/separator";
 import type { AnonModel } from "@/contracts/types/anonymous-chat.types";
 import { SERVER_BACKEND_URL } from "@/lib/env-config";
@@ -228,7 +228,7 @@ export default async function FreeModelPage({ params }: PageProps) {
 											<Button key={m.id} variant="outline" size="sm" asChild>
 												<Link href={`/free/${m.seo_slug}`}>
 													{m.name}
-													<SquareArrowOutUpRight className="size-3" />
+													<LinkSquare02Icon className="size-3" />
 												</Link>
 											</Button>
 										))}

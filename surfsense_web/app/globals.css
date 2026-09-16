@@ -9,8 +9,11 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme {
-	--font-sans: var(--font-geist-sans);
-	--font-mono: var(--font-geist-mono);
+	--font-sans: var(--font-roboto);
+	/* No monospace webfont is loaded; this is a system stack, not a second
+	 * bundled font. Previously pointed at --font-geist-mono, which nothing
+	 * defines, so every font-mono usage silently fell back to Roboto. */
+	--font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 }
 
 :root {

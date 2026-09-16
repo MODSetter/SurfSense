@@ -1,8 +1,8 @@
 import { IconBrandGithub } from "@tabler/icons-react";
-import { Check } from "lucide-react";
 import Link from "next/link";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
+import { CheckIcon } from "@/components/ui/icons";
 import type { ConnectorPageContent, SchemaField } from "@/lib/connectors-marketing/types";
 import { AgentTranscript } from "./agent-transcript";
 import { ApiMcpTabs } from "./api-mcp-tabs";
@@ -114,7 +114,7 @@ export function ConnectorPage({ content }: { content: ConnectorPageContent }) {
 					{content.extractFields.map((field) => (
 						<div key={field.label} className="ss-home-cell">
 							<p className="ss-home-h3 flex items-center gap-2">
-								<Check aria-hidden="true" className="size-4 shrink-0 text-(--home-accent)" />
+								<CheckIcon aria-hidden="true" className="size-4 shrink-0 text-(--home-accent)" />
 								{field.label}
 							</p>
 							<p className="ss-home-body mt-2 text-sm">{field.description}</p>

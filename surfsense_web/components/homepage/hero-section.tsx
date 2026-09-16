@@ -1,5 +1,5 @@
 "use client";
-import { ChevronDown, Download } from "lucide-react";
+
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import Link from "next/link";
 import React, { memo, useCallback, useEffect, useRef, useState } from "react";
@@ -13,6 +13,7 @@ import {
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ExpandedMediaOverlay, useExpandedMedia } from "@/components/ui/expanded-gif-overlay";
+import { ChevronDownIcon, DownloadIcon } from "@/components/ui/icons";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -721,7 +722,7 @@ function DownloadButton() {
 				disabled
 				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200"
 			>
-				<Download className="size-4" />
+				<DownloadIcon className="size-4" />
 				{mobileDisabledLabel}
 			</Button>
 		);
@@ -735,7 +736,7 @@ function DownloadButton() {
 				className="h-14 w-full gap-2 rounded-lg border border-neutral-200 bg-white text-center text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-98 hover:bg-neutral-50 sm:w-auto sm:px-6 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
 			>
 				<a href={fallbackUrl} target="_blank" rel="noopener noreferrer">
-					<Download className="size-4" />
+					<DownloadIcon className="size-4" />
 					Download for {os}
 				</a>
 			</Button>
@@ -750,7 +751,7 @@ function DownloadButton() {
 				className="h-auto flex-1 gap-2 rounded-l-lg rounded-r-none border border-r-0 border-neutral-200 bg-white px-5 text-base font-medium text-neutral-700 shadow-sm transition duration-150 active:scale-[0.99] hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-200 dark:hover:bg-neutral-800"
 			>
 				<a href={primary.url}>
-					<Download className="size-4 shrink-0" />
+					<DownloadIcon className="size-4 shrink-0" />
 					Download for {os}
 				</a>
 			</Button>
@@ -762,14 +763,14 @@ function DownloadButton() {
 						aria-label="More download options"
 						className="h-auto rounded-l-none rounded-r-lg border border-neutral-200 bg-white px-2.5 text-neutral-500 shadow-sm transition duration-150 hover:bg-neutral-50 dark:border-neutral-700 dark:bg-neutral-900 dark:text-neutral-400 dark:hover:bg-neutral-800"
 					>
-						<ChevronDown className="size-4" aria-hidden />
+						<ChevronDownIcon className="size-4" aria-hidden />
 					</Button>
 				</DropdownMenuTrigger>
 				<DropdownMenuContent align="end" className="w-64">
 					{alternatives.map((asset) => (
 						<DropdownMenuItem key={asset.name} asChild>
 							<a href={asset.url} className="cursor-pointer">
-								<Download className="mr-2 size-3.5" />
+								<DownloadIcon className="mr-2 size-3.5" />
 								{getAssetLabel(asset.name)}
 							</a>
 						</DropdownMenuItem>

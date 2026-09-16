@@ -1,8 +1,8 @@
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Reveal } from "@/components/connectors-marketing/reveal";
 import { UseCaseArt, type UseCaseArtVariant } from "@/components/homepage/use-case-art";
 import { MarketingSection } from "@/components/marketing/section";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
 /** Buyer language from the high-CPC keyword clusters; each anchors to the connector that fulfills it. */
 const USE_CASES: {
@@ -76,7 +76,7 @@ export function UseCasesRow() {
 								className="group mt-4 inline-flex items-center gap-1 text-sm font-medium text-foreground"
 							>
 								{useCase.anchor}
-								<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+								<ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
 							</Link>
 						</div>
 					</Reveal>

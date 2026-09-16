@@ -46,6 +46,7 @@ export interface ReleaseAsset {
 
 export function useLatestRelease() {
 	const [assets, setAssets] = useState<ReleaseAsset[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
 		const controller = new AbortController();
@@ -65,11 +66,12 @@ export function useLatestRelease() {
 					);
 				}
 			})
-			.catch(() => {});
+			.catch(() => {})
+			.finally(() => setIsLoading(false));
 		return () => controller.abort();
 	}, []);
 
-	return assets;
+	return { assets, isLoading };
 }
 
 export const ASSET_LABELS: Record<string, string> = {
@@ -93,7 +95,7 @@ export const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/relea
 
 export function usePrimaryDownload() {
 	const { os, arch } = useUserOS();
-	const assets = useLatestRelease();
+	const { assets, isLoading } = useLatestRelease();
 	const isMobileOS = os === "Android" || os === "iOS";
 
 	const { primary, alternatives } = useMemo(() => {
@@ -112,5 +114,5 @@ export function usePrimaryDownload() {
 		return { primary, alternatives };
 	}, [assets, os, arch, isMobileOS]);
 
-	return { os, arch, assets, primary, alternatives, isMobileOS };
+	return { os, arch, assets, primary, alternatives, isMobileOS, isLoading };
 }

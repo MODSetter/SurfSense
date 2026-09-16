@@ -1,8 +1,8 @@
-import { ArrowRight, Code2, Megaphone } from "lucide-react";
 import Link from "next/link";
 import { Reveal } from "@/components/connectors-marketing/reveal";
 import { UseCaseArt, type UseCaseArtVariant } from "@/components/homepage/use-case-art";
 import { MarketingSection } from "@/components/marketing/section";
+import { ArrowRightIcon, Megaphone01Icon, SourceCodeIcon } from "@/components/ui/icons";
 
 /**
  * Answers "is this for me?" right below the hero: one card per audience.
@@ -10,7 +10,7 @@ import { MarketingSection } from "@/components/marketing/section";
  * (developers / agent builders) second.
  */
 const PATHS: {
-	icon: typeof Megaphone;
+	icon: typeof Megaphone01Icon;
 	art: UseCaseArtVariant;
 	eyebrow: string;
 	title: string;
@@ -18,7 +18,7 @@ const PATHS: {
 	links: { label: string; href: string }[];
 }[] = [
 	{
-		icon: Megaphone,
+		icon: Megaphone01Icon,
 		art: "chat",
 		eyebrow: "For founders & marketing teams",
 		title: "Live web research without the enterprise price tag",
@@ -30,7 +30,7 @@ const PATHS: {
 		],
 	},
 	{
-		icon: Code2,
+		icon: SourceCodeIcon,
 		art: "api",
 		eyebrow: "For developers & agents",
 		title: "The whole platform is programmable",
@@ -72,7 +72,7 @@ export function PersonaPaths() {
 											className="group inline-flex items-center gap-1 text-sm font-medium text-foreground"
 										>
 											{link.label}
-											<ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" />
+											<ArrowRightIcon className="size-4 transition-transform group-hover:translate-x-0.5" />
 										</Link>
 									))}
 								</div>

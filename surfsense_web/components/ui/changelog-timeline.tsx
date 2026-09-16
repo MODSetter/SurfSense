@@ -60,7 +60,9 @@ export const ChangelogTimeline = ({
 						>
 							<div className="flex h-min flex-col items-start gap-3 md:sticky md:top-24">
 								<time className="ss-home-eyebrow">{entry.date}</time>
-								<Badge variant="secondary">{entry.version}</Badge>
+								<Badge variant="secondary" className="rounded-full px-3 py-1">
+									{entry.version}
+								</Badge>
 							</div>
 							<div className="flex min-w-0 max-w-2xl flex-1 flex-col">
 								<h2 className="ss-home-h3 mb-3 text-xl md:text-2xl">{entry.title}</h2>
