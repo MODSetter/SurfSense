@@ -13,13 +13,11 @@ from app.config import config
 from app.payments import registry
 from app.payments.schemas import StripeWebhookResponse
 
-from .service import (
-    LicenseIssueError,
-    deliver_licenses,
-    fulfill_license_session,
-    resolve_license_plan,
-    suspend_licenses_for_customer,
-)
+from .admin import suspend_licenses_for_customer
+from .checkout import resolve_license_plan
+from .email.deliver import deliver_licenses
+from .issue import fulfill_license_session
+from .models import LicenseIssueError
 
 logger = logging.getLogger(__name__)
 

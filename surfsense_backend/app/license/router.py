@@ -16,15 +16,12 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 
 from app.config import config
 from app.license.email.address import is_disposable, normalize_email
+from app.license.email.deliver import deliver_licenses
+from app.license.issue import certificate_for_checkout_session, issue_trial_license
+from app.license.models import TrialAlreadyClaimedError
 from app.license.rate_limit import enforce_license_rate_limit
+from app.license.records import certificates_for_email
 from app.license.schemas import LicenseAckResponse, LicenseEmailRequest
-from app.license.service import (
-    TrialAlreadyClaimedError,
-    certificate_for_checkout_session,
-    certificates_for_email,
-    deliver_licenses,
-    issue_trial_license,
-)
 from app.mailer import MailerRejectedError, MailerUnavailableError, is_mail_enabled
 from app.payments.client import get_stripe_client
 

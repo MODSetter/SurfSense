@@ -15,13 +15,10 @@ import pytest
 
 from app.config import config
 from app.license import keygen
+from app.license.checkout import resolve_license_plan
 from app.license.email.address import fold_email, is_disposable, normalize_email
-from app.license.service import (
-    LicenseIssueError,
-    _trial_expiry,
-    derive_license_id,
-    resolve_license_plan,
-)
+from app.license.issue import derive_license_id, trial_expiry
+from app.license.models import LicenseIssueError
 
 pytestmark = pytest.mark.unit
 
@@ -159,7 +156,7 @@ def test_trial_expiry_is_measured_from_now_once_the_plugin_has_shipped(monkeypat
     monkeypatch.setattr(config, "LICENSE_TRIAL_DAYS", 14)
 
     now = datetime.now(UTC)
-    assert abs(_trial_expiry(now) - (now + timedelta(days=14))) < timedelta(seconds=1)
+    assert abs(trial_expiry(now) - (now + timedelta(days=14))) < timedelta(seconds=1)
 
 
 def test_trial_expiry_starts_at_the_plugin_date_while_it_is_in_the_future(monkeypatch):
@@ -168,7 +165,7 @@ def test_trial_expiry_starts_at_the_plugin_date_while_it_is_in_the_future(monkey
     now = datetime(2026, 9, 14, tzinfo=UTC)
     monkeypatch.setattr(config, "LICENSE_TRIAL_EXPIRY_FLOOR", "2026-09-21")
 
-    assert _trial_expiry(now) == datetime(2026, 10, 5, tzinfo=UTC)
+    assert trial_expiry(now) == datetime(2026, 10, 5, tzinfo=UTC)
 
 
 def test_an_unparseable_expiry_floor_degrades_to_plain_days(monkeypatch):
@@ -176,7 +173,7 @@ def test_an_unparseable_expiry_floor_degrades_to_plain_days(monkeypatch):
     monkeypatch.setattr(config, "LICENSE_TRIAL_EXPIRY_FLOOR", "next tuesday")
 
     now = datetime.now(UTC)
-    assert abs(_trial_expiry(now) - (now + timedelta(days=14))) < timedelta(seconds=1)
+    assert abs(trial_expiry(now) - (now + timedelta(days=14))) < timedelta(seconds=1)
 
 
 @pytest.mark.parametrize(

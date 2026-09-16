@@ -77,7 +77,7 @@ class LicenseExistsError(RuntimeError):
     Callers derive the id from the purchase, so this is not a failure but the
     answer to "did someone else already fulfil this?" -- Keygen's uniqueness on
     the id is the only constraint available to a design with no license table.
-    See ``app.license.service``.
+    See ``app.license.issue``.
     """
 
 
