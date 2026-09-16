@@ -1057,6 +1057,96 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
   })
 
+  it("shows how many sources the chat will use", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "ollama", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([
+            {
+              id: 20,
+              title: "Guide.txt",
+              document_type: "FILE",
+              status: "ready",
+              error_message: null,
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            {
+              id: 21,
+              title: "Notes.txt",
+              document_type: "FILE",
+              status: "ready",
+              error_message: null,
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            {
+              id: 22,
+              title: "Draft.txt",
+              document_type: "FILE",
+              status: "processing",
+              error_message: null,
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+          ])
+        }
+        if (path === "/workspaces/1/chat/threads") return Response.json([])
+        if (path === "/workspaces/1/studio/formats") return Response.json([])
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            role: "generation",
+            provider: "ollama",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const count = await screen.findByRole("button", {
+      name: "2 sources included in this chat",
+    })
+    expect(count.closest('[data-composer-placement="center"]')).toBeTruthy()
+
+    await user.click(screen.getByRole("checkbox", { name: "Select Guide.txt" }))
+    expect(
+      screen.getByRole("button", { name: "1 source included in this chat" })
+    ).toBeTruthy()
+
+    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
+    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
+    await user.click(
+      screen.getByRole("button", { name: "1 source included in this chat" })
+    )
+    expect(screen.getByRole("heading", { name: "Sources" })).toBeTruthy()
+    expect(
+      screen.getByRole("tab", { name: "Sources" }).getAttribute("aria-selected")
+    ).toBe("true")
+  })
+
   it("opens a generated artifact in the detail rail", async () => {
     vi.stubGlobal(
       "fetch",

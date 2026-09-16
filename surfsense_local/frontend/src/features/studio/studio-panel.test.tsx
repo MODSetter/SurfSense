@@ -52,6 +52,7 @@ function StudioHarness({
         isLoading={studio.isLoading}
         onOpen={vi.fn()}
         onRegenerate={(id) => void studio.regenerate(id)}
+        onCancel={(id) => void studio.cancel(id)}
         onDelete={(id) => void studio.remove(id)}
       />
     </>

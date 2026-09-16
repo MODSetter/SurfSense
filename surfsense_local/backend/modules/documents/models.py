@@ -24,6 +24,7 @@ class DocumentStatus(enum.StrEnum):
     PROCESSING = "processing"
     READY = "ready"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class Document(Base):

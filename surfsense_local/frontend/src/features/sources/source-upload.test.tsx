@@ -46,6 +46,7 @@ function SourceHarness() {
         onOpen={(id) => void sources.openOriginal(id)}
         onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}
+        onCancel={(id) => void sources.cancel(id)}
         onDelete={(id) => void sources.deleteOne(id)}
         onDeleteSelected={() => void sources.deleteSelected()}
         onSelectionChange={sources.setDocumentIncluded}
@@ -110,6 +111,7 @@ describe("source upload", () => {
           onOpen={vi.fn()}
           onReveal={vi.fn()}
           onRetry={vi.fn()}
+          onCancel={vi.fn()}
           onDelete={vi.fn()}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
@@ -200,6 +202,7 @@ describe("source upload", () => {
           onOpen={vi.fn()}
           onReveal={vi.fn()}
           onRetry={vi.fn()}
+          onCancel={vi.fn()}
           onDelete={vi.fn()}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
@@ -239,6 +242,7 @@ describe("source upload", () => {
           onOpen={vi.fn()}
           onReveal={vi.fn()}
           onRetry={vi.fn()}
+          onCancel={vi.fn()}
           onDelete={vi.fn()}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
@@ -296,6 +300,7 @@ describe("source upload", () => {
           onOpen={vi.fn()}
           onReveal={vi.fn()}
           onRetry={vi.fn()}
+          onCancel={vi.fn()}
           onDelete={onDelete}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
@@ -326,6 +331,44 @@ describe("source upload", () => {
     await user.click(screen.getByRole("button", { name: "Delete source" }))
 
     expect(onDelete).toHaveBeenCalledWith(pendingDocument.id)
+  })
+
+  it("cancels a processing source from the overflow menu", async () => {
+    const onCancel = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[
+            {
+              ...pendingDocument,
+              title: "processing.pdf",
+              status: "processing",
+            },
+          ]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={onCancel}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for processing.pdf" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Cancel" }))
+    expect(onCancel).toHaveBeenCalledWith(pendingDocument.id)
   })
 
   it("permanently deletes one failed source after confirmation", async () => {

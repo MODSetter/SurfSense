@@ -145,4 +145,23 @@ describe("useStudio", () => {
       }
     )
   }, 8000)
+
+  it("does not toast when a running artifact is cancelled", async () => {
+    const responses: unknown[] = [
+      [],
+      [artifact()],
+      [artifact({ status: "cancelled" })],
+    ]
+    const fetchMock = vi.fn(async () => Response.json(responses.shift() ?? []))
+    vi.stubGlobal("fetch", fetchMock)
+
+    renderHook(() => useStudio(1))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3), {
+      timeout: 4000,
+    })
+
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(toast.success).not.toHaveBeenCalled()
+  }, 8000)
 })

@@ -187,6 +187,13 @@ function WorkspaceDashboard({
             onModelSelected={onModelSelected}
             onRetry={chat.retry}
             onUpload={(files) => void sources.upload(files)}
+            sourceCount={sources.includedDocumentIds.length}
+            onOpenSources={() => {
+              closeInspect()
+              writeRightTab("sources")
+              setTab("sources")
+              openSources()
+            }}
             onTitleAnimationComplete={chat.finishTitleAnimation}
             autoNamingThreadId={chat.autoNamingThreadId}
             onRename={chat.rename}
@@ -251,6 +258,7 @@ function WorkspaceDashboard({
                   onOpen={(id) => void sources.openOriginal(id)}
                   onReveal={(id) => void sources.revealOriginal(id)}
                   onRetry={(id) => void sources.retry(id)}
+                  onCancel={(id) => void sources.cancel(id)}
                   onDelete={(id) => void sources.deleteOne(id)}
                   onDeleteSelected={() => void sources.deleteSelected()}
                   onSelectionChange={sources.setDocumentIncluded}
@@ -270,6 +278,7 @@ function WorkspaceDashboard({
                   onRegenerate={(artifactId) =>
                     void studio.regenerate(artifactId)
                   }
+                  onCancel={(artifactId) => void studio.cancel(artifactId)}
                   onDelete={(artifactId) => void studio.remove(artifactId)}
                 />
               }

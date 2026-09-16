@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
+  cancelDocument,
   deleteDocument,
   isSupportedSourceFile,
   listDocuments,
@@ -176,6 +177,20 @@ export function useSources(workspaceId: number) {
     setError(null)
     try {
       const updated = await retryDocument(workspaceId, documentId)
+      setDocuments((current) =>
+        current.map((document) =>
+          document.id === documentId ? updated : document
+        )
+      )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
+  const cancel = async (documentId: number) => {
+    setError(null)
+    try {
+      const updated = await cancelDocument(workspaceId, documentId)
       setDocuments((current) =>
         current.map((document) =>
           document.id === documentId ? updated : document
@@ -383,6 +398,7 @@ export function useSources(workspaceId: number) {
     openOriginal,
     revealOriginal,
     retry,
+    cancel,
     deleteOne,
     deleteSelected,
     setDocumentSelected,

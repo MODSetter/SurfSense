@@ -157,6 +157,16 @@ export function regenerateArtifact(
   })
 }
 
+export function cancelArtifact(
+  artifactId: number,
+  signal?: AbortSignal
+): Promise<Artifact> {
+  return requestJson<Artifact>(`/artifacts/${artifactId}/cancel`, {
+    method: "POST",
+    signal,
+  })
+}
+
 export function deleteArtifact(
   artifactId: number,
   signal?: AbortSignal
