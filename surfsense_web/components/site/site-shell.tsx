@@ -41,6 +41,7 @@ const SITE_DESIGN_ROUTES = new Set([
 	"/changelog",
 	"/announcements",
 	"/login",
+	"/sunset",
 	...getAllConnectorSlugs().map((slug) => `/${slug}`),
 ]);
 

@@ -140,7 +140,7 @@ describe("model onboarding", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Think across everything you have collected.",
+        name: "Air-gapped, open source NotebookLM alternative",
       })
     ).toBeTruthy()
     const firstProgress = screen.getByLabelText("Onboarding step 1 of 2")

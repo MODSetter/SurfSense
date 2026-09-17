@@ -71,7 +71,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <CardHeader className="-translate-y-8">
         <CardTitle>
           <h1 className="text-xl text-balance">
-            Think across everything you have collected.
+            Air-gapped, open source NotebookLM alternative
           </h1>
         </CardTitle>
         <CardDescription className="mx-auto max-w-md text-pretty">

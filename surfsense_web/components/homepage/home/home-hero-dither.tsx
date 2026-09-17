@@ -34,7 +34,7 @@ import { homeHeroDitherFragmentShader } from "./home-hero-dither-shader";
  * draws, it just stops moving.
  *
  * The palette is a literal copy of two tokens from `app/(home)/home.css` —
- * `--background` and `--primary` — because shader uniforms
+ * `--background` and `--muted-foreground` — because shader uniforms
  * are numbers, not CSS custom properties, and cannot read them. If the homepage
  * palette moves, these move with it.
  */
@@ -49,12 +49,12 @@ export function HomeHeroDither() {
 				uniforms={{
 					u_image: "/homepage/cta-dither-background.webp",
 					u_colorBack: getShaderColorFromString("#141414"),
-					u_colorFront: getShaderColorFromString("#d9aa90"),
+					u_colorFront: getShaderColorFromString("#8e8a83"),
 					// Same as front: the shader swaps to the highlight above ~96%
 					// brightness, and the drifting grain pushes crest cells over that
 					// line, so a distinct highlight would flash pale pixels. Matching it
 					// to the ink gives classic two-colour dithering.
-					u_colorHighlight: getShaderColorFromString("#d9aa90"),
+					u_colorHighlight: getShaderColorFromString("#8e8a83"),
 					u_type: 4, // 8x8 Bayer
 					u_pxSize: 3,
 					u_colorSteps: 3,

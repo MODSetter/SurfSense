@@ -7,12 +7,13 @@ import { onboardingDitherFragmentShader } from "./onboarding-dither-shader"
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 
-// The literal hex values below are the app's own --background/--primary
-// tokens, copied rather than read live: shader uniforms are numbers, not CSS
+// The literal hex values below are the app's own --background token plus a
+// darkened variant of --muted-foreground (light) / --muted-foreground itself
+// (dark), copied rather than read live: shader uniforms are numbers, not CSS
 // custom properties. If those tokens move in index.css, these move with them.
 const PALETTE = {
-  light: { back: "#f7f6f2", front: "#2e2e2e" },
-  dark: { back: "#141414", front: "#d9aa90" },
+  light: { back: "#f7f6f2", front: "#4a4a4a" },
+  dark: { back: "#141414", front: "#8e8a83" },
 } as const
 
 function usePrefersReducedMotion() {
