@@ -312,6 +312,8 @@ services:
       - "3000"
     environment:
       AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
+      # Hosted wind-down; unset for self-hosters. Read per request by proxy.ts.
+      SUNSET_MODE: ${SUNSET_MODE:-}
       ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
       SURFSENSE_BACKEND_INTERNAL_URL: http://backend:8000

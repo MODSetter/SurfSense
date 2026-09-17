@@ -44,6 +44,7 @@ import { ArtifactList } from "@/features/studio/artifact-list"
 import { ArtifactPanel } from "@/features/studio/artifact-panel"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
+import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
@@ -104,6 +105,7 @@ function WorkspaceDashboard({
     <>
       <div className="titlebar-controls">
         <div className="titlebar-controls-end">
+          <UpdateButton />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button

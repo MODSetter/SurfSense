@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event"
 import { render } from "@/test-utils"
 
 import { stubUpdateBridge as stubBridge } from "./stub-bridge"
-import { UpdateSettings } from "./update-settings"
+import { UpdateButton, UpdateSettings } from "./update-settings"
 
 afterEach(() => {
   cleanup()
@@ -70,5 +70,32 @@ describe("UpdateSettings", () => {
     const { container } = render(<UpdateSettings />)
 
     expect(container.textContent).toBe("")
+  })
+})
+
+describe("UpdateButton", () => {
+  it("appears only when an update is ready and restarts on click", async () => {
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
+    const user = userEvent.setup()
+    render(<UpdateButton />)
+
+    // No element at all: the title bar keeps no space for it. Queried by role
+    // rather than text, since the button is icon-only and has no text content.
+    expect(screen.queryByRole("button")).toBeNull()
+    bridge.push({ status: "ready", version: "1.0.1" })
+
+    const button = await screen.findByRole("button", {
+      name: "Restart to install 1.0.1",
+    })
+    await user.click(button)
+    expect(bridge.calls).toEqual(["install"])
+  })
+
+  it("names the waiting version, the only place it is shown", async () => {
+    const bridge = stubBridge({ automatic: true, state: { status: "idle" } })
+    render(<UpdateButton />)
+    bridge.push({ status: "ready", version: "0.0.41" })
+
+    await screen.findByRole("button", { name: "Restart to install 0.0.41" })
   })
 })
