@@ -205,3 +205,97 @@ curl -s -X DELETE http://127.0.0.1:11434/api/delete \
   other non-GGUF runtime for most models) — the gating condition needs
   rethinking before this ships, and this doc should be updated with whatever
   the real pattern turns out to be.
+
+## Results — Windows GPU verification (2026-09-17)
+
+**Machine:** NVIDIA GeForce RTX 3050 (6GB VRAM, CUDA), AMD Ryzen 5 9600X
+(12 cores), 31.14GB RAM, Windows 11. From the `system` key in
+`fit_output.json`:
+
+```json
+{
+  "available_ram_gb": 15.43,
+  "backend": "CUDA",
+  "cpu_cores": 12,
+  "cpu_name": "AMD Ryzen 5 9600X 6-Core Processor",
+  "gpu_available_gb": null,
+  "gpu_count": 1,
+  "gpu_name": "NVIDIA GeForce RTX 3050",
+  "gpu_vram_gb": 6.0,
+  "has_gpu": true,
+  "total_ram_gb": 31.14,
+  "unified_memory": false
+}
+```
+
+### Test 1 — raw llmfit scan characteristics
+
+```
+=== Basic counts ===
+total scanned: 9361
+has ollama_name: 138
+has gguf_sources: 1625
+gguf_sources only (net new if fallback ships): 1508
+
+=== THE KEY QUESTION: runtime breakdown ===
+runtime values across ALL scanned models: Counter({'llama.cpp': 8858, 'vLLM': 503})
+
+runtime values for the gguf_sources-only group specifically:
+Counter({'llama.cpp': 1508})
+
+=== best_quant samples, grouped by runtime, for the gguf_sources-only group ===
+  'llama.cpp' -> ['Q8_0', 'Q8_0', 'Q8_0', 'Q8_0', 'Q6_K', 'Q8_0', 'Q6_K', 'Q6_K', 'Q8_0', 'Q6_K']
+
+=== Usable (Perfect/Good/Marginal) counts ===
+usable today (ollama_name only): 115
+usable with fallback added (either source): 1461
+```
+
+100% of the 1,508 `gguf_sources`-only rows have `runtime: "llama.cpp"`
+(never MLX — MLX did not appear at all on this machine; the other runtime
+seen was `vLLM`, on 503 models, none of which were in the `gguf_sources`-only
+group). `best_quant` for this group is consistently a real GGUF quant tag
+(`Q8_0`, `Q6_K`, etc.), not an MLX label.
+
+Sample raw entry confirming the shape:
+
+```json
+{
+  "name": "typhoon-ai/llama3.2-typhoon2-3b-instruct",
+  "runtime": "llama.cpp",
+  "best_quant": "Q8_0",
+  "fit_level": "Perfect",
+  "gguf_sources": [{"provider": "mradermacher", "repo": "mradermacher/llama3.2-typhoon2-3b-instruct-GGUF"}],
+  "ollama_name": null,
+  "verify_command": "llama-bench -m <path-to-Q8_0-gguf> -ngl 99 -p 512 -n 128"
+}
+```
+
+(Aside: the throwaway analysis script's own `normalize()` helper had a bug —
+it collapsed `"llama.cpp"` to `"llama_cpp"` instead of `"llamacpp"`, so its
+"0 llamacpp rows" line was a script artifact, not a finding. The raw
+`runtime` field is unambiguously `"llama.cpp"` for every one of these rows,
+which is exactly what `_code()` in `llmfit.py` — which strips separators
+rather than replacing them — normalizes to `"llamacpp"`.)
+
+### Test 2 — Ollama `hf.co` pull round-trip
+
+Ran against a local Ollama v0.33.3:
+
+- **Pull**: final line `{"status":"success"}`
+- **`/api/tags`**: entry `hf.co/bartowski/SmolLM2-135M-Instruct-GGUF:Q4_K_M`
+  with `"quantization_level": "Q4_K_M"` — identifier byte-identical to what
+  was requested
+- **`/api/show`** `template` field: populated with a correctly auto-detected
+  ChatML-style template (`{{- if .Messages }}...<|im_start|>...`)
+- **`/api/delete`**: HTTP 200, model removed
+
+Matches the Mac result exactly — no mangling of the `hf.co/...` identifier
+on Windows either.
+
+### Conclusion
+
+Hypothesis confirmed on real GPU Windows hardware: `runtime` normalizes to
+`llamacpp` and `best_quant` is GGUF-shaped for the entire `gguf_sources`-only
+group. The runtime-gated `trusted_quant` design above is correct as written
+— ship it as planned, no rethinking of the gating condition needed.
