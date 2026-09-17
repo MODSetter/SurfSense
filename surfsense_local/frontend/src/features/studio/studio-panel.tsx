@@ -1,5 +1,11 @@
 import { useState } from "react"
-import { CheckIcon, FileIcon, SparklesIcon } from "@/components/ui/icons"
+import {
+  ArrowLeftIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  FileIcon,
+  SparklesIcon,
+} from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -11,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -67,144 +74,183 @@ function Composer({
   workspaceId,
   format,
   documents,
+  selectedDocumentIds,
+  onSelectionChange,
+  onToggleAll,
   isCreating,
   onGenerate,
 }: {
   workspaceId: number
   format: string
   documents: WorkspaceDocument[]
+  selectedDocumentIds: number[]
+  onSelectionChange: (documentId: number, included: boolean) => void
+  onToggleAll: () => void
   isCreating: boolean
   onGenerate: (job: StudioJobCreate) => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
-  const [selected, setSelected] = useState(
-    () => new Set(ready.map((document) => document.id))
-  )
+  const selected = new Set(selectedDocumentIds)
   const [prompt, setPrompt] = useState("")
+  const [view, setView] = useState<"main" | "sources">("main")
   const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
   const allSelected = ready.length > 0 && selected.size === ready.length
 
-  const toggle = (id: number) =>
-    setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
+  const toggle = (id: number) => onSelectionChange(id, !selected.has(id))
 
   // A podcast is generated from its reviewed brief, so it waits for the brief.
   const briefReady = format !== "podcast" || podcast.brief != null
   const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
-    <div className="space-y-3">
-      {format === "podcast" ? (
-        podcast.brief ? (
-          <PodcastBriefForm
-            brief={podcast.brief}
-            voices={podcast.voices}
-            onChange={podcast.setBrief}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {podcast.error ?? "Preparing the brief…"}
-          </p>
-        )
-      ) : null}
+    <div className="relative">
+      <div
+        className={cn(
+          "flex flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          view === "main"
+            ? "opacity-100 blur-none"
+            : "pointer-events-none invisible opacity-0 blur-sm"
+        )}
+        aria-hidden={view !== "main"}
+      >
+        <div className="space-y-3">
+          {format === "podcast" ? (
+            podcast.brief ? (
+              <PodcastBriefForm
+                brief={podcast.brief}
+                voices={podcast.voices}
+                onChange={podcast.setBrief}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {podcast.error ?? "Preparing the brief…"}
+              </p>
+            )
+          ) : null}
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">
+          {ready.length === 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Sources
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Add and index a source first — only ready documents can be
+                used.
+              </p>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setView("sources")}
+              className="h-10 w-full justify-between px-2.5 font-normal"
+            >
+              <span className="min-w-0 flex-1 truncate text-left">
+                {selected.size} source{selected.size === 1 ? "" : "s"}
+              </span>
+              <ChevronRightIcon className="size-4 text-muted-foreground" />
+            </Button>
+          )}
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Prompt (optional)
+            </p>
+            <Input
+              className="select-text"
+              value={prompt}
+              placeholder="Steer the focus, e.g. emphasise the risks"
+              onChange={(event) => setPrompt(event.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="mt-auto pt-3">
+          <Button
+            className="w-full"
+            disabled={!canGenerate}
+            onClick={() => {
+              onGenerate({
+                format,
+                document_ids: [...selected],
+                prompt: prompt.trim() || undefined,
+                options: podcast.brief ?? undefined,
+              })
+            }}
+          >
+            {isCreating ? (
+              <Spinner />
+            ) : (
+              <SparklesIcon data-icon="inline-start" />
+            )}
+            Generate
+          </Button>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "absolute inset-0 flex flex-col gap-2 transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          view === "sources"
+            ? "opacity-100 blur-none"
+            : "pointer-events-none invisible opacity-0 blur-sm"
+        )}
+        aria-hidden={view !== "sources"}
+      >
+        <div className="flex shrink-0 items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => setView("main")}
+            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeftIcon className="size-3.5" />
             Sources ({selected.size} selected)
-          </p>
+          </button>
           {ready.length > 0 ? (
             <Button
               type="button"
               variant="ghost"
               size="xs"
               className="text-muted-foreground"
-              onClick={() =>
-                setSelected(
-                  allSelected
-                    ? new Set()
-                    : new Set(ready.map((document) => document.id))
-                )
-              }
+              onClick={onToggleAll}
             >
               {allSelected ? "Deselect all" : "Select all"}
             </Button>
           ) : null}
         </div>
-        {ready.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Add and index a source first — only ready documents can be used.
-          </p>
-        ) : (
-          <div className="max-h-40 overflow-y-auto">
-            <div className="space-y-1 pr-2">
-              {ready.map((document) => {
-                const on = selected.has(document.id)
-                return (
-                  <button
-                    key={document.id}
-                    type="button"
-                    onClick={() => toggle(document.id)}
+        <ScrollShadow className="min-h-0 flex-1" viewportClassName="pr-2">
+          <div className="space-y-1">
+            {ready.map((document) => {
+              const on = selected.has(document.id)
+              return (
+                <button
+                  key={document.id}
+                  type="button"
+                  onClick={() => toggle(document.id)}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
+                    on ? "border-primary bg-primary/5" : "hover:bg-accent"
+                  )}
+                >
+                  <span
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
-                      on ? "border-primary bg-primary/5" : "hover:bg-accent"
+                      "flex size-4 items-center justify-center rounded border",
+                      on
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-muted-foreground/40"
                     )}
                   >
-                    <span
-                      className={cn(
-                        "flex size-4 items-center justify-center rounded border",
-                        on
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted-foreground/40"
-                      )}
-                    >
-                      {on ? <CheckIcon className="size-3" /> : null}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {document.title}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+                    {on ? <CheckIcon className="size-3" /> : null}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {document.title}
+                  </span>
+                </button>
+              )
+            })}
           </div>
-        )}
+        </ScrollShadow>
       </div>
-
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">
-          Prompt (optional)
-        </p>
-        <Input
-          className="select-text"
-          value={prompt}
-          placeholder="Steer the focus, e.g. emphasise the risks"
-          onChange={(event) => setPrompt(event.target.value)}
-        />
-      </div>
-
-      <Button
-        className="w-full"
-        disabled={!canGenerate}
-        onClick={() => {
-          onGenerate({
-            format,
-            document_ids: [...selected],
-            prompt: prompt.trim() || undefined,
-            options: podcast.brief ?? undefined,
-          })
-        }}
-      >
-        {isCreating ? <Spinner /> : <SparklesIcon data-icon="inline-start" />}
-        Generate
-      </Button>
     </div>
   )
 }
@@ -249,6 +295,9 @@ function FormatCard({
 export function StudioPanel({
   workspaceId,
   documents,
+  selectedDocumentIds,
+  onSelectionChange,
+  onToggleAll,
   formats,
   isCreating,
   error,
@@ -256,6 +305,9 @@ export function StudioPanel({
 }: {
   workspaceId: number
   documents: WorkspaceDocument[]
+  selectedDocumentIds: number[]
+  onSelectionChange: (documentId: number, included: boolean) => void
+  onToggleAll: () => void
   formats: StudioFormat[]
   isCreating: boolean
   error: string | null
@@ -293,7 +345,7 @@ export function StudioPanel({
           if (!open) setFormat(null)
         }}
       >
-        <DialogContent className="p-6 select-none sm:max-w-lg **:data-[slot=dialog-close]:top-3 **:data-[slot=dialog-close]:right-3">
+        <DialogContent className="p-6 select-none **:data-[slot=dialog-close]:top-3 **:data-[slot=dialog-close]:right-3 sm:max-w-lg">
           {selectedFormat ? (
             <>
               <DialogHeader>
@@ -307,6 +359,9 @@ export function StudioPanel({
                 workspaceId={workspaceId}
                 format={selectedFormat.key}
                 documents={documents}
+                selectedDocumentIds={selectedDocumentIds}
+                onSelectionChange={onSelectionChange}
+                onToggleAll={onToggleAll}
                 isCreating={isCreating}
                 onGenerate={(job) => {
                   void onGenerate(job).then((created) => {

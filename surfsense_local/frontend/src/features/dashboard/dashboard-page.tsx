@@ -253,6 +253,9 @@ function WorkspaceDashboard({
                 <StudioPanel
                   workspaceId={workspace.id}
                   documents={sources.documents}
+                  selectedDocumentIds={sources.includedDocumentIds}
+                  onSelectionChange={sources.setDocumentIncluded}
+                  onToggleAll={sources.toggleAllIncluded}
                   formats={studio.formats}
                   isCreating={studio.isCreating}
                   error={studio.error}

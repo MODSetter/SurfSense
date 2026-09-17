@@ -18,14 +18,21 @@ HOSTS = {OLLAMA_PULL: "registry.ollama.ai", IMAGE_MODEL_PULL: "huggingface.co"}
 
 
 class EgressDeniedError(Exception):
-    def __init__(self, destination: str) -> None:
+    def __init__(self, destination: str, host: str | None = None) -> None:
         self.destination = destination
-        self.host = host_of(destination)
+        self.host = host or host_of(destination)
         super().__init__(f"sending data to {self.host} is off in Settings > Network")
 
 
 def host_of(destination: str) -> str:
     return HOSTS.get(destination) or destination.removeprefix(HOST_PREFIX)
+
+
+def ollama_pull_host(model_name: str) -> str:
+    """Ollama fetches an `hf.co/<repo>` pull straight from Hugging Face, not its own registry."""
+    if model_name.startswith("hf.co/"):
+        return "huggingface.co"
+    return HOSTS[OLLAMA_PULL]
 
 
 def is_destination(value: str) -> bool:
@@ -49,12 +56,14 @@ def _is_loopback(host: str) -> bool:
         return False
 
 
-def require(session: Session, destination: str | None) -> None:
+def require(
+    session: Session, destination: str | None, host: str | None = None
+) -> None:
     if destination is None:
         return
     row = session.get(EgressDestination, destination)
     if row is None or not row.enabled:
-        raise EgressDeniedError(destination)
+        raise EgressDeniedError(destination, host)
     row.last_call_at = datetime.now(UTC)
 
 
