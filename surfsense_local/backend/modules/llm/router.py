@@ -328,7 +328,12 @@ async def pull_model(
     service: CatalogServiceDep,
     session: SessionDep,
 ) -> StreamingResponse:
-    await transact(session, egress.require, egress.OLLAMA_PULL)
+    await transact(
+        session,
+        egress.require,
+        egress.OLLAMA_PULL,
+        egress.ollama_pull_host(payload.name),
+    )
     lock = service.install_lock(store.name)
     if lock.locked():
         raise HTTPException(
