@@ -151,6 +151,7 @@ async def test_nonzero_exit_is_a_scan_warning(tmp_path: Path) -> None:
 
 
 def _row(**overrides: object) -> dict:
+    """A raw llmfit fit-result row, defaulting to a trusted-quant native model."""
     base = {
         "name": "org/Some-Model-7B",
         "fit_level": "perfect",
@@ -171,6 +172,7 @@ def test_gguf_sources_dict_entries_parse_into_repo_strings() -> None:
 
 
 def test_gguf_sources_tolerates_malformed_entries() -> None:
+    """Malformed gguf_sources shapes are ignored, never raised on."""
     assert _gguf_sources("not-a-list") == ()
     assert _gguf_sources([{"provider": "x"}]) == ()  # missing repo
     assert _gguf_sources(["a-bare-string"]) == ()  # not a dict
@@ -178,6 +180,7 @@ def test_gguf_sources_tolerates_malformed_entries() -> None:
 
 
 def test_fallback_name_used_only_when_native_name_is_absent() -> None:
+    """A native ollama_name always wins over the gguf_sources fallback."""
     model = _parse_model(
         _row(ollama_name="org:tag", gguf_sources=[{"repo": "org/Model-GGUF"}])
     )
@@ -185,6 +188,13 @@ def test_fallback_name_used_only_when_native_name_is_absent() -> None:
 
 
 def test_fallback_name_trusts_quant_only_for_llamacpp_runtime() -> None:
+    """An untrusted quant gets an explicit `:latest`, not a bare tag.
+
+    Ollama silently stores a tag-less `hf.co/<repo>` pull as `:latest` on
+    disk — requesting it explicitly keeps `ollama_name` identical to what a
+    later `/api/tags` lookup reports, so install verification and "already
+    installed" detection on a rescan don't permanently mismatch.
+    """
     trusted = _parse_model(
         _row(
             runtime="llama.cpp",
@@ -202,24 +212,35 @@ def test_fallback_name_trusts_quant_only_for_llamacpp_runtime() -> None:
             gguf_sources=[{"repo": "org/Model-GGUF"}],
         )
     )
-    assert untrusted.ollama_name == "hf.co/org/Model-GGUF"  # no tag
+    # Explicit ":latest", not a bare tag — Ollama silently stores an
+    # untagged pull as ":latest" anyway, so requesting it up front keeps
+    # this string byte-identical to what a later /api/tags lookup returns.
+    assert untrusted.ollama_name == "hf.co/org/Model-GGUF:latest"
     assert untrusted.fit is FitLevel.MARGINAL  # downgraded: quant not trustworthy
 
 
 def test_no_gguf_sources_and_no_native_name_leaves_ollama_name_none() -> None:
+    """Nothing to fall back to leaves ollama_name unset, fit untouched."""
     model = _parse_model(_row(ollama_name=None, gguf_sources=[]))
     assert model.ollama_name is None
     assert model.fit is FitLevel.PERFECT  # nothing to downgrade for
 
 
 def test_fallback_helper_directly() -> None:
+    """No sources -> None; only a trusted (llama_cpp) quant gets a tag."""
     assert _fallback_ollama_name((), "llama_cpp", "Q4_K_M") is None
     assert (
         _fallback_ollama_name(("org/repo",), "llama_cpp", "Q4_K_M")
         == "hf.co/org/repo:Q4_K_M"
     )
-    assert _fallback_ollama_name(("org/repo",), "mlx", "mlx-4bit") == "hf.co/org/repo"
-    assert _fallback_ollama_name(("org/repo",), "llama_cpp", None) == "hf.co/org/repo"
+    assert (
+        _fallback_ollama_name(("org/repo",), "mlx", "mlx-4bit")
+        == "hf.co/org/repo:latest"
+    )
+    assert (
+        _fallback_ollama_name(("org/repo",), "llama_cpp", None)
+        == "hf.co/org/repo:latest"
+    )
 
 
 # --- persistent, fingerprinted cache ----------------------------------------
@@ -234,6 +255,7 @@ def _fit_fixture() -> dict:
 
 
 async def test_no_cache_file_scans_when_refresh_is_true(tmp_path: Path) -> None:
+    """An explicit refresh scans and writes a cache even with none present yet."""
     cache_path = tmp_path / "cache.json"
     log = tmp_path / "calls.log"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture(), log=log)
@@ -265,6 +287,7 @@ async def test_refresh_false_never_scans_without_a_cache(tmp_path: Path) -> None
 
 
 async def test_cache_hit_skips_the_expensive_call(tmp_path: Path) -> None:
+    """A fingerprint-matched cache answers without invoking the real binary."""
     cache_path = tmp_path / "cache.json"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
     advisor = LlmfitAdvisor(executable, "1.1.11", 2, cache_path=cache_path)
@@ -284,6 +307,7 @@ async def test_cache_hit_skips_the_expensive_call(tmp_path: Path) -> None:
 
 
 async def test_fingerprint_mismatch_is_a_miss_not_an_error(tmp_path: Path) -> None:
+    """A hardware/context change invalidates the cache instead of erroring."""
     cache_path = tmp_path / "cache.json"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
     await LlmfitAdvisor(executable, "1.1.11", 2, cache_path=cache_path).scan(
@@ -300,6 +324,7 @@ async def test_fingerprint_mismatch_is_a_miss_not_an_error(tmp_path: Path) -> No
 
 
 async def test_corrupt_cache_file_is_discarded_silently(tmp_path: Path) -> None:
+    """A corrupt cache file is treated as a miss, never raises."""
     cache_path = tmp_path / "cache.json"
     cache_path.write_text("{not-json")
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
@@ -313,6 +338,7 @@ async def test_corrupt_cache_file_is_discarded_silently(tmp_path: Path) -> None:
 
 
 async def test_wrong_cache_version_is_discarded(tmp_path: Path) -> None:
+    """A cache written by an older schema is discarded, not misread."""
     cache_path = tmp_path / "cache.json"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
     await LlmfitAdvisor(executable, "1.1.11", 2, cache_path=cache_path).scan(
@@ -333,6 +359,7 @@ async def test_wrong_cache_version_is_discarded(tmp_path: Path) -> None:
 async def test_refresh_true_always_rescans_and_overwrites_cache(
     tmp_path: Path,
 ) -> None:
+    """refresh=True re-scans even when a valid cache already exists."""
     cache_path = tmp_path / "cache.json"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
     advisor = LlmfitAdvisor(executable, "1.1.11", 2, cache_path=cache_path)

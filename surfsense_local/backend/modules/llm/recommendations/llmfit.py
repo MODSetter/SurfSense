@@ -372,13 +372,22 @@ def _fallback_ollama_name(
     would make the pull fail. Without a trusted quant, Ollama's own default
     for an untagged `hf.co/...` pull is to prefer `Q4_K_M` when present in
     the repo, else one reasonable quant — a sane fallback, not a guess.
+
+    The tag is always explicit, never omitted: a bare `hf.co/<repo>` pull
+    request is accepted by Ollama, but it silently stores the result as
+    `hf.co/<repo>:latest` (confirmed against a real pull) — every later
+    exact-string match against this `ollama_name` (install verification,
+    "already installed" detection on a rescan) would then permanently fail
+    against an identifier that never matches what Ollama actually named it.
+    Requesting `:latest` up front keeps the string we hand out identical to
+    what comes back.
     """
     if not gguf_sources:
         return None
     repo = gguf_sources[0]
     if runtime == "llama_cpp" and best_quant:
         return f"hf.co/{repo}:{best_quant}"
-    return f"hf.co/{repo}"
+    return f"hf.co/{repo}:latest"
 
 
 def _parse_model(row: dict[str, Any]) -> ScoredModel:
