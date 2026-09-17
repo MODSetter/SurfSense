@@ -1,4 +1,8 @@
-# Local model catalog expansion — cross-platform verification spec
+# API — Phase 5d: llmfit model catalog expansion (cross-platform verification)
+
+> Extends [`05a-model-recommendations.md`](05a-model-recommendations.md).
+> Owns the `hf.co/<repo>` fallback `ollama_name` synthesis in
+> `backend/modules/llm/recommendations/llmfit.py`'s `_parse_model()`.
 
 ## Background
 
