@@ -156,7 +156,6 @@ function ModelSetupStep({
               state={state}
               draftKey={null}
               disabled={busy}
-              installedFirst
               onSelect={select}
               onCatalogSelected={() => void refresh({ silent: true })}
               onModelUnavailable={() => void refresh({ silent: true })}

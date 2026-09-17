@@ -134,9 +134,10 @@ describe("SettingsDialog", () => {
           return Response.json({
             hardware: null,
             llmfit_version: "1.1.11",
-            recommended: [],
+            curated: [],
             explore: [],
             installed: [],
+            scanned: true,
             warnings: [],
             runtime_status: {},
           })

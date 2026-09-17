@@ -17,7 +17,6 @@ export function ModelSelectionContent({
   scrollable = true,
   state,
   disabled,
-  installedFirst = false,
   onCatalogSelected,
   onModelUnavailable,
   onModelsChanged,
@@ -27,7 +26,6 @@ export function ModelSelectionContent({
   state: Extract<ModelSelectionState, { status: "loading" | "ready" }>
   draftKey: string | null
   disabled: boolean
-  installedFirst?: boolean
   allowDelete?: boolean
   // False when an ancestor (like the Models settings dialog) already scrolls
   // this content as part of a bigger region — the two tabs then lay out at
@@ -67,7 +65,6 @@ export function ModelSelectionContent({
       allowDelete={allowDelete}
       scrollable={scrollable}
       disabled={disabled || readyState === null}
-      installedFirst={installedFirst}
       onModelUnavailable={onModelUnavailable}
       onModelsChanged={onModelsChanged}
       onSelected={onCatalogSelected}

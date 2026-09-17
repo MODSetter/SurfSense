@@ -47,7 +47,6 @@ export function ModelsSettings({
           readyState?.selection == null ? null : modelKey(readyState.selection)
         }
         disabled={false}
-        installedFirst
         onSelect={() => undefined}
         onCatalogSelected={(selection) => {
           onSelected(selection)

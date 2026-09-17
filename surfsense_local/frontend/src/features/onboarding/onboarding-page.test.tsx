@@ -49,8 +49,9 @@ function installApi() {
       return Response.json({
         hardware: {},
         llmfit_version: "1.0",
-        recommended: [],
+        curated: [],
         explore: [],
+        scanned: true,
         installed: [
           {
             catalog_id: "opaque-llama",
@@ -236,9 +237,10 @@ describe("model onboarding", () => {
         return Response.json({
           hardware: {},
           llmfit_version: "1.0",
-          recommended: [],
+          curated: [],
           explore: [],
           installed: [],
+          scanned: true,
           warnings: [],
           runtime_status: {},
         })
