@@ -382,3 +382,72 @@ the untagged/`fit: UNKNOWN` path 100% of the time, quietly losing the
 fit-scoring benefit this whole test round was meant to validate. The
 underlying test results and numbers above are unaffected by this — only the
 exact comparison string in the implementation needs to use `"llama_cpp"`.
+
+### Test 3 — real inference + GPU offload
+
+Pulled `hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0` (the
+sample entry from Test 1) against the same local Ollama v0.33.3:
+
+```
+{"status":"pulling 804cbfae434f", ...}
+{"status":"verifying sha256 digest"}
+{"status":"writing manifest"}
+{"status":"success"}
+```
+
+`/api/chat` response:
+
+```json
+{"model":"hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0","created_at":"2026-09-17T10:58:00.7658425Z","message":{"role":"assistant","content":"Hello!"},"done":true,"done_reason":"stop","total_duration":6474871300,"load_duration":6345882400,"prompt_eval_count":17,"prompt_eval_cached_count":0,"prompt_eval_duration":72261000,"eval_count":3,"eval_duration":51625000}
+```
+
+`ollama ps`:
+
+```
+NAME                                                          ID              SIZE      PROCESSOR    CONTEXT    UNTIL
+hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0    a17ef7fd3227    4.0 GB    100% GPU     4096       4 minutes from now
+```
+
+Response is coherent, correctly-formatted prose ("Hello!") — the
+auto-detected chat template works, not garbled. `PROCESSOR` shows **100%
+GPU** — full GPU offload confirmed on the RTX 3050, no silent CPU fallback.
+
+### Test 4 — end-to-end catalog loop
+
+`/api/tags` entry for the Test 3 model, immediately after the pull:
+
+```json
+{
+  "name": "hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0",
+  "model": "hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0",
+  "size": 3421899438,
+  "digest": "a17ef7fd3227bc32fe019d04ec0ac830d4d36c0d844bd2720cc799818a1b3c52",
+  "details": {
+    "parent_model": "",
+    "format": "gguf",
+    "family": "llama",
+    "families": ["llama"],
+    "parameter_size": "3.21B",
+    "quantization_level": "unknown",
+    "context_length": 131072,
+    "embedding_length": 3072
+  }
+}
+```
+
+`name` is **byte-identical** to what was requested
+(`hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0`) — no
+`:latest` appended, no `provider/` prefix dropped, no reshaping. Confirms
+`catalog.py`'s exact-string `installed_by_key` matching will correctly
+recognize this model as installed once pulled. Model was deleted
+(`/api/delete`, HTTP 200) after the check, same as Test 2.
+
+One caveat worth noting for `catalog.py`: `details.quantization_level` came
+back as the literal string `"unknown"` for this hf.co-sourced pull (unlike
+the Test 2 SmolLM2 pull, which correctly reported `"Q4_K_M"`) even though the
+quant tag `Q8_0` was explicitly requested and is present in the `name`/tag
+string. Any downstream code that reads `quantization_level` from `/api/tags`
+or `/api/show` to redisplay the installed quant (rather than parsing it out
+of the `:Q8_0` suffix already present in `ollama_name`) would show
+"unknown" for this model — something to check if the frontend ever surfaces
+that field for installed models.
