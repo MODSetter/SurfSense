@@ -5,7 +5,7 @@ contact_links:
     about: Questions and setup help
   - name: Discussions
     url: https://github.com/MODSetter/SurfSense/discussions
-    about: Ideas that are not a bug or a concrete feature yet
-  - name: Security advisory
+    about: Open-ended conversation
+  - name: Security
     url: https://github.com/MODSetter/SurfSense/security/advisories/new
-    about: Report a vulnerability privately. Do not open a public issue.
+    about: Private vulnerability report

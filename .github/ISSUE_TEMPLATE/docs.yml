@@ -1,18 +1,18 @@
 name: Docs
-description: Wrong, missing, or unclear documentation
+description: Something in the docs is wrong or missing
 title: "[docs] "
 labels: [documentation]
 body:
   - type: input
     id: where
     attributes:
-      label: Where
-      description: File path or URL
+      label: Where?
+      description: A file or a URL
     validations:
       required: true
   - type: textarea
     id: what
     attributes:
-      label: What should change
+      label: What should it say?
     validations:
       required: true
