@@ -23,7 +23,7 @@ const canonicalUrl = "https://www.surfsense.com/pricing";
  *  `plans/community-local/seo/02-page-briefs.md` (B5). */
 const metaTitle = "SurfSense Pricing: Free App, Paid Plugins";
 const metaDescription =
-	"The app and its updates are free forever. Licences add scraper plugins and priority support, from $120 a year with a 14-day trial and no account.";
+	"The app and its updates are free forever. Licences add scraper plugins and priority support, from $120 a year with a 30-day trial and no account.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -87,7 +87,7 @@ const PRICING_SCHEMA = {
 			price: 120,
 			priceCurrency: "USD",
 			description:
-				"Adds every scraper plugin, flat-included and unlimited, plus priority support. Billed yearly, with a 14-day trial.",
+				"Adds every scraper plugin, flat-included and unlimited, plus priority support. Billed yearly, with a 30-day trial.",
 		},
 		{
 			"@type": "Offer",

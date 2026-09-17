@@ -20,16 +20,33 @@ LicenseEmailKind = Literal["purchase", "resend", "trial"]
 
 LICENSE_FILENAME = "surfsense.lic"
 
-_INSTALL_STEPS = (
-    "1. Save the attached surfsense.lic somewhere you can find it.\n"
-    "2. Open SurfSense and go to Settings -> License.\n"
-    "3. Drop the file in, or paste its contents.\n"
-)
+
+def _install_steps() -> str:
+    """Steps from nothing to a working license.
+
+    The download comes first because the recipient may not have the app yet:
+    a trial is handed out to an address, not to an installation. A deployment
+    with no portal URL omits the step rather than printing a broken link.
+    """
+    base = config.NEXT_FRONTEND_URL
+    if not base:
+        return (
+            "1. Save the attached surfsense.lic somewhere you can find it.\n"
+            "2. Open SurfSense and go to Settings -> License.\n"
+            "3. Drop the file in, or paste its contents.\n"
+        )
+    return (
+        f"1. Install SurfSense for Windows, macOS or Linux: {base.rstrip('/')}/downloads\n"
+        "2. Save the attached surfsense.lic somewhere you can find it.\n"
+        "3. Open SurfSense and go to Settings -> License.\n"
+        "4. Drop the file in, or paste its contents.\n"
+    )
+
 
 _SUBJECTS: dict[LicenseEmailKind, str] = {
     "purchase": "Your SurfSense license",
     "resend": "Your SurfSense license (resent)",
-    "trial": "Your SurfSense 14-day trial license",
+    "trial": "Your SurfSense {days}-day trial license",
 }
 
 _INTROS: dict[LicenseEmailKind, str] = {
@@ -44,7 +61,7 @@ _INTROS: dict[LicenseEmailKind, str] = {
         "your license has changed."
     ),
     "trial": (
-        "Your 14-day SurfSense trial license is attached.\n\n"
+        "Your {days}-day SurfSense trial license is attached.\n\n"
         "When it expires the app keeps working and your data stays put -- only "
         "plugins and priority support stop."
     ),
@@ -77,19 +94,23 @@ def build_license_email(
         for index, certificate in enumerate(certificates, start=1)
     )
 
+    days = config.LICENSE_TRIAL_DAYS
+    intro = _INTROS[kind].format(days=days)
+    steps = _install_steps()
+
     plural = "" if len(certificates) == 1 else f" ({len(certificates)} files)"
-    body = f"{_INTROS[kind]}\n\n{_INSTALL_STEPS}\n"
+    body = f"{intro}\n\n{steps}\n"
     if plural:
         body = (
-            f"{_INTROS[kind]}\n\n"
+            f"{intro}\n\n"
             f"{len(certificates)} licenses are registered to this address; all "
             "are attached. Import the one for the plan you want to use.\n\n"
-            f"{_INSTALL_STEPS}\n"
+            f"{steps}\n"
         )
 
     return OutboundEmail(
         to=to,
-        subject=_SUBJECTS[kind] + plural,
+        subject=_SUBJECTS[kind].format(days=days) + plural,
         text_body=body,
         sender=config.SMTP_LICENSE_FROM or config.SMTP_FROM or None,
         reply_to=config.SMTP_LICENSE_REPLY_TO or None,

@@ -21,7 +21,7 @@ import { ResendForm, TrialForm } from "./license-forms";
 
 export const metadata: Metadata = {
 	title: "Your license | SurfSense",
-	description: "Get your SurfSense license file sent to your email again, or start a 14-day trial.",
+	description: "Get your SurfSense license file sent to your email again, or start a 30-day trial.",
 	alternates: { canonical: "https://www.surfsense.com/license" },
 };
 
@@ -75,7 +75,7 @@ export default function LicensePage() {
 			<section className="ss-home-rule">
 				<div className="ss-home-head">
 					<p className="ss-home-eyebrow">Get started</p>
-					<h2 className="ss-home-h2 mt-2">Start a 14-day trial</h2>
+					<h2 className="ss-home-h2 mt-2">Start a 30-day trial</h2>
 				</div>
 				<div className="ss-home-pad py-12">
 					<div className="max-w-xl">

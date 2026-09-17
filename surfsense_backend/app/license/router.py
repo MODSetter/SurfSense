@@ -124,7 +124,7 @@ async def claim_trial_license(
     payload: LicenseEmailRequest,
     request: Request,
 ) -> LicenseAckResponse:
-    """Issue one 14-day trial per email and mail it.
+    """Issue one trial per email, LICENSE_TRIAL_DAYS long, and mail it.
 
     The file is never returned in the response: requiring delivery to a real
     inbox is what makes one-trial-per-email mean anything.

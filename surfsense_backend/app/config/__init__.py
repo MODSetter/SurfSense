@@ -692,7 +692,7 @@ class Config:
     LICENSE_TRIAL_ENABLED = (
         os.getenv("LICENSE_TRIAL_ENABLED", "FALSE").upper() == "TRUE"
     )
-    LICENSE_TRIAL_DAYS = int(os.getenv("LICENSE_TRIAL_DAYS", "14"))
+    LICENSE_TRIAL_DAYS = int(os.getenv("LICENSE_TRIAL_DAYS", "30"))
     # ISO date. Trials issued before the plugin ships expire this many days
     # after the plugin lands rather than after purchase, so the gap week does
     # not eat the trial. Unset once the plugin has shipped.

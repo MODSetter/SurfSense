@@ -126,7 +126,7 @@ async def create_license(
 
     ``metadata`` is the only index we have, so everything a later lookup needs
     goes in it. ``expiry`` overrides the policy duration; the trial route needs
-    that to keep the pre-plugin gap week from eating a 14-day trial.
+    that to keep the pre-plugin gap week from eating the trial.
 
     ``license_id`` sets the record's id rather than letting Keygen assign one,
     which is what makes a duplicate fulfilment fail with

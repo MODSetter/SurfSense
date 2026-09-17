@@ -136,7 +136,7 @@ export const PRICING_FAQ = [
 	{
 		question: "Is there a free trial?",
 		answer:
-			"Yes. The trial runs 14 days and needs only an email address, with no card and no account. You receive a licence file by email, drop it into the app, and every plugin is unlocked for the trial period.",
+			"Yes. The trial runs 30 days and needs only an email address, with no card and no account. You receive a licence file by email, drop it into the app, and every plugin is unlocked for the trial period.",
 	},
 	{
 		question: "What happens when my licence expires?",
