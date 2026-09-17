@@ -60,12 +60,13 @@ class Advisor:
         self.models = models
         self.calls = 0
 
-    async def scan(self, max_context: int) -> AdvisorCatalog:
+    async def scan(self, max_context: int, *, refresh: bool = False) -> AdvisorCatalog:
         self.calls += 1
         return AdvisorCatalog(
             SystemProfile(available_ram_gb=16),
             self.models,
             "1.1.11",
+            scanned=True,
         )
 
 
@@ -114,7 +115,7 @@ class LlamaRuntime(Runtime):
 def _manifest() -> CuratedModelsManifest:
     return CuratedModelsManifest.model_validate(
         {
-            "schema_version": 1,
+            "schema_version": 2,
             "models": [
                 {
                     "model_id": "Qwen/Qwen3-8B",
@@ -128,6 +129,9 @@ def _manifest() -> CuratedModelsManifest:
                             "quantization": "Q4_K_M",
                         }
                     },
+                    "label": "Qwen3 8B",
+                    "parameter_count": "8B",
+                    "size_bytes": 5_000_000_000,
                 }
             ],
         }
@@ -137,7 +141,7 @@ def _manifest() -> CuratedModelsManifest:
 def _qwen_1_7_manifest() -> CuratedModelsManifest:
     return CuratedModelsManifest.model_validate(
         {
-            "schema_version": 1,
+            "schema_version": 2,
             "models": [
                 {
                     "model_id": "Qwen/Qwen3-1.7B",
@@ -151,14 +155,17 @@ def _qwen_1_7_manifest() -> CuratedModelsManifest:
                             "quantization": "Q4_K_M",
                         }
                     },
+                    "label": "Qwen3 1.7B",
+                    "parameter_count": "1.7B",
+                    "size_bytes": 1_400_000_000,
                 }
             ],
         }
     )
 
 
-async def test_catalog_partitions_recommended_explore_and_embeddings() -> None:
-    """Only exact policy matches become recommended; embeddings stay excluded."""
+async def test_catalog_partitions_curated_explore_and_embeddings() -> None:
+    """Curated matches always land in `curated`; embeddings stay excluded."""
     other = _scored(
         canonical_id="Other/Chat-3B",
         display_name="Chat-3B",
@@ -180,10 +187,12 @@ async def test_catalog_partitions_recommended_explore_and_embeddings() -> None:
 
     result = await service.catalog(selected=None)
 
-    assert [row.canonical_id for row in result.recommended] == ["Qwen/Qwen3-8B"]
+    assert [row.canonical_id for row in result.curated] == ["Qwen/Qwen3-8B"]
     assert [row.canonical_id for row in result.explore] == ["Other/Chat-3B"]
-    assert result.recommended[0].family == "Qwen3"
-    assert result.recommended[0].quantization == "Q4_K_M"
+    assert result.curated[0].family == "Qwen3"
+    assert result.curated[0].quantization == "Q4_K_M"
+    # The manifest's own size wins over whatever the scan estimated.
+    assert result.curated[0].disk_size_gb == pytest.approx(5.0)
 
 
 async def test_memory_reserve_can_only_downgrade_fit() -> None:
@@ -198,8 +207,8 @@ async def test_memory_reserve_can_only_downgrade_fit() -> None:
 
     result = await service.catalog(selected=None)
 
-    assert result.recommended == ()
-    assert result.explore[0].fit is FitLevel.MARGINAL
+    assert result.explore == ()
+    assert result.curated[0].fit is FitLevel.MARGINAL
 
 
 async def test_installed_models_are_authoritative_and_not_duplicated() -> None:
@@ -215,10 +224,58 @@ async def test_installed_models_are_authoritative_and_not_duplicated() -> None:
 
     result = await service.catalog(selected=("ollama", "qwen3:8b"))
 
-    assert result.recommended == ()
+    assert result.curated == ()
     assert len(result.installed) == 1
     assert result.installed[0].selected is True
     assert result.installed[0].can_delete is True
+
+
+async def test_unscanned_hf_co_install_shows_a_clean_name() -> None:
+    """The placeholder fallback strips `hf.co/` and the tag, keeps the repo."""
+    runtime = Runtime(
+        [
+            InstalledModel(
+                "ollama",
+                "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest",
+                ("completion",),
+                None,
+            )
+        ]
+    )
+    service = CatalogService(
+        Advisor(()),  # no scan match at all — this is the placeholder path
+        [runtime],
+        _manifest(),
+        max_context=8192,
+        reserve_gb=2,
+    )
+
+    result = await service.catalog(selected=None)
+
+    assert len(result.installed) == 1
+    row = result.installed[0]
+    assert row.label == "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
+    assert row.runtime_model == (
+        "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest"
+    )
+
+
+async def test_unscanned_native_install_keeps_its_tag() -> None:
+    """A native Ollama name's tag is size/variant, not noise — kept as-is."""
+    runtime = Runtime(
+        [InstalledModel("ollama", "llama3.2:1b", ("completion",), None)]
+    )
+    service = CatalogService(
+        Advisor(()),
+        [runtime],
+        _manifest(),
+        max_context=8192,
+        reserve_gb=2,
+    )
+
+    result = await service.catalog(selected=None)
+
+    assert result.installed[0].label == "llama3.2:1b"
 
 
 async def test_embedding_only_installed_models_stay_out_of_generation_catalog() -> None:
@@ -270,7 +327,7 @@ async def test_curated_model_owns_a_colliding_runtime_target(
 
     result = await service.catalog(selected=("ollama", "qwen3:1.7b"))
 
-    assert result.recommended == ()
+    assert result.curated == ()
     assert result.explore == ()
     assert [row.canonical_id for row in result.installed] == ["Qwen/Qwen3-1.7B"]
     assert result.installed[0].selected is True
@@ -296,7 +353,7 @@ async def test_ambiguous_non_curated_models_use_exact_runtime_target(
     service = CatalogService(
         Advisor((instruct, base)),
         [Runtime()],
-        CuratedModelsManifest(schema_version=1, models=[]),
+        CuratedModelsManifest(schema_version=2, models=[]),
         max_context=8192,
         reserve_gb=2,
     )
@@ -305,7 +362,7 @@ async def test_ambiguous_non_curated_models_use_exact_runtime_target(
         result = await service.catalog(selected=None)
         repeated = await service.catalog(selected=None)
 
-    assert result.recommended == ()
+    assert result.curated == ()
     assert len(result.explore) == 1
     assert result.explore[0].canonical_id == "ollama:llama3.2:1b"
     assert result.explore[0].label == "llama3.2:1b"
@@ -337,7 +394,7 @@ async def test_refresh_invalidates_opaque_install_ids() -> None:
         reserve_gb=2,
     )
     first = await service.catalog(selected=None)
-    old_id = first.recommended[0].catalog_id
+    old_id = first.curated[0].catalog_id
 
     await service.catalog(selected=None, refresh=True)
 
@@ -352,7 +409,7 @@ async def test_a_second_runtime_needs_no_advisor_or_schema_change() -> None:
     service = CatalogService(
         Advisor((model,)),
         [Runtime(), LlamaRuntime()],
-        CuratedModelsManifest(schema_version=1, models=[]),
+        CuratedModelsManifest(schema_version=2, models=[]),
         max_context=8192,
         reserve_gb=2,
     )
@@ -382,4 +439,4 @@ async def test_disk_space_is_rejected_before_install_streaming(
     )
 
     with pytest.raises(InsufficientDiskError):
-        await service.preflight(catalog.recommended[0].catalog_id)
+        await service.preflight(catalog.curated[0].catalog_id)

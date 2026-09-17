@@ -13,7 +13,7 @@ from modules.llm.recommendations.curated_models import (
 from modules.llm.recommendations.llmfit import LlmfitAdvisor
 from modules.llm.recommendations.protocols import LocalRuntime
 from modules.llm.recommendations.types import RecommendationWarning
-from shared.config import get_llm_settings
+from shared.config import get_llm_settings, get_storage_settings
 
 
 @lru_cache
@@ -37,6 +37,7 @@ def get_catalog_service() -> CatalogService:
         settings.llmfit_expected_version,
         settings.llmfit_timeout_seconds,
         tuple(curated_models.advisor_providers),
+        cache_path=get_storage_settings().data_dir / "llmfit-scan.json",
     )
     storage = (
         {"ollama": settings.ollama_models_dir}

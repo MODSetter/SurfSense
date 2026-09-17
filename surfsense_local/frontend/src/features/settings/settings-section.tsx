@@ -31,10 +31,8 @@ export function SettingsSection({
   if (scrollable === "all") {
     return (
       <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]">
-        {/* pt-10 is a fixed gutter, not scroll content — it keeps the
-            dialog's own close button clear no matter how far this scrolls,
-            the way the fixed header used to in the other two modes. */}
-        <div className="min-h-0 pt-10">
+        {/* pt-10 is a fixed gutter, not scroll content — it keeps the dialog's own close button clear no matter how far this scrolls, the way the fixed header used to in the other two modes; min-w-0 stops a wide nowrap descendant from forcing this grid item past its 1fr track and out through the section's overflow-hidden. */}
+        <div className="min-h-0 min-w-0 pt-10">
           <ScrollShadow className="h-full" viewportClassName="px-7 pb-5">
             <header className="pb-6">{heading}</header>
             {children}
@@ -54,7 +52,7 @@ export function SettingsSection({
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto]">
       <header className="px-7 pt-10 pb-6">{heading}</header>
 
-      <div className="relative min-h-0">
+      <div className="relative min-h-0 min-w-0">
         {scrollable ? (
           <ScrollShadow className="h-full" viewportClassName="px-7 py-5">
             <div>{children}</div>

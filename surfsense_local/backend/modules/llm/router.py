@@ -17,6 +17,7 @@ from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, provider_names
 from modules.llm.providers.protocols import ModelStore
 from modules.llm.providers.sdcpp import provider as sdcpp
+from modules.llm.recommendations.catalog import clean_runtime_name
 from modules.llm.recommendations.dependencies import CatalogServiceDep
 from modules.llm.recommendations.router import router as recommendations_router
 from modules.llm.schemas import (
@@ -81,12 +82,25 @@ async def list_providers() -> list[ProviderRead]:
     response_model=list[ModelRead],
     summary="List installed models",
 )
-async def list_models(provider: ProviderDep) -> list[ModelRead]:
+async def list_models(
+    provider: ProviderDep, catalog_service: CatalogServiceDep
+) -> list[ModelRead]:
+    scan = await catalog_service.advisor_catalog()
+    display_names = {
+        model.ollama_name: model.display_name
+        for model in scan.models
+        if model.ollama_name
+    }
     return [
         ModelRead(
             name=model.name,
             installed=model.installed,
             capabilities=list(model.capabilities),
+            display_name=(
+                model.display_name
+                or display_names.get(model.name)
+                or clean_runtime_name(model.name)
+            ),
         )
         for model in await provider.models()
     ]

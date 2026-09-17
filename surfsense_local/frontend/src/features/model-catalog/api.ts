@@ -61,9 +61,17 @@ export type HardwareProfile = {
 export type ModelCatalog = {
   hardware: HardwareProfile | null
   llmfit_version: string | null
-  recommended: CatalogRow[]
+  // Always populated, scan-free — SurfSense's curated picks, shown with a
+  // fit badge once scanned and without one before. Never contains a row
+  // also present in `explore`.
+  curated: CatalogRow[]
   explore: CatalogRow[]
   installed: CatalogRow[]
+  // False when served without running the hardware scan (no cache existed
+  // yet and none was requested this session) — `curated`/`installed` are
+  // still fully populated either way, only `explore` and curated fit badges
+  // are scan-derived.
+  scanned: boolean
   warnings: RecommendationWarning[]
   runtime_status: Record<string, RuntimeStatus>
 }

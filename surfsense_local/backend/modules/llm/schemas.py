@@ -26,6 +26,7 @@ class ModelRead(BaseModel):
     name: str
     installed: bool
     capabilities: list[str]
+    display_name: str | None = None
 
 
 class ModelDeleteRead(BaseModel):
@@ -197,9 +198,13 @@ class RecommendationRowRead(BaseModel):
 class RecommendationCatalogRead(BaseModel):
     hardware: SystemProfileRead | None
     llmfit_version: str | None
-    recommended: list[RecommendationRowRead]
+    curated: list[RecommendationRowRead]
     explore: list[RecommendationRowRead]
     installed: list[RecommendationRowRead]
+    # False when served without running the hardware scan (no cache existed
+    # yet and none was requested) — `curated`/`installed` are still fully
+    # populated, only `explore` and curated fit badges are scan-derived.
+    scanned: bool
     warnings: list[RecommendationWarningRead]
     runtime_status: dict[str, bool]
 

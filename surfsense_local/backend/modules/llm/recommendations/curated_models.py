@@ -4,6 +4,8 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from modules.llm.recommendations.types import FitLevel
 
+SCHEMA_VERSION = 2
+
 
 class OllamaArtifact(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -28,6 +30,16 @@ class CuratedModel(BaseModel):
     allowed_quantizations: list[str]
     artifacts: CuratedModelArtifacts
 
+    # Static display metadata, shown before any hardware scan has run — see
+    # CatalogService's scan-free curated rows. `size_bytes` is the pinned
+    # `artifacts.ollama` tag's exact size (from Ollama's own registry
+    # manifest, e.g. `GET registry.ollama.ai/v2/library/<name>/manifests/<tag>`),
+    # not an estimate: a curated pin always installs the same fixed tag
+    # regardless of the end user's hardware, so this number never varies.
+    label: str = Field(min_length=1)
+    parameter_count: str = Field(min_length=1)
+    size_bytes: int = Field(gt=0)
+
 
 class CuratedModelsManifest(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -38,7 +50,7 @@ class CuratedModelsManifest(BaseModel):
 
     @model_validator(mode="after")
     def validate_manifest(self) -> "CuratedModelsManifest":
-        if self.schema_version != 1:
+        if self.schema_version != SCHEMA_VERSION:
             raise ValueError(f"unsupported curated-model schema: {self.schema_version}")
         ids = [model.model_id for model in self.models]
         if len(ids) != len(set(ids)):

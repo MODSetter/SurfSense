@@ -69,6 +69,12 @@ class CatalogService:
         self._initial_warnings = initial_warnings
         self._scan: AdvisorCatalog | None = None
         self._scan_lock = asyncio.Lock()
+        # Catalog ids are stable for the life of this service (effectively the
+        # process lifetime, since it's a singleton), including across a
+        # refresh: they key on (canonical_id, runtime), not on scan state, so
+        # a scan-free placeholder row and its later scanned counterpart get
+        # the exact same id — the frontend updates the row in place instead
+        # of tearing it down and mounting a new one.
         self._ids: dict[tuple[str, str], str] = {}
         self._plans: dict[str, tuple[LocalRuntime, ScoredModel, InstallPlan]] = {}
         self._logged_collision_keys: set[tuple[str, str]] = set()
@@ -81,8 +87,10 @@ class CatalogService:
                 self._ids.clear()
                 self._plans.clear()
                 self._logged_collision_keys.clear()
-            if self._scan is None:
-                self._scan = await self._advisor.scan(self._max_context)
+            if self._scan is None or refresh:
+                self._scan = await self._advisor.scan(
+                    self._max_context, refresh=refresh
+                )
             return self._scan
 
     async def catalog(
@@ -135,10 +143,11 @@ class CatalogService:
                 {(model.runtime, model.model_name): model for model in inventory}
             )
 
-        recommended: list[CatalogRow] = []
+        curated: list[CatalogRow] = []
         explore: list[CatalogRow] = []
         installed: list[CatalogRow] = []
         matched_installed: set[tuple[str, str]] = set()
+        matched_curated: set[str] = set()
         resolved_by_key: dict[
             tuple[str, str],
             tuple[LocalRuntime, ScoredModel, InstallPlan, CuratedModel | None],
@@ -238,11 +247,18 @@ class CatalogService:
                 can_install=runtime_status.get(runtime.name, False),
             )
             self._plans[row.catalog_id] = (runtime, model, plan)
+            if curated_model is not None:
+                matched_curated.add(curated_model.model_id)
             if is_installed:
                 installed.append(row)
                 matched_installed.add(key)
-            elif _is_recommended(model, curated_model):
-                recommended.append(row)
+            elif curated_model is not None:
+                # A curated model is always shown in its own section, at
+                # whatever fit the scan found — never merged into "More
+                # models". A poor fit isn't hidden, it's just an honest badge
+                # (and the existing marginal/too-tight install confirmation
+                # already gates acting on it).
+                curated.append(row)
             elif model.fit in {
                 FitLevel.PERFECT,
                 FitLevel.GOOD,
@@ -253,42 +269,69 @@ class CatalogService:
         for key, local_model in installed_by_key.items():
             if key in matched_installed or "completion" not in local_model.capabilities:
                 continue
-            catalog_id = self._id(f"{key[0]}:{key[1]}", key[0])
+            display_name = clean_runtime_name(key[1])
             installed.append(
-                CatalogRow(
-                    catalog_id=catalog_id,
+                self._placeholder_row(
                     canonical_id=f"{key[0]}:{key[1]}",
-                    family=key[1].split(":", 1)[0],
-                    label=key[1],
-                    publisher=None,
+                    family=display_name.split(":", 1)[0],
+                    label=display_name,
                     parameter_count=None,
-                    fit=FitLevel.UNKNOWN,
-                    score=None,
-                    memory_required_gb=None,
-                    disk_size_gb=None,
-                    estimated_tps=None,
-                    prefill_tps=None,
-                    ttft_ms=None,
-                    effective_context_length=None,
-                    estimate_confidence=None,
-                    license=None,
                     runtime=key[0],
                     runtime_model=key[1],
                     quantization=local_model.quantization,
+                    disk_size_gb=None,
                     installed=True,
                     selected=selected == key,
-                    can_install=False,
                     can_delete=True,
-                    warnings=("No current llmfit estimate is available.",),
+                    warning="No current llmfit estimate is available.",
                 )
             )
+            matched_installed.add(key)
+
+        for model_id, curated_model in self._curated_models.items():
+            if model_id in matched_curated:
+                continue
+            ollama = curated_model.artifacts.ollama
+            if ollama is None:
+                continue
+            target = ("ollama", ollama.name)
+            if target in installed_by_key or target in matched_installed:
+                # Already represented in `installed` above (matched either
+                # through a real scan or the inventory fallback) — showing it
+                # again here would duplicate the row.
+                continue
+            row = self._placeholder_row(
+                canonical_id=model_id,
+                family=curated_model.family,
+                label=curated_model.label,
+                parameter_count=curated_model.parameter_count,
+                runtime="ollama",
+                runtime_model=ollama.name,
+                quantization=ollama.quantization,
+                disk_size_gb=curated_model.size_bytes / 1_000_000_000,
+                installed=False,
+                selected=selected == target,
+                can_delete=False,
+            )
+            # A placeholder is still installable — resolving it needs only
+            # `ollama_name`, which the manifest already pins, no scan
+            # required. Register a real plan under the row's id so `/install`
+            # works exactly as it would for a scanned row.
+            runtime = self._runtimes.get("ollama")
+            if runtime is not None:
+                synthetic = _synthetic_curated_model(model_id, curated_model)
+                plan = await runtime.resolve(synthetic)
+                if plan is not None:
+                    self._plans[row.catalog_id] = (runtime, synthetic, plan)
+            curated.append(row)
 
         return CatalogResult(
             hardware=scan.system,
             llmfit_version=scan.llmfit_version,
-            recommended=tuple(sorted(recommended, key=_sort_key)),
+            curated=tuple(sorted(curated, key=_sort_key)),
             explore=tuple(sorted(explore, key=_sort_key)),
             installed=tuple(sorted(installed, key=_sort_key)),
+            scanned=scan.scanned,
             warnings=tuple(warnings),
             runtime_status=runtime_status,
         )
@@ -330,6 +373,12 @@ class CatalogService:
                 ollama_quantization=(
                     ollama.quantization if ollama is not None else None
                 ),
+                # The curated pin always installs a fixed quantization,
+                # regardless of what llmfit itself would recommend for this
+                # hardware — so its size must come from the manifest too, not
+                # from the scan. Otherwise the badge would describe a
+                # different file than the one that actually gets installed.
+                disk_size_gb=curated_model.size_bytes / 1_000_000_000,
             ),
             curated_model,
         )
@@ -384,6 +433,54 @@ class CatalogService:
             warnings=tuple(warnings),
         )
 
+    def _placeholder_row(
+        self,
+        *,
+        canonical_id: str,
+        family: str,
+        label: str,
+        parameter_count: str | None,
+        runtime: str,
+        runtime_model: str,
+        quantization: str | None,
+        disk_size_gb: float | None,
+        installed: bool,
+        selected: bool,
+        can_delete: bool,
+        warning: str | None = None,
+    ) -> CatalogRow:
+        """A row built without a `ScoredModel` at all — no fit/score/memory
+        data exists yet, either because nothing has been scanned, or (for the
+        installed-but-unscanned case) llmfit just didn't return this exact
+        model. Shared by both fallback paths in `catalog()` so there is one
+        place, not two, that knows what an unscored row looks like."""
+        return CatalogRow(
+            catalog_id=self._id(canonical_id, runtime),
+            canonical_id=canonical_id,
+            family=family,
+            label=label,
+            publisher=None,
+            parameter_count=parameter_count,
+            fit=FitLevel.UNKNOWN,
+            score=None,
+            memory_required_gb=None,
+            disk_size_gb=disk_size_gb,
+            estimated_tps=None,
+            prefill_tps=None,
+            ttft_ms=None,
+            effective_context_length=None,
+            estimate_confidence=None,
+            license=None,
+            runtime=runtime,
+            runtime_model=runtime_model,
+            quantization=quantization,
+            installed=installed,
+            selected=selected,
+            can_install=not installed,
+            can_delete=can_delete,
+            warnings=(warning,) if warning else (),
+        )
+
     def _id(self, canonical_id: str, runtime: str) -> str:
         key = (canonical_id, runtime)
         if key not in self._ids:
@@ -426,6 +523,64 @@ def _runtime_target_model(
     )
 
 
+def _synthetic_curated_model(
+    model_id: str, curated_model: CuratedModel
+) -> ScoredModel:
+    """Just enough of a `ScoredModel` to resolve an install plan pre-scan.
+
+    `OllamaRuntime.resolve()` only reads `ollama_name` (and, optionally,
+    `disk_size_gb` for a progress-bar total) — every other field here is
+    unused by any runtime and left at a neutral default.
+    """
+    ollama = curated_model.artifacts.ollama
+    return ScoredModel(
+        canonical_id=model_id,
+        publisher=None,
+        family=curated_model.family,
+        display_name=curated_model.label,
+        parameter_count=curated_model.parameter_count,
+        params_b=None,
+        use_case=None,
+        fit=FitLevel.UNKNOWN,
+        score=None,
+        runtime=None,
+        run_mode=None,
+        best_quant=None,
+        memory_required_gb=None,
+        memory_available_gb=None,
+        utilization_pct=None,
+        disk_size_gb=curated_model.size_bytes / 1_000_000_000,
+        estimated_tps=None,
+        prefill_tps=None,
+        ttft_ms=None,
+        estimate_confidence=None,
+        estimate_basis=None,
+        effective_context_length=None,
+        capability_ids=(),
+        license=None,
+        ollama_name=ollama.name if ollama is not None else None,
+        gguf_sources=(),
+        ollama_quantization=ollama.quantization if ollama is not None else None,
+    )
+
+
+def clean_runtime_name(model_name: str) -> str:
+    """A runtime's own model name, minus what's only meaningful to it.
+
+    A native Ollama library name (`llama3.2:1b`) is already a name a person
+    picked — shown as-is, tag included, since the tag is the size/variant,
+    not noise. An `hf.co/<repo>[:<tag>]` fallback pull (built in
+    `llmfit.py` for a model Ollama's own library doesn't have) is different:
+    `hf.co/` only says where it came from, and the tag is either a
+    throwaway `:latest` or a quant code — neither means anything to a
+    person looking at a model list. Stripped down to `<provider>/<repo>`,
+    it still names who published it, just not through a URL.
+    """
+    if not model_name.startswith("hf.co/"):
+        return model_name
+    return model_name.removeprefix("hf.co/").split(":", 1)[0]
+
+
 def _is_embedding(model: ScoredModel) -> bool:
     return (model.use_case is not None and "embedding" in model.use_case) or (
         bool(model.capability_ids)
@@ -446,18 +601,6 @@ def _apply_reserve(model: ScoredModel, reserve_gb: float) -> ScoredModel:
     elif utilization > 0.9 and FIT_ORDER[fit] < FIT_ORDER[FitLevel.MARGINAL]:
         fit = FitLevel.MARGINAL
     return replace(model, fit=fit, utilization_pct=utilization * 100)
-
-
-def _is_recommended(model: ScoredModel, curated_model: CuratedModel | None) -> bool:
-    return (
-        curated_model is not None
-        and model.fit in {FitLevel.PERFECT, FitLevel.GOOD}
-        and (model.effective_context_length or 0) >= curated_model.minimum_context
-        and (
-            not curated_model.allowed_quantizations
-            or model.ollama_quantization in curated_model.allowed_quantizations
-        )
-    )
 
 
 def _sort_key(row: CatalogRow) -> tuple[int, float, str]:

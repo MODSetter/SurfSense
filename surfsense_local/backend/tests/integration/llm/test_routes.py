@@ -38,6 +38,26 @@ async def test_installed_models_carry_their_capabilities(
     assert "tools" in body[0]["capabilities"]
 
 
+async def test_unscanned_hf_co_model_gets_a_clean_display_name(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """No scan has resolved this model yet, so the route's own fallback
+    must clean the raw `hf.co/...` pull name itself, not just pass it
+    through — this is what the "Chat: ..." summary elsewhere reads."""
+    from tests.integration.llm.conftest import INSTALLED
+
+    INSTALLED.append("hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest")
+
+    body = (await client.get("/llm/providers/ollama/models")).json()
+
+    entry = next(
+        model
+        for model in body
+        if model["name"] == "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest"
+    )
+    assert entry["display_name"] == "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
+
+
 async def test_the_catalog_marks_what_is_installed(
     client: AsyncClient, ollama_server: str
 ) -> None:
@@ -121,6 +141,7 @@ async def test_selecting_a_chat_model_does_not_complete_onboarding(
 async def test_onboarding_cannot_complete_without_a_chat_model(
     client: AsyncClient,
 ) -> None:
+    """Onboarding needs a chat model chosen before it can finish."""
     reply = await client.post("/llm/onboarding")
     assert reply.status_code == 422
     assert (await client.get("/llm/onboarding")).json() == {"completed": False}
@@ -433,11 +454,11 @@ async def test_catalog_exposes_one_row_per_runtime_target(
         ],
     )
 
-    catalog = (await client.get("/llm/catalog")).json()
+    catalog = (await client.get("/llm/catalog?refresh=true")).json()
 
     matching = [
         row
-        for section in ("recommended", "explore", "installed")
+        for section in ("curated", "explore", "installed")
         for row in catalog[section]
         if row["runtime_model"] == "qwen3:1.7b"
     ]
@@ -453,10 +474,16 @@ async def test_ranked_catalog_installs_and_selects_in_one_stream(
 ) -> None:
     """The normalized route resolves an opaque id, installs, and persists selection."""
     _configure_llmfit(tmp_path, monkeypatch)
-    catalog = (await client.get("/llm/catalog")).json()
+    catalog = (await client.get("/llm/catalog?refresh=true")).json()
 
-    assert [row["canonical_id"] for row in catalog["recommended"]] == ["Qwen/Qwen3-8B"]
-    catalog_id = catalog["recommended"][0]["catalog_id"]
+    # The real curated manifest has 8 entries; only this one was actually
+    # scanned with real fit data (the rest fall back to unscored placeholders
+    # for models the fixture's fit response didn't include).
+    scanned_curated = [
+        row for row in catalog["curated"] if row["fit"] != "unknown"
+    ]
+    assert [row["canonical_id"] for row in scanned_curated] == ["Qwen/Qwen3-8B"]
+    catalog_id = scanned_curated[0]["catalog_id"]
 
     events = []
     async with client.stream(
@@ -492,7 +519,10 @@ async def test_refresh_makes_old_catalog_ids_unusable(
 ) -> None:
     """A refresh revokes prior artifact choices before download starts."""
     _configure_llmfit(tmp_path, monkeypatch)
-    old_id = (await client.get("/llm/catalog")).json()["recommended"][0]["catalog_id"]
+    first = (await client.get("/llm/catalog?refresh=true")).json()
+    old_id = next(
+        row["catalog_id"] for row in first["curated"] if row["fit"] != "unknown"
+    )
     await client.get("/llm/catalog?refresh=true")
 
     response = await client.post(
@@ -513,7 +543,9 @@ async def test_missing_llmfit_keeps_installed_models_available(
     monkeypatch.setattr(get_llm_settings(), "llmfit_path", tmp_path / "missing")
     get_catalog_service.cache_clear()
 
-    catalog = (await client.get("/llm/catalog")).json()
+    # An unrefreshed call never probes llmfit, so a missing binary stays
+    # silent (scan-free content instead) until an explicit rescan asks.
+    catalog = (await client.get("/llm/catalog?refresh=true")).json()
 
     assert {row["runtime_model"] for row in catalog["installed"]} == {
         "qwen3:1.7b",

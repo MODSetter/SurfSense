@@ -5,9 +5,12 @@ import { Skeleton } from "@/components/ui/skeleton"
 
 import {
   type Connection,
+  getAvailableGenerationModels,
   getConnections,
   getSelection,
+  modelKey,
   type ModelSelection,
+  type SelectableModel,
 } from "./api"
 
 // `null` connections mean the list is still loading or failed to load, which is
@@ -27,12 +30,14 @@ function Role({
   connections,
   loading,
   fallback,
+  displayName,
 }: {
   label: string
   selection: ModelSelection | null
   connections: Connection[] | null
   loading?: boolean
   fallback: string
+  displayName?: string
 }) {
   const source = selection === null ? null : sourceOf(selection, connections)
 
@@ -49,7 +54,9 @@ function Role({
           <span className="text-muted-foreground">{fallback}</span>
         ) : (
           <>
-            <span className="truncate">{selection.name}</span>
+            <span className="min-w-0 truncate">
+              {displayName ?? selection.name}
+            </span>
             {source === null ? null : (
               <>
                 <DotIcon
@@ -81,6 +88,9 @@ export function SelectedRoles({
   generationLoading: boolean
 }) {
   const [state, setState] = useState<ImageState>({ status: "loading" })
+  const [generationModels, setGenerationModels] = useState<
+    SelectableModel[] | null
+  >(null)
 
   useEffect(() => {
     const controller = new AbortController()
@@ -99,7 +109,28 @@ export function SelectedRoles({
     return () => controller.abort()
   }, [])
 
+  useEffect(() => {
+    const controller = new AbortController()
+    void getAvailableGenerationModels(controller.signal)
+      .then((models) => {
+        if (!controller.signal.aborted) setGenerationModels(models)
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setGenerationModels(null)
+      })
+    return () => controller.abort()
+  }, [])
+
   const connections = state.status === "ready" ? state.connections : null
+  // Same enrichment the composer's model picker uses: the raw ollama pull
+  // name can be an unreadable `hf.co/...` id, so prefer the scanned/curated
+  // display name for the matching installed model when one is available.
+  const generationDisplayName =
+    generation === null
+      ? undefined
+      : (generationModels?.find(
+          (candidate) => modelKey(candidate) === modelKey(generation)
+        )?.display_name ?? undefined)
 
   return (
     <section
@@ -114,6 +145,7 @@ export function SelectedRoles({
           connections={connections}
           loading={generationLoading}
           fallback="Not assigned"
+          displayName={generationDisplayName}
         />
         <Role
           label="Image:"
