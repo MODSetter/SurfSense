@@ -9,7 +9,6 @@
 
 export const REPO_URL = "https://github.com/MODSetter/SurfSense";
 export const DOWNLOADS_URL = "/downloads";
-export const SIGN_IN_URL = "/login";
 
 export type SiteLink = { name: string; href: string; external?: boolean };
 export type SiteMenuItem = SiteLink & { description: string };
@@ -53,7 +52,6 @@ export const FOOTER_COLUMNS: { heading: string; links: FooterLink[] }[] = [
 		links: [
 			{ title: "Privacy Policy", href: "/privacy" },
 			{ title: "Terms of Service", href: "/terms" },
-			{ title: "Sign in", href: SIGN_IN_URL },
 		],
 	},
 ];
