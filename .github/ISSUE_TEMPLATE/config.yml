@@ -1,11 +1,11 @@
-blank_issues_enabled: true
+blank_issues_enabled: false
 contact_links:
-  - name: 📚 Documentation
-    url: https://www.surfsense.com/docs
-    about: Check our documentation for guides and setup instructions
-  - name: 💬 Discussions
+  - name: Discord
+    url: https://discord.gg/ejRNvftDp9
+    about: Questions and setup help
+  - name: Discussions
     url: https://github.com/MODSetter/SurfSense/discussions
-    about: Ask questions and discuss ideas with the community
-  - name: 🤝 Contributing Guide
-    url: https://github.com/MODSetter/SurfSense/blob/main/CONTRIBUTING.md
-    about: Learn how to contribute to SurfSense
+    about: Ideas that are not a bug or a concrete feature yet
+  - name: Security advisory
+    url: https://github.com/MODSetter/SurfSense/security/advisories/new
+    about: Report a vulnerability privately. Do not open a public issue.

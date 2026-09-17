@@ -1,0 +1,41 @@
+name: Feature
+description: Propose a change. Wait for a maintainer before writing a large PR.
+title: "[feat] "
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: New features need a maintainer to agree first. Bugs and docs do not.
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Desktop app (surfsense_local)
+        - MCP (surfsense_mcp)
+        - Backend / scraper API (surfsense_backend)
+        - Web UI (surfsense_web)
+        - Docs / repo
+        - Unsure
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What is hard or missing today?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal
+    validations:
+      required: true
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and discussions
+          required: true
