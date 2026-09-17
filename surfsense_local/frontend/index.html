@@ -2,6 +2,33 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <!--
+      Blocking, mirrors ThemeProvider's resolution logic (theme-provider.tsx)
+      so the correct theme paints in the first frame instead of flashing light
+      while the bundle loads and the ThemeProvider effect runs. Must stay in
+      sync with THEME_STORAGE_KEY / getSystemTheme there. window.surfsense is
+      already available here: preload runs before this script.
+    -->
+    <script>
+      ;(() => {
+        try {
+          const storageKey = "surfsense:theme:v1"
+          const stored = localStorage.getItem(storageKey)
+          const systemTheme = window.surfsense?.theme?.getSystemTheme
+            ? window.surfsense.theme.getSystemTheme()
+            : window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light"
+          const theme =
+            stored === "light" || stored === "dark" ? stored : systemTheme
+          const root = document.documentElement
+          root.classList.add(theme)
+          root.style.colorScheme = theme
+        } catch {
+          // no-op: fall back to the CSS defaults if storage/matchMedia throws
+        }
+      })()
+    </script>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SurfSense Community Local</title>

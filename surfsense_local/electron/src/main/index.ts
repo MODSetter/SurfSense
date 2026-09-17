@@ -1,6 +1,14 @@
 import { join } from "node:path"
 
-import { app, BrowserWindow, ipcMain, Menu, safeStorage, shell } from "electron"
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  safeStorage,
+  shell,
+} from "electron"
 // Static on purpose: electron-updater is CJS and exposes `autoUpdater` through
 // a getter, which `await import()` cannot see (named export comes back
 // undefined). require() honours it, and the getter is lazy so dev pays nothing.
@@ -32,6 +40,11 @@ import {
   type Updates,
   type UpdateState,
 } from "./updater.ts"
+import {
+  loadThemePreference,
+  saveThemePreference,
+  type ThemePreference,
+} from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
@@ -185,6 +198,18 @@ function registerDocumentHandlers(dataDir: string): void {
     applyTitleBarOverlay(mainWindow, overlay)
   })
 
+  ipcMain.handle("theme:set", (event, theme: unknown) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame
+    ) {
+      return
+    }
+    if (theme !== "dark" && theme !== "light" && theme !== "system") return
+    saveThemePreference(theme)
+    applyBackgroundColorToAllWindows(theme)
+  })
+
   ipcMain.handle("documents:open", async (event, workspaceId, documentId) => {
     if (
       !trusted(event.sender) ||
@@ -296,6 +321,29 @@ function applyTitleBarOverlay(
   })
 }
 
+// Mirrors --app-shell in frontend/src/index.css (:root / .dark). Used as the
+// BrowserWindow's native backgroundColor so a reload shows the right theme
+// immediately instead of flashing Electron's default opaque white while the
+// page is torn down and reloaded.
+// https://www.electronjs.org/docs/latest/api/browser-window#showing-window-gracefully
+const APP_SHELL_LIGHT = "#f3f2ee"
+const APP_SHELL_DARK = "#101010"
+
+function resolveBackgroundColor(theme: ThemePreference): string {
+  const resolvedDark =
+    theme === "system" ? nativeTheme.shouldUseDarkColors : theme === "dark"
+  return resolvedDark ? APP_SHELL_DARK : APP_SHELL_LIGHT
+}
+
+function currentWindows(): BrowserWindow[] {
+  return BrowserWindow.getAllWindows()
+}
+
+function applyBackgroundColorToAllWindows(theme: ThemePreference): void {
+  const color = resolveBackgroundColor(theme)
+  for (const win of currentWindows()) win.setBackgroundColor(color)
+}
+
 // Packaged only. Dev keeps Electron's default View menu (reload + DevTools).
 // https://www.electronjs.org/docs/latest/tutorial/application-menu
 function installProductionMenu(): void {
@@ -340,6 +388,7 @@ function createWindow(apiUrl: string): void {
   const savedState = app.isPackaged ? loadWindowState() : null
   const win = new BrowserWindow({
     ...(savedState?.bounds ?? { width: 1280, height: 800 }),
+    backgroundColor: resolveBackgroundColor(loadThemePreference()),
     show: false,
     // https://www.electronjs.org/docs/latest/tutorial/custom-title-bar
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
@@ -397,6 +446,24 @@ function denyAppWindows(contents: Electron.WebContents): void {
 function main(): void {
   app.on("web-contents-created", (_event, contents) => {
     denyAppWindows(contents)
+  })
+
+  // The renderer's own matchMedia isn't a reliable single source of truth
+  // for the OS theme inside a packaged app (it can lag or diverge from what
+  // Chromium/Electron itself resolves), so nativeTheme is authoritative and
+  // the renderer only ever mirrors it: a sync read on preload boot for the
+  // first paint, then this push on every change.
+  ipcMain.on("theme:get-system", (event) => {
+    event.returnValue = nativeTheme.shouldUseDarkColors ? "dark" : "light"
+  })
+  nativeTheme.on("updated", () => {
+    const systemTheme = nativeTheme.shouldUseDarkColors ? "dark" : "light"
+    for (const win of currentWindows()) {
+      win.webContents.send("theme:system-changed", systemTheme)
+    }
+    if (loadThemePreference() === "system") {
+      applyBackgroundColorToAllWindows("system")
+    }
   })
   app
     .whenReady()
