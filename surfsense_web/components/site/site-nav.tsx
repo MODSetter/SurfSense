@@ -4,6 +4,7 @@ import { IconChevronDown, IconMenu2, IconX } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { TopAnnouncementBar } from "@/components/homepage/top-announcement-bar";
 import { NAV_LINKS, NAV_RESOURCES } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
 import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
@@ -90,6 +91,7 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 
 	return (
 		<header ref={headerRef} className="ss-home-nav">
+			<TopAnnouncementBar />
 			<div className="ss-home-nav-bar">
 				<Wordmark />
 

@@ -3,6 +3,7 @@ import {
 	ArrowRightIcon as ArrowRightIconData,
 	ArrowUp02Icon as ArrowUp02IconData,
 	ArrowUpRight01Icon as ArrowUpRight01IconData,
+	Cancel01Icon as Cancel01IconData,
 	Cards01Icon as Cards01IconData,
 	ChartHistogramIcon as ChartHistogramIconData,
 	CheckIcon as CheckIconData,
@@ -73,6 +74,7 @@ export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData);
 export const ArrowRightIcon = createIcon(ArrowRightIconData);
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData);
 export const ArrowUpRight01Icon = createIcon(ArrowUpRight01IconData);
+export const Cancel01Icon = createIcon(Cancel01IconData);
 export const Cards01Icon = createIcon(Cards01IconData);
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData);
 export const CheckIcon = createIcon(CheckIconData);
