@@ -253,7 +253,7 @@ export function LicenseSettings() {
             </p>
             {status.expiry ? (
               <p className="text-sm text-pretty text-muted-foreground tabular-nums">
-                {status.state === "active" ? "Renews" : "Ended"}{" "}
+                {status.state === "active" ? "Expires" : "Ended"}{" "}
                 {dateLabel(status.expiry)}
                 {status.max_users ? ` · ${status.max_users} seats` : ""}
               </p>
