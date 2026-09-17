@@ -183,6 +183,53 @@ curl -s -X DELETE http://127.0.0.1:11434/api/delete \
 (On Windows, `curl` ships built-in on Windows 10 1803+ / Windows 11 as
 `curl.exe`; the commands above work as-is from PowerShell or cmd.)
 
+### Test 3 — real inference + GPU offload (new)
+
+Tests 1 and 2 confirm the model downloads and gets a template, but never
+confirm it actually **generates coherent output** or that the GPU gets used.
+Since the whole point is "best results for custom-built GPU PCs," this needs
+its own check. Pull one of the actual newly-unlocked models from your own
+Test 1 scan (the `typhoon-ai/llama3.2-typhoon2-3b-instruct` sample works
+well, or pick any other `gguf_sources`-only entry from `fit_output.json`):
+
+```bash
+curl -s -N -X POST http://127.0.0.1:11434/api/pull \
+  -d '{"model": "hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0", "stream": true}'
+
+curl -s http://127.0.0.1:11434/api/chat -d '{
+  "model": "hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0",
+  "messages": [{"role": "user", "content": "Say hello in one short sentence."}],
+  "stream": false
+}'
+
+ollama ps
+```
+
+Check: is the `api/chat` response coherent, correctly-formatted prose (not
+garbled — garbling would mean the auto-detected template is actually wrong
+despite `/api/show` reporting one)? And does `ollama ps`'s `PROCESSOR` column
+show GPU usage (e.g. `100% GPU`), not a silent CPU fallback?
+
+### Test 4 — end-to-end catalog loop (new)
+
+Tests so far only exercise Ollama's API in isolation. The actual point of
+this fix is that a pulled model shows up correctly in SurfSense's own
+"Installed" section on a later scan — i.e. that `catalog.py`'s
+`installed_by_key` matching (keyed on the exact `(runtime, model_name)`
+string) actually recognizes the model once it's on disk. After the Test 3
+pull succeeds:
+
+```bash
+curl -s http://127.0.0.1:11434/api/tags
+```
+
+Confirm the returned `name` for that model is byte-identical to what was
+requested (`hf.co/mradermacher/llama3.2-typhoon2-3b-instruct-GGUF:Q8_0`) —
+specifically check Ollama didn't silently append `:latest`, drop the
+`provider/` prefix, or otherwise reshape it, since any of those would make
+the model permanently show as "not installed" in SurfSense despite being on
+disk. Clean up with `ollama rm` (or `/api/delete`) afterward, same as Test 2.
+
 ## What to paste back here
 
 1. The full stdout of the Test 1 analysis script.
@@ -192,6 +239,10 @@ curl -s -X DELETE http://127.0.0.1:11434/api/delete \
 3. The GPU/OS details of the machine it ran on (GPU model + VRAM, OS version)
    — grab this from the `"system"` key in `fit_output.json` rather than typing
    it manually, so it's exact.
+4. Test 3: the full `/api/chat` response text, and the `ollama ps` output
+   showing the `PROCESSOR` column.
+5. Test 4: the exact `/api/tags` entry name for the Test 3 model, so it can be
+   diff'd character-for-character against what was requested.
 
 ## Decision this informs
 
@@ -299,3 +350,35 @@ Hypothesis confirmed on real GPU Windows hardware: `runtime` normalizes to
 `llamacpp` and `best_quant` is GGUF-shaped for the entire `gguf_sources`-only
 group. The runtime-gated `trusted_quant` design above is correct as written
 — ship it as planned, no rethinking of the gating condition needed.
+
+### Correction (found while reviewing these results — do not skip)
+
+The "aside" above, and the code snippet in "The open question this spec
+exists to answer", are both **wrong about what `_code()` actually produces**.
+Checked the real implementation directly:
+
+```python
+def _code(value):
+    return re.sub(r"[^a-z0-9]+", "_", value.strip().lower()).strip("_")
+
+_code("llama.cpp")  # -> 'llama_cpp'   (the "." is REPLACED with "_", not removed)
+_code("llamacpp")   # -> 'llamacpp'
+```
+
+`_code()` replaces non-alphanumeric runs with a single underscore — it does
+not strip separators out. So the real, verified `runtime` string from llmfit
+(`"llama.cpp"`, confirmed in the sample raw entry above) normalizes to
+**`"llama_cpp"`** (with an underscore), not `"llamacpp"`. The planned gating
+condition must therefore be:
+
+```python
+runtime = _code(row.get("runtime"))
+trusted_quant = best_quant if runtime == "llama_cpp" else None  # underscore, not "llamacpp"
+```
+
+Written as `runtime == "llamacpp"` (no underscore), this condition would
+never match real scan data on any platform — it would silently fall back to
+the untagged/`fit: UNKNOWN` path 100% of the time, quietly losing the
+fit-scoring benefit this whole test round was meant to validate. The
+underlying test results and numbers above are unaffected by this — only the
+exact comparison string in the implementation needs to use `"llama_cpp"`.
