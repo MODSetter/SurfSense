@@ -522,7 +522,9 @@ async def test_missing_llmfit_keeps_installed_models_available(
     monkeypatch.setattr(get_llm_settings(), "llmfit_path", tmp_path / "missing")
     get_catalog_service.cache_clear()
 
-    catalog = (await client.get("/llm/catalog")).json()
+    # An unrefreshed call never probes llmfit, so a missing binary stays
+    # silent (scan-free content instead) until an explicit rescan asks.
+    catalog = (await client.get("/llm/catalog?refresh=true")).json()
 
     assert {row["runtime_model"] for row in catalog["installed"]} == {
         "qwen3:1.7b",

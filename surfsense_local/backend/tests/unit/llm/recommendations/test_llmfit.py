@@ -271,7 +271,7 @@ async def test_no_cache_file_scans_when_refresh_is_true(tmp_path: Path) -> None:
 
 
 async def test_refresh_false_never_scans_without_a_cache(tmp_path: Path) -> None:
-    """The expensive subprocess only ever runs on an explicit refresh."""
+    """An unrefreshed call never invokes llmfit at all, not even to probe."""
     cache_path = tmp_path / "cache.json"
     log = tmp_path / "calls.log"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture(), log=log)
@@ -282,12 +282,12 @@ async def test_refresh_false_never_scans_without_a_cache(tmp_path: Path) -> None
 
     assert result.scanned is False
     assert result.models == ()
-    assert "fit" not in log.read_text()
+    assert not log.exists()
     assert not cache_path.exists()
 
 
 async def test_cache_hit_skips_the_expensive_call(tmp_path: Path) -> None:
-    """A fingerprint-matched cache answers without invoking the real binary."""
+    """A cache from the last explicit scan answers without invoking the real binary."""
     cache_path = tmp_path / "cache.json"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
     advisor = LlmfitAdvisor(executable, "1.1.11", 2, cache_path=cache_path)
@@ -303,24 +303,32 @@ async def test_cache_hit_skips_the_expensive_call(tmp_path: Path) -> None:
 
     assert result.scanned is True
     assert len(result.models) == 2
-    assert "fit" not in log.read_text()
+    assert not log.exists()
 
 
-async def test_fingerprint_mismatch_is_a_miss_not_an_error(tmp_path: Path) -> None:
-    """A hardware/context change invalidates the cache instead of erroring."""
+async def test_refresh_false_never_reprobes_hardware_to_validate_the_cache(
+    tmp_path: Path,
+) -> None:
+    """An unrefreshed call trusts the cache as-is, even for a stale fingerprint.
+
+    Re-validating freshness would mean re-probing hardware, which is exactly
+    the subprocess spawn a page-load call must not pay for. Staleness is only
+    ever resolved by the next explicit "Scan hardware".
+    """
     cache_path = tmp_path / "cache.json"
     executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
     await LlmfitAdvisor(executable, "1.1.11", 2, cache_path=cache_path).scan(
         8192, refresh=True
     )
 
-    # A different max_context changes the fingerprint.
+    # A different max_context would have changed a fingerprint, but nothing
+    # re-probes hardware on an unrefreshed call, so the cache still answers.
     result = await LlmfitAdvisor(
         executable, "1.1.11", 2, cache_path=cache_path
     ).scan(4096, refresh=False)
 
-    assert result.scanned is False
-    assert result.models == ()
+    assert result.scanned is True
+    assert len(result.models) == 2
 
 
 async def test_corrupt_cache_file_is_discarded_silently(tmp_path: Path) -> None:
@@ -350,6 +358,29 @@ async def test_wrong_cache_version_is_discarded(tmp_path: Path) -> None:
 
     result = await LlmfitAdvisor(
         executable, "1.1.11", 2, cache_path=cache_path
+    ).scan(8192, refresh=False)
+
+    assert result.scanned is False
+    assert result.models == ()
+
+
+async def test_cache_from_an_older_llmfit_binary_is_discarded(
+    tmp_path: Path,
+) -> None:
+    """An app update that bumps the pinned binary can't serve stale scores.
+
+    This check is a free string compare against the pinned constant, unlike
+    the hardware fingerprint it replaced — so it stays even on the
+    never-probe path.
+    """
+    cache_path = tmp_path / "cache.json"
+    executable = _stub(tmp_path / "bin", _system_fixture(), _fit_fixture())
+    await LlmfitAdvisor(executable, "1.1.11", 2, cache_path=cache_path).scan(
+        8192, refresh=True
+    )
+
+    result = await LlmfitAdvisor(
+        executable, "1.2.0", 2, cache_path=cache_path
     ).scan(8192, refresh=False)
 
     assert result.scanned is False

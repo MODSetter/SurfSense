@@ -20,7 +20,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
@@ -71,9 +70,12 @@ function runtimeAvailable(status: RuntimeStatus | undefined) {
   )
 }
 
-function hardwareSummary(hardware: HardwareProfile | null) {
+function hardwareSummary(hardware: HardwareProfile | null, scanned: boolean) {
   if (!hardware) {
-    return ["Hardware profile unavailable"]
+    // Never scanned (the common first-launch case, since nothing probes
+    // hardware until the user asks) reads differently from a scan that was
+    // attempted and failed — the latter also surfaces a warning banner.
+    return [scanned ? "Hardware profile unavailable" : "Not detected yet"]
   }
   const name = hardware.gpu_name ?? hardware.cpu_name
   const memory = hardware.total_ram_gb
@@ -234,47 +236,11 @@ export function ModelCatalogPage({
     useState<CatalogRow | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CatalogRow | null>(null)
 
+  // No skeleton: the catalog GET no longer probes hardware on an unrefreshed
+  // load (see `LlmfitAdvisor.scan`), so it resolves as fast as any other
+  // page fetch and a loading state would only ever flash.
   if (catalog.isPending) {
-    return (
-      <div
-        className={cn("flex flex-col gap-5", scrollable && "h-full min-h-0")}
-        role="status"
-        aria-label="Scanning model catalog"
-      >
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
-          <div>
-            <div className="flex items-center">
-              <Skeleton
-                data-slot="hardware-name-skeleton"
-                className="h-5 w-14"
-              />
-              <DotIcon
-                aria-hidden="true"
-                className="size-3 shrink-0 text-muted-foreground"
-              />
-              <Skeleton
-                data-slot="hardware-memory-skeleton"
-                className="h-5 w-20"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Only models compatible with this machine are shown.
-            </p>
-          </div>
-          <Button type="button" size="sm" variant="outline" disabled>
-            <RefreshCwIcon data-icon="inline-start" />
-            Rescan hardware
-          </Button>
-        </div>
-        <ScrollShadow className="flex-1" scroll={scrollable}>
-          <div className="flex flex-col gap-3">
-            {[0, 1, 2].map((item) => (
-              <Skeleton key={item} className="h-28 w-full rounded-xl" />
-            ))}
-          </div>
-        </ScrollShadow>
-      </div>
-    )
+    return null
   }
 
   if (catalog.isError || !catalog.data) {
@@ -411,7 +377,7 @@ export function ModelCatalogPage({
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
         <div>
           <p className="flex items-center text-sm font-medium">
-            {hardwareSummary(data.hardware).map((part, index) => (
+            {hardwareSummary(data.hardware, data.scanned).map((part, index) => (
               <Fragment key={part}>
                 {index > 0 ? (
                   <DotIcon

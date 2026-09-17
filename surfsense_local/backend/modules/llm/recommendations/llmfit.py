@@ -50,13 +50,14 @@ class LlmfitError(RuntimeError):
 class LlmfitAdvisor:
     """Scores models with the pinned llmfit binary and caches the result.
 
-    The cache lives here rather than in CatalogService because its fingerprint
-    needs the hardware profile, and nothing above this seam should re-derive
-    it. `scan(refresh=False)` never spawns the expensive per-model scoring
-    subprocess — it only ever answers from a fingerprint-matched cache file,
-    or reports "not scanned" so the caller can decide what to show instead.
-    Only `refresh=True` (an explicit user action) pays that cost and refreshes
-    the cache.
+    The cache lives here rather than in CatalogService because it stores the
+    hardware profile llmfit itself produced, and nothing above this seam
+    should re-derive it. `scan(refresh=False)` never spawns llmfit at all —
+    not the per-model scoring subprocess, not even the cheap version/system
+    probe — it only ever answers from whatever the last explicit scan wrote
+    to disk, or reports "not scanned" so the caller can show scan-free
+    content instead. Only `refresh=True` (an explicit "Scan hardware" click)
+    probes hardware and pays for scoring, then refreshes the cache.
     """
 
     def __init__(
@@ -75,8 +76,20 @@ class LlmfitAdvisor:
         self._cache_path = cache_path
 
     async def scan(self, max_context: int, *, refresh: bool = False) -> AdvisorCatalog:
-        # Tier 1 is fatal: without a version and a hardware profile there is
-        # nothing to score against and no fingerprint to key a cache on.
+        if not refresh:
+            # An unrefreshed call is never a user action (it fires on every
+            # page load), so it must not spawn llmfit at all — not even the
+            # cheap version/system probe. It only ever answers from what the
+            # last explicit "Scan hardware" wrote, or reports "not scanned
+            # yet" so the caller shows scan-free content (installed +
+            # curated) and a "Scan hardware" action instead.
+            cached = self._load_cache()
+            if cached is not None:
+                return cached
+            return AdvisorCatalog(
+                system=None, models=(), llmfit_version=None, scanned=False
+            )
+
         try:
             version = await self._version()
             if version != self._expected_version:
@@ -103,18 +116,6 @@ class LlmfitAdvisor:
                 warnings=(RecommendationWarning(error.code, error.public_message),),
             )
 
-        fingerprint = _fingerprint(version, system, max_context)
-        if not refresh:
-            cached = self._read_cache(fingerprint)
-            if cached is not None:
-                return AdvisorCatalog(system, cached, version, scanned=True)
-            # No cache for this exact hardware/version/context yet, and this
-            # call wasn't an explicit "scan now" — never spawn the expensive
-            # subprocess implicitly. The caller shows scan-free content
-            # instead (installed + curated) and offers a "Scan hardware"
-            # action, which comes back through here with refresh=True.
-            return AdvisorCatalog(system, (), version, scanned=False)
-
         try:
             fit_payloads = await asyncio.gather(
                 self._fit(max_context),
@@ -139,7 +140,7 @@ class LlmfitAdvisor:
                 model = _parse_model(row)
                 models_by_id.setdefault(model.canonical_id, model)
         models = tuple(models_by_id.values())
-        self._write_cache(fingerprint, models)
+        self._write_cache(system, version, models)
         return AdvisorCatalog(system, models, version, scanned=True)
 
     async def _fit(self, max_context: int, provider: str | None = None) -> Any:
@@ -216,13 +217,23 @@ class LlmfitAdvisor:
             )
         return stdout.decode().strip()
 
-    def _read_cache(
-        self, fingerprint: dict[str, Any]
-    ) -> tuple[ScoredModel, ...] | None:
-        """Cached rows for this exact fingerprint, or None to rescan.
+    def _load_cache(self) -> AdvisorCatalog | None:
+        """The last explicit "Scan hardware" result, or None to show as unscanned.
 
-        Every failure mode is "slower", never "broken": a missing, truncated,
-        stale or unreadable file just means no cache hit.
+        This is the only thing `scan(refresh=False)` ever reads — it never
+        re-probes hardware to validate freshness, since re-probing is exactly
+        the subprocess spawn an unrefreshed call must not pay for. A stale
+        cache (e.g. after a hardware change) simply stays stale until the
+        next explicit rescan. Every failure mode is "not scanned", never
+        "broken": a missing, truncated, unreadable, or version-stale file is
+        just a miss.
+
+        The llmfit *version* check below is free (a string compare against
+        the pinned constant, no subprocess), unlike the hardware fingerprint
+        this used to also require — that's why it's still done here even
+        though nothing else on this path probes anything: an app update that
+        bumps the bundled binary must not keep serving scores computed by the
+        binary it replaced.
         """
         if self._cache_path is None:
             return None
@@ -230,9 +241,11 @@ class LlmfitAdvisor:
             document = json.loads(self._cache_path.read_text(encoding="utf-8"))
             if document.get("cache_version") != CACHE_VERSION:
                 return None
-            if document.get("fingerprint") != fingerprint:
+            if document.get("llmfit_version") != self._expected_version:
                 return None
-            return tuple(_model_from_json(row) for row in document["models"])
+            system = SystemProfile(**document["system"])
+            models = tuple(_model_from_json(row) for row in document["models"])
+            return AdvisorCatalog(system, models, document["llmfit_version"])
         except FileNotFoundError:
             return None
         except (OSError, ValueError, TypeError, KeyError) as error:
@@ -240,13 +253,14 @@ class LlmfitAdvisor:
             return None
 
     def _write_cache(
-        self, fingerprint: dict[str, Any], models: tuple[ScoredModel, ...]
+        self, system: SystemProfile, version: str, models: tuple[ScoredModel, ...]
     ) -> None:
         if self._cache_path is None or not models:
             return
         document = {
             "cache_version": CACHE_VERSION,
-            "fingerprint": fingerprint,
+            "system": asdict(system),
+            "llmfit_version": version,
             "scanned_at": datetime.now(UTC).isoformat(),
             "models": [_model_to_json(model) for model in models],
         }
@@ -260,24 +274,6 @@ class LlmfitAdvisor:
         except OSError as error:
             LOGGER.warning("could not write llmfit cache: %s", error)
             temporary.unlink(missing_ok=True)
-
-
-def _fingerprint(
-    version: str, system: SystemProfile, max_context: int
-) -> dict[str, Any]:
-    """The inputs a scan was run against. Stored as fields, not a hash, so an
-    unexpected invalidation can be read straight out of the cache file."""
-    return {
-        "llmfit_version": version,
-        "gpu_name": system.gpu_name,
-        "gpu_vram_gb": system.gpu_vram_gb,
-        "gpu_count": system.gpu_count,
-        "total_ram_gb": system.total_ram_gb,
-        "cpu_name": system.cpu_name,
-        "cpu_cores": system.cpu_cores,
-        "backend": system.backend,
-        "max_context": max_context,
-    }
 
 
 def _model_to_json(model: ScoredModel) -> dict[str, Any]:

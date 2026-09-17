@@ -178,7 +178,7 @@ describe("SettingsDialog", () => {
     ).toBeTruthy()
   })
 
-  it("shows the model tabs and catalog skeleton while selection data loads", async () => {
+  it("shows the model tabs without a catalog skeleton while selection data loads", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => undefined))
@@ -193,9 +193,11 @@ describe("SettingsDialog", () => {
     expect(roles.querySelectorAll("[data-slot=skeleton]")).toHaveLength(2)
     expect(screen.queryByText("Loading…")).toBeNull()
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    // The catalog GET no longer probes hardware on an unrefreshed load, so
+    // no loading state is expected here even with this promise never resolving.
     expect(
-      screen.getByRole("status", { name: "Scanning model catalog" })
-    ).toBeTruthy()
+      screen.queryByRole("status", { name: "Scanning model catalog" })
+    ).toBeNull()
     expect(
       screen.queryByRole("status", { name: "Loading model settings" })
     ).toBeNull()
