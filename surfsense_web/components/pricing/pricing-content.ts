@@ -21,12 +21,14 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  *     this case: "If that is more than the pricing page should carry, move the
  *     comparison to a blog post and link it; do not fake it."
  *
- * Buy buttons go to `/license` rather than straight to Stripe Checkout: the
- * Checkout links do not exist yet (`00d-pivot-plan.md`, step 2). `/license`
- * ships today and carries the trial and resend forms.
+ * Individual's primary button is the Stripe Payment Link in
+ * `NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL`. Empty falls back to `/contact`.
+ * The trial button stays on `/license`.
  */
 
 export const LICENSE_URL = "/license";
+export const BUY_INDIVIDUAL_URL =
+	process.env.NEXT_PUBLIC_STRIPE_LICENSE_INDIVIDUAL_URL || "/contact";
 
 /**
  * The nine scraper platforms behind the "9 platforms" feature line, in the
@@ -53,7 +55,7 @@ export type Plan = {
 	note?: string;
 	summary: string;
 	features: string[];
-	action: { label: string; href: string; external?: boolean };
+	action: { label: string; href: string; external?: boolean; primary?: boolean }[];
 	featured?: boolean;
 };
 
@@ -68,7 +70,7 @@ export const PLANS: Plan[] = [
 			"Bring your own model keys, or run a local model",
 			"Open source, so you can build it yourself",
 		],
-		action: { label: "Download", href: DOWNLOADS_URL },
+		action: [{ label: "Download", href: DOWNLOADS_URL }],
 	},
 	{
 		name: "Individual",
@@ -82,7 +84,10 @@ export const PLANS: Plan[] = [
 			"Flat-included and unlimited, with no per-item metering",
 			"Priority support",
 		],
-		action: { label: "Start the 14-day trial", href: LICENSE_URL },
+		action: [
+			{ label: "Buy a licence", href: BUY_INDIVIDUAL_URL, external: true, primary: true },
+			{ label: "Start a trial", href: LICENSE_URL },
+		],
 		featured: true,
 	},
 	{
@@ -97,7 +102,7 @@ export const PLANS: Plan[] = [
 			"Add seats without redistributing files",
 			"SSO, SAML and on-prem hosting available",
 		],
-		action: { label: "Get a team licence", href: "/contact" },
+		action: [{ label: "Get a team licence", href: "/contact" }],
 	},
 ];
 
@@ -131,7 +136,7 @@ export const PRICING_FAQ = [
 	{
 		question: "Is there a free trial?",
 		answer:
-			"Yes. The trial runs 14 days and needs only an email address, with no card and no account. You receive a licence file by email, drop it into the app, and every plugin is unlocked for the trial period.",
+			"Yes. The trial runs 30 days and needs only an email address, with no card and no account. You receive a licence file by email, drop it into the app, and every plugin is unlocked for the trial period.",
 	},
 	{
 		question: "What happens when my licence expires?",

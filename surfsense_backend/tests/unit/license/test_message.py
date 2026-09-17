@@ -60,6 +60,32 @@ def test_license_mail_falls_back_to_the_deployment_sender(monkeypatch):
     assert message.sender == "noreply@surfsense.test"
 
 
+def test_trial_mail_carries_the_download_link_and_the_configured_length(monkeypatch):
+    """A trial is handed to an address, so the email has to reach the app too."""
+    from app.config import config
+
+    monkeypatch.setattr(config, "NEXT_FRONTEND_URL", "https://www.surfsense.test/")
+    monkeypatch.setattr(config, "LICENSE_TRIAL_DAYS", 30)
+
+    message = build_license_email("trial", to="a@b.test", certificates=("CERT",))
+
+    assert "https://www.surfsense.test/downloads" in message.text_body
+    assert message.subject == "Your SurfSense 30-day trial license"
+    assert "30-day" in message.text_body
+
+
+def test_no_portal_url_omits_the_download_step(monkeypatch):
+    """Self-hosters have no portal; no link beats a broken one."""
+    from app.config import config
+
+    monkeypatch.setattr(config, "NEXT_FRONTEND_URL", None)
+
+    message = build_license_email("trial", to="a@b.test", certificates=("CERT",))
+
+    assert "/downloads" not in message.text_body
+    assert message.text_body.count("1. Save the attached") == 1
+
+
 def test_a_message_with_no_certificate_is_a_programming_error():
     with pytest.raises(ValueError):
         build_license_email("resend", to="a@b.test", certificates=())

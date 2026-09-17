@@ -24,7 +24,7 @@ import { ResendDisclosure, TrialForm } from "./license-forms";
 
 export const metadata: Metadata = {
 	title: "Your license | SurfSense",
-	description: "Get your SurfSense license file sent to your email again, or start a 14-day trial.",
+	description: "Get your SurfSense license file sent to your email again, or start a 30-day trial.",
 	alternates: { canonical: "https://www.surfsense.com/license" },
 };
 
