@@ -124,7 +124,7 @@ describe("normalized model catalog", () => {
     })
     expect(screen.getByText("Curated models")).toBeTruthy()
     expect(
-      screen.getByText("Only models compatible with this computer are shown.")
+      screen.getByText("Only models compatible with this machine are shown.")
     ).toBeTruthy()
     expect(
       screen.queryByText(
@@ -227,6 +227,50 @@ describe("normalized model catalog", () => {
     }
   })
 
+  it("filters More models by search without affecting other sections", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          catalog({
+            explore: [
+              row({
+                catalog_id: "explore-a",
+                canonical_id: "a",
+                label: "Llama Explorer",
+              }),
+              row({
+                catalog_id: "explore-b",
+                canonical_id: "b",
+                label: "Mistral Ranger",
+              }),
+            ],
+          })
+        )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+
+    await screen.findByText("Llama Explorer")
+    expect(screen.getByText("Mistral Ranger")).toBeTruthy()
+    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
+
+    const search = screen.getByRole("searchbox", { name: "Search more models" })
+    await user.type(search, "llama")
+
+    expect(screen.getByText("Llama Explorer")).toBeTruthy()
+    expect(screen.queryByText("Mistral Ranger")).toBeNull()
+    // Curated is unaffected by the "More models" search.
+    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
+
+    await user.clear(search)
+    await user.type(search, "nothing matches this")
+
+    expect(screen.getByText('No models match "nothing matches this".')).toBeTruthy()
+  })
+
   it("shows install failures as a toast instead of inside the model row", async () => {
     vi.stubGlobal(
       "fetch",
@@ -269,7 +313,9 @@ describe("normalized model catalog", () => {
         )
       }
       if (path === "/llm/catalog?refresh=true") {
-        return Response.json(catalog({ scanned: true }))
+        return Response.json(
+          catalog({ scanned: true, explore: [row({ catalog_id: "explore" })] })
+        )
       }
       return Response.json({ detail: "not found" }, { status: 404 })
     })
@@ -288,11 +334,22 @@ describe("normalized model catalog", () => {
     // not a row list, until scanned.
     expect(screen.getByText("More models")).toBeTruthy()
     expect(
-      screen.getByText(/Scan this computer's hardware/)
+      screen.getByText(/Find every model that fits your machine/)
     ).toBeTruthy()
-    const scanButton = screen.getByRole("button", { name: "Scan hardware" })
+    // Two "Scan hardware" buttons exist pre-scan (the persistent header
+    // control and the "More models" CTA) — both trigger the same rescan.
+    const scanButtons = screen.getAllByRole("button", { name: "Scan hardware" })
+    expect(scanButtons).toHaveLength(2)
 
-    await user.click(scanButton)
+    // The search box is present but disabled before the first scan — there's
+    // nothing to search yet, but the control doesn't pop in/out of the
+    // layout once scanning finishes.
+    const search = screen.getByRole("searchbox", {
+      name: "Search more models",
+    }) as HTMLInputElement
+    expect(search.disabled).toBe(true)
+
+    await user.click(scanButtons[0])
 
     await waitFor(() =>
       expect(
@@ -301,6 +358,14 @@ describe("normalized model catalog", () => {
         )
       ).toBe(true)
     )
+    // The scan-free "More models" CTA is replaced by the real row list once
+    // scanned, so re-query rather than reuse the pre-scan input reference.
+    await waitFor(() => {
+      const rescanned = screen.getByRole("searchbox", {
+        name: "Search more models",
+      }) as HTMLInputElement
+      expect(rescanned.disabled).toBe(false)
+    })
   })
 
   it("rescans through the explicit refresh endpoint", async () => {

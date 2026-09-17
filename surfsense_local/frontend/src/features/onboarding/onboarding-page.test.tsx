@@ -152,7 +152,7 @@ describe("model onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
     await screen.findByText(
-      "Only models compatible with this computer are shown."
+      "Only models compatible with this machine are shown."
     )
     const secondProgress = screen.getByLabelText("Onboarding step 2 of 2")
     expect(secondProgress.children[0]?.getAttribute("data-state")).toBe(

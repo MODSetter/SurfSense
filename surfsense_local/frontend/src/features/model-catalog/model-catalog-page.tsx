@@ -1,5 +1,10 @@
 import { Fragment, useId, useState, type ReactNode } from "react"
-import { CircleAlertIcon, DotIcon, RefreshCwIcon } from "@/components/ui/icons"
+import {
+  CircleAlertIcon,
+  DotIcon,
+  RefreshCwIcon,
+  SearchIcon,
+} from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -13,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -83,26 +89,39 @@ function CatalogSection({
   description,
   rows,
   catalog,
+  headerAction,
   children,
+  emptyMessage,
 }: {
   title: string
   description: string
   rows: CatalogRow[]
   catalog: ModelCatalog
+  headerAction?: ReactNode
   children: (row: CatalogRow, available: boolean) => ReactNode
+  // Shown instead of the row list when `rows` is empty but the section
+  // should still render (e.g. a search with no matches) — omit this prop to
+  // keep the earlier behavior of hiding the section entirely when empty.
+  emptyMessage?: string
 }) {
   const headingId = useId()
-  if (rows.length === 0) {
+  if (rows.length === 0 && emptyMessage === undefined) {
     return null
   }
   return (
     <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>
-      <div>
-        <h2 id={headingId} className="font-heading text-sm font-medium">
-          {title}
-        </h2>
-        <p className="text-xs text-muted-foreground">{description}</p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 id={headingId} className="font-heading text-sm font-medium">
+            {title}
+          </h2>
+          <p className="text-xs text-muted-foreground">{description}</p>
+        </div>
+        {headerAction}
       </div>
+      {rows.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+      ) : null}
       {[...grouped(rows)].map(([family, familyRows]) => (
         <ModelFamilyGroup key={family} family={family}>
           {familyRows.map((row) => (
@@ -128,25 +147,34 @@ function CatalogSection({
 function ScanHardwareCta({
   onScan,
   pending,
+  search,
 }: {
   onScan: () => void
   pending: boolean
+  search: ReactNode
 }) {
   return (
     <section className="flex flex-col gap-2.5">
-      <div>
-        <h2 className="font-heading text-sm font-medium">More models</h2>
-        <p className="text-xs text-muted-foreground">
-          Other compatible models, ranked for your hardware.
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-heading text-sm font-medium">More models</h2>
+          <p className="text-xs text-muted-foreground">
+            Other compatible models, ranked for your machine.
+          </p>
+        </div>
+        {search}
       </div>
       <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-4">
         <p className="text-sm text-muted-foreground">
-          Scan this computer's hardware to see every model that fits it,
-          ranked best-first. This runs once and is remembered until your
-          hardware changes.
+          Find every model that fits your machine, ranked best-first.
         </p>
-        <Button type="button" size="sm" disabled={pending} onClick={onScan}>
+        <Button
+          type="button"
+          size="sm"
+          variant="default"
+          disabled={pending}
+          onClick={onScan}
+        >
           {pending ? <Spinner data-icon="inline-start" /> : null}
           {pending ? "Scanning..." : "Scan hardware"}
         </Button>
@@ -181,6 +209,7 @@ export function ModelCatalogPage({
     deleteModel,
     selectInstalled,
   } = useModelCatalog(onSelected, onModelUnavailable, onModelsChanged)
+  const [exploreQuery, setExploreQuery] = useState("")
   const [pendingConfirmation, setPendingConfirmation] =
     useState<CatalogRow | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CatalogRow | null>(null)
@@ -209,7 +238,7 @@ export function ModelCatalogPage({
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Only models compatible with this computer are shown.
+              Only models compatible with this machine are shown.
             </p>
           </div>
           <Button type="button" size="sm" variant="outline" disabled>
@@ -258,17 +287,43 @@ export function ModelCatalogPage({
   const installed = unique(data.installed)
   const curatedSection = {
     title: "Curated models",
-    description: "SurfSense-picked models, scored for your hardware once scanned.",
+    description: "Staff picks. Scan machine to see how well each one runs on your machine.",
     rows: curated,
   }
+  const exploreQueryNormalized = exploreQuery.trim().toLowerCase()
+  const filteredExplore =
+    exploreQueryNormalized === ""
+      ? explore
+      : explore.filter((row) =>
+          row.label.toLowerCase().includes(exploreQueryNormalized)
+        )
+  // Disabled (not hidden) until the first scan exists — there's nothing to
+  // search yet, and a persistent, disabled control previews the feature
+  // instead of the layout shifting once scanning finishes.
+  const exploreSearchInput = (
+    <div className="relative w-full max-w-[14rem] sm:w-auto">
+      <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        type="search"
+        value={exploreQuery}
+        placeholder="Search more models"
+        aria-label="Search more models"
+        disabled={!data.scanned}
+        className="h-8 border-0 bg-secondary pl-8 text-sm focus-visible:border-0"
+        onChange={(event) => setExploreQuery(event.target.value)}
+      />
+    </div>
+  )
   const exploreSection = {
     title: "More models",
     description: "Other compatible models, best fit first.",
-    rows: explore,
+    rows: filteredExplore,
+    emptyMessage: `No models match "${exploreQuery.trim()}".`,
+    headerAction: exploreSearchInput,
   }
   const installedSection = {
     title: "Installed",
-    description: "Local models already available on this computer.",
+    description: "Local models already available on this machine.",
     rows: installed,
   }
   // Estimates reserve resources for SurfSense and may vary by workload.
@@ -312,6 +367,7 @@ export function ModelCatalogPage({
       installState={installState}
       actionsDisabled={busy}
       runtimeAvailable={available}
+      scanned={data.scanned}
       onAction={act}
       onCancel={cancelInstall}
       onDelete={allowDelete ? setPendingDelete : undefined}
@@ -348,7 +404,9 @@ export function ModelCatalogPage({
             ))}
           </p>
           <p className="text-xs text-muted-foreground">
-            Only models compatible with this computer are shown.
+            {data.scanned
+              ? "Only models compatible with this machine are shown."
+              : "Scan to filter by what fits your machine."}
           </p>
         </div>
         <Button
@@ -360,10 +418,14 @@ export function ModelCatalogPage({
         >
           {rescan.isPending ? (
             <Spinner data-icon="inline-start" />
-          ) : (
+          ) : data.scanned ? (
             <RefreshCwIcon data-icon="inline-start" />
-          )}
-          {rescan.isPending ? "Rescanning..." : "Rescan hardware"}
+          ) : null}
+          {rescan.isPending
+            ? "Scanning..."
+            : data.scanned
+              ? "Rescan hardware"
+              : "Scan hardware"}
         </Button>
       </div>
 
@@ -407,7 +469,11 @@ export function ModelCatalogPage({
               </CatalogSection>
             ) : null
           ) : (
-            <ScanHardwareCta onScan={() => rescan.mutate()} pending={rescan.isPending} />
+            <ScanHardwareCta
+              onScan={() => rescan.mutate()}
+              pending={rescan.isPending}
+              search={exploreSearchInput}
+            />
           )}
 
           {curated.length + explore.length + installed.length === 0 ? (
@@ -415,7 +481,7 @@ export function ModelCatalogPage({
               <CircleAlertIcon />
               <AlertTitle>No local models are available</AlertTitle>
               <AlertDescription>
-                This computer has no compatible local configuration right now.
+                This machine has no compatible local configuration right now.
                 You can still use an OpenAI-compatible connection.
               </AlertDescription>
             </Alert>
@@ -472,7 +538,7 @@ export function ModelCatalogPage({
             <AlertDialogDescription>
               {pendingDelete?.selected
                 ? "This is your current model. Deleting it will require you to choose another model."
-                : "This permanently removes the local model and its downloaded data from this computer."}
+                : "This permanently removes the local model and its downloaded data from this machine."}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {deleteModel.isError ? (
