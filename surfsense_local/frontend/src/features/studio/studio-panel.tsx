@@ -67,33 +67,28 @@ function Composer({
   workspaceId,
   format,
   documents,
+  selectedDocumentIds,
+  onSelectionChange,
+  onToggleAll,
   isCreating,
   onGenerate,
 }: {
   workspaceId: number
   format: string
   documents: WorkspaceDocument[]
+  selectedDocumentIds: number[]
+  onSelectionChange: (documentId: number, included: boolean) => void
+  onToggleAll: () => void
   isCreating: boolean
   onGenerate: (job: StudioJobCreate) => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
-  const [selected, setSelected] = useState(
-    () => new Set(ready.map((document) => document.id))
-  )
+  const selected = new Set(selectedDocumentIds)
   const [prompt, setPrompt] = useState("")
   const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
   const allSelected = ready.length > 0 && selected.size === ready.length
 
-  const toggle = (id: number) =>
-    setSelected((current) => {
-      const next = new Set(current)
-      if (next.has(id)) {
-        next.delete(id)
-      } else {
-        next.add(id)
-      }
-      return next
-    })
+  const toggle = (id: number) => onSelectionChange(id, !selected.has(id))
 
   // A podcast is generated from its reviewed brief, so it waits for the brief.
   const briefReady = format !== "podcast" || podcast.brief != null
@@ -126,13 +121,7 @@ function Composer({
               variant="ghost"
               size="xs"
               className="text-muted-foreground"
-              onClick={() =>
-                setSelected(
-                  allSelected
-                    ? new Set()
-                    : new Set(ready.map((document) => document.id))
-                )
-              }
+              onClick={onToggleAll}
             >
               {allSelected ? "Deselect all" : "Select all"}
             </Button>
@@ -249,6 +238,9 @@ function FormatCard({
 export function StudioPanel({
   workspaceId,
   documents,
+  selectedDocumentIds,
+  onSelectionChange,
+  onToggleAll,
   formats,
   isCreating,
   error,
@@ -256,6 +248,9 @@ export function StudioPanel({
 }: {
   workspaceId: number
   documents: WorkspaceDocument[]
+  selectedDocumentIds: number[]
+  onSelectionChange: (documentId: number, included: boolean) => void
+  onToggleAll: () => void
   formats: StudioFormat[]
   isCreating: boolean
   error: string | null
@@ -307,6 +302,9 @@ export function StudioPanel({
                 workspaceId={workspaceId}
                 format={selectedFormat.key}
                 documents={documents}
+                selectedDocumentIds={selectedDocumentIds}
+                onSelectionChange={onSelectionChange}
+                onToggleAll={onToggleAll}
                 isCreating={isCreating}
                 onGenerate={(job) => {
                   void onGenerate(job).then((created) => {
