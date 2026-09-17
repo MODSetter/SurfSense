@@ -56,9 +56,10 @@ const catalog = (overrides: Partial<ModelCatalog> = {}): ModelCatalog => ({
     unified_memory: true,
   },
   llmfit_version: "1.1.11",
-  recommended: [row()],
+  curated: [row()],
   explore: [],
   installed: [],
+  scanned: true,
   warnings: [],
   runtime_status: { ollama: { available: true } },
   ...overrides,
@@ -121,7 +122,7 @@ describe("normalized model catalog", () => {
     const action = await screen.findByRole("button", {
       name: "Download",
     })
-    expect(screen.getByText("Best for this computer")).toBeTruthy()
+    expect(screen.getByText("Curated models")).toBeTruthy()
     expect(
       screen.getByText("Only models compatible with this computer are shown.")
     ).toBeTruthy()
@@ -155,7 +156,7 @@ describe("normalized model catalog", () => {
       vi.fn(async () =>
         Response.json(
           catalog({
-            recommended: [],
+            curated: [],
             explore: [
               row({
                 catalog_id: "marginal",
@@ -211,12 +212,12 @@ describe("normalized model catalog", () => {
       )
     )
 
-    render(<ModelCatalogPage installedFirst />)
+    render(<ModelCatalogPage />)
 
     await screen.findByText("Installed model")
     // Installed leads on its own, ahead of the image-model block, so it no
     // longer takes a separator against the curated sections that follow —
-    // only "Best for this computer" and "More models" get one between them.
+    // only "Curated models" and "More models" get one between them.
     const separators = document.querySelectorAll('[data-slot="separator"]')
     expect(separators).toHaveLength(1)
     for (const separator of separators) {
@@ -255,6 +256,53 @@ describe("normalized model catalog", () => {
     ).toBeNull()
   })
 
+  it("shows a scan CTA instead of More models until scanned, and curated stays visible", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/catalog") {
+        return Response.json(
+          catalog({
+            scanned: false,
+            curated: [row({ fit: "unknown", score: null })],
+            explore: [],
+          })
+        )
+      }
+      if (path === "/llm/catalog?refresh=true") {
+        return Response.json(catalog({ scanned: true }))
+      }
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+
+    // Curated shows immediately, scan-free — with no fit badge at all rather
+    // than a claim we can't back up yet.
+    expect(await screen.findByText("Curated models")).toBeTruthy()
+    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
+    expect(screen.queryByText("Fit unknown")).toBeNull()
+    expect(screen.queryByText("Good fit")).toBeNull()
+    // "More models" keeps its heading, but its content is the scan prompt,
+    // not a row list, until scanned.
+    expect(screen.getByText("More models")).toBeTruthy()
+    expect(
+      screen.getByText(/Scan this computer's hardware/)
+    ).toBeTruthy()
+    const scanButton = screen.getByRole("button", { name: "Scan hardware" })
+
+    await user.click(scanButton)
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path]) => path === "/llm/catalog?refresh=true"
+        )
+      ).toBe(true)
+    )
+  })
+
   it("rescans through the explicit refresh endpoint", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       void input
@@ -283,7 +331,7 @@ describe("normalized model catalog", () => {
         Response.json(
           catalog({
             hardware: null,
-            recommended: [],
+            curated: [],
             installed: [
               row({
                 catalog_id: "installed",
@@ -317,7 +365,7 @@ describe("normalized model catalog", () => {
       if (path === "/llm/catalog") {
         return Response.json(
           catalog({
-            recommended: [],
+            curated: [],
             installed: [
               row({
                 installed: true,

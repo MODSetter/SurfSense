@@ -106,7 +106,13 @@ function CatalogSection({
       {[...grouped(rows)].map(([family, familyRows]) => (
         <ModelFamilyGroup key={family} family={family}>
           {familyRows.map((row) => (
-            <li key={row.catalog_id}>
+            // canonical_id, not catalog_id: the latter is an opaque,
+            // refresh-sensitive install-plan token (it deliberately goes
+            // stale on every rescan, so a stale install can't slip through)
+            // — using it as a React key would remount every row on every
+            // scan. canonical_id is stable across scan states for the same
+            // model, so the row updates in place instead.
+            <li key={row.canonical_id}>
               {children(
                 row,
                 runtimeAvailable(catalog.runtime_status[row.runtime])
@@ -119,6 +125,36 @@ function CatalogSection({
   )
 }
 
+function ScanHardwareCta({
+  onScan,
+  pending,
+}: {
+  onScan: () => void
+  pending: boolean
+}) {
+  return (
+    <section className="flex flex-col gap-2.5">
+      <div>
+        <h2 className="font-heading text-sm font-medium">More models</h2>
+        <p className="text-xs text-muted-foreground">
+          Other compatible models, ranked for your hardware.
+        </p>
+      </div>
+      <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-4">
+        <p className="text-sm text-muted-foreground">
+          Scan this computer's hardware to see every model that fits it,
+          ranked best-first. This runs once and is remembered until your
+          hardware changes.
+        </p>
+        <Button type="button" size="sm" disabled={pending} onClick={onScan}>
+          {pending ? <Spinner data-icon="inline-start" /> : null}
+          {pending ? "Scanning..." : "Scan hardware"}
+        </Button>
+      </div>
+    </section>
+  )
+}
+
 export function ModelCatalogPage({
   allowDelete = false,
   scrollable = true,
@@ -126,7 +162,6 @@ export function ModelCatalogPage({
   onModelUnavailable,
   onModelsChanged,
   onSelected,
-  installedFirst = false,
 }: {
   allowDelete?: boolean
   // False when an ancestor already scrolls this page as part of a bigger
@@ -136,7 +171,6 @@ export function ModelCatalogPage({
   onModelUnavailable?: () => void
   onModelsChanged?: () => void
   onSelected?: (selection: ModelSelection) => void
-  installedFirst?: boolean
 }) {
   const {
     catalog,
@@ -214,55 +248,29 @@ export function ModelCatalogPage({
       seen.add(row.catalog_id)
       return true
     })
-  const recommended = unique(data.recommended)
+  // Curated is always populated — the manifest's own 8 models, scan-free —
+  // and never merges into "More models": scanning only ever adds a fit
+  // badge to a row already here, never moves it elsewhere. "More models" is
+  // fundamentally scan-derived, so it only exists once `data.scanned` is
+  // true; until then a "Scan hardware" prompt takes its place.
+  const curated = unique(data.curated)
   const explore = unique(data.explore)
   const installed = unique(data.installed)
-  const sections = (
-    installedFirst
-      ? [
-          {
-            title: "Installed",
-            description: "Local models already available on this computer.",
-            rows: installed,
-          },
-          {
-            title: "Best for this computer",
-            description: "SurfSense-tested models ranked for your hardware.",
-            rows: recommended,
-          },
-          {
-            title: "More models",
-            description: "Other compatible models, best fit first.",
-            rows: explore,
-          },
-        ]
-      : [
-          {
-            title: "Best for this computer",
-            description: "SurfSense-tested models ranked for your hardware.",
-            rows: recommended,
-          },
-          {
-            title: "More models",
-            description: "Other compatible models, best fit first.",
-            rows: explore,
-          },
-          {
-            title: "Installed",
-            description: "Local models already available on this computer.",
-            rows: installed,
-          },
-        ]
-  ).filter((section) => section.rows.length > 0)
-  // Installed models (of either kind) lead, then image models, then the
-  // curated/explore sections — regardless of `installedFirst`, which only
-  // orders the chat sections relative to each other.
-  const installedSection = sections.find(
-    (section) => section.title === "Installed"
-  )
-  const curatedSections = sections.filter(
-    (section) => section.title !== "Installed"
-  )
+  const curatedSection = {
+    title: "Curated models",
+    description: "SurfSense-picked models, scored for your hardware once scanned.",
+    rows: curated,
+  }
+  const exploreSection = {
+    title: "More models",
+    description: "Other compatible models, best fit first.",
+    rows: explore,
+  }
+  const installedSection = {
+    title: "Installed",
+    description: "Local models already available on this computer.",
+    rows: installed,
+  }
   // Estimates reserve resources for SurfSense and may vary by workload.
   const busy =
     disabled ||
@@ -382,16 +390,27 @@ export function ModelCatalogPage({
 
           <LocalImageModel disabled={busy} />
 
-          {curatedSections.map((section, index) => (
-            <Fragment key={section.title}>
-              {index > 0 ? <Separator className="my-4" /> : null}
-              <CatalogSection {...section} catalog={data}>
+          {curated.length > 0 ? (
+            <CatalogSection {...curatedSection} catalog={data}>
+              {card}
+            </CatalogSection>
+          ) : null}
+
+          {curated.length > 0 && (explore.length > 0 || !data.scanned) ? (
+            <Separator className="my-4" />
+          ) : null}
+
+          {data.scanned ? (
+            explore.length > 0 ? (
+              <CatalogSection {...exploreSection} catalog={data}>
                 {card}
               </CatalogSection>
-            </Fragment>
-          ))}
+            ) : null
+          ) : (
+            <ScanHardwareCta onScan={() => rescan.mutate()} pending={rescan.isPending} />
+          )}
 
-          {recommended.length + explore.length + installed.length === 0 ? (
+          {curated.length + explore.length + installed.length === 0 ? (
             <Alert>
               <CircleAlertIcon />
               <AlertTitle>No local models are available</AlertTitle>
