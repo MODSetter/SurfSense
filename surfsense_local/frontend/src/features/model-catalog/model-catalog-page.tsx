@@ -254,6 +254,15 @@ export function ModelCatalogPage({
           },
         ]
   ).filter((section) => section.rows.length > 0)
+  // Installed models (of either kind) lead, then image models, then the
+  // curated/explore sections — regardless of `installedFirst`, which only
+  // orders the chat sections relative to each other.
+  const installedSection = sections.find(
+    (section) => section.title === "Installed"
+  )
+  const curatedSections = sections.filter(
+    (section) => section.title !== "Installed"
+  )
   // Estimates reserve resources for SurfSense and may vary by workload.
   const busy =
     disabled ||
@@ -365,9 +374,15 @@ export function ModelCatalogPage({
             </p>
           ) : null}
 
+          {installedSection ? (
+            <CatalogSection {...installedSection} catalog={data}>
+              {card}
+            </CatalogSection>
+          ) : null}
+
           <LocalImageModel disabled={busy} />
 
-          {sections.map((section, index) => (
+          {curatedSections.map((section, index) => (
             <Fragment key={section.title}>
               {index > 0 ? <Separator className="my-4" /> : null}
               <CatalogSection {...section} catalog={data}>
