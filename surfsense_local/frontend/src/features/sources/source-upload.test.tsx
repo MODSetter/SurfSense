@@ -218,7 +218,7 @@ describe("source upload", () => {
     const generic = await screen.findByRole("tooltip", {
       name: "Ingestion failed. Retry again.",
     })
-    expect(generic.getAttribute("data-side")).toBe("left")
+    expect(generic.getAttribute("data-side")).toBe("top")
   })
 
   it("reveals the real error above the whole row while Ctrl/Cmd is held", async () => {

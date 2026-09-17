@@ -214,8 +214,11 @@ describe("normalized model catalog", () => {
     render(<ModelCatalogPage installedFirst />)
 
     await screen.findByText("Installed model")
+    // Installed leads on its own, ahead of the image-model block, so it no
+    // longer takes a separator against the curated sections that follow —
+    // only "Best for this computer" and "More models" get one between them.
     const separators = document.querySelectorAll('[data-slot="separator"]')
-    expect(separators).toHaveLength(2)
+    expect(separators).toHaveLength(1)
     for (const separator of separators) {
       expect(separator.className).toContain("data-horizontal:w-full")
       expect(separator.className).toContain("my-4")

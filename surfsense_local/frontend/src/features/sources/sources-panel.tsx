@@ -7,7 +7,8 @@ import {
 } from "react"
 import {
   Alert02Icon,
-  CircleStopIcon,
+  CancelCircleHalfDotIcon,
+  CursorRemoveSelection02Icon,
   EllipsisIcon,
   FilePlus2Icon,
   FolderOpenIcon,
@@ -15,7 +16,6 @@ import {
   SquareDashedMousePointerIcon,
   Trash2Icon,
   ViewIcon,
-  XIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -74,7 +74,7 @@ function SelectableSourceRow({
   document: WorkspaceDocument
   selected: boolean
   highlighted: boolean
-  rowRef: (node: HTMLDivElement | null) => void
+  rowRef: (node: HTMLLIElement | null) => void
   onOpen: () => void
   onReveal: () => void
   onRetry: () => void
@@ -100,7 +100,7 @@ function SelectableSourceRow({
   return (
     <Tooltip open={retryable && modifierHeld && rowHovered}>
       <TooltipTrigger asChild>
-        <div
+        <li
           ref={rowRef}
           aria-current={highlighted ? "true" : undefined}
           className={cn(
@@ -143,15 +143,11 @@ function SelectableSourceRow({
                     className="relative hover:bg-transparent"
                     onClick={onRetry}
                   >
-                    {cancelled ? (
-                      <CircleStopIcon className="size-4.5 text-muted-foreground transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
-                    ) : (
-                      <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
-                    )}
+                    <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/source:opacity-0 group-focus-visible/button:opacity-0" />
                     <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/source:opacity-100 group-focus-visible/button:opacity-100" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" collisionPadding={8}>
+                <TooltipContent side="top" collisionPadding={8}>
                   {cancelled
                     ? "Cancelled. Retry again."
                     : "Ingestion failed. Retry again."}
@@ -205,7 +201,11 @@ function SelectableSourceRow({
                     <DropdownMenuItem
                       onSelect={() => onSelectedChange(!selected)}
                     >
-                      {selected ? <XIcon /> : <SquareDashedMousePointerIcon />}
+                      {selected ? (
+                        <CursorRemoveSelection02Icon />
+                      ) : (
+                        <SquareDashedMousePointerIcon />
+                      )}
                       {selected ? "Deselect" : "Select"}
                     </DropdownMenuItem>
                   ) : null}
@@ -217,7 +217,7 @@ function SelectableSourceRow({
                   ) : null}
                   {ingesting ? (
                     <DropdownMenuItem onSelect={onCancel}>
-                      <CircleStopIcon />
+                      <CancelCircleHalfDotIcon />
                       Cancel
                     </DropdownMenuItem>
                   ) : null}
@@ -233,10 +233,11 @@ function SelectableSourceRow({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </li>
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
-        {document.error_message ?? (cancelled ? "Cancelled" : "Ingestion failed")}
+        {document.error_message ??
+          (cancelled ? "Cancelled" : "Ingestion failed")}
       </TooltipContent>
     </Tooltip>
   )
@@ -314,7 +315,7 @@ export function SourcesPanel({
   onSelectionChange: (documentId: number, selected: boolean) => void
   onToggleAll: () => void
 }) {
-  const sourceRows = useRef(new Map<number, HTMLDivElement>())
+  const sourceRows = useRef(new Map<number, HTMLLIElement>())
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
   >(null)
@@ -341,9 +342,9 @@ export function SourcesPanel({
     <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2">
       <h3
         id="all-sources"
-        className="text-xs font-medium text-muted-foreground"
+        className="px-1 text-xs font-medium text-muted-foreground"
       >
-        All sources
+        Sources
       </h3>
       <div className="flex items-center gap-1">
         {readyCount > 0 ? (
@@ -379,7 +380,7 @@ export function SourcesPanel({
           {isLoading ? (
             <SkeletonSlabs />
           ) : documents.length > 0 ? (
-            <div className="flex flex-col gap-1">
+            <ul className="flex list-none flex-col gap-1">
               {documents.map((document) => (
                 <SelectableSourceRow
                   key={document.id}
@@ -401,7 +402,7 @@ export function SourcesPanel({
                   }
                 />
               ))}
-            </div>
+            </ul>
           ) : (
             <Empty className="min-h-0 border-0 px-2">
               <EmptyHeader>

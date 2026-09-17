@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { PlusIcon } from "@/components/ui/icons"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
+import { cn } from "@/lib/utils"
 
 import {
   getConnections,
@@ -20,11 +21,15 @@ function messageFrom(error: unknown) {
 
 export function OpenAICompatiblePanel({
   disabled,
+  scrollable = true,
   onGenerationSelected,
   onGenerationUnavailable,
   onChanged,
 }: {
   disabled: boolean
+  // False when an ancestor already scrolls this panel as part of a bigger
+  // region — see ModelSelectionContent.
+  scrollable?: boolean
   onGenerationSelected: (selection: ModelSelection) => void
   onGenerationUnavailable?: () => void
   onChanged: () => void
@@ -70,7 +75,7 @@ export function OpenAICompatiblePanel({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3">
+    <div className={cn("flex flex-col gap-3", scrollable && "h-full min-h-0")}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2 className="text-sm font-medium">OpenAI-compatible connections</h2>
@@ -92,7 +97,7 @@ export function OpenAICompatiblePanel({
           {error}
         </p>
       ) : null}
-      <ScrollShadow className="min-h-0 flex-1">
+      <ScrollShadow className="min-h-0 flex-1" scroll={scrollable}>
         <div className="space-y-3 pt-px pr-3 pb-3 pl-px">
           {connections?.length ? (
             connections.map((connection) => (

@@ -17,6 +17,7 @@ import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
+import { cn } from "@/lib/utils"
 import type {
   CatalogRow,
   HardwareProfile,
@@ -120,6 +121,7 @@ function CatalogSection({
 
 export function ModelCatalogPage({
   allowDelete = false,
+  scrollable = true,
   disabled = false,
   onModelUnavailable,
   onModelsChanged,
@@ -127,6 +129,9 @@ export function ModelCatalogPage({
   installedFirst = false,
 }: {
   allowDelete?: boolean
+  // False when an ancestor already scrolls this page as part of a bigger
+  // region — see ModelSelectionContent.
+  scrollable?: boolean
   disabled?: boolean
   onModelUnavailable?: () => void
   onModelsChanged?: () => void
@@ -149,7 +154,7 @@ export function ModelCatalogPage({
   if (catalog.isPending) {
     return (
       <div
-        className="flex h-full min-h-0 flex-col gap-5"
+        className={cn("flex flex-col gap-5", scrollable && "h-full min-h-0")}
         role="status"
         aria-label="Scanning model catalog"
       >
@@ -178,7 +183,7 @@ export function ModelCatalogPage({
             Rescan hardware
           </Button>
         </div>
-        <ScrollShadow className="flex-1">
+        <ScrollShadow className="flex-1" scroll={scrollable}>
           <div className="flex flex-col gap-3">
             {[0, 1, 2].map((item) => (
               <Skeleton key={item} className="h-28 w-full rounded-xl" />
@@ -249,6 +254,15 @@ export function ModelCatalogPage({
           },
         ]
   ).filter((section) => section.rows.length > 0)
+  // Installed models (of either kind) lead, then image models, then the
+  // curated/explore sections — regardless of `installedFirst`, which only
+  // orders the chat sections relative to each other.
+  const installedSection = sections.find(
+    (section) => section.title === "Installed"
+  )
+  const curatedSections = sections.filter(
+    (section) => section.title !== "Installed"
+  )
   // Estimates reserve resources for SurfSense and may vary by workload.
   const busy =
     disabled ||
@@ -309,7 +323,7 @@ export function ModelCatalogPage({
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-5">
+    <div className={cn("flex flex-col gap-5", scrollable && "h-full min-h-0")}>
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
         <div>
           <p className="flex items-center text-sm font-medium">
@@ -345,7 +359,7 @@ export function ModelCatalogPage({
         </Button>
       </div>
 
-      <ScrollShadow className="flex-1">
+      <ScrollShadow className="flex-1" scroll={scrollable}>
         <div className="flex flex-col gap-5 pb-3">
           {data.warnings.map((warning) => (
             <Alert key={warning.code}>
@@ -360,9 +374,15 @@ export function ModelCatalogPage({
             </p>
           ) : null}
 
+          {installedSection ? (
+            <CatalogSection {...installedSection} catalog={data}>
+              {card}
+            </CatalogSection>
+          ) : null}
+
           <LocalImageModel disabled={busy} />
 
-          {sections.map((section, index) => (
+          {curatedSections.map((section, index) => (
             <Fragment key={section.title}>
               {index > 0 ? <Separator className="my-4" /> : null}
               <CatalogSection {...section} catalog={data}>

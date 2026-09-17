@@ -3,10 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import {
-  THEME_STORAGE_KEY,
-  ThemeProvider,
-} from "@/components/theme-provider"
+import { THEME_STORAGE_KEY, ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
@@ -166,13 +163,15 @@ describe("SettingsDialog", () => {
     expect(
       screen.queryByRole("button", { name: "Use selected model" })
     ).toBeNull()
+    const scrollViewport = document.querySelector(
+      '[data-slot="scroll-shadow-viewport"]'
+    )
+    expect(scrollViewport?.className).toContain("overflow-y-auto")
+    // The "Models" heading scrolls with the rest of the section now — its
+    // content varies too much in height for a fixed header to make sense.
     expect(
-      document.querySelector('[data-slot="settings-section-content"]')
-        ?.className
-    ).toContain("overflow-hidden")
-    expect(
-      document.querySelector('[data-slot="scroll-shadow-viewport"]')?.className
-    ).toContain("overflow-y-auto")
+      scrollViewport?.contains(screen.getByRole("heading", { name: "Models" }))
+    ).toBe(true)
     expect(
       await screen.findByText("No local models are available")
     ).toBeTruthy()

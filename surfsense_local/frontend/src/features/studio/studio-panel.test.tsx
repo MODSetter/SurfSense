@@ -153,7 +153,7 @@ describe("studio panel", () => {
       expect(screen.queryByRole("dialog", { name: "Summary" })).toBeNull()
     )
     expect(
-      screen.getByRole("heading", { name: "All generated artifacts" })
+      screen.getByRole("heading", { name: "Artifacts" })
     ).toBeTruthy()
     expect(
       screen.getByRole("status", { name: "Processing Summary" })

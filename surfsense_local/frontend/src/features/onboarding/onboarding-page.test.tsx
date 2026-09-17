@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
@@ -89,6 +89,18 @@ function installApi() {
     return Response.json({ detail: "not found" }, { status: 404 })
   })
 }
+
+beforeEach(() => {
+  // The welcome step mounts OnboardingDither, which reads matchMedia.
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  })
+})
 
 afterEach(() => {
   cleanup()

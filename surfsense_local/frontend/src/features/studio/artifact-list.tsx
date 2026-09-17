@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react"
 import {
   Alert02Icon,
-  CircleStopIcon,
+  CancelCircleHalfDotIcon,
   EllipsisIcon,
   FileIcon,
   FileTextIcon,
@@ -112,7 +112,7 @@ function ArtifactRow({
   return (
     <Tooltip open={retryable && modifierHeld && rowHovered}>
       <TooltipTrigger asChild>
-        <div
+        <li
           className={cn(
             "group group/artifact relative flex h-8 w-full min-w-0 items-center gap-1.5 overflow-hidden rounded-lg border border-transparent pr-2 pl-1 hover:bg-muted dark:hover:bg-muted/50",
             dropdownOpen && "bg-muted dark:bg-muted/50"
@@ -145,15 +145,11 @@ function ArtifactRow({
                     className="relative hover:bg-transparent"
                     onClick={onRegenerate}
                   >
-                    {cancelled ? (
-                      <CircleStopIcon className="size-4.5 text-muted-foreground transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
-                    ) : (
-                      <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
-                    )}
+                    <Alert02Icon className="size-4.5 text-destructive transition-opacity duration-150 group-hover/artifact:opacity-0 group-focus-visible/button:opacity-0" />
                     <RefreshCwIcon className="absolute inset-0 m-auto size-4.5 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover/artifact:opacity-100 group-focus-visible/button:opacity-100" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent side="left" collisionPadding={8}>
+                <TooltipContent side="top" collisionPadding={8}>
                   {cancelled
                     ? "Cancelled. Retry again."
                     : "Generation failed. Retry again."}
@@ -176,6 +172,7 @@ function ArtifactRow({
           <RelativeTime
             date={new Date(artifact.created_at)}
             compact
+            showTooltip={false}
             className={cn(
               "shrink-0 text-[11px] text-muted-foreground/70 tabular-nums transition-opacity group-focus-within/artifact:opacity-0 group-hover/artifact:opacity-0",
               dropdownOpen && "opacity-0"
@@ -216,7 +213,7 @@ function ArtifactRow({
                   ) : null}
                   {ingesting ? (
                     <DropdownMenuItem onSelect={onCancel}>
-                      <CircleStopIcon />
+                      <CancelCircleHalfDotIcon />
                       Cancel
                     </DropdownMenuItem>
                   ) : null}
@@ -232,7 +229,7 @@ function ArtifactRow({
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-        </div>
+        </li>
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
         {artifact.error_message ??
@@ -291,7 +288,9 @@ function TypeFilter({
               <DropdownMenuCheckboxItem
                 key={format}
                 checked={selected.includes(format)}
-                onCheckedChange={(checked) => onToggle(format, checked === true)}
+                onCheckedChange={(checked) =>
+                  onToggle(format, checked === true)
+                }
                 onSelect={(event) => event.preventDefault()} // stay open for a second pick
               >
                 <FormatIcon className="size-4 text-muted-foreground" />
@@ -391,9 +390,9 @@ export function ArtifactList({
       <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2">
         <h3
           id="all-artifacts"
-          className="text-xs font-medium text-muted-foreground"
+          className="px-1 text-xs font-medium text-muted-foreground"
         >
-          All generated artifacts
+          Artifacts
         </h3>
         {/* One type is no choice at all; the filter appears with the second. */}
         {availableFormats.length > 1 ? (
@@ -436,7 +435,7 @@ export function ArtifactList({
             </EmptyHeader>
           </Empty>
         ) : (
-          <div className="flex flex-col gap-1">
+          <ul className="flex list-none flex-col gap-1">
             {visibleArtifacts.map((artifact) => (
               <ArtifactRow
                 key={artifact.id}
@@ -447,7 +446,7 @@ export function ArtifactList({
                 onDelete={() => setDeleteTarget(artifact)}
               />
             ))}
-          </div>
+          </ul>
         )}
       </ScrollShadow>
       <AlertDialog
