@@ -81,12 +81,21 @@ async def list_providers() -> list[ProviderRead]:
     response_model=list[ModelRead],
     summary="List installed models",
 )
-async def list_models(provider: ProviderDep) -> list[ModelRead]:
+async def list_models(
+    provider: ProviderDep, catalog_service: CatalogServiceDep
+) -> list[ModelRead]:
+    scan = await catalog_service.advisor_catalog()
+    display_names = {
+        model.ollama_name: model.display_name
+        for model in scan.models
+        if model.ollama_name
+    }
     return [
         ModelRead(
             name=model.name,
             installed=model.installed,
             capabilities=list(model.capabilities),
+            display_name=model.display_name or display_names.get(model.name),
         )
         for model in await provider.models()
     ]

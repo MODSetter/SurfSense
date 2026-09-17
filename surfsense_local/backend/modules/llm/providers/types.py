@@ -8,6 +8,7 @@ class Model:
     name: str
     installed: bool
     capabilities: tuple[str, ...] = ()
+    display_name: str | None = None
 
 
 @dataclass(frozen=True)

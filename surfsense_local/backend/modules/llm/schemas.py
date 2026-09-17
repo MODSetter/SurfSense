@@ -26,6 +26,7 @@ class ModelRead(BaseModel):
     name: str
     installed: bool
     capabilities: list[str]
+    display_name: str | None = None
 
 
 class ModelDeleteRead(BaseModel):

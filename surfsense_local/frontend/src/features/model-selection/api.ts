@@ -12,6 +12,7 @@ export type ProviderModel = {
   name: string
   installed: boolean
   capabilities: string[]
+  display_name?: string | null
 }
 
 /**

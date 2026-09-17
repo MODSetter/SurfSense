@@ -36,7 +36,9 @@ export function ModelList({
   const [query, setQuery] = useState("")
   const needle = query.trim().toLowerCase()
   const visible = needle
-    ? models.filter((model) => model.name.toLowerCase().includes(needle))
+    ? models.filter((model) =>
+        (model.display_name ?? model.name).toLowerCase().includes(needle)
+      )
     : models
 
   const radios = (
@@ -55,7 +57,9 @@ export function ModelList({
               <RadioGroupItem id={id} value={key} />
               <FieldContent>
                 <div className="flex min-w-0 items-center justify-between gap-3">
-                  <FieldTitle className="truncate">{model.name}</FieldTitle>
+                  <FieldTitle className="truncate">
+                    {model.display_name ?? model.name}
+                  </FieldTitle>
                   {key === persistedKey ? (
                     <Badge variant="secondary">Current</Badge>
                   ) : null}
