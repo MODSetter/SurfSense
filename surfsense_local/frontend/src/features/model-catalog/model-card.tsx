@@ -46,17 +46,11 @@ export function ModelCard({
       <div className="flex min-h-9 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <p className="truncate text-sm font-medium">{row.label}</p>
-          <Badge
-            variant={
-              row.fit === "too_tight"
-                ? "destructive"
-                : row.fit === "unknown"
-                  ? "outline"
-                  : "secondary"
-            }
-          >
-            {fitLabel[row.fit]}
-          </Badge>
+          {row.fit !== "unknown" ? (
+            <Badge variant={row.fit === "too_tight" ? "destructive" : "secondary"}>
+              {fitLabel[row.fit]}
+            </Badge>
+          ) : null}
           {row.disk_size_gb !== null ? (
             <span className="shrink-0 text-xs text-muted-foreground">
               {formatSize(row.disk_size_gb)}
