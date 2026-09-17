@@ -1,8 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { useId } from "react"
 
 import { RelativeTime } from "@/components/relative-time"
 import { Checkbox } from "@/components/ui/checkbox"
 import { DotIcon } from "@/components/ui/icons"
+import { Label } from "@/components/ui/label"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { useUpdatePrefs } from "@/features/updates/use-update-state"
@@ -27,6 +29,7 @@ function DestinationRow({
   lastCallAt: string | null
   onChange: (enabled: boolean) => void
 }) {
+  const checkboxId = useId()
   return (
     <li className="flex items-center justify-between gap-6 py-3">
       <div className="min-w-0">
@@ -41,13 +44,16 @@ function DestinationRow({
           {lastCallAt ? <RelativeTime date={new Date(lastCallAt)} /> : "never"}
         </p>
       </div>
-      <label className="flex shrink-0 items-center gap-2 text-sm">
+      <div className="flex shrink-0 items-center gap-2 text-sm">
         <Checkbox
+          id={checkboxId}
           checked={enabled}
           onCheckedChange={(checked) => onChange(checked === true)}
         />
-        <span className="sr-only">Allow {label}</span>
-      </label>
+        <Label htmlFor={checkboxId} className="sr-only">
+          Allow {label}
+        </Label>
+      </div>
     </li>
   )
 }
@@ -88,7 +94,7 @@ export function NetworkSettings() {
   return (
     <SettingsSection
       title="Network"
-      description="Every place SurfSense can send data to. Off means the call is refused, and nothing here is on until you allow it."
+      description="Everywhere SurfSense can send data. Off blocks the call outright. Nothing is enabled by default."
     >
       {destinations.isLoading ? (
         <Skeleton className="h-24 w-full" />

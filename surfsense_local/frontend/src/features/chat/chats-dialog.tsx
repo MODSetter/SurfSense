@@ -183,7 +183,6 @@ export function ChatsDialog({
           <ScrollShadow
             className="h-[32rem] min-w-0"
             viewportClassName="overflow-x-hidden"
-            from="from-background"
           >
             <div className="flex w-full max-w-full min-w-0 flex-col pr-1">
               {isLoading ? <SkeletonSlabs /> : null}

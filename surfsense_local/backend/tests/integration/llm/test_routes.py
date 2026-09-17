@@ -485,6 +485,7 @@ async def test_ranked_catalog_installs_and_selects_in_one_stream(
     assert [row["canonical_id"] for row in scanned_curated] == ["Qwen/Qwen3-8B"]
     catalog_id = scanned_curated[0]["catalog_id"]
 
+    await client.put("/egress/ollama_pull", json={"enabled": True})
     events = []
     async with client.stream(
         "POST",

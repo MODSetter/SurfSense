@@ -8,6 +8,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
+from modules.egress import service as egress
 from modules.llm.models import ModelRole, SelectedModel
 from modules.llm.recommendations.catalog import (
     InsufficientDiskError,
@@ -61,6 +62,7 @@ async def install_model(
     payload: InstallRequest,
     request: Request,
     service: CatalogServiceDep,
+    session: SessionDep,
 ) -> StreamingResponse:
     try:
         runtime, _model, plan = await service.preflight(payload.catalog_id)
@@ -80,6 +82,13 @@ async def install_model(
         ) from error
     except RuntimeError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+
+    await transact(
+        session,
+        egress.require,
+        egress.OLLAMA_PULL,
+        egress.ollama_pull_host(plan.model_name),
+    )
 
     lock = service.install_lock(runtime.name)
     if lock.locked():
