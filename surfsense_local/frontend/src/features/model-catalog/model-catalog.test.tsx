@@ -271,6 +271,43 @@ describe("normalized model catalog", () => {
     expect(screen.getByText('No models match "nothing matches this".')).toBeTruthy()
   })
 
+  it("reserves a fixed height for More models while searching, so a search doesn't shrink the page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          catalog({
+            explore: [
+              row({ catalog_id: "explore-a", canonical_id: "a", label: "Llama Explorer" }),
+              row({ catalog_id: "explore-b", canonical_id: "b", label: "Mistral Ranger" }),
+            ],
+          })
+        )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await screen.findByText("Llama Explorer")
+
+    const listElement = () =>
+      screen
+        .getByText("More models")
+        .closest("section")
+        ?.querySelector('[data-slot="catalog-section-list"]') as HTMLElement
+
+    // No reservation while unfiltered — the natural row list is what shows.
+    expect(listElement().style.minHeight).toBe("")
+
+    const search = screen.getByRole("searchbox", { name: "Search more models" })
+    await user.type(search, "llama")
+
+    expect(listElement().style.minHeight).toBe("320px")
+
+    await user.clear(search)
+    expect(listElement().style.minHeight).toBe("")
+  })
+
   it("shows install failures as a toast instead of inside the model row", async () => {
     vi.stubGlobal(
       "fetch",

@@ -36,6 +36,14 @@ import { ModelFamilyGroup } from "./model-family-group"
 import { useModelCatalog } from "./use-model-catalog"
 import type { ModelSelection } from "@/features/model-selection/api"
 
+// Reserved while "More models" is being searched, so narrowing to a handful
+// of matches (or none) leaves blank space below them instead of shrinking
+// the page's scrollable area — that shrink is what clamps scrollTop and
+// yanks the whole page upward. Fixed rather than measured: it doesn't chase
+// this catalog's actual row count, so there's no DOM measurement, no ref,
+// and no effect that has to race the catalog finishing its own load.
+const EXPLORE_SEARCH_RESERVED_HEIGHT = 540
+
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
@@ -92,6 +100,7 @@ function CatalogSection({
   headerAction,
   children,
   emptyMessage,
+  listMinHeight,
 }: {
   title: string
   description: string
@@ -103,6 +112,10 @@ function CatalogSection({
   // should still render (e.g. a search with no matches) — omit this prop to
   // keep the earlier behavior of hiding the section entirely when empty.
   emptyMessage?: string
+  // Reserves this much height regardless of how few rows are showing, so a
+  // filter that removes rows leaves blank space below instead of shrinking
+  // the page's scrollable area (which is what causes a scroll-position jump).
+  listMinHeight?: number
 }) {
   const headingId = useId()
   if (rows.length === 0 && emptyMessage === undefined) {
@@ -119,27 +132,33 @@ function CatalogSection({
         </div>
         {headerAction}
       </div>
-      {rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-      ) : null}
-      {[...grouped(rows)].map(([family, familyRows]) => (
-        <ModelFamilyGroup key={family} family={family}>
-          {familyRows.map((row) => (
-            // canonical_id, not catalog_id: the latter is an opaque,
-            // refresh-sensitive install-plan token (it deliberately goes
-            // stale on every rescan, so a stale install can't slip through)
-            // — using it as a React key would remount every row on every
-            // scan. canonical_id is stable across scan states for the same
-            // model, so the row updates in place instead.
-            <li key={row.canonical_id}>
-              {children(
-                row,
-                runtimeAvailable(catalog.runtime_status[row.runtime])
-              )}
-            </li>
-          ))}
-        </ModelFamilyGroup>
-      ))}
+      <div
+        data-slot="catalog-section-list"
+        className="flex flex-col gap-2.5"
+        style={listMinHeight ? { minHeight: listMinHeight } : undefined}
+      >
+        {rows.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
+        ) : null}
+        {[...grouped(rows)].map(([family, familyRows]) => (
+          <ModelFamilyGroup key={family} family={family}>
+            {familyRows.map((row) => (
+              // canonical_id, not catalog_id: the latter is an opaque,
+              // refresh-sensitive install-plan token (it deliberately goes
+              // stale on every rescan, so a stale install can't slip through)
+              // — using it as a React key would remount every row on every
+              // scan. canonical_id is stable across scan states for the same
+              // model, so the row updates in place instead.
+              <li key={row.canonical_id}>
+                {children(
+                  row,
+                  runtimeAvailable(catalog.runtime_status[row.runtime])
+                )}
+              </li>
+            ))}
+          </ModelFamilyGroup>
+        ))}
+      </div>
     </section>
   )
 }
@@ -210,6 +229,7 @@ export function ModelCatalogPage({
     selectInstalled,
   } = useModelCatalog(onSelected, onModelUnavailable, onModelsChanged)
   const [exploreQuery, setExploreQuery] = useState("")
+  const exploreQueryActive = exploreQuery.trim() !== ""
   const [pendingConfirmation, setPendingConfirmation] =
     useState<CatalogRow | null>(null)
   const [pendingDelete, setPendingDelete] = useState<CatalogRow | null>(null)
@@ -464,7 +484,15 @@ export function ModelCatalogPage({
 
           {data.scanned ? (
             explore.length > 0 ? (
-              <CatalogSection {...exploreSection} catalog={data}>
+              <CatalogSection
+                {...exploreSection}
+                catalog={data}
+                listMinHeight={
+                  exploreQueryActive
+                    ? EXPLORE_SEARCH_RESERVED_HEIGHT
+                    : undefined
+                }
+              >
                 {card}
               </CatalogSection>
             ) : null
