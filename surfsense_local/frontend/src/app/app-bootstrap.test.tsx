@@ -77,7 +77,7 @@ describe("app bootstrap", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Think across everything you have collected.",
+        name: "Air-gapped, open source NotebookLM alternative",
       })
     ).toBeTruthy()
     expect(
