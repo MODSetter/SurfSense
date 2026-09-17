@@ -217,7 +217,7 @@ export function LicenseSettings() {
   return (
     <SettingsSection
       title="License"
-      description="Paid plugins need a license file from your SurfSense account. It’s verified on this device."
+      description="Paid plugins need a license file tied to your email. It's verified on this device."
     >
       {loading ? (
         <div className="flex flex-col gap-1">

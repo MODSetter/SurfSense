@@ -88,7 +88,7 @@ export function NetworkSettings() {
   return (
     <SettingsSection
       title="Network"
-      description="Every place SurfSense can send data to. Off means the call is refused, and nothing here is on until you allow it."
+      description="Everywhere SurfSense can send data. Off blocks the call outright. Nothing is enabled by default."
     >
       {destinations.isLoading ? (
         <Skeleton className="h-24 w-full" />

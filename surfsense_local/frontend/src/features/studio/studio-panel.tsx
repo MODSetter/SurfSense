@@ -17,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -102,10 +103,10 @@ function Composer({
   const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
-    <div className="grid">
+    <div className="relative">
       <div
         className={cn(
-          "col-start-1 row-start-1 flex flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          "flex flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
           view === "main"
             ? "opacity-100 blur-none"
             : "pointer-events-none invisible opacity-0 blur-sm"
@@ -189,14 +190,14 @@ function Composer({
 
       <div
         className={cn(
-          "col-start-1 row-start-1 space-y-2 transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          "absolute inset-0 flex flex-col gap-2 transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
           view === "sources"
             ? "opacity-100 blur-none"
             : "pointer-events-none invisible opacity-0 blur-sm"
         )}
         aria-hidden={view !== "sources"}
       >
-        <div className="flex items-center justify-between gap-2">
+        <div className="flex shrink-0 items-center justify-between gap-2">
           <button
             type="button"
             onClick={() => setView("main")}
@@ -217,8 +218,8 @@ function Composer({
             </Button>
           ) : null}
         </div>
-        <div className="max-h-64 overflow-y-auto">
-          <div className="space-y-1 pr-2">
+        <ScrollShadow className="min-h-0 flex-1" viewportClassName="pr-2">
+          <div className="space-y-1">
             {ready.map((document) => {
               const on = selected.has(document.id)
               return (
@@ -248,7 +249,7 @@ function Composer({
               )
             })}
           </div>
-        </div>
+        </ScrollShadow>
       </div>
     </div>
   )

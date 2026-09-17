@@ -41,11 +41,9 @@ export function UpdateSettings() {
   return (
     <div className="mt-8 flex items-start justify-between gap-8">
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium">Updates</h3>
+        <h3 className="text-sm font-medium">App updates</h3>
         <p className="text-sm text-pretty text-muted-foreground">
-          Updates come from GitHub Releases and are free for everyone. SurfSense
-          never contacts them until you allow App updates under Network, which
-          is also what turns on the check at launch.
+          Free updates from GitHub Releases. SurfSense stays silent until you allow App updates under Network, which also enables the launch check.
         </p>
         {state.status === "error" ? (
           <p role="alert" className="text-sm text-destructive">
