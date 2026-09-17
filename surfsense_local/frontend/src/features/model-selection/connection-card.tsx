@@ -487,9 +487,7 @@ export function ConnectionCard({
                             !supportsImage(model))
                         }
                         onClick={() =>
-                          model.capability_source === "unknown"
-                            ? setTrying({ role: "image_generation", model })
-                            : void assign("image_generation", model)
+                          setTrying({ role: "image_generation", model })
                         }
                       >
                         {imageName === model.name
@@ -513,11 +511,7 @@ export function ConnectionCard({
                           (model.capability_source !== "unknown" &&
                             !supportsChat(model))
                         }
-                        onClick={() =>
-                          model.capability_source === "unknown"
-                            ? setTrying({ role: "generation", model })
-                            : void assign("generation", model)
-                        }
+                        onClick={() => setTrying({ role: "generation", model })}
                       >
                         {generationName === model.name
                           ? "In use"
@@ -566,17 +560,30 @@ export function ConnectionCard({
                 : `Use ${trying?.model.name} for chat?`}
             </DialogTitle>
             <DialogDescription>
-              {trying?.role === "image_generation" ? (
+              {trying?.model.capability_source === "unknown" ? (
+                trying.role === "image_generation" ? (
+                  <>
+                    This endpoint does not publish capabilities, so image
+                    support is unconfirmed. It must implement
+                    {" /images/generations "}or{" /images"}. Testing runs real
+                    inference and may cost money.
+                  </>
+                ) : (
+                  <>
+                    This endpoint does not publish capabilities, so chat
+                    support is unconfirmed. Testing sends one short prompt and
+                    may cost money.
+                  </>
+                )
+              ) : trying?.role === "image_generation" ? (
                 <>
-                  This endpoint does not publish capabilities, so image support
-                  is unconfirmed. It must implement{" /images/generations "}or
-                  {" /images"}. Testing runs real inference and may cost money.
+                  Image support is confirmed. Testing runs real inference and
+                  may cost money.
                 </>
               ) : (
                 <>
-                  This endpoint does not publish capabilities, so chat support
-                  is unconfirmed. Testing sends one short prompt and may cost
-                  money.
+                  Chat support is confirmed. Testing sends one short prompt
+                  and may cost money.
                 </>
               )}
             </DialogDescription>
