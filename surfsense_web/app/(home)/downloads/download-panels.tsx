@@ -1,61 +1,19 @@
-"use client";
-
-import { FlowButton } from "@/components/ui/flow-button";
 import { DownloadIcon } from "@/components/ui/icons";
-import {
-	ASSET_LABELS,
-	GITHUB_RELEASES_URL,
-	getAssetLabel,
-	useLatestRelease,
-	usePrimaryDownload,
-} from "@/lib/desktop-download-utils";
+import { GITHUB_RELEASES_URL, getAssetLabel, type ReleaseAsset } from "@/lib/app-release";
 
 /**
- * The two pieces of `lib/desktop-download-utils.ts` this page needs, split
- * into client components so `page.tsx` can stay a server component: the
- * hero's single auto-detected button, and the three-way OS grid below it.
+ * Server components: the assets are resolved in `page.tsx` and handed down,
+ * so the installer links are in the HTML rather than appearing after
+ * hydration. This page is an SEO target, and a crawler used to see an empty
+ * grid.
  */
-
-export function PrimaryDownloadButton() {
-	const { os, primary, isMobileOS, isLoading } = usePrimaryDownload();
-
-	if (isMobileOS) {
-		return (
-			<p className="ss-home-body mt-8 text-sm">
-				The desktop app is not available on {os}. Browse{" "}
-				<a className="ss-home-link" href={GITHUB_RELEASES_URL}>
-					all releases
-				</a>{" "}
-				instead.
-			</p>
-		);
-	}
-
-	if (isLoading) {
-		return (
-			<FlowButton
-				className="mt-8 opacity-50 pointer-events-none"
-				text={`Download for ${os}`}
-				disabled
-			/>
-		);
-	}
-
-	return (
-		<FlowButton
-			className="mt-8"
-			href={primary?.url ?? GITHUB_RELEASES_URL}
-			text={`Download for ${os}`}
-		/>
-	);
-}
 
 type OSPanel = {
 	title: string;
 	match: (assetName: string) => boolean;
-	/** Asset-label suffixes expected for this platform, used to size the
-	 * disabled placeholder links while the real list is still loading. */
-	suffixes: (keyof typeof ASSET_LABELS)[];
+	/** Sort order within a panel: GitHub does not promise a stable asset
+	 * order across releases. */
+	suffixes: string[];
 };
 
 const OS_PANELS: OSPanel[] = [
@@ -84,16 +42,10 @@ export function AllReleasesLink() {
 	);
 }
 
-export function OSDownloadGrid() {
-	const { assets, isLoading } = useLatestRelease();
-
+export function OSDownloadGrid({ assets }: { assets: ReleaseAsset[] }) {
 	return (
 		<div className="ss-home-grid ss-home-grid-3 ss-home-grid-dashed">
 			{OS_PANELS.map((panel) => {
-				// Sorted to the same fixed order as the loading placeholders below,
-				// since GitHub doesn't guarantee asset order is stable across
-				// releases — without this the real links can swap position right
-				// as they replace the placeholders.
 				const panelAssets = assets
 					.filter((asset) => panel.match(asset.name))
 					.toSorted(
@@ -105,23 +57,12 @@ export function OSDownloadGrid() {
 					<div key={panel.title} className="ss-home-cell flex flex-col">
 						<h3 className="ss-home-h3">{panel.title}</h3>
 						<div className="mt-4 flex flex-col items-start gap-2">
-							{isLoading
-								? panel.suffixes.map((suffix) => (
-										<span
-											key={suffix}
-											aria-disabled="true"
-											className="ss-home-forward pointer-events-none opacity-50"
-										>
-											{ASSET_LABELS[suffix]}
-											<DownloadIcon aria-hidden="true" className="size-3.5" />
-										</span>
-									))
-								: panelAssets.map((asset) => (
-										<a key={asset.name} className="ss-home-forward" href={asset.url}>
-											{getAssetLabel(asset.name)}
-											<DownloadIcon aria-hidden="true" className="size-3.5" />
-										</a>
-									))}
+							{panelAssets.map((asset) => (
+								<a key={asset.name} className="ss-home-forward" href={asset.url}>
+									{getAssetLabel(asset.name)}
+									<DownloadIcon aria-hidden="true" className="size-3.5" />
+								</a>
+							))}
 						</div>
 					</div>
 				);

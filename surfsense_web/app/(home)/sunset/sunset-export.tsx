@@ -3,11 +3,13 @@
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { HomeButton } from "@/components/homepage/home/home-button";
+import { useIsGoogleAuth } from "@/components/providers/runtime-config";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/hooks/use-session";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { redirectToLogin } from "@/lib/auth-utils";
 import { buildBackendUrl } from "@/lib/env-config";
+import { trackLoginAttempt } from "@/lib/posthog/events";
 
 /**
  * Rendered inline in the hero on `/sunset` rather than as its own section —
@@ -41,7 +43,20 @@ function triggerDownload(blob: Blob, filename: string) {
 
 export function SunsetExport() {
 	const session = useSession();
+	const isGoogleAuth = useIsGoogleAuth();
 	const [isExporting, setIsExporting] = useState(false);
+
+	// Google-only deployments have nothing to choose on /login: it renders a
+	// lone Google button. Export is the one thing this page exists for, so
+	// send them straight to the provider instead of through that page.
+	function signIn() {
+		if (!isGoogleAuth) {
+			redirectToLogin();
+			return;
+		}
+		trackLoginAttempt("google");
+		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
+	}
 
 	// Session status resolves asynchronously and can settle before hydration
 	// finishes, so deriving `disabled`/label straight from it made the first
@@ -54,7 +69,7 @@ export function SunsetExport() {
 	async function handleExport() {
 		if (isExporting) return;
 		if (session.status !== "authenticated") {
-			redirectToLogin();
+			signIn();
 			return;
 		}
 
@@ -65,7 +80,7 @@ export function SunsetExport() {
 				skipAuthRedirect: true,
 			});
 			if (response.status === 401) {
-				redirectToLogin();
+				signIn();
 				return;
 			}
 			if (!response.ok) {

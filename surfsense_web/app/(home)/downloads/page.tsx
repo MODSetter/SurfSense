@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
-import { AllReleasesLink, OSDownloadGrid, PrimaryDownloadButton } from "./download-panels";
+import { TrialForm } from "@/app/(home)/license/license-forms";
+import { getReleaseAssets } from "@/lib/release-assets";
+import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and
  * footer all come from `app/(home)/layout.tsx`, and every style resolves from
  * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
- *
- * The hero's single button auto-detects the visitor's OS and links straight
- * to the matching installer (`PrimaryDownloadButton`, from
- * `lib/desktop-download-utils.ts` — the same hook the old homepage hero
- * used); the grid below it is the explicit fallback for anyone downloading
- * for a machine other than the one they're on.
  */
 
 export const metadata: Metadata = {
@@ -21,7 +17,9 @@ export const metadata: Metadata = {
 	alternates: { canonical: "https://www.surfsense.com/downloads" },
 };
 
-export default function DownloadsPage() {
+export default async function DownloadsPage() {
+	const assets = await getReleaseAssets();
+
 	return (
 		<>
 			<section className="ss-home-hero ss-home-pad">
@@ -30,20 +28,20 @@ export default function DownloadsPage() {
 					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
 						One installer, no account, no cloud. Pick your platform below.
 					</p>
-					<div className="mt-2 flex justify-center">
-						<PrimaryDownloadButton />
+					<TrialForm note="We will send a 30-day licence for the scraper plugins, with the download links. The installers are below either way." />
+				</div>
+			</section>
+
+			{assets.length > 0 ? (
+				<section className="ss-home-rule ss-home-rule-plain">
+					<div className="ss-home-head ss-home-head-plain ss-home-head-tight">
+						<p className="ss-home-eyebrow">Choose your platform</p>
+						<h2 className="ss-home-h2 mt-2">Windows, macOS and Linux</h2>
 					</div>
-				</div>
-			</section>
 
-			<section className="ss-home-rule ss-home-rule-plain">
-				<div className="ss-home-head ss-home-head-plain ss-home-head-tight">
-					<p className="ss-home-eyebrow">Choose your platform</p>
-					<h2 className="ss-home-h2 mt-2">Windows, macOS and Linux</h2>
-				</div>
-
-				<OSDownloadGrid />
-			</section>
+					<OSDownloadGrid assets={assets} />
+				</section>
+			) : null}
 
 			<section className="ss-home-rule">
 				<div className="ss-home-pad py-10 text-center">
