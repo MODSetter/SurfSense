@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 
+from app.license.release import get_release_assets
 from app.mailer import get_mailer, is_mail_enabled
 
 from .address import normalize_email
@@ -38,5 +39,6 @@ async def deliver_licenses(
         to=normalize_email(to),
         certificates=tuple(certificates),
         idempotency_key=idempotency_key,
+        installers=await get_release_assets(),
     )
     await get_mailer().send(message)

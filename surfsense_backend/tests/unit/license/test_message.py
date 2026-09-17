@@ -60,30 +60,52 @@ def test_license_mail_falls_back_to_the_deployment_sender(monkeypatch):
     assert message.sender == "noreply@surfsense.test"
 
 
-def test_trial_mail_carries_the_download_link_and_the_configured_length(monkeypatch):
+def test_trial_mail_carries_the_github_tag_release_and_the_configured_length(
+    monkeypatch,
+):
     """A trial is handed to an address, so the email has to reach the app too."""
     from app.config import config
+    from app.license.release import GITHUB_RELEASE_URL
 
-    monkeypatch.setattr(config, "NEXT_FRONTEND_URL", "https://www.surfsense.test/")
     monkeypatch.setattr(config, "LICENSE_TRIAL_DAYS", 30)
 
     message = build_license_email("trial", to="a@b.test", certificates=("CERT",))
 
-    assert "https://www.surfsense.test/downloads" in message.text_body
+    assert GITHUB_RELEASE_URL in message.text_body
+    assert "/releases/tag/v" in message.text_body
+    assert "/downloads" not in message.text_body
+    assert "/releases/latest" not in message.text_body
     assert message.subject == "Your SurfSense 30-day trial license"
     assert "30-day" in message.text_body
 
 
-def test_no_portal_url_omits_the_download_step(monkeypatch):
-    """Self-hosters have no portal; no link beats a broken one."""
-    from app.config import config
+def test_installer_assets_are_the_github_tag_download_urls():
+    """Same browser_download_url links the /downloads page shows."""
+    from app.license.release import ReleaseAsset
 
-    monkeypatch.setattr(config, "NEXT_FRONTEND_URL", None)
+    exe = (
+        "https://github.com/MODSetter/SurfSense/releases/download/"
+        "v2.0.0/SurfSense-Setup-2.0.0.exe"
+    )
+    dmg = (
+        "https://github.com/MODSetter/SurfSense/releases/download/"
+        "v2.0.0/SurfSense-2.0.0-arm64.dmg"
+    )
+    message = build_license_email(
+        "trial",
+        to="a@b.test",
+        certificates=("CERT",),
+        installers=(
+            ReleaseAsset(name="SurfSense-Setup-2.0.0.exe", url=exe),
+            ReleaseAsset(name="SurfSense-2.0.0-arm64.dmg", url=dmg),
+        ),
+    )
 
-    message = build_license_email("trial", to="a@b.test", certificates=("CERT",))
-
+    assert exe in message.text_body
+    assert dmg in message.text_body
+    assert "Windows (exe):" in message.text_body
+    assert "macOS Apple Silicon (dmg):" in message.text_body
     assert "/downloads" not in message.text_body
-    assert message.text_body.count("1. Save the attached") == 1
 
 
 def test_a_message_with_no_certificate_is_a_programming_error():
