@@ -4,7 +4,8 @@ name: Desktop Release
 # them to a GitHub Release on the `stable` channel. The legacy 0.0.x desktop
 # reads `latest*.yml`, which no release publishes anymore, so it never updates.
 #
-# Trigger: push a tag like `v1.0.0`. Or run manually for a dry run.
+# Trigger: push a tag like `v2.0.0`, matching surfsense_local/VERSION. Or run
+# manually for a dry run.
 
 on:
   push:
@@ -68,6 +69,13 @@ jobs:
           if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
             echo "::error::Version '$VERSION' is not semver (expected X.Y.Z); fix the tag."
             exit 1
+          fi
+          if [ "${{ github.event_name }}" = "push" ]; then
+            TRACKED="$(tr -d '[:space:]' < surfsense_local/VERSION)"
+            if [ "$VERSION" != "$TRACKED" ]; then
+              echo "::error::Tag v$VERSION does not match surfsense_local/VERSION ($TRACKED); run surfsense_local/scripts/bump-version.sh and commit before tagging."
+              exit 1
+            fi
           fi
           echo "VERSION=$VERSION" >> "$GITHUB_OUTPUT"
 
