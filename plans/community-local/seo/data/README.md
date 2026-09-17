@@ -25,6 +25,10 @@ redirecting stdout).
 | `keyword-overview-verticals.json` | same | compliance (HIPAA, legal), Ollama ecosystem, homelab, PKM |
 | `keyword-overview-gap-terms.json` | same | terms surfaced by the competitor gap pulls, re-checked for full metrics |
 | `keyword-overview-artifacts.json.gz` | same | the Studio outputs (`01`, section 3): 208 terms for study guide, flashcards, quiz, summary, slides, mind map, infographic, report, spreadsheet, web page, video and the edtech brands; 196 came back |
+| `keyword-overview-deliverable.json` | same | **pulled 17 Sep 2026** for [`../07-what-users-do.md`](../07-what-users-do.md): 102 "document into a deliverable" and "ai for `<profession>`" terms, 68 returned |
+| `keyword-overview-workintercept.json` | same | **17 Sep 2026**: the NotebookLM-at-work intercept (dead: 10-30 a month), the `chat with X` family (dying), and the business-qualified privacy terms (`private ai for business`, `secure ai for business`, `ai workspace`) that replaced them |
+| `keyword-ideas-deliverable.json.gz` | `dataforseo_labs/google/keyword_ideas/live` | **17 Sep 2026**: discovery from 8 professional seeds, 700 results. The head is generic-AI noise as usual — the useful rows are the tail, filtered to keywords naming a profession, a deliverable or a confidentiality concern and sorted by `volume × cpc` |
+| `intl-pro-es-es.json` | `keyword_overview/live` | **17 Sep 2026**: the professional list in Spanish for Spain. See [International pulls](#international-pulls) for why Mexico and Brazil are not archived |
 | `keyword-ideas-broad.json.gz` | `dataforseo_labs/google/keyword_ideas/live` | category discovery from 8 seeds, 700 results, volume > 30 |
 | `keyword-ideas-questions.json` | same, filtered | question and "best" phrasings (mostly generic-AI noise; the parser's `EXCLUDE` list came from reading this) |
 | `keyword-ideas-artifacts.json.gz` | same | discovery seeded with the Studio format names, 700 results by volume; the top is generic-AI heads (`ai`, `character ai`), the artifact tail is what the clusters pick up |
@@ -47,7 +51,7 @@ redirecting stdout).
 | `serp-study-guide-maker.json` | same | trimmed; the study SERP with its AI Overview citations and PAA |
 | `artifacts-serp-competitors.json` | `dataforseo_labs/google/serp_competitors/live` | who ranks across 28 Studio heads: top 40 of 854 domains, best position per keyword under `keywords_positions`; the edtech table in `04` |
 | `artifacts-intl-<market>.json` | `keyword_overview/live`, trimmed | the Studio list abroad: `gb-en` (48 rows, with the `revision` forms), `in-en` (48, with `mcq`/exam forms), `de-de` (46, German forms under `language_code: de`), `jp-ja` (28 of 56; every flashcard and quiz form fell below threshold, listed in the file's `note`) |
-| `master-keywords.csv` | derived | 565 scored, clustered keywords; regenerate with the command below |
+| `master-keywords.csv` | derived | **600** scored, clustered keywords (565 before 17 Sep 2026); regenerate with the command below |
 | `intl/lists.json` | config | the keyword lists behind the international pass (`en-core` 43, `en-extended` 70, one translated list per language) and a `markets` map of `location_code`, `language_code` and which lists each market gets |
 | `intl/<market>.json` | `keyword_overview/live`, compacted | 27 pulls for 26 markets (Canada in English and in French), same lists, same day; see [International pulls](#international-pulls) |
 | `intl/markets.csv` | derived | market × keyword long table: `recent`, `volume`, `cpc`, `kd`, `concept`, `variant_of`; regenerate with the command below |
@@ -104,6 +108,25 @@ regexes want a tool word (`generator`, `maker`, `from pdf`, `to quiz`) so that
 `flashcards` the noun or `text to video ai` stay in `other`. Expect one
 misassignment in twenty and fix it in the CSV, not the regex, unless it is
 systematic.
+
+**The `professional` cluster, added 17 Sep 2026.** `CLUSTERS` had no regex for
+`ai for lawyers`, `legal ai`, `ai workspace` or `ai knowledge base`, so
+`--drop-other` discarded all 29 of them and the master list could not represent
+the strategy in [`../07-what-users-do.md`](../07-what-users-do.md). One cluster
+was added, placed after `compliance` (so HIPAA and GDPR still route to the
+compliance page) and after the artifact clusters (so `ai report generator` stays
+with `report`). Regenerating took the CSV from 565 rows to 600 with **nothing
+lost and nothing moved between clusters**. Before accepting any future cluster
+change, keep a copy of the CSV and diff it on `keyword` (added, lost) and on
+`cluster` (moved): first-match-wins means a new regex can silently steal rows
+from an existing cluster, and the risk is never what it adds.
+
+**Two rows drifted in that regeneration.** `private ai` and `sovereign ai` both
+re-read at 27,100 (from 8,100) because they appear in the 17 Sep discovery pull
+as well as the 14 Sep overview pull, and `keyword_ideas` and `keyword_overview`
+do not always report the same string identically. The prose in `01` quotes the
+14 Sep overview figures; the CSV carries the newer reading for these two only.
+Re-pull both through `keyword_overview/live` before either decides anything.
 
 **Hyphens.** DataForSEO sometimes holds one record for two spellings (`air gap
 ai` and `air-gapped ai` report identical metrics) and sometimes two (`self
@@ -263,6 +286,19 @@ They sit outside `intl/` because they are not on the shared lists and would
 skew the market totals; render them with the default metrics mode.
 
 ## Not saved here
+
+- **The professional list in Mexico (`2484`, `es`) and Brazil (`2076`, `pt`)**,
+  pulled 17 Sep 2026 alongside `intl-pro-es-es.json`. One
+  `keyword_overview/live` per market with the same list; the figures are in
+  [`../07-what-users-do.md`](../07-what-users-do.md). They are omitted for the
+  reason the `artifacts-intl-*` files sit outside `intl/`: they are not on the
+  shared lists and would skew the market totals in `--mode markets`.
+- **Historical volume for the 15 professional and business-privacy terms**
+  (`historical_search_volume/live`, 17 Sep 2026). This is what separates
+  `private ai for business` and `ai for compliance`, which have held three
+  months, from `secure ai for business` and `ai for professional services`,
+  which are two months old. Re-pull before betting on any of the four; the call
+  is one array of keywords, shape as above.
 
 - **SERP competitors** across the 18 privacy and NotebookLM target keywords —
   the call shape above with those keywords. Produced the Reddit/GitHub

@@ -12,7 +12,15 @@ This is the demand document. The rest of the set:
 | [`04-competitors.md`](04-competitors.md) | domain authority, competitor footprints, keyword gaps, patterns to copy; the edtech set that owns the Studio SERPs |
 | [`05-serp-landscape.md`](05-serp-landscape.md) | what the results page looks like for the four priority terms and the study-guide head, AI Overview citations, PAA |
 | [`06-repo-readme.md`](06-repo-readme.md) | the repo as a ranking page: description, topics, and a paste-ready README draft in [`drafts/`](drafts/README.md) |
+| [`07-what-users-do.md`](07-what-users-do.md) | **what our own users actually ask for**, from production chat data — the audience check on everything in this file |
 | [`data/master-keywords.csv`](data/master-keywords.csv) | 565 keywords scored and clustered, the single list to work from |
+
+> **Read [`07`](07-what-users-do.md) before acting on section 3.** This document
+> sizes demand well, but it inherited an assumption about *who* the Studio
+> outputs are for. Production chat says professional work outruns study by about
+> 1.8 to 1 among users who state a task, and the most common single job is
+> turning a document into a deliverable — a deck, a report, a briefing. The
+> volumes below stand; the reader they were written for does not.
 
 **Source:** DataForSEO, pulled 14 Sep 2026, Google **United States** desktop
 (`location_code: 2840`, `language_code: en`). Raw responses and the script that
@@ -540,11 +548,19 @@ should say "quiz from your own material" rather than "test yourself".
 The whole cluster is falling, -45% to -93%, because the AI Overview and the
 chat apps now do this inline. Owners: QuillBot #1 on `ai summarizer`, Adobe #1
 on both PDF forms with ChatPDF, iLovePDF and Smallpdf behind it, Knowt at 4.
-Not a standalone page. Two uses: the YouTube forms are the part holding best
-(6,300 recent, 11,700 over the year, KD 26-30, down a third rather than three
-quarters) and the app ingests YouTube, so the sources page gets an H2 for it;
-and "summary" is the first line of the study-guide bundle, where it needs no
-keyword of its own.
+Not a standalone page. The YouTube forms are the part holding best (6,300
+recent, 11,700 over the year, KD 26-30, down a third rather than three
+quarters), and an earlier version of this paragraph sent them to an H2 on the
+sources page on the grounds that "the app ingests YouTube". **It does not.** The
+local app takes file uploads only — PDF, DOCX, PPTX, XLSX, HTML, CSV, MD, TXT
+and images — and the string `youtube` appears nowhere in the app's own source at
+all; the only hits under `surfsense_local/` are a token in the bundled
+bge-small tokenizer vocabulary and third-party packages inside build output.
+YouTube ingestion was a Cloud capability and did not survive the pivot. So there is **no YouTube H2**, on any
+page, until a builder exists; writing one would break the rule that every claim
+must be true of the shipped app. That leaves one use for this cluster:
+"summary" is the first line of the study-guide bundle, where it needs no keyword
+of its own.
 
 #### Slides
 
@@ -624,6 +640,62 @@ video ai` 170 (KD 30~). Google's branded term is decaying at KD 5, so when the
 builder exists an "offline video overview" page is a cheap intercept. Until
 then there is no page, and no page mentions it; the plan lists video under
 "After the MVP".
+
+### 3b. The professional deliverable, and the business qualifier
+
+Added 17 Sep 2026 after the production-chat pass ([`07`](07-what-users-do.md)).
+Full pull and history in that file; the short version, because it changes what
+section 3's pages say.
+
+The literal vocabulary for "turn a document into a deliverable" is unsearched —
+`pdf to presentation` 110, `document to presentation` 10, `talk to your
+documents` 10, and the `chat with pdf` family keeps falling. **Nobody searches
+for the mechanic.** Neither does the NotebookLM-at-work intercept exist:
+`notebooklm for business` is 30 and `for work` is 10.
+
+What does have demand is the privacy cluster with a **business qualifier**, and
+the professions themselves:
+
+No `recent` column here on purpose. For a term ramping this hard the statistic
+misleads in both directions — `parse.py` caps it at the 12-month average, which
+hides that `secure ai for business` ran at 27,100 in August, and uncapping it
+would break the folder's own rule. The last column gives the monthly trajectory
+instead, which is what the decision actually turns on.
+
+| keyword | volume | kd | cpc | trajectory |
+|---|---|---|---|---|
+| legal ai | 18100 | 38 | 29.54 | stable 14,800-22,200 all year, +22% |
+| ai for accountants | 6600 | 29 | **36.40** | stable 5,400-9,900, −18% |
+| ai for small business | 2900 | 31 | 25.63 | 1,000 → 12,100 over the year |
+| ai workspace | 2900 | **12** | 17.86 | 320/mo a year ago, peaked 8,100 in Apr 2026, now 1,300-1,600 |
+| ai for lawyers | 2400 | 30 | **55.59** | stable 1,900-2,900, −17% |
+| private ai for business | 1600 | — | — | 10-260 until May, then 1,900 → 5,400 → 12,100 |
+| secure ai for business | 2900 | **16** | — | 10/mo until June, then 8,100 → 27,100. **Two months.** |
+| ai knowledge base | 880 | 28 | **61.34** | stable 590-1,300 |
+| ai contract review | 880 | 19 | **66.60** | stable, +14% |
+| ai for compliance | 480 | 22 | **66.03** | 50-110 until May, then 1,000 → 1,900 → 1,600 |
+| ai for professional services | 210 | **2** | **64.86** | two months; top 10 averages **6.1** referring domains |
+
+`legal ai` comes from the discovery pull
+(`data/keyword-ideas-deliverable.json.gz`), not the overview pulls; the rest are
+`keyword-overview-deliverable.json` and `keyword-overview-workintercept.json`.
+
+Three readings.
+
+1. **This is the privacy cluster, qualified.** `private ai for business` and
+   `secure ai for business` sit on top of the `private` / `self-hosted` /
+   `local` / `offline` clusters already named as the landing page's addressable
+   demand. Adding "for business" is a copy change, not a new front.
+2. **Check the age before betting.** `private ai for business` (1,900 → 5,400 →
+   12,100) and `ai for compliance` (1,000 → 1,900 → 1,600) have held three
+   months. `secure ai for business`, `ai for consultants`, `ai for audit` and
+   `ai for professional services` are two months old, which by this file's own
+   rule is a candidate, not a plan. Re-pull before committing.
+3. **The professions are where the CPCs are.** $36-67 against $4-15 for the
+   generic privacy heads, at KD 19-38. The decision for this pass is a
+   cross-cutting page rather than vertical pages, so these terms are carried as
+   H2s and proof inside it — the job is identical across professions, and one
+   page can name them without ten thin pages and ten legal reviews.
 
 ### 4. Compliance, the highest CPCs in the research
 
@@ -707,7 +779,8 @@ assignment is wrong for maybe one row in twenty, so treat the `cluster` and
 | flashcards | 22 | 30,930 | 31 | flashcards feature page |
 | study | 24 | 25,190 | 26 | study-guide hub page |
 | summary | 23 | 24,070 | 27 | H2 on sources page; no page of its own |
-| **private** | 11 | **21,940** | **14** | landing |
+| **professional** | 29 | **46,210** | **19** | page: documents into deliverables (added 17 Sep, section 3b) |
+| **private** | 11 | **43,640** | **14** | landing |
 | **self-hosted** | 15 | **16,170** | **10** | landing |
 | **local** | 13 | **14,630** | **14** | landing |
 | notebooklm-pricing | 36 | 9,140 | 15 | `/pricing` |
@@ -729,11 +802,31 @@ assignment is wrong for maybe one row in twenty, so treat the `cluster` and
 | video | 10 | 650 | 14 | nothing until the builder ships |
 | webpage | 1 | 50 | 3 | docs page |
 
-The four bold rows are the landing page's addressable demand: about 60,000
-recent monthly searches at median KD 9-14. Everything above them in the table
-is either not ours, dominated by one generic head term, or (the artifact
-clusters) sized in its summer trough; section 3 says which rows of those
-clusters to count.
+The four bold landing rows are that page's addressable demand, at median KD
+9-14. Everything above them in the table is either not ours, dominated by one
+generic head term, or (the artifact clusters) sized in its summer trough;
+section 3 says which rows of those clusters to count.
+
+**`professional` is new, added 17 Sep 2026** with section 3b and the
+production-chat pass. At 29 keywords and 46,210 recent searches it is larger
+than `study` (24 / 25,190) at a lower median difficulty (19 against 26), and it
+carries the highest CPCs in the file. It did not exist before because no cluster
+regex matched `ai for lawyers`, `legal ai` or `ai workspace`, so `--drop-other`
+silently discarded all 29 — the master list could not see the strategy. The
+cluster was added to `parse.py` and the CSV regenerated: 565 rows to 600, with
+**nothing lost and nothing moved between clusters** — check that by diffing the
+old and new CSVs on `keyword` and on `cluster` before accepting any future
+cluster change, because first-match-wins means a new regex can silently steal
+rows from an existing one.
+
+**Two existing rows changed value in that regeneration**, and the prose above
+was not updated to match: `private ai` and `sovereign ai` both re-read at 27,100
+(from 8,100) in the 17 Sep discovery pull. Three days is too short for that to
+be real growth, so the likelier explanation is that the discovery and overview
+endpoints report the same string differently. The tables earlier in this
+document quote the **14 Sep overview** figures and still do; the CSV now carries
+the newer reading for those two keywords only. Re-pull both through
+`keyword_overview/live` before either number decides anything.
 
 ## Who owns these SERPs
 

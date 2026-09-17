@@ -386,6 +386,25 @@ CLUSTERS = [
     ("notebooklm-brand", r"notebook\s?lm", "blog: notebooklm how-to"),
     ("compliance", r"hipaa|gdpr|dsgvo|confidential|sensitive|legal document|compliant|\bsecure ai\b",
      "page: compliance"),
+    # Added 17 Sep 2026 with the production-chat pass (../07-what-users-do.md).
+    # Professional work outruns study ~1.8:1 among users who state a task, and
+    # these terms carry the highest CPCs in the research ($30-67) — but nothing
+    # here matched a cluster before, so --drop-other discarded every one of them
+    # and the master list could not see the strategy. Sits after `compliance` so
+    # HIPAA/GDPR still route to the compliance page, and after the artifact
+    # clusters so `ai report generator` stays with `report`.
+    ("professional", r"ai for (lawyers?|attorneys?|accountants?|consultants?|auditors?|"
+                     r"audit|compliance|professional services|analysts?|"
+                     r"project managers?|small business|business|work)\b|"
+                     r"^legal ai$|^free legal ai$|ai contract (review|analysis)|"
+                     r"contract analysis software|ai (knowledge base|workspace)|"
+                     r"business ai assistant|due diligence ai|ai audit tool|"
+                     r"ai document (analysis|review|summarizer)|"
+                     r"ai (proposal|report) writer|proposal generator|"
+                     r"rfp response ai|ai rfp response|sop generator|"
+                     r"ai tools for consultants|consulting ai tools|"
+                     r"executive summary (generator|ai)|ai executive summary",
+     "page: documents into deliverables"),
     ("self-hosted", r"self.?host|on.?prem|sovereign", "/ landing"),
     ("offline", r"offline|without internet|air.?gap", "/ landing"),
     ("private", r"\bprivate\b|privacy|no data|doesn.?t (train|use)", "/ landing"),

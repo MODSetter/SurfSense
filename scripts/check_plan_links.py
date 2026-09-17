@@ -10,7 +10,9 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-LINK = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+# Markdown escapes a literal paren inside a link target as `\(`, so the target
+# must be allowed to contain them and then unescaped before it hits the disk.
+LINK = re.compile(r"\[[^\]]*\]\(((?:[^()\\]|\\.)+)\)")
 
 
 def changed_plan_files() -> list[Path]:
@@ -39,7 +41,8 @@ def check_links(path: Path) -> list[str]:
         for target in LINK.findall(line):
             if target.startswith(("http://", "https://", "#", "mailto:")):
                 continue
-            resolved = (path.parent / target.split("#", 1)[0]).resolve()
+            plain = re.sub(r"\\(.)", r"\1", target.split("#", 1)[0])
+            resolved = (path.parent / plain).resolve()
             if not resolved.exists():
                 problems.append(f"{path.relative_to(ROOT)}:{lineno} dead link -> {target}")
     return problems

@@ -86,6 +86,33 @@ No login. Resend always answers 200 so nobody can probe which addresses bought.
 
 **Seven public routes have no disposition.** Everything under `app/(home)/` that the plan never places: `/external-mcp-connectors`; `/announcements`; `/changelog`; `/contact`; `/privacy` and `/terms` (hosted-service legal text the EULA work does not cover); and the `[slug]` catch-all. Each needs unpublish, redirect or keep. None of them ranks for anything in the site's top 200 keywords, so there is no SEO argument either way ([`../seo/02-page-briefs.md`](../seo/02-page-briefs.md), "Open, and deliberately not answered here"); `/privacy` and `/terms` need a content decision rather than an indexing one. Only `/connectors` is named for unpublishing today. Note that `NEXT_PUBLIC_SUNSET_MODE` is still unread in `surfsense_web` (B4), so none of these redirect anywhere yet and all of them stay live and indexed at T-0 by default.
 
+## New page: confidential documents into deliverables
+
+**Added 17 Sep 2026**, and it is a B5 page with a full build sheet in
+[`../seo/02-page-briefs.md`](../seo/02-page-briefs.md). It exists because the
+hosted product's own chat logs disagree with the page plan about who the user
+is: among the 4,840 users who state a task, **professional work outruns study by
+about 1.8 to 1**, and the most common single job is turning a document already
+on disk into a deck, a report or a briefing. Evidence and method in
+[`../seo/07-what-users-do.md`](../seo/07-what-users-do.md).
+
+Three things Dev B needs from this beyond the brief:
+
+- **It is not a vertical page and must not become ten of them.** The professions
+  (legal, accounting, consulting) are H2s inside one page. Vertical pages would
+  each need their own legal review for compliance-adjacent copy, and
+  `01`'s compliance rule applies here verbatim: state where the bytes are, not
+  what regulation that satisfies.
+- **It cannot be titled for the job.** `pdf to presentation` is 110 a month and
+  `document to presentation` is 10. The title carries `private ai for business`
+  and the profession terms instead; the new `professional` cluster in
+  [`../seo/data/master-keywords.csv`](../seo/data/master-keywords.csv) is 29
+  keywords, 46,210 recent searches at median KD 19, and the highest CPCs in the
+  research ($30-67).
+- **Three of its target terms are two months old.** `secure ai for business`,
+  `ai for professional services` and `ai for consultants` are flagged as
+  candidates in the brief, not plan. Re-pull before they earn body copy.
+
 ## Closed: `/free` is kept and rewritten in place
 
 **Decided.** `/free` was the consequential one of the eight unplaced routes, and it is now settled: **keep the URL, rewrite the page, target the no-signup cluster.** Not unpublished, not redirected to `/downloads`. It becomes a B5 page with a full build sheet in [`../seo/02-page-briefs.md`](../seo/02-page-briefs.md), and the numbers behind the call are in [`../seo/01-keyword-research.md`](../seo/01-keyword-research.md), "Our baseline, and the `/free` decision".

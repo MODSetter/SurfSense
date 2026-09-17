@@ -1,0 +1,1798 @@
+{
+  "id": "09172304-1766-0607-0000-a56c4aa4a546",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "items": [
+    {
+      "keyword": "ai for document management",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 01:40:25 +00:00",
+        "competition": 0.43,
+        "competition_level": "MEDIUM",
+        "search_volume": 10,
+        "low_top_of_page_bid": 12.66,
+        "high_top_of_page_bid": 26.6,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 30,
+          "2026-03": 20,
+          "2026-02": 20,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai document manager",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 32,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-24 16:26:41 +00:00"
+      }
+    },
+    {
+      "keyword": "ai for documents",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 13:36:40 +00:00",
+        "competition": 0.7,
+        "competition_level": "HIGH",
+        "cpc": 20.61,
+        "search_volume": 140,
+        "low_top_of_page_bid": 6.3,
+        "high_top_of_page_bid": 30,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 110,
+          "2026-07": 110,
+          "2026-06": 140,
+          "2026-05": 110,
+          "2026-04": 170,
+          "2026-03": 170,
+          "2026-02": 140,
+          "2026-01": 170,
+          "2025-12": 110,
+          "2025-11": 140,
+          "2025-10": 170,
+          "2025-09": 210
+        },
+        "search_volume_trend": {
+          "quarterly": -21,
+          "yearly": -35
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai document",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 32,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20for%20documents&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 100,
+        "last_updated_time": "2026-08-09 23:08:11 +00:00",
+        "previous_updated_time": "2026-05-22 08:28:30 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 1321.3,
+        "dofollow": 785.6,
+        "referring_pages": 1098.5,
+        "referring_domains": 333.5,
+        "referring_main_domains": 268.3,
+        "rank": 195,
+        "main_domain_rank": 549.6,
+        "last_updated_time": "2026-08-09 23:08:15 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 00:33:01 +00:00"
+      }
+    },
+    {
+      "keyword": "ai for file management",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 07:39:34 +00:00",
+        "competition": 0.86,
+        "competition_level": "HIGH",
+        "search_volume": 20,
+        "low_top_of_page_bid": 9.18,
+        "high_top_of_page_bid": 23.19,
+        "categories": [
+          10019,
+          10168,
+          12156
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 20,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 40,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai file manager",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 19,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 02:03:02 +00:00"
+      }
+    },
+    {
+      "keyword": "ai for knowledge workers",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 15:47:37 +00:00",
+        "competition": 0.62,
+        "competition_level": "MEDIUM",
+        "search_volume": 10,
+        "low_top_of_page_bid": 14.03,
+        "high_top_of_page_bid": 35,
+        "categories": [
+          10019,
+          10168,
+          10882
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai knowledge workers",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 09:24:28 +00:00"
+      }
+    },
+    {
+      "keyword": "ai for large documents",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 05:09:51 +00:00",
+        "competition": 0.86,
+        "competition_level": "HIGH",
+        "search_volume": 10,
+        "low_top_of_page_bid": 5,
+        "high_top_of_page_bid": 42.94,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 09:24:28 +00:00"
+      }
+    },
+    {
+      "keyword": "ai knowledge base",
+      "keyword_info": {
+        "last_updated_time": "2026-09-15 20:42:36 +00:00",
+        "competition": 0.43,
+        "competition_level": "MEDIUM",
+        "cpc": 61.34,
+        "search_volume": 880,
+        "low_top_of_page_bid": 10.86,
+        "high_top_of_page_bid": 52.8,
+        "categories": [
+          10019,
+          10168,
+          10882
+        ],
+        "monthly_searches": {
+          "2026-08": 720,
+          "2026-07": 880,
+          "2026-06": 720,
+          "2026-05": 880,
+          "2026-04": 1000,
+          "2026-03": 1000,
+          "2026-02": 720,
+          "2026-01": 720,
+          "2025-12": 590,
+          "2025-11": 880,
+          "2025-10": 880,
+          "2025-09": 1300
+        },
+        "search_volume_trend": {
+          "monthly": -18,
+          "yearly": -18
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 28,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20knowledge%20base&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 135,
+        "last_updated_time": "2026-09-06 08:42:49 +00:00",
+        "previous_updated_time": "2026-06-30 23:05:25 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 5087.9,
+        "dofollow": 3795.2,
+        "referring_pages": 4463.7,
+        "referring_domains": 340.1,
+        "referring_main_domains": 267.7,
+        "rank": 173.8,
+        "main_domain_rank": 578.1,
+        "last_updated_time": "2026-09-06 08:42:50 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-28 23:51:59 +00:00"
+      }
+    },
+    {
+      "keyword": "ai knowledge base software",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 19:17:00 +00:00",
+        "competition": 0.1,
+        "competition_level": "LOW",
+        "cpc": 53.59,
+        "search_volume": 140,
+        "low_top_of_page_bid": 27.01,
+        "high_top_of_page_bid": 70,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 110,
+          "2026-07": 140,
+          "2026-06": 210,
+          "2026-05": 90,
+          "2026-04": 140,
+          "2026-03": 260,
+          "2026-02": 210,
+          "2026-01": 210,
+          "2025-12": 50,
+          "2025-11": 40,
+          "2025-10": 90,
+          "2025-09": 70
+        },
+        "search_volume_trend": {
+          "monthly": -21,
+          "quarterly": -48
+        }
+      },
+      "keyword_properties": {
+        "keyword_difficulty": 36,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20knowledge%20base%20software&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 127,
+        "last_updated_time": "2026-09-16 07:23:36 +00:00",
+        "previous_updated_time": "2026-07-12 01:32:31 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 5039.1,
+        "dofollow": 3787.2,
+        "referring_pages": 4405.9,
+        "referring_domains": 325,
+        "referring_main_domains": 267,
+        "rank": 209.1,
+        "main_domain_rank": 577.6,
+        "last_updated_time": "2026-09-16 07:23:45 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 14:27:44 +00:00"
+      }
+    },
+    {
+      "keyword": "ai that reads documents",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 21:10:10 +00:00",
+        "competition": 0.76,
+        "competition_level": "HIGH",
+        "cpc": 9.47,
+        "search_volume": 10,
+        "low_top_of_page_bid": 2.73,
+        "high_top_of_page_bid": 8.25,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 20,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 20,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "keyword_metrics",
+        "keyword_difficulty": 65,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20that%20reads%20documents&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 872000000,
+        "last_updated_time": "2025-12-24 23:15:09 +00:00",
+        "previous_updated_time": "2025-04-25 02:16:47 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 2661,
+        "dofollow": 1776.6,
+        "referring_pages": 2368.4,
+        "referring_domains": 430.3,
+        "referring_main_domains": 395.1,
+        "rank": 228.5,
+        "main_domain_rank": 424.3,
+        "last_updated_time": "2025-12-24 23:15:14 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 00:16:44 +00:00"
+      }
+    },
+    {
+      "keyword": "ai without cloud",
+      "keyword_info": {
+        "last_updated_time": "2026-06-13 07:20:27 +00:00",
+        "categories": [
+          10019,
+          10168,
+          12156
+        ]
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 01:28:53 +00:00"
+      }
+    },
+    {
+      "keyword": "ai workspace",
+      "keyword_info": {
+        "last_updated_time": "2026-09-15 08:06:52 +00:00",
+        "competition": 0.13,
+        "competition_level": "LOW",
+        "cpc": 17.86,
+        "search_volume": 2900,
+        "low_top_of_page_bid": 3.83,
+        "high_top_of_page_bid": 15.99,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 1300,
+          "2026-07": 1600,
+          "2026-06": 1600,
+          "2026-05": 2900,
+          "2026-04": 8100,
+          "2026-03": 6600,
+          "2026-02": 5400,
+          "2026-01": 1000,
+          "2025-12": 1900,
+          "2025-11": 480,
+          "2025-10": 320,
+          "2025-09": 320
+        },
+        "search_volume_trend": {
+          "monthly": -19,
+          "quarterly": -19,
+          "yearly": 306
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 12,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ai%20workspace&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 125,
+        "last_updated_time": "2026-09-04 13:54:11 +00:00",
+        "previous_updated_time": "2026-06-30 16:22:49 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 961.4,
+        "dofollow": 707.7,
+        "referring_pages": 795.5,
+        "referring_domains": 173.4,
+        "referring_main_domains": 158.3,
+        "rank": 108.2,
+        "main_domain_rank": 535,
+        "last_updated_time": "2026-09-04 13:54:12 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "foreign_intent": [
+          "navigational",
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 00:47:12 +00:00"
+      }
+    },
+    {
+      "keyword": "automate report writing",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 19:19:24 +00:00",
+        "competition": 0.13,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 06:42:04 +00:00"
+      }
+    },
+    {
+      "keyword": "chat with documents",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 18:37:29 +00:00",
+        "competition": 0.3,
+        "competition_level": "LOW",
+        "cpc": 6.09,
+        "search_volume": 40,
+        "low_top_of_page_bid": 2.3,
+        "high_top_of_page_bid": 9.93,
+        "categories": [
+          10007,
+          11499,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 20,
+          "2026-06": 20,
+          "2026-05": 10,
+          "2026-04": 20,
+          "2026-03": 20,
+          "2026-02": 30,
+          "2026-01": 20,
+          "2025-12": 20,
+          "2025-11": 50,
+          "2025-10": 30,
+          "2025-09": 210
+        },
+        "search_volume_trend": {
+          "monthly": -50,
+          "quarterly": -50,
+          "yearly": -75
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "chat document",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 31,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=chat%20with%20documents&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 129,
+        "last_updated_time": "2026-08-17 05:53:30 +00:00",
+        "previous_updated_time": "2026-06-06 03:09:10 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 67776.3,
+        "dofollow": 20246.2,
+        "referring_pages": 39980.1,
+        "referring_domains": 605.4,
+        "referring_main_domains": 546,
+        "rank": 179.9,
+        "main_domain_rank": 654.3,
+        "last_updated_time": "2026-08-17 05:53:32 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 06:57:00 +00:00"
+      }
+    },
+    {
+      "keyword": "chat with pdf",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 04:42:43 +00:00",
+        "competition": 0.24,
+        "competition_level": "LOW",
+        "cpc": 3.9,
+        "search_volume": 390,
+        "low_top_of_page_bid": 0.95,
+        "high_top_of_page_bid": 3.57,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 140,
+          "2026-07": 110,
+          "2026-06": 140,
+          "2026-05": 320,
+          "2026-04": 390,
+          "2026-03": 390,
+          "2026-02": 480,
+          "2026-01": 390,
+          "2025-12": 390,
+          "2025-11": 590,
+          "2025-10": 880,
+          "2025-09": 720
+        },
+        "search_volume_trend": {
+          "monthly": 27,
+          "yearly": -76
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "chatpdf",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 31,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=chat%20with%20pdf&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 130,
+        "last_updated_time": "2026-08-03 20:08:12 +00:00",
+        "previous_updated_time": "2026-05-21 17:17:58 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 5521,
+        "dofollow": 2752.9,
+        "referring_pages": 4979.2,
+        "referring_domains": 767.3,
+        "referring_main_domains": 668,
+        "rank": 198.6,
+        "main_domain_rank": 491.7,
+        "last_updated_time": "2026-08-03 20:09:31 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 05:04:13 +00:00"
+      }
+    },
+    {
+      "keyword": "chat with your data",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 03:35:52 +00:00",
+        "competition": 0.44,
+        "competition_level": "MEDIUM",
+        "cpc": 2.76,
+        "search_volume": 70,
+        "low_top_of_page_bid": 4.22,
+        "high_top_of_page_bid": 12,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 20,
+          "2026-07": 40,
+          "2026-06": 70,
+          "2026-05": 40,
+          "2026-04": 50,
+          "2026-03": 90,
+          "2026-02": 90,
+          "2026-01": 70,
+          "2025-12": 50,
+          "2025-11": 70,
+          "2025-10": 110,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "monthly": -50,
+          "quarterly": -71,
+          "yearly": -78
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 2,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=chat%20with%20your%20data&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "perspectives",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 119,
+        "last_updated_time": "2026-07-20 15:09:18 +00:00",
+        "previous_updated_time": "2026-05-05 16:59:25 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 47.2,
+        "dofollow": 36.4,
+        "referring_pages": 44,
+        "referring_domains": 13,
+        "referring_main_domains": 7.6,
+        "rank": 66,
+        "main_domain_rank": 494.7,
+        "last_updated_time": "2026-07-20 15:09:19 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-26 19:35:01 +00:00"
+      }
+    },
+    {
+      "keyword": "company knowledge base ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 06:27:54 +00:00",
+        "competition": 0.6,
+        "competition_level": "MEDIUM",
+        "cpc": 52.66,
+        "search_volume": 10,
+        "low_top_of_page_bid": 52.8,
+        "high_top_of_page_bid": 103.82,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-26 12:46:24 +00:00"
+      }
+    },
+    {
+      "keyword": "docs ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 15:57:55 +00:00",
+        "competition": 0.35,
+        "competition_level": "MEDIUM",
+        "cpc": 32.62,
+        "search_volume": 320,
+        "low_top_of_page_bid": 3.9,
+        "high_top_of_page_bid": 15.22,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 210,
+          "2026-07": 210,
+          "2026-06": 170,
+          "2026-05": 260,
+          "2026-04": 320,
+          "2026-03": 390,
+          "2026-02": 390,
+          "2026-01": 390,
+          "2025-12": 390,
+          "2025-11": 320,
+          "2025-10": 390,
+          "2025-09": 390
+        },
+        "search_volume_trend": {
+          "quarterly": 24,
+          "yearly": -56
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "aidocs",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 35,
+        "detected_language": "fr",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=docs%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 108,
+        "last_updated_time": "2026-09-09 09:13:39 +00:00",
+        "previous_updated_time": "2026-07-04 02:00:15 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 1333.3,
+        "dofollow": 801.3,
+        "referring_pages": 1115.1,
+        "referring_domains": 317.7,
+        "referring_main_domains": 267.6,
+        "rank": 203.9,
+        "main_domain_rank": 575.1,
+        "last_updated_time": "2026-09-09 09:13:39 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 15:12:03 +00:00"
+      }
+    },
+    {
+      "keyword": "document ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 17:04:29 +00:00",
+        "competition": 0.42,
+        "competition_level": "MEDIUM",
+        "cpc": 14.53,
+        "search_volume": 1900,
+        "low_top_of_page_bid": 4.02,
+        "high_top_of_page_bid": 20,
+        "categories": [
+          10016,
+          10141,
+          13828
+        ],
+        "monthly_searches": {
+          "2026-08": 1300,
+          "2026-07": 1300,
+          "2026-06": 1300,
+          "2026-05": 1600,
+          "2026-04": 1900,
+          "2026-03": 2400,
+          "2026-02": 1900,
+          "2026-01": 1900,
+          "2025-12": 1600,
+          "2025-11": 1900,
+          "2025-10": 2400,
+          "2025-09": 2400
+        },
+        "search_volume_trend": {
+          "yearly": -32
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai document",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 29,
+        "detected_language": "it",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=document%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "people_also_ask",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 162,
+        "last_updated_time": "2026-09-04 20:16:12 +00:00",
+        "previous_updated_time": "2026-06-30 16:51:48 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 443.1,
+        "dofollow": 198.5,
+        "referring_pages": 378.5,
+        "referring_domains": 149.5,
+        "referring_main_domains": 122.6,
+        "rank": 163.6,
+        "main_domain_rank": 640,
+        "last_updated_time": "2026-09-04 20:16:15 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-27 00:30:15 +00:00"
+      }
+    },
+    {
+      "keyword": "document management ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-15 04:56:59 +00:00",
+        "competition": 0.74,
+        "competition_level": "HIGH",
+        "cpc": 42.82,
+        "search_volume": 10,
+        "low_top_of_page_bid": 14.54,
+        "high_top_of_page_bid": 52.43,
+        "categories": [
+          10004,
+          10019,
+          10168,
+          10276,
+          10885,
+          11099,
+          12209,
+          12397
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai document manager",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 32,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 14:15:40 +00:00"
+      }
+    },
+    {
+      "keyword": "internal knowledge base ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 05:37:00 +00:00",
+        "competition": 0.57,
+        "competition_level": "MEDIUM",
+        "search_volume": 10,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-05-05 17:17:54 +00:00"
+      }
+    },
+    {
+      "keyword": "knowledge base ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-15 14:52:50 +00:00",
+        "competition": 0.43,
+        "competition_level": "MEDIUM",
+        "cpc": 61.34,
+        "search_volume": 880,
+        "low_top_of_page_bid": 10.86,
+        "high_top_of_page_bid": 52.8,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11272,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 720,
+          "2026-07": 880,
+          "2026-06": 720,
+          "2026-05": 880,
+          "2026-04": 1000,
+          "2026-03": 1000,
+          "2026-02": 720,
+          "2026-01": 720,
+          "2025-12": 590,
+          "2025-11": 880,
+          "2025-10": 880,
+          "2025-09": 1300
+        },
+        "search_volume_trend": {
+          "monthly": -18,
+          "yearly": -18
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai knowledge base",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 28,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=knowledge%20base%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "video",
+          "discussions_and_forums",
+          "related_searches"
+        ],
+        "se_results_count": 513000000,
+        "last_updated_time": "2026-03-15 23:33:31 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 3292.9,
+        "dofollow": 2826.7,
+        "referring_pages": 2977.4,
+        "referring_domains": 97.1,
+        "referring_main_domains": 78.5,
+        "rank": 120.6,
+        "main_domain_rank": 516.4,
+        "last_updated_time": "2026-03-15 23:33:31 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-28 12:11:13 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm business",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 23:36:12 +00:00",
+        "competition": 0.29,
+        "competition_level": "LOW",
+        "search_volume": 30,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 20,
+          "2026-03": 30,
+          "2026-02": 30,
+          "2026-01": 30,
+          "2025-12": 50,
+          "2025-11": 70,
+          "2025-10": 40,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "yearly": -67
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 47,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20business&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 107,
+        "last_updated_time": "2026-08-27 22:47:59 +00:00",
+        "previous_updated_time": "2026-05-14 16:39:00 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 21467.2,
+        "dofollow": 16438,
+        "referring_pages": 19159.6,
+        "referring_domains": 2302,
+        "referring_main_domains": 2123.3,
+        "rank": 239.3,
+        "main_domain_rank": 675.5,
+        "last_updated_time": "2026-08-27 22:48:01 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "foreign_intent": [
+          "navigational",
+          "commercial"
+        ],
+        "last_updated_time": "2026-04-29 15:44:57 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm data security",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 20:56:28 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12204,
+          13092
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "last_updated_time": "2026-04-30 09:34:26 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm enterprise",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 04:31:53 +00:00",
+        "competition": 0.16,
+        "competition_level": "LOW",
+        "cpc": 7.15,
+        "search_volume": 320,
+        "low_top_of_page_bid": 5.43,
+        "high_top_of_page_bid": 50.51,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 70,
+          "2026-07": 210,
+          "2026-06": 390,
+          "2026-05": 320,
+          "2026-04": 390,
+          "2026-03": 480,
+          "2026-02": 480,
+          "2026-01": 480,
+          "2025-12": 390,
+          "2025-11": 320,
+          "2025-10": 320,
+          "2025-09": 260
+        },
+        "search_volume_trend": {
+          "monthly": -67,
+          "quarterly": -82,
+          "yearly": -73
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 10,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20enterprise&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 105,
+        "last_updated_time": "2026-09-08 01:22:37 +00:00",
+        "previous_updated_time": "2026-07-04 02:15:49 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 46.6,
+        "dofollow": 32.3,
+        "referring_pages": 41.6,
+        "referring_domains": 26.7,
+        "referring_main_domains": 26.1,
+        "rank": 82.9,
+        "main_domain_rank": 678.1,
+        "last_updated_time": "2026-09-08 01:22:38 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 19:55:55 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm for business",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 17:22:33 +00:00",
+        "competition": 0.1,
+        "competition_level": "LOW",
+        "search_volume": 30,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 40,
+          "2026-05": 40,
+          "2026-04": 50,
+          "2026-03": 50,
+          "2026-02": 50,
+          "2026-01": 50,
+          "2025-12": 40,
+          "2025-11": 40,
+          "2025-10": 20,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "quarterly": -75,
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebooklm business",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 39,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20for%20business&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 109,
+        "last_updated_time": "2026-08-14 20:01:58 +00:00",
+        "previous_updated_time": "2026-06-07 15:44:52 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 11173.4,
+        "dofollow": 8806.7,
+        "referring_pages": 9875.3,
+        "referring_domains": 1309.3,
+        "referring_main_domains": 1210.4,
+        "rank": 209.9,
+        "main_domain_rank": 670.3,
+        "last_updated_time": "2026-08-14 20:02:31 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "foreign_intent": [
+          "commercial"
+        ],
+        "last_updated_time": "2026-04-29 18:35:14 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm for lawyers",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 05:20:52 +00:00",
+        "competition": 0.5,
+        "competition_level": "MEDIUM",
+        "search_volume": 10,
+        "categories": [
+          10018,
+          10163,
+          13686
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 20,
+          "2026-03": 30,
+          "2026-02": 20,
+          "2026-01": 20,
+          "2025-12": 20,
+          "2025-11": 30,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm for lawyers",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-03 16:36:01 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm for research",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 19:11:03 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "cpc": 7.63,
+        "search_volume": 50,
+        "low_top_of_page_bid": 2.87,
+        "high_top_of_page_bid": 8.67,
+        "categories": [
+          10004,
+          10294,
+          11253
+        ],
+        "monthly_searches": {
+          "2026-08": 110,
+          "2026-07": 40,
+          "2026-06": 30,
+          "2026-05": 40,
+          "2026-04": 40,
+          "2026-03": 50,
+          "2026-02": 40,
+          "2026-01": 140,
+          "2025-12": 30,
+          "2025-11": 30,
+          "2025-10": 20,
+          "2025-09": 30
+        },
+        "search_volume_trend": {
+          "monthly": 175,
+          "quarterly": 267,
+          "yearly": 450
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 24,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20for%20research&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "people_also_ask",
+          "scholarly_articles",
+          "related_searches"
+        ],
+        "se_results_count": 106,
+        "last_updated_time": "2026-07-27 13:07:03 +00:00",
+        "previous_updated_time": "2026-05-28 15:53:48 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 10762.3,
+        "dofollow": 8583.1,
+        "referring_pages": 9642.8,
+        "referring_domains": 1305.7,
+        "referring_main_domains": 1191.9,
+        "rank": 153.8,
+        "main_domain_rank": 578.6,
+        "last_updated_time": "2026-07-27 13:07:04 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "commercial"
+        ],
+        "last_updated_time": "2026-05-05 00:46:51 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm for work",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 07:15:40 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10019
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "last_updated_time": "2026-05-03 19:40:42 +00:00"
+      }
+    },
+    {
+      "keyword": "personal knowledge management ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 04:13:54 +00:00",
+        "competition": 0.01,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10002,
+          10231,
+          13703
+        ],
+        "monthly_searches": {
+          "2026-08": 20,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "monthly": 100,
+          "quarterly": 100
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-08 11:21:46 +00:00"
+      }
+    },
+    {
+      "keyword": "private ai for business",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 17:57:54 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 1600,
+        "low_top_of_page_bid": 11.08,
+        "high_top_of_page_bid": 24.61,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 12100,
+          "2026-07": 5400,
+          "2026-06": 1900,
+          "2026-05": 50,
+          "2026-04": 260,
+          "2026-03": 210,
+          "2026-02": 40,
+          "2026-01": 10,
+          "2025-12": 20,
+          "2025-11": 10,
+          "2025-10": 20,
+          "2025-09": 30
+        },
+        "search_volume_trend": {
+          "monthly": 124,
+          "quarterly": 537,
+          "yearly": 60400
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=private%20ai%20for%20business&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "discussions_and_forums",
+          "video",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 118,
+        "last_updated_time": "2026-08-09 23:52:09 +00:00",
+        "previous_updated_time": "2026-05-11 14:32:09 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 4.7,
+        "dofollow": 2.7,
+        "referring_pages": 3.5,
+        "referring_domains": 2.9,
+        "referring_main_domains": 2.9,
+        "rank": 47.5,
+        "main_domain_rank": 451,
+        "last_updated_time": "2026-08-09 23:52:15 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-04-29 19:49:44 +00:00"
+      }
+    },
+    {
+      "keyword": "secure ai for business",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 23:30:18 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 2900,
+        "low_top_of_page_bid": 14.82,
+        "high_top_of_page_bid": 44.69,
+        "categories": [
+          10019,
+          10168,
+          10296,
+          10885,
+          11274,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 27100,
+          "2026-07": 8100,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 20,
+          "2026-03": 10,
+          "2026-02": 320,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "monthly": 235,
+          "quarterly": 270900,
+          "yearly": 270900
+        }
+      },
+      "keyword_properties": {
+        "keyword_difficulty": 16,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=secure%20ai%20for%20business&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 127,
+        "last_updated_time": "2026-08-14 12:45:37 +00:00",
+        "previous_updated_time": "2026-05-11 11:30:02 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 1200.5,
+        "dofollow": 1100.9,
+        "referring_pages": 1152,
+        "referring_domains": 68,
+        "referring_main_domains": 52.6,
+        "rank": 122,
+        "main_domain_rank": 561.2,
+        "last_updated_time": "2026-08-14 12:46:46 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-03 12:04:39 +00:00"
+      }
+    },
+    {
+      "keyword": "talk to your documents",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 04:44:31 +00:00",
+        "competition": 0.57,
+        "competition_level": "MEDIUM",
+        "search_volume": 10,
+        "categories": [
+          10004,
+          10276,
+          11099,
+          12397
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 22:07:57 +00:00"
+      }
+    },
+    {
+      "keyword": "upload pdf to ai",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 14:12:46 +00:00",
+        "competition": 0.6,
+        "competition_level": "MEDIUM",
+        "cpc": 5.8,
+        "search_volume": 20,
+        "low_top_of_page_bid": 1.68,
+        "high_top_of_page_bid": 6.51,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 20,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 30,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 20,
+          "2025-09": 30
+        },
+        "search_volume_trend": {
+          "quarterly": -50,
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ai with pdf upload",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 64,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=upload%20pdf%20to%20ai&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 790000000,
+        "last_updated_time": "2026-04-16 23:23:25 +00:00",
+        "previous_updated_time": "2026-02-27 05:06:39 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 11716.7,
+        "dofollow": 8067.4,
+        "referring_pages": 10948.6,
+        "referring_domains": 831.2,
+        "referring_main_domains": 733.8,
+        "rank": 253.2,
+        "main_domain_rank": 495.2,
+        "last_updated_time": "2026-04-16 23:23:32 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-30 02:14:04 +00:00"
+      }
+    }
+  ]
+}

@@ -85,6 +85,18 @@ repo, the launch coverage, the blog and brand search.
 | tertiary | local notebooklm | 90 | 19 | |
 | tertiary | best local ai | 720 | 5 | |
 | tertiary | private ai assistant | 210 | 10 | |
+| secondary | private ai for business | — | — | **added 17 Sep**; 1,900 → 5,400 → 12,100 over three months |
+| tertiary | best ai for business | 1000 | 14 | **$52.85**, the highest CPC on this page |
+| tertiary | ai workspace | 1600 | 12 | $17.86; peaked Apr 2026 |
+
+**The business qualifier, added 17 Sep 2026.** The privacy cluster this page
+already owns has grown a business-qualified branch — `private ai for business`
+is the clearest of them, with three months of growth behind it
+([`07-what-users-do.md`](07-what-users-do.md)). This is a **copy change, not a
+new page**: the same claim, addressed to someone spending company money. H2 1
+below says "runs entirely on your machine"; it should say who that protects.
+Production chat says the reader is a lawyer, an accountant, a consultant or an
+engineer far more often than a student, by about 1.8 to 1.
 
 - **Title:** `Air-Gapped, Open Source NotebookLM Alternative | SurfSense` (58)
 - **Meta:** `A private, self-hosted NotebookLM alternative that runs air-gapped on your own machine. Your documents, your model keys, no cloud, no account.` (142)
@@ -104,6 +116,10 @@ repo, the launch coverage, the blog and brand search.
   6. *Open source, audit it yourself* — links to the repo
   7. *Private by construction* — one paragraph on why "nothing leaves the
      machine" matters after *US v. Heppner*; links to the compliance page
+  8. *For confidential work* — names the professions (legal, accounting,
+     consulting, engineering), carries `private ai for business`, and links the
+     deliverables page. One paragraph, not a section; the deliverables page is
+     where that argument is made in full.
 - **FAQ block** (also the `FAQPage` schema), taken from the PAA boxes in `05`:
   *Can I self-host an AI?* · *Is there an AI I can use without internet?* ·
   *Can I run NotebookLM locally?* · *Is there an open-source alternative to
@@ -393,17 +409,87 @@ cloud TTS.
 - State plainly that generation runs locally with no cloud TTS and no
   per-minute cost. That sentence is the whole differentiator, and it is the
   one the incumbent's page does not make.
+- **Lead with the briefing use, not the study use.** The most common podcast
+  request in production chat is a work artefact — "Executive Briefing Podcast",
+  a French-language briefing on a policy document, a twenty-minute internal
+  explainer — not revision audio. One H2, *Turn a report into a briefing your
+  team will actually listen to*, carries that reader; the study framing stays
+  as a second H2 and links the hub.
 - An H2 for *NotebookLM Audio Overview, offline*: the KD 5 term, and the
   feature name people know.
 - Note the current gap honestly in any copy claiming formats: the podcast
   builder emits **WAV, not MP3**, with no ffmpeg bundled (see the pivot plan's
   C5 status). Do not promise MP3 until it ships.
 
+### Confidential documents into deliverables — the cross-cutting page
+
+**The most important page in this set, and the one that did not exist before
+17 Sep 2026.** Production chat says the single most common job is turning a
+document you already have into a professional artefact, and that professional
+work outruns study by about 1.8 to 1 among users who state a task
+([`07-what-users-do.md`](07-what-users-do.md)). Every Studio page below was
+written for a student; this page is written for the person doing it for money.
+
+It cannot be titled for the job, because the literal phrasings are unsearched
+(`pdf to presentation` 110, `document to presentation` 10). It is titled for the
+**fear**, which is where the volume and the $30-67 clicks are.
+
+| role | keyword | volume | kd | cpc | trajectory |
+|---|---|---|---|---|---|
+| primary | private ai for business | 1600 | — | — | 1,900 → 5,400 → 12,100 |
+| primary | ai workspace | 2900 | **12** | 17.86 | peaked Apr 2026, now 1,300-1,600 |
+| secondary | ai knowledge base | 880 | 28 | **61.34** | stable 590-1,300 |
+| secondary | ai for lawyers | 2400 | 30 | **55.59** | stable, −17% |
+| secondary | ai for accountants | 6600 | 29 | **36.40** | stable, −18% |
+| secondary | ai contract review | 880 | 19 | **66.60** | stable, +14% |
+| secondary | ai for compliance | 480 | 22 | **66.03** | 1,000 → 1,900 → 1,600 |
+| candidate | secure ai for business | 2900 | **16** | — | 10 → 8,100 → 27,100 |
+| candidate | ai for professional services | 210 | **2** | **64.86** | top 10 averages 6.1 referring domains |
+| candidate | ai for consultants | 210 | 26 | 31.36 | 390 → 1,300 |
+
+Volumes are the 12-month average; the trajectory column replaces `recent`, which
+`parse.py` caps at that average and which therefore understates every ramping
+term in this table. Reproduce with `python parse.py keyword-overview-deliverable.json`.
+
+- **Title:** `Private AI for Business — Your Documents Never Leave Your Laptop` (60)
+- **H1:** `Turn confidential documents into decks, reports and briefings — offline`
+- **First paragraph, and it is the whole argument:** you have the file already;
+  the deliverable comes out on your machine; nothing is uploaded, so there is no
+  vendor copy and nothing for anyone to subpoena. That last clause is a factual
+  statement about where bytes are, not a compliance claim — see the compliance
+  page's rule, which applies here verbatim.
+- **H2s are the professions**, which is how the vertical vocabulary gets caught
+  without ten vertical pages: *For lawyers and legal teams* · *For accountants
+  and auditors* · *For consultants and analysts*. Each is one short paragraph
+  naming a real artefact from that profession — an indexed evidence bundle, a
+  reconciliation summary, a client-ready deck — not a landing page in miniature.
+- **An H2 per output**, linking the format pages: deck, report, briefing
+  podcast, infographic, one-page summary.
+- **The four candidate rows are not the plan.** `secure ai for business` went
+  10 → 8,100 → 27,100 in two months and may be a news artefact; `ai for
+  professional services` is KD 2 against a top 10 averaging **6.1 referring
+  domains**, which is either a free position or a term nobody wants. Re-pull all
+  four before they earn body copy; until then they are H2 candidates at most.
+- **Do not** target `chat with pdf` (390, −76%), `talk to your documents` (10),
+  or `notebooklm for business` (30). All three are recorded as dead in
+  [`07`](07-what-users-do.md) so nobody re-proposes them.
+
 ### The other Studio outputs — a hub and three feature pages
 
 The app ships eleven more formats (`01`, section 3). Demand says: one hub
 page for the study-guide job, three feature pages (flashcards, quiz, slides)
-and H2s or docs pages for the rest. Two rules apply to all of them:
+and H2s or docs pages for the rest.
+
+**Framing, changed 17 Sep 2026.** These pages target real demand and keep their
+keywords, but study is now **one seasonal page, not the frame**. The same
+builders serve the deliverable page above, which is the primary audience; the
+study hub is the secondary one, and it is worth keeping precisely because its
+season (2-5x in term time) is counter-cyclical to nothing else here and its
+terms are cheap at KD 6-10. Where a format serves both readers — slides,
+summary, infographic — the professional framing leads and the study framing is
+an H2, not the reverse.
+
+Two rules apply to all of them:
 
 - **Timing.** Study demand peaks in September-October and March-April and
   bottoms in June-August; October 2025 was the record month for every study
@@ -437,8 +523,9 @@ promises ("AI Study Guide Maker From Notes and PDFs", RemNote).
 - **Title:** `Study Guide Maker from Your Notes and PDFs — Free, Offline` (58)
 - **H1:** `Turn your notes and PDFs into a study guide, flashcards and a quiz`
 - First paragraph: what comes out (a summary, a flashcard deck, a practice
-  quiz), from what (PDFs, slides, YouTube lectures, web pages), where (on
-  your laptop), for how much (free). Those four facts are the AI Overview's
+  quiz), from what (**PDFs, Word files, slides and spreadsheets you already
+  have** — not YouTube lectures or web pages, neither of which the local app
+  can ingest), where (on your laptop), for how much (free). Those four facts are the AI Overview's
   citation material; the Overview on this SERP quotes Quizlet, StudyFetch,
   Scribe and Penseum saying exactly those things about themselves.
 - H2s from the PAA, in order: *Can AI create study guides from PDFs?* ·
@@ -540,9 +627,11 @@ KD 15; `präsentation erstellen ki` 5,400 at KD 11).
   *NotebookLM infographic, offline* (`notebooklm infographic` 210, KD 10~,
   +800%; 880 in Japan). A page of its own when the branded term holds a
   second season; the generic heads are KD 45 and Venngage's.
-- **Summary**: no page. An H2 on the sources page for the YouTube forms
-  (`youtube video summarizer` 4,400 recent, KD 30; `summarize youtube video`
-  1,900, KD 26) and the first line of the study-guide bundle.
+- **Summary**: no page, and **no YouTube H2** — the local app cannot ingest
+  YouTube, so `youtube video summarizer` (4,400 recent, KD 30) and `summarize
+  youtube video` (1,900, KD 26) are unreachable until a builder ships. Summary
+  survives only as the first line of the study-guide bundle. See the correction
+  in [`01`](01-keyword-research.md) and in [`07`](07-what-users-do.md).
 - **Report (DOCX)**: a docs page, and the blog post *Literature review with
   AI, from your own papers* (`literature review ai` 720, KD 17, $8.46).
 - **Spreadsheet (XLSX)**: a docs page titled *Extract tables from your PDFs

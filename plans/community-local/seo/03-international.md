@@ -237,6 +237,43 @@ to translate. Tier 3 when the downloads page is stable, since that is the page
 that carries those markets. None of this is a launch blocker; the US pages
 ship first per `00d`.
 
+### Checked against our own users, 17 Sep 2026 — and Brazil moves up
+
+Production chat is **majority non-English**: 18% of thread titles and 21% of
+user queries contain non-Latin script before counting Spanish, Portuguese and
+French ([`07-what-users-do.md`](07-what-users-do.md)). That looks like an
+argument for localising sooner, so the professional terms were re-pulled in
+Spain, Mexico and Brazil to test it. **It is not**, and the US-first conclusion
+above survives intact:
+
+| market | best professional term | volume | kd | cpc |
+|---|---|---|---|---|
+| US (`en`) | ai for lawyers | 2400 | 30 | **55.59** |
+| Spain (`es`) | ia para abogados | 390 | 15 | 5.34 |
+| Mexico (`es`) | ia para abogados | 480 | **1** | 1.43 |
+| Brazil (`pt`) | criar apresentação com ia | 2900 | **7** | 1.66 |
+
+An order of magnitude less volume and a twentieth of the click value. **Users
+are not searchers, and searchers are not buyers** — a global free-desktop
+audience does not imply global commercial demand, and this is the cleanest
+evidence in the folder for that distinction.
+
+One change does follow. **Brazil moves to the front of Tier 3**, ahead of France
+and Spain, on cost-to-win rather than market size:
+
+| keyword | volume | trend | referring domains in top 10 |
+|---|---|---|---|
+| ia local | 480 | **+614%** | **1.2** |
+| ia offline | 390 | **+182%** | **0.3** |
+| ia para documentos | 210 | +191% | 24.7 |
+| notebooklm em português | 1600 | +53% | 1,057 |
+
+A top-10 averaging 0.3 referring domains is an empty SERP on a term growing
+182% a year. That is the cheapest position in this entire research, and it costs
+one translated page — `/pt-br/` was already Tier 3, so this is a reordering, not
+a new commitment. Mexico and Brazil are not archived; see
+[`data/README.md`](data/README.md#not-saved-here).
+
 ## Per-market notes
 
 **United States.** Covered in `01` and `02`. The one international caveat: the
