@@ -86,7 +86,7 @@ export const PLANS: Plan[] = [
 		],
 		action: [
 			{ label: "Buy a licence", href: BUY_INDIVIDUAL_URL, external: true, primary: true },
-			{ label: "Start a trial", href: LICENSE_URL },
+			{ label: "Start a 30-day trial", href: LICENSE_URL },
 		],
 		featured: true,
 	},

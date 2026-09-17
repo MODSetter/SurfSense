@@ -204,7 +204,9 @@ export function ResendDisclosure() {
 	);
 }
 
-export function TrialForm() {
+const TRIAL_NOTE = "One trial per email address. We will send the license file to your inbox.";
+
+export function TrialForm({ note = TRIAL_NOTE }: { note?: string } = {}) {
 	const id = useId();
 	const [email, setEmail] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -251,7 +253,7 @@ export function TrialForm() {
 	}
 
 	return (
-		<div className="mt-10 flex flex-col items-center gap-3">
+		<div className="mt-10 flex flex-col items-center gap-5">
 			<form onSubmit={handleSubmit} className="flex items-center gap-2">
 				<InlineEmailField id={`trial-email-${id}`} value={email} onChange={setEmail} />
 				<HomeButton type="submit" size="xl" disabled={busy} className="relative shrink-0">
@@ -261,12 +263,12 @@ export function TrialForm() {
 			</form>
 			<p
 				className={
-					outcome?.kind === "error" ? "text-sm text-destructive" : "ss-home-body text-sm"
+					outcome?.kind === "error"
+						? "max-w-sm text-sm text-destructive"
+						: "ss-home-body max-w-sm text-sm"
 				}
 			>
-				{outcome
-					? outcome.message
-					: "One trial per email address. We will send the license file to your inbox."}
+				{outcome ? outcome.message : note}
 			</p>
 		</div>
 	);
