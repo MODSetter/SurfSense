@@ -390,7 +390,7 @@ export function ArtifactList({
       <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2">
         <h3
           id="all-artifacts"
-          className="px-1 text-xs font-medium text-muted-foreground"
+          className="px-1 text-sm font-medium text-muted-foreground"
         >
           Artifacts
         </h3>

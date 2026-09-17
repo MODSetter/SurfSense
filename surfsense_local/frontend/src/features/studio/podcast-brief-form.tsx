@@ -1,9 +1,9 @@
-import { useId, type ComponentProps } from "react"
+import { useId } from "react"
 
 import { Button } from "@/components/ui/button"
 import { PlusIcon, Trash2Icon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
-import { cn } from "@/lib/utils"
+import { Select } from "@/components/ui/select"
 
 import {
   MAX_SPEAKERS,
@@ -233,17 +233,5 @@ function Field({
       </label>
       {children}
     </div>
-  )
-}
-
-function Select({ className, ...props }: ComponentProps<"select">) {
-  return (
-    <select
-      className={cn(
-        "h-8 w-full min-w-0 rounded-lg border border-input bg-transparent px-2 text-sm outline-none focus-visible:border-ring/70 disabled:opacity-50 dark:bg-input/30",
-        className
-      )}
-      {...props}
-    />
   )
 }
