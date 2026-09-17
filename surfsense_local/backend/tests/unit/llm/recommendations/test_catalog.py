@@ -230,6 +230,54 @@ async def test_installed_models_are_authoritative_and_not_duplicated() -> None:
     assert result.installed[0].can_delete is True
 
 
+async def test_unscanned_hf_co_install_shows_a_clean_name() -> None:
+    """The placeholder fallback strips `hf.co/` and the tag, keeps the repo."""
+    runtime = Runtime(
+        [
+            InstalledModel(
+                "ollama",
+                "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest",
+                ("completion",),
+                None,
+            )
+        ]
+    )
+    service = CatalogService(
+        Advisor(()),  # no scan match at all — this is the placeholder path
+        [runtime],
+        _manifest(),
+        max_context=8192,
+        reserve_gb=2,
+    )
+
+    result = await service.catalog(selected=None)
+
+    assert len(result.installed) == 1
+    row = result.installed[0]
+    assert row.label == "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
+    assert row.runtime_model == (
+        "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest"
+    )
+
+
+async def test_unscanned_native_install_keeps_its_tag() -> None:
+    """A native Ollama name's tag is size/variant, not noise — kept as-is."""
+    runtime = Runtime(
+        [InstalledModel("ollama", "llama3.2:1b", ("completion",), None)]
+    )
+    service = CatalogService(
+        Advisor(()),
+        [runtime],
+        _manifest(),
+        max_context=8192,
+        reserve_gb=2,
+    )
+
+    result = await service.catalog(selected=None)
+
+    assert result.installed[0].label == "llama3.2:1b"
+
+
 async def test_embedding_only_installed_models_stay_out_of_generation_catalog() -> None:
     """An external Ollama embedding model is not a chat model."""
     runtime = Runtime(

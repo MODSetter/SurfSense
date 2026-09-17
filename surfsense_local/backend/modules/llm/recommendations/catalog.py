@@ -269,11 +269,12 @@ class CatalogService:
         for key, local_model in installed_by_key.items():
             if key in matched_installed or "completion" not in local_model.capabilities:
                 continue
+            display_name = clean_runtime_name(key[1])
             installed.append(
                 self._placeholder_row(
                     canonical_id=f"{key[0]}:{key[1]}",
-                    family=key[1].split(":", 1)[0],
-                    label=key[1],
+                    family=display_name.split(":", 1)[0],
+                    label=display_name,
                     parameter_count=None,
                     runtime=key[0],
                     runtime_model=key[1],
@@ -561,6 +562,23 @@ def _synthetic_curated_model(
         gguf_sources=(),
         ollama_quantization=ollama.quantization if ollama is not None else None,
     )
+
+
+def clean_runtime_name(model_name: str) -> str:
+    """A runtime's own model name, minus what's only meaningful to it.
+
+    A native Ollama library name (`llama3.2:1b`) is already a name a person
+    picked — shown as-is, tag included, since the tag is the size/variant,
+    not noise. An `hf.co/<repo>[:<tag>]` fallback pull (built in
+    `llmfit.py` for a model Ollama's own library doesn't have) is different:
+    `hf.co/` only says where it came from, and the tag is either a
+    throwaway `:latest` or a quant code — neither means anything to a
+    person looking at a model list. Stripped down to `<provider>/<repo>`,
+    it still names who published it, just not through a URL.
+    """
+    if not model_name.startswith("hf.co/"):
+        return model_name
+    return model_name.removeprefix("hf.co/").split(":", 1)[0]
 
 
 def _is_embedding(model: ScoredModel) -> bool:

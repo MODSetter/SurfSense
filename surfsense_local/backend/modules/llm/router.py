@@ -17,6 +17,7 @@ from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, provider_names
 from modules.llm.providers.protocols import ModelStore
 from modules.llm.providers.sdcpp import provider as sdcpp
+from modules.llm.recommendations.catalog import clean_runtime_name
 from modules.llm.recommendations.dependencies import CatalogServiceDep
 from modules.llm.recommendations.router import router as recommendations_router
 from modules.llm.schemas import (
@@ -95,7 +96,11 @@ async def list_models(
             name=model.name,
             installed=model.installed,
             capabilities=list(model.capabilities),
-            display_name=model.display_name or display_names.get(model.name),
+            display_name=(
+                model.display_name
+                or display_names.get(model.name)
+                or clean_runtime_name(model.name)
+            ),
         )
         for model in await provider.models()
     ]

@@ -38,6 +38,26 @@ async def test_installed_models_carry_their_capabilities(
     assert "tools" in body[0]["capabilities"]
 
 
+async def test_unscanned_hf_co_model_gets_a_clean_display_name(
+    client: AsyncClient, ollama_server: str
+) -> None:
+    """No scan has resolved this model yet, so the route's own fallback
+    must clean the raw `hf.co/...` pull name itself, not just pass it
+    through — this is what the "Chat: ..." summary elsewhere reads."""
+    from tests.integration.llm.conftest import INSTALLED
+
+    INSTALLED.append("hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest")
+
+    body = (await client.get("/llm/providers/ollama/models")).json()
+
+    entry = next(
+        model
+        for model in body
+        if model["name"] == "hf.co/bartowski/Meta-Llama-3.1-8B-Instruct-GGUF:latest"
+    )
+    assert entry["display_name"] == "bartowski/Meta-Llama-3.1-8B-Instruct-GGUF"
+
+
 async def test_the_catalog_marks_what_is_installed(
     client: AsyncClient, ollama_server: str
 ) -> None:
@@ -121,6 +141,7 @@ async def test_selecting_a_chat_model_does_not_complete_onboarding(
 async def test_onboarding_cannot_complete_without_a_chat_model(
     client: AsyncClient,
 ) -> None:
+    """Onboarding needs a chat model chosen before it can finish."""
     reply = await client.post("/llm/onboarding")
     assert reply.status_code == 422
     assert (await client.get("/llm/onboarding")).json() == {"completed": False}
