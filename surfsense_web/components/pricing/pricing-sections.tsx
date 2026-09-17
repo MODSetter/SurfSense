@@ -99,16 +99,23 @@ function PlanCell({ plan }: { plan: Plan }) {
 				{/* Pushed to the foot of the head, which subgrid holds to a common
 				    height across the three tiers, so the buttons sit on one line
 				    however each summary wraps. */}
-				<div className="mt-auto pt-6">
-					<HomeButton asChild size="lg" variant={plan.featured ? "default" : "secondary"}>
-						{plan.action.external ? (
-							<a href={plan.action.href} target="_blank" rel="noreferrer noopener">
-								{plan.action.label}
-							</a>
-						) : (
-							<Link href={plan.action.href}>{plan.action.label}</Link>
-						)}
-					</HomeButton>
+				<div className="mt-auto space-x-4 pt-6">
+					{plan.action.map((action) => (
+						<HomeButton
+							key={action.label}
+							asChild
+							size="lg"
+							variant={action.primary ? "default" : "outline"}
+						>
+							{action.external ? (
+								<a href={action.href} target="_blank" rel="noreferrer noopener">
+									{action.label}
+								</a>
+							) : (
+								<Link href={action.href}>{action.label}</Link>
+							)}
+						</HomeButton>
+					))}
 				</div>
 			</div>
 
