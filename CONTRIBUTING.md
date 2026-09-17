@@ -8,14 +8,16 @@ Questions: [Discord](https://discord.gg/ejRNvftDp9) or [Discussions](https://git
 
 ## Getting set up
 
-This repo holds four products. You can clone all of it, then only run the tree you are changing — that is usually enough for a first PR.
+This repo holds four products. Clone it once, then open the README for the product you want to change. You do not need to run the other three.
 
-| Tree | Setup |
-|------|--------|
-| [`surfsense_local/`](surfsense_local/README.md) | Desktop app |
-| [`surfsense_mcp/`](surfsense_mcp/README.md) | MCP server (often the lightest first PR) |
-| `surfsense_backend/` | Scraper API / self-host backend |
-| `surfsense_web/` | Self-host web UI (`pnpm`, not npm) |
+| If you want to work on | Open |
+|------------------------|------|
+| Desktop app | [`surfsense_local/README.md`](surfsense_local/README.md) |
+| MCP server | [`surfsense_mcp/README.md`](surfsense_mcp/README.md) |
+| API / scrapers | [`surfsense_backend/README.md`](surfsense_backend/README.md) |
+| Self-host web UI | [`surfsense_web/README.md`](surfsense_web/README.md) |
+
+The web UI needs the API running. Desktop does not. MCP talks to any backend over HTTP.
 
 ```bash
 git clone https://github.com/<you>/SurfSense.git
