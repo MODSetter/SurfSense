@@ -32,6 +32,12 @@ function isTheme(value: string | null): value is Theme {
   return THEME_VALUES.includes(value as Theme)
 }
 
+function syncMainProcessTheme(theme: Theme) {
+  // Lets main pick a matching BrowserWindow backgroundColor, so the next
+  // reload/launch doesn't flash the wrong theme before this effect can run.
+  void window.surfsense?.theme?.set(theme)
+}
+
 function syncTitleBarOverlay(theme: ResolvedTheme) {
   const platform = window.surfsense?.platform
   if (platform !== "win32" && platform !== "linux") {
@@ -45,11 +51,15 @@ function syncTitleBarOverlay(theme: ResolvedTheme) {
 }
 
 function getSystemTheme(): ResolvedTheme {
-  if (window.matchMedia(COLOR_SCHEME_QUERY).matches) {
-    return "dark"
+  // nativeTheme (main process) is authoritative when running in Electron;
+  // matchMedia is only a fallback for environments without the bridge
+  // (tests, a bare `vite` preview outside the app shell).
+  const fromMain = window.surfsense?.theme?.getSystemTheme?.()
+  if (fromMain === "dark" || fromMain === "light") {
+    return fromMain
   }
 
-  return "light"
+  return window.matchMedia(COLOR_SCHEME_QUERY).matches ? "dark" : "light"
 }
 
 function disableTransitionsTemporarily() {
@@ -126,6 +136,7 @@ export function ThemeProvider({
       root.classList.remove("light", "dark")
       root.classList.add(resolvedTheme)
       syncTitleBarOverlay(resolvedTheme)
+      syncMainProcessTheme(nextTheme)
 
       if (restoreTransitions) {
         restoreTransitions()
@@ -141,11 +152,16 @@ export function ThemeProvider({
       return undefined
     }
 
-    const mediaQuery = window.matchMedia(COLOR_SCHEME_QUERY)
     const handleChange = () => {
       applyTheme("system")
     }
 
+    const onSystemThemeChange = window.surfsense?.theme?.onSystemThemeChange
+    if (onSystemThemeChange) {
+      return onSystemThemeChange(handleChange)
+    }
+
+    const mediaQuery = window.matchMedia(COLOR_SCHEME_QUERY)
     mediaQuery.addEventListener("change", handleChange)
 
     return () => {

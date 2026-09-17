@@ -25,6 +25,13 @@ declare global {
         symbolColor: string
       }) => Promise<void>
       openExternal?: (url: string) => Promise<void>
+      theme?: {
+        set: (theme: "dark" | "light" | "system") => Promise<void>
+        getSystemTheme: () => "dark" | "light"
+        onSystemThemeChange: (
+          listener: (theme: "dark" | "light") => void
+        ) => () => void
+      }
     }
   }
 }
