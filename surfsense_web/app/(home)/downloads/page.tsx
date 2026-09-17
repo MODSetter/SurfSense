@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { TrialForm } from "@/app/(home)/license/license-forms";
+import { getReleaseAssets } from "@/lib/release-assets";
 import { AllReleasesLink, OSDownloadGrid } from "./download-panels";
 
 /**
@@ -16,7 +17,9 @@ export const metadata: Metadata = {
 	alternates: { canonical: "https://www.surfsense.com/downloads" },
 };
 
-export default function DownloadsPage() {
+export default async function DownloadsPage() {
+	const assets = await getReleaseAssets();
+
 	return (
 		<>
 			<section className="ss-home-hero ss-home-pad">
@@ -29,14 +32,16 @@ export default function DownloadsPage() {
 				</div>
 			</section>
 
-			<section className="ss-home-rule ss-home-rule-plain">
-				<div className="ss-home-head ss-home-head-plain ss-home-head-tight">
-					<p className="ss-home-eyebrow">Choose your platform</p>
-					<h2 className="ss-home-h2 mt-2">Windows, macOS and Linux</h2>
-				</div>
+			{assets.length > 0 ? (
+				<section className="ss-home-rule ss-home-rule-plain">
+					<div className="ss-home-head ss-home-head-plain ss-home-head-tight">
+						<p className="ss-home-eyebrow">Choose your platform</p>
+						<h2 className="ss-home-h2 mt-2">Windows, macOS and Linux</h2>
+					</div>
 
-				<OSDownloadGrid />
-			</section>
+					<OSDownloadGrid assets={assets} />
+				</section>
+			) : null}
 
 			<section className="ss-home-rule">
 				<div className="ss-home-pad py-10 text-center">
