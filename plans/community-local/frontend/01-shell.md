@@ -84,7 +84,7 @@ compatible model is selected and while a save is in flight.
 Model download/catalog UI remains Phase 5. With no compatible installed model,
 this screen explains that setup is incomplete and offers Refresh; it does not
 start a pull. Once Phase 5 lands, the same route loads `GET /llm/catalog`,
-renders SurfSense Recommended followed by Explore, and performs the one-action
+renders SurfSense Curated followed by Explore, and performs the one-action
 install/select flow. Keep the provider inventory calls here as the authoritative
 installed-state and validated-selection path.
 

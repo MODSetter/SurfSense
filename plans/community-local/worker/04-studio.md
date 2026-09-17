@@ -29,6 +29,19 @@ feature fits the offline, no-Docker, weak-local-model positioning
 ([`../00-umbrella-plan.md`](../00-umbrella-plan.md)). Image generation is
 isolated behind `ImageGenerator`; it is not smuggled through the chat adapter.
 
+**Four formats did not ship this way.** DOCX, PPTX, XLSX and PDF all route
+through `office/`, whose three tier prompts each open with "Write one standalone
+Python script" and whose `runner.py` runs the reply with
+`exec(compile(code, "<studio-office>", "exec"))` on a thread, in the worker
+process, bounded only by a 120-second `thread.join` that cannot hard-kill a
+thread that ignores it. That is the cloud
+pattern this section exists to reject, and it puts the risk back at "arbitrary
+code with the worker's privileges" rather than "malformed JSON". It was
+deliberate — the module says so and carries a `ponytail:` comment naming the
+ceiling — so the open question is whether to hold the rule for these four or
+amend the rule. The other eight formats (summary, mindmap, flashcards, quiz,
+html, podcast, image, infographic) execute nothing the model wrote.
+
 ## Work
 
 One folder, mirroring `worker/ingestion/`:
@@ -54,6 +67,18 @@ One folder, mirroring `worker/ingestion/`:
   mime, preview: bytes | None, markdown: str)`. A new format is a builder plus a
   viewer, nothing else branches (`format`-blind persistence, per ADR-0003).
 
+**As built, the names differ; the shape holds.** There is no `pipeline.py`,
+`generate.py`, `media/image.py` or `builders/` directory. The engine is
+`job.py`, the registry is `job_router.py` (a `match` on the format key returning
+that format's `render`), and the per-format modules sit in folders by kind:
+`content/` (summary, mindmap, flashcards, quiz), `office/` (docx, pptx, xlsx,
+pdf), `web/html/`, `media/visual/` (image, infographic) and
+`media/audio/podcast/`. The shared steps this section splits into `generate.py`
+live in `shared/` as `gather.py`, `generate.py`, `persist.py`, `artifact.py` and
+`text.py`. Each format folder owns its prompts as markdown next to its code, one
+file per model tier — see the prompt-tier note in
+[`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
+
 Status lives on the **document**, not the sidecar — `artifacts` has no `status`
 column (ADR-0003 keeps indexing state on the `Document`). `generation` on the
 sidecar carries revisions; a re-run row-locks and bumps it.
@@ -64,9 +89,9 @@ sidecar carries revisions; a re-run row-locks and bumps it.
 |---|---|---|
 | **4a** | summary / report | none — markdown **is** the document body, no `artifact_files` |
 | **4b** | docx, pptx, xlsx, html, flashcards, quiz, mindmap | `python-docx`, `python-pptx`, `XlsxWriter`, sanitized fragment, JSON + markdown projection, markdown (Markmap rendered client-side) |
-| **4c** | pdf | markdown → HTML → PDF (WeasyPrint or ReportLab); bundle native deps like the parser pack |
-| **4d** | podcast | two-host script (`Generator`) → **Kokoro-82M** → stitch MP3; Kokoro bundled as a model pack like bge-small |
-| **4e** | infographic | generation model emits strict labels, values, hierarchy and style tokens → deterministic SVG/HTML builder + optional PNG preview |
+| **4c** | pdf | markdown → HTML → PDF (WeasyPrint or ReportLab); bundle native deps like the parser pack. **Built as ReportLab through `office/`'s `exec()` path**, not as a render of a structured spec |
+| **4d** | podcast | two-host script (`Generator`) → **Kokoro-82M** → stitch MP3; Kokoro bundled as a model pack like bge-small. **Still WAV:** Kokoro returns `audio/wav`, `ffmpeg` appears nowhere in `surfsense_local/`, and the pipeline's mime→extension map has an `audio/mpeg` entry no code path reaches. The MP3 leg and its `extraResources` entry are both outstanding |
+| **4e** | infographic | generation model emits strict labels, values, hierarchy and style tokens → deterministic SVG/HTML builder + optional PNG preview. **Not what shipped:** the generation model writes a brief (title, summary, ≤8 sections) and the *image* model paints it, so infographic needs an image selection exactly like `image` does. No SVG builder exists |
 | **4f** | image | selected OpenAI-compatible image model → `/images/generations` with 404/405-only `/images` fallback → validate and store returned bytes; unavailable without the image role |
 
 4a proves the whole path with zero new deps; each later sub adds one builder (or,
@@ -91,8 +116,10 @@ outside MVP.
   reason on the row; Huey retries.
 - Kokoro/PDF packs absent on a machine that lacks them → `failed` with a clear
   reason, mirroring the Docling parser-pack path.
-- Infographic fixtures validate the structured schema and deterministic output
-  without an image model.
+- Infographic fixtures validate the brief the generation model returns — title,
+  summary, and the section cap — independently of the image model that paints
+  it. The format cannot run without an image selection, so there is no
+  "deterministic output without an image model" to assert.
 - Image fixtures cover base64 and URL results, MIME and byte limits, timeouts,
   route fallback only on 404/405, route caching, and no retry after a provider
   may have generated an image.

@@ -56,10 +56,20 @@ installed models. Users can search that list and switch models directly. A
 separate **Manage models** action opens Settings → Models for downloads,
 provider configuration, and hardware rescans.
 
-Recommended entries are grouped visually by family (for example Qwen or Gemma),
-but each card remains an exact parameter/quantization/runtime configuration.
-Do not render every parameter size merely because its family is recommended.
-An entry appears once only: Recommended models are removed from Explore.
+**The section is called Curated, not Recommended** — the bucket was renamed in
+both the API response and the UI. Curated entries are grouped visually by family
+(for example Qwen or Gemma), but each card remains an exact
+parameter/quantization/runtime configuration. Do not render every parameter size
+merely because its family is curated. An entry appears once only: curated models
+are removed from Explore.
+
+**The page no longer waits for a hardware scan.** As built, the order is
+Installed, then local image models, then Curated, and then either Explore or —
+when `scanned` is false — a "Scan hardware" call to action in its place. Curated
+and Installed come from the packaged manifest and the runtime's own inventory, so
+they render on a fresh install with no probe, and a curated card is installable
+straight from that state because the manifest already pins its `ollama_name`.
+Opening the page does not trigger a scan; only the explicit button does.
 
 Each card shows:
 
@@ -71,8 +81,11 @@ Each card shows:
 - installed and selected state;
 - license and estimate-confidence details in disclosure text.
 
-Missing estimates display `Unknown`; they are never rendered as zero. Use
-plain-language fit labels, not raw llmfit scores, as the primary signal. A short
+Missing estimates display `Unknown`; they are never rendered as zero — **except
+before any scan has run**, where the fit badge is hidden entirely rather than
+showing "Unknown" to someone who was never offered an estimate. The badge
+appears once a real scan stands behind the row. Use plain-language fit labels,
+not raw llmfit scores, as the primary signal. A short
 explanation says that estimates leave room for SurfSense itself and may differ
 from real workloads.
 
@@ -101,11 +114,13 @@ from real workloads.
 
 ## States and degradation
 
-- Skeleton only the catalog region during the first scan; retain the page
-  heading and hardware explanation.
+- Skeleton only the catalog region during a scan; retain the page heading and
+  hardware explanation. There is no "first scan" to wait on any more: the page
+  renders Curated and Installed before one has ever run.
 - If llmfit is unavailable or malformed, show a recommendation warning and the
   installed-model controls returned by the API. Do not label unscored models as
-  recommended.
+  curated on the strength of a score they do not have — curation comes from the
+  manifest, which needs no scan, so the two are independent.
 - If a runtime is unavailable, show its status and disable its install actions;
   other runtimes remain usable.
 - If no model fits, explain the limitation and keep remote providers such as
@@ -205,7 +220,8 @@ except for runtime-specific explanatory copy.
 
 ## Acceptance
 
-- A clean supported machine sees hardware-ranked Recommended models above Explore.
+- A clean supported machine sees Curated models above Explore, and sees them
+  before it has scanned anything.
 - Gemma/Qwen family grouping does not create unsupported parameter-size cards.
 - Download & Use is one user action and ends with the exact installed runtime
   model selected.

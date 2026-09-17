@@ -4,7 +4,7 @@
 
 ## Goal
 
-`ingest_document` -> markdown -> chunks -> embeddings -> indexed -> `ready` | `failed`.
+`ingest_document` -> markdown -> chunks -> embeddings -> indexed -> `ready` | `failed` | `cancelled`.
 
 ## Work — done
 
@@ -15,6 +15,12 @@ One folder, one job per file, all under `worker/ingestion/`:
   rolls back, writes `status=failed` with `error_message`, and re-raises so
   Huey retries; a run that succeeds clears the message, and the retry route
   already exists for the case that does not.
+- **Cancellation** (added after this phase). `POST .../documents/{doc}/cancel`
+  sets `status=cancelled` and calls `revoke_pending()` on the ingest queue, which
+  is enough for a job still queued. A job already running is not killed — the
+  pipeline checks `raise_if_cancelled()` between steps and unwinds at the next
+  one, so a long Docling parse finishes before the job notices. Only `pending`
+  and `processing` are cancellable; anything else answers 409.
 - **`parsing.py`** reads `.md`, `.txt` and extensionless files straight off
   disk and sends everything else to Docling, whose converter is built once per
   process behind an `lru_cache` because its constructor loads the layout

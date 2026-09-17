@@ -54,7 +54,8 @@ be a real GGUF tag (e.g. `Q4_K_M`, `Q5_K_M`, `IQ4_XS`) that's safe to append to
 `hf.co/<repo>:<quant>`. This has **not been verified on real Windows/Linux
 hardware** — everything above is Mac-only data. That's what this spec is for.
 
-The planned code change (not yet written) will gate trust in `best_quant` on
+The planned code change — **since shipped; see "Shipped" at the end of this
+document for what landed and how it differs** — gates trust in `best_quant` on
 `ScoredModel.runtime` normalizing to `"llamacpp"`:
 
 ```python
@@ -455,3 +456,36 @@ or `/api/show` to redisplay the installed quant (rather than parsing it out
 of the `:Q8_0` suffix already present in `ollama_name`) would show
 "unknown" for this model — something to check if the frontend ever surfaces
 that field for installed models.
+
+## Shipped
+
+The fallback is merged. `_fallback_ollama_name(gguf_sources, runtime,
+best_quant)` in `llmfit.py` returns `hf.co/<repo>:<best_quant>` when
+`runtime == "llama_cpp"` and a quant is present, and `hf.co/<repo>:latest`
+otherwise. Three details of the merged version are worth reading off the code
+rather than off the spec above:
+
+- **The gate uses `"llama_cpp"`, the underscore form.** The Correction section
+  was right and the two earlier snippets in this document were wrong; the
+  shipped condition matches the Correction, not the snippets.
+- **The tag is never omitted.** The spec discussed an "untagged
+  `hf.co/<repo>` pull" for the untrusted case. That is not what shipped:
+  Ollama accepts a bare `hf.co/<repo>` but stores the result as
+  `…:latest`, so every later exact-string match — install verification,
+  "already installed" on a rescan — would fail against an identifier Ollama
+  never used. The fallback therefore asks for `:latest` explicitly so the
+  string handed out is the string that comes back.
+- **The fit badge is downgraded, not cleared.** Where the spec said `fit:
+  UNKNOWN`, the shipped `_parse_model()` relabels an untrusted fallback row to
+  `FitLevel.MARGINAL` — a hedge rather than a promise, chosen over both hiding
+  the model and carrying forward a number computed for a different runtime's
+  memory profile.
+
+Two related changes landed with it and are not described anywhere above:
+`scan()` no longer spawns llmfit unless `refresh=True`, caching results to
+`{data_dir}/llmfit-scan.json` (invalidated on a `cache_version` or
+`llmfit_version` mismatch), and the catalog now serves its `curated` and
+`installed` buckets with no scan at all. Only `explore` and the fit badges
+need one, so the page opens on a fresh install with a "Scan hardware" call to
+action instead of an empty list. The bucket formerly called `recommended` is
+now `curated`.

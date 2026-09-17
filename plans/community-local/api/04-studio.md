@@ -26,9 +26,31 @@ through **one service entry** that both the REST job (v1) and a future
   | `POST` | `/workspaces/{id}/studio/jobs` | `{format, document_ids, prompt?, options?}` → 201 artifact |
   | `GET` | `/workspaces/{id}/artifacts` | list (status read from each artifact's `ARTIFACT` document) |
   | `GET` | `/artifacts/{id}` | detail + `files[]` |
-  | `GET` | `/artifacts/{id}/manifest` | title, markdown body, `files[]` with `content_url` — the viewer's contract |
   | `GET` | `/artifacts/{id}/files/{role}` | stream `primary` \| `preview`; `Range` support for podcast audio |
   | `DELETE` | `/artifacts/{id}` | delete the document → sidecar + blobs cascade |
+
+  **As built, this table is both short and long.** `GET /artifacts/{id}/manifest`
+  was never written: the viewer reads `GET /artifacts/{id}` plus the file stream
+  instead, and `dependencies.py` still carries a comment referring to "the file
+  and manifest routes". Decide whether the manifest is still wanted or the
+  detail route is the viewer's contract, and make this table say so. Shipped
+  alongside the rows above, and absent from them:
+
+  | Method | Path | Does |
+  |---|---|---|
+  | `POST` | `/artifacts/{id}/regenerate` | re-run the job, bumping `generation` on the sidecar |
+  | `POST` | `/artifacts/{id}/cancel` | stop a queued or running build (see the cancel note below) |
+  | `PUT` | `/artifacts/{id}/quiz-state/{answer\|skip\|retake}` | quiz progress, persisted in `artifact_metadata` |
+  | `PUT` | `/artifacts/{id}/flashcard-state/{mark\|reset\|order}` | flashcard progress, same storage |
+  | `GET` | `/workspaces/{id}/studio/podcast/brief` | the brief the panel shows before a podcast job is submitted |
+
+- **Cancel.** `POST /artifacts/{id}/cancel` and its ingest twin
+  `POST /workspaces/{id}/documents/{id}/cancel` mark the backing document
+  `cancelled` — a fifth `DocumentStatus`, added in revision `0011` — and call
+  `revoke_pending()` on the owning Huey queue. A job already running is not
+  killed: the worker calls `raise_if_cancelled()` between steps and unwinds on
+  the next one. Cancelling something that is neither pending nor processing is a
+  409.
 
 - **Read-only body (ADR obligation 2).** `PATCH .../documents/{doc}` already
   refuses `content` edits when `document_type != NOTE`; the artifact rename/delete
@@ -42,24 +64,36 @@ through **one service entry** that both the REST job (v1) and a future
 
 ## Format catalog
 
-`formats` is computed, not stored: the buildable set is the worker's `BUILDERS`
-registry. `image` is available only when `SelectedModel(IMAGE_GENERATION)`
-resolves to a configured OpenAI-compatible connection. `infographic` is a
-deterministic builder and needs only the generation role. The frontend never
+`formats` is computed, not stored. As built the catalog is a declarative tuple in
+[`modules/artifacts/formats.py`](../../../surfsense_local/backend/modules/artifacts/formats.py)
+— twelve `Format` rows — and a unit test asserts the worker's `job_router.py`
+names every key in it and nothing else, which is the same guarantee the
+`BUILDERS` registry was meant to give.
+
+Each row carries `requires_roles`, a **tuple** in the order the pipeline's
+`render()` takes its models, not the single `requires_role` this spec first
+described. Both `image` **and `infographic`** declare
+`("image_generation", "generation")`, so both are unavailable without an image
+selection; an earlier version of this section called `infographic` a
+deterministic builder needing only the generation role, and that was never true
+of the shipped pipeline. `podcast` additionally sets `requires_voice`, a flag
+rather than a role because the bundled Kokoro voice is not selectable — it folds
+into `requires_roles` if a `text_to_speech` role is ever added — and a
+`validate_options` hook that checks the podcast brief. The frontend never
 hard-codes the list or checks secrets. Connection and role resolution are
-defined in [`05b-openai-compatible-connections.md`](05b-openai-compatible-connections.md).
-Each format response carries `requires_role` (`generation`,
-`image_generation`, or null), `available`, and nullable `unavailable_reason`.
-The legacy `requires_key` field is removed.
+defined in [`05b-openai-compatible-connections.md`](05b-openai-compatible-connections.md);
+note that an image selection can resolve to the bundled local `sdcpp` sd-server
+as well as to a remote connection, so "needs an image role" does not imply "needs
+a remote endpoint or a key". Each format response carries `available` and a
+nullable `unavailable_reason`. The legacy `requires_key` field is removed.
 
 ## Acceptance
 
 - `POST .../studio/jobs` → 201 with an id; polling `GET /artifacts/{id}` flips to
   `ready` with downloadable files once the worker finishes.
-- Image with no valid image-generation selection → a clear 409, not a queued
-  job that is certain to fail.
-- Infographic remains available with any valid generation selection; it does
-  not require an image endpoint.
+- Image **or infographic** with no valid image-generation selection → a clear
+  409, not a queued job that is certain to fail. Both declare the same roles;
+  neither is runnable on a generation model alone.
 - Deleting an artifact removes the document, sidecar and blobs; a cleared chat
   thread leaves its artifacts intact (`chat_thread_id` set null).
 

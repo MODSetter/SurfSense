@@ -43,13 +43,21 @@ that context and mark claims with `[id]`:
 ```
 
 - **Sequential ids (1..N)** map to the `Hit`s in rank order. The model cites `[1]`,
-  `[2]`; the frontend resolves each id back to its document and line span from the
-  citation list we return alongside the stream. Ids are per-message, not global.
+  `[2]`. As built the **server** resolves them, not the frontend: once the stream
+  closes, `resolve_citations()` rewrites each `[n]` into `[citation:<chunk_id>]`
+  in the persisted text and drops tokens the model invented, so what is stored
+  points at a chunk rather than at a per-message ordinal. Ids are per-message,
+  not global.
 - **A fixed instruction block** (task + guidelines) precedes the context: answer
   from the context, say so when the answer isn't there, cite with `[id]`, match the
   question's language, don't emit the tags back, with a one-line citation example —
-  the explicit rules earn their keep on small local models. A module constant, not
-  a user setting, for v1.
+  the explicit rules earn their keep on small local models. **No longer a module
+  constant:** it ships as three markdown files in `modules/chat/prompts/`
+  (`compact.md`, `capable.md`, `frontier.md`) and `build_context(hits, tier)`
+  loads the one matching the selected model's tier through
+  `prompting.load(__package__, tier)`. Still not a user setting. The tier comes
+  from the model's recorded fingerprint — see the prompt-tier note in
+  [`05a-model-recommendations.md`](05a-model-recommendations.md).
 - **A chunk cannot forge a source**: source/context tags found in a chunk's own
   text are stripped before it goes between the tags, so a document can't close its
   block early or inject a fake `id`.
@@ -88,6 +96,8 @@ Threads are workspace-scoped; messages hang off a thread.
 - `GET  /chat/threads/{thread_id}/messages` → the flat history for the UI.
 - `POST /chat/threads/{thread_id}/messages` → **the orchestrator**. Body: the user
   text. Response: `text/event-stream`.
+- `PATCH /chat/threads/{thread_id}` → rename a thread. Shipped and missing from
+  this list until now.
 - `DELETE /chat/threads/{thread_id}` → drop a thread (cascades its messages).
 
 ### The stream
@@ -106,12 +116,22 @@ Threads are workspace-scoped; messages hang off a thread.
    commits it on exit.
 
 **The SSE frames** are `data: {json}\n\n`, ending on a `data: [DONE]\n\n` sentinel
-so a client tells completion apart from a dropped connection:
+so a client tells completion apart from a dropped connection. The shipped
+protocol grew past the three frames first specified here — it now opens with two
+frames before any token and closes with a terminal one:
 
+- `{"type": "accepted", ...}` — first frame, before generation starts.
+- `{"type": "citation-catalog", ...}` — the sources this turn may cite, sent up
+  front so the renderer can resolve a marker the moment it streams past.
+- `{"type": "thread-title-update", "title": "..."}` — only on the turn that
+  names an untitled thread; see title generation below.
 - `{"type": "delta", "text": "..."}` — one per token chunk.
-- `{"type": "citations", "items": [...]}` — once, when there were hits.
 - `{"type": "error", "message": "..."}` — on a generator failure; the partial turn
   still persists and the stream still ends on `[DONE]`.
+- `{"type": "citations", "items": [...]}` — once, when the reply actually cited
+  something.
+- `{"type": "completed", ...}` — terminal frame, then `[DONE]`. A turn that
+  failed with no content at all skips straight to `[DONE]`.
 
 The response carries `Cache-Control: no-cache` and `X-Accel-Buffering: no` so a
 proxy streams it through rather than buffering it into one late blob.
@@ -120,7 +140,17 @@ proxy streams it through rather than buffering it into one late blob.
 
 - **Settings endpoint** — model choice already lives in `GET/PUT /llm/selection`,
   and the Ollama URL comes from Electron via env. No separate `/settings` is added.
-- **Title generation, follow-up suggestions, regeneration, branching** — not planned.
+- **Title generation** — was "not planned"; it shipped. `modules/chat/title.py`
+  asks the selected model for a 2-5 word noun phrase, bounded by a 30s timeout,
+  12 tokens and 100 characters, and validated before use so raw model output is
+  never shown. It is announced mid-stream as a `thread-title-update` frame, but
+  the write is **deferred**: the rename commits in the same branch that keeps the
+  turn, so a turn that both failed and produced no tokens is discarded and the
+  rename never lands. The guard is `failed and not parts`, so it does not cover
+  a stream that ends successfully having yielded nothing — that renames the
+  thread and persists an empty assistant message. Rare, and worth a second
+  condition if it is ever seen.
+- **Follow-up suggestions, regeneration, branching** — not planned.
 - **Reranker** — the retrieval opt-in tracked in [`../worker/03-search.md`](../worker/03-search.md).
 
 ## Tests

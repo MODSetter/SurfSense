@@ -9,18 +9,24 @@ Upload files and see ingest status.
 ## Work
 
 - Dropzone → `POST /workspaces/{id}/documents/upload`.
-- Document table: title, type, status badge (`pending` | `processing` | `ready` | `failed`).
+- Document table: title, type, status badge (`pending` | `processing` | `ready` | `failed` | `cancelled`).
 - List via `useQuery` on `GET /workspaces/{id}/documents`, passing `?limit=`/`?offset=`.
   Freshness: subscribe to the SSE `/events` stream and `invalidateQueries` on
   `document.updated`; a `refetchInterval` while any row is in flight is the fallback.
   See the freshness decision in [`../00-umbrella-plan.md`](../00-umbrella-plan.md).
 - Show `failed` message from `error_message`, with a retry button →
   `POST .../documents/{doc}/retry`.
-- Row actions: rename → `PATCH .../documents/{doc}`, delete → `DELETE` the same path.
+- Row actions: rename → `PATCH .../documents/{doc}`, delete → `DELETE` the same path,
+  and cancel → `POST .../documents/{doc}/cancel` while a row is still pending or
+  processing. Cancelling marks the row `cancelled`; a job already mid-flight
+  unwinds at its next step rather than being killed.
 - The list returns ARTIFACT rows too. Filter with `?document_type=FILE&document_type=NOTE`
   so Studio output does not appear as something the user uploaded.
 - Open a document → `GET .../documents/{doc}` for its extracted text; notes are
-  editable in place and go back to `pending` when saved.
+  editable in place and go back to `pending` when saved. **That route does not
+  exist**: the documents router has no GET by id, so there is no way to fetch a
+  body today — the list omits `content` by design. Same gap as the one recorded
+  in [`../00c-data-model.md`](../00c-data-model.md); fix it in one place.
 
 ## Acceptance
 
