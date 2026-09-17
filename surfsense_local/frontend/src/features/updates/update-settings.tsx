@@ -5,6 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { askEgress } from "@/features/egress/egress-prompt"
 import type { UpdateState } from "@/lib/api"
 
 import {
@@ -33,9 +34,22 @@ function statusText(state: UpdateState) {
 export function UpdateSettings() {
   const updates = updatesBridge()
   const state = useUpdateState()
-  const { prefs } = useUpdatePrefs()
+  const { prefs, setAutomatic } = useUpdatePrefs()
 
   if (!updates || prefs === null) return null
+
+  // Installing is local and needs no permission. Checking asks github.com, and
+  // Settings > Network promises that call is refused until allowed -- so the
+  // first check asks, the same way the sidebar's does.
+  const onCheckClick = async () => {
+    if (prefs.automatic) return void updates.check()
+    const allowed = await askEgress({
+      destination: "app_updates",
+      host: "github.com",
+      allow: () => setAutomatic(true),
+    })
+    if (allowed) await updates.check()
+  }
 
   const text = statusText(state)
   return (
@@ -43,7 +57,8 @@ export function UpdateSettings() {
       <div className="flex flex-col gap-1">
         <h3 className="text-sm font-medium">App updates</h3>
         <p className="text-sm text-pretty text-muted-foreground">
-          Free updates from GitHub Releases. SurfSense stays silent until you allow App updates under Network, which also enables the launch check.
+          Free updates from GitHub Releases. SurfSense stays silent until you
+          allow App updates under Network, which also enables the launch check.
         </p>
         {state.status === "error" ? (
           <p role="alert" className="text-sm text-destructive">
@@ -61,14 +76,10 @@ export function UpdateSettings() {
         <Button
           type="button"
           variant="outline"
-          // The switch is one section away, so this points at it rather than
-          // stacking a consent dialog on top of the one already open.
           disabled={
-            !prefs.automatic ||
-            state.status === "checking" ||
-            state.status === "downloading"
+            state.status === "checking" || state.status === "downloading"
           }
-          onClick={() => void updates.check()}
+          onClick={() => void onCheckClick()}
         >
           Check now
         </Button>

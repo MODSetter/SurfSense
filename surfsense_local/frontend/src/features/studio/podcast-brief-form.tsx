@@ -197,7 +197,7 @@ export function PodcastBriefForm({
             {brief.speakers.length > 1 ? (
               <Button
                 type="button"
-                variant="ghost"
+                variant="destructive"
                 size="icon-xs"
                 aria-label={`Remove speaker ${index + 1}`}
                 onClick={() => removeSpeaker(index)}
