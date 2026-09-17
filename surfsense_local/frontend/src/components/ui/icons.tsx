@@ -10,8 +10,10 @@ import {
   ArrowUp02Icon as ArrowUp02IconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
+  CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
   Cards01Icon as Cards01IconData,
   ChartHistogramIcon as ChartHistogramIconData,
+  Chat01Icon as Chat01IconData,
   CheckIcon as CheckIconData,
   CheckmarkCircle02Icon,
   ChevronDownIcon as ChevronDownIconData,
@@ -19,6 +21,7 @@ import {
   ComputerEthernetIcon as ComputerEthernetIconData,
   Copy01Icon,
   CpuIcon as CpuIconData,
+  CursorRemoveSelection02Icon as CursorRemoveSelection02IconData,
   Delete02Icon,
   Download01Icon as Download01IconData,
   DownloadCircle02Icon as DownloadCircle02IconData,
@@ -30,7 +33,6 @@ import {
   FileIcon as FileIconData,
   FileTextIcon as FileTextIconData,
   FilterIcon as FilterIconData,
-  FolderLibraryIcon as FolderLibraryIconData,
   FolderOpenIcon as FolderOpenIconData,
   Image01Icon as Image01IconData,
   InformationCircleIcon as InformationCircleIconData,
@@ -38,7 +40,6 @@ import {
   LicenseIcon as LicenseIconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
-  MessageSquareIcon as MessageSquareIconData,
   Moon02Icon as Moon02IconData,
   NetworkIcon as NetworkIconData,
   NotebookTextIcon as NotebookTextIconData,
@@ -54,7 +55,6 @@ import {
   ServerOffIcon as ServerOffIconData,
   SidebarRight01Icon as SidebarRight01IconData,
   Settings02Icon,
-  Shapes01Icon as Shapes01IconData,
   ShuffleIcon as ShuffleIconData,
   SparklesIcon as SparklesIconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
@@ -112,8 +112,10 @@ export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
 export const BrainCircuitIcon = createIcon(BrainCircuitIconData)
+export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
+export const Chat01Icon = createIcon(Chat01IconData)
 export const CheckCircle2Icon = createIcon(CheckmarkCircle02Icon)
 export const CheckIcon = createIcon(CheckIconData)
 export const ChevronDownIcon = createIcon(ChevronDownIconData)
@@ -123,6 +125,9 @@ export const CircleAlertIcon = createIcon(AlertCircleIcon)
 export const CircleStopIcon = createIcon(StopCircleIcon)
 export const CopyIcon = createIcon(Copy01Icon)
 export const CpuIcon = createIcon(CpuIconData)
+export const CursorRemoveSelection02Icon = createIcon(
+  CursorRemoveSelection02IconData
+)
 export const Download01Icon = createIcon(Download01IconData)
 export const DownloadIcon = createIcon(DownloadIconData)
 export const DotIcon = createIcon(DotIconData)
@@ -132,7 +137,6 @@ export const FileIcon = createIcon(FileIconData)
 export const FilePlus2Icon = createIcon(FileAddIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
 export const FilterIcon = createIcon(FilterIconData)
-export const FolderLibraryIcon = createIcon(FolderLibraryIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
@@ -140,7 +144,6 @@ export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
-export const MessageSquareIcon = createIcon(MessageSquareIconData)
 export const MoonIcon = createIcon(Moon02IconData)
 export const NetworkIcon = createIcon(NetworkIconData, "rotate-90")
 export const NotebookTextIcon = createIcon(NotebookTextIconData)
@@ -157,7 +160,6 @@ export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
 export const SidebarRightIcon = createIcon(SidebarRight01IconData)
 export const Settings2Icon = createIcon(Settings02Icon)
-export const Shapes01Icon = createIcon(Shapes01IconData)
 export const ShuffleIcon = createIcon(ShuffleIconData)
 export const SparklesIcon = createIcon(SparklesIconData)
 export const SunIcon = createIcon(Sun03IconData)

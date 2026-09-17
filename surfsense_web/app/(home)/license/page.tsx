@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import { ResendForm, TrialForm } from "./license-forms";
+import { ResendDisclosure, TrialForm } from "./license-forms";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and
@@ -8,9 +8,12 @@ import { ResendForm, TrialForm } from "./license-forms";
  * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
  *
- * The trial is the main path most visitors want, so it gets the first section
- * and the primary button; resending an existing license is secondary and gets
- * its own section below, in the same eyebrow-plus-headline shape.
+ * The trial is folded straight into the hero as the page's one primary
+ * action, the same compact shape `/sunset` uses for its export button:
+ * headline, subtitle, form, done, no separate ruled band underneath it.
+ * Resending an existing license is secondary and stays a one-line disclosure
+ * under the trial form rather than a section of its own or a second page --
+ * see `ResendDisclosure` in `license-forms.tsx` for why.
  *
  * The three explanatory blocks the old page ran as plain paragraphs are FAQ
  * content in substance: a reader arrives here with one of exactly three
@@ -69,30 +72,8 @@ export default function LicensePage() {
 					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
 						Your license is a file, not an account.
 					</p>
-				</div>
-			</section>
-
-			<section className="ss-home-rule">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">Get started</p>
-					<h2 className="ss-home-h2 mt-2">Start a 30-day trial</h2>
-				</div>
-				<div className="ss-home-pad py-12">
-					<div className="max-w-xl">
-						<TrialForm />
-					</div>
-				</div>
-			</section>
-
-			<section className="ss-home-rule">
-				<div className="ss-home-head">
-					<p className="ss-home-eyebrow">Already licensed</p>
-					<h2 className="ss-home-h2 mt-2">Get your license again</h2>
-				</div>
-				<div className="ss-home-pad py-12">
-					<div className="max-w-xl">
-						<ResendForm />
-					</div>
+					<TrialForm />
+					<ResendDisclosure />
 				</div>
 			</section>
 

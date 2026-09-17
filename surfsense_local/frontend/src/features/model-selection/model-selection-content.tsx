@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ModelCatalogPage } from "@/features/model-catalog/model-catalog-page"
+import { cn } from "@/lib/utils"
 
 import type { ModelSelection } from "./api"
 import { OpenAICompatiblePanel } from "./openai-compatible-panel"
@@ -13,6 +14,7 @@ const REMOTE = "openai_compatible"
 
 export function ModelSelectionContent({
   allowDelete = false,
+  scrollable = true,
   state,
   disabled,
   installedFirst = false,
@@ -27,6 +29,10 @@ export function ModelSelectionContent({
   disabled: boolean
   installedFirst?: boolean
   allowDelete?: boolean
+  // False when an ancestor (like the Models settings dialog) already scrolls
+  // this content as part of a bigger region — the two tabs then lay out at
+  // their natural height instead of each owning their own scroll area.
+  scrollable?: boolean
   onSelect: (key: string) => void
   onCatalogSelected?: (selection: ModelSelection) => void
   onModelUnavailable?: () => void
@@ -59,6 +65,7 @@ export function ModelSelectionContent({
   const localCatalog = (
     <ModelCatalogPage
       allowDelete={allowDelete}
+      scrollable={scrollable}
       disabled={disabled || readyState === null}
       installedFirst={installedFirst}
       onModelUnavailable={onModelUnavailable}
@@ -68,7 +75,7 @@ export function ModelSelectionContent({
   )
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className={cn("flex flex-col gap-4", scrollable && "h-full min-h-0")}>
       <SelectedRoles
         key={rolesVersion}
         generation={readyState?.selection ?? null}
@@ -76,7 +83,7 @@ export function ModelSelectionContent({
       />
 
       <Tabs
-        className="min-h-0 flex-1 gap-5"
+        className={cn("gap-5", scrollable && "min-h-0 flex-1")}
         value={activeTab}
         onValueChange={(provider) => {
           userChangedTab.current = true
@@ -104,13 +111,20 @@ export function ModelSelectionContent({
           </TabsList>
         </SegmentedControl>
 
-        <TabsContent value="local" className="min-h-0 overflow-hidden">
+        <TabsContent
+          value="local"
+          className={cn(scrollable && "min-h-0 overflow-hidden")}
+        >
           {localCatalog}
         </TabsContent>
 
-        <TabsContent value={REMOTE} className="min-h-0 overflow-hidden">
+        <TabsContent
+          value={REMOTE}
+          className={cn(scrollable && "min-h-0 overflow-hidden")}
+        >
           <OpenAICompatiblePanel
             disabled={disabled}
+            scrollable={scrollable}
             onGenerationSelected={(selection) => onCatalogSelected?.(selection)}
             onGenerationUnavailable={onModelUnavailable}
             onChanged={() => {

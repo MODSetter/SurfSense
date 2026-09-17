@@ -22,6 +22,8 @@ import {
 import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
 import { useModelSelection } from "@/features/model-selection/use-model-selection"
 
+import { OnboardingDither } from "./onboarding-dither"
+
 const ONBOARDING_STEPS = [1, 2] as const
 
 function OnboardingBrand() {
@@ -69,7 +71,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
       <CardHeader className="-translate-y-8">
         <CardTitle>
           <h1 className="text-xl text-balance">
-            Think across everything you have collected.
+            Air-gapped, open source NotebookLM alternative
           </h1>
         </CardTitle>
         <CardDescription className="mx-auto max-w-md text-pretty">
@@ -210,8 +212,9 @@ export function OnboardingPage({
   return (
     <main
       data-onboarding-page
-      className="flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
+      className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
+      {step === 1 ? <OnboardingDither /> : null}
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         <OnboardingProgress step={step} />

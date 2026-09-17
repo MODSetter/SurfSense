@@ -88,23 +88,21 @@ function sourceCountLabel(count: number) {
 
 function SourceCount({
   count,
-  onOpen,
   className,
 }: {
   count: number
-  onOpen: () => void
   className?: string
 }) {
   const label = sourceCountLabel(count)
   return (
-    <button
-      type="button"
-      className={cn(modelControlButtonClassName, "tabular-nums", className)}
-      aria-label={`${label} included in this chat`}
-      onClick={onOpen}
+    <span
+      className={cn(
+        "select-none px-1.5 py-1 text-[11px] font-normal tabular-nums text-muted-foreground",
+        className
+      )}
     >
       {label}
-    </button>
+    </span>
   )
 }
 
@@ -164,7 +162,6 @@ export function ChatComposer({
   providerAvailable,
   onModelSetup,
   onModelSelected,
-  onOpenSources,
   onUpload,
 }: {
   placement: "center" | "bottom"
@@ -175,7 +172,6 @@ export function ChatComposer({
   providerAvailable: boolean
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
-  onOpenSources: () => void
   onUpload: (files: File[]) => void
 }) {
   return (
@@ -185,7 +181,7 @@ export function ChatComposer({
     >
       <ComposerPrimitive.Root
         className={cn(
-          "relative rounded-2xl border bg-card p-1.5 shadow-sm focus-within:ring-2 focus-within:ring-ring/20",
+          "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors hover:border-ring/40 focus-within:border-ring/40",
           placement === "bottom" && "flex items-end gap-2"
         )}
       >
@@ -225,23 +221,19 @@ export function ChatComposer({
               className="absolute bottom-2 left-1.5"
             />
             <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
+              <SourceCount count={sourceCount} />
               <ModelControl
                 model={model}
                 onModelSetup={onModelSetup}
                 onModelSelected={onModelSelected}
                 className="h-9 rounded-xl px-3 text-sm"
               />
-              <SourceCount count={sourceCount} onOpen={onOpenSources} />
               <ComposerAction isRunning={isRunning} />
             </div>
           </>
         ) : (
           <>
-            <SourceCount
-              count={sourceCount}
-              onOpen={onOpenSources}
-              className="mb-0.5"
-            />
+            <SourceCount count={sourceCount} className="mb-2" />
             <ComposerAction isRunning={isRunning} className="mb-0.5" />
           </>
         )}

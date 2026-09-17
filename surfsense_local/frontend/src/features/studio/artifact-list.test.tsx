@@ -80,7 +80,7 @@ describe("artifact list", () => {
       })
       const times = [...document.querySelectorAll("time")]
       expect(times.map((t) => t.textContent)).toEqual([
-        "15s",
+        "now",
         "5m",
         "5h",
         "3d",
@@ -98,9 +98,7 @@ describe("artifact list", () => {
     const user = userEvent.setup()
     renderList({ onOpen })
 
-    expect(
-      screen.getByRole("heading", { name: "All generated artifacts" })
-    ).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Weekly summary" }))
     expect(onOpen).toHaveBeenCalledWith(12)
   })
@@ -239,7 +237,7 @@ describe("artifact list", () => {
     const generic = await screen.findByRole("tooltip", {
       name: "Generation failed. Retry again.",
     })
-    expect(generic.getAttribute("data-side")).toBe("left")
+    expect(generic.getAttribute("data-side")).toBe("top")
   })
 
   it("reveals the real error above the whole row while Ctrl/Cmd is held", async () => {
@@ -316,7 +314,9 @@ describe("artifact list", () => {
       await user.click(
         screen.getByRole("menuitemcheckbox", { name: /podcast/i })
       )
-      expect(screen.queryByRole("button", { name: "Weekly summary" })).toBeNull()
+      expect(
+        screen.queryByRole("button", { name: "Weekly summary" })
+      ).toBeNull()
       expect(screen.queryByRole("button", { name: "At a glance" })).toBeNull()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode two" })).toBeTruthy()
@@ -330,19 +330,21 @@ describe("artifact list", () => {
       await user.click(
         screen.getByRole("menuitemcheckbox", { name: /podcast/i })
       )
-      expect(
-        screen.getByLabelText("Filter artifacts (1 active)")
-      ).toBeTruthy()
+      expect(screen.getByLabelText("Filter artifacts (1 active)")).toBeTruthy()
 
       await user.click(
         screen.getByRole("menuitemcheckbox", { name: /summary/i })
       )
-      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Weekly summary" })
+      ).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
 
       await user.click(screen.getByRole("menuitem", { name: "Clear filter" }))
       expect(screen.getByLabelText("Filter artifacts")).toBeTruthy()
-      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Weekly summary" })
+      ).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
     })
 
@@ -358,7 +360,9 @@ describe("artifact list", () => {
 
       expect(screen.getByText("No artifacts match this filter")).toBeTruthy()
       await user.click(screen.getByRole("button", { name: "Clear filter" }))
-      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Weekly summary" })
+      ).toBeTruthy()
     })
 
     it("persists the selected filter per workspace", async () => {
@@ -369,16 +373,22 @@ describe("artifact list", () => {
       })
 
       await user.click(screen.getByLabelText("Filter artifacts"))
-      await user.click(screen.getByRole("menuitemcheckbox", { name: /podcast/i }))
+      await user.click(
+        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+      )
       unmount()
 
       renderList({ workspaceId: 1, artifacts: [artifact, podcast] })
-      expect(screen.queryByRole("button", { name: "Weekly summary" })).toBeNull()
+      expect(
+        screen.queryByRole("button", { name: "Weekly summary" })
+      ).toBeNull()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
       cleanup()
 
       renderList({ workspaceId: 2, artifacts: [artifact, podcast] })
-      expect(screen.getByRole("button", { name: "Weekly summary" })).toBeTruthy()
+      expect(
+        screen.getByRole("button", { name: "Weekly summary" })
+      ).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
     })
   })

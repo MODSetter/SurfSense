@@ -13,7 +13,7 @@ import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
-import { RIGHT_TAB_KEY } from "./chrome-prefs"
+import { RIGHT_PANEL_KEY } from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
 
 const workspace = {
@@ -233,7 +233,11 @@ describe("dashboard chat", () => {
       )
     })
 
-    await user.click(screen.getByRole("button", { name: "Original title" }))
+    // Past chats live behind the "Chats" dialog now.
+    await user.click(screen.getByRole("button", { name: "Chats" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Original title" })
+    )
     await waitFor(() => {
       expect(document.activeElement).toBe(
         screen.getByRole("textbox", { name: "Message" })
@@ -697,7 +701,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("Start a conversation to see it here")
+    await screen.findByRole("textbox", { name: "Message" })
     await user.click(screen.getByRole("button", { name: "New chat" }))
     await screen.findByRole("checkbox", { name: "Select Guide.txt" })
     expect(
@@ -714,7 +718,6 @@ describe("dashboard chat", () => {
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
     expect(await screen.findByText("Grounded answer")).toBeTruthy()
-    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
     fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
     expect(await screen.findByText("indexed passage")).toBeTruthy()
     expect(screen.getByText("Cited chunk")).toBeTruthy()
@@ -725,12 +728,9 @@ describe("dashboard chat", () => {
     expect(window.surfsense?.openDocument).toHaveBeenCalledWith(1, 20)
     await user.click(screen.getByRole("button", { name: "Close citation" }))
     expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
-    expect(
-      screen
-        .getByRole("tab", { name: /^Artifacts/ })
-        .getAttribute("aria-selected")
-    ).toBe("true")
-    await user.click(screen.getByRole("tab", { name: "Sources" }))
+    // The right rail has exactly one job once the citation view closes.
+    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
+    // Sources live in the left sidebar, always visible.
     const sourceButton = await screen.findByRole("button", {
       name: "Guide.txt",
     })
@@ -803,7 +803,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("Start a conversation to see it here")
+    await screen.findByRole("textbox", { name: "Message" })
     await user.click(screen.getByRole("button", { name: "Second Workspace" }))
 
     expect(screen.getByRole("heading", { name: "SurfSense" })).toBeTruthy()
@@ -892,7 +892,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("Start a conversation to see it here")
+    await screen.findByRole("textbox", { name: "Message" })
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Fail safely"
@@ -971,7 +971,7 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    await screen.findByText("Start a conversation to see it here")
+    await screen.findByRole("textbox", { name: "Message" })
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Stop this"
@@ -987,7 +987,7 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
   })
 
-  it("collapses the sources panel from the toolbar outside the card", async () => {
+  it("collapses the right rail from the toolbar outside the card", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -1037,7 +1037,7 @@ describe("dashboard chat", () => {
     )
 
     expect(
-      await screen.findByRole("complementary", { name: "Workspace sources" })
+      await screen.findByRole("complementary", { name: "Workspace artifacts" })
     ).toBeTruthy()
     expect(
       screen
@@ -1046,14 +1046,14 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Hide right panel" }))
     expect(
-      screen.queryByRole("complementary", { name: "Workspace sources" })
+      screen.queryByRole("complementary", { name: "Workspace artifacts" })
     ).toBeNull()
     expect(
       screen.getByRole("button", { name: "Show right panel" })
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Show right panel" }))
     expect(
-      screen.getByRole("complementary", { name: "Workspace sources" })
+      screen.getByRole("complementary", { name: "Workspace artifacts" })
     ).toBeTruthy()
   })
 
@@ -1136,15 +1136,12 @@ describe("dashboard chat", () => {
       screen.getByRole("button", { name: "1 source included in this chat" })
     ).toBeTruthy()
 
-    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
-    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
+    // Sources live in the always-visible left sidebar now, so the click just
+    // brings that list into view instead of switching a tab.
     await user.click(
       screen.getByRole("button", { name: "1 source included in this chat" })
     )
-    expect(screen.getByRole("heading", { name: "Sources" })).toBeTruthy()
-    expect(
-      screen.getByRole("tab", { name: "Sources" }).getAttribute("aria-selected")
-    ).toBe("true")
+    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
   })
 
   it("opens a generated artifact in the detail rail", async () => {
@@ -1234,39 +1231,32 @@ describe("dashboard chat", () => {
       name: "Workspace sources",
     })
     const sourcesScroll = sourcesPanel.querySelector(
-      '[data-state="active"] [data-slot="scroll-shadow-viewport"]'
+      '[data-slot="scroll-shadow-viewport"]'
     )
     expect(
-      sourcesScroll?.contains(
-        screen.getByRole("heading", { name: "All sources" })
-      )
+      sourcesScroll?.contains(screen.getByRole("heading", { name: "Sources" }))
     ).toBe(false)
     expect(
       sourcesScroll?.contains(screen.getByRole("button", { name: "Add" }))
     ).toBe(false)
     expect(sourcesScroll).toBeTruthy()
-    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
+
     expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
-    expect(
-      screen.getByRole("heading", { name: "All generated artifacts" })
-    ).toBeTruthy()
     const artifactsPanel = screen.getByRole("complementary", {
       name: "Workspace artifacts",
     })
     const artifactsScroll = artifactsPanel.querySelector(
-      '[data-state="active"] [data-slot="scroll-shadow-viewport"]'
+      '[data-slot="scroll-shadow-viewport"]'
     )
     const weeklySummary = await screen.findByRole("button", {
       name: /^Weekly summary/,
     })
     expect(
       artifactsScroll?.contains(
-        screen.getByRole("heading", { name: "All generated artifacts" })
+        screen.getByRole("heading", { name: "Artifacts" })
       )
     ).toBe(false)
     expect(artifactsScroll?.contains(weeklySummary)).toBe(true)
-    expect(screen.queryByRole("heading", { name: "All sources" })).toBeNull()
-    expect(screen.queryByRole("button", { name: "Add" })).toBeNull()
     expect(screen.getByRole("button", { name: "Summary" })).toBeTruthy()
     await user.click(weeklySummary)
     expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
@@ -1278,14 +1268,10 @@ describe("dashboard chat", () => {
     expect(
       screen.getByRole("complementary", { name: "Workspace artifacts" })
     ).toBeTruthy()
-    expect(
-      screen
-        .getByRole("tab", { name: /^Artifacts/ })
-        .getAttribute("aria-selected")
-    ).toBe("true")
+    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
   })
 
-  it("remembers the sources and artifacts tab across remounts", async () => {
+  it("remembers whether the right rail is open across remounts", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       const path = String(input)
       if (path === "/llm/providers") {
@@ -1324,25 +1310,21 @@ describe("dashboard chat", () => {
 
     render(page)
     expect(
-      await screen.findByRole("complementary", { name: "Workspace sources" })
+      await screen.findByRole("complementary", { name: "Workspace artifacts" })
     ).toBeTruthy()
-    await user.click(screen.getByRole("tab", { name: /^Artifacts/ }))
-    expect(localStorage.getItem(RIGHT_TAB_KEY)).toBe("artifacts")
+    await user.click(screen.getByRole("button", { name: "Hide right panel" }))
+    expect(localStorage.getItem(RIGHT_PANEL_KEY)).toBe("collapsed")
     expect(
-      screen
-        .getByRole("tab", { name: /^Artifacts/ })
-        .getAttribute("aria-selected")
-    ).toBe("true")
+      screen.queryByRole("complementary", { name: "Workspace artifacts" })
+    ).toBeNull()
 
     cleanup()
     render(page)
     expect(
-      await screen.findByRole("complementary", { name: "Workspace artifacts" })
-    ).toBeTruthy()
+      screen.queryByRole("complementary", { name: "Workspace artifacts" })
+    ).toBeNull()
     expect(
-      screen
-        .getByRole("tab", { name: /^Artifacts/ })
-        .getAttribute("aria-selected")
-    ).toBe("true")
+      screen.getByRole("button", { name: "Show right panel" })
+    ).toBeTruthy()
   })
 })

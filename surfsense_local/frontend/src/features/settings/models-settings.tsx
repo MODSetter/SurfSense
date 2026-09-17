@@ -38,13 +38,10 @@ export function ModelsSettings({
   const readyState = state.status === "ready" ? state : null
 
   return (
-    <SettingsSection
-      title="Models"
-      description={DESCRIPTION}
-      scrollable={false}
-    >
+    <SettingsSection title="Models" description={DESCRIPTION} scrollable="all">
       <ModelSelectionContent
         allowDelete
+        scrollable={false}
         state={state}
         draftKey={
           readyState?.selection == null ? null : modelKey(readyState.selection)

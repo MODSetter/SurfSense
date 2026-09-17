@@ -88,7 +88,6 @@ export function ThreadPanel({
   onModelSelected,
   onRetry,
   onUpload,
-  onOpenSources,
   sourceCount,
   onTitleAnimationComplete,
   autoNamingThreadId,
@@ -110,7 +109,6 @@ export function ThreadPanel({
   onModelSelected: (selection: ModelSelection) => void
   onRetry: (assistantId: string) => void
   onUpload: (files: File[]) => void
-  onOpenSources: () => void
   onTitleAnimationComplete: () => void
   autoNamingThreadId: number | null
   onRename: (id: number, title: string) => Promise<boolean>
@@ -138,7 +136,6 @@ export function ThreadPanel({
       providerAvailable={providerAvailable}
       onModelSetup={onModelSetup}
       onModelSelected={onModelSelected}
-      onOpenSources={onOpenSources}
       onUpload={onUpload}
     />
   )
@@ -201,7 +198,7 @@ export function ThreadPanel({
               }}
             />
           ) : (
-            <ButtonGroup aria-label="Chat">
+            <ButtonGroup aria-label="Chat" className="max-w-lg min-w-0">
               <Button
                 type="button"
                 variant="ghost"
@@ -209,7 +206,7 @@ export function ThreadPanel({
                 className="h-auto min-w-0 max-w-full px-1.5 py-0 font-heading text-base font-medium active:translate-y-0"
                 onClick={startEditing}
               >
-                <span className="truncate">
+                <span className="sidebar-row-title-fade min-w-0 overflow-hidden whitespace-nowrap">
                   <TypewriterText
                     text={title}
                     animate={animateTitle}
