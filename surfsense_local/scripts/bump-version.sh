@@ -18,6 +18,7 @@ fi
 
 JSON_FIELD='"version"[[:space:]]*:[[:space:]]*"[^"]*"'
 TOML_FIELD='^version[[:space:]]*=[[:space:]]*"[^"]*"'
+TS_FIELD='^export const APP_RELEASE_VERSION = "[^"]*"'
 
 echo "Bumping surfsense_local to $VERSION"
 echo "---------------------------------"
@@ -52,6 +53,8 @@ bump() {
 bump "$LOCAL_ROOT/backend/pyproject.toml" "$TOML_FIELD" "version = \"$VERSION\""
 bump "$LOCAL_ROOT/frontend/package.json" "$JSON_FIELD" "\"version\": \"$VERSION\""
 bump "$LOCAL_ROOT/electron/package.json" "$JSON_FIELD" "\"version\": \"$VERSION\""
+bump "$LOCAL_ROOT/../surfsense_web/lib/app-release.ts" "$TS_FIELD" \
+  "export const APP_RELEASE_VERSION = \"$VERSION\""
 
 echo ""
 echo "Syncing lock files..."
