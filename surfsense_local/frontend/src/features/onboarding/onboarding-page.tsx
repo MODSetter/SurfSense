@@ -76,8 +76,7 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
         </CardTitle>
         <CardDescription className="mx-auto max-w-md text-pretty">
           SurfSense turns scattered documents, notes, and sources into one
-          searchable workspace. Nothing leaves this computer until you allow it;
-          you will be asked the first time.
+          searchable workspace. Nothing leaves your machine without asking first.
         </CardDescription>
       </CardHeader>
       <CardFooter className="justify-center border-t-0 bg-transparent">
