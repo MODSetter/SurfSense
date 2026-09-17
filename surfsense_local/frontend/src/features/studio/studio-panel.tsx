@@ -1,5 +1,11 @@
 import { useState } from "react"
-import { CheckIcon, FileIcon, SparklesIcon } from "@/components/ui/icons"
+import {
+  ArrowLeftIcon,
+  CheckIcon,
+  ChevronRightIcon,
+  FileIcon,
+  SparklesIcon,
+} from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -85,6 +91,7 @@ function Composer({
   const ready = documents.filter((document) => document.status === "ready")
   const selected = new Set(selectedDocumentIds)
   const [prompt, setPrompt] = useState("")
+  const [view, setView] = useState<"main" | "sources">("main")
   const podcast = usePodcastBrief(format === "podcast" ? workspaceId : null)
   const allSelected = ready.length > 0 && selected.size === ready.length
 
@@ -95,26 +102,109 @@ function Composer({
   const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
-    <div className="space-y-3">
-      {format === "podcast" ? (
-        podcast.brief ? (
-          <PodcastBriefForm
-            brief={podcast.brief}
-            voices={podcast.voices}
-            onChange={podcast.setBrief}
-          />
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            {podcast.error ?? "Preparing the brief…"}
-          </p>
-        )
-      ) : null}
+    <div className="grid">
+      <div
+        className={cn(
+          "col-start-1 row-start-1 flex flex-col transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          view === "main"
+            ? "opacity-100 blur-none"
+            : "pointer-events-none invisible opacity-0 blur-sm"
+        )}
+        aria-hidden={view !== "main"}
+      >
+        <div className="space-y-3">
+          {format === "podcast" ? (
+            podcast.brief ? (
+              <PodcastBriefForm
+                brief={podcast.brief}
+                voices={podcast.voices}
+                onChange={podcast.setBrief}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                {podcast.error ?? "Preparing the brief…"}
+              </p>
+            )
+          ) : null}
 
-      <div className="space-y-2">
+          {ready.length === 0 ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Sources
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Add and index a source first — only ready documents can be
+                used.
+              </p>
+            </div>
+          ) : (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setView("sources")}
+              className="h-10 w-full justify-between px-2.5 font-normal"
+            >
+              <span className="min-w-0 flex-1 truncate text-left">
+                {selected.size} source{selected.size === 1 ? "" : "s"}
+              </span>
+              <ChevronRightIcon className="size-4 text-muted-foreground" />
+            </Button>
+          )}
+
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Prompt (optional)
+            </p>
+            <Input
+              className="select-text"
+              value={prompt}
+              placeholder="Steer the focus, e.g. emphasise the risks"
+              onChange={(event) => setPrompt(event.target.value)}
+            />
+          </div>
+        </div>
+
+        <div className="mt-auto pt-3">
+          <Button
+            className="w-full"
+            disabled={!canGenerate}
+            onClick={() => {
+              onGenerate({
+                format,
+                document_ids: [...selected],
+                prompt: prompt.trim() || undefined,
+                options: podcast.brief ?? undefined,
+              })
+            }}
+          >
+            {isCreating ? (
+              <Spinner />
+            ) : (
+              <SparklesIcon data-icon="inline-start" />
+            )}
+            Generate
+          </Button>
+        </div>
+      </div>
+
+      <div
+        className={cn(
+          "col-start-1 row-start-1 space-y-2 transition-[opacity,filter] duration-250 ease-out motion-reduce:transition-none",
+          view === "sources"
+            ? "opacity-100 blur-none"
+            : "pointer-events-none invisible opacity-0 blur-sm"
+        )}
+        aria-hidden={view !== "sources"}
+      >
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-medium text-muted-foreground">
+          <button
+            type="button"
+            onClick={() => setView("main")}
+            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeftIcon className="size-3.5" />
             Sources ({selected.size} selected)
-          </p>
+          </button>
           {ready.length > 0 ? (
             <Button
               type="button"
@@ -127,73 +217,39 @@ function Composer({
             </Button>
           ) : null}
         </div>
-        {ready.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Add and index a source first — only ready documents can be used.
-          </p>
-        ) : (
-          <div className="max-h-40 overflow-y-auto">
-            <div className="space-y-1 pr-2">
-              {ready.map((document) => {
-                const on = selected.has(document.id)
-                return (
-                  <button
-                    key={document.id}
-                    type="button"
-                    onClick={() => toggle(document.id)}
+        <div className="max-h-64 overflow-y-auto">
+          <div className="space-y-1 pr-2">
+            {ready.map((document) => {
+              const on = selected.has(document.id)
+              return (
+                <button
+                  key={document.id}
+                  type="button"
+                  onClick={() => toggle(document.id)}
+                  className={cn(
+                    "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
+                    on ? "border-primary bg-primary/5" : "hover:bg-accent"
+                  )}
+                >
+                  <span
                     className={cn(
-                      "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
-                      on ? "border-primary bg-primary/5" : "hover:bg-accent"
+                      "flex size-4 items-center justify-center rounded border",
+                      on
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-muted-foreground/40"
                     )}
                   >
-                    <span
-                      className={cn(
-                        "flex size-4 items-center justify-center rounded border",
-                        on
-                          ? "border-primary bg-primary text-primary-foreground"
-                          : "border-muted-foreground/40"
-                      )}
-                    >
-                      {on ? <CheckIcon className="size-3" /> : null}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate">
-                      {document.title}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
+                    {on ? <CheckIcon className="size-3" /> : null}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {document.title}
+                  </span>
+                </button>
+              )
+            })}
           </div>
-        )}
+        </div>
       </div>
-
-      <div className="space-y-2">
-        <p className="text-xs font-medium text-muted-foreground">
-          Prompt (optional)
-        </p>
-        <Input
-          className="select-text"
-          value={prompt}
-          placeholder="Steer the focus, e.g. emphasise the risks"
-          onChange={(event) => setPrompt(event.target.value)}
-        />
-      </div>
-
-      <Button
-        className="w-full"
-        disabled={!canGenerate}
-        onClick={() => {
-          onGenerate({
-            format,
-            document_ids: [...selected],
-            prompt: prompt.trim() || undefined,
-            options: podcast.brief ?? undefined,
-          })
-        }}
-      >
-        {isCreating ? <Spinner /> : <SparklesIcon data-icon="inline-start" />}
-        Generate
-      </Button>
     </div>
   )
 }
@@ -288,7 +344,7 @@ export function StudioPanel({
           if (!open) setFormat(null)
         }}
       >
-        <DialogContent className="p-6 select-none sm:max-w-lg **:data-[slot=dialog-close]:top-3 **:data-[slot=dialog-close]:right-3">
+        <DialogContent className="p-6 select-none **:data-[slot=dialog-close]:top-3 **:data-[slot=dialog-close]:right-3 sm:max-w-lg">
           {selectedFormat ? (
             <>
               <DialogHeader>
