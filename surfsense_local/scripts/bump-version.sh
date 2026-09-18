@@ -21,8 +21,35 @@ TOML_FIELD='^version[[:space:]]*=[[:space:]]*"[^"]*"'
 TS_FIELD='^export const APP_RELEASE_VERSION = "[^"]*"'
 PY_FIELD='^APP_RELEASE_VERSION = "[^"]*"'
 
+if command -v python3 >/dev/null 2>&1; then
+  PYTHON=python3
+elif command -v python >/dev/null 2>&1; then
+  PYTHON=python
+else
+  echo "ERROR: python3 is required to rewrite version fields" >&2
+  exit 1
+fi
+
 echo "Bumping surfsense_local to $VERSION"
 echo "---------------------------------"
+
+# ponytail: GNU `sed -i` is not BSD or Windows; CPython is already on the
+# Mac/Linux/Windows machines that cut this release. Ceiling: POSIX `[[:space:]]`
+# in the grep patterns is mapped to `\s` here — upgrade if a field needs a
+# real character class.
+rewrite_first() {
+  "$PYTHON" - "$1" "$2" "$3" <<'PY'
+import pathlib, re, sys
+
+path, field, replacement = pathlib.Path(sys.argv[1]), sys.argv[2], sys.argv[3]
+pattern = field.replace("[[:space:]]", r"\s")
+text = path.read_text(encoding="utf-8")
+new, n = re.subn(pattern, replacement, text, count=1, flags=re.MULTILINE)
+if n != 1:
+    raise SystemExit(f"no version field match in {path}")
+path.write_text(new, encoding="utf-8")
+PY
+}
 
 bump() {
   local file="$1" field="$2" replacement="$3"
@@ -42,7 +69,7 @@ bump() {
     return
   fi
 
-  sed -i "0,/$field/s//$replacement/" "$file"
+  rewrite_first "$file" "$field" "$replacement"
 
   if ! grep -qF "$replacement" "$file"; then
     echo "ERROR: failed to rewrite version in $file" >&2
