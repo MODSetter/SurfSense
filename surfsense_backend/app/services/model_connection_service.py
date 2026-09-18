@@ -15,6 +15,7 @@ import litellm
 
 from app.db import Connection, Model, ModelSource
 from app.services.context_admission import SURFSENSE_UNKNOWN_MODEL_MAX_INPUT_TOKENS
+from app.services.model_capabilities import has_capability
 from app.services.model_resolver import to_litellm
 from app.services.openrouter_model_normalizer import normalize_openrouter_models
 from app.services.provider_registry import Transport, provider_label, spec_for
@@ -378,6 +379,34 @@ def _ollama_seed_budget(metadata: dict) -> int | None:
     return None
 
 
+def _openai_shaped_capabilities(
+    metadata: dict, facts: dict[str, Any]
+) -> dict[str, Any]:
+    """Xinference-style per-model metadata from an OpenAI-shaped ``/v1/models``
+    entry, as overrides for ``facts``.
+
+    A plain OpenAI-compatible server (vanilla vLLM, LM Studio's OpenAI facade)
+    does not report ``model_type``, so an empty dict leaves ``facts`` as
+    litellm classified them.
+    """
+    model_type = metadata.get("model_type")
+    if not model_type:
+        return {}
+    ability = set(metadata.get("model_ability") or [])
+    if model_type == "image" or "text2image" in ability:
+        return {"supports_chat": False, "supports_image_generation": True}
+    if model_type in {"embedding", "rerank", "audio", "video"}:
+        return {"supports_chat": False}
+    if model_type == "LLM" and ability:
+        return {
+            "supports_chat": "chat" in ability,
+            "supports_image_input": "vision" in ability
+            or facts["supports_image_input"],
+            "supports_tools": "tools" in ability or facts["supports_tools"],
+        }
+    return {}
+
+
 def derive_capabilities(
     conn: Connection, model_id: str, metadata: dict | None = None
 ) -> dict[str, Any]:
@@ -398,6 +427,8 @@ def derive_capabilities(
                 or facts["max_input_tokens"],
             }
         )
+    elif spec.transport == Transport.OPENAI_COMPATIBLE:
+        facts.update(_openai_shaped_capabilities(metadata, facts))
     return facts
 
 
@@ -846,6 +877,22 @@ async def discover_models(conn: Connection) -> list[dict[str, Any]]:
 
 async def test_model(conn: Connection, model: Model) -> VerifyResult:
     model_string, kwargs = to_litellm(conn, model.model_id)
+
+    if has_capability(model, "image_gen") and not has_capability(model, "chat"):
+        try:
+            await litellm.aimage_generation(
+                prompt="test",
+                model=model_string,
+                n=1,
+                timeout=TEST_TIMEOUT_SECONDS,
+                **kwargs,
+            )
+        except Exception as exc:
+            return _model_test_error(conn, model.model_id, exc)
+
+        model.supports_image_generation = True
+        return VerifyResult("OK", True, "Model test succeeded.")
+
     try:
         await litellm.acompletion(
             model=model_string,
