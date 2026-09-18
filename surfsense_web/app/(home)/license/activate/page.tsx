@@ -131,8 +131,8 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 			<>
 				One file covers everyone on the plan, and it is emailed only to the address that paid, so
 				ask whoever bought it to forward it to you. If that inbox is gone, email{" "}
-				<a className="ss-home-link" href="mailto:support@surfsense.com?subject=License%20recovery">
-					support@surfsense.com
+				<a className="ss-home-link" href="mailto:rohan@surfsense.com?subject=License%20recovery">
+					rohan@surfsense.com
 				</a>{" "}
 				with your payment details.
 			</>

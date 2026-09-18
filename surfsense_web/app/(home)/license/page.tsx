@@ -62,8 +62,8 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 				If you mistyped your email when buying, or no longer have access to it, we cannot send the
 				file anywhere else automatically, since anyone could otherwise type your address and receive
 				your license. Email{" "}
-				<a className="ss-home-link" href="mailto:support@surfsense.com?subject=License%20recovery">
-					support@surfsense.com
+				<a className="ss-home-link" href="mailto:rohan@surfsense.com?subject=License%20recovery">
+					rohan@surfsense.com
 				</a>{" "}
 				with your payment details (the charge on your card statement, or the last 4 digits, amount
 				and date) and we will verify the purchase and fix it.
