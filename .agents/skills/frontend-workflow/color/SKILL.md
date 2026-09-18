@@ -1,8 +1,7 @@
-<!-- Inert: bundled reference file, not a discovered skill. The frontmatter below has no effect. `disable-model-invocation` does nothing here. -->
+<!-- Inert: bundled reference file, not a discovered skill. The frontmatter below has no effect. -->
 ---
 name: color-system
 description: Applies and reviews SurfSense's canonical light and dark color palette, semantic design tokens, typography, charts, borders, shadows, and theme mappings. Use when creating or changing frontend colors, themes, component styling, data visualizations, or design tokens.
-disable-model-invocation: true
 ---
 
 # SurfSense Color System
