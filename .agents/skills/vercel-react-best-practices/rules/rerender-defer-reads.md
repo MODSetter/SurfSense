@@ -12,8 +12,6 @@ Don't subscribe to dynamic state (searchParams, localStorage) if you only read i
 **Incorrect (subscribes to all searchParams changes):**
 
 ```tsx
-import { Button } from '@/components/ui/button'
-
 function ShareButton({ chatId }: { chatId: string }) {
   const searchParams = useSearchParams()
 
@@ -22,15 +20,13 @@ function ShareButton({ chatId }: { chatId: string }) {
     shareChat(chatId, { ref })
   }
 
-  return <Button onClick={handleShare}>Share</Button>
+  return <button onClick={handleShare}>Share</button>
 }
 ```
 
 **Correct (reads on demand, no subscription):**
 
 ```tsx
-import { Button } from '@/components/ui/button'
-
 function ShareButton({ chatId }: { chatId: string }) {
   const handleShare = () => {
     const params = new URLSearchParams(window.location.search)
@@ -38,6 +34,6 @@ function ShareButton({ chatId }: { chatId: string }) {
     shareChat(chatId, { ref })
   }
 
-  return <Button onClick={handleShare}>Share</Button>
+  return <button onClick={handleShare}>Share</button>
 }
 ```

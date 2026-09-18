@@ -45,12 +45,11 @@ function StaticContent() {
 **For mutations:**
 
 ```tsx
-import { Button } from '@/components/ui/button'
 import { useSWRMutation } from 'swr/mutation'
 
 function UpdateButton() {
   const { trigger } = useSWRMutation('/api/user', updateUser)
-  return <Button onClick={() => trigger()}>Update</Button>
+  return <button onClick={() => trigger()}>Update</button>
 }
 ```
 

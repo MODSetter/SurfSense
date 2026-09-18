@@ -61,7 +61,7 @@ jobs:
           echo "Running file quality hooks on changed files against $BASE_REF"
           
           # Run each hook individually on changed files
-          SKIP=detect-secrets,bandit,ruff,ruff-format,biome-check-web,biome-check-extension,commitizen \
+          SKIP=detect-secrets,bandit,ruff,ruff-format,biome-check-web,commitizen \
             pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
           
           # Exit with the same code as pre-commit
@@ -118,7 +118,7 @@ jobs:
           echo "Running security scans on changed files against $BASE_REF"
           
           # Run only security hooks on changed files
-          SKIP=check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,biome-check-web,biome-check-extension,commitizen \
+          SKIP=check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,ruff,ruff-format,biome-check-web,commitizen \
             pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
           
           # Exit with the same code as pre-commit
@@ -200,7 +200,7 @@ jobs:
           echo "Running Python backend checks on changed files against $BASE_REF"
           
           # Run only ruff hooks on changed Python files
-          SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,biome-check-web,biome-check-extension,commitizen \
+          SKIP=detect-secrets,bandit,check-yaml,check-json,check-toml,check-merge-conflict,check-added-large-files,debug-statements,check-case-conflict,biome-check-web,commitizen \
             pre-commit run --from-ref $BASE_REF --to-ref HEAD || exit_code=$?
           
           # Exit with the same code as pre-commit
@@ -237,18 +237,10 @@ jobs:
             web:
               - 'surfsense_web/**'
               - '.github/workflows/code-quality.yml'
-            extension:
-              - 'surfsense_browser_extension/**'
-              - '.github/workflows/code-quality.yml'
 
       - name: Install dependencies for web
         if: steps.frontend-changes.outputs.web == 'true'
         working-directory: surfsense_web
-        run: pnpm install --frozen-lockfile
-
-      - name: Install dependencies for extension
-        if: steps.frontend-changes.outputs.extension == 'true'
-        working-directory: surfsense_browser_extension
         run: pnpm install --frozen-lockfile
 
       - name: Install pre-commit
@@ -274,7 +266,7 @@ jobs:
             BASE_REF="origin/${{ github.base_ref }}"
           else
             echo "Base branch reference not found, running TypeScript/JavaScript checks on all files"
-            pre-commit run --all-files biome-check-web biome-check-extension
+            pre-commit run --all-files biome-check-web
             exit 0
           fi
           

@@ -12,8 +12,6 @@ If a side effect is triggered by a specific user action (submit, click, drag), r
 **Incorrect (event modeled as state + effect):**
 
 ```tsx
-import { Button } from '@/components/ui/button'
-
 function Form() {
   const [submitted, setSubmitted] = useState(false)
   const theme = useContext(ThemeContext)
@@ -25,15 +23,13 @@ function Form() {
     }
   }, [submitted, theme])
 
-  return <Button onClick={() => setSubmitted(true)}>Submit</Button>
+  return <button onClick={() => setSubmitted(true)}>Submit</button>
 }
 ```
 
 **Correct (do it in the handler):**
 
 ```tsx
-import { Button } from '@/components/ui/button'
-
 function Form() {
   const theme = useContext(ThemeContext)
 
@@ -42,7 +38,7 @@ function Form() {
     showToast('Registered', theme)
   }
 
-  return <Button onClick={handleSubmit}>Submit</Button>
+  return <button onClick={handleSubmit}>Submit</button>
 }
 ```
 

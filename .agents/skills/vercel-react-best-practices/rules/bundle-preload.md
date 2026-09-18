@@ -12,8 +12,6 @@ Preload heavy bundles before they're needed to reduce perceived latency.
 **Example (preload on hover/focus):**
 
 ```tsx
-import { Button } from "@/components/ui/button"
-
 function EditorButton({ onClick }: { onClick: () => void }) {
   const preload = () => {
     if (typeof window !== 'undefined') {
@@ -22,13 +20,13 @@ function EditorButton({ onClick }: { onClick: () => void }) {
   }
 
   return (
-    <Button
+    <button
       onMouseEnter={preload}
       onFocus={preload}
       onClick={onClick}
     >
       Open Editor
-    </Button>
+    </button>
   )
 }
 ```

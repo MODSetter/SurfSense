@@ -1,0 +1,35 @@
+name: Bug
+description: Something is not working
+title: "[bug] "
+labels: [bug]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part?
+      options:
+        - Desktop app
+        - MCP
+        - Backend / scraper API
+        - Web UI
+        - Docs / repo
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce
+      description: Steps, version, or a short log if you have one.

@@ -1,211 +1,42 @@
-# Contributing to SurfSense
+# Contributing
 
-Hey! 👋 Thanks for checking out **SurfSense**. We're stoked that you're interested in helping improve the project. Whether it's fixing bugs, suggesting features, improving docs, or just joining the conversation — every bit helps.
+Bug fixes and docs are welcome without asking first. For a new feature, open an issue so we can agree it belongs here before you spend time on a large PR.
 
-## 🧠 Before You Start
+[`good first issue`](https://github.com/MODSetter/SurfSense/labels/good%20first%20issue) is a good place to start. It also helps to check [existing issues](https://github.com/MODSetter/SurfSense/issues) and [PRs](https://github.com/MODSetter/SurfSense/pulls).
 
-**Join Our Discord**  
-Want to stay in the loop, ask questions, or get feedback before starting something?  
-Hop into the official SurfSense community:  
-👉 [https://discord.gg/ejRNvftDp9](https://discord.gg/ejRNvftDp9)
+Questions: [Discord](https://discord.gg/ejRNvftDp9) or [Discussions](https://github.com/MODSetter/SurfSense/discussions). Security: [SECURITY.md](SECURITY.md). Conduct: [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
-That's where the *latest updates*, *internal discussions*, and *collaborations* happen.
+## Getting set up
 
-## 📌 What Can You Work On?
+This repo holds four products. Clone it once, then open the README for the product you want to change. You do not need to run the other three.
 
-There are 3 main ways to contribute:
+| If you want to work on | Open |
+|------------------------|------|
+| Desktop app | [`surfsense_local/README.md`](surfsense_local/README.md) |
+| MCP server | [`surfsense_mcp/README.md`](surfsense_mcp/README.md) |
+| API / scrapers | [`surfsense_backend/README.md`](surfsense_backend/README.md) |
+| Self-host web UI | [`surfsense_web/README.md`](surfsense_web/README.md) |
 
-### ✅ 1. Pick From the Roadmap
-We maintain a public roadmap with well-scoped issues and features you can work on:  
-🔗 [SurfSense GitHub Project Roadmap](https://github.com/users/MODSetter/projects/2)
+The web UI needs the API running. Desktop does not. MCP talks to any backend over HTTP.
 
-> 💡 **Tip**: Look for tasks in `Backlog` or `Ready` status.
-
-### 💡 2. Propose Something New
-Have an idea that's not on the roadmap?
-
-1. First, check for an existing issue
-2. If it doesn't exist, create a new issue explaining your feature or enhancement
-3. Wait for feedback from maintainers
-4. Once approved, you're welcome to start working on a PR!
-
-### 🐞 3. Report Bugs or Fix Them
-Found a bug? Create an issue with:
-
-- **Steps to reproduce** the issue
-- **Expected vs actual behavior**
-- **Environment details** (OS, browser, version)
-- **Any relevant logs or screenshots**
-
-Want to fix it? Go for it! Just link the issue in your PR.
-
-## 🌿 Branching Workflow
-
-We follow a **branch protection model** to keep `main` stable:
-
-| Branch | Purpose | Who can merge |
-|--------|---------|---------------|
-| `main` | Stable/release branch | Maintainers only (from `dev`) |
-| `dev` | Active development & integration | Via approved PRs from contributors |
-| `feature/*`, `fix/*`, etc. | Individual work branches | Contributors create PRs to `dev` |
-
-### Important Rules
-
-- **All contributor PRs must target the `dev` branch.** PRs targeting `main` will not be accepted.
-- `main` is updated exclusively by maintainers merging from `dev` when a release is ready.
-- Always create your feature/fix branches from the latest `dev`.
-
-## 🛠️ Development Setup
-
-### Prerequisites
-- **Docker & Docker Compose** (recommended) OR manual setup
-- **Node.js** (v18+ for web frontend)
-- **Python** (v3.11+ for backend)
-- **PostgreSQL** with **PGVector** extension
-- **API Keys** for external services you're testing
-
-### Quick Start
-1. **Fork and clone the repository**
-   ```bash
-   git clone https://github.com/<your-username>/SurfSense.git
-   cd SurfSense
-   ```
-
-2. **Create your branch from `dev`**
-   ```bash
-   git checkout dev
-   git pull origin dev
-   git checkout -b feature/your-feature-name
-   ```
-
-3. **Choose your setup method**:
-   - **Docker Setup**: Follow the [Building from Source (Contributors)](https://www.surfsense.com/docs/legacy/docker-installation#building-from-source-contributors) section of the Docker Installation guide
-   - **Manual Setup**: Follow the [Installation Guide](https://www.surfsense.com/docs/legacy/)
-
-4. **Configure services**:
-   - Set up PGVector & PostgreSQL
-   - Configure a file ETL service: `Unstructured.io` or `LlamaIndex`
-   - Add API keys for external services
-
-For detailed setup instructions, refer to our [Installation Guide](https://www.surfsense.com/docs/legacy/).
-
-## 🏗️ Project Structure
-
-SurfSense consists of three main components:
-
-- **`surfsense_backend/`** - Python/FastAPI backend service
-- **`surfsense_web/`** - Next.js web application
-- **`surfsense_browser_extension/`** - Browser extension for data collection
-
-## 🧪 Development Guidelines
-
-### Code Quality & Pre-commit Hooks
-We use pre-commit hooks to maintain code quality, security, and consistency across the codebase. Before you start developing:
-
-1. **Install and set up pre-commit hooks** - `pip install pre-commit && pre-commit install`
-2. **Understand the automated checks** that will run on your code - every hook is listed in [`.pre-commit-config.yaml`](./.pre-commit-config.yaml); run them all with `pre-commit run --all-files`
-3. **Learn about bypassing hooks** when necessary (use sparingly!)
-
-### Code Style
-- **Backend**: Follow Python PEP 8 style guidelines
-- **Frontend**: Use TypeScript and follow the existing code patterns
-- **Formatting**: Use the project's configured formatters (Ruff for Python, Biome for TypeScript)
-
-### Commit Messages
-Use clear, descriptive commit messages:
-```
-feat: add document search functionality
-fix: resolve pagination issue in chat history
-docs: update installation guide
-refactor: improve error handling in connectors
+```bash
+git clone https://github.com/<you>/SurfSense.git
+cd SurfSense
+git checkout dev
+git checkout -b fix/short-name
 ```
 
-### Testing
-- Write tests for new features and bug fixes
-- Ensure existing tests pass before submitting
-- Include integration tests for API endpoints
+We merge through `dev`. Open your PR against that branch.
 
-### Branch Naming
-Create branches from `dev` with descriptive names:
-- `feature/add-document-search`
-- `fix/pagination-issue`
-- `docs/update-contributing-guide`
+## Pull requests
 
-## 🔄 Pull Request Process
+Small, focused PRs are easier to review.
 
-### Before Submitting
-1. **Create an issue** first (unless it's a minor fix)
-2. **Fork the repository** and create a branch from `dev`
-3. **Make your changes** following the coding guidelines
-4. **Test your changes** thoroughly
-5. **Update documentation** if needed
-6. **Open a PR targeting the `dev` branch**
+- Say what changed, why, and how you tried it.
+- `Fixes #123` links the issue and closes it on merge.
+- [Allow edits from maintainers](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) lets us help on the branch.
+- New files follow [AGENTS.md](AGENTS.md). Existing packages do not need a layout rewrite unless that is the issue.
+- `surfsense_backend/app/proprietary/` is Business Source License 1.1. Ask a maintainer before changing it.
+- Keep `.env` and secrets out of the commit.
 
-> **Note:** PRs targeting `main` will **not** be reviewed or merged. If you accidentally open a PR to `main`, please retarget it to `dev`.
-
-### PR Requirements
-- **Target the `dev` branch** — this is mandatory
-- **One feature or fix per PR** - keep changes focused
-- **Link related issues** in the PR description
-- **Include screenshots or demos** for UI changes
-- **Write descriptive PR title and description**
-- **Ensure CI passes** before requesting review
-
-
-## 🔍 Code Review Process
-
-1. **Automated checks** must pass (CI/CD pipeline)
-2. **At least one maintainer** will review your PR
-3. **Address feedback** promptly and professionally
-4. **Squash commits** if requested to keep history clean
-5. **Celebrate** when your PR gets merged! 🎉
-
-## 📚 Documentation
-
-When contributing, please:
-- Update relevant documentation for new features
-- Add or update code comments for complex logic
-- Update API documentation for backend changes
-- Add examples for new functionality
-
-## 🆘 Getting Help
-
-Stuck? Need clarification? Here's how to get help:
-
-1. **Check existing issues** - your question might already be answered
-2. **Search the docs** - [https://www.surfsense.com/docs/legacy/](https://www.surfsense.com/docs/legacy/)
-3. **Ask in Discord** - [https://discord.gg/ejRNvftDp9](https://discord.gg/ejRNvftDp9)
-4. **Create an issue** - if it's a bug or feature request
-
-## ⭐ Other Ways to Contribute
-
-Not ready to code? You can still help!
-
-- **Give us a star** ⭐ on GitHub
-- **Share SurfSense** with your community
-- **Provide feedback** on Discord
-- **Help triage issues** and validate bug reports
-- **Improve documentation** and examples
-- **Write tutorials** or blog posts about SurfSense
-
-## 🎯 Recognition
-
-We appreciate all contributions! Contributors will be:
-- **Acknowledged** in release notes
-- **Listed** in our contributors section
-- **Invited** to join our contributors' Discord channel
-- **Eligible** for special contributor badges
-
-## 📄 License
-
-By contributing to SurfSense, you agree that your contributions will be licensed under the same license as the project.
-
----
-
-**Thank you for contributing to SurfSense!** 🚀  
-Together, we're building something awesome.
-
-
-
-
-
+CI on the PR should be green. One maintainer review is enough to merge.

@@ -52,8 +52,6 @@ bump_toml() {
 }
 
 bump_json "$REPO_ROOT/surfsense_web/package.json"
-bump_json "$REPO_ROOT/surfsense_browser_extension/package.json"
-bump_json "$REPO_ROOT/surfsense_desktop/package.json"
 bump_toml "$REPO_ROOT/surfsense_backend/pyproject.toml"
 
 echo ""
