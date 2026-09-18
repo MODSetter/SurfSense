@@ -9,6 +9,23 @@ from typing import Any
 _ATTEMPTS = 50
 _DELAY = 0.1
 
+_LOAD_EXTENSION_HINT = (
+    "SQLite was built without loadable extensions, so vec0 cannot load. "
+    "On macOS freeze with uv's Python (python-build-standalone), not "
+    "python.org or Apple's: UV_PYTHON_PREFERENCE=only-managed"
+)
+
+
+def require_load_extension(connection: Any) -> None:
+    """Fail before sqlite-vec if this Python omitted enable_load_extension.
+
+    python.org macOS builds skip --enable-loadable-sqlite-extensions; Apple's
+    Python does too. The method is then missing, and the first connection
+    (migrations on launch) dies with AttributeError.
+    """
+    if not hasattr(connection, "enable_load_extension"):
+        raise RuntimeError(_LOAD_EXTENSION_HINT)
+
 
 def enable_wal(connection: Any, attempts: int = _ATTEMPTS) -> None:
     """Put a SQLite file in WAL mode, waiting out a concurrent first opener."""

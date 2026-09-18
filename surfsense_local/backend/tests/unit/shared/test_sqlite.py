@@ -4,9 +4,17 @@ from pathlib import Path
 
 import pytest
 
-from shared.sqlite import enable_wal
+from shared.sqlite import enable_wal, require_load_extension
 
 pytestmark = pytest.mark.unit
+
+
+def test_require_load_extension_names_the_mac_python_trap() -> None:
+    """python.org macOS Python omits the method; say that instead of AttributeError."""
+    with pytest.raises(RuntimeError, match="loadable extensions"):
+        require_load_extension(object())
+
+    require_load_extension(sqlite3.connect(":memory:"))
 
 
 def test_wal_waits_for_the_process_still_creating_the_file(tmp_path: Path) -> None:

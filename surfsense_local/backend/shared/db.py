@@ -18,7 +18,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
-from shared.sqlite import enable_wal
+from shared.sqlite import enable_wal, require_load_extension
 
 # SQLite is the only backend that lets constraints stay unnamed, and Alembic's
 # batch mode cannot drop what it cannot name. Retrofitting this later would not
@@ -90,7 +90,9 @@ def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     # pysqlite otherwise autocommits DDL, stranding a migration that dies midway.
     dbapi_connection.isolation_level = None
 
-    # Not built into SQLite: without it vec0 does not exist.
+    # Not built into SQLite: without it vec0 does not exist. python.org macOS
+    # builds omit the method itself, so check before calling it.
+    require_load_extension(dbapi_connection)
     dbapi_connection.enable_load_extension(True)
     sqlite_vec.load(dbapi_connection)
     dbapi_connection.enable_load_extension(False)
