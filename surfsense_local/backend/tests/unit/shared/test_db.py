@@ -24,3 +24,10 @@ async def test_a_request_may_not_open_a_transaction_on_the_event_loop(
     # Outside a request (startup, tests seeding data) the loop is free to.
     with engine.begin() as tx:
         assert tx.execute(text("SELECT 1")).scalar() == 1
+
+
+def test_a_connection_can_query_vec0(tmp_path: Path) -> None:
+    """Every launch loads sqlite-vec; python.org macOS Python cannot do that."""
+    engine = create_db_engine(tmp_path / "vec.db")
+    with engine.connect() as connection:
+        assert connection.exec_driver_sql("SELECT vec_version()").scalar()

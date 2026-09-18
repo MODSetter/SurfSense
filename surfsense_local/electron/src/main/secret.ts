@@ -11,8 +11,10 @@ export type Cipher = {
 export function loadSecret(path: string, cipher: Cipher): string {
   try {
     return cipher.decryptString(readFileSync(path))
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error
+  } catch {
+    // ponytail: missing *or* undecryptable (reinstall, Keychain rotated).
+    // Minting a new secret orphans Fernet-wrapped API keys in the DB until
+    // the user re-enters them; refusing to boot is worse.
   }
   const secret = randomBytes(32).toString("hex")
   mkdirSync(dirname(path), { recursive: true })

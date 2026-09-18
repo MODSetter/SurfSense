@@ -54,6 +54,13 @@ jobs:
       run:
         shell: bash
 
+    env:
+      # macOS's system Python has SQLite extension loading compiled out (same
+      # restriction Apple applies to its own system libsqlite3); sqlite_vec
+      # needs it. uv's own managed Python has it, so never let a PATH-found
+      # interpreter (e.g. from actions/setup-python) get used instead.
+      UV_PYTHON_PREFERENCE: only-managed
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -103,15 +110,11 @@ jobs:
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" > /dev/null
 
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0
         with:
           enable-cache: true
+          python-version: "3.12"
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v5
@@ -149,6 +152,27 @@ jobs:
           WORKER="./surfsense_local/backend/dist/worker/worker"
           if [ "$RUNNER_OS" = "Windows" ]; then WORKER="${WORKER}.exe"; fi
           "$WORKER" --check-vision-runtime
+
+      - name: Smoke the frozen API
+        run: |
+          set -e
+          API="./surfsense_local/backend/dist/api/api"
+          if [ "$RUNNER_OS" = "Windows" ]; then API="${API}.exe"; fi
+          export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-api-smoke"
+          export SURFSENSE_LOCAL_PORT=8137
+          "$API" &
+          PID=$!
+          cleanup() { kill "$PID" 2>/dev/null || true; }
+          trap cleanup EXIT
+          for i in $(seq 1 60); do
+            if curl -fsS "http://127.0.0.1:8137/health" >/dev/null; then
+              echo "health OK"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "::error::frozen API never became healthy"
+          exit 1
 
       - name: Stage embedding, voice, and Docling parser packs
         working-directory: surfsense_local/backend

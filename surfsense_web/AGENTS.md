@@ -19,8 +19,8 @@ pnpm test:e2e
 ## Do
 
 - New UI: vertical slice, one responsibility per file. See root `AGENTS.md`.
-- React/Next: `vercel-react-best-practices` skill.
-- shadcn / `components.json`: `shadcn` skill.
+- React/Next, colors, UI polish, motion: `frontend-workflow` skill.
+- shadcn components (`components.json`): `shadcn` skill after `frontend-workflow`, not instead of it — separate, and it inspects the project live.
 - New behavior: `tdd` skill.
 
 ## Do not
