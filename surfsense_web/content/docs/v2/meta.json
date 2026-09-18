@@ -1,0 +1,6 @@
+{
+	"title": "SurfSense 2.0",
+	"description": "The airgapped desktop app",
+	"root": true,
+	"pages": ["index"]
+}

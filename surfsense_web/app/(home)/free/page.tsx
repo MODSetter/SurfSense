@@ -1,22 +1,27 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AdUnit } from "@/components/ads/ad-unit";
-import { ADSENSE_SLOTS } from "@/components/ads/adsense-config";
+import { HomeButton } from "@/components/homepage/home/home-button";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { LinkSquare02Icon } from "@/components/ui/icons";
-import { Separator } from "@/components/ui/separator";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "@/components/ui/table";
-import type { AnonModel } from "@/contracts/types/anonymous-chat.types";
-import { SERVER_BACKEND_URL } from "@/lib/env-config";
+import { ACCESS_LABEL, FREE_MODELS } from "@/lib/free-models";
+
+/**
+ * Rendered in the site design: the palette, ruled column, navigation and footer
+ * all come from `app/(home)/layout.tsx`, and every style resolves from
+ * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
+ * `components/site/site-shell.tsx`.
+ *
+ * The copy, metadata, keyword set and structured data are the ones this page
+ * already ranks on and are left alone.
+ *
+ * The catalog, however, no longer comes from the hosted anon-chat endpoint —
+ * that service is closed. Rows are a static, search-picked list in
+ * `lib/free-models.ts`, and each one leads to `/free/[model_slug]`, which is now
+ * the page that hands the visitor to the desktop app. The two columns that
+ * described the old service (a Free/Premium tier, a "Chat" action) describe how
+ * the app runs the model instead, because that is what the new data supports.
+ */
 
 export const metadata: Metadata = {
 	title: "Free AI Chat, No Login Required | SurfSense",
@@ -92,18 +97,6 @@ export const metadata: Metadata = {
 	},
 };
 
-async function getModels(): Promise<AnonModel[]> {
-	try {
-		const res = await fetch(`${SERVER_BACKEND_URL}/api/v1/public/anon-chat/models`, {
-			next: { revalidate: 300 },
-		});
-		if (!res.ok) return [];
-		return res.json();
-	} catch {
-		return [];
-	}
-}
-
 const FAQ_ITEMS = [
 	{
 		question: "Can I use ChatGPT without login?",
@@ -152,12 +145,9 @@ const FAQ_ITEMS = [
 	},
 ];
 
-export default async function FreeHubPage() {
-	const models = await getModels();
-	const seoModels = models.filter((m) => m.seo_slug);
-
+export default function FreeHubPage() {
 	return (
-		<div className="min-h-screen pt-20">
+		<>
 			<JsonLd
 				data={{
 					"@context": "https://schema.org",
@@ -169,218 +159,201 @@ export default async function FreeHubPage() {
 					isPartOf: { "@type": "WebSite", name: "SurfSense", url: "https://www.surfsense.com" },
 					mainEntity: {
 						"@type": "ItemList",
-						numberOfItems: seoModels.length,
-						itemListElement: seoModels.map((m, i) => ({
+						numberOfItems: FREE_MODELS.length,
+						itemListElement: FREE_MODELS.map((model, i) => ({
 							"@type": "ListItem",
 							position: i + 1,
-							name: m.name,
-							url: `https://www.surfsense.com/free/${m.seo_slug}`,
+							name: model.name,
+							url: `https://www.surfsense.com/free/${model.slug}`,
 						})),
 					},
 				}}
 			/>
 			<FAQJsonLd questions={FAQ_ITEMS} />
 
-			<article className="container mx-auto px-4 pb-20">
-				{/* Hero */}
-				<section className="mt-8 text-center max-w-3xl mx-auto">
-					<h1 className="text-4xl md:text-5xl font-bold tracking-tight">
-						ChatGPT Free Online Without Login
-					</h1>
-					<p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto leading-relaxed">
+			{/* Hero */}
+			<section className="ss-home-hero ss-home-pad">
+				<div className="mx-auto max-w-4xl text-center">
+					<h1 className="ss-home-display">ChatGPT Free Online Without Login</h1>
+					<p className="ss-home-lede mx-auto mt-8 max-w-2xl">
 						Use <strong>ChatGPT</strong>, <strong>Claude AI</strong>, <strong>Gemini</strong>, and
 						other AI models free online without login. No sign-up, no email, no password. Pick a
 						model and start chatting instantly.
 					</p>
-					<div className="flex flex-wrap items-center justify-center gap-3 mt-6">
-						<Badge variant="secondary" className="px-3 py-1.5 text-sm">
+					<div className="mt-10 flex flex-wrap items-center justify-center gap-2">
+						<Badge variant="secondary" className="rounded-full px-3 py-1">
 							No login required
 						</Badge>
-						<Badge variant="secondary" className="px-3 py-1.5 text-sm">
+						<Badge variant="secondary" className="rounded-full px-3 py-1">
 							500K free tokens
 						</Badge>
-						<Badge variant="secondary" className="px-3 py-1.5 text-sm">
-							{seoModels.length} AI models
+						<Badge variant="secondary" className="rounded-full px-3 py-1">
+							{FREE_MODELS.length} AI models
 						</Badge>
-						<Badge variant="secondary" className="px-3 py-1.5 text-sm">
+						<Badge variant="secondary" className="rounded-full px-3 py-1">
 							Open source
 						</Badge>
 					</div>
+				</div>
+			</section>
+
+			{/* Model Table */}
+			<section className="ss-home-rule">
+				<div className="ss-home-head">
+					<h2 className="ss-home-h2">Free AI Models Available Without Login</h2>
+					<p className="ss-home-body mt-3 max-w-2xl text-sm">
+						All models below work without login or sign-up. Click any model to start a free AI chat
+						instantly.
+					</p>
+				</div>
+
+				<section
+					className="ss-home-table-scroll"
+					aria-label="Free AI models available without login"
+					/* biome-ignore lint/a11y/noNoninteractiveTabindex: a region that scrolls horizontally has to be focusable, or a keyboard-only visitor cannot reach the columns past the fold. The labelled landmark is what makes the focus stop meaningful. */
+					tabIndex={0}
+				>
+					<table className="ss-home-table">
+						<thead>
+							<tr>
+								<th scope="col">Model</th>
+								<th scope="col">Provider</th>
+								<th scope="col">In the app</th>
+								<th scope="col">
+									<span className="sr-only">Open model page</span>
+								</th>
+							</tr>
+						</thead>
+						<tbody>
+							{FREE_MODELS.map((model) => (
+								<tr key={model.slug}>
+									<td>
+										<Link className="ss-home-link" href={`/free/${model.slug}`}>
+											{model.name}
+										</Link>
+									</td>
+									<td>{model.provider}</td>
+									<td>
+										<span
+											className="ss-home-tag"
+											data-tone={model.access === "offline" ? "accent" : undefined}
+										>
+											{ACCESS_LABEL[model.access]}
+										</span>
+									</td>
+									<td>
+										<Link className="ss-home-forward" href={`/free/${model.slug}`}>
+											Run it
+											<LinkSquare02Icon aria-hidden="true" className="size-3.5" />
+										</Link>
+									</td>
+								</tr>
+							))}
+						</tbody>
+					</table>
 				</section>
+			</section>
 
-				<Separator className="my-12 max-w-4xl mx-auto" />
+			{/* Why SurfSense */}
+			<section className="ss-home-rule">
+				<div className="ss-home-head">
+					<h2 className="ss-home-h2">Why Use SurfSense as Your Free ChatGPT Alternative</h2>
+				</div>
 
-				{/* In-content ad: above the model table */}
-				<aside aria-label="Advertisement" className="max-w-4xl mx-auto mb-8 min-h-[100px]">
-					<AdUnit slot={ADSENSE_SLOTS.freeHubInContent} />
-				</aside>
-
-				{/* Model Table */}
-				{seoModels.length > 0 ? (
-					<section
-						className="max-w-4xl mx-auto"
-						aria-label="Free AI models available without login"
-					>
-						<h2 className="text-2xl font-bold mb-2">Free AI Models Available Without Login</h2>
-						<p className="text-sm text-muted-foreground mb-6">
-							All models below work without login or sign-up. Click any model to start a free AI
-							chat instantly.
+				<div className="ss-home-grid ss-home-grid-3">
+					<div className="ss-home-cell">
+						<h3 className="ss-home-h3">Multiple AI Models in One Place</h3>
+						<p className="ss-home-body mt-2 text-sm">
+							Access ChatGPT, Claude AI free, Gemini, DeepSeek, and more. Works like sites like
+							ChatGPT but with all AI models available, not just GPT. A true free AI chatbot like
+							ChatGPT and beyond.
 						</p>
-
-						<div className="overflow-hidden rounded-lg border">
-							<Table>
-								<TableHeader>
-									<TableRow>
-										<TableHead className="w-[45%]">Model</TableHead>
-										<TableHead>Provider</TableHead>
-										<TableHead>Tier</TableHead>
-										<TableHead className="text-right w-[100px]" />
-									</TableRow>
-								</TableHeader>
-								<TableBody>
-									{seoModels.map((model) => (
-										<TableRow key={model.id}>
-											<TableCell>
-												<Link
-													href={`/free/${model.seo_slug}`}
-													className="group flex flex-col gap-0.5"
-												>
-													<span className="font-medium group-hover:underline">{model.name}</span>
-												</Link>
-											</TableCell>
-											<TableCell>
-												<Badge variant="outline">{model.provider}</Badge>
-											</TableCell>
-											<TableCell>
-												{model.is_premium ? (
-													<Badge className="bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 border-0">
-														Premium
-													</Badge>
-												) : (
-													<Badge variant="secondary">Free</Badge>
-												)}
-											</TableCell>
-											<TableCell className="text-right">
-												<Button variant="ghost" size="sm" asChild>
-													<Link href={`/free/${model.seo_slug}`}>
-														Chat
-														<LinkSquare02Icon className="size-3" />
-													</Link>
-												</Button>
-											</TableCell>
-										</TableRow>
-									))}
-								</TableBody>
-							</Table>
-						</div>
-					</section>
-				) : (
-					<section className="mt-12 text-center max-w-4xl mx-auto">
-						<p className="text-muted-foreground">
-							No models are currently available. Please check back later.
-						</p>
-					</section>
-				)}
-
-				<Separator className="my-12 max-w-4xl mx-auto" />
-
-				{/* Why SurfSense */}
-				<section className="max-w-4xl mx-auto">
-					<h2 className="text-2xl font-bold mb-6">
-						Why Use SurfSense as Your Free ChatGPT Alternative
-					</h2>
-					<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-						<div className="rounded-lg border bg-card p-5">
-							<h3 className="font-semibold mb-1.5">Multiple AI Models in One Place</h3>
-							<p className="text-sm text-muted-foreground leading-relaxed">
-								Access ChatGPT, Claude AI free, Gemini, DeepSeek, and more. Works like sites like
-								ChatGPT but with all AI models available, not just GPT. A true free AI chatbot like
-								ChatGPT and beyond.
-							</p>
-						</div>
-						<div className="rounded-lg border bg-card p-5">
-							<h3 className="font-semibold mb-1.5">No Login, No Sign-Up Required</h3>
-							<p className="text-sm text-muted-foreground leading-relaxed">
-								Start using ChatGPT free online immediately. No email, no password, no verification.
-								Get ChatGPT no login access and Claude AI free access from one platform. AI with no
-								restrictions on which model you can use.
-							</p>
-						</div>
-						<div className="rounded-lg border bg-card p-5">
-							<h3 className="font-semibold mb-1.5">Open Source NotebookLM Alternative</h3>
-							<p className="text-sm text-muted-foreground leading-relaxed">
-								SurfSense is a free, open source NotebookLM alternative with document Q&A and
-								citations, integrations with Slack, Google Drive, Notion, and Confluence, plus team
-								collaboration and self-hosting support.
-							</p>
-						</div>
 					</div>
-				</section>
+					<div className="ss-home-cell">
+						<h3 className="ss-home-h3">No Login, No Sign-Up Required</h3>
+						<p className="ss-home-body mt-2 text-sm">
+							Start using ChatGPT free online immediately. No email, no password, no verification.
+							Get ChatGPT no login access and Claude AI free access from one platform. AI with no
+							restrictions on which model you can use.
+						</p>
+					</div>
+					<div className="ss-home-cell">
+						<h3 className="ss-home-h3">Open Source NotebookLM Alternative</h3>
+						<p className="ss-home-body mt-2 text-sm">
+							SurfSense is a free, open source NotebookLM alternative with document Q&A and
+							citations, integrations with Slack, Google Drive, Notion, and Confluence, plus team
+							collaboration and self-hosting support.
+						</p>
+					</div>
+				</div>
+			</section>
 
-				<Separator className="my-12 max-w-4xl mx-auto" />
-
-				{/* CTA */}
-				<section className="max-w-3xl mx-auto text-center">
-					<h2 className="text-2xl font-bold mb-3">Want More Features?</h2>
-					<p className="text-muted-foreground mb-6 leading-relaxed">
+			{/* CTA */}
+			<section className="ss-home-rule ss-home-pad py-16">
+				<div className="mx-auto max-w-2xl text-center">
+					<h2 className="ss-home-h2">Want More Features?</h2>
+					<p className="ss-home-body mt-3">
 						Create a free SurfSense account to unlock $5 of premium credit, document uploads with
 						citations, team collaboration, and integrations with Slack, Google Drive, Notion, and
 						30+ more tools.
 					</p>
-					<Button size="lg" asChild>
-						<Link href="/register">Create Free Account</Link>
-					</Button>
-				</section>
+					<div className="mt-8 flex justify-center">
+						<HomeButton asChild size="xl">
+							<Link href="/register">Create Free Account</Link>
+						</HomeButton>
+					</div>
+				</div>
+			</section>
 
-				<Separator className="my-12 max-w-4xl mx-auto" />
+			{/* FAQ */}
+			<section className="ss-home-rule" aria-labelledby="ss-free-faq-label">
+				<div className="ss-home-head">
+					<h2 id="ss-free-faq-label" className="ss-home-h2">
+						Frequently Asked Questions
+					</h2>
+				</div>
 
-				{/* In-content ad: after CTA, before FAQ */}
-				<aside aria-label="Advertisement" className="max-w-3xl mx-auto my-8 min-h-[100px]">
-					<AdUnit slot={ADSENSE_SLOTS.freeHubBeforeFaq} />
-				</aside>
-
-				{/* FAQ */}
-				<section className="max-w-3xl mx-auto">
-					<h2 className="text-2xl font-bold text-center mb-8">Frequently Asked Questions</h2>
-					<dl className="flex flex-col gap-4">
-						{FAQ_ITEMS.map((item) => (
-							<div key={item.question} className="rounded-lg border bg-card p-5">
-								<dt className="font-medium text-sm">{item.question}</dt>
-								<dd className="mt-2 text-sm text-muted-foreground leading-relaxed">
-									{item.answer}
-								</dd>
+				<div className="ss-home-grid">
+					{FAQ_ITEMS.map((item) => (
+						<details key={item.question} className="ss-home-faq">
+							<summary className="ss-home-faq-summary">
+								<span className="ss-home-h3">{item.question}</span>
+								<span aria-hidden="true" className="ss-home-faq-marker" />
+							</summary>
+							<div className="ss-home-faq-answer">
+								<p className="ss-home-body">{item.answer}</p>
 							</div>
-						))}
-					</dl>
-				</section>
+						</details>
+					))}
+				</div>
+			</section>
 
-				{/* Internal links */}
-				<nav aria-label="Related pages" className="mt-16 max-w-3xl mx-auto">
-					<h2 className="text-lg font-semibold mb-3">Explore SurfSense</h2>
-					<ul className="flex flex-wrap gap-2">
-						<li>
-							<Button variant="outline" size="sm" asChild>
-								<Link href="/pricing">Pricing</Link>
-							</Button>
-						</li>
-						<li>
-							<Button variant="outline" size="sm" asChild>
-								<Link href="/docs">Documentation</Link>
-							</Button>
-						</li>
-						<li>
-							<Button variant="outline" size="sm" asChild>
-								<Link href="/blog">Blog</Link>
-							</Button>
-						</li>
-						<li>
-							<Button variant="outline" size="sm" asChild>
-								<Link href="/register">Sign Up Free</Link>
-							</Button>
-						</li>
-					</ul>
-				</nav>
-			</article>
-		</div>
+			{/* Internal links */}
+			<nav aria-label="Related pages" className="ss-home-rule ss-home-pad py-12">
+				<h2 className="ss-home-h3">Explore SurfSense</h2>
+				<ul className="mt-4 flex list-none flex-wrap gap-2 p-0">
+					<li>
+						<HomeButton variant="outline" size="lg" asChild>
+							<Link href="/pricing">Pricing</Link>
+						</HomeButton>
+					</li>
+					<li>
+						<HomeButton variant="outline" size="lg" asChild>
+							<Link href="/docs">Documentation</Link>
+						</HomeButton>
+					</li>
+					<li>
+						<HomeButton variant="outline" size="lg" asChild>
+							<Link href="/blog">Blog</Link>
+						</HomeButton>
+					</li>
+					<li>
+						<HomeButton variant="outline" size="lg" asChild>
+							<Link href="/register">Sign Up Free</Link>
+						</HomeButton>
+					</li>
+				</ul>
+			</nav>
+		</>
 	);
 }

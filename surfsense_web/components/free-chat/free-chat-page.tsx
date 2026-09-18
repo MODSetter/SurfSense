@@ -27,7 +27,6 @@ import {
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackAnonymousChatMessageSent } from "@/lib/posthog/events";
 import { FreeThread } from "./free-thread";
-import { RemoveAdsBanner } from "./remove-ads-banner";
 
 // Render all tool calls via ToolFallback; backend keeps persisted
 // payloads bounded by summarising / truncating outputs.
@@ -372,8 +371,6 @@ export function FreeChatPage() {
 		<TokenUsageProvider store={tokenUsageStore}>
 			<AssistantRuntimeProvider runtime={runtime}>
 				<div className="flex h-full flex-col overflow-hidden">
-					<RemoveAdsBanner />
-
 					{captchaRequired && TURNSTILE_SITE_KEY && (
 						<div className="flex justify-center border-b bg-muted/30 px-4 py-4">
 							<Alert className="w-auto max-w-md">

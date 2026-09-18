@@ -79,15 +79,15 @@ We follow a **branch protection model** to keep `main` stable:
    ```
 
 3. **Choose your setup method**:
-   - **Docker Setup**: Follow the [Building from Source (Contributors)](https://www.surfsense.com/docs/docker-installation#building-from-source-contributors) section of the Docker Installation guide
-   - **Manual Setup**: Follow the [Installation Guide](https://www.surfsense.com/docs/)
+   - **Docker Setup**: Follow the [Building from Source (Contributors)](https://www.surfsense.com/docs/legacy/docker-installation#building-from-source-contributors) section of the Docker Installation guide
+   - **Manual Setup**: Follow the [Installation Guide](https://www.surfsense.com/docs/legacy/)
 
 4. **Configure services**:
    - Set up PGVector & PostgreSQL
    - Configure a file ETL service: `Unstructured.io` or `LlamaIndex`
    - Add API keys for external services
 
-For detailed setup instructions, refer to our [Installation Guide](https://www.surfsense.com/docs/).
+For detailed setup instructions, refer to our [Installation Guide](https://www.surfsense.com/docs/legacy/).
 
 ## 🏗️ Project Structure
 
@@ -173,7 +173,7 @@ When contributing, please:
 Stuck? Need clarification? Here's how to get help:
 
 1. **Check existing issues** - your question might already be answered
-2. **Search the docs** - [https://www.surfsense.com/docs/](https://www.surfsense.com/docs/)
+2. **Search the docs** - [https://www.surfsense.com/docs/legacy/](https://www.surfsense.com/docs/legacy/)
 3. **Ask in Discord** - [https://discord.gg/ejRNvftDp9](https://discord.gg/ejRNvftDp9)
 4. **Create an issue** - if it's a bug or feature request
 

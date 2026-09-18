@@ -3,6 +3,7 @@ import { HomeArtifactIllustration } from "@/components/homepage/home/home-artifa
 import {
 	type Cell,
 	COMPARE_ROWS,
+	CONFIDENTIAL,
 	DOWNLOADS_URL,
 	FORMATS,
 	type IllustratedCell,
@@ -31,7 +32,7 @@ import { ArrowRightIcon } from "@/components/ui/icons";
  * cell in for its hover spotlight.
  *
  * The heading order is not editorial. It is the SEO skeleton from
- * `plans/community-local/seo/02-page-briefs.md`: H1, then seven H2s in a fixed
+ * `plans/community-local/seo/02-page-briefs.md`: H1, then eight H2s in a fixed
  * order. Sections may be restyled freely; the sequence of headings may not be
  * reordered without re-reading that brief.
  */
@@ -227,7 +228,36 @@ export function HomeFeatures() {
 }
 
 /**
- * Not one of the brief's seven H2s (see `FORMATS`'s own doc comment in
+ * H2 #8 — *For confidential work*, added to the brief on 17 Sep 2026.
+ *
+ * Sits directly after H2 #7 (*Private by construction*, the last of the claims
+ * tabs) because it answers the question that one raises: privacy for whom. The
+ * brief asks for one paragraph rather than a section, so this is a single
+ * statement band with no grid and no proof list — the argument is made in full
+ * on the page it links to.
+ */
+export function HomeConfidential() {
+	return (
+		<section className="ss-home-rule">
+			<div className="ss-home-pad py-16 md:py-24">
+				<div className="max-w-3xl">
+					<p className="ss-home-eyebrow">{CONFIDENTIAL.eyebrow}</p>
+					<h2 className="ss-home-h2 mt-2">{CONFIDENTIAL.heading}</h2>
+					<p className="ss-home-body mt-5">{CONFIDENTIAL.body}</p>
+					<p className="mt-6">
+						<Link className="ss-home-forward" href={CONFIDENTIAL.action.href}>
+							{CONFIDENTIAL.action.label}{" "}
+							<ArrowRightIcon aria-hidden="true" className="size-4" />
+						</Link>
+					</p>
+				</div>
+			</div>
+		</section>
+	);
+}
+
+/**
+ * Not one of the brief's eight H2s (see `FORMATS`'s own doc comment in
  * `home-content.ts`) — a bento row of the twelve Studio formats, below the
  * claims tabs. `HomeFormatCell` is the one client component in the row (a
  * cursor-tracked hover spotlight); this section itself stays server-rendered.

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Suspense } from "react";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { LicenseDownload } from "./license-download";
@@ -22,9 +23,12 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 				Save <code className="ss-home-mono">surfsense.lic</code> somewhere you can find it, open
 				SurfSense, go to Settings, then License{" "}
 				<ArrowRightIcon aria-hidden="true" className="inline size-3.5 align-[-0.1em]" />, and drop
-				the file in (or paste its contents). SurfSense never contacts a license server: the file is
-				checked on your own machine, so it works offline and on every computer you install SurfSense
-				on.
+				the file in (or paste its contents). The{" "}
+				<Link className="ss-home-link" href="/license/activate">
+					activation guide
+				</Link>{" "}
+				shows each step. SurfSense never contacts a license server: the file is checked on your own
+				machine, so it works offline and on every computer you install SurfSense on.
 			</>
 		),
 	},

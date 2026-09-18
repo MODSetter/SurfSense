@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { ArrowRightIcon } from "@/components/ui/icons";
-import { ResendDisclosure, TrialForm } from "./license-forms";
+import { ResendForm } from "./license-forms";
 
 /**
  * Rendered in the site design: the palette, ruled column, navigation and
@@ -8,24 +9,28 @@ import { ResendDisclosure, TrialForm } from "./license-forms";
  * `app/(home)/home.css`. Listed in `SITE_DESIGN_ROUTES` in
  * `components/site/site-shell.tsx`.
  *
- * The trial is folded straight into the hero as the page's one primary
- * action, the same compact shape `/sunset` uses for its export button:
- * headline, subtitle, form, done, no separate ruled band underneath it.
- * Resending an existing license is secondary and stays a one-line disclosure
- * under the trial form rather than a section of its own or a second page --
- * see `ResendDisclosure` in `license-forms.tsx` for why.
+ * This page does one thing: send a licence file back to the address it was
+ * issued to. Without accounts, that file is the only thing a customer holds,
+ * so losing it has no other recovery path -- which is why `/license/success`
+ * points here three times and `scripts/correct_license_email.py` hands the
+ * customer back to it after a support fix.
  *
- * The three explanatory blocks the old page ran as plain paragraphs are FAQ
- * content in substance: a reader arrives here with one of exactly three
- * questions, so they render as the same native `<details>` accordion the
- * homepage, pricing and plugins pages use, rather than a fourth design for
- * the same pattern.
+ * The trial form used to sit above this one. It now lives on `/downloads`,
+ * where the 30-day licence is claimed alongside the installer it needs.
+ *
+ * The explanatory blocks the first version ran as plain paragraphs are FAQ
+ * content in substance, so they render as the same native `<details>`
+ * accordion the homepage, pricing and plugins pages use.
  */
 
 export const metadata: Metadata = {
-	title: "Your license | SurfSense",
-	description: "Get your SurfSense license file sent to your email again, or start a 30-day trial.",
-	alternates: { canonical: "https://www.surfsense.com/license" },
+	title: "Get your SurfSense license file",
+	description:
+		"Have your SurfSense license file emailed to you again, using the address it was issued to.",
+	// `seo/02-page-briefs.md` lists this route under "Pages that should be
+	// noindex": it is a form keyed on an email address, and indexing it invites
+	// abuse. No canonical alongside it -- the two directives contradict.
+	robots: { index: false, follow: false },
 };
 
 const FAQ: { question: string; answer: React.ReactNode }[] = [
@@ -36,15 +41,19 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 				Save the attached <code className="ss-home-mono">surfsense.lic</code>, open SurfSense, go to
 				Settings, then License{" "}
 				<ArrowRightIcon aria-hidden="true" className="inline size-3.5 align-[-0.1em]" /> and drop it
-				in. Your license never expires the app: when it runs out, SurfSense keeps working and your
-				data stays put.
+				in. The{" "}
+				<Link className="ss-home-link" href="/license/activate">
+					activation guide
+				</Link>{" "}
+				walks through it with screenshots. Your license never expires the app: when it runs out,
+				SurfSense keeps working and your data stays put.
 			</>
 		),
 	},
 	{
-		question: "Bought for a team?",
+		question: "Bought for your organisation?",
 		answer:
-			"A team license is one file for everyone. It is sent only to the address that bought it, so ask whoever made the purchase to forward it to you.",
+			"An enterprise license is one file for everyone. It is sent only to the address that bought it, so ask whoever made the purchase to forward it to you.",
 	},
 	{
 		question: "Cannot get into that inbox?",
@@ -61,6 +70,23 @@ const FAQ: { question: string; answer: React.ReactNode }[] = [
 			</>
 		),
 	},
+	{
+		question: "Do not have a license yet?",
+		answer: (
+			<>
+				This page only sends back a license that already exists. The free 30-day license comes with
+				the app, on{" "}
+				<a className="ss-home-link" href="/downloads">
+					the download page
+				</a>
+				; to buy one, see{" "}
+				<a className="ss-home-link" href="/pricing">
+					pricing
+				</a>
+				.
+			</>
+		),
+	},
 ];
 
 export default function LicensePage() {
@@ -68,12 +94,20 @@ export default function LicensePage() {
 		<>
 			<section className="ss-home-hero ss-home-pad">
 				<div className="mx-auto max-w-2xl text-center">
-					<h1 className="ss-home-display">Your SurfSense license</h1>
-					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
-						Your license is a file, not an account.
+					<h1 className="ss-home-display">Get your license again</h1>
+					<p className="ss-home-lede mx-auto mt-6 mb-10 max-w-xl">
+						Your license is a file, not an account. Lost it? We will send it back.
 					</p>
-					<TrialForm />
-					<ResendDisclosure />
+					<ResendForm />
+					{/* The step after this one, for the reader whose file has just
+					    landed: this page is where they arrive with no idea what a
+					    .lic file is for. */}
+					<p className="mt-10">
+						<Link className="ss-home-forward" href="/license/activate">
+							Already have the file? Activate it{" "}
+							<ArrowRightIcon aria-hidden="true" className="size-4" />
+						</Link>
+					</p>
 				</div>
 			</section>
 

@@ -23,7 +23,7 @@ const canonicalUrl = "https://www.surfsense.com/pricing";
  *  `plans/community-local/seo/02-page-briefs.md` (B5). */
 const metaTitle = "SurfSense Pricing: Free App, Paid Plugins";
 const metaDescription =
-	"The app and its updates are free forever. Licences add scraper plugins and priority support, from $120 a year with a 30-day trial and no account.";
+	"The app and its updates are free forever, with a 30-day licence included and no account. Licences add scraper plugins and priority support, from $60 a year.";
 
 export const metadata: Metadata = {
 	title: metaTitle,
@@ -57,12 +57,17 @@ export const metadata: Metadata = {
 };
 
 /**
- * `Product` with one offer per tier, per the brief's schema note.
+ * `Product` with an offer per priced tier, per the brief's schema note.
  *
  * The free tier is the product itself, so `price: 0` is the honest figure for
- * it; the paid offers are the licence. The early-bird price is deliberately not
- * modelled as an offer — it is a time-boxed coupon whose window opens at launch,
- * and a `priceValidUntil` we cannot fill would be worse than leaving it out.
+ * it; the paid offer is the licence. Individual carries the early-bird $60
+ * rather than the $120 list price, because structured data that disagrees with
+ * the price on the page is a rich-result penalty. `priceValidUntil` stays out
+ * until launch day fixes the window's end.
+ *
+ * Enterprise has no offer here. An `Offer` without a price is invalid, and a
+ * made-up figure on a tier that is quoted per deployment would be worse than
+ * its absence.
  */
 const PRICING_SCHEMA = {
 	"@context": "https://schema.org",
@@ -79,23 +84,15 @@ const PRICING_SCHEMA = {
 			price: 0,
 			priceCurrency: "USD",
 			description:
-				"The full app and every update on Windows, macOS and Linux, forever. No account, runs offline, bring your own model keys.",
+				"The full app and every update on Windows, macOS and Linux, forever, plus a 30-day licence for the plugins. No account, runs offline, bring your own model keys.",
 		},
 		{
 			"@type": "Offer",
 			name: "Individual",
-			price: 120,
+			price: 60,
 			priceCurrency: "USD",
 			description:
-				"Adds every scraper plugin, flat-included and unlimited, plus priority support. Billed yearly, with a 30-day trial.",
-		},
-		{
-			"@type": "Offer",
-			name: "Team",
-			price: 80,
-			priceCurrency: "USD",
-			description:
-				"The same licence for 5 to 25 seats, billed per seat per year and delivered as one shared key.",
+				"Adds every scraper plugin, unlimited and unmetered, plus priority support. Billed yearly at the early-bird price, down from $120.",
 		},
 	],
 };

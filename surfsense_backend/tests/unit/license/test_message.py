@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.license.email.message import build_license_email
+from app.license.email.message import ACTIVATION_GUIDE_URL, build_license_email
 
 pytestmark = pytest.mark.unit
 
@@ -35,6 +35,9 @@ def test_every_kind_renders_a_subject_and_install_steps(kind):
 
     assert message.subject
     assert "Settings -> License" in message.text_body
+    # The screenshotted version of the same steps. Every kind links it: a
+    # resend recipient is the likeliest of the three to be stuck.
+    assert ACTIVATION_GUIDE_URL in message.text_body
 
 
 def test_license_mail_carries_its_own_sender(monkeypatch):

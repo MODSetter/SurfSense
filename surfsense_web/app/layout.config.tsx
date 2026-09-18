@@ -10,4 +10,5 @@ export const baseOptions: BaseLayoutProps = {
 		),
 	},
 	githubUrl: "https://github.com/MODSetter/SurfSense",
+	themeSwitch: { enabled: false },
 };

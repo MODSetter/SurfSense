@@ -4,7 +4,7 @@ description: Set up SurfSense from source, component by component
 icon: Wrench
 ---
 
-This guide sets up SurfSense without Docker (except for zero-cache, which is simplest to run as a container). Choose this path if you want to contribute to SurfSense or need full control over each component. If you just want to run SurfSense, the [Docker installation](/docs/docker-installation) is much faster.
+This guide sets up SurfSense without Docker (except for zero-cache, which is simplest to run as a container). Choose this path if you want to contribute to SurfSense or need full control over each component. If you just want to run SurfSense, the [Docker installation](/docs/legacy/docker-installation) is much faster.
 
 ## What You'll Need
 
@@ -25,7 +25,7 @@ cd SurfSense
 
 ## Decisions to Make Up Front
 
-**Authentication.** SurfSense supports local email/password auth (the default, no setup needed) or Google OAuth login. For Google login you need an OAuth client from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) — the [Google connectors guide](/docs/connectors/external/google) walks through creating one.
+**Authentication.** SurfSense supports local email/password auth (the default, no setup needed) or Google OAuth login. For Google login you need an OAuth client from the [Google Cloud Console](https://console.cloud.google.com/apis/credentials) — the [Google connectors guide](/docs/legacy/connectors/external/google) walks through creating one.
 
 **Document parsing (ETL).** SurfSense converts uploaded files with one of three services:
 
@@ -205,7 +205,7 @@ You should see the server running on `http://localhost:8000`.
 
 ## Zero-Cache Setup
 
-**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates to all connected clients via WebSocket. Without it, the UI sits on stale data. For an overview of how Zero works, see the [Real-Time Sync with Zero](/docs/how-to/zero-sync) guide.
+**zero-cache** is the Rocicorp Zero server that sits between PostgreSQL and the browser. It streams real-time updates to all connected clients via WebSocket. Without it, the UI sits on stale data. For an overview of how Zero works, see the [Real-Time Sync with Zero](/docs/legacy/how-to/zero-sync) guide.
 
 ### 1. Run Zero-Cache via Docker
 
@@ -351,6 +351,6 @@ Load the built extension in your browser's developer mode and configure it with 
 
 ## Next Steps
 
-- Set up [connectors](/docs/connectors) to bring in your tools and services.
-- Connect [local models](/docs/local-models) like Ollama or LM Studio.
+- Set up [connectors](/docs/legacy/connectors) to bring in your tools and services.
+- Connect [local models](/docs/legacy/local-models) like Ollama or LM Studio.
 - For production, put a reverse proxy in front, add SSL, and set up database backups.

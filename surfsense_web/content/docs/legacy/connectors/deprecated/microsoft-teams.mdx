@@ -12,7 +12,7 @@ The Microsoft Teams connector is **deprecated** and can no longer be connected (
 </Callout>
 
 <Callout type="info">
-  Microsoft Teams and [Microsoft OneDrive](/docs/connectors/external/onedrive) share the same Azure App Registration. If you have already created an app for OneDrive, you can reuse the same Client ID and Client Secret. Just make sure both redirect URIs are added (see Step 3).
+  Microsoft Teams and [Microsoft OneDrive](/docs/legacy/connectors/external/onedrive) share the same Azure App Registration. If you have already created an app for OneDrive, you can reuse the same Client ID and Client Secret. Just make sure both redirect URIs are added (see Step 3).
 </Callout>
 
 ## Step 1: Access Azure App Registrations
@@ -105,7 +105,7 @@ After registration, you will be taken to the app's **Overview** page. Here you w
 
 ## Running SurfSense with Microsoft Teams Connector
 
-Add the Microsoft OAuth credentials to your `.env` file (created during [Docker installation](/docs/docker-installation)):
+Add the Microsoft OAuth credentials to your `.env` file (created during [Docker installation](/docs/legacy/docker-installation)):
 
 ```bash
 MICROSOFT_CLIENT_ID=your_microsoft_client_id

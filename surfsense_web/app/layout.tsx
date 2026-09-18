@@ -137,11 +137,17 @@ export default function RootLayout({
 				<PostHogProvider>
 					<LocaleProvider>
 						<I18nProvider>
+							{/* Dark is the only supported palette. storageKey is bumped off "theme"
+							    so a "light" value saved by the removed toggle cannot come back
+							    through resolvedTheme and leave Monaco, toasts and code blocks
+							    light on a dark page. */}
 							<ThemeProvider
 								attribute="class"
-								enableSystem
+								enableSystem={false}
 								disableTransitionOnChange
-								defaultTheme="system"
+								defaultTheme="dark"
+								forcedTheme="dark"
+								storageKey="surfsense-theme"
 							>
 								<PlatformProvider>
 									<RootProvider>

@@ -3,12 +3,12 @@ import Link from "next/link";
 import { HomeButton } from "@/components/homepage/home/home-button";
 import { PlatformsTooltip } from "@/components/pricing/platforms-tooltip";
 import {
-	ENTERPRISE_NOTE,
 	PLANS,
 	PLUGIN_NOTE,
 	type Plan,
 	PRICING_FAQ,
 	SELF_BUILD_URL,
+	SMALL_GROUP_NOTE,
 } from "@/components/pricing/pricing-content";
 import { FAQJsonLd } from "@/components/seo/json-ld";
 
@@ -57,7 +57,7 @@ export function PricingHero() {
 				<p className="ss-home-lede mx-auto mt-8 max-w-2xl">
 					The app and every update are <span className="ss-home-accent">free, forever</span>, with
 					no account, no trial clock and no usage cap. A licence adds the scraper plugins and
-					priority support.
+					priority support, and a 30-day one comes with the app.
 				</p>
 				<p className="ss-home-body mx-auto mt-5 max-w-2xl text-sm">
 					Prefer to build it yourself?{" "}
@@ -146,7 +146,7 @@ export function PricingPlans() {
 			<div className="ss-home-rule ss-home-pad flex flex-col gap-8 py-8">
 				<p className="ss-home-body max-w-4xl text-sm">{PLUGIN_NOTE}</p>
 				<p className="ss-home-body max-w-4xl text-sm">
-					{ENTERPRISE_NOTE}{" "}
+					{SMALL_GROUP_NOTE}{" "}
 					<Link className="ss-home-link" href="/contact">
 						Talk to us
 					</Link>

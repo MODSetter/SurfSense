@@ -10,10 +10,20 @@
 export const REPO_URL = "https://github.com/MODSetter/SurfSense";
 export const DOWNLOADS_URL = "/downloads";
 
+/**
+ * The cross-cutting professional page. The slug is the page's primary keyword
+ * (`private ai for business`) rather than the job it does, because the literal
+ * phrasings for that job are unsearched — `pdf to presentation` is 110 a month
+ * and `document to presentation` is 10
+ * (`plans/community-local/seo/02-page-briefs.md`).
+ */
+export const BUSINESS_URL = "/private-ai-for-business";
+
 export type SiteLink = { name: string; href: string; external?: boolean };
 export type SiteMenuItem = SiteLink & { description: string };
 
 export const NAV_LINKS: SiteLink[] = [
+	{ name: "For business", href: BUSINESS_URL },
 	{ name: "Plugins", href: "/plugins" },
 	{ name: "Docs", href: "/docs" },
 	{ name: "Pricing", href: "/pricing" },
@@ -33,6 +43,7 @@ export const FOOTER_COLUMNS: { heading: string; links: FooterLink[] }[] = [
 		heading: "Product",
 		links: [
 			{ title: "Download", href: DOWNLOADS_URL },
+			{ title: "For business", href: BUSINESS_URL },
 			{ title: "Plugins", href: "/plugins" },
 			{ title: "Pricing", href: "/pricing" },
 			{ title: "Docs", href: "/docs" },

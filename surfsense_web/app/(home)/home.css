@@ -973,6 +973,15 @@
 	font-weight: 600;
 }
 
+/* A link inside a cell (`/free`'s model list). The cell colour rules above are
+ * more specific than `.ss-home-link` and `.ss-home-forward` on their own, so
+ * without this a link in a table paints as body text and stops reading as a
+ * link. Both hover rules are declared later in this file, so they still win. */
+.ss-home-table .ss-home-link,
+.ss-home-table .ss-home-forward {
+	color: var(--home-accent);
+}
+
 /* ---------------------------------------------------------------------------
  * Navbar
  *
@@ -1149,14 +1158,6 @@
 .ss-home-nav-item:focus-visible {
 	outline: 2px solid var(--ring);
 	outline-offset: -2px;
-}
-
-/* The palette is pinned inside this scope, so the theme toggle has nothing to
- * switch here — leaving it would be a control that visibly does nothing. It is
- * hidden rather than removed from the navigation, because the same navigation
- * serves the routes that are still theme-aware. */
-.ss-home .ss-theme-toggle {
-	display: none;
 }
 
 /* ---------------------------------------------------------------------------

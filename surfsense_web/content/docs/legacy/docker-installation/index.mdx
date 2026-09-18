@@ -25,7 +25,7 @@ The script creates a `./surfsense/` directory with the compose files and a `.env
 
 - Detects NVIDIA GPUs and asks whether to use GPU acceleration, picking the compatible backend image automatically.
 - Asks whether to enable automatic daily updates via [Watchtower](https://github.com/nicholas-fedor/watchtower) (updates can download several GB in the background — pass `--no-watchtower` to skip).
-- Detects a legacy all-in-one installation and migrates its data automatically (see [Updating](/docs/docker-installation/updating#migrating-from-the-all-in-one-container)).
+- Detects a legacy all-in-one installation and migrates its data automatically (see [Updating](/docs/legacy/docker-installation/updating#migrating-from-the-all-in-one-container)).
 
 ## Option 2: Manual Docker Compose
 
@@ -60,8 +60,8 @@ The defaults give you local email/password auth, local document parsing with Doc
 - **Authentication** — switch to Google OAuth login.
 - **Document parsing** — switch to Unstructured or LlamaCloud (both need API keys).
 - **Embedding endpoint** — set `EMBEDDING_BASE_URL` for Chonkie/LiteLLM embedding models, or `OLLAMA_EMBEDDING_BASE_URL` as an Ollama-specific fallback.
-- **Connector credentials** — OAuth apps for [external connectors](/docs/connectors/external) that need them on self-hosted deployments.
-- **Messaging channels** — Telegram, WhatsApp, Slack, and Discord bots (see [Messaging Channels](/docs/messaging-channels)).
+- **Connector credentials** — OAuth apps for [external connectors](/docs/legacy/connectors/external) that need them on self-hosted deployments.
+- **Messaging channels** — Telegram, WhatsApp, Slack, and Discord bots (see [Messaging Channels](/docs/legacy/messaging-channels)).
 
 ### NVIDIA GPU Acceleration
 
@@ -139,7 +139,7 @@ docker compose down
 docker compose down -v
 ```
 
-To update SurfSense, see [Updating](/docs/docker-installation/updating).
+To update SurfSense, see [Updating](/docs/legacy/docker-installation/updating).
 
 ## Building from Source (Contributors)
 
@@ -184,7 +184,7 @@ Observability (`otel-lgtm`) isn't needed for regular dev work — it's the heavi
 docker compose -f docker-compose.dev.yml up --build db redis zero-cache backend celery_worker celery_beat frontend
 ```
 
-There's also a `docker-compose.deps-only.yml` that runs just the dependencies (Postgres, Redis, zero-cache) in Docker while you run the backend and frontend natively — see [Manual Installation](/docs/manual-installation#alternative-let-docker-manage-all-dependencies).
+There's also a `docker-compose.deps-only.yml` that runs just the dependencies (Postgres, Redis, zero-cache) in Docker while you run the backend and frontend natively — see [Manual Installation](/docs/legacy/manual-installation#alternative-let-docker-manage-all-dependencies).
 
 ## Troubleshooting
 

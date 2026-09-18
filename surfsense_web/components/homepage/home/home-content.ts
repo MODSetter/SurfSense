@@ -1,4 +1,4 @@
-import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
+import { BUSINESS_URL, DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
 
 /**
  * Homepage copy and data.
@@ -25,7 +25,7 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
 export const PINNED_RELEASE_TAG = "v0.0.40";
 export const RELEASE_URL = `${REPO_URL}/releases/tag/${PINNED_RELEASE_TAG}`;
 
-export { DOWNLOADS_URL, REPO_URL };
+export { BUSINESS_URL, DOWNLOADS_URL, REPO_URL };
 
 /**
  * Real self-serve signups pulled from prod, curated to the most recognisable
@@ -87,11 +87,19 @@ export type Action = {
 	external?: boolean;
 };
 
-/** H2 #1 — the offline / local / air-gapped claim, stated concretely. */
+/**
+ * H2 #1 — the offline / local / air-gapped claim, stated concretely.
+ *
+ * The first cell says *who* that protects, not only that it is true: the
+ * 17 Sep 2026 production-chat pass found professional work outruns study by
+ * about 1.8 to 1 among users who state a task, so the reader of this claim is
+ * more often someone handling a client's material than a student
+ * (`plans/community-local/seo/07-what-users-do.md`).
+ */
 export const ON_YOUR_MACHINE: (Cell & { illustration?: IllustratedCell })[] = [
 	{
 		title: "No cloud in the loop",
-		body: "The index is a file on your disk, not a row in someone else's database. Pull the network cable and it keeps answering questions about the sources you already added.",
+		body: "The index is a file on your disk, not a row in someone else's database. Pull the network cable and it keeps answering questions about the sources you already added. That matters most when the source is a case file or a client's ledger.",
 		illustration: "no-cloud",
 	},
 	{
@@ -100,8 +108,8 @@ export const ON_YOUR_MACHINE: (Cell & { illustration?: IllustratedCell })[] = [
 		illustration: "local-key",
 	},
 	{
-		title: "Sources become artifacts",
-		body: "Turn what you have indexed into flashcards, quizzes, mind maps and study notes, generated and stored in the same local database as everything else.",
+		title: "Sources become deliverables",
+		body: "Turn what you have indexed into a deck, a report, a briefing or a study guide, generated and stored in the same local database as everything else.",
 		illustration: "artifacts",
 	},
 ];
@@ -178,12 +186,16 @@ export const STORIES: {
 }[] = [
 	{
 		key: "artifacts",
-		heading: "Artifacts: podcasts, flashcards, quizzes, mind maps",
+		heading: "Artifacts: decks, reports, briefings, podcasts",
 		body: [
-			"Every source can become more than an answer: a study guide, a flashcard deck, a practice quiz, a mind map or a two-voice podcast, each one built on your own machine.",
+			"Every source can become more than an answer: a slide deck, a written report, a two-voice briefing podcast or an infographic. The same builders make a study guide, a flashcard deck and a practice quiz when that is the job instead.",
 			"Every format is generated and stored in the same local database as everything else. No cloud model in the loop, no per-minute fee, no second pass over your data to make them.",
 		],
-		action: { label: "See which artifacts are supported", href: "/mcp-server" },
+		// Not the deliverables page: the "For confidential work" band lower down
+		// already links it, and two links to one page from one screen read as a
+		// mistake. The twelve-format row sits directly below this tab, so the
+		// useful next step here is the installer.
+		action: { label: "Download and try them", href: DOWNLOADS_URL },
 	},
 	{
 		key: "open",
@@ -207,11 +219,11 @@ export const STORIES: {
 
 export const PROOF_POINTS: Record<(typeof STORIES)[number]["key"], string[]> = {
 	artifacts: [
-		"Study guides from your sources",
-		"AI flashcard decks",
+		"Editable decks and reports",
+		"Two-voice briefings, synthesised offline",
+		"Infographics and one-page summaries",
+		"Study guides and flashcard decks",
 		"Practice quizzes with citations",
-		"Mind maps",
-		"Two-voice podcasts, synthesised offline",
 		"No per-minute generation fee",
 	],
 	open: [
@@ -230,6 +242,25 @@ export const PROOF_POINTS: Record<(typeof STORIES)[number]["key"], string[]> = {
 		"Nothing to subpoena from us",
 		"Delete it by deleting a folder",
 	],
+};
+
+/**
+ * H2 #8 — *For confidential work*, added to the brief on 17 Sep 2026.
+ *
+ * A copy change, not a new front: the same privacy claim the page already
+ * makes, addressed to someone spending company money. It names the professions
+ * so the `ai for lawyers` / `ai for accountants` vocabulary is caught here
+ * without ten vertical pages, and carries `private ai for business`, which went
+ * 1,900 → 5,400 → 12,100 over three months.
+ *
+ * One paragraph and a link, deliberately — the argument is made in full on the
+ * page it links to, and a second section here would compete with it.
+ */
+export const CONFIDENTIAL: { eyebrow: string; heading: string; body: string; action: Action } = {
+	eyebrow: "For confidential work",
+	heading: "Private AI for business, because the file never moves",
+	body: "Lawyers, accountants, consultants and engineers all do the same job with this: a file they are not allowed to upload goes in, and a deck, a report or a briefing comes out. The deliverable is built on the same machine the source sits on, so no vendor ever holds a copy of the contract, the ledger or the inspection report.",
+	action: { label: "Turn confidential documents into deliverables", href: BUSINESS_URL },
 };
 
 export type CompareRow = {

@@ -1,6 +1,6 @@
 {
-	"title": "Documentation",
-	"description": "SurfSense Documentation",
+	"title": "SurfSense 0.0.40",
+	"description": "The hosted and Docker self-host stack, last released as 0.0.40",
 	"root": true,
 	"pages": [
 		"---Guides---",

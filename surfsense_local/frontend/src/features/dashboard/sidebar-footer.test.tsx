@@ -41,42 +41,51 @@ afterEach(() => {
 })
 
 describe("the license row", () => {
-  it("invites a free user to unlock plugins, and opens Settings", async () => {
+  it("opens Settings, so the row is a way in and not just a light", async () => {
     stubLicense(license("none"))
     const onOpenLicense = vi.fn()
     const user = userEvent.setup()
     renderFooter(onOpenLicense)
 
-    const row = await screen.findByRole("button", { name: "Unlock plugins" })
-    await user.click(row)
+    await user.click(await screen.findByRole("button", { name: "No license" }))
 
     expect(onOpenLicense).toHaveBeenCalledOnce()
-    // The app is free, so owning no license is not a fault and must not read
-    // like one. This is the difference between an invitation and a nag.
-    expect(row.className).not.toContain("amber")
   })
 
   it.each([
+    ["none", "No license"],
     ["license_expired", "License expired"],
     ["clock_untrusted", "Clock is off"],
-  ] as const)("flags %s, in the colour of a problem", async (state, label) => {
+  ] as const)("shows %s in red", async (state, label) => {
     stubLicense(license(state))
     renderFooter()
 
     const row = await screen.findByRole("button", { name: label })
 
-    expect(row.className).toContain("amber")
+    // Plugins stay locked in all three, so all three read the same.
+    expect(row.className).toContain("text-destructive")
   })
 
-  it("says nothing once a license is active", async () => {
-    const fetches = stubLicense(license("active"))
+  it("shows an active license in green", async () => {
+    stubLicense(license("active"))
     stubUpdateBridge({ automatic: true, state: { status: "idle" } })
     renderFooter()
 
-    await screen.findByRole("button", { name: "Check for updates" })
-    await waitFor(() => expect(fetches).toHaveBeenCalled())
+    const row = await screen.findByRole("button", { name: "License active" })
 
-    expect(screen.queryByRole("button", { name: "Unlock plugins" })).toBeNull()
+    expect(row.className).toContain("text-emerald-600")
+    // Ghost buttons repaint their text on hover; green that survives the
+    // pointer is the difference between a status light and decoration.
+    expect(row.className).toContain("hover:text-emerald-600")
+  })
+
+  it("stays out of the way until the status arrives", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})))
+    const { container } = renderFooter()
+
+    // No bridge and nothing known yet: the strip goes rather than leaving a
+    // bordered gap above the bottom edge.
+    expect(container.textContent).toBe("")
   })
 })
 
@@ -175,14 +184,13 @@ describe("the update row", () => {
     expect(screen.queryByRole("alertdialog")).toBeNull()
   })
 
-  it("renders nothing outside the desktop app", async () => {
-    const fetches = stubLicense(license("active"))
-    const { container } = renderFooter()
+  it("renders no update row outside the desktop app", async () => {
+    stubLicense(license("active"))
+    renderFooter()
 
-    await waitFor(() => expect(fetches).toHaveBeenCalled())
+    // The license still reports; only the bridge-backed row is missing.
+    await screen.findByRole("button", { name: "License active" })
 
-    // No bridge and no license to report: the strip goes rather than leaving a
-    // bordered gap above the bottom edge.
-    expect(container.textContent).toBe("")
+    expect(screen.queryByRole("button", { name: /update/i })).toBeNull()
   })
 })

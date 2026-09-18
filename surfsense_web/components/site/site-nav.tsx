@@ -7,7 +7,6 @@ import { useEffect, useRef, useState } from "react";
 import { TopAnnouncementBar } from "@/components/homepage/top-announcement-bar";
 import { NAV_LINKS, NAV_RESOURCES } from "@/components/site/site-content";
 import { SiteStars } from "@/components/site/site-stars";
-import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 
 /**
  * Site navigation.
@@ -142,13 +141,6 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 
 				<div className="flex items-center gap-1">
 					<SiteStars count={starCount} href={starsHref} />
-
-					{/* Hidden inside `.ss-home`, which pins one palette and so gives the
-					    toggle nothing to switch. Everywhere else it is the only way to
-					    change theme, so it cannot simply be dropped. */}
-					<span className="ss-theme-toggle">
-						<ThemeTogglerComponent />
-					</span>
 
 					<button
 						type="button"

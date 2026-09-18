@@ -2,16 +2,15 @@
 
 import { useId, useState } from "react";
 import { HomeButton } from "@/components/homepage/home/home-button";
-import { ArrowRightIcon } from "@/components/ui/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { buildBackendUrl } from "@/lib/env-config";
 
 /**
- * The two forms on `/license` (`page.tsx`): the trial is folded straight into
- * the hero as the page's one primary action, styled after `/sunset`'s export
- * button; resending an existing license is secondary and stays collapsed
- * behind a plain disclosure link under it until asked for, reusing the same
- * `ss-home-faq` open/close mechanics as the FAQ lower on this page.
+ * The two license forms, now on separate pages. `ResendForm` is the whole of
+ * `/license` (`page.tsx`), sitting in its hero as that page's one action.
+ * `TrialForm` is claimed on `/downloads` instead, because the 30-day licence
+ * is part of the free plan and a licence file is inert without the app the
+ * same page hands you.
  *
  * Built from the same `ss-home-*` primitives as the rest of the site design:
  * a flush hairline-bordered panel rather than a floating shadcn `Card`, and
@@ -111,10 +110,9 @@ function InlineEmailField({
 }
 
 /**
- * `ResendForm`'s wrapper, unlabelled and unboxed: it sits inside
- * `ResendDisclosure`'s own summary/heading, which already marks it off from
- * the hero above, so a border around the form too would be a second frame
- * around the same thing.
+ * `ResendForm`'s wrapper, unlabelled and unboxed: it sits directly in
+ * `/license`'s hero, under an h1 and a lede that already mark it off, so a
+ * border around the form too would be a second frame around the same thing.
  */
 function FormPanel({ description, children }: { description: string; children: React.ReactNode }) {
 	return (
@@ -161,7 +159,7 @@ export function ResendForm() {
 		<FormPanel description="Enter the email address you bought with. We will send your license file back to that inbox.">
 			<form onSubmit={handleSubmit} className="flex flex-col items-center gap-4">
 				<EmailField id={`resend-email-${id}`} value={email} onChange={setEmail} />
-				<HomeButton type="submit" disabled={busy} variant="secondary">
+				<HomeButton type="submit" size="xl" disabled={busy}>
 					{busy ? <Spinner size="sm" /> : null}
 					{busy ? "Sending" : "Send my license"}
 				</HomeButton>
@@ -177,36 +175,15 @@ export function ResendForm() {
 	);
 }
 
-/**
- * The hero's secondary action: a plain disclosure rather than a link to a
- * second page. Splitting resend onto its own route would buy nothing -- the
- * SEO brief already marks the whole page `noindex` -- while adding a click
- * for what is a rare action. Reuses `ss-home-faq`'s open/close mechanics (see
- * `home.css`) without its bordered summary row, since this sits centred in
- * the hero rather than in the FAQ's ruled grid.
- */
-export function ResendDisclosure() {
-	return (
-		<details className="ss-home-faq group mx-auto mt-6 max-w-md">
-			<summary className="ss-home-body flex cursor-pointer items-center justify-center gap-1.5 text-center text-sm [&::-webkit-details-marker]:hidden [&::marker]:hidden">
-				<ArrowRightIcon
-					aria-hidden="true"
-					className="size-3.5 shrink-0 transition-transform duration-150 group-open:rotate-90"
-				/>
-				<span>
-					Already licensed? <span className="ss-home-link">Get your license again</span>
-				</span>
-			</summary>
-			<div className="mt-6">
-				<ResendForm />
-			</div>
-		</details>
-	);
-}
-
 const TRIAL_NOTE = "One trial per email address. We will send the license file to your inbox.";
 
-export function TrialForm({ note = TRIAL_NOTE }: { note?: string } = {}) {
+export function TrialForm({
+	label = "Email me a trial",
+	note = TRIAL_NOTE,
+}: {
+	label?: string;
+	note?: string;
+} = {}) {
 	const id = useId();
 	const [email, setEmail] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -257,19 +234,21 @@ export function TrialForm({ note = TRIAL_NOTE }: { note?: string } = {}) {
 			<form onSubmit={handleSubmit} className="flex items-center gap-2">
 				<InlineEmailField id={`trial-email-${id}`} value={email} onChange={setEmail} />
 				<HomeButton type="submit" size="xl" disabled={busy} className="relative shrink-0">
-					<span className={busy ? "opacity-0" : ""}>Email me a trial</span>
+					<span className={busy ? "opacity-0" : ""}>{label}</span>
 					{busy ? <Spinner size="sm" className="absolute" /> : null}
 				</HomeButton>
 			</form>
-			<p
-				className={
-					outcome?.kind === "error"
-						? "max-w-sm text-sm text-destructive"
-						: "ss-home-body max-w-sm text-sm"
-				}
-			>
-				{outcome ? outcome.message : note}
-			</p>
+			{outcome || note ? (
+				<p
+					className={
+						outcome?.kind === "error"
+							? "max-w-sm text-sm text-destructive"
+							: "ss-home-body max-w-sm text-sm"
+					}
+				>
+					{outcome ? outcome.message : note}
+				</p>
+			) : null}
 		</div>
 	);
 }

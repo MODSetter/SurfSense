@@ -24,6 +24,11 @@ const PUBLIC_ROUTE_PREFIXES = [
 	// from Stripe -- a login redirect there loses them their license file.
 	"/license",
 	"/pricing",
+	// The cross-cutting professional page. A marketing route missing from this
+	// list still renders, but only on the client: `ZeroProvider` mounts the
+	// authenticated sync provider for it, which emits no SSR HTML, so a crawler
+	// sees an empty shell.
+	"/private-ai-for-business",
 	"/privacy",
 	"/terms",
 	"/changelog",

@@ -3,6 +3,7 @@ import type { ComponentType } from "react"
 import { Button } from "@/components/ui/button"
 import { DownloadCircle02Icon, LicenseIcon } from "@/components/ui/icons"
 import { askEgress } from "@/features/egress/egress-prompt"
+import type { LicenseState } from "@/features/license/api"
 import { useLicense } from "@/features/license/use-license"
 import {
   updatesBridge,
@@ -12,10 +13,15 @@ import {
 import type { UpdateState } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
+// `good` and `bad` keep their colour on hover, where ghost would otherwise
+// repaint them: a status light that changes colour under the pointer is no
+// longer reporting anything.
 const TONE = {
   quiet: "text-muted-foreground",
   offer: "text-notice hover:text-notice",
   wrong: "text-amber-600 dark:text-amber-500",
+  good: "text-emerald-600 hover:text-emerald-600 dark:text-emerald-500 dark:hover:text-emerald-500",
+  bad: "text-destructive hover:text-destructive",
 } as const
 
 type Row = {
@@ -48,16 +54,14 @@ function FooterRow({
   )
 }
 
-// `active` has no row: a working license is not news. Nor is "none" a warning
-// -- the app is free and only paid plugins need a file, so a user who never
-// bought one gets an invitation in the quiet tone, not an alert.
-const LICENSE_ROWS: Record<
-  "none" | "license_expired" | "clock_untrusted",
-  Row
-> = {
-  none: { label: "Unlock plugins", tone: "quiet" },
-  license_expired: { label: "License expired", tone: "wrong" },
-  clock_untrusted: { label: "Clock is off", tone: "wrong" },
+// The row answers "is my license working?" at a glance, so it reads as a status
+// light: green only when plugins are actually unlocked, red for every state
+// that leaves them locked, whatever the reason.
+const LICENSE_ROWS: Record<LicenseState, Row> = {
+  active: { label: "License active", tone: "good" },
+  none: { label: "No license", tone: "bad" },
+  license_expired: { label: "License expired", tone: "bad" },
+  clock_untrusted: { label: "Clock is off", tone: "bad" },
 }
 
 function updateRow(state: UpdateState): Row {
@@ -78,11 +82,11 @@ function updateRow(state: UpdateState): Row {
 }
 
 /**
- * The sidebar's bottom edge, holding only what is worth a glance: a license
- * that needs attention, and where the app stands on updates.
+ * The sidebar's bottom edge, holding only what is worth a glance: where the
+ * license stands, and where the app stands on updates.
  *
  * Either row can be absent -- no bridge outside the desktop app, no license row
- * once one is active -- so the strip goes with them rather than leaving a
+ * until its status arrives -- so the strip goes with them rather than leaving a
  * bordered gap.
  */
 export function SidebarFooter({
@@ -95,8 +99,7 @@ export function SidebarFooter({
   const state = useUpdateState()
   const { prefs, setAutomatic } = useUpdatePrefs()
 
-  const licenseRow =
-    license && license.state !== "active" ? LICENSE_ROWS[license.state] : null
+  const licenseRow = license ? LICENSE_ROWS[license.state] : null
 
   if (!licenseRow && !updates) return null
 

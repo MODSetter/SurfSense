@@ -32,24 +32,34 @@ import { cn } from "@/lib/utils";
 const SITE_DESIGN_ROUTES = new Set([
 	"/",
 	"/pricing",
+	"/private-ai-for-business",
+	"/free",
 	"/contact",
 	"/plugins",
 	"/blog",
 	"/license",
+	"/license/activate",
 	"/license/success",
 	"/downloads",
 	"/changelog",
 	"/announcements",
 	"/login",
 	"/sunset",
+	"/privacy",
+	"/terms",
 	...getAllConnectorSlugs().map((slug) => `/${slug}`),
 ]);
 
 /**
  * Prefixes for site-design routes with their own dynamic children, e.g. every
  * `/blog/<slug>` post under the `/blog` index.
+ *
+ * `/free/` covers every model page. Those used to bypass this shell entirely so
+ * the anonymous chat could own the viewport; the hosted chat is closed and the
+ * route is an ordinary marketing page now, so it takes the same chrome and
+ * ruled column as the `/free` index above it.
  */
-const SITE_DESIGN_PREFIXES = ["/blog/"];
+const SITE_DESIGN_PREFIXES = ["/blog/", "/free/"];
 
 export function SiteShell({
 	children,
@@ -62,11 +72,6 @@ export function SiteShell({
 }) {
 	const pathname = usePathname();
 	const isAuthPage = pathname === "/login" || pathname === "/register";
-	const isFreeModelChat = /^\/free\/[^/]+$/.test(pathname);
-
-	if (isFreeModelChat) {
-		return <>{children}</>;
-	}
 
 	const usesSiteDesign =
 		SITE_DESIGN_ROUTES.has(pathname) ||

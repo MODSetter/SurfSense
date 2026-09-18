@@ -3,6 +3,7 @@ import { HomeLogos } from "@/components/homepage/home/home-logos";
 import { HomeQuestions } from "@/components/homepage/home/home-questions";
 import {
 	HomeCompare,
+	HomeConfidential,
 	HomeFeatures,
 	HomeFormats,
 	HomeHero,
@@ -68,6 +69,7 @@ export default function HomePage() {
 			<HomePillars />
 			<HomeCompare />
 			<HomeFeatures />
+			<HomeConfidential />
 			<HomeFormats />
 			<HomeQuestions />
 		</>

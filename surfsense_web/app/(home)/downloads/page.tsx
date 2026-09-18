@@ -26,9 +26,9 @@ export default async function DownloadsPage() {
 				<div className="mx-auto max-w-2xl text-center">
 					<h1 className="ss-home-display">Download SurfSense</h1>
 					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
-						One installer, no account, no cloud. Pick your platform below.
+						One installer, no account, no cloud.
 					</p>
-					<TrialForm note="We will send a 30-day licence for the scraper plugins, with the download links. The installers are below either way." />
+					<TrialForm label="Download" note="" />
 				</div>
 			</section>
 

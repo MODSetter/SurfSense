@@ -16,7 +16,6 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { SignInButton } from "@/components/auth/sign-in-button";
 import { NavbarGitHubStars } from "@/components/homepage/github-stars-badge";
 import { Logo } from "@/components/Logo";
-import { ThemeTogglerComponent } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -260,9 +259,6 @@ const DesktopNav = ({ navItems, isScrolled, scrolledBgClassName }: DesktopNavPro
 					<IconBrandReddit className="size-5 text-muted-foreground" aria-hidden />
 				</Link>
 				<NavbarGitHubStars className="hidden md:flex" />
-				<span className="ss-theme-toggle">
-					<ThemeTogglerComponent />
-				</span>
 				<SignInButton variant="desktop" />
 			</div>
 		</motion.div>
@@ -376,9 +372,6 @@ const MobileNav = ({ navItems, isScrolled, scrolledBgClassName }: MobileNavProps
 								<IconBrandReddit className="size-5 text-muted-foreground" aria-hidden />
 							</Link>
 							<NavbarGitHubStars className="rounded-lg" />
-							<span className="ss-theme-toggle">
-								<ThemeTogglerComponent />
-							</span>
 						</div>
 						<SignInButton variant="mobile" />
 					</motion.div>

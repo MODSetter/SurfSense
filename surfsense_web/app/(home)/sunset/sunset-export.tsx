@@ -12,12 +12,14 @@ import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
 
 /**
- * Rendered inline in the hero on `/sunset` rather than as its own section —
- * a page whose entire purpose is one export button doesn't need a second
- * ruled band beneath the headline. Built from the same `ss-home-*` primitives
- * as the rest of the site design (`HomeButton` rather than the product's own
- * `Button`) so it still reads as part of the same document as the homepage,
- * pricing and contact pages.
+ * Step one of the guide on `/sunset`, rendered inside that step rather than in
+ * the headline band above it: the step that tells you to export is the place
+ * the button belongs, and the reader meets it in the order they act.
+ *
+ * Built from the same `ss-home-*` primitives as the rest of the site design
+ * (`HomeButton` rather than the product's own `Button`) so it still reads as
+ * part of the same document as the homepage, pricing and contact pages, and
+ * left-aligned to sit with the step's prose.
  */
 
 const FALLBACK_FILENAME = "surfsense-export.zip";
@@ -109,7 +111,7 @@ export function SunsetExport() {
 	const signedIn = mounted && session.status === "authenticated";
 
 	return (
-		<div className="mt-10 flex flex-col items-center">
+		<div className="mt-6 flex flex-col items-start">
 			<HomeButton
 				type="button"
 				size="xl"
@@ -122,10 +124,10 @@ export function SunsetExport() {
 				</span>
 				{busy ? <Spinner size="sm" className="absolute" /> : null}
 			</HomeButton>
-			<p className="ss-home-body mx-auto mt-4 max-w-md text-sm text-pretty">
-				<span className="font-medium">Note:</span> Downloads every workspace you can access: ready
-				documents as markdown, folder structure, and chat threads. Original uploads, generated
-				artifacts, tool calls, agent steps, and live citation links are not included.
+			<p className="ss-home-body mt-4 max-w-xl text-sm text-pretty">
+				The ZIP holds every workspace you can access: ready documents as markdown, the folder
+				structure, and your chat threads. It does not carry original uploads, generated artifacts,
+				tool calls, agent steps or live citation links.
 			</p>
 		</div>
 	);

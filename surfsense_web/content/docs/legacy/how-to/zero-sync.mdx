@@ -69,9 +69,9 @@ If running the frontend outside Docker (e.g. `pnpm dev`), you need:
 
     Run `uv run alembic upgrade head` from `surfsense_backend/` **before** starting this container so the `zero_publication` exists.
 2. If the frontend is not behind bundled Caddy, set `NEXT_PUBLIC_ZERO_CACHE_URL=http://localhost:4848` before building/running the frontend so the browser connects directly to zero-cache.
-3. **`wal_level = logical`** in your PostgreSQL config (see [Manual Installation → Configure PostgreSQL for Zero Sync](/docs/manual-installation#3-configure-postgresql-for-zero-sync)).
+3. **`wal_level = logical`** in your PostgreSQL config (see [Manual Installation → Configure PostgreSQL for Zero Sync](/docs/legacy/manual-installation#3-configure-postgresql-for-zero-sync)).
 
-For the full manual setup walkthrough, see the [Manual Installation guide](/docs/manual-installation).
+For the full manual setup walkthrough, see the [Manual Installation guide](/docs/legacy/manual-installation).
 
 ### Custom Domain / Reverse Proxy
 

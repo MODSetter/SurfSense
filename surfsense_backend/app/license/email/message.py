@@ -25,6 +25,11 @@ LicenseEmailKind = Literal["purchase", "resend", "trial"]
 
 LICENSE_FILENAME = "surfsense.lic"
 
+# The same steps below, with screenshots of each one. Plain text cannot show
+# where the gear is, so the mail carries both: the four lines for a reader who
+# wants no detour, and the page for one who is stuck on a step.
+ACTIVATION_GUIDE_URL = "https://www.surfsense.com/license/activate"
+
 
 def _install_steps(installers: tuple[ReleaseAsset, ...] = ()) -> str:
     """Steps from nothing to a working license.
@@ -48,6 +53,7 @@ def _install_steps(installers: tuple[ReleaseAsset, ...] = ()) -> str:
         + "2. Save the attached surfsense.lic somewhere you can find it.\n"
         + "3. Open SurfSense and go to Settings -> License.\n"
         + "4. Drop the file in, or paste its contents.\n"
+        + f"\nStuck on a step? The same guide with screenshots: {ACTIVATION_GUIDE_URL}\n"
     )
 
 
