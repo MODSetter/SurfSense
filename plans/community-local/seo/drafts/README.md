@@ -3,10 +3,22 @@
   Rationale, keyword targets, the competitor-structure analysis and the
   sign-off checklist: ../06-repo-readme.md
 
-  Two assets are required before this ships and both are marked REPLACE-ME:
-  a hero wordmark, and a Studio demo GIF. All three of the biggest repos in
-  this category put a visual above the feature list; we currently have none
-  for the desktop app.
+  Three things are marked REPLACE-ME and must be filled before this ships:
+  a hero wordmark, a Studio demo GIF (a folder of documents in, a podcast out),
+  and the export deadline in the sunset callout. Every large repo in this
+  category puts a visual above the feature list and we have none for the
+  desktop app.
+
+  The sunset callout is time-boxed. It sits below the opening paragraph so a
+  new reader learns what the product is before what it replaced, and it should
+  be deleted outright at T+30 when the export window closes, along with the
+  "Importing from the hosted app" link further down.
+
+  Length is deliberate. Measured 17 Sep across the eight biggest repos in this
+  category: median 1,142 words and 8 H2s, and the largest projects are the
+  shortest (gpt4all 610 words at 77k stars, khoj 481, onyx 731, jan 755). An
+  earlier draft ran 2,730 words and 14 H2s, which was longer than every one of
+  them. Anything added here should replace something, not accumulate.
 -->
 
 [![Stars](https://img.shields.io/github/stars/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/stargazers)
@@ -23,191 +35,120 @@
   <p>
     <b>The air-gapped, open-source NotebookLM alternative.</b>
     <br />
-    Turn your own documents into study guides, flashcards, quizzes, slides, mind maps and podcasts, entirely on your own machine.
+    Turn documents you can't upload into briefings, decks, reports, study guides and podcasts, entirely on your own machine.
   </p>
 
   <p>
     <a href="https://www.surfsense.com/downloads"><b>Download</b></a> ·
     <a href="https://www.surfsense.com/docs">Docs</a> ·
     <a href="#what-surfsense-makes">What it makes</a> ·
+    <a href="#how-surfsense-compares">Compare</a> ·
     <a href="https://www.surfsense.com/pricing">Pricing</a> ·
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
 
-  <p>
+  <!--
+    Language switcher removed on purpose. README.es.md, README.pt-BR.md,
+    README.hi.md and README.zh-CN.md all describe the hosted product ("la
+    alternativa ... para la investigación de la web abierta", last edited
+    16 Aug 2026) and the user base is majority non-English (../07), so linking
+    them from here sends most readers to a page about an app that no longer
+    exists. Restore the row once each file has been rewritten for 2.0.0:
+
     English | <a href="README.es.md">Español</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.zh-CN.md">简体中文</a>
-  </p>
+  -->
 </div>
 
+![SurfSense Studio turning a folder of PDFs into a two-host podcast, voiced offline on the same machine](REPLACE-ME-studio-demo.gif)
+
+SurfSense is a free, open-source desktop app for the documents you already have. Drop them in, ask questions and get answers that cite their sources, then turn the same documents into a briefing, a slide deck, a report, a study guide or a podcast. All of it runs on your own machine: the index sits on your disk, you pick the model, and the app uploads nothing. There is no account to create.
+
+**[Download for Windows, macOS or Linux](https://www.surfsense.com/downloads)**, then bring your own model key or let the app pull a local model for you.
+
 > [!NOTE]
-> **The hosted version of SurfSense is being retired.** SurfSense is now a desktop app you install and own. If you used the hosted web app, open it once to export your workspaces, then import the bundle into the desktop app. Your documents, folders, titles and chat threads all come across. You have 30 days from launch to export. Details on [the sunset page](https://www.surfsense.com/sunset).
-
-![SurfSense Studio turning a folder of PDFs into a flashcard deck](REPLACE-ME-studio-demo.gif)
-
-SurfSense is a free, open-source desktop app that reads your own documents and writes things from them: summaries, study guides, flashcards, quizzes, slide decks, mind maps, spreadsheets and podcasts. It runs on your own machine. The index sits on your disk, you pick the model, and the app uploads nothing. There is no account to create.
-
-**[Download for Windows, macOS or Linux](https://www.surfsense.com/downloads)**, then either bring your own model key or let the app pull a local model for you.
+> **Used the hosted web app?** It is being retired. Open it once to export your workspaces, then import the bundle into the desktop app; documents, folders, titles and chat threads all come across. The export window closes on REPLACE-ME-DATE. Details on [the sunset page](https://www.surfsense.com/sunset).
 
 ## What SurfSense makes
 
-Select some documents, pick a format, and the app writes it. Every artifact is grounded in the sources you chose, and the app builds all of them locally.
+Pick some documents and a format. The app writes it from the sources you chose, on your machine.
 
 | Format | What you get | Needs |
 |---|---|---|
 | **Summary** | A structured brief of the selected sources | generation model |
-| **Flashcards** | An interactive deck: one card at a time, reveal the answer | generation model |
-| **Quiz** | Multiple-choice questions with answers, to test recall | generation model |
-| **Mind map** | A zoomable, collapsible map rendered with Markmap | generation model |
+| **Flashcards** | An interactive deck, one card at a time | generation model |
+| **Quiz** | Multiple-choice questions with answers | generation model |
+| **Mind map** | A zoomable, collapsible Markmap | generation model |
 | **Slides** | An editable `.pptx`, not a picture of a deck | generation model |
 | **Document** | An editable `.docx` report | generation model |
-| **Spreadsheet** | An `.xlsx` of tables and figures pulled from the sources | generation model |
+| **Spreadsheet** | An `.xlsx` of tables pulled from the sources | generation model |
 | **Web page** | A self-contained HTML page | generation model |
 | **PDF** | A typeset PDF | generation model |
-| **Podcast** | A two-host audio conversation, voiced offline by the bundled Kokoro-82M | generation model + bundled voice |
+| **Podcast** | A two-host audio conversation, voiced offline by Kokoro-82M | generation model + bundled voice |
 | **Image** | An illustration for the material | image model + generation model |
 | **Infographic** | A single-panel visual summary | image model + generation model |
 
-A study guide is three of those formats over one source set: a summary to read, a flashcard deck to drill, and a quiz to check yourself. Point the app at a semester of lecture PDFs and you get all three without your coursework leaving your laptop.
+Some jobs need more than one. A study guide is a summary, a flashcard deck and a quiz over the same source set, and a client briefing is usually the deck you present from plus the summary you send after. Video overviews are not built yet.
 
-Video overviews are not built yet.
+## Everything stays on your machine
 
-## NotebookLM's outputs. None of NotebookLM's cloud.
+People point this at case papers, client working papers, interview transcripts, internal specs, unpublished research and a term's worth of lecture notes. You can ask questions across all of it and every answer cites the source it came from. The app does not upload any of it.
 
-Most local AI tools are chat windows. Jan, AnythingLLM, Open WebUI and LM Studio are good ones: you point them at a local model, you ask questions, and the conversation scrolls away. None of them hands you anything to keep, so there is no deck for Monday's meeting and no card set to revise from.
+- **The index is local.** Parsing, chunking and embedding happen on your computer, into SQLite under `~/.surfsense`. SurfSense keeps no copy of it and no log of what you asked.
+- **Every role can run locally.** The document parser, the retrieval model and the podcast voice ship inside the installer. Chat and image generation ship as local servers whose weights you download once, so you can produce text, audio and pictures without an account or an API key. We test it by ingesting a PDF with networking disabled.
+- **Outbound connections are off by default.** An egress panel lists every destination the app can reach and you switch on the ones you want.
+- **No telemetry, no crash reporting.** Nothing phones home, so there is no opt-out to find.
 
-The tools that *do* produce those things — the study and presentation SaaS — take the opposite trade. You upload your material to their servers, you pay monthly, and your PDFs live in someone else's account.
+SurfSense cannot tell you whether that satisfies a particular regulation. That depends on your own controls and your regulator. All the app can tell you is which machine your documents are on.
 
-SurfSense is the third option. It produces those deliverables and builds them on your own machine.
+## How SurfSense compares
 
-|  | Local chat apps | Study / slides SaaS | SurfSense |
-|---|---|---|---|
-| Runs on your machine | Yes | No | **Yes** |
-| Produces artifacts to keep | No | Yes | **Yes** |
-| Works with no network | Yes | No | **Yes** |
-| Needs an account | No | Yes | **No** |
-| Open source | Mostly | No | **Apache-2.0** |
+Three kinds of product get called "the local NotebookLM", and they answer different questions. None of them is a bad tool; they just leave you with different things.
+
+**vs Jan, AnythingLLM, Open WebUI, LM Studio.** These run a model locally and give you somewhere to chat with it. SurfSense answers the next question: how do you get a finished document out of one? Use them together if you like, by pointing SurfSense at any OpenAI-compatible endpoint, including one of theirs.
+
+**vs RemNote, Quizlet, NoteGPT, StudyFetch, Gamma.** These do produce artifacts, and some look better than ours. The trade is where your material goes: you upload it, you pay monthly, and your files live in someone else's account.
+
+**vs Google NotebookLM.** It already ships flashcards, quizzes, mind maps and audio overviews, so both produce much the same things. The difference is whose machine does the work and which model you can point at it.
+
+| | Google NotebookLM | SurfSense |
+|---|---|---|
+| Runs offline / air-gapped | No | **Yes** |
+| Your documents leave your machine | Yes | **No** |
+| Account required | Google account | **None** |
+| Open source | No | **Apache-2.0** |
+| Price | Free tier; Pro $19.99/mo; Ultra $249.99/mo | **App is free** |
+| Models | Gemini only | Any OpenAI-compatible API, or a local one |
+| Source limits | 50 to 600 sources, 500,000 words each | Whatever your disk holds |
+| Audio and video overviews | Yes, and better | Audio yes, offline; video not yet |
+
+NotebookLM wins on audio quality and it has video. If you are content with your sources sitting on Google's servers, use it. If you are not, this is the same kind of tool without the upload.
 
 ## Quick start
 
-There is no Docker to install, no terminal, no GPU and no compose file to edit.
+You do not need Docker, a terminal, a GPU or a compose file.
 
-1. **Download the installer** for [Windows, macOS or Linux](https://www.surfsense.com/downloads) and open it. It is signed, so your OS will not fight you.
-2. **Pick a model.** Either let the app pull a local one for you, or paste a base URL and key for any OpenAI-compatible API. Nothing else needs configuring.
-3. **Drop in documents.** The app parses PDFs, Office files and images on your own machine.
-4. **Ask questions,** and every answer cites the source it came from.
-5. **Open Studio,** choose a format, and collect the file.
+1. **Download the installer** for [Windows, macOS or Linux](https://www.surfsense.com/downloads). It is signed, so your OS will not fight you.
+2. **Pick a model.** Let the app pull a local one (Qwen3 in six sizes, from 0.5 GB) or paste a base URL and key for any OpenAI-compatible API. The picker checks your machine can run a model before offering it, and any key you give it is stored encrypted, with the secret held in your OS keychain.
+3. **Drop in documents.** The app parses PDFs, Office files and images on your machine.
+4. **Ask questions.** Every answer cites the source it came from.
+5. **Open Studio,** choose a format, collect the file.
 
-The download is the slow part, because the installer carries the document parser, the retrieval model and the podcast voice so that the app works with the network off. After that there is nothing to set up.
+The download is the slow part, because the installer carries the parser, the retrieval model, the podcast voice and the local model servers, so the app works with the network off.
 
-## Models: bundled, or bring your own
+## Docs, roadmap and community
 
-SurfSense does not sell you inference and does not resell anyone else's. Three of the four model roles work offline with no key at all.
+The app and its updates are free. A licence adds plugins and priority support and gates nothing else, so an expired licence still leaves you the app and every future update. See [pricing](https://www.surfsense.com/pricing).
 
-| Role | Bundled and offline | Bring your own |
-|---|---|---|
-| Chat and artifact generation | A private Ollama with Qwen3 in six sizes, the smallest 0.5 GB on disk | Any OpenAI-compatible API |
-| Retrieval embedding | Yes, fixed and local | — |
-| Podcast voice | Kokoro-82M | — |
-| Image and infographic | — | Any OpenAI-compatible image API |
+The Docker stack in this repo (`surfsense_backend`, `surfsense_web`, compose files) stays open source and installable, and is **community-supported: no SLA and no hosted service behind it.** The desktop app is the supported path for new users.
 
-The model picker checks whether your machine can actually run a model before it offers it. Generation, embedding and image roles are chosen separately, so a small local model can answer chat while a bigger one writes artifacts. Keys live in your OS keychain.
-
-## Everything runs on your machine
-
-- **The index is local.** The app parses, chunks and embeds your documents on your own computer, into a SQLite database under `~/.surfsense`. There is no vendor copy and no vendor log.
-- **It works with the network off.** The installer bundles the parser (Docling), the retrieval embedding model and the podcast voice. We test that by running ingest on a machine with networking disabled.
-- **Outbound connections are off by default.** An egress panel lists every destination the app can reach, and you switch on the ones you want. Pulling a model is one of them.
-- **No telemetry and no crash reporting.** Nothing in the app reports back anywhere, so there is no opt-out to find and no anonymous-usage policy to read. Support runs on logs you choose to send.
-
-This matters most if your documents are client files, patient records, unpublished research or your own notes. No second copy exists on anyone's server, so there is no privacy policy to read and nothing to subpoena.
-
-## SurfSense vs Google NotebookLM
-
-NotebookLM is a good product, and it is how most people find this repo.
-
-| | Google NotebookLM | SurfSense | Why it matters |
-|---|---|---|---|
-| **Runs offline / air-gapped** | No | **Yes** | Works on a plane, and inside networks with no route out |
-| **Your documents leave your machine** | Yes | **No** | No second copy to leak or subpoena |
-| **Account required** | Google account | **None** | Nothing to sign up for, nothing to cancel |
-| **Open source** | No | **Yes, Apache-2.0** | You can audit it, and keep running it if we disappear |
-| **Price** | Free tier; Pro $19.99/mo; Ultra $249.99/mo | **App is free** | You pay for model usage, if anything |
-| **Models** | Gemini only | Any OpenAI-compatible API, or a local model | Choose on cost, or on privacy |
-| **Sources per notebook** | 50 (free) to 600 (Ultra) | As many as your disk holds | No tier to hit |
-| **Source size limit** | 500,000 words / 200 MB | Your disk | Whole books, long transcripts |
-| **Summaries, flashcards, quizzes, mind maps** | Yes | Yes | Same jobs, different machine |
-| **Slides** | Better looking, not editable | Editable `.pptx` | Fix a typo without starting over |
-| **Podcasts / audio overviews** | Yes, and better: more voices and languages | Yes, generated offline | NotebookLM wins on quality, we win on privacy and cost |
-| **Video overviews** | Yes (Ultra) | Not yet | NotebookLM wins |
-| **Self-hostable** | No | Yes | Run the server stack if you want one |
-
-If you want the best-looking audio and video overviews, and you are content with your sources sitting on Google's servers, use NotebookLM. If you want the same kind of outputs without the upload, use this.
-
-## Questions people actually ask
-
-**Can I run NotebookLM locally?** No. NotebookLM is a hosted Google product with no offline mode and no self-host option. SurfSense is an open-source desktop app built to do the same job on your own machine.
-
-**Is there an open-source alternative to NotebookLM?** This is one. The app is Apache-2.0 and the installers are free.
-
-**Is there a free version of NotebookLM?** Google offers a free tier with source and notebook caps. The SurfSense app is free outright and has no caps, because you supply the model.
-
-**Is there an AI I can use without internet?** Yes. With a local model installed, SurfSense runs with networking off: ingest, search, chat and every Studio format.
-
-**Can I self-host an AI?** Two ways here. The desktop app is local by default and needs no server. If you would rather run the server stack, see below.
-
-**Do I need a GPU?** No. Retrieval is CPU-only. A GPU helps if you run a large local model, and it makes no difference if you bring an API key.
-
-**Does it work with Ollama?** Yes, including a private bundled copy, so you do not have to install or manage one yourself.
-
-## Self-host the server stack
-
-The Docker stack in this repo (`surfsense_backend`, `surfsense_web` and the compose files) remains open source and installable. It is **community-supported: no SLA, and no hosted service behind it.** The desktop app is the supported path for new users.
-
-```bash
-# Linux / macOS
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-## Pricing
-
-The app is free and so are updates. The paid tiers:
-
-| | |
-|---|---|
-| **Self-build and the app** | Free, forever, Apache-2.0 |
-| **Trial** | 14 days |
-| **Individual** | $120/year |
-| **Team** | $80/seat/year, 5-25 seats |
-| **Enterprise** | $80/seat/year, $3,000 minimum, invoiced |
-
-A license unlocks plugins and priority support, and gates nothing else. It never disables the app: when a license expires you keep the app and every future update, and you lose plugins and priority support. There is no account either way, since checkout takes an email address and sends back a license file.
-
-The first plugin is a hosted scraper API for live data from the open web (Reddit, YouTube, Google Search, Maps, Amazon and more, as one typed API and an [MCP server](./surfsense_mcp)).
-
-## Roadmap
-
-In 2.0.0: all twelve Studio formats, interactive viewers for the flashcard, quiz and mind-map artifacts, and import from the hosted app.
-
-Next, a week after launch: the first plugin. Then video overviews and an interactive viewer for the web-page artifact.
-
-Further out: sandboxed artifact generation, SSO and SAML, an on-premise license and plugin mirror for zero-egress networks, and a local egress audit log.
-
-Track it on the [roadmap discussion](https://github.com/MODSetter/SurfSense/discussions/565) and the [project board](https://github.com/users/MODSetter/projects/3).
-
-## Documentation
-
-- [Documentation](https://www.surfsense.com/docs) for install, choosing a model, the Studio formats and self-hosting
+- [Documentation](https://www.surfsense.com/docs) for install, models, Studio formats and self-hosting
 - [Importing from the hosted app](https://www.surfsense.com/sunset)
-- [Developing the desktop app](./surfsense_local)
-
-## Community and contributing
-
-- [Discord](https://discord.gg/ejRNvftDp9) for help, ideas and workflow sharing
-- [GitHub Discussions](https://github.com/MODSetter/SurfSense/discussions) to shape features and direction
-- [Issues](https://github.com/MODSetter/SurfSense/issues) for reproducible bugs
+- [MCP server](./surfsense_mcp) for the hosted scraper API
+- [Roadmap discussion](https://github.com/MODSetter/SurfSense/discussions/565) and the [project board](https://github.com/users/MODSetter/projects/3)
+- [Discord](https://discord.gg/ejRNvftDp9) for help and ideas, [Discussions](https://github.com/MODSetter/SurfSense/discussions) for direction, [Issues](https://github.com/MODSetter/SurfSense/issues) for reproducible bugs
 - **Star the repo** if you want to follow where this goes
 
-Issues and pull requests are both welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md). The desktop app lives in [`surfsense_local/`](./surfsense_local); its README covers the development loop. The hosted web app, browser extension and Obsidian plugin are retired and archived.
+Pull requests welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); the desktop app lives in [`surfsense_local/`](./surfsense_local) and its README covers the development loop.
 
 Thanks to all our Surfers:
 
