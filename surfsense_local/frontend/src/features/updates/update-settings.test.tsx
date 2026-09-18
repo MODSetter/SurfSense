@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { cleanup, screen } from "@testing-library/react"
+import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { render } from "@/test-utils"
 
 import { stubUpdateBridge as stubBridge } from "./stub-bridge"
@@ -13,18 +14,30 @@ afterEach(() => {
 })
 
 describe("UpdateSettings", () => {
-  it("cannot check while App updates are switched off", async () => {
+  it("asks before checking while App updates are switched off", async () => {
     const bridge = stubBridge({ automatic: false, state: { status: "idle" } })
     const user = userEvent.setup()
-    render(<UpdateSettings />)
+    render(
+      <>
+        <UpdateSettings />
+        <EgressPrompt />
+      </>
+    )
 
-    // The one switch is a section away in Network, so this points at it
-    // rather than stacking a consent dialog on the dialog already open.
-    const check = await screen.findByRole("button", { name: "Check now" })
-    expect((check as HTMLButtonElement).disabled).toBe(true)
-    await user.click(check)
+    await user.click(await screen.findByRole("button", { name: "Check now" }))
 
+    // Network promises github.com is not contacted until allowed, so the
+    // first check asks rather than going ahead.
+    await screen.findByRole("alertdialog", {
+      name: "Allow SurfSense to check for updates?",
+    })
     expect(bridge.calls).toEqual([])
+
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await waitFor(() =>
+      expect(bridge.calls).toEqual(["automatic:true", "check"])
+    )
   })
 
   it("checks on demand and reports each state", async () => {

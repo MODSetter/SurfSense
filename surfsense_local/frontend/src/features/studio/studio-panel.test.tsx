@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
@@ -36,11 +37,34 @@ function StudioHarness({
   documents?: (typeof readyDocument)[]
 }) {
   const studio = useStudio(1)
+  // The panel is told what is selected; the page owns it. Mirror useSources,
+  // which tracks the excluded ids so a ready source starts out included.
+  const [excluded, setExcluded] = useState<ReadonlySet<number>>(new Set())
+  const readyIds = documents
+    .filter((document) => document.status === "ready")
+    .map((document) => document.id)
+  const includedIds = readyIds.filter((id) => !excluded.has(id))
   return (
     <>
       <StudioPanel
         workspaceId={1}
         documents={documents}
+        selectedDocumentIds={includedIds}
+        onSelectionChange={(id, included) =>
+          setExcluded((current) => {
+            const next = new Set(current)
+            if (included) next.delete(id)
+            else next.add(id)
+            return next
+          })
+        }
+        onToggleAll={() =>
+          setExcluded(
+            readyIds.length > 0 && includedIds.length === readyIds.length
+              ? new Set(readyIds)
+              : new Set()
+          )
+        }
         formats={studio.formats}
         isCreating={studio.isCreating}
         error={studio.error}
@@ -90,6 +114,9 @@ describe("studio panel", () => {
         <StudioPanel
           workspaceId={1}
           documents={[]}
+          selectedDocumentIds={[]}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
           formats={[]}
           isCreating={false}
           error={null}
@@ -134,8 +161,8 @@ describe("studio panel", () => {
 
     await user.click(await screen.findByRole("button", { name: "Summary" }))
     expect(screen.getByRole("dialog", { name: "Summary" })).toBeTruthy()
-    expect(screen.getByText("Sources (1 selected)")).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Deselect all" })).toBeTruthy()
+    // The one ready source is picked for you, so Generate works on open.
+    expect(screen.getByRole("button", { name: "1 source" })).toBeTruthy()
     expect(screen.getByText("Prompt (optional)")).toBeTruthy()
     await user.click(screen.getByRole("button", { name: /Generate/ }))
 
@@ -152,9 +179,7 @@ describe("studio panel", () => {
     await vi.waitFor(() =>
       expect(screen.queryByRole("dialog", { name: "Summary" })).toBeNull()
     )
-    expect(
-      screen.getByRole("heading", { name: "Artifacts" })
-    ).toBeTruthy()
+    expect(screen.getByRole("heading", { name: "Artifacts" })).toBeTruthy()
     expect(
       screen.getByRole("status", { name: "Processing Summary" })
     ).toBeTruthy()
@@ -267,6 +292,8 @@ describe("studio panel", () => {
     ])
 
     await user.click(await screen.findByRole("button", { name: "Summary" }))
+    // The list lives in the second pane, which the count opens.
+    await user.click(screen.getByRole("button", { name: "2 sources" }))
     expect(screen.getByText("Sources (2 selected)")).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Deselect all" }))
     expect(screen.getByText("Sources (0 selected)")).toBeTruthy()
