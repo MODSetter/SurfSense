@@ -1,3 +1,4 @@
+<!-- Inert: bundled reference file, not a discovered skill. The frontmatter below has no effect. -->
 ---
 name: make-interfaces-feel-better
 description: >-

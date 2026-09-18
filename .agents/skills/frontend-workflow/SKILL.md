@@ -1,45 +1,41 @@
 ---
 name: frontend-workflow
-description: Coordinates frontend and UI implementation, refactoring, and review using the project's color system, React performance, shadcn/ui, interface-polish, Apple-style motion behavior, and animation-vocabulary skills. Use when the user explicitly requests /frontend-workflow for a frontend task.
-disable-model-invocation: true
+description: Frontend and UI work in surfsense_web and surfsense_local/frontend — writing, refactoring, styling, animating, or reviewing React and Next.js components, shadcn/ui, color tokens and themes, visual polish, and motion. Bundles React/Next performance rules, the canonical color palette, interface-polish detail, and Apple-style motion; routes to the separate shadcn skill for components. Use for any frontend component, page, style, animation, hover state, icon, layout, or UI review task.
 ---
 
 # Frontend Workflow
 
-Use this as the single entry point for frontend work. It orchestrates specialist
-skills; it does not duplicate their rules.
+Single entry point for frontend work in `surfsense_web` and
+`surfsense_local/frontend`. Both are React + Tailwind + shadcn/ui with their own
+`components.json`. Detect which tree the task touches, and treat that tree's
+`package.json`, `components.json`, and styling setup as authoritative. All
+guidance lives in this skill's own folders; load only what the task touches.
 
-## Specialist Skills
+## Reference Map
 
-Load only the skills relevant to the task:
+| Read this | When |
+|---|---|
+| [react-performance/SKILL.md](./react-performance/SKILL.md) | React or Next.js code — components, pages, data fetching, bundles, re-renders |
+| [../shadcn/SKILL.md](../shadcn/SKILL.md) | shadcn/ui components, or any project with `components.json`. Separate skill — it inspects the project live and grants its own CLI. |
+| [color/SKILL.md](./color/SKILL.md) | Colors, themes, charts, design tokens, borders, shadows |
+| [polish/SKILL.md](./polish/SKILL.md) | Typography, surfaces, icons, micro-interactions, enter/exit transitions |
+| [motion/apple-design.md](./motion/apple-design.md) | Gesture-driven or physical motion — drag, swipe, sheets, springs, momentum, interruptible transitions, translucent materials |
 
-- **React or Next.js code:** read
-  `../vercel-react-best-practices/SKILL.md`, then load only the applicable files
-  from its `rules/` directory. Do not load its full compiled guide by default.
-- **shadcn/ui components or a project with `components.json`:** read
-  `../shadcn/SKILL.md` and follow its project-inspection, component-reuse,
-  documentation, composition, styling, and accessibility workflow.
-- **Colors, themes, charts, or visual styling:** read
-  `../color-system/SKILL.md` and use its canonical palette and semantic-token
-  rules.
-- **UI polish, typography, surfaces, icons, interactions, or motion:** read
-  `../make-interfaces-feel-better/SKILL.md`, then load only the applicable
-  supporting reference files.
-- **Gesture-driven or physical motion — drag, swipe, sheets, springs, momentum,
-  interruptible or reversible transitions, translucent materials and depth, or
-  the `prefers-reduced-transparency` and `prefers-contrast` preferences:** read
-  `../apple-design/SKILL.md`. It governs how motion behaves; the interface-polish
-  skill governs concrete values and static detail. Where they conflict, prefer
-  springs and current-value interpolation for anything the user can touch or
-  interrupt, and CSS transitions for everything else.
-- **A vaguely described motion effect:** read
-  `../animation-vocabulary/SKILL.md` first to identify the exact term. This
-  glossary names effects; it does not decide whether to build them.
+Each entry is an index. Open its supporting files only when the touched code
+needs them:
 
-Do not load animation vocabulary, Apple-style motion, or animation references
-for frontend work that has no motion concern. Apple-style motion in particular
-is for gesture, physics, and material work; a hover state or a colour change
-does not need it.
+- `react-performance/rules/` holds one file per rule. Load the applicable ones.
+  `react-performance/rules-compiled.md` is the same rules compiled into one
+  document — do not load it by default.
+- `polish/` splits into `typography.md`, `surfaces.md`, `animations.md`,
+  `icons.md`, `performance.md`.
+- `../shadcn/rules/` splits by concern; `../shadcn/cli.md`, `registry.md`,
+  `customization.md` cover tooling and theming.
+- `color/PALETTE.css` is the canonical palette contract.
+
+Do not load motion references for work with no motion concern.
+Apple-style motion is for gesture, physics, and material work; a hover state or
+a color change does not need it.
 
 ## Workflow
 
@@ -49,8 +45,8 @@ does not need it.
    - Reuse existing components, helpers, tokens, and patterns.
 
 2. **Select guidance**
-   - Apply the specialist-skill conditions above.
-   - Read detailed reference files only when the touched code needs them.
+   - Use the reference map above.
+   - Read detailed files only when the touched code needs them.
    - Treat current project configuration and installed APIs as authoritative.
 
 3. **Implement**
@@ -63,15 +59,15 @@ does not need it.
    - Run the smallest relevant lint, type, and test checks.
    - For visible interaction changes, verify the rendered behavior when a
      runnable frontend is available.
-   - If visual details or motion changed, apply the interface-polish review
-     only after functional implementation is complete and resolve blocking
-     findings within scope.
+   - If visual details or motion changed, apply the polish review only after
+     functional implementation is complete and resolve blocking findings
+     within scope.
 
 5. **Report**
    - Summarize the user-visible result, checks run, and unresolved risks.
-   - Use the interface-polish skill's review format only when the user
-     requested a review. For implementation tasks, include relevant visual or
-     motion findings in the normal completion summary.
+   - Use the polish review format only when the user requested a review. For
+     implementation tasks, include relevant visual or motion findings in the
+     normal completion summary.
 
 ## Precedence and Conflicts
 
@@ -85,24 +81,30 @@ Resolve conflicting guidance in this order:
 6. Motion behavior for gesture-driven and interruptible interactions.
 7. Interface and motion polish.
 
+Specific overlaps:
+
+- **Icons** — `../shadcn/rules/icons.md` governs icon usage inside shadcn
+  components (`data-icon`, sizing, passing icons as objects). `polish/icons.md`
+  governs stroke weight, optical detail, states via `currentColor`, and RTL
+  flipping. Apply the shadcn rule to component wiring, the polish rule to
+  visual detail.
+- **Color** — `color/SKILL.md` and `color/PALETTE.css` are canonical. Where
+  `../shadcn/rules/styling.md` or `../shadcn/customization.md` describe theming,
+  follow them for mechanism and the palette for values.
+- **Motion** — `motion/apple-design.md` governs how motion behaves;
+  `polish/animations.md` governs concrete values and static detail. Where they
+  conflict, prefer springs and current-value interpolation for anything the
+  user can touch or interrupt, and CSS transitions for everything else.
+
 Never sacrifice correctness or accessibility for visual polish or a
-micro-optimization. If a specialist rule conflicts with the installed library
-version or project configuration, verify the current API and follow the
-project's actual version.
+micro-optimization. If a rule conflicts with the installed library version or
+project configuration, verify the current API and follow the project's actual
+version.
 
-## Invocation
+## Notes
 
-Use:
-
-```text
-/frontend-workflow <frontend task>
-```
-
-Examples:
-
-```text
-/frontend-workflow build a responsive settings dialog
-/frontend-workflow improve the performance of this React page
-/frontend-workflow add the subtle grow-from-trigger effect to this popover
-/frontend-workflow review this component's UI and motion
-```
+The `SKILL.md` and `.md` files inside `react-performance/`, `color/`, `polish/`,
+and `motion/` retain their original frontmatter from when they were separate
+skills. That frontmatter is inert here — these are reference files, not
+independently discovered skills. Read their bodies and ignore their
+`name`, `description`, and invocation fields.

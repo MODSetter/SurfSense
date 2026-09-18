@@ -1,3 +1,4 @@
+<!-- Inert: bundled reference file, not a discovered skill. The frontmatter below has no effect. `disable-model-invocation` does nothing here. -->
 ---
 name: color-system
 description: Applies and reviews SurfSense's canonical light and dark color palette, semantic design tokens, typography, charts, borders, shadows, and theme mappings. Use when creating or changing frontend colors, themes, component styling, data visualizations, or design tokens.
@@ -67,11 +68,11 @@ decision when no existing foreground token fits.
 
 ## Coordination
 
-- For shadcn/ui composition and styling, also use `../shadcn/SKILL.md`.
+- For shadcn/ui composition and styling, also use `../../shadcn/SKILL.md`.
 - For React or Next.js implementation, also use
-  `../vercel-react-best-practices/SKILL.md`.
+  `../react-performance/SKILL.md`.
 - For interface polish, color transitions, or reduced-motion behavior, use
-  `../make-interfaces-feel-better/SKILL.md` after implementation.
+  `../polish/SKILL.md` after implementation.
 
 ## Output
 
