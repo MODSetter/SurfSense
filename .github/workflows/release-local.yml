@@ -54,6 +54,13 @@ jobs:
       run:
         shell: bash
 
+    env:
+      # macOS's system Python has SQLite extension loading compiled out (same
+      # restriction Apple applies to its own system libsqlite3); sqlite_vec
+      # needs it. uv's own managed Python has it, so never let a PATH-found
+      # interpreter (e.g. from actions/setup-python) get used instead.
+      UV_PYTHON_PREFERENCE: only-managed
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -102,11 +109,6 @@ jobs:
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" > /dev/null
-
-      - name: Setup Python
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0
