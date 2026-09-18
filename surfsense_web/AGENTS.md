@@ -20,7 +20,7 @@ pnpm test:e2e
 
 - New UI: vertical slice, one responsibility per file. See root `AGENTS.md`.
 - React/Next, colors, UI polish, motion: `frontend-workflow` skill.
-- shadcn components (`components.json`): `shadcn` skill — separate, and it inspects the project live.
+- shadcn components (`components.json`): `shadcn` skill after `frontend-workflow`, not instead of it — separate, and it inspects the project live.
 - New behavior: `tdd` skill.
 
 ## Do not

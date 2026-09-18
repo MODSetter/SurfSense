@@ -85,7 +85,7 @@ Canonical dir: `.agents/skills/`. `.claude/skills` is a symlink to it.
 | `codebase-design` | Module shape, seam, depth — `tdd` depends on this vocabulary |
 | `fastapi` | FastAPI / Pydantic work. Symlink into the installed wheel; repair the **same** root link after a FastAPI or Python bump. Do not keep `surfsense_backend/.agents/`. |
 | `frontend-workflow` | Frontend work in `surfsense_web` and `surfsense_local/frontend`: React/Next performance, color tokens, UI polish, motion. Bundles `react-performance/`, `color/`, `polish/`, `motion/`; routes out to `shadcn`. |
-| `shadcn` | UI components in a tree with `components.json`. Standalone — it inspects the project live and grants its own CLI, which only works as a discovered skill. |
+| `shadcn` | UI components in a tree with `components.json`. Standalone — it inspects the project live and grants its own CLI, which only works as a discovered skill. Load it after `frontend-workflow`, not instead of it. |
 | `migrate-radix-to-base` | Radix UI → Base UI migration. Stays top-level; not part of `frontend-workflow`. |
 
 Do not install skill catalogs. Do not add `CONTEXT.md` or a second rules tree.
@@ -98,6 +98,10 @@ level deep, so do not nest a new skill inside another skill's folder.
 Bundle a skill only if it is static markdown that overlaps the others. Anything
 with frontmatter that does work — `allowed-tools`, `` !`command` `` substitution —
 must stay top-level, because that frontmatter is inert in a bundled file.
+
+`shadcn/SKILL.md` carries one local addition: a note routing to `frontend-workflow`
+first. It is the only edit to that vendored file — restore it after any shadcn
+re-sync, or component work bypasses the color palette and polish rules.
 
 `skills-lock.json` lists `vercel-react-best-practices`, which now lives at
 `frontend-workflow/react-performance/`. `shadcn` is back at its original path and

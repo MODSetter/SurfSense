@@ -1,6 +1,6 @@
 ---
 name: frontend-workflow
-description: Frontend and UI work in surfsense_web and surfsense_local/frontend — writing, refactoring, styling, animating, or reviewing React and Next.js components, shadcn/ui, color tokens and themes, visual polish, and motion. Bundles React/Next performance rules, the canonical color palette, interface-polish detail, and Apple-style motion; routes to the separate shadcn skill for components. Use for any frontend component, page, style, animation, hover state, icon, layout, or UI review task.
+description: Frontend and UI work in surfsense_web and surfsense_local/frontend — building, refactoring, styling, animating, or reviewing React and Next.js components, shadcn/ui, color tokens and themes, visual polish, and motion. Load this first for any UI task, including adding or changing a shadcn/ui component (dialog, button, dropdown, form, sidebar, table) in a tree with components.json — it owns the color palette, polish rules, and the precedence order, then routes to the separate shadcn skill for component wiring and the CLI. Use for any frontend component, page, style, animation, hover state, icon, layout, or UI review task.
 ---
 
 # Frontend Workflow
