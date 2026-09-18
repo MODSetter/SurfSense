@@ -76,7 +76,11 @@ if (actual !== target.sha256) {
 }
 
 // The archive is flat: sd-server plus the ggml backends it loads by path.
-execFileSync(TAR, ["-xf", archive, "-C", OUT], { stdio: "inherit" })
+if (process.platform === "linux") {
+  execFileSync("unzip", ["-o", archive, "-d", OUT], { stdio: "inherit" })
+} else {
+  execFileSync(TAR, ["-xf", archive, "-C", OUT], { stdio: "inherit" })
+}
 rmSync(archive, { force: true })
 
 if (!existsSync(join(OUT, binary))) {
