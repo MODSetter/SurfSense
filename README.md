@@ -31,6 +31,8 @@
     <a href="https://discord.gg/ejRNvftDp9">Discord</a>
   </p>
 
+  <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
+
   <!--
     Language switcher removed on purpose. README.es.md, README.pt-BR.md,
     README.hi.md and README.zh-CN.md all describe the hosted product and
