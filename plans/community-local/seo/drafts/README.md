@@ -1,13 +1,7 @@
 <!--
-  DRAFT for SurfSense 2.0.0. Not the live README.
-  Rationale, keyword targets, the competitor-structure analysis and the
-  sign-off checklist: ../06-repo-readme.md
-
-  Three things are marked REPLACE-ME and must be filled before this ships:
-  a hero wordmark, a Studio demo GIF (a folder of documents in, a podcast out),
-  and the export deadline in the sunset callout. Every large repo in this
-  category puts a visual above the feature list and we have none for the
-  desktop app.
+  Shipped to /README.md on 18 Sep 2026. Edit the root file; this copy is
+  only for history. Image srcs here keep the `../../../../` prefix so the
+  draft preview still resolves.
 
   The sunset callout is time-boxed. It sits below the opening paragraph so a
   new reader learns what the product is before what it replaced, and it should
@@ -21,14 +15,15 @@
   them. Anything added here should replace something, not accumulate.
 -->
 
+<div align="center">
+
 [![Stars](https://img.shields.io/github/stars/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/stargazers)
 [![Forks](https://img.shields.io/github/forks/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/network/members)
 [![Latest release](https://img.shields.io/github/v/release/MODSetter/SurfSense?sort=semver)](https://github.com/MODSetter/SurfSense/releases)
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-<div align="center">
-  <a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="REPLACE-ME-hero" /></a>
+  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="../../../../surfsense_web/public/homepage/icon.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -59,14 +54,16 @@
   -->
 </div>
 
-![SurfSense Studio turning a folder of PDFs into a two-host podcast, voiced offline on the same machine](REPLACE-ME-studio-demo.gif)
+<p align="center">
+  <img src="../../../../surfsense_web/public/homepage/offline-studio.png" alt="SurfSense desktop app with Studio open and Qwen selected, turning local sources into artifacts" />
+</p>
 
 SurfSense is a free, open-source desktop app for the documents you already have. Drop them in, ask questions and get answers that cite their sources, then turn the same documents into a briefing, a slide deck, a report, a study guide or a podcast. All of it runs on your own machine: the index sits on your disk, you pick the model, and the app uploads nothing. There is no account to create.
 
 **[Download for Windows, macOS or Linux](https://www.surfsense.com/downloads)**, then bring your own model key or let the app pull a local model for you.
 
 > [!NOTE]
-> **Used the hosted web app?** It is being retired. Open it once to export your workspaces, then import the bundle into the desktop app; documents, folders, titles and chat threads all come across. The export window closes on REPLACE-ME-DATE. Details on [the sunset page](https://www.surfsense.com/sunset).
+> **Used the hosted web app?** It is being retired. Open it once to export your workspaces, then import the bundle into the desktop app; documents, folders, titles and chat threads all come across. The export window closes on 18 October 2026. Details on [the sunset page](https://www.surfsense.com/sunset).
 
 ## What SurfSense makes
 
@@ -152,19 +149,23 @@ Pull requests welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); the deskto
 
 Thanks to all our Surfers:
 
-<a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
-</a>
+<p align="center">
+  <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense contributors" />
+  </a>
+</p>
 
 ## Star history
 
-<a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
- </picture>
-</a>
+<p align="center">
+  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+    </picture>
+  </a>
+</p>
 
 ## License
 

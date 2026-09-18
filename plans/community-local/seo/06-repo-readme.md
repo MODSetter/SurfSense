@@ -403,9 +403,13 @@ RBAC or connector feature from the hosted product, all of which are sunset.
       Keep it under about 5 MB; the existing set runs from 0.6 MB to 50 MB and
       the large ones do not load on a slow connection. Say "audio" in any
       caption, never MP3: the builder emits WAV (see the accuracy table).
-- [ ] **Replace the hero image.** The current one reads "the open-source
-  NotebookLM alternative for open web research", which is the hosted
-  positioning. The draft has a `REPLACE-ME-hero` src so it fails visibly.
+- [x] **Replace the hero image.** Draft uses the desktop black mark
+      (`surfsense_web/public/homepage/icon.png`) instead of the hosted
+      "open web research" banner. A wide wordmark is still nicer if one
+      exists later; this ships without stretching the old asset.
+- [x] **Studio visual.** Still of the desktop app with Studio open and Qwen
+      selected (`surfsense_web/public/homepage/offline-studio.png`) stands in
+      until a podcast demo GIF exists.
 - [ ] **Verify the competitor claim on the day.** The draft says the local chat
       apps do not produce artifacts. True as of the 17 Sep re-pull; it is a
       claim about other people's products, so re-check Jan and AnythingLLM
@@ -435,11 +439,9 @@ RBAC or connector feature from the hosted product, all of which are sunset.
       four markets, so either rewrite them cheaply from the English draft or
       leave the row commented; Japanese and German are the two localisations
       the research does fund, and neither has a README today.
-- [ ] **Fill `REPLACE-ME-DATE` in the sunset callout** with the actual export
-      deadline (T+30) on publish day, and **delete the callout at T+30** along
-      with the "Importing from the hosted app" link. A README is not a page
-      anyone revisits on a deadline, so "30 days from launch" without a date
-      would have gone stale in place.
+- [x] **Fill `REPLACE-ME-DATE` in the sunset callout** — 18 October 2026
+      (T+30 from 18 Sep 2026 launch). Still **delete the callout at T+30**
+      along with the "Importing from the hosted app" link.
 - [ ] **Set the description and topics** in repo settings. They are not in any
       file, so they are not in any PR, which is how they stay wrong.
 
