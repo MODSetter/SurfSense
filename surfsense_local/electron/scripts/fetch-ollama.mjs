@@ -5,7 +5,7 @@
 // Idempotent: a present binary is left alone. Run per-OS, on the same machine
 // that packages the app (the runtime can't be cross-fetched).
 import { execFileSync } from "node:child_process"
-import { existsSync, mkdirSync, rmSync } from "node:fs"
+import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
@@ -32,10 +32,33 @@ const TAR_FLAGS = {
   zst: ["--zstd", "-xf"],
   zip: ["-xf"],
 }
+// Under bash on Windows, PATH resolves to Git's GNU tar, which reads "C:\..." as a host and can't open zip.
+const TAR =
+  process.platform === "win32" ? join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar"
+
+// The archive carries a whole CUDA toolkit per major version (cuda_v12 +
+// cuda_v13 is 1.7 GB of the 1.8 GB on Windows), which on its own pushed the
+// installer payload past the 2 GB that 32-bit makensis can mmap. Vulkan is on
+// by default and resolves the loader from the host GPU driver, so the remaining
+// runners still cover NVIDIA, AMD, and Intel.
+// ponytail: NVIDIA falls back to Vulkan, which is slower than CUDA. The upgrade
+// path is an opt-in post-install pack: Ollama discovers runners by path, so
+// dropping cuda_* back into lib/ollama is all it takes.
+function pruneCudaRunners() {
+  const runners = join(OUT, "lib", "ollama")
+  if (!existsSync(runners)) return
+  for (const entry of readdirSync(runners)) {
+    if (!entry.startsWith("cuda_")) continue
+    rmSync(join(runners, entry), { recursive: true, force: true })
+    console.log(`pruned ${entry}`)
+  }
+}
 
 const binary = process.platform === "win32" ? "ollama.exe" : "ollama"
 const staged = [join(OUT, "bin", binary), join(OUT, binary)]
 if (staged.some(existsSync)) {
+  // Prune here too: a tree staged by an earlier build still carries the runners.
+  pruneCudaRunners()
   console.log(`ollama already staged in ${OUT}`)
   process.exit(0)
 }
@@ -55,7 +78,7 @@ console.log(`downloading ${target.url}`)
 execFileSync("curl", ["-fSL", "--retry", "3", target.url, "-o", archive], { stdio: "inherit" })
 
 console.log(`extracting into ${OUT}`)
-execFileSync("tar", [...TAR_FLAGS[target.kind], archive, "-C", OUT], {
+execFileSync(TAR, [...TAR_FLAGS[target.kind], archive, "-C", OUT], {
   stdio: "inherit",
 })
 rmSync(archive, { force: true })
@@ -64,4 +87,5 @@ if (!staged.some(existsSync)) {
   console.error(`extraction did not yield ${binary} under ${OUT}`)
   process.exit(1)
 }
+pruneCudaRunners()
 console.log("ollama staged")

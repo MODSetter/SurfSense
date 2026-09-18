@@ -3,10 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
-import {
-  THEME_STORAGE_KEY,
-  ThemeProvider,
-} from "@/components/theme-provider"
+import { THEME_STORAGE_KEY, ThemeProvider } from "@/components/theme-provider"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
@@ -137,9 +134,10 @@ describe("SettingsDialog", () => {
           return Response.json({
             hardware: null,
             llmfit_version: "1.1.11",
-            recommended: [],
+            curated: [],
             explore: [],
             installed: [],
+            scanned: true,
             warnings: [],
             runtime_status: {},
           })
@@ -166,19 +164,21 @@ describe("SettingsDialog", () => {
     expect(
       screen.queryByRole("button", { name: "Use selected model" })
     ).toBeNull()
+    const scrollViewport = document.querySelector(
+      '[data-slot="scroll-shadow-viewport"]'
+    )
+    expect(scrollViewport?.className).toContain("overflow-y-auto")
+    // The "Models" heading scrolls with the rest of the section now — its
+    // content varies too much in height for a fixed header to make sense.
     expect(
-      document.querySelector('[data-slot="settings-section-content"]')
-        ?.className
-    ).toContain("overflow-hidden")
-    expect(
-      document.querySelector('[data-slot="scroll-shadow-viewport"]')?.className
-    ).toContain("overflow-y-auto")
+      scrollViewport?.contains(screen.getByRole("heading", { name: "Models" }))
+    ).toBe(true)
     expect(
       await screen.findByText("No local models are available")
     ).toBeTruthy()
   })
 
-  it("shows the model tabs and catalog skeleton while selection data loads", async () => {
+  it("shows the model tabs without a catalog skeleton while selection data loads", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => undefined))
@@ -193,9 +193,11 @@ describe("SettingsDialog", () => {
     expect(roles.querySelectorAll("[data-slot=skeleton]")).toHaveLength(2)
     expect(screen.queryByText("Loading…")).toBeNull()
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
+    // The catalog GET no longer probes hardware on an unrefreshed load, so
+    // no loading state is expected here even with this promise never resolving.
     expect(
-      screen.getByRole("status", { name: "Scanning model catalog" })
-    ).toBeTruthy()
+      screen.queryByRole("status", { name: "Scanning model catalog" })
+    ).toBeNull()
     expect(
       screen.queryByRole("status", { name: "Loading model settings" })
     ).toBeNull()

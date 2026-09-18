@@ -1,7 +1,7 @@
 {
   "name": "surfsense-local-electron",
   "private": true,
-  "version": "0.0.1",
+  "version": "2.0.0",
   "description": "Electron shell: spawns the API + worker sidecars, loads the Vite SPA",
   "author": {
     "name": "SurfSense",
@@ -10,18 +10,20 @@
   "homepage": "https://github.com/MODSetter/SurfSense",
   "main": "./out/main/index.js",
   "scripts": {
+    "postinstall": "install-electron",
     "predev": "pnpm build:model && pnpm build:parser && node scripts/fetch-llmfit.mjs --binary-only",
-    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"pnpm --dir ../frontend dev\" \"wait-on tcp:127.0.0.1:5173 && electron-vite dev\"",
+    "dev": "concurrently -k -n vite,electron -c cyan,magenta \"pnpm --dir ../frontend dev\" \"wait-on tcp:127.0.0.1:5173 && node scripts/electron-dev.mjs\"",
     "build": "electron-vite build",
-    "build:frontend": "pnpm --dir ../frontend build",
+    "build:frontend": "pnpm --dir ../frontend install && pnpm --dir ../frontend build",
     "build:binaries": "uv --directory ../backend run scripts/build_binaries.py",
     "build:model": "uv --directory ../backend run scripts/fetch_embedding_model.py models",
     "build:voice": "uv --directory ../backend run scripts/fetch_kokoro_model.py models",
     "build:parser": "uv --directory ../backend run scripts/fetch_docling_models.py models",
     "build:ollama": "node scripts/fetch-ollama.mjs",
     "build:llmfit": "node scripts/fetch-llmfit.mjs",
-    "dist": "pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build:ollama && pnpm build:llmfit && pnpm build && electron-builder",
-    "test": "node --test src/main/document-files.test.mts",
+    "build:sdcpp": "node scripts/fetch-sdcpp.mjs",
+    "dist": "pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build:ollama && pnpm build:llmfit && pnpm build:sdcpp && pnpm build && electron-builder",
+    "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/*.test.ts",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "check:sidecars": "node scripts/check-sidecars.mjs",
     "check:llmfit": "node scripts/check-llmfit.mjs"
@@ -35,5 +37,8 @@
     "typescript": "~6",
     "vite": "^7",
     "wait-on": "^9"
+  },
+  "dependencies": {
+    "electron-updater": "^6.8.9"
   }
 }

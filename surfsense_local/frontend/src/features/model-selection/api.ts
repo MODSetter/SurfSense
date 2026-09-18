@@ -12,7 +12,15 @@ export type ProviderModel = {
   name: string
   installed: boolean
   capabilities: string[]
+  display_name?: string | null
 }
+
+/**
+ * Where a model's capabilities came from. "declared" is the endpoint's own word
+ * for it, "catalog" the reviewed table shipped with the app. Nothing is guessed,
+ * so an id neither source knows stays "unknown" and the picker says so.
+ */
+export type CapabilitySource = "declared" | "catalog" | "unknown"
 
 export type ModelSelection = {
   role: "generation" | "image_generation"
@@ -26,7 +34,7 @@ export type SelectableModel = ProviderModel & {
   provider: string
   connection_id: number | null
   connection_label?: string
-  capability_known?: boolean
+  capability_source?: CapabilitySource
 }
 
 export type Connection = {
@@ -52,7 +60,7 @@ export type ConnectionModel = {
   connection_label: string
   name: string
   capabilities: string[]
-  capability_known: boolean
+  capability_source: CapabilitySource
 }
 
 export type OnboardingStatus = {
@@ -232,6 +240,23 @@ export function getConnectionModels(
   })
 }
 
+export async function testConnectionChat(
+  id: number,
+  model: string,
+  signal?: AbortSignal
+): Promise<string> {
+  const { reply } = await requestJson<{ reply: string }>(
+    `/llm/connections/${id}/chat-test`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model }),
+      signal,
+    }
+  )
+  return reply
+}
+
 export async function testConnectionImage(
   id: number,
   model: string,
@@ -263,11 +288,9 @@ export async function getAvailableGenerationModels(
         try {
           const models = await getConnectionModels(connection.id, signal)
           return models
-            .filter(
-              (model) =>
-                !model.capability_known ||
-                model.capabilities.includes("completion")
-            )
+            // Speech, embedding, and moderation models are classified as
+            // neither, and a chat picker is no place for them.
+            .filter((model) => model.capabilities.includes("completion"))
             .map((model) => ({
               ...model,
               provider: "openai_compatible",

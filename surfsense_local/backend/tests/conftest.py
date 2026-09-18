@@ -8,6 +8,7 @@ from pathlib import Path
 os.environ.setdefault(
     "SURFSENSE_LOCAL_DATA_DIR", tempfile.mkdtemp(prefix="surfsense-tests-")
 )
+os.environ.setdefault("SURFSENSE_LOCAL_SECRET", "test-secret")
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -21,7 +22,7 @@ from shared.db import (
     import_models,
 )
 from shared.migrations import upgrade_to_head
-from shared.queue import huey
+from shared.queue import ingest_queue, studio_queue
 
 # A feature missing from Base.metadata is one the drift test cannot check.
 import_models()
@@ -58,9 +59,11 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     another's files and jobs.
     """
     monkeypatch.setattr(get_storage_settings(), "data_dir", tmp_path)
-    huey.flush()
+    ingest_queue.flush()
+    studio_queue.flush()
     yield tmp_path
-    huey.flush()
+    ingest_queue.flush()
+    studio_queue.flush()
 
 
 @pytest.fixture

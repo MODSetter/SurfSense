@@ -129,7 +129,7 @@ Windows के लिए:
 irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
-इंस्टॉल स्क्रिप्ट दैनिक ऑटो-अपडेट के लिए [Watchtower](https://github.com/nicholas-fedor/watchtower) अपने आप सेट कर देती है। इसे छोड़ने के लिए `--no-watchtower` फ़्लैग जोड़ें। Docker Compose, मैनुअल इंस्टॉलेशन और अन्य डिप्लॉयमेंट विकल्पों के लिए [docs](https://www.surfsense.com/docs/) देखें।
+इंस्टॉल स्क्रिप्ट दैनिक ऑटो-अपडेट के लिए [Watchtower](https://github.com/nicholas-fedor/watchtower) अपने आप सेट कर देती है। इसे छोड़ने के लिए `--no-watchtower` फ़्लैग जोड़ें। Docker Compose, मैनुअल इंस्टॉलेशन और अन्य डिप्लॉयमेंट विकल्पों के लिए [docs](https://www.surfsense.com/docs/legacy/) देखें।
 
 ## बॉक्स में बाकी सब कुछ
 

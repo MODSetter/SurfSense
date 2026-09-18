@@ -32,7 +32,7 @@ function SourceHarness() {
     <TooltipProvider>
       <SourcesPanel
         documents={sources.documents}
-        selectedDocumentIds={sources.selectedDocumentIds}
+        selectedDocumentIds={sources.includedDocumentIds}
         highlightedDocumentId={null}
         isLoading={sources.isLoading}
         isDeleting={sources.isDeleting}
@@ -46,9 +46,11 @@ function SourceHarness() {
         onOpen={(id) => void sources.openOriginal(id)}
         onReveal={(id) => void sources.revealOriginal(id)}
         onRetry={(id) => void sources.retry(id)}
+        onCancel={(id) => void sources.cancel(id)}
         onDelete={(id) => void sources.deleteOne(id)}
         onDeleteSelected={() => void sources.deleteSelected()}
-        onSelectionChange={sources.setDocumentSelected}
+        onSelectionChange={sources.setDocumentIncluded}
+        onToggleAll={sources.toggleAllIncluded}
       />
     </TooltipProvider>
   )
@@ -109,9 +111,11 @@ describe("source upload", () => {
           onOpen={vi.fn()}
           onReveal={vi.fn()}
           onRetry={vi.fn()}
+          onCancel={vi.fn()}
           onDelete={vi.fn()}
           onDeleteSelected={vi.fn()}
           onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
         />
       </TooltipProvider>
     )
@@ -166,18 +170,9 @@ describe("source upload", () => {
     )
     expect(readyButton.parentElement?.className).not.toContain("text-white")
     expect(readyButton.parentElement?.getAttribute("aria-current")).toBe("true")
-    expect(
-      readyButton.previousElementSibling
-        ?.querySelector("svg")
-        ?.getAttribute("class")
-    ).toContain("size-4.5")
-    expect(readyCheckbox.className).not.toContain(
-      "group-focus-within/source:opacity-100"
-    )
-    expect(readyCheckbox.className).toContain("focus-visible:opacity-100")
-    expect(readyCheckbox.nextElementSibling?.className).toContain(
-      "peer-focus-visible:opacity-0"
-    )
+    expect(readyCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
     expect(actionsButton.className).toContain("size-6")
     expect(actionsButton.className).toContain("group-hover/source:opacity-100")
     expect(actionsButton.className).not.toContain(
@@ -186,33 +181,132 @@ describe("source upload", () => {
     expect(actionsButton.className).toContain("focus-visible:opacity-100")
   })
 
+  it("shows a generic retry hint on plain hover of just the icon", async () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    const retryIcon = screen.getByLabelText(
+      "Ingestion failed. Retry failed.pdf"
+    )
+    await user.hover(retryIcon)
+    const generic = await screen.findByRole("tooltip", {
+      name: "Ingestion failed. Retry again.",
+    })
+    expect(generic.getAttribute("data-side")).toBe("top")
+  })
+
+  it("reveals the real error above the whole row while Ctrl/Cmd is held", async () => {
+    const failed = {
+      ...pendingDocument,
+      title: "failed.pdf",
+      status: "failed" as const,
+      error_message: "connection refused",
+    }
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[failed]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    // Hovering the title, not the icon, proves this covers the whole row.
+    const title = screen.getByRole("button", { name: "failed.pdf" })
+    await user.hover(title)
+    expect(
+      screen.queryByRole("tooltip", { name: "connection refused" })
+    ).toBeNull()
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Control", ctrlKey: true })
+    )
+    const real = await screen.findByRole("tooltip", {
+      name: "connection refused",
+    })
+    expect(real.getAttribute("data-side")).toBe("top")
+
+    window.dispatchEvent(
+      new KeyboardEvent("keyup", { key: "Control", ctrlKey: false })
+    )
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("tooltip", { name: "connection refused" })
+      ).toBeNull()
+    )
+  })
+
   it("offers per-source delete but disables it while processing", async () => {
     const onDelete = vi.fn()
     const user = userEvent.setup()
 
     render(
-      <SourcesPanel
-        documents={[
-          pendingDocument,
-          {
-            ...pendingDocument,
-            id: 2,
-            title: "processing.pdf",
-            status: "processing",
-          },
-        ]}
-        selectedDocumentIds={[]}
-        highlightedDocumentId={null}
-        isLoading={false}
-        isDeleting={false}
-        error={null}
-        onOpen={vi.fn()}
-        onReveal={vi.fn()}
-        onRetry={vi.fn()}
-        onDelete={onDelete}
-        onDeleteSelected={vi.fn()}
-        onSelectionChange={vi.fn()}
-      />
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[
+            pendingDocument,
+            {
+              ...pendingDocument,
+              id: 2,
+              title: "processing.pdf",
+              status: "processing",
+            },
+          ]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={onDelete}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
     )
 
     await user.click(
@@ -237,6 +331,44 @@ describe("source upload", () => {
     await user.click(screen.getByRole("button", { name: "Delete source" }))
 
     expect(onDelete).toHaveBeenCalledWith(pendingDocument.id)
+  })
+
+  it("cancels a processing source from the overflow menu", async () => {
+    const onCancel = vi.fn()
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[
+            {
+              ...pendingDocument,
+              title: "processing.pdf",
+              status: "processing",
+            },
+          ]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={onCancel}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for processing.pdf" })
+    )
+    await user.click(screen.getByRole("menuitem", { name: "Cancel" }))
+    expect(onCancel).toHaveBeenCalledWith(pendingDocument.id)
   })
 
   it("permanently deletes one failed source after confirmation", async () => {
@@ -350,7 +482,10 @@ describe("source upload", () => {
     )
 
     await waitFor(
-      () => expect(screen.getByLabelText("Select guide.txt")).toBeTruthy(),
+      () =>
+        expect(
+          screen.getByLabelText("Select guide.txt").getAttribute("aria-checked")
+        ).toBe("true"),
       { timeout: 3000 }
     )
   })
@@ -390,7 +525,7 @@ describe("source upload", () => {
     expect(screen.queryByText("Source action failed")).toBeNull()
   })
 
-  it("deletes every selected source after confirmation", async () => {
+  it("includes every ready source by default and can deselect them", async () => {
     const documents = [
       {
         ...pendingDocument,
@@ -405,47 +540,31 @@ describe("source upload", () => {
         status: "ready" as const,
       },
     ]
-    const fetchMock = vi.fn(
-      async (_input: RequestInfo | URL, init?: RequestInit) => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
         if (init?.method === "DELETE") {
           return new Response(null, { status: 204 })
         }
         return Response.json(documents)
-      }
+      })
     )
-    vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
     render(<SourceHarness />)
     const firstCheckbox = await screen.findByLabelText("Select first.txt")
-    await user.click(firstCheckbox)
-    const firstRow = screen.getByRole("button", {
-      name: "first.txt",
-    }).parentElement
-    expect(firstRow?.className).toContain("bg-sidebar-accent")
-    expect(firstRow?.className).toContain("text-white")
+    const secondCheckbox = screen.getByLabelText("Select second.txt")
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(screen.queryByRole("button", { name: /Delete \(/ })).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "Deselect all" }))
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
+    expect(screen.getByRole("button", { name: "Select all" })).toBeTruthy()
 
     await user.click(firstCheckbox)
-    expect(firstRow?.className).not.toContain("bg-sidebar-accent")
-    expect(firstRow?.className).not.toContain("text-white")
-
-    await user.click(firstCheckbox)
-    await user.click(screen.getByLabelText("Select second.txt"))
-    await user.click(screen.getByRole("button", { name: "Delete (2)" }))
-
-    expect(
-      screen.getByRole("alertdialog", { name: "Delete 2 sources?" })
-    ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Delete sources" }))
-
-    await waitFor(() => {
-      expect(screen.queryByText("first.txt")).toBeNull()
-      expect(screen.queryByText("second.txt")).toBeNull()
-    })
-    expect(
-      fetchMock.mock.calls
-        .filter(([, init]) => init?.method === "DELETE")
-        .map(([path]) => path)
-    ).toEqual(["/workspaces/1/documents/7", "/workspaces/1/documents/8"])
+    expect(firstCheckbox.getAttribute("aria-checked")).toBe("true")
+    expect(secondCheckbox.getAttribute("aria-checked")).toBe("false")
   })
 })

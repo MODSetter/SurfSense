@@ -22,6 +22,13 @@ export function ModelCard({
   installState,
   actionsDisabled,
   runtimeAvailable,
+  // Whether a hardware scan has ever run this session. An "unknown" fit
+  // before any scan is every row, all the time — repeating a badge that
+  // says nothing here 8+ times is noise, so it's suppressed. An "unknown"
+  // fit *after* a scan (a model llmfit just had no estimate for, despite a
+  // real scan having run) is the rare, actually-notable case and keeps its
+  // badge.
+  scanned,
   onAction,
   onCancel,
   onDelete,
@@ -30,6 +37,7 @@ export function ModelCard({
   installState: InstallState
   actionsDisabled: boolean
   runtimeAvailable: boolean
+  scanned: boolean
   onAction: (row: CatalogRow) => void
   onCancel: () => void
   onDelete?: (row: CatalogRow) => void
@@ -46,17 +54,11 @@ export function ModelCard({
       <div className="flex min-h-9 items-center justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2">
           <p className="truncate text-sm font-medium">{row.label}</p>
-          <Badge
-            variant={
-              row.fit === "too_tight"
-                ? "destructive"
-                : row.fit === "unknown"
-                  ? "outline"
-                  : "secondary"
-            }
-          >
-            {fitLabel[row.fit]}
-          </Badge>
+          {row.fit !== "unknown" || scanned ? (
+            <Badge variant={row.fit === "too_tight" ? "destructive" : "secondary"}>
+              {fitLabel[row.fit]}
+            </Badge>
+          ) : null}
           {row.disk_size_gb !== null ? (
             <span className="shrink-0 text-xs text-muted-foreground">
               {formatSize(row.disk_size_gb)}

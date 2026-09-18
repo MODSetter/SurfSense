@@ -23,12 +23,12 @@ Same phase number = integrate together.
 | Phase | [`frontend/`](frontend/) | [`api/`](api/) | [`worker/`](worker/) |
 |---|---|---|---|
 | **0** | — | [`00-spike.md`](api/00-spike.md) | echo in [`01-boot.md`](worker/01-boot.md) |
-| **1** | [`01-shell.md`](frontend/01-shell.md) ◐ | [`01-skeleton.md`](api/01-skeleton.md) ✓ | [`01-boot.md`](worker/01-boot.md) ✓ |
-| **2** | [`02-documents.md`](frontend/02-documents.md) | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
-| **3** | [`03-chat.md`](frontend/03-chat.md) | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
-| **4** | [`04-studio.md`](frontend/04-studio.md) | [`04-studio.md`](api/04-studio.md) | [`04-studio.md`](worker/04-studio.md) |
-| **5** | [`05-install-ux.md`](frontend/05-install-ux.md) | [`05a-model-recommendations.md`](api/05a-model-recommendations.md) + [`05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md) + [`05c-packaging.md`](api/05c-packaging.md) | [`05-packaging.md`](worker/05-packaging.md) |
-| **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) | — (import reuses `ingest_document`) |
+| **1** | [`01-shell.md`](frontend/01-shell.md) ✓ | [`01-skeleton.md`](api/01-skeleton.md) ✓ | [`01-boot.md`](worker/01-boot.md) ✓ |
+| **2** | [`02-documents.md`](frontend/02-documents.md) ✓ | [`02-upload.md`](api/02-upload.md) ✓ | [`02-ingest.md`](worker/02-ingest.md) ✓ |
+| **3** | [`03-chat.md`](frontend/03-chat.md) ✓ | [`03-chat.md`](api/03-chat.md) ✓ | [`03-search.md`](worker/03-search.md) ✓ |
+| **4** | [`04-studio.md`](frontend/04-studio.md) ◐ | [`04-studio.md`](api/04-studio.md) ◐ | [`04-studio.md`](worker/04-studio.md) ◐ |
+| **5** | [`05-install-ux.md`](frontend/05-install-ux.md) ◐ | [`05a-model-recommendations.md`](api/05a-model-recommendations.md) ✓ + [`05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md) ✓ + [`05c-packaging.md`](api/05c-packaging.md) ◐ | [`05-packaging.md`](worker/05-packaging.md) ✓ |
+| **6** | import, license, egress settings ([`00d-pivot-plan.md`](00d-pivot-plan.md)) ✓ | `modules/migration/`, `modules/license/`, keychain, auto-update ([`00d-pivot-plan.md`](00d-pivot-plan.md)) ◐ | — (import reuses `ingest_document`) |
 
 **Demo:** phase 3 all streams. **Ship:** phase 6 = SurfSense 2.0.0 (1.0.x tags are taken by the old project versioning; see [`00d-pivot-plan.md`](00d-pivot-plan.md)).
 
@@ -48,11 +48,26 @@ leg, then rescores the union by cosine. **Chat now closes on all of it**
 retrieves its own context, grounds a system prompt with citable `<source>` blocks,
 slides a window over history, and streams a cited reply over SSE while both turns
 persist. The Electron shell and dev loop now land too: [`electron/`](../../surfsense_local/electron/)
-spawns both Python sidecars, waits on `/health`, and loads the Vite SPA, reaping
-the sidecars on quit (guarded by `pnpm check:sidecars`). Phase 1 still owes both
-screens, and a PDF only converts on a machine that can reach
-Hugging Face until [`api/05c-packaging.md`](api/05c-packaging.md) ships the parser
-pack.
+spawns the Python sidecars, waits on `/health`, and loads the Vite SPA, reaping
+the sidecars on quit (guarded by `pnpm check:sidecars`). There are **three** of
+them now, not two — the worker split into `worker-ingest` and `worker-studio`
+over separate Huey queues — plus Ollama when packaged and sd-server started on
+demand. The parser pack ships, so a first PDF now converts with networking
+disabled.
+
+Phases 4 to 6 all have working slices, which is why the marks moved off blank;
+each is ◐ rather than ✓ for a named reason, and **[`00d-pivot-plan.md`](00d-pivot-plan.md)
+carries the live status — this table is the map, not the scoreboard**. Phase 4:
+all twelve artifact formats build, but DOCX, PPTX, XLSX and PDF `exec()`
+model-written Python instead of rendering a structured spec, and
+`GET /artifacts/{id}/manifest` is absent. The frontend half of this phase no
+longer has a named gap — `viewers/registry.tsx` maps every shipped format,
+including `html` to a sandboxed iframe, so what is left is API- and worker-side.
+Phase 5: `05c` packaging is green on all three runners; the NSIS failure that
+held Windows is fixed, and what remains is that no `v*` tag has been cut, so the
+real-tag publish has never run. Phase 6: `allowPrerelease` is missing from the
+updater and import has no summary endpoint; the license verifier no longer ships
+the fixture signing key, and the release build fails if it ever does again.
 
 ## Layer boundary
 
@@ -71,7 +86,7 @@ pack.
 | | Connected / Docker | Community Local |
 |---|---|---|
 | DB | Postgres + Zero | SQLite |
-| Jobs | Celery + Redis | Huey `-w 1` |
+| Jobs | Celery + Redis | Huey, two SQLite queues — ingest at 1 thread, studio at 4 |
 | Chat | LangGraph | Retrieve-first RAG |
 | Auth | Yes | None |
 | UI | Next + Zero | Vite in Electron |
@@ -89,7 +104,7 @@ Docker Compose, Postgres, Zero, Redis, Celery, LangGraph, git KB, scrapers, MCP,
 | **Embed provider** | Bundled bge-small-en-v1.5 int8, in-process on onnxruntime | 384-dim, ~66MB, runs offline on CPU with no model server. Docling parses, Chonkie chunks. Remote embedding is a later opt-in, not a launch dependency. |
 | **Generation architecture** | llmfit catalog/advisor + curated-model policy + runtime adapters; Ollama local, multiple OpenAI-compatible connections remote | [`api/05a-model-recommendations.md`](api/05a-model-recommendations.md) and [`api/05b-openai-compatible-connections.md`](api/05b-openai-compatible-connections.md). llmfit supplies broad model metadata, hardware detection, and fit estimates; it is not a `Generator`, installer, or inference runtime. Local adapters resolve trusted artifacts and Ollama is first. Remote endpoints are named connection instances with their own URL and optional key; models are discovered live, not synchronized into SQLite. `SelectedModel(role)` stores the provider, connection identity when remote, and exact model id. SurfSense selects endpoints but does not load-balance their replicas. |
 | **llmfit integration** | **Pinned official binary, short-lived JSON CLI, normalized behind `ModelAdvisor`** | The API runs `llmfit --json system` and `llmfit --max-context 8192 --json fit`, caches one scan, and exposes only SurfSense DTOs. No fork, patch, Python import, or permanent llmfit server. CLI label/machine-code differences are normalized at one seam and fixture-tested before a version bump. Failure removes ranking, not installed-model selection or chat. |
-| **Ollama runtime** | **Bundled as a supervised sidecar (packaged); dev uses the developer's own `ollama serve`** | Chat can't depend on a daemon the user may not have installed. The packaged app ships the standalone Ollama archive (`electron/scripts/fetch-ollama.mjs` stages it, electron-builder carries it in `resources/ollama`) and Electron runs it as a third sidecar on a chosen port, passing `SURFSENSE_LOCAL_OLLAMA_BASE_URL` to the API. Models aren't shipped — the user pulls into the writable data dir after install. The two Python sidecars and Ollama share one supervisor (`electron/src/main/sidecars/`): the supervisor spawns/reaps, one spec file per sidecar carries its identity. Ollama is best-effort at boot (only the API gates the window; its state surfaces via `/llm/providers`). |
+| **Ollama runtime** | **Bundled as a supervised sidecar (packaged); dev uses the developer's own `ollama serve`** | Chat can't depend on a daemon the user may not have installed. The packaged app ships the standalone Ollama archive (`electron/scripts/fetch-ollama.mjs` stages it, electron-builder carries it in `resources/ollama`) and Electron runs it as a third sidecar on a chosen port, passing `SURFSENSE_LOCAL_OLLAMA_BASE_URL` to the API. Models aren't shipped — the user pulls into the writable data dir after install. The Python sidecars and Ollama share one supervisor (`electron/src/main/sidecars/`): the supervisor spawns/reaps, one spec file per sidecar carries its identity. Boot now starts four — `api`, `worker-ingest`, `worker-studio`, and Ollama when packaged — and `watchImageModel` adds a fifth, sd-server, later, because only the API knows which image model was chosen. Ollama is best-effort at boot (only the API gates the window; its state surfaces via `/llm/providers`). |
 | **Persistence** | SQLAlchemy 2.0 + Alembic, same as cloud | Models are the source of truth. `versions/` ships as PyInstaller data, resolved from the package's own `__file__` — de-risked in [`api/00-spike.md`](api/00-spike.md). |
 | **Migrations** | **Hand-written; autogenerate is off** | Autogenerate cannot see a rename — it emits drop + add, which deletes a column's data silently. The target database is one user's laptop, unbacked and uninspectable, so every revision is written and read by a person. `env.py` carries no `target_metadata`, so `--autogenerate` cannot be used by accident. Mature SQLite-backed apps make the same call — hand-written revisions throughout. |
 | **Schema owner** | Alembic only; **never** `create_all` | Cloud's `create_all`-on-startup races its own migrations and breaks releases. Local has one path to a schema, and a test fails if models and migrations drift. |

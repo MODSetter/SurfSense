@@ -20,20 +20,28 @@ const units: [number, Intl.RelativeTimeFormatUnit][] = [
   [Number.POSITIVE_INFINITY, "year"],
 ]
 
-let now = Date.now()
+// Sidebar rows: "5m", "2h", "3d", "2w", "4mo", "1y"; the tooltip has the date.
+const compactUnits: [number, string][] = [
+  [60, "m"],
+  [24, "h"],
+  [7, "d"],
+  [4.345, "w"],
+  [12, "mo"],
+  [Number.POSITIVE_INFINITY, "y"],
+]
+
+// Only triggers re-renders every 10s; never caches the time itself.
 let clock: number | undefined
 const listeners = new Set<() => void>()
 
 function subscribe(listener: () => void) {
   listeners.add(listener)
   if (listeners.size === 1) {
-    now = Date.now()
     clock = window.setInterval(() => {
-      now = Date.now()
       listeners.forEach((notify) => {
         notify()
       })
-    }, 60_000)
+    }, 10_000)
   }
   return () => {
     listeners.delete(listener)
@@ -42,6 +50,12 @@ function subscribe(listener: () => void) {
       clock = undefined
     }
   }
+}
+
+// Bucketed to the second so repeated calls stay comparable (required by
+// useSyncExternalStore), but computed fresh each time — never cached.
+function getSnapshot() {
+  return Math.floor(Date.now() / 1000)
 }
 
 function formatRelativeTime(date: Date, currentTime: number) {
@@ -59,18 +73,32 @@ function formatRelativeTime(date: Date, currentTime: number) {
   }
 }
 
+function formatCompactTime(date: Date, currentTime: number) {
+  const seconds = Math.max(0, (currentTime - date.getTime()) / 1000)
+  if (seconds < 60) {
+    return "now"
+  }
+
+  let value = seconds / 60
+  for (const [limit, unit] of compactUnits) {
+    if (value < limit) return `${Math.max(1, Math.floor(value))}${unit}`
+    value /= limit
+  }
+}
+
 export function RelativeTime({
   date,
+  compact = false,
+  showTooltip = true,
   className,
 }: {
   date: Date
+  compact?: boolean
+  showTooltip?: boolean
   className?: string
 }) {
-  const currentTime = useSyncExternalStore(
-    subscribe,
-    () => now,
-    () => now
-  )
+  const currentTime =
+    useSyncExternalStore(subscribe, getSnapshot, getSnapshot) * 1000
   const exactTime = date.toLocaleString("en-US", {
     month: "short",
     day: "numeric",
@@ -80,19 +108,25 @@ export function RelativeTime({
     hour12: true,
   })
 
+  const time = (
+    <time
+      dateTime={date.toISOString()}
+      className={cn(
+        "inline-flex h-7 cursor-default items-center text-xs select-none",
+        className
+      )}
+    >
+      {compact
+        ? formatCompactTime(date, currentTime)
+        : formatRelativeTime(date, currentTime)}
+    </time>
+  )
+
+  if (!showTooltip) return time
+
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <time
-          dateTime={date.toISOString()}
-          className={cn(
-            "inline-flex h-7 cursor-default items-center text-xs select-none",
-            className
-          )}
-        >
-          {formatRelativeTime(date, currentTime)}
-        </time>
-      </TooltipTrigger>
+      <TooltipTrigger asChild>{time}</TooltipTrigger>
       <TooltipContent>{exactTime}</TooltipContent>
     </Tooltip>
   )

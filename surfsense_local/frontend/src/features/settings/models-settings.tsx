@@ -8,7 +8,7 @@ import { useModelSelection } from "@/features/model-selection/use-model-selectio
 import { SettingsSection } from "./settings-section"
 
 const DESCRIPTION =
-  "Download local models or choose the model SurfSense uses for new messages."
+  "Add models locally or via an OpenAI compatible endpoint."
 
 export function ModelsSettings({
   onModelUnavailable,
@@ -38,19 +38,15 @@ export function ModelsSettings({
   const readyState = state.status === "ready" ? state : null
 
   return (
-    <SettingsSection
-      title="Models"
-      description={DESCRIPTION}
-      scrollable={false}
-    >
+    <SettingsSection title="Models" description={DESCRIPTION} scrollable="all">
       <ModelSelectionContent
         allowDelete
+        scrollable={false}
         state={state}
         draftKey={
           readyState?.selection == null ? null : modelKey(readyState.selection)
         }
         disabled={false}
-        installedFirst
         onSelect={() => undefined}
         onCatalogSelected={(selection) => {
           onSelected(selection)

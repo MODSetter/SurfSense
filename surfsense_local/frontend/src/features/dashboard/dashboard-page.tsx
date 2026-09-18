@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react"
+import { toast } from "sonner"
 import {
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
   SidebarRightIcon,
+  UnplugIcon,
   XIcon,
 } from "@/components/ui/icons"
 
@@ -20,7 +22,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
-import { ThreadList } from "@/features/chat/thread-list"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import type { ImportAccepted } from "@/features/migration/api"
@@ -43,16 +44,19 @@ import { ArtifactList } from "@/features/studio/artifact-list"
 import { ArtifactPanel } from "@/features/studio/artifact-panel"
 import { StudioPanel } from "@/features/studio/studio-panel"
 import { useStudio } from "@/features/studio/use-studio"
+import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
-import {
-  readRightRailOpen,
-  readRightTab,
-  writeRightRailOpen,
-  writeRightTab,
-} from "./chrome-prefs"
-import { RightPanel, type RightTab } from "./right-panel"
+import { readRightPanelOpen, writeRightPanelOpen } from "./chrome-prefs"
+import { LeftSidebar } from "./left-sidebar"
+import { RightPanel } from "./right-panel"
+import { SidebarFooter } from "./sidebar-footer"
+
+// Clicking "N sources" in the composer used to switch the right rail to its
+// Sources tab. Sources now live in the always-visible left sidebar, so the
+// same click just brings that list into view instead.
+const LEFT_SOURCES_ID = "workspace-left-sources"
 
 type Inspect =
   | { kind: "citation"; chunkId: number }
@@ -65,42 +69,43 @@ function WorkspaceDashboard({
   providerAvailable,
   onModelRequired,
   onModelSelected,
+  onOpenLicense,
 }: {
   workspace: Workspace
   selection: ModelSelection | null
   providerAvailable: boolean
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
+  onOpenLicense: () => void
 }) {
-  const [tab, setTab] = useState<RightTab>(readRightTab)
   const [inspect, setInspect] = useState<Inspect>(null)
-  const [sourcesOpen, setSourcesOpen] = useState(readRightRailOpen)
+  const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
   const sources = useSources(workspace.id)
   const studio = useStudio(workspace.id)
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
-    selectedDocumentIds: sources.selectedDocumentIds,
+    selectedDocumentIds: sources.includedDocumentIds,
     onModelRequired,
   })
 
   const closeInspect = () => setInspect(null)
-  const toggleSources = () => {
-    setSourcesOpen((open) => {
+  const toggleRightPanel = () => {
+    setRightPanelOpen((open) => {
       const next = !open
-      writeRightRailOpen(next)
+      writeRightPanelOpen(next)
       return next
     })
   }
-  const openSources = () => {
-    setSourcesOpen(true)
-    writeRightRailOpen(true)
+  const openRightPanel = () => {
+    setRightPanelOpen(true)
+    writeRightPanelOpen(true)
   }
-
   return (
     <>
       <div className="titlebar-controls">
         <div className="titlebar-controls-end">
+          <UpdateButton />
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
@@ -108,44 +113,89 @@ function WorkspaceDashboard({
                 variant="ghost"
                 size="icon-sm"
                 className="pointer-events-auto size-6 aria-expanded:bg-transparent"
-                aria-expanded={sourcesOpen}
+                aria-expanded={rightPanelOpen}
                 aria-controls="workspace-right-panel"
                 aria-label={
-                  sourcesOpen ? "Hide right panel" : "Show right panel"
+                  rightPanelOpen ? "Hide right panel" : "Show right panel"
                 }
-                onClick={toggleSources}
+                onClick={toggleRightPanel}
               >
                 <SidebarRightIcon />
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" collisionPadding={8}>
-              {sourcesOpen ? "Hide right panel" : "Show right panel"}
+              {rightPanelOpen ? "Hide right panel" : "Show right panel"}
             </TooltipContent>
           </Tooltip>
         </div>
       </div>
       <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
         <div className="flex h-full min-h-0 w-68 min-w-58 shrink-0 flex-col">
-          <ThreadList
+          <LeftSidebar
             threads={chat.threads}
             activeThreadId={chat.activeThreadId}
             autoNamingThreadId={chat.autoNamingThreadId}
             animatingTitleThreadId={chat.animatingTitleThreadId}
-            isLoading={chat.isLoadingThreads}
+            isLoadingThreads={chat.isLoadingThreads}
             onNewChat={() => {
               closeInspect()
               chat.startNewChat()
             }}
-            onSelect={(threadId) => {
+            onSelectThread={(threadId) => {
               if (threadId !== chat.activeThreadId) closeInspect()
               chat.selectThread(threadId)
             }}
-            onRename={chat.rename}
-            onDelete={async (threadId) => {
+            onRenameThread={chat.rename}
+            onDeleteThread={async (threadId) => {
               if (threadId === chat.activeThreadId) closeInspect()
               await chat.removeThread(threadId)
             }}
             onTitleAnimationComplete={chat.finishTitleAnimation}
+            actions={[
+              {
+                key: "plugins",
+                label: "Plugins",
+                icon: UnplugIcon,
+                badge: "Coming soon",
+                // TODO: open the plugins panel once it exists.
+                onClick: () =>
+                  toast.info("Plugins are coming soon", {
+                    description:
+                      "Connect external tools to extend what SurfSense can do. We're still polishing this.",
+                  }),
+              },
+            ]}
+            sources={
+              <aside
+                id={LEFT_SOURCES_ID}
+                aria-label="Workspace sources"
+                className="flex h-full min-h-0 min-w-0 flex-col"
+              >
+                <SourcesPanel
+                  documents={sources.documents}
+                  selectedDocumentIds={sources.includedDocumentIds}
+                  highlightedDocumentId={null}
+                  isLoading={sources.isLoading}
+                  isDeleting={sources.isDeleting}
+                  error={sources.error}
+                  addAction={
+                    <SourcesAddButton
+                      isUploading={sources.isUploading}
+                      onUpload={(files) => void sources.upload(files)}
+                    />
+                  }
+                  onOpen={(id) => void sources.openOriginal(id)}
+                  onReveal={(id) => void sources.revealOriginal(id)}
+                  onRetry={(id) => void sources.retry(id)}
+                  onCancel={(id) => void sources.cancel(id)}
+                  onDelete={(id) => void sources.deleteOne(id)}
+                  onDeleteSelected={() => void sources.deleteSelected()}
+                  onSelectionChange={sources.setDocumentIncluded}
+                  onToggleAll={sources.toggleAllIncluded}
+                />
+              </aside>
+            }
+            footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
           />
         </div>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
@@ -154,19 +204,20 @@ function WorkspaceDashboard({
             thread={chat.activeThread}
             view={chat.conversationView}
             model={selection}
-            error={chat.error}
             isLoading={chat.isLoadingMessages}
             isRunning={chat.isRunning}
             isUploading={sources.isUploading}
             animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
             providerAvailable={providerAvailable}
             onCitation={(chunkId) => {
-              openSources()
+              openRightPanel()
               setInspect({ kind: "citation", chunkId })
             }}
             onModelSetup={onModelRequired}
             onModelSelected={onModelSelected}
+            onRetry={chat.retry}
             onUpload={(files) => void sources.upload(files)}
+            sourceCount={sources.includedDocumentIds.length}
             onTitleAnimationComplete={chat.finishTitleAnimation}
             autoNamingThreadId={chat.autoNamingThreadId}
             onRename={chat.rename}
@@ -177,7 +228,7 @@ function WorkspaceDashboard({
           />
         </div>
         <SlideRail
-          open={sourcesOpen}
+          open={rightPanelOpen}
           side="end"
           width={inspect ? DETAIL_RAIL_WIDTH : MAIN_RAIL_WIDTH}
         >
@@ -198,50 +249,33 @@ function WorkspaceDashboard({
                   />
                 ) : null
               }
-              tab={tab}
-              onTabChange={(next) => {
-                writeRightTab(next)
-                setTab(next)
-              }}
               studio={
                 <StudioPanel
+                  workspaceId={workspace.id}
                   documents={sources.documents}
+                  selectedDocumentIds={sources.includedDocumentIds}
+                  onSelectionChange={sources.setDocumentIncluded}
+                  onToggleAll={sources.toggleAllIncluded}
                   formats={studio.formats}
                   isCreating={studio.isCreating}
                   error={studio.error}
                   onGenerate={studio.create}
                 />
               }
-              sources={
-                <SourcesPanel
-                  documents={sources.documents}
-                  selectedDocumentIds={sources.selectedDocumentIds}
-                  highlightedDocumentId={null}
-                  isLoading={sources.isLoading}
-                  isDeleting={sources.isDeleting}
-                  error={sources.error}
-                  addAction={
-                    <SourcesAddButton
-                      isUploading={sources.isUploading}
-                      onUpload={(files) => void sources.upload(files)}
-                    />
-                  }
-                  onOpen={(id) => void sources.openOriginal(id)}
-                  onReveal={(id) => void sources.revealOriginal(id)}
-                  onRetry={(id) => void sources.retry(id)}
-                  onDelete={(id) => void sources.deleteOne(id)}
-                  onDeleteSelected={() => void sources.deleteSelected()}
-                  onSelectionChange={sources.setDocumentSelected}
-                />
-              }
               artifacts={
                 <ArtifactList
+                  workspaceId={workspace.id}
                   artifacts={studio.artifacts}
+                  formats={studio.formats}
                   isLoading={studio.isLoading}
                   onOpen={(artifactId) => {
-                    openSources()
+                    openRightPanel()
                     setInspect({ kind: "artifact", artifactId })
                   }}
+                  onRegenerate={(artifactId) =>
+                    void studio.regenerate(artifactId)
+                  }
+                  onCancel={(artifactId) => void studio.cancel(artifactId)}
                   onDelete={(artifactId) => void studio.remove(artifactId)}
                 />
               }
@@ -382,6 +416,7 @@ export function DashboardPage({
         providerAvailable={providerAvailable}
         onModelRequired={() => openSettings("models")}
         onModelSelected={onModelSelected}
+        onOpenLicense={() => openSettings("license")}
       />
       <SettingsDialog
         open={settingsOpen}

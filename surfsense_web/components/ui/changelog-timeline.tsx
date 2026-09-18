@@ -1,11 +1,14 @@
 import { ArrowUpRight } from "lucide-react";
 import Image from "next/image";
 import type { ReactNode } from "react";
-
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
+
+/**
+ * Styled for the site design (`app/(home)/home.css`): rendered only from
+ * `app/(home)/changelog/page.tsx`, which is listed in `SITE_DESIGN_ROUTES` in
+ * `components/site/site-shell.tsx`.
+ */
 
 export type ChangelogTimelineEntry = {
 	version: string;
@@ -37,71 +40,73 @@ export const ChangelogTimeline = ({
 	className,
 }: ChangelogTimelineProps) => {
 	return (
-		<section className={cn("py-32", className)}>
-			<div className="container px-6 sm:px-8 md:px-0">
-				<div className="mx-auto max-w-3xl">
-					<h1 className="mb-4 text-3xl font-bold tracking-tight md:text-5xl">{title}</h1>
-					<p className="mb-6 text-base text-muted-foreground md:text-lg">{description}</p>
-					<Separator />
+		<>
+			<section className="ss-home-hero ss-home-pad">
+				<div className="mx-auto max-w-2xl text-center">
+					<h1 className="ss-home-display">{title}</h1>
+					<p className="ss-home-lede mx-auto mt-6 max-w-xl">{description}</p>
 				</div>
+			</section>
+
+			<section className={cn("ss-home-rule ss-home-rule-plain", className)}>
 				{entries.length > 0 ? (
-					<div className="mx-auto mt-16 flex max-w-3xl flex-col gap-16 md:mt-24 md:gap-24">
-						{entries.map((entry) => (
-							<div
-								key={`${entry.version}-${entry.date}`}
-								className="relative flex flex-col gap-4 md:w-[58rem] md:flex-row md:gap-8"
-							>
-								<div className="top-8 flex h-min w-64 shrink-0 flex-col items-start gap-3 md:sticky">
-									<time className="text-xs font-medium text-muted-foreground">{entry.date}</time>
-									<Badge variant="secondary" className="text-xs">
-										{entry.version}
-									</Badge>
-								</div>
-								<div className="flex max-w-2xl flex-1 flex-col">
-									<h2 className="mb-3 text-lg leading-tight font-bold text-foreground/90 md:text-2xl">
-										{entry.title}
-									</h2>
-									<p className="text-sm text-muted-foreground md:text-base">{entry.description}</p>
-									{entry.items && entry.items.length > 0 ? (
-										<ul className="mt-4 ml-4 flex list-disc flex-col gap-1.5 text-sm text-muted-foreground md:text-base">
-											{entry.items.map((item) => (
-												<li key={item}>{item}</li>
-											))}
-										</ul>
-									) : null}
-									{entry.content ? (
-										<div className="prose prose-neutral mt-8 max-w-none dark:prose-invert prose-headings:scroll-mt-8 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-balance prose-p:tracking-tight prose-p:text-balance prose-a:no-underline prose-img:rounded-xl prose-img:shadow-lg">
-											{entry.content}
-										</div>
-									) : null}
-									{entry.image ? (
-										<div className="relative mt-8 aspect-video overflow-hidden rounded-lg">
-											<Image
-												src={entry.image}
-												alt={`${entry.version} visual`}
-												fill
-												sizes="(max-width: 768px) 100vw, 768px"
-												className="object-cover"
-											/>
-										</div>
-									) : null}
-									{entry.button ? (
-										<Button variant="link" className="mt-4 self-end" asChild>
-											<a href={entry.button.url} target="_blank" rel="noreferrer">
-												{entry.button.text} <ArrowUpRight data-icon="inline-end" />
-											</a>
-										</Button>
-									) : null}
-								</div>
+					entries.map((entry, index) => (
+						<article
+							key={`${entry.version}-${entry.date}`}
+							className={cn(
+								"ss-home-pad grid gap-6 py-10 md:grid-cols-[12rem_1fr] md:gap-10 md:py-12",
+								index > 0 && "ss-home-rule"
+							)}
+						>
+							<div className="flex h-min flex-col items-start gap-3 md:sticky md:top-24">
+								<time className="ss-home-eyebrow">{entry.date}</time>
+								<Badge variant="secondary" className="rounded-full px-3 py-1">
+									{entry.version}
+								</Badge>
 							</div>
-						))}
-					</div>
+							<div className="flex min-w-0 max-w-2xl flex-1 flex-col">
+								<h2 className="ss-home-h3 mb-3 text-xl md:text-2xl">{entry.title}</h2>
+								<p className="ss-home-body">{entry.description}</p>
+								{entry.items && entry.items.length > 0 ? (
+									<ul className="ss-home-body mt-4 ml-4 flex list-disc flex-col gap-1.5">
+										{entry.items.map((item) => (
+											<li key={item}>{item}</li>
+										))}
+									</ul>
+								) : null}
+								{entry.content ? (
+									<div className="prose prose-invert mt-8 max-w-none prose-headings:scroll-mt-8 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-balance prose-p:tracking-tight prose-p:text-balance prose-a:text-(--home-accent) prose-a:no-underline prose-img:rounded-none prose-img:border prose-img:border-border">
+										{entry.content}
+									</div>
+								) : null}
+								{entry.image ? (
+									<div className="relative mt-8 aspect-video overflow-hidden border border-border">
+										<Image
+											src={entry.image}
+											alt={`${entry.version} visual`}
+											fill
+											sizes="(max-width: 768px) 100vw, 768px"
+											className="object-cover"
+										/>
+									</div>
+								) : null}
+								{entry.button ? (
+									<a
+										href={entry.button.url}
+										target="_blank"
+										rel="noreferrer"
+										className="ss-home-forward mt-4 self-start"
+									>
+										{entry.button.text} <ArrowUpRight className="size-3.5" />
+									</a>
+								) : null}
+							</div>
+						</article>
+					))
 				) : (
-					<p className="mx-auto mt-16 max-w-3xl rounded-lg border border-dashed p-8 text-center text-muted-foreground">
-						No changelog entries yet.
-					</p>
+					<p className="ss-home-pad ss-home-body py-16 text-center">No changelog entries yet.</p>
 				)}
-			</div>
-		</section>
+			</section>
+		</>
 	);
 };

@@ -68,6 +68,11 @@ class AdvisorCatalog:
     system: SystemProfile | None
     models: tuple[ScoredModel, ...]
     llmfit_version: str | None
+    # False only for "haven't scanned this hardware yet" (no cached result,
+    # scan not requested) — distinct from an empty `models` tuple caused by a
+    # real scan failure or version mismatch, which is still `scanned=True`
+    # since an attempt was made and `warnings` explains why it came back empty.
+    scanned: bool = True
     warnings: tuple[RecommendationWarning, ...] = ()
 
 
@@ -120,8 +125,17 @@ class CatalogRow:
 class CatalogResult:
     hardware: SystemProfile | None
     llmfit_version: str | None
-    recommended: tuple[CatalogRow, ...]
+    # A curated model is always in exactly this bucket, never `explore` —
+    # scanning only ever adds a fit badge to a row already here, it never
+    # moves the row elsewhere. Populated even when `scanned` is False, from
+    # the manifest alone.
+    curated: tuple[CatalogRow, ...]
     explore: tuple[CatalogRow, ...]
     installed: tuple[CatalogRow, ...]
+    # False when this result was served without running the (expensive)
+    # hardware scan — no cached scan existed yet and none was requested.
+    # `curated`/`installed` are still fully populated in that case; only
+    # `explore` and curated fit badges are scan-derived.
+    scanned: bool = True
     warnings: tuple[RecommendationWarning, ...] = ()
     runtime_status: dict[str, bool] = field(default_factory=dict)

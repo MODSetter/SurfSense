@@ -2,6 +2,9 @@
  * Authentication utilities for handling session expiration and redirects.
  */
 import { buildBackendUrl } from "@/lib/env-config";
+import { isPublicRoute } from "@/lib/public-routes";
+
+export { isPublicRoute };
 
 const REDIRECT_PATH_KEY = "surfsense_redirect_path";
 const LEGACY_BEARER_TOKEN_KEY = "surfsense_bearer_token";
@@ -15,49 +18,6 @@ function purgeLegacyStoredTokens(): void {
 	if (typeof window === "undefined") return;
 	localStorage.removeItem(LEGACY_BEARER_TOKEN_KEY);
 	localStorage.removeItem(LEGACY_REFRESH_TOKEN_KEY);
-}
-
-/** Path prefixes for routes that do not require auth (no current-user fetch, no redirect on 401) */
-const PUBLIC_ROUTE_PREFIXES = [
-	"/login",
-	"/register",
-	"/auth",
-	"/desktop/login",
-	"/docs",
-	"/public",
-	"/free",
-	"/invite",
-	"/contact",
-	"/pricing",
-	"/privacy",
-	"/terms",
-	"/changelog",
-	"/announcements",
-	"/blog",
-	"/sunset",
-	// Connector marketing pages (see lib/connectors-marketing)
-	"/connectors",
-	"/mcp-server",
-	"/external-mcp-connectors",
-	"/reddit",
-	"/instagram",
-	"/tiktok",
-	"/youtube",
-	"/google-maps",
-	"/google-search",
-	"/indeed",
-	"/web-crawl",
-	"/amazon",
-	"/walmart",
-];
-
-/**
- * Returns true if the pathname is a public route where we should not run auth checks
- * or redirect to login on 401.
- */
-export function isPublicRoute(pathname: string): boolean {
-	if (pathname === "/" || pathname === "") return true;
-	return PUBLIC_ROUTE_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 }
 
 export function getLoginPath(): string {

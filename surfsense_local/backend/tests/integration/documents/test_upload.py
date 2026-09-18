@@ -7,7 +7,7 @@ from httpx import AsyncClient
 from sqlalchemy import Engine, text
 
 from modules.documents import storage
-from shared.queue import huey
+from shared.queue import ingest_queue
 
 pytestmark = pytest.mark.integration
 
@@ -43,7 +43,7 @@ async def test_an_upload_is_pending_on_disk_and_queued(
     assert [path.name for path in stored] == ["original.pdf"]
     assert stored[0].read_bytes() == b"%PDF-1.7 fake"
 
-    assert [(job.name, job.args) for job in huey.pending()] == [
+    assert [(job.name, job.args) for job in ingest_queue.pending()] == [
         ("ingest_document", (created[0]["id"],))
     ]
 
@@ -71,7 +71,7 @@ async def test_the_same_bytes_are_not_ingested_twice(
 async def test_a_different_file_of_the_same_name_is_kept(
     client: AsyncClient, workspace_id: int
 ) -> None:
-    """Cloud keys dedup on the filename, so report.pdf could be uploaded once, ever."""
+    """Dedup is on content, not filename: two different report.pdf files both land."""
     await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
         files={"files": ("report.pdf", b"%PDF-january", "application/pdf")},
@@ -143,7 +143,7 @@ async def test_unsupported_and_mismatched_files_are_rejected_per_file(
         },
     ]
     assert [path.name for path in stored_files(data_dir)] == ["original.txt"]
-    assert len(huey.pending()) == 1
+    assert len(ingest_queue.pending()) == 1
 
 
 async def test_server_records_verified_mime_not_the_clients_claim(
@@ -317,7 +317,7 @@ async def test_a_failed_document_can_be_retried(
             ),
             {"id": document_id},
         )
-    huey.flush()
+    ingest_queue.flush()
 
     response = await client.post(
         f"/workspaces/{workspace_id}/documents/{document_id}/retry"
@@ -326,7 +326,72 @@ async def test_a_failed_document_can_be_retried(
     assert response.status_code == 200
     assert response.json()["status"] == "pending"
     assert response.json()["error_message"] is None
-    assert [job.args for job in huey.pending()] == [(document_id,)]
+    assert [job.args for job in ingest_queue.pending()] == [(document_id,)]
+
+
+async def test_a_pending_document_can_be_cancelled(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Cancel drops the queued ingest so the worker never picks it up."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    document_id = created.json()["created"][0]["id"]
+    assert ingest_queue.pending()
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{document_id}/cancel"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "cancelled"
+    assert response.json()["error_message"] is None
+    task = ingest_queue.pending()[0]
+    assert ingest_queue.is_revoked(task)
+
+
+async def test_a_ready_document_cannot_be_cancelled(
+    client: AsyncClient, workspace_id: int, engine: Engine
+) -> None:
+    """Stopping a finished ingest would look like success and then vanish."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "note", "content": "x"},
+    )
+    document_id = created.json()["id"]
+    with engine.begin() as connection:
+        connection.execute(
+            text("UPDATE documents SET status = 'ready' WHERE id = :id"),
+            {"id": document_id},
+        )
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{document_id}/cancel"
+    )
+
+    assert response.status_code == 409
+
+
+async def test_a_cancelled_document_can_be_retried(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Cancel is not delete: the bytes stay, and retry is the way back."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    document_id = created.json()["created"][0]["id"]
+    await client.post(f"/workspaces/{workspace_id}/documents/{document_id}/cancel")
+    ingest_queue.flush()
+
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents/{document_id}/retry"
+    )
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "pending"
+    assert [job.args for job in ingest_queue.pending()] == [(document_id,)]
 
 
 async def test_only_a_failed_document_is_retried(

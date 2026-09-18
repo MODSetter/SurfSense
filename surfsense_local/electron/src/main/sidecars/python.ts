@@ -1,8 +1,7 @@
 /**
- * The two Python sidecars. They are the same shape: a frozen onedir binary in
- * the packaged app, `uv run` in dev, over the same SURFSENSE_LOCAL_* env. Chat
- * hits Ollama from the API; Studio generation hits it from the worker — both
- * need the bundled address.
+ * The Python sidecars: the API, and the worker once per queue. Same shape: a
+ * frozen onedir binary when packaged, `uv run` in dev, same SURFSENSE_LOCAL_*
+ * env. Both reach Ollama, so both need the bundled address.
  */
 import { join } from "node:path"
 
@@ -15,11 +14,16 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     SURFSENSE_LOCAL_HOST: ctx.host,
     SURFSENSE_LOCAL_PORT: String(ctx.apiPort),
     SURFSENSE_LOCAL_DATA_DIR: ctx.dataDir,
+    SURFSENSE_LOCAL_SECRET: ctx.secret,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
     ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
     ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
     ...(ctx.ollamaModelsDir && {
       SURFSENSE_LOCAL_OLLAMA_MODELS_DIR: ctx.ollamaModelsDir,
+    }),
+    ...(ctx.imageUrl && { SURFSENSE_LOCAL_IMAGE_BASE_URL: ctx.imageUrl }),
+    ...(ctx.imageModelsDir && {
+      SURFSENSE_LOCAL_IMAGE_MODELS_DIR: ctx.imageModelsDir,
     }),
   }
 }
@@ -28,10 +32,11 @@ function pythonCmd(
   ctx: SidecarContext,
   name: string,
   devEntry: string,
+  args: string[] = [],
 ): { cmd: string; args: string[]; cwd: string } {
   return ctx.packaged
-    ? { cmd: join(ctx.binariesDir, "backend", name, exe(name)), args: [], cwd: ctx.binariesDir }
-    : { cmd: "uv", args: ["run", devEntry], cwd: ctx.backendDir }
+    ? { cmd: join(ctx.binariesDir, "backend", name, exe(name)), args, cwd: ctx.binariesDir }
+    : { cmd: "uv", args: ["run", devEntry, ...args], cwd: ctx.backendDir }
 }
 
 export function apiSpec(ctx: SidecarContext): SidecarSpec {
@@ -45,10 +50,12 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
   }
 }
 
-export function workerSpec(ctx: SidecarContext): SidecarSpec {
+export type WorkerQueue = "ingest" | "studio"
+
+export function workerSpec(ctx: SidecarContext, queue: WorkerQueue): SidecarSpec {
   return {
-    name: "worker",
-    ...pythonCmd(ctx, "worker", "worker.py"),
+    name: `worker-${queue}`,
+    ...pythonCmd(ctx, "worker", "worker.py", [queue]),
     env: pythonEnv(ctx),
   }
 }

@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowUp, ChevronRightIcon, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { TextShimmerLoader } from "@/components/prompt-kit/loader";
 import { Button } from "@/components/ui/button";
+import { ArrowUp02Icon, ChevronRightIcon, PlusIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/utils";
 
 export type HeroChatDemoStep = {
@@ -280,7 +280,7 @@ export function HeroChatDemo({
 					aria-hidden
 					className="flex size-8 items-center justify-center rounded-full text-muted-foreground"
 				>
-					<Plus className="size-4" />
+					<PlusIcon className="size-4" />
 				</span>
 				<Button
 					type="button"
@@ -289,7 +289,7 @@ export function HeroChatDemo({
 					aria-label="Send message"
 					className="size-9 shrink-0 rounded-full"
 				>
-					<ArrowUp className="size-5" />
+					<ArrowUp02Icon className="size-5" />
 				</Button>
 			</div>
 		</div>

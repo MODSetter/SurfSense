@@ -55,4 +55,52 @@ describe("artifact panel", () => {
     await user.click(screen.getByRole("button", { name: "Close artifact" }))
     expect(onClose).toHaveBeenCalled()
   })
+
+  it("opens flashcards in the study viewer from the deck file", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/artifacts/13") {
+          return Response.json({
+            id: 13,
+            document_id: 5,
+            format: "flashcards",
+            generation: 1,
+            title: "Cassini",
+            status: "ready",
+            error_message: null,
+            content: "# Cassini\n\n**1. Arrival?**\n\n2004",
+            files: [
+              {
+                role: "primary",
+                mime_type: "application/json",
+                size_bytes: 90,
+                original_filename: "cassini.json",
+              },
+            ],
+            created_at: "2026-09-06T00:00:00Z",
+            updated_at: "2026-09-06T00:00:00Z",
+          })
+        }
+        if (path === "/artifacts/13/files/primary") {
+          return Response.json({
+            schema_version: 1,
+            title: "Cassini",
+            cards: [{ front_text: "Arrival?", back_text: "2004" }],
+          })
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+
+    render(<ArtifactPanel artifactId={13} onClose={vi.fn()} />)
+
+    expect(
+      await screen.findByRole("button", { name: "Reveal answer" })
+    ).toBeTruthy()
+    expect(screen.getByText("Arrival?")).toBeTruthy()
+    // The markdown body is for search, not for the study screen.
+    expect(screen.queryByText(/\*\*1\. Arrival\?\*\*/)).toBeNull()
+  })
 })

@@ -13,25 +13,48 @@ export function SettingsSection({
   description: string
   children: ReactNode
   footer?: ReactNode
-  scrollable?: boolean
+  // true: header fixed, only the content below it scrolls (most sections).
+  // false: nothing here scrolls — the content manages its own scroll area(s).
+  // "all": header and content scroll together as one region, for content
+  // whose height varies too much for a fixed header to make sense.
+  scrollable?: boolean | "all"
 }) {
+  const heading = (
+    <>
+      <h2 className="font-heading text-lg font-medium text-balance">{title}</h2>
+      <p className="mt-1 text-sm text-pretty text-muted-foreground">
+        {description}
+      </p>
+    </>
+  )
+
+  if (scrollable === "all") {
+    return (
+      <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]">
+        {/* pt-10 is a fixed gutter, not scroll content — it keeps the dialog's own close button clear no matter how far this scrolls, the way the fixed header used to in the other two modes; min-w-0 stops a wide nowrap descendant from forcing this grid item past its 1fr track and out through the section's overflow-hidden. */}
+        <div className="min-h-0 min-w-0 pt-10">
+          <ScrollShadow className="h-full" viewportClassName="px-7 pb-5">
+            <header className="pb-6">{heading}</header>
+            {children}
+          </ScrollShadow>
+        </div>
+
+        {footer ? (
+          <footer className="flex justify-end border-t bg-popover px-7 py-4">
+            {footer}
+          </footer>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <div className="grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)_auto]">
-      <header className="px-7 pt-10 pb-6">
-        <h2 className="font-heading text-lg font-medium text-balance">
-          {title}
-        </h2>
-        <p className="mt-1 text-sm text-pretty text-muted-foreground">
-          {description}
-        </p>
-      </header>
+      <header className="px-7 pt-10 pb-6">{heading}</header>
 
-      <div className="relative min-h-0">
+      <div className="relative min-h-0 min-w-0">
         {scrollable ? (
-          <ScrollShadow
-            className="h-full"
-            viewportClassName="px-7 py-5"
-          >
+          <ScrollShadow className="h-full" viewportClassName="px-7 py-5">
             <div>{children}</div>
           </ScrollShadow>
         ) : (

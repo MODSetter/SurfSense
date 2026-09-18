@@ -56,9 +56,10 @@ const catalog = (overrides: Partial<ModelCatalog> = {}): ModelCatalog => ({
     unified_memory: true,
   },
   llmfit_version: "1.1.11",
-  recommended: [row()],
+  curated: [row()],
   explore: [],
   installed: [],
+  scanned: true,
   warnings: [],
   runtime_status: { ollama: { available: true } },
   ...overrides,
@@ -121,9 +122,9 @@ describe("normalized model catalog", () => {
     const action = await screen.findByRole("button", {
       name: "Download",
     })
-    expect(screen.getByText("Best for this computer")).toBeTruthy()
+    expect(screen.getByText("Curated models")).toBeTruthy()
     expect(
-      screen.getByText("Only models compatible with this computer are shown.")
+      screen.getByText("Only models compatible with this machine are shown.")
     ).toBeTruthy()
     expect(
       screen.queryByText(
@@ -155,7 +156,7 @@ describe("normalized model catalog", () => {
       vi.fn(async () =>
         Response.json(
           catalog({
-            recommended: [],
+            curated: [],
             explore: [
               row({
                 catalog_id: "marginal",
@@ -211,16 +212,100 @@ describe("normalized model catalog", () => {
       )
     )
 
-    render(<ModelCatalogPage installedFirst />)
+    render(<ModelCatalogPage />)
 
     await screen.findByText("Installed model")
+    // Installed leads on its own, ahead of the image-model block, so it no
+    // longer takes a separator against the curated sections that follow —
+    // only "Curated models" and "More models" get one between them.
     const separators = document.querySelectorAll('[data-slot="separator"]')
-    expect(separators).toHaveLength(2)
+    expect(separators).toHaveLength(1)
     for (const separator of separators) {
       expect(separator.className).toContain("data-horizontal:w-full")
       expect(separator.className).toContain("my-4")
       expect(separator.className).not.toContain("mx-3")
     }
+  })
+
+  it("filters More models by search without affecting other sections", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          catalog({
+            explore: [
+              row({
+                catalog_id: "explore-a",
+                canonical_id: "a",
+                label: "Llama Explorer",
+              }),
+              row({
+                catalog_id: "explore-b",
+                canonical_id: "b",
+                label: "Mistral Ranger",
+              }),
+            ],
+          })
+        )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+
+    await screen.findByText("Llama Explorer")
+    expect(screen.getByText("Mistral Ranger")).toBeTruthy()
+    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
+
+    const search = screen.getByRole("searchbox", { name: "Search more models" })
+    await user.type(search, "llama")
+
+    expect(screen.getByText("Llama Explorer")).toBeTruthy()
+    expect(screen.queryByText("Mistral Ranger")).toBeNull()
+    // Curated is unaffected by the "More models" search.
+    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
+
+    await user.clear(search)
+    await user.type(search, "nothing matches this")
+
+    expect(screen.getByText('No models match "nothing matches this".')).toBeTruthy()
+  })
+
+  it("reserves a fixed height for More models while searching, so a search doesn't shrink the page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          catalog({
+            explore: [
+              row({ catalog_id: "explore-a", canonical_id: "a", label: "Llama Explorer" }),
+              row({ catalog_id: "explore-b", canonical_id: "b", label: "Mistral Ranger" }),
+            ],
+          })
+        )
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await screen.findByText("Llama Explorer")
+
+    const listElement = () =>
+      screen
+        .getByText("More models")
+        .closest("section")
+        ?.querySelector('[data-slot="catalog-section-list"]') as HTMLElement
+
+    // No reservation while unfiltered — the natural row list is what shows.
+    expect(listElement().style.minHeight).toBe("")
+
+    const search = screen.getByRole("searchbox", { name: "Search more models" })
+    await user.type(search, "llama")
+
+    expect(listElement().style.minHeight).toBe("320px")
+
+    await user.clear(search)
+    expect(listElement().style.minHeight).toBe("")
   })
 
   it("shows install failures as a toast instead of inside the model row", async () => {
@@ -252,6 +337,74 @@ describe("normalized model catalog", () => {
     ).toBeNull()
   })
 
+  it("shows a scan CTA instead of More models until scanned, and curated stays visible", async () => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/catalog") {
+        return Response.json(
+          catalog({
+            scanned: false,
+            curated: [row({ fit: "unknown", score: null })],
+            explore: [],
+          })
+        )
+      }
+      if (path === "/llm/catalog?refresh=true") {
+        return Response.json(
+          catalog({ scanned: true, explore: [row({ catalog_id: "explore" })] })
+        )
+      }
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+
+    // Curated shows immediately, scan-free — with no fit badge at all rather
+    // than a claim we can't back up yet.
+    expect(await screen.findByText("Curated models")).toBeTruthy()
+    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
+    expect(screen.queryByText("Fit unknown")).toBeNull()
+    expect(screen.queryByText("Good fit")).toBeNull()
+    // "More models" keeps its heading, but its content is the scan prompt,
+    // not a row list, until scanned.
+    expect(screen.getByText("More models")).toBeTruthy()
+    expect(
+      screen.getByText(/Find every model that fits your machine/)
+    ).toBeTruthy()
+    // Two "Scan hardware" buttons exist pre-scan (the persistent header
+    // control and the "More models" CTA) — both trigger the same rescan.
+    const scanButtons = screen.getAllByRole("button", { name: "Scan hardware" })
+    expect(scanButtons).toHaveLength(2)
+
+    // The search box is present but disabled before the first scan — there's
+    // nothing to search yet, but the control doesn't pop in/out of the
+    // layout once scanning finishes.
+    const search = screen.getByRole("searchbox", {
+      name: "Search more models",
+    }) as HTMLInputElement
+    expect(search.disabled).toBe(true)
+
+    await user.click(scanButtons[0])
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path]) => path === "/llm/catalog?refresh=true"
+        )
+      ).toBe(true)
+    )
+    // The scan-free "More models" CTA is replaced by the real row list once
+    // scanned, so re-query rather than reuse the pre-scan input reference.
+    await waitFor(() => {
+      const rescanned = screen.getByRole("searchbox", {
+        name: "Search more models",
+      }) as HTMLInputElement
+      expect(rescanned.disabled).toBe(false)
+    })
+  })
+
   it("rescans through the explicit refresh endpoint", async () => {
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
       void input
@@ -280,7 +433,7 @@ describe("normalized model catalog", () => {
         Response.json(
           catalog({
             hardware: null,
-            recommended: [],
+            curated: [],
             installed: [
               row({
                 catalog_id: "installed",
@@ -314,7 +467,7 @@ describe("normalized model catalog", () => {
       if (path === "/llm/catalog") {
         return Response.json(
           catalog({
-            recommended: [],
+            curated: [],
             installed: [
               row({
                 installed: true,

@@ -2,27 +2,9 @@ import re
 from collections import defaultdict
 from dataclasses import dataclass
 
+from modules.llm import prompting
+from modules.llm.profile import Tier
 from shared.search import Hit
-
-# Same contract as the cloud chat: the model copies a visible [n], the server
-# rewrites it to [citation:<chunk_id>] for the renderer.
-INSTRUCTION = (
-    "Answer the question using the sources in the context below.\n"
-    "Cite with one token: the bracket label [n].\n"
-    "- Put the label right after the claim it supports.\n"
-    "- Several sources for one claim: stack brackets, [1][2].\n"
-    "- Copy labels exactly as shown — never write a title, id, or "
-    "[citation:...] yourself.\n"
-    "- Only cite claims the sources support. If nothing shown backs a claim, "
-    "leave it uncited; never invent one.\n"
-    "- If the context does not hold the answer, say so, then answer from your "
-    "own knowledge if you can.\n"
-    "- Respond in the same language as the question.\n"
-    "- Label fenced code blocks with their language, such as python, "
-    "typescript, sql, or bash.\n"
-    "- Do not repeat the source tags back in your answer.\n"
-    'Example: "The method raised efficiency by 20% [1]."'
-)
 
 _HEADER = (
     "These are excerpts from the user's knowledge base, selected for this query.\n"
@@ -38,7 +20,7 @@ _TAGS = re.compile(
 )
 
 # Fenced (```...```) and inline (`...`) code, so citation-shaped examples remain
-# literal. Mirrors the frontend Markdown renderer and the cloud normalizer.
+# literal. Mirrors the frontend Markdown renderer.
 _CODE = re.compile(r"```[\s\S]*?```|`[^`\n]+`")
 # Citation wrapper first so `[citation:1]` is not eaten as a trailing `[1]`.
 _TOKEN = re.compile(r"\[citation:\s*(\d+)\s*\]|\[\s*(\d+)\s*\]")
@@ -56,15 +38,18 @@ class Citation:
     title: str = ""
 
 
-def build_context(hits: list[Hit]) -> tuple[str, list[Citation]]:
+def build_context(hits: list[Hit], tier: Tier) -> tuple[str, list[Citation]]:
     """The grounding system message and the citations its ids point at.
 
-    Hits become `[n]`-labelled excerpts grouped by document, matching the cloud
-    retrieved_context block. The model cites `[n]`; resolve_citations rewrites
-    those to `[citation:<chunk_id>]`. No hits leaves the instruction alone.
+    Hits become `[n]`-labelled excerpts grouped by document. The model cites
+    `[n]`; resolve_citations rewrites those to `[citation:<chunk_id>]`. No hits
+    leaves the instruction alone.
     """
+    # The model copies a visible [n]; the server rewrites it to
+    # [citation:<chunk_id>] for the renderer.
+    instruction = prompting.load(__package__, tier)
     if not hits:
-        return INSTRUCTION, []
+        return instruction, []
 
     citations: list[Citation] = []
     grouped: dict[int, list[tuple[Citation, Hit]]] = defaultdict(list)
@@ -95,7 +80,7 @@ def build_context(hits: list[Hit]) -> tuple[str, list[Citation]]:
         documents.append("\n".join(lines))
 
     context = (
-        f"{INSTRUCTION}\n\n<retrieved_context>\n{_HEADER}\n"
+        f"{instruction}\n\n<retrieved_context>\n{_HEADER}\n"
         + "\n".join(documents)
         + "\n</retrieved_context>"
     )

@@ -1,290 +1,160 @@
-<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, the open-source NotebookLM alternative for open web research" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
-
-
-
-<div align="center">
-<a href="https://discord.gg/ejRNvftDp9">
-<img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
-</a>
-<a href="https://www.reddit.com/r/SurfSense/">
-<img src="https://img.shields.io/reddit/subreddit-subscribers/SurfSense?style=social" alt="Reddit">
-</a>
-</div>
+<!--
+  The sunset callout is time-boxed. Delete it on 18 October 2026 when the
+  export window closes, along with the "Importing from the hosted app" link
+  further down. Rationale for this page: plans/community-local/seo/06-repo-readme.md
+-->
 
 <div align="center">
 
-[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [हिन्दी](README.hi.md) | [简体中文](README.zh-CN.md)
+[![Stars](https://img.shields.io/github/stars/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/stargazers)
+[![Forks](https://img.shields.io/github/forks/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/network/members)
+[![Latest release](https://img.shields.io/github/v/release/MODSetter/SurfSense?sort=semver)](https://github.com/MODSetter/SurfSense/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
+  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="surfsense_web/public/homepage/icon.png" /></a>
+
+  <h1>SurfSense</h1>
+
+  <p>
+    <b>The air-gapped, open-source NotebookLM alternative.</b>
+    <br />
+    Turn documents you can't upload into briefings, decks, reports, study guides and podcasts, entirely on your own machine.
+  </p>
+
+  <p>
+    <a href="https://www.surfsense.com/downloads"><b>Download</b></a> ·
+    <a href="https://www.surfsense.com/docs">Docs</a> ·
+    <a href="#what-surfsense-makes">What it makes</a> ·
+    <a href="#how-surfsense-compares">Compare</a> ·
+    <a href="https://www.surfsense.com/pricing">Pricing</a> ·
+    <a href="https://discord.gg/ejRNvftDp9">Discord</a>
+  </p>
+
+  <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
+
+  <!--
+    Language switcher removed on purpose. README.es.md, README.pt-BR.md,
+    README.hi.md and README.zh-CN.md all describe the hosted product and
+    should be rewritten for 2.0.0 before this row comes back:
+
+    English | <a href="README.es.md">Español</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.zh-CN.md">简体中文</a>
+  -->
 </div>
-<div align="center">
-<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</div>
 
-# SurfSense: The Open-Source NotebookLM Alternative for Open Web Research
+<p align="center">
+  <img src="surfsense_web/public/homepage/offline-studio.png" alt="SurfSense desktop app with Studio open and Qwen selected, turning local sources into artifacts" />
+</p>
 
-SurfSense is the **open-source NotebookLM alternative for AI agents**, an open web research platform with live data connectors. Your agents research the live web with structured data from **Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, Indeed, and any page on the open web**, through one **REST API** or **MCP server**. Scheduled and event-triggered agents turn what they find into briefs and alerts, and a built-in knowledge base keeps every finding searchable with citations.
+SurfSense is a free, open-source desktop app for the documents you already have. Drop them in, ask questions and get answers that cite their sources, then turn the same documents into a briefing, a slide deck, a report, a study guide or a podcast. All of it runs on your own machine: the index sits on your disk, you pick the model, and the app uploads nothing. There is no account to create.
+
+**[Download for Windows, macOS or Linux](https://www.surfsense.com/downloads)**, then bring your own model key or let the app pull a local model for you.
 
 > [!NOTE]
-> **📢 A note for our NotebookLM-alternative users**
->
-> For the past couple of months we built SurfSense as the best general research agent for your own knowledge, and that chapter earned us a community we are genuinely proud of. Agentic tools like Claude, OpenCode, Hermes, and OpenClaw have now proven that agents are the future, and reasoning over a static index is becoming something every capable agent does out of the box. What agents still lack is **live data from the places where answers actually live, and the workflows around it**. That is where we are pointing all of our energy: giving agents the primitives to research the open web.
->
-> **Nothing you rely on is going away.** Your knowledge base, chat with citations, reports, podcasts, presentations, automations, and collaborative chats all keep working, and self-hosting stays free and open source. Read the full announcement on [our changelog](https://www.surfsense.com/changelog).
+> **Used the hosted web app?** It is being retired. Open it once to export your workspaces, then import the bundle into the desktop app; documents, folders, titles and chat threads all come across. The export window closes on 18 October 2026. Details on [the sunset page](https://www.surfsense.com/sunset).
 
-## Table of contents
+## What SurfSense makes
 
-- [Why agents need SurfSense](#why-agents-need-surfsense)
-- [Live data connectors](#live-data-connectors)
-- [Quick start](#quick-start)
-- [Everything else in the box](#everything-else-in-the-box)
-- [How SurfSense compares](#how-surfsense-compares)
-- [Roadmap](#roadmap)
-- [Contribute](#contribute)
+Pick some documents and a format. The app writes it from the sources you chose, on your machine.
 
-## Why agents need SurfSense
-
-Ask any capable agent "what is Reddit saying about this product since launch?" or "what do the reviews of these ten places actually complain about?" and it has nowhere trustworthy to look. Official platform APIs are rate-limited, priced for enterprises, or missing entirely; scraping plumbing is brittle; and driving a browser with an LLM burns minutes and tokens per page. SurfSense gives agents the primitives instead:
-
-- **One typed surface for wherever the data lives.** Every connector is a REST endpoint returning structured JSON — posts, comments, transcripts, reviews, SERPs, pages. No rate-limit roulette, no HTML parsing, no browser loop.
-- **An MCP server** that exposes every connector as a native tool (`surfsense_reddit_scrape`, `surfsense_google_search`, and more) to Claude, Cursor, or any agent framework.
-- **An agent harness**, not just raw data: retries, structured output, and credit metering are built in, so agents go from a question to a cited brief without you building the plumbing.
-- **Open source and self-hostable**, so your research stays on your own infrastructure.
-
-## Live data connectors
-
-| Connector | What your agents get | Learn more |
+| Format | What you get | Needs |
 |---|---|---|
-| **Reddit** | Posts, comments, and subreddit streams without the official API's rate limits | [Reddit Scraper API](https://www.surfsense.com/reddit) |
-| **YouTube** | Videos, transcripts, and comment threads at scale | [YouTube Scraper API](https://www.surfsense.com/youtube) |
-| **Instagram** | Public profiles, posts, and reels without the Graph API | [Instagram Scraper API](https://www.surfsense.com/instagram) |
-| **TikTok** | Videos, comments, hashtags, and profiles without Research API approval | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
-| **Google Maps** | Places, ratings, and reviews for local business research | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
-| **Google Search** | Live SERPs for search research and monitoring | [Google Search API](https://www.surfsense.com/google-search) |
-| **Indeed** | Public job postings with salaries and full descriptions, by search or company | [Indeed Scraper API](https://www.surfsense.com/indeed) |
-| **Amazon** | Public product data: prices, ratings, offers, sellers, and best-seller ranks | [Amazon Product API](https://www.surfsense.com/amazon) |
-| **Walmart** | Public product data plus the full review history: prices, ratings, sellers, and variants | [Walmart Product & Review API](https://www.surfsense.com/walmart) |
-| **Web Crawl** | Any page on the open web as clean, structured content | [Web Crawling API](https://www.surfsense.com/web-crawl) |
-| **External MCP Connectors** | Bring any MCP server to your agents, with one-click OAuth for Notion, Slack, Jira, and more | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
+| **Summary** | A structured brief of the selected sources | generation model |
+| **Flashcards** | An interactive deck, one card at a time | generation model |
+| **Quiz** | Multiple-choice questions with answers | generation model |
+| **Mind map** | A zoomable, collapsible Markmap | generation model |
+| **Slides** | An editable `.pptx`, not a picture of a deck | generation model |
+| **Document** | An editable `.docx` report | generation model |
+| **Spreadsheet** | An `.xlsx` of tables pulled from the sources | generation model |
+| **Web page** | A self-contained HTML page | generation model |
+| **PDF** | A typeset PDF | generation model |
+| **Podcast** | A two-host audio conversation, voiced offline by Kokoro-82M | generation model + bundled voice |
+| **Image** | An illustration for the material | image model + generation model |
+| **Infographic** | A single-panel visual summary | image model + generation model |
 
-The connector catalog is growing beyond social platforms and search; every new source lands as a typed endpoint on the same API and MCP server.
+Some jobs need more than one. A study guide is a summary, a flashcard deck and a quiz over the same source set, and a client briefing is usually the deck you present from plus the summary you send after. Video overviews are not built yet.
 
-Billing is pay as you go: connectors bill per item actually returned, crawls per page successfully fetched, and failed calls are never billed. Self-hosted installs run with billing off. See [pricing](https://www.surfsense.com/pricing).
+## Everything stays on your machine
 
-## Quick start
+People point this at case papers, client working papers, interview transcripts, internal specs, unpublished research and a term's worth of lecture notes. You can ask questions across all of it and every answer cites the source it came from. The app does not upload any of it.
 
-### Call a connector from code
+- **The index is local.** Parsing, chunking and embedding happen on your computer, into SQLite under `~/.surfsense`. SurfSense keeps no copy of it and no log of what you asked.
+- **Every role can run locally.** The document parser, the retrieval model and the podcast voice ship inside the installer. Chat and image generation ship as local servers whose weights you download once, so you can produce text, audio and pictures without an account or an API key. We test it by ingesting a PDF with networking disabled.
+- **Outbound connections are off by default.** An egress panel lists every destination the app can reach and you switch on the ones you want.
+- **No telemetry, no crash reporting.** Nothing phones home, so there is no opt-out to find.
 
-Every connector is a REST endpoint you can call from any language with your SurfSense API key:
-
-```bash
-curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape" \
-  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "search_queries": ["your brand"],
-    "community": "SaaS",
-    "sort": "top",
-    "time_filter": "week"
-  }'
-```
-
-Each [connector page](https://www.surfsense.com/connectors) has copy-paste examples in Python, JavaScript, Go, PHP, Ruby, Java, and C#.
-
-### Give the tools to your agents over MCP
-
-Add the SurfSense MCP server to Claude, Cursor, or your own agent framework:
-
-```json
-{
-  "mcpServers": {
-    "surfsense": {
-      "url": "https://mcp.surfsense.com/mcp",
-      "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
-    }
-  }
-}
-```
-
-Your agent can now call every connector as a native tool. See the [SurfSense MCP server](https://www.surfsense.com/mcp-server) page for the full tool list, or run the server locally from [`surfsense_mcp`](./surfsense_mcp).
-
-### Use the cloud
-
-Go to [surfsense.com](https://www.surfsense.com), log in, and ask the agent for live web data in plain English. New accounts start with $5 of free credit and no subscription.
-
-### Self-host for free
-
-Run the entire platform, connectors, agents, automations, and the MCP server on your own infrastructure. Self-hosted installs ship with billing off, so scraping, crawling, and agent runs are limited only by your hardware and the model keys you bring.
-
-**Prerequisites:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) must be installed and running.
-
-For Linux/macOS:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-For Windows:
-
-```bash
-irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
-```
-
-The install script sets up [Watchtower](https://github.com/nicholas-fedor/watchtower) automatically for daily auto-updates. To skip it, add the `--no-watchtower` flag. For Docker Compose, manual installation, and other deployment options, see the [docs](https://www.surfsense.com/docs/).
-
-## Everything else in the box
-
-The research workspace that made SurfSense the leading open-source NotebookLM alternative is still here, and everything your agents gather lands in it.
-
-**Knowledge base**
-
-- Upload PDFs, Office docs, images, and audio, or sync **Google Drive, OneDrive, and Dropbox**. 50+ file formats supported.
-- Hybrid semantic and full-text search with cited, Perplexity-style answers.
-- AI file sorting auto-organizes documents by source, date, and topic.
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="Chat With Your PDFs and Docs" /></p>
-
-**Deliverable studio**
-
-- Downloadable AI artifacts for reports, resumes, documents, spreadsheets, and presentations.
-- Two-host AI podcasts from any document or folder in under 20 seconds.
-- Editable slide decks, narrated video overviews, and AI image generation.
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI Report Generator" /></p>
-
-**Automations**
-
-- Run full agent turns on a schedule or in response to events, described in plain English, with results written back to Notion, Slack, Linear, and Jira.
-
-**Team collaboration**
-
-- Real-time collaborative AI chats with comments and mentions.
-- RBAC with Owner, Admin, Editor, and Viewer roles.
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="Collaborative AI Chat" /></p>
-
-**Desktop app**
-
-Native AI assistance in every application on your computer. Download from the [latest release](https://github.com/MODSetter/SurfSense/releases/latest).
-
-- **General Assist**: launch SurfSense from any app with a global shortcut.
-- **Quick Assist**: select text anywhere, then ask AI to explain, rewrite, or act on it.
-- **Screenshot Assist**: capture any region of your screen and ask AI about it.
-- **Watch Local Folder**: auto-sync a local folder to your knowledge base. Point it at your Obsidian vault to keep your notes searchable.
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
-
-**No vendor lock-in**
-
-- 100+ LLMs via the OpenAI spec and LiteLLM, including GPT-5.5, Claude Sonnet 5, and Gemini 3.1 Pro.
-- 6,000+ embedding models and all major rerankers.
-- Full local and private LLM support (vLLM, Ollama), so your data stays yours.
-
-## Video Agent Sample
-
-https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
-
-## Podcast Agent Sample
-
-https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
-
-## How to collaborate in real time (Beta)
-
-1. Go to the Manage Members page and create an invite.
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="Invite Members" /></p>
-
-2. A teammate joins and that workspace becomes shared.
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="Invite Join Flow" /></p>
-
-3. Make a chat shared and work in it together in real time, with comments to tag teammates.
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="Realtime Comments" /></p>
+SurfSense cannot tell you whether that satisfies a particular regulation. That depends on your own controls and your regulator. All the app can tell you is which machine your documents are on.
 
 ## How SurfSense compares
 
-SurfSense is the only open-source product that combines a NotebookLM-style research workspace for people with live-data primitives for agents. Here is how that stacks up against each class of tool.
+Three kinds of product get called "the local NotebookLM", and they answer different questions. None of them is a bad tool; they just leave you with different things.
 
-**vs browser agents (Browserbase, Browser Use).** Browser agents drive a real browser with an LLM in the loop — the right tool when a task needs clicking, logging in, or filling forms. But most research is read-only retrieval, and for retrieval the LLM-in-a-browser loop costs you minutes and thousands of tokens per page. A SurfSense connector call is one HTTP request: seconds, deterministic, and zero tokens spent deciding where to click.
+**vs Jan, AnythingLLM, Open WebUI, LM Studio.** These run a model locally and give you somewhere to chat with it. SurfSense answers the next question: how do you get a finished document out of one? Use them together if you like, by pointing SurfSense at any OpenAI-compatible endpoint, including one of theirs.
 
-**vs scraping APIs (Firecrawl).** Scraping APIs are great at turning a generic page into markdown, but a markdown blob still leaves your agent parsing structure out of prose, and they degrade on bot-protected platforms like Reddit, TikTok, and Instagram. SurfSense connectors return platform-native structured items — posts, comments, transcripts, reviews — and bill only for items actually returned; failed calls are never billed.
+**vs RemNote, Quizlet, NoteGPT, StudyFetch, Gamma.** These do produce artifacts, and some look better than ours. The trade is where your material goes: you upload it, you pay monthly, and your files live in someone else's account.
 
-**vs search APIs (Exa, Tavily, Parallel).** Search APIs answer from a web index, which is the right tool for "find me pages about X." They cannot pull a Reddit thread's comments, TikTok reactions, YouTube transcripts, or Google Maps reviews — the places where the answer often actually lives.
+**vs Google NotebookLM.** It already ships flashcards, quizzes, mind maps and audio overviews, so both produce much the same things. The difference is whose machine does the work and which model you can point at it.
 
-**vs scraper marketplaces (Apify).** Marketplaces give you thousands of community actors, each with its own schema, quality, and pricing. SurfSense is one typed API and one MCP server with an agent harness and a research workspace behind it, and it is open source.
+| | Google NotebookLM | SurfSense |
+|---|---|---|
+| Runs offline / air-gapped | No | **Yes** |
+| Your documents leave your machine | Yes | **No** |
+| Account required | Google account | **None** |
+| Open source | No | **Apache-2.0** |
+| Price | Free tier; Pro $19.99/mo; Ultra $249.99/mo | **App is free** |
+| Models | Gemini only | Any OpenAI-compatible API, or a local one |
+| Source limits | 50 to 600 sources, 500,000 words each | Whatever your disk holds |
+| Audio and video overviews | Yes, and better | Audio yes, offline; video not yet |
 
-### SurfSense vs Google NotebookLM
+NotebookLM wins on audio quality and it has video. If you are content with your sources sitting on Google's servers, use it. If you are not, this is the same kind of tool without the upload.
 
-Still comparing us as a NotebookLM alternative? Here is the honest breakdown.
+## Quick start
 
-| Feature | Google NotebookLM | SurfSense |
-|---------|-------------------|-----------|
-| **Live web data for agents** | No | Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, Indeed, and web crawl connectors via REST API and MCP |
-| **MCP server** | No | Every connector exposed as a native agent tool, plus bring-your-own MCP servers with one-click OAuth apps |
-| **Sources per Notebook** | 50 (Free) to 600 (Ultra, $249.99/mo) | Unlimited |
-| **Number of Notebooks** | 100 (Free) to 500 (paid tiers) | Unlimited |
-| **Source Size Limit** | 500,000 words / 200MB per source | No limit |
-| **Pricing** | Free tier; Pro $19.99/mo, Ultra $249.99/mo | Free and open source to self-host; cloud is pay as you go with $5 free credit |
-| **LLM Support** | Google Gemini only | 100+ LLMs via OpenAI spec & LiteLLM |
-| **Embedding Models** | Google only | 6,000+ embedding models, all major rerankers |
-| **Local / Private LLMs** | Not available | Full support (vLLM, Ollama), your data stays yours |
-| **Self Hostable** | No | Yes, Docker one-liner or full Docker Compose |
-| **Open Source** | No | Yes |
-| **Knowledge Base Sources** | Google Drive, YouTube, websites | File uploads, Google Drive, OneDrive, Dropbox, local folder sync, and crawled pages |
-| **File Format Support** | PDFs, Docs, Slides, Sheets, CSV, Word, EPUB, images, web URLs, YouTube | 50+ formats: documents, images, videos via LlamaCloud, Unstructured, or Docling (local) |
-| **Search** | Semantic search | Hybrid semantic + full-text with hierarchical indices & reciprocal rank fusion |
-| **Cited Answers** | Yes | Yes, Perplexity-style cited responses |
-| **Agentic Architecture** | No | Yes, powered by [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) with planning, subagents, and file system access |
-| **AI Automations & Agents** | No | Scheduled workflows, event triggers, and chat-built no-code automations with write-back to Notion, Slack, Linear & Jira |
-| **Real-Time Multiplayer** | Shared notebooks with Viewer/Editor roles (no real-time chat) | RBAC with Owner / Admin / Editor / Viewer roles, real-time chat & comment threads |
-| **Video Generation** | Cinematic Video Overviews via Veo 3 (Ultra only) | Available (NotebookLM is better here, actively improving) |
-| **Presentation Generation** | Better looking slides but not editable | Editable, slide-based presentations |
-| **Podcast Generation** | Audio Overviews with customizable hosts and languages | Available with multiple TTS providers (NotebookLM is better here, actively improving) |
-| **Desktop App** | No | Native app with General Assist, Quick Assist, Screenshot Assist, and local folder sync |
+You do not need Docker, a terminal, a GPU or a compose file.
 
-## Feature requests and future
+1. **Download the installer** for [Windows, macOS or Linux](https://www.surfsense.com/downloads). It is signed, so your OS will not fight you.
+2. **Pick a model.** Let the app pull a local one (Qwen3 in six sizes, from 0.5 GB) or paste a base URL and key for any OpenAI-compatible API. The picker checks your machine can run a model before offering it, and any key you give it is stored encrypted, with the secret held in your OS keychain.
+3. **Drop in documents.** The app parses PDFs, Office files and images on your machine.
+4. **Ask questions.** Every answer cites the source it came from.
+5. **Open Studio,** choose a format, collect the file.
 
-**SurfSense is actively being developed.** While it's not yet production-ready, you can help us speed up the process.
+The download is the slow part, because the installer carries the parser, the retrieval model, the podcast voice and the local model servers, so the app works with the network off.
 
-Join the [SurfSense Discord](https://discord.gg/ejRNvftDp9) and help shape the future of SurfSense!
+## Docs, roadmap and community
 
-## Roadmap
+The app and its updates are free. A licence adds plugins and priority support and gates nothing else, so an expired licence still leaves you the app and every future update. See [pricing](https://www.surfsense.com/pricing).
 
-Stay up to date with our development progress and upcoming features. Check out our public roadmap and contribute your ideas or feedback:
+The Docker stack in this repo (`surfsense_backend`, `surfsense_web`, compose files) stays open source and installable, and is **community-supported: no SLA and no hosted service behind it.** The desktop app is the supported path for new users.
 
-**Roadmap Discussion:** [SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
+- [Documentation](https://www.surfsense.com/docs) for install, models, Studio formats and self-hosting
+- [Importing from the hosted app](https://www.surfsense.com/sunset)
+- [MCP server](./surfsense_mcp) for the hosted scraper API
+- [Roadmap discussion](https://github.com/MODSetter/SurfSense/discussions/565) and the [project board](https://github.com/users/MODSetter/projects/3)
+- [Discord](https://discord.gg/ejRNvftDp9) for help and ideas, [Discussions](https://github.com/MODSetter/SurfSense/discussions) for direction, [Issues](https://github.com/MODSetter/SurfSense/issues) for reproducible bugs
+- **Star the repo** if you want to follow where this goes
 
-**Kanban Board:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
-
-## Contribute
-
-All contributions welcome, from stars and bug reports to backend improvements. See [CONTRIBUTING.md](CONTRIBUTING.md) to get started.
+Pull requests welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); the desktop app lives in [`surfsense_local/`](./surfsense_local) and its README covers the development loop.
 
 Thanks to all our Surfers:
 
-<a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
-</a>
-
-## Star History
-
-<a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
- </picture>
-</a>
-
----
----
 <p align="center">
-    <img 
-      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
-      alt="Catalyst Project" 
-      width="200"
-    />
+  <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense contributors" />
+  </a>
 </p>
 
----
----
+## Star history
+
+<p align="center">
+  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+    </picture>
+  </a>
+</p>
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).

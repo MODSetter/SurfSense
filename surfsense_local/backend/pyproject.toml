@@ -1,6 +1,6 @@
 [project]
 name = "surfsense-local-backend"
-version = "0.0.1"
+version = "2.0.0"
 description = "SurfSense Community Local backend"
 requires-python = ">=3.12"
 dependencies = [

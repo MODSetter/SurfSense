@@ -1,9 +1,9 @@
 import { IconBrandDiscord, IconBrandGithub, IconBrandReddit } from "@tabler/icons-react";
-import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { Reveal } from "@/components/connectors-marketing/reveal";
 import { MarketingSection } from "@/components/marketing/section";
 import { Button } from "@/components/ui/button";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
 const GITHUB_URL = "https://github.com/MODSetter/SurfSense";
 const DISCORD_URL = "https://discord.gg/ejRNvftDp9";
@@ -26,7 +26,7 @@ export function CommunityStrip() {
 						<Button asChild size="lg">
 							<Link href="/register">
 								Start for free
-								<ArrowRight className="size-4" />
+								<ArrowRightIcon className="size-4" />
 							</Link>
 						</Button>
 						<Button asChild variant="outline" size="lg">

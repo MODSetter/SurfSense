@@ -1,6 +1,6 @@
 "use client";
+
 import { useAtom } from "jotai";
-import { Eye, EyeOff } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,6 +9,7 @@ import { useState } from "react";
 import { loginMutationAtom } from "@/atoms/auth/auth-mutation.atoms";
 import { useRuntimeConfig } from "@/components/providers/runtime-config";
 import { Button } from "@/components/ui/button";
+import { ViewIcon, ViewOffSlashIcon } from "@/components/ui/icons";
 import { Spinner } from "@/components/ui/spinner";
 import { getAuthErrorDetails, isNetworkError } from "@/lib/auth-errors";
 import { getPostLoginRedirectPath } from "@/lib/auth-utils";
@@ -83,7 +84,7 @@ export function LocalLoginForm() {
 	};
 
 	return (
-		<div className="w-full max-w-md px-6 md:px-0">
+		<div className="w-full max-w-md">
 			<form onSubmit={handleSubmit} className="space-y-3 md:space-y-4">
 				{/* Error Display */}
 				<AnimatePresence>
@@ -198,7 +199,11 @@ export function LocalLoginForm() {
 							className="absolute inset-y-0 right-0 h-full w-10 text-muted-foreground hover:bg-transparent hover:text-foreground"
 							aria-label={showPassword ? t("hide_password") : t("show_password")}
 						>
-							{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+							{showPassword ? (
+								<ViewOffSlashIcon className="h-4 w-4" />
+							) : (
+								<ViewIcon className="h-4 w-4" />
+							)}
 						</Button>
 					</div>
 				</div>

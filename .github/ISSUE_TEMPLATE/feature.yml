@@ -1,0 +1,28 @@
+name: Idea
+description: A feature or change you would like
+title: "[idea] "
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which part?
+      options:
+        - Desktop app
+        - MCP
+        - Backend / scraper API
+        - Web UI
+        - Docs / repo
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: want
+    attributes:
+      label: What would you like?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why would it help?

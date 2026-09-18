@@ -2,7 +2,9 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from modules.llm.connections.service import CapabilitySource
 from modules.llm.models import ModelRole
+from modules.llm.profile import Tier
 from modules.llm.recommendations.types import FitLevel
 
 
@@ -24,6 +26,7 @@ class ModelRead(BaseModel):
     name: str
     installed: bool
     capabilities: list[str]
+    display_name: str | None = None
 
 
 class ModelDeleteRead(BaseModel):
@@ -69,12 +72,43 @@ class ConnectionModelRead(BaseModel):
     connection_label: str
     name: str
     capabilities: list[str]
-    capability_known: bool
+    capability_source: CapabilitySource
 
 
-class ImageTestWrite(BaseModel):
+class LocalImageModelRead(BaseModel):
+    name: str
+    label: str
+    detail: str
+    size_bytes: int
+    installed: bool
+    selected: bool
+
+
+class LocalImageCatalogRead(BaseModel):
+    """What this build can generate locally, and which model holds the role."""
+
+    provider: str
+    offered: bool
+    ready: bool
+    models: list[LocalImageModelRead]
+
+
+class LocalImageRuntimeRead(BaseModel):
+    """What Electron should have sd-server running, or nulls for nothing."""
+
+    file: str | None
+    args: list[str]
+
+
+class ModelTestWrite(BaseModel):
+    """Asks one model to do its job once, for either role."""
+
     model: str = Field(min_length=1, max_length=512)
     prompt: str | None = Field(default=None, max_length=2000)
+
+
+class ChatTestRead(BaseModel):
+    reply: str
 
 
 class SelectionWrite(BaseModel):
@@ -95,6 +129,7 @@ class SelectionRead(BaseModel):
     provider: str
     connection_id: int | None
     name: str
+    tier: Tier
     updated_at: datetime
 
 
@@ -163,9 +198,13 @@ class RecommendationRowRead(BaseModel):
 class RecommendationCatalogRead(BaseModel):
     hardware: SystemProfileRead | None
     llmfit_version: str | None
-    recommended: list[RecommendationRowRead]
+    curated: list[RecommendationRowRead]
     explore: list[RecommendationRowRead]
     installed: list[RecommendationRowRead]
+    # False when served without running the hardware scan (no cache existed
+    # yet and none was requested) — `curated`/`installed` are still fully
+    # populated, only `explore` and curated fit badges are scan-derived.
+    scanned: bool
     warnings: list[RecommendationWarningRead]
     runtime_status: dict[str, bool]
 

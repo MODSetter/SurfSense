@@ -80,7 +80,7 @@ export function renameThread(
 export async function streamMessage(
   threadId: number,
   text: string,
-  documentIds: number[] | undefined,
+  documentIds: number[],
   signal: AbortSignal,
   onEvent: (event: ChatStreamEvent) => void
 ): Promise<void> {
@@ -92,7 +92,7 @@ export async function streamMessage(
     },
     body: JSON.stringify({
       text,
-      ...(documentIds ? { document_ids: documentIds } : {}),
+      document_ids: documentIds,
     }),
     signal,
   })

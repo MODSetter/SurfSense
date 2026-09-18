@@ -1,21 +1,26 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import {
-	Card,
-	CardContent,
-	CardDescription,
-	CardFooter,
-	CardHeader,
-	CardTitle,
-} from "@/components/ui/card";
+import { HomeButton } from "@/components/homepage/home/home-button";
+import { useIsGoogleAuth } from "@/components/providers/runtime-config";
 import { Spinner } from "@/components/ui/spinner";
 import { useSession } from "@/hooks/use-session";
 import { authenticatedFetch } from "@/lib/auth-fetch";
 import { redirectToLogin } from "@/lib/auth-utils";
 import { buildBackendUrl } from "@/lib/env-config";
+import { trackLoginAttempt } from "@/lib/posthog/events";
+
+/**
+ * Step one of the guide on `/sunset`, rendered inside that step rather than in
+ * the headline band above it: the step that tells you to export is the place
+ * the button belongs, and the reader meets it in the order they act.
+ *
+ * Built from the same `ss-home-*` primitives as the rest of the site design
+ * (`HomeButton` rather than the product's own `Button`) so it still reads as
+ * part of the same document as the homepage, pricing and contact pages, and
+ * left-aligned to sit with the step's prose.
+ */
 
 const FALLBACK_FILENAME = "surfsense-export.zip";
 const DISPOSITION_FILENAME = /filename\*?=(?:UTF-8'')?"?([^";]+)/i;
@@ -40,12 +45,33 @@ function triggerDownload(blob: Blob, filename: string) {
 
 export function SunsetExport() {
 	const session = useSession();
+	const isGoogleAuth = useIsGoogleAuth();
 	const [isExporting, setIsExporting] = useState(false);
+
+	// Google-only deployments have nothing to choose on /login: it renders a
+	// lone Google button. Export is the one thing this page exists for, so
+	// send them straight to the provider instead of through that page.
+	function signIn() {
+		if (!isGoogleAuth) {
+			redirectToLogin();
+			return;
+		}
+		trackLoginAttempt("google");
+		window.location.href = buildBackendUrl("/auth/google/authorize-redirect");
+	}
+
+	// Session status resolves asynchronously and can settle before hydration
+	// finishes, so deriving `disabled`/label straight from it made the first
+	// client render disagree with the server-rendered HTML. Gating on mount
+	// keeps the initial paint identical on both sides; the real state takes
+	// over a tick later.
+	const [mounted, setMounted] = useState(false);
+	useEffect(() => setMounted(true), []);
 
 	async function handleExport() {
 		if (isExporting) return;
 		if (session.status !== "authenticated") {
-			redirectToLogin();
+			signIn();
 			return;
 		}
 
@@ -56,14 +82,12 @@ export function SunsetExport() {
 				skipAuthRedirect: true,
 			});
 			if (response.status === 401) {
-				redirectToLogin();
+				signIn();
 				return;
 			}
 			if (!response.ok) {
 				const errorData = await response.json().catch(() => ({ detail: "Export failed" }));
-				throw new Error(
-					typeof errorData.detail === "string" ? errorData.detail : "Export failed"
-				);
+				throw new Error(typeof errorData.detail === "string" ? errorData.detail : "Export failed");
 			}
 
 			const blob = await response.blob();
@@ -83,38 +107,28 @@ export function SunsetExport() {
 	}
 
 	const sessionLoading = session.status === "loading";
-	const busy = sessionLoading || isExporting;
-	const signedIn = session.status === "authenticated";
+	const busy = mounted && (sessionLoading || isExporting);
+	const signedIn = mounted && session.status === "authenticated";
 
 	return (
-		<Card className="bg-card/80">
-			<CardHeader>
-				<CardTitle className="text-balance">Export your account</CardTitle>
-				<CardDescription className="text-pretty">
-					Downloads every workspace you can access: ready documents as markdown, folder structure,
-					and chat threads.
-				</CardDescription>
-			</CardHeader>
-			<CardContent>
-				<p className="text-pretty text-sm text-muted-foreground">
-					Original uploads, generated artifacts, tool calls, agent steps, and live citation links
-					are not included.
-				</p>
-			</CardContent>
-			<CardFooter>
-				<Button
-					type="button"
-					size="lg"
-					disabled={busy}
-					onClick={() => void handleExport()}
-					className="relative min-h-11 w-fit shrink-0 active:scale-[0.96] transition-transform"
-				>
-					<span className={busy ? "opacity-0" : ""}>
-						{signedIn ? "Export account" : "Sign in to export"}
-					</span>
-					{busy ? <Spinner size="sm" className="absolute" /> : null}
-				</Button>
-			</CardFooter>
-		</Card>
+		<div className="mt-6 flex flex-col items-start">
+			<HomeButton
+				type="button"
+				size="xl"
+				disabled={busy}
+				onClick={() => void handleExport()}
+				className="relative w-fit shrink-0"
+			>
+				<span className={busy ? "opacity-0" : ""}>
+					{signedIn ? "Export account" : "Sign in to export"}
+				</span>
+				{busy ? <Spinner size="sm" className="absolute" /> : null}
+			</HomeButton>
+			<p className="ss-home-body mt-4 max-w-xl text-sm text-pretty">
+				The ZIP holds every workspace you can access: ready documents as markdown, the folder
+				structure, and your chat threads. It does not carry original uploads, generated artifacts,
+				tool calls, agent steps or live citation links.
+			</p>
+		</div>
 	);
 }

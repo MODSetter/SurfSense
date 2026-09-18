@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  ComputerEthernetIcon,
   CpuIcon,
   InformationCircleIcon,
   LicenseIcon,
@@ -19,10 +20,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { NetworkSettings } from "@/features/egress/network-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/model-selection/api"
+import { UpdateSettings } from "@/features/updates/update-settings"
 import { cn } from "@/lib/utils"
 
 import { AppearanceToggle } from "./appearance-toggle"
@@ -35,7 +38,7 @@ type SettingsNavItem = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
-export type SettingsSectionId = "general" | "models" | "license"
+export type SettingsSectionId = "general" | "models" | "network" | "license"
 
 const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
 
@@ -74,7 +77,7 @@ function GeneralSettings({
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none before:absolute before:inset-[-10px]"
+                  className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 before:absolute before:inset-[-10px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                   aria-label="More about importing from SurfSense cloud"
                 >
                   <InformationCircleIcon
@@ -86,9 +89,11 @@ function GeneralSettings({
               <TooltipContent
                 side="top"
                 collisionPadding={12}
-                className="max-w-64 font-normal leading-5"
+                className="max-w-64 leading-5 font-normal"
               >
-                Your workspaces, folders, and chats come with it. Documents come in as text and get indexed after import. Original files and generated artifacts stay in the cloud.
+                Your workspaces, folders, and chats come with it. Documents come
+                in as text and get indexed after import. Original files and
+                generated artifacts stay in the cloud.
               </TooltipContent>
             </Tooltip>
           </div>
@@ -107,6 +112,7 @@ function GeneralSettings({
         </div>
         <ImportBundleButton onImported={onImported} />
       </div>
+      <UpdateSettings />
     </SettingsSection>
   )
 }
@@ -122,6 +128,11 @@ const SETTINGS_SECTIONS = [
     id: "models",
     label: "Models",
     icon: CpuIcon,
+  },
+  {
+    id: "network",
+    label: "Network",
+    icon: ComputerEthernetIcon,
   },
   {
     id: "license",
@@ -201,6 +212,7 @@ export function SettingsDialog({
                 onSelected={onModelSelected}
               />
             ) : null}
+            {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
           </section>
         </div>

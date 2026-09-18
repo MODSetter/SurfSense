@@ -1,6 +1,11 @@
 import { requestJson, requestVoid } from "@/lib/api"
 
-export type DocumentStatus = "pending" | "processing" | "ready" | "failed"
+export type DocumentStatus =
+  | "pending"
+  | "processing"
+  | "ready"
+  | "failed"
+  | "cancelled"
 
 export type WorkspaceDocument = {
   id: number
@@ -100,6 +105,17 @@ export function retryDocument(
 ): Promise<WorkspaceDocument> {
   return requestJson<WorkspaceDocument>(
     `/workspaces/${workspaceId}/documents/${documentId}/retry`,
+    { method: "POST", signal }
+  )
+}
+
+export function cancelDocument(
+  workspaceId: number,
+  documentId: number,
+  signal?: AbortSignal
+): Promise<WorkspaceDocument> {
+  return requestJson<WorkspaceDocument>(
+    `/workspaces/${workspaceId}/documents/${documentId}/cancel`,
     { method: "POST", signal }
   )
 }

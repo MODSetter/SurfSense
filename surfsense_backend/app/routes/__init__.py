@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
-# Import verb namespaces for their registration side effects before the door builds.
+# Imported for their registration side effects before the door builds: verb
+# namespaces, and licensing laying claim to its slice of the Stripe webhook.
 import app.capabilities.amazon
 import app.capabilities.google_maps
 import app.capabilities.google_search
@@ -10,14 +11,17 @@ import app.capabilities.reddit
 import app.capabilities.tiktok
 import app.capabilities.walmart
 import app.capabilities.web
-import app.capabilities.youtube  # noqa: F401
+import app.capabilities.youtube
+import app.license.purchase  # noqa: F401
 from app.artifacts.access.authenticated import build_authenticated_artifact_router
 from app.automations.api import router as automations_router
 from app.capabilities.core.access.rest import build_capabilities_router
 from app.file_storage.api import router as file_storage_router
 from app.gateway import require_gateway_enabled
 from app.knowledge_store.remote.api import router as git_remotes_router
+from app.license.router import router as license_router
 from app.notifications.api import router as notifications_router
+from app.payments.router import router as stripe_router
 from app.podcasts.api import router as podcasts_router
 
 from .agent_action_log_route import router as agent_action_log_router
@@ -77,7 +81,6 @@ from .rbac_routes import router as rbac_router
 from .sandbox_routes import router as sandbox_router
 from .search_source_connectors_routes import router as search_source_connectors_router
 from .slack_add_connector_route import router as slack_add_connector_router
-from .stripe_routes import router as stripe_router
 from .team_memory_routes import router as team_memory_router
 from .teams_add_connector_route import router as teams_add_connector_router
 from .workspaces_routes import router as workspaces_router
@@ -145,6 +148,7 @@ router.include_router(composio_router)  # Composio OAuth and toolkit management
 router.include_router(public_chat_router)  # Public chat sharing and cloning
 router.include_router(incentive_tasks_router)  # Incentive tasks for earning free pages
 router.include_router(stripe_router)  # Stripe checkout for additional page packs
+router.include_router(license_router)  # Offline desktop license files
 router.include_router(youtube_router)  # YouTube playlist resolution
 router.include_router(prompts_router)
 router.include_router(memory_router)  # User personal memory (memory.md style)

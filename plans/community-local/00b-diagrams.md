@@ -47,7 +47,9 @@
                              ▼
                     llmfit hardware scan
                              ▼
-                 Recommended + Explore
+                  Curated + Explore
+           (Curated and Installed render with no
+            scan; only Explore needs one)
                              ▼
                  one-click Download & Use
                              ▼
@@ -94,7 +96,20 @@ STUDIO (button)
   pick artifact type → pick documents → optional prompt
     → retrieve (app) → LLM → builder → artifacts row + file
 
-  infographic → generation model → strict spec → deterministic SVG/HTML builder
-  image       → image_generation selection
+  infographic → generation model writes a brief
+                → image_generation selection paints it → artifact file
+  image       → generation model writes a prompt
+                → image_generation selection
                 → /images/generations (or /images on 404/405) → artifact file
+
+  both formats take the one image_generation selection, which resolves to
+  either a remote connection or the bundled local sd-server (sdcpp);
+  sd-server is loopback, so that path needs no key and takes no egress
+  decision
 ```
+
+Infographic is drawn here as an image path, which is what shipped. Earlier
+versions of this diagram and of [`api/05b`](api/05b-openai-compatible-connections.md)
+showed it as a deterministic SVG/HTML builder needing only the generation role;
+no such builder was written, and `formats.py` gives `infographic` the same
+`requires_roles` as `image`.

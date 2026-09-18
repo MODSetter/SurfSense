@@ -1,0 +1,33 @@
+{"id": "09150404-1766-0139-0000-2373b42f1d1b", "status_code": 20000, "endpoint": "serp/google/organic/live/advanced", "pulled": "2026-09-14", "keyword": "study guide maker", "location_code": 2840, "language_code": "en", "device": "desktop", "depth": 20, "note": "Trimmed to the fields parse.py render_serp reads. Every organic result is a dedicated study-guide feature page; the AI Overview sits at absolute position 4.",
+ "items": [
+  {"type": "organic", "rank_absolute": 1, "domain": "www.remnote.com", "title": "AI Study Guide Maker From Notes and PDFs", "url": "https://www.remnote.com/feature/study-guide-maker", "description": "Create a study guide in seconds. This AI study guide maker turns notes or PDFs into summaries, flashcards, and quizzes for smarter studying."},
+  {"type": "organic", "rank_absolute": 2, "domain": "flintk12.com", "title": "AI study guide maker - Flint", "url": "https://flintk12.com/tools/ai-study-guide-maker", "description": "The AI Study Guide Maker helps students organize their class notes into comprehensive, personalized, and interactive study materials."},
+  {"type": "organic", "rank_absolute": 3, "domain": "www.studyfetch.com", "title": "Study Guide Maker | AI Study Guide Generator", "url": "https://www.studyfetch.com/study-guide-maker", "description": "Make a study guide from your PDFs, slides, notes, or a YouTube lecture. StudyFetch writes the guide, then turns it into flashcards, quizzes, and a plan."},
+  {"type": "ai_overview", "rank_absolute": 4, "references": [
+    {"domain": "quizlet.com", "title": "Study Guides: Turn Notes into Flashcards, Quizzes & More | Quizlet", "url": "https://quizlet.com/study-guides/upload"},
+    {"domain": "www.studyfetch.com", "title": "Study Guide Maker", "url": "https://www.studyfetch.com/study-guide-maker"},
+    {"domain": "scribe.com", "title": "AI Study Guide Maker - Scribe", "url": "https://scribe.com/tools/ai-study-guide-maker"},
+    {"domain": "www.penseum.com", "title": "Penseum: Free AI Study Tool & Study Guide Maker", "url": "https://www.penseum.com/"}],
+   "summary": "Names Scribe, Penseum, Quizlet and StudyFetch as 'Top Study Guide Makers', each described as turning notes, PDFs and slide decks into guides, flashcards and practice tests; ends by offering to build a practice quiz in Gemini itself."},
+  {"type": "organic", "rank_absolute": 5, "domain": "www.penseum.com", "title": "Penseum: Free AI Study Tool & Study Guide Maker", "url": "https://www.penseum.com/", "description": "Generate notes, flashcards and quizzes in seconds with Penseum's free AI study guide maker."},
+  {"type": "organic", "rank_absolute": 6, "domain": "scribe.com", "title": "AI Study Guide Maker", "url": "https://scribe.com/tools/ai-study-guide-maker"},
+  {"type": "organic", "rank_absolute": 7, "domain": "quizlet.com", "title": "AI Study Guide Maker: Instantly Summarize Notes, PDFs ...", "url": "https://quizlet.com/features/study-guides"},
+  {"type": "organic", "rank_absolute": 8, "domain": "notegpt.io", "title": "AI Study Guide Maker - Make Study Guide with AI Free", "url": "https://notegpt.io/ai-study-guide-maker", "rating": "4.9 (16,879)"},
+  {"type": "people_also_ask", "rank_absolute": 9, "items": [
+    {"title": "How can I create my own study guide?"},
+    {"title": "Can Chatgpt create a study guide?"},
+    {"title": "Which study guide creator is the best?"},
+    {"title": "Can AI create study guides from PDFs?"}]},
+  {"type": "organic", "rank_absolute": 10, "domain": "www.reddit.com", "title": "AI to Help Make Study Guide/Activities? : r/Teachers", "url": "https://www.reddit.com/r/Teachers/comments/1hmfzlg/ai_to_help_make_study_guideactivities/"},
+  {"type": "organic", "rank_absolute": 11, "domain": "quizgecko.com", "title": "Quizgecko | AI Study Tools for Quizzes, Flashcards & Notes", "url": "https://quizgecko.com/", "sitelinks": ["/ai-study-guide-maker", "/quiz-generator", "/flashcard-generator", "/ai-note-maker"]},
+  {"type": "organic", "rank_absolute": 12, "domain": "notesight.co", "title": "Generate AI-Powered Study Guides", "url": "https://notesight.co/features/automated-studyguides"},
+  {"type": "organic", "rank_absolute": 13, "domain": "studypdf.net", "title": "Free AI Study Guide Generator", "url": "https://studypdf.net/use-cases/study-guide-generator"},
+  {"type": "organic", "rank_absolute": 14, "domain": "www.studyfetch.com", "title": "StudyFetch | The Top AI Learning Platform", "url": "https://www.studyfetch.com/"},
+  {"type": "organic", "rank_absolute": 15, "domain": "www.getcoralai.com", "title": "https://www.getcoralai.com/blog/study-guide-maker", "url": "https://www.getcoralai.com/blog/study-guide-maker"},
+  {"type": "organic", "rank_absolute": 16, "domain": "notehive.app", "title": "Free Study Guide Creator: Best Free Options in 2026", "url": "https://notehive.app/blog/study-guide-creator-free"},
+  {"type": "organic", "rank_absolute": 17, "domain": "studinotes.com", "title": "Best AI Study Guide Generator & Notes Maker", "url": "https://studinotes.com/en/ai-study-guide-generator"},
+  {"type": "organic", "rank_absolute": 18, "domain": "www.mindgrasp.ai", "title": "AI Study Guide Maker | Create Study Guides from Notes", "url": "https://www.mindgrasp.ai/ai-study-guide-maker"},
+  {"type": "organic", "rank_absolute": 19, "domain": "www.youtube.com", "title": "This is the Ultimate Study Guide Maker", "url": "https://www.youtube.com/watch?v=NUoSYbPie5c"},
+  {"type": "organic", "rank_absolute": 20, "domain": "homeworkaid.ai", "title": "Study Guide Maker", "url": "https://homeworkaid.ai/study-guide-maker"},
+  {"type": "organic", "rank_absolute": 21, "domain": "linnk.ai", "title": "Study Guide Maker: Create Effective Study Materials Instantly", "url": "https://linnk.ai/tools/study-guide-maker/"}
+ ]}

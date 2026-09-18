@@ -21,6 +21,8 @@ export interface SidecarContext {
   host: string
   apiPort: number
   dataDir: string
+  /** Per-install secret the backend encrypts provider API keys with. */
+  secret: string
   /** Packaged: read-only bundled embedding, voice, and Docling parser packs. */
   modelsDir?: string
   /** Packaged: absolute path to the pinned llmfit executable. */
@@ -29,4 +31,8 @@ export interface SidecarContext {
   ollamaPort?: number
   ollamaModelsDir?: string
   ollamaUrl?: string
+  /** Packaged: the bundled sd-server's port, model dir, and URL for API + worker. */
+  imagePort?: number
+  imageModelsDir?: string
+  imageUrl?: string
 }

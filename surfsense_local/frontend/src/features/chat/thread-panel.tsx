@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import {
-  BotIcon,
   ChevronDownIcon,
   PencilIcon,
-  Settings2Icon,
   Trash2Icon,
 } from "@/components/ui/icons"
 
@@ -14,7 +12,6 @@ import {
   useAui,
 } from "@assistant-ui/react"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import {
@@ -81,7 +78,6 @@ export function ThreadPanel({
   thread,
   view,
   model,
-  error,
   isLoading,
   isRunning,
   isUploading,
@@ -90,7 +86,9 @@ export function ThreadPanel({
   onCitation,
   onModelSetup,
   onModelSelected,
+  onRetry,
   onUpload,
+  sourceCount,
   onTitleAnimationComplete,
   autoNamingThreadId,
   onRename,
@@ -100,15 +98,16 @@ export function ThreadPanel({
   thread: ChatThread | null
   view: ConversationView
   model: ModelSelection | null
-  error: string | null
   isLoading: boolean
   isRunning: boolean
   isUploading: boolean
   animateTitle: boolean
   providerAvailable: boolean
+  sourceCount: number
   onCitation: (chunkId: number) => void
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
+  onRetry: (assistantId: string) => void
   onUpload: (files: File[]) => void
   onTitleAnimationComplete: () => void
   autoNamingThreadId: number | null
@@ -131,6 +130,7 @@ export function ThreadPanel({
       key={conversationId}
       placement={placement}
       model={model}
+      sourceCount={sourceCount}
       isRunning={isRunning}
       isUploading={isUploading}
       providerAvailable={providerAvailable}
@@ -139,6 +139,7 @@ export function ThreadPanel({
       onUpload={onUpload}
     />
   )
+  const bottomFooter = bottomComposer ? composer("bottom") : undefined
 
   useEffect(() => {
     if (editing) {
@@ -197,7 +198,7 @@ export function ThreadPanel({
               }}
             />
           ) : (
-            <ButtonGroup aria-label="Chat">
+            <ButtonGroup aria-label="Chat" className="max-w-lg min-w-0">
               <Button
                 type="button"
                 variant="ghost"
@@ -205,7 +206,7 @@ export function ThreadPanel({
                 className="h-auto min-w-0 max-w-full px-1.5 py-0 font-heading text-base font-medium active:translate-y-0"
                 onClick={startEditing}
               >
-                <span className="truncate">
+                <span className="sidebar-row-title-fade min-w-0 overflow-hidden whitespace-nowrap">
                   <TypewriterText
                     text={title}
                     animate={animateTitle}
@@ -261,24 +262,8 @@ export function ThreadPanel({
           )}
         </header>
 
-        {error ? (
-          <Alert variant="destructive" className="m-4 mb-0 w-auto">
-            <BotIcon />
-            <AlertTitle>Chat could not continue</AlertTitle>
-            <AlertDescription className="flex items-center justify-between gap-4">
-              <span>{error}</span>
-              <Button variant="outline" size="sm" onClick={onModelSetup}>
-                <Settings2Icon />
-                Model setup
-              </Button>
-            </AlertDescription>
-          </Alert>
-        ) : null}
-
         <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">
-          <ChatViewport
-            footer={bottomComposer ? composer("bottom") : undefined}
-          >
+          <ChatViewport footer={bottomFooter}>
             {isLoading ? (
               <div className="mx-auto flex w-full max-w-xl flex-col">
                 <div className="flex flex-col items-end px-6 py-3">
@@ -305,6 +290,8 @@ export function ThreadPanel({
                     <AssistantMessage
                       citations={citationsFrom(message)}
                       onCitation={onCitation}
+                      onModelSetup={onModelSetup}
+                      onRetry={onRetry}
                     />
                   )
                 }

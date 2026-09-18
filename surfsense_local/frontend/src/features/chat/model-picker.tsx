@@ -68,8 +68,12 @@ export function ModelPicker({
 
   const needle = query.trim().toLowerCase()
   const visibleModels = (installed.data ?? []).filter((candidate) =>
-    candidate.name.toLowerCase().includes(needle)
+    (candidate.display_name ?? candidate.name).toLowerCase().includes(needle)
   )
+  const selectedCandidate = installed.data?.find(
+    (candidate) => modelKey(candidate) === modelKey(model)
+  )
+  const selectedLabel = selectedCandidate?.display_name ?? model.name
 
   return (
     <DropdownMenu
@@ -86,9 +90,9 @@ export function ModelPicker({
           type="button"
           className={cn(modelControlButtonClassName, className)}
           title="Change model"
-          aria-label={`Model ${model.name}. Change model.`}
+          aria-label={`Model ${selectedLabel}. Change model.`}
         >
-          <span className="max-w-48 truncate">{model.name}</span>
+          <span className="max-w-48 truncate">{selectedLabel}</span>
           <ChevronDownIcon className="size-3" />
         </button>
       </DropdownMenuTrigger>
@@ -137,7 +141,7 @@ export function ModelPicker({
                         className={selected ? "pr-8" : "pr-1.5"}
                       >
                         <span className="sidebar-row-title-fade min-w-0 flex-1 overflow-hidden whitespace-nowrap">
-                          {candidate.name}
+                          {candidate.display_name ?? candidate.name}
                           {candidate.connection_label ? (
                             <span className="ml-1 inline-flex items-center gap-1 align-middle text-muted-foreground">
                               <DotIcon

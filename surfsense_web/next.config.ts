@@ -2,6 +2,7 @@ import path from "node:path";
 import { createMDX } from "fumadocs-mdx/next";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { docsRedirects } from "./lib/docs-redirects";
 
 // Create the next-intl plugin
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
@@ -16,6 +17,10 @@ const nextConfig: NextConfig = {
 			// /mcp-connector was split into the two MCP directions; the external
 			// (client) side kept the original content.
 			{ source: "/mcp-connector", destination: "/external-mcp-connectors", permanent: true },
+			// The connectors index was renamed to /plugins, which is what the
+			// product calls them everywhere else.
+			{ source: "/connectors", destination: "/plugins", permanent: true },
+			...docsRedirects,
 		];
 	},
 	outputFileTracingRoot: path.join(__dirname, ".."),

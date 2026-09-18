@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
-from modules.documents.models import Document, DocumentType
+from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
@@ -15,31 +15,50 @@ from worker.ingestion import run
 pytestmark = pytest.mark.integration
 
 FINANCE = "Quarterly revenue climbed after the spring product launch."
+CAT = "The feline dozed on the warm windowsill."
 
 
-def _seed(engine: Engine) -> tuple[int, int]:
-    """A workspace with one ingested doc and a chosen chat model."""
+def _seed(
+    engine: Engine, notes: dict[str, str] | None = None
+) -> tuple[int, dict[str, int]]:
+    """A workspace of ingested notes and a chosen chat model."""
+    notes = notes or {"note": FINANCE}
     with create_session_factory(engine)() as session:
         workspace = Workspace(name="Notes")
         session.add(workspace)
         session.flush()
-        doc = Document(
-            workspace_id=workspace.id,
-            title="note",
-            document_type=DocumentType.NOTE,
-            content=FINANCE,
-        )
-        session.add(doc)
+        ids: dict[str, int] = {}
+        for title, content in notes.items():
+            doc = Document(
+                workspace_id=workspace.id,
+                title=title,
+                document_type=DocumentType.NOTE,
+                content=content,
+            )
+            session.add(doc)
+            session.flush()
+            ids[title] = doc.id
         session.add(
             SelectedModel(
                 role=ModelRole.GENERATION, provider="ollama", name="qwen3:1.7b"
             )
         )
         session.commit()
-        ids = (workspace.id, doc.id)
+        workspace_id = workspace.id
 
-    run(ids[1])
-    return ids
+    for doc_id in ids.values():
+        run(doc_id)
+    return workspace_id, ids
+
+
+def _choose_generation_model(engine: Engine) -> None:
+    with create_session_factory(engine)() as session:
+        session.add(
+            SelectedModel(
+                role=ModelRole.GENERATION, provider="ollama", name="qwen3:1.7b"
+            )
+        )
+        session.commit()
 
 
 async def _open_thread(client: AsyncClient, workspace_id: int) -> int:
@@ -47,10 +66,18 @@ async def _open_thread(client: AsyncClient, workspace_id: int) -> int:
     return reply.json()["id"]
 
 
-async def _send(client: AsyncClient, thread_id: int, text: str) -> list[dict]:
+async def _send(
+    client: AsyncClient,
+    thread_id: int,
+    text: str,
+    document_ids: list[int] | None = None,
+) -> list[dict]:
     events: list[dict] = []
+    body: dict = {"text": text}
+    if document_ids is not None:
+        body["document_ids"] = document_ids
     async with client.stream(
-        "POST", f"/chat/threads/{thread_id}/messages", json={"text": text}
+        "POST", f"/chat/threads/{thread_id}/messages", json=body
     ) as reply:
         assert reply.status_code == 200
         assert reply.headers["content-type"].startswith("text/event-stream")
@@ -89,7 +116,8 @@ async def test_a_message_streams_a_grounded_reply(
     client: AsyncClient, engine: Engine, real_model: object, ollama_server: list[dict]
 ) -> None:
     """Deltas arrive, the citation tail names the source doc, both turns persist."""
-    workspace_id, doc_id = _seed(engine)
+    workspace_id, ids = _seed(engine)
+    doc_id = ids["note"]
     thread_id = await _open_thread(client, workspace_id)
 
     events = await _send(client, thread_id, "what happened to revenue?")
@@ -139,15 +167,86 @@ async def test_a_message_streams_a_grounded_reply(
     threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
     assert threads[0]["title"] == "Revenue Growth"
     assert ollama_server[0]["think"] is False
-    assert ollama_server[0]["options"] == {"num_predict": 12, "temperature": 0}
-    assert "options" not in ollama_server[1]
+    assert ollama_server[0]["options"] == {
+        "num_predict": 12,
+        "temperature": 0,
+        "num_ctx": 4096,
+    }
+    assert ollama_server[1]["options"] == {"num_ctx": 4096}
+
+
+async def test_a_message_retrieves_only_from_selected_sources(
+    client: AsyncClient, engine: Engine, real_model: object, ollama_server: list[dict]
+) -> None:
+    """document_ids is the RAG scope: an unselected source cannot be cited."""
+    workspace_id, ids = _seed(engine, {"finance": FINANCE, "cat": CAT})
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(
+        client,
+        thread_id,
+        "what happened to revenue?",
+        document_ids=[ids["cat"]],
+    )
+
+    catalog = next(event for event in events if event["type"] == "citation-catalog")
+    assert catalog["items"]
+    assert {item["document_id"] for item in catalog["items"]} == {ids["cat"]}
+
+
+async def test_a_message_rejects_a_source_from_another_workspace(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """A selected id must belong to this thread's workspace."""
+    _choose_generation_model(engine)
+    workspace = (await client.post("/workspaces", json={"name": "Mine"})).json()
+    other = (await client.post("/workspaces", json={"name": "Other"})).json()
+    with create_session_factory(engine)() as session:
+        foreign = Document(
+            workspace_id=other["id"],
+            title="foreign",
+            document_type=DocumentType.NOTE,
+            status=DocumentStatus.READY,
+            content="x",
+        )
+        session.add(foreign)
+        session.commit()
+        foreign_id = foreign.id
+    thread_id = await _open_thread(client, workspace["id"])
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages",
+        json={"text": "hi", "document_ids": [foreign_id]},
+    )
+
+    assert reply.status_code == 422
+
+
+async def test_a_message_waits_for_a_source_to_index(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """A pending note is not searchable yet, so it cannot ground a turn."""
+    _choose_generation_model(engine)
+    workspace = (await client.post("/workspaces", json={"name": "w"})).json()
+    note = await client.post(
+        f"/workspaces/{workspace['id']}/documents",
+        json={"title": "Draft", "content": "unindexed"},
+    )
+    thread_id = await _open_thread(client, workspace["id"])
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages",
+        json={"text": "hi", "document_ids": [int(note.json()["id"])]},
+    )
+
+    assert reply.status_code == 409
 
 
 async def test_a_followup_carries_the_earlier_turn(
     client: AsyncClient, engine: Engine, real_model: object, ollama_server: list[dict]
 ) -> None:
     """The second message hands the model the first turn as history."""
-    workspace_id, _ = _seed(engine)
+    workspace_id, _ids = _seed(engine)
     thread_id = await _open_thread(client, workspace_id)
 
     await _send(client, thread_id, "first question")
@@ -184,6 +283,31 @@ async def test_title_failure_does_not_block_the_answer(
         "".join(event["text"] for event in events if event["type"] == "delta")
         == "Revenue climbed after the launch [1]."
     )
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "New chat"
+
+
+async def test_a_failed_reply_is_classified_and_leaves_no_trace(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    ollama_server_unauthorized: None,
+) -> None:
+    """A generation failure is classified, not shown raw, and the turn is discarded."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened?")
+
+    error = next(event for event in events if event["type"] == "error")
+    assert error["kind"] == "provider_auth"
+    assert "HTTPStatusError" not in error["message"]
+    assert "401" not in error["message"]
+    assert not any(event["type"] == "completed" for event in events)
+    assert not any(event["type"] == "thread-title-update" for event in events)
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored == []
     threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
     assert threads[0]["title"] == "New chat"
 

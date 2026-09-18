@@ -1,0 +1,2347 @@
+{
+  "id": "09150142-1766-0607-0000-b730df1b579c",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "items": [
+    {
+      "keyword": "apps like notebooklm",
+      "keyword_info": {
+        "last_updated_time": "2026-08-28 23:52:09 +00:00",
+        "competition": 0.58,
+        "competition_level": "MEDIUM",
+        "cpc": 6.79,
+        "search_volume": 50,
+        "low_top_of_page_bid": 2.3,
+        "high_top_of_page_bid": 8.7,
+        "categories": [
+          10019
+        ],
+        "monthly_searches": {
+          "2026-07": 30,
+          "2026-06": 40,
+          "2026-05": 50,
+          "2026-04": 70,
+          "2026-03": 70,
+          "2026-02": 70,
+          "2026-01": 50,
+          "2025-12": 50,
+          "2025-11": 50,
+          "2025-10": 70,
+          "2025-09": 70,
+          "2025-08": 50
+        },
+        "search_volume_trend": {
+          "monthly": -25,
+          "quarterly": -40
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=apps%20like%20notebooklm&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 121,
+        "last_updated_time": "2026-08-13 14:18:24 +00:00",
+        "previous_updated_time": "2026-05-10 08:51:21 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 3.4,
+        "dofollow": 2.7,
+        "referring_pages": 3.2,
+        "referring_domains": 1.7,
+        "referring_main_domains": 1.7,
+        "rank": 17.5,
+        "main_domain_rank": 482.3,
+        "last_updated_time": "2026-08-13 14:18:27 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "transactional",
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 03:27:25 +00:00"
+      }
+    },
+    {
+      "keyword": "how to use notebooklm",
+      "keyword_info": {
+        "last_updated_time": "2026-08-25 06:10:41 +00:00",
+        "competition": 0.11,
+        "competition_level": "LOW",
+        "cpc": 6.37,
+        "search_volume": 2900,
+        "low_top_of_page_bid": 1.22,
+        "high_top_of_page_bid": 10.31,
+        "categories": [
+          10019,
+          10019,
+          10168,
+          10168,
+          10883,
+          10883,
+          12187,
+          12187,
+          13069,
+          13070
+        ],
+        "monthly_searches": {
+          "2026-07": 1900,
+          "2026-06": 1900,
+          "2026-05": 2900,
+          "2026-04": 3600,
+          "2026-03": 3600,
+          "2026-02": 3600,
+          "2026-01": 3600,
+          "2025-12": 2400,
+          "2025-11": 1900,
+          "2025-10": 2400,
+          "2025-09": 2400,
+          "2025-08": 1900
+        },
+        "search_volume_trend": {
+          "quarterly": -34
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 25,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=how%20to%20use%20notebooklm&num=100&hl=en&gl=US&gws_rd=cr&ie=UTF-8&oe=UTF-8&glp=1&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "featured_snippet",
+          "people_also_ask",
+          "organic",
+          "discussions_and_forums",
+          "related_searches"
+        ],
+        "se_results_count": 46800,
+        "last_updated_time": "2024-06-06 05:39:47 +00:00",
+        "previous_updated_time": "2024-04-24 01:47:40 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 396.7,
+        "dofollow": 254.8,
+        "referring_pages": 335.6,
+        "referring_domains": 143.9,
+        "referring_main_domains": 135.5,
+        "rank": 151.4,
+        "main_domain_rank": 645.1,
+        "last_updated_time": "2024-06-06 05:39:48 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 16:26:37 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm alternative open source",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 21:22:26 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          13114
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 20,
+          "2026-04": 30,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 30,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 20,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebooklm open source alternative",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 4,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-02 21:13:37 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm alternative reddit",
+      "keyword_info": {
+        "last_updated_time": "2026-08-24 20:23:48 +00:00",
+        "competition": 0.06,
+        "competition_level": "LOW",
+        "search_volume": 10,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 20,
+          "2025-09": 10,
+          "2025-08": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebooklm alternatives reddit",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 8,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 16:57:23 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm alternatives",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 12:33:13 +00:00",
+        "competition": 0.2,
+        "competition_level": "LOW",
+        "cpc": 13.16,
+        "search_volume": 590,
+        "low_top_of_page_bid": 2.45,
+        "high_top_of_page_bid": 7.68,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 320,
+          "2026-07": 480,
+          "2026-06": 480,
+          "2026-05": 590,
+          "2026-04": 720,
+          "2026-03": 880,
+          "2026-02": 720,
+          "2026-01": 720,
+          "2025-12": 590,
+          "2025-11": 590,
+          "2025-10": 590,
+          "2025-09": 720
+        },
+        "search_volume_trend": {
+          "monthly": -33,
+          "quarterly": -33,
+          "yearly": -46
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebooklm alternative",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20alternatives&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "perspectives",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 116,
+        "last_updated_time": "2026-08-02 22:06:45 +00:00",
+        "previous_updated_time": "2026-05-21 03:22:46 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 2.1,
+        "dofollow": 1.3,
+        "referring_pages": 1.9,
+        "referring_domains": 1.6,
+        "referring_main_domains": 1.6,
+        "rank": 11.1,
+        "main_domain_rank": 439.3,
+        "last_updated_time": "2026-08-02 22:08:03 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "commercial"
+        ],
+        "last_updated_time": "2026-04-29 15:58:29 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm android",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 02:22:54 +00:00",
+        "competition": 0.16,
+        "competition_level": "LOW",
+        "cpc": 3.05,
+        "search_volume": 70,
+        "low_top_of_page_bid": 1.02,
+        "high_top_of_page_bid": 4.03,
+        "categories": [
+          10019,
+          10019,
+          10168,
+          10883,
+          12187
+        ],
+        "monthly_searches": {
+          "2026-07": 90,
+          "2026-06": 70,
+          "2026-05": 40,
+          "2026-04": 50,
+          "2026-03": 70,
+          "2026-02": 70,
+          "2026-01": 70,
+          "2025-12": 70,
+          "2025-11": 110,
+          "2025-10": 90,
+          "2025-09": 110,
+          "2025-08": 110
+        },
+        "search_volume_trend": {
+          "monthly": 29,
+          "quarterly": 125,
+          "yearly": -47
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 31,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20android&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 44,
+        "last_updated_time": "2026-07-15 10:26:54 +00:00",
+        "previous_updated_time": "2026-04-30 04:37:45 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 10641.1,
+        "dofollow": 8534.4,
+        "referring_pages": 9550.4,
+        "referring_domains": 1271.4,
+        "referring_main_domains": 1171.4,
+        "rank": 176.4,
+        "main_domain_rank": 660.2,
+        "last_updated_time": "2026-07-15 10:26:54 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 18:26:26 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm app",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 14:32:23 +00:00",
+        "competition": 0.25,
+        "competition_level": "LOW",
+        "cpc": 3.3,
+        "search_volume": 2900,
+        "low_top_of_page_bid": 1.11,
+        "high_top_of_page_bid": 4.4,
+        "categories": [
+          10019
+        ],
+        "monthly_searches": {
+          "2026-08": 2900,
+          "2026-07": 2400,
+          "2026-06": 2400,
+          "2026-05": 2900,
+          "2026-04": 2900,
+          "2026-03": 3600,
+          "2026-02": 3600,
+          "2026-01": 2900,
+          "2025-12": 2400,
+          "2025-11": 2400,
+          "2025-10": 2400,
+          "2025-09": 2900
+        },
+        "search_volume_trend": {
+          "monthly": 21,
+          "quarterly": 21
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm app",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 62,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20app&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "product_considerations",
+          "perspectives",
+          "related_searches",
+          "knowledge_graph"
+        ],
+        "se_results_count": 134,
+        "last_updated_time": "2026-07-30 23:35:21 +00:00",
+        "previous_updated_time": "2026-05-17 08:25:30 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 20596.5,
+        "dofollow": 15491.9,
+        "referring_pages": 18546.4,
+        "referring_domains": 2268.6,
+        "referring_main_domains": 2083.9,
+        "rank": 278.5,
+        "main_domain_rank": 777.3,
+        "last_updated_time": "2026-07-30 23:35:21 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 15:53:32 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm audio overview",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 00:57:26 +00:00",
+        "competition": 0.09,
+        "competition_level": "LOW",
+        "cpc": 3.36,
+        "search_volume": 140,
+        "low_top_of_page_bid": 1.36,
+        "high_top_of_page_bid": 5.11,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          11368,
+          12703
+        ],
+        "monthly_searches": {
+          "2026-08": 210,
+          "2026-07": 140,
+          "2026-06": 90,
+          "2026-05": 140,
+          "2026-04": 140,
+          "2026-03": 140,
+          "2026-02": 140,
+          "2026-01": 140,
+          "2025-12": 110,
+          "2025-11": 90,
+          "2025-10": 170,
+          "2025-09": 140
+        },
+        "search_volume_trend": {
+          "monthly": 50,
+          "quarterly": 133,
+          "yearly": 50
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 5,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20audio%20overview&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 107,
+        "last_updated_time": "2026-09-14 23:15:50 +00:00",
+        "previous_updated_time": "2026-07-11 05:16:39 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 37.7,
+        "dofollow": 22.1,
+        "referring_pages": 35.4,
+        "referring_domains": 19.3,
+        "referring_main_domains": 9.2,
+        "rank": 68.8,
+        "main_domain_rank": 590.7,
+        "last_updated_time": "2026-09-14 23:15:51 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 19:55:55 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm chrome extension",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 23:59:08 +00:00",
+        "competition": 0.02,
+        "competition_level": "LOW",
+        "cpc": 6.7,
+        "search_volume": 170,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12204,
+          13406
+        ],
+        "monthly_searches": {
+          "2026-08": 50,
+          "2026-07": 90,
+          "2026-06": 110,
+          "2026-05": 170,
+          "2026-04": 210,
+          "2026-03": 320,
+          "2026-02": 260,
+          "2026-01": 210,
+          "2025-12": 170,
+          "2025-11": 140,
+          "2025-10": 140,
+          "2025-09": 140
+        },
+        "search_volume_trend": {
+          "monthly": -44,
+          "quarterly": -55,
+          "yearly": -71
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 22,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20chrome%20extension&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 105,
+        "last_updated_time": "2026-09-13 03:28:07 +00:00",
+        "previous_updated_time": "2026-07-09 00:04:09 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 10662.6,
+        "dofollow": 8425.9,
+        "referring_pages": 9517.4,
+        "referring_domains": 1044.1,
+        "referring_main_domains": 962.4,
+        "rank": 142.6,
+        "main_domain_rank": 612.8,
+        "last_updated_time": "2026-09-13 03:28:10 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "transactional",
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 16:58:00 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm competitors",
+      "keyword_info": {
+        "last_updated_time": "2026-08-24 04:16:29 +00:00",
+        "competition": 0.25,
+        "competition_level": "LOW",
+        "cpc": 3.44,
+        "search_volume": 140,
+        "low_top_of_page_bid": 3.12,
+        "high_top_of_page_bid": 10.6,
+        "categories": [
+          10019,
+          10019,
+          10168,
+          10168,
+          10883,
+          10883,
+          12187,
+          12187,
+          13069,
+          13070
+        ],
+        "monthly_searches": {
+          "2026-07": 70,
+          "2026-06": 70,
+          "2026-05": 110,
+          "2026-04": 170,
+          "2026-03": 140,
+          "2026-02": 140,
+          "2026-01": 140,
+          "2025-12": 110,
+          "2025-11": 170,
+          "2025-10": 140,
+          "2025-09": 140,
+          "2025-08": 140
+        },
+        "search_volume_trend": {
+          "quarterly": -36,
+          "yearly": -59
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm competitors",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20competitors&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 122,
+        "last_updated_time": "2026-09-14 23:15:30 +00:00",
+        "previous_updated_time": "2026-07-11 05:29:55 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 3.2,
+        "dofollow": 2.5,
+        "referring_pages": 3,
+        "referring_domains": 1.5,
+        "referring_main_domains": 1.5,
+        "rank": 20.9,
+        "main_domain_rank": 498.9,
+        "last_updated_time": "2026-09-14 23:15:32 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 16:45:22 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm cost",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 04:39:42 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "cpc": 3.82,
+        "search_volume": 480,
+        "low_top_of_page_bid": 1.06,
+        "high_top_of_page_bid": 5.64,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 210,
+          "2026-07": 320,
+          "2026-06": 390,
+          "2026-05": 480,
+          "2026-04": 590,
+          "2026-03": 590,
+          "2026-02": 590,
+          "2026-01": 720,
+          "2025-12": 590,
+          "2025-11": 480,
+          "2025-10": 390,
+          "2025-09": 390
+        },
+        "search_volume_trend": {
+          "monthly": -34,
+          "quarterly": -46,
+          "yearly": -34
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 3,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20cost&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches",
+          "popular_products"
+        ],
+        "se_results_count": 153,
+        "last_updated_time": "2026-09-07 11:03:49 +00:00",
+        "previous_updated_time": "2026-07-01 17:43:15 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 42.3,
+        "dofollow": 27.5,
+        "referring_pages": 36.6,
+        "referring_domains": 22.8,
+        "referring_main_domains": 22.1,
+        "rank": 65.4,
+        "main_domain_rank": 544.5,
+        "last_updated_time": "2026-09-07 11:03:50 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "commercial"
+        ],
+        "last_updated_time": "2026-04-29 16:28:13 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm down",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 18:02:05 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 140,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 70,
+          "2026-07": 70,
+          "2026-06": 110,
+          "2026-05": 140,
+          "2026-04": 210,
+          "2026-03": 210,
+          "2026-02": 320,
+          "2026-01": 70,
+          "2025-12": 50,
+          "2025-11": 40,
+          "2025-10": 30,
+          "2025-09": 210
+        },
+        "search_volume_trend": {
+          "quarterly": -36,
+          "yearly": 250
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm down",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20down&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 105,
+        "last_updated_time": "2026-08-11 11:59:09 +00:00",
+        "previous_updated_time": "2026-05-04 23:52:01 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 0.6,
+        "dofollow": 0.6,
+        "referring_pages": 0.6,
+        "referring_domains": 0.5,
+        "referring_main_domains": 0.5,
+        "rank": 0.2,
+        "main_domain_rank": 605.6,
+        "last_updated_time": "2026-08-11 11:59:10 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 17:06:01 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm export",
+      "keyword_info": {
+        "last_updated_time": "2026-08-23 12:03:45 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 30,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 20,
+          "2026-06": 20,
+          "2026-05": 20,
+          "2026-04": 20,
+          "2026-03": 30,
+          "2026-02": 30,
+          "2026-01": 40,
+          "2025-12": 20,
+          "2025-11": 40,
+          "2025-10": 30,
+          "2025-09": 20,
+          "2025-08": 10
+        },
+        "search_volume_trend": {
+          "yearly": 100
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebooklm exporter",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20export&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 99,
+        "last_updated_time": "2026-08-27 22:47:43 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 10.5,
+        "dofollow": 4.6,
+        "referring_pages": 8.4,
+        "referring_domains": 4.9,
+        "referring_main_domains": 4.8,
+        "rank": 40.1,
+        "main_domain_rank": 651.1,
+        "last_updated_time": "2026-08-27 22:47:45 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 16:51:53 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm features",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 05:54:24 +00:00",
+        "competition": 0.03,
+        "competition_level": "LOW",
+        "cpc": 2.01,
+        "search_volume": 170,
+        "low_top_of_page_bid": 1.23,
+        "high_top_of_page_bid": 3.96,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 90,
+          "2026-06": 90,
+          "2026-05": 90,
+          "2026-04": 140,
+          "2026-03": 210,
+          "2026-02": 170,
+          "2026-01": 170,
+          "2025-12": 110,
+          "2025-11": 140,
+          "2025-10": 170,
+          "2025-09": 480,
+          "2025-08": 210
+        },
+        "search_volume_trend": {
+          "yearly": -90
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 34,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20features&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 107,
+        "last_updated_time": "2026-09-13 03:13:59 +00:00",
+        "previous_updated_time": "2026-07-06 03:29:40 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 8206.9,
+        "dofollow": 5914.2,
+        "referring_pages": 6878.9,
+        "referring_domains": 1164.9,
+        "referring_main_domains": 1054.4,
+        "rank": 195.3,
+        "main_domain_rank": 603.8,
+        "last_updated_time": "2026-09-13 03:14:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 20:49:24 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm for students",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 20:38:00 +00:00",
+        "competition": 0.06,
+        "competition_level": "LOW",
+        "cpc": 6.59,
+        "search_volume": 590,
+        "low_top_of_page_bid": 3.48,
+        "high_top_of_page_bid": 90.1,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 390,
+          "2026-07": 210,
+          "2026-06": 720,
+          "2026-05": 1600,
+          "2026-04": 1300,
+          "2026-03": 720,
+          "2026-02": 590,
+          "2026-01": 390,
+          "2025-12": 210,
+          "2025-11": 210,
+          "2025-10": 210,
+          "2025-09": 260
+        },
+        "search_volume_trend": {
+          "monthly": 86,
+          "quarterly": -46,
+          "yearly": 255
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 21,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20for%20students&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 109,
+        "last_updated_time": "2026-08-02 22:08:20 +00:00",
+        "previous_updated_time": "2026-05-22 18:52:05 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 106.9,
+        "dofollow": 59.3,
+        "referring_pages": 96.6,
+        "referring_domains": 60,
+        "referring_main_domains": 35.7,
+        "rank": 113.5,
+        "main_domain_rank": 676.1,
+        "last_updated_time": "2026-08-02 22:09:45 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "foreign_intent": [
+          "informational",
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 17:25:06 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm for teachers",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 03:42:26 +00:00",
+        "competition": 0.09,
+        "competition_level": "LOW",
+        "cpc": 7.12,
+        "search_volume": 90,
+        "low_top_of_page_bid": 3.29,
+        "high_top_of_page_bid": 15.6,
+        "categories": [
+          10002,
+          10030,
+          10236
+        ],
+        "monthly_searches": {
+          "2026-08": 140,
+          "2026-07": 90,
+          "2026-06": 70,
+          "2026-05": 90,
+          "2026-04": 50,
+          "2026-03": 140,
+          "2026-02": 90,
+          "2026-01": 90,
+          "2025-12": 50,
+          "2025-11": 70,
+          "2025-10": 70,
+          "2025-09": 40
+        },
+        "search_volume_trend": {
+          "monthly": 56,
+          "quarterly": 100,
+          "yearly": 250
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm for teachers",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 14,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20for%20teachers&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "people_also_ask",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 171,
+        "last_updated_time": "2026-07-18 17:31:27 +00:00",
+        "previous_updated_time": "2026-06-02 17:42:11 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 68.1,
+        "dofollow": 45.8,
+        "referring_pages": 62,
+        "referring_domains": 28.7,
+        "referring_main_domains": 18,
+        "rank": 115.7,
+        "main_domain_rank": 485.5,
+        "last_updated_time": "2026-07-18 17:31:27 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-05 17:04:43 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm free",
+      "keyword_info": {
+        "last_updated_time": "2026-08-25 00:22:14 +00:00",
+        "competition": 0.34,
+        "competition_level": "MEDIUM",
+        "cpc": 6.5,
+        "search_volume": 320,
+        "low_top_of_page_bid": 2.07,
+        "high_top_of_page_bid": 13.2,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 320,
+          "2026-06": 260,
+          "2026-05": 390,
+          "2026-04": 480,
+          "2026-03": 480,
+          "2026-02": 390,
+          "2026-01": 390,
+          "2025-12": 260,
+          "2025-11": 260,
+          "2025-10": 210,
+          "2025-09": 320,
+          "2025-08": 170
+        },
+        "search_volume_trend": {
+          "monthly": 23,
+          "quarterly": -18,
+          "yearly": 88
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm free",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 37,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20free&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 100,
+        "last_updated_time": "2026-09-08 23:32:05 +00:00",
+        "previous_updated_time": "2026-07-05 10:58:49 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 10647.3,
+        "dofollow": 7865.8,
+        "referring_pages": 9543.3,
+        "referring_domains": 1088.4,
+        "referring_main_domains": 990.9,
+        "rank": 208.8,
+        "main_domain_rank": 619,
+        "last_updated_time": "2026-09-08 23:32:09 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "transactional"
+        ],
+        "last_updated_time": "2026-04-29 16:57:31 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm free alternative",
+      "keyword_info": {
+        "last_updated_time": "2026-08-23 22:42:16 +00:00",
+        "competition": 0.54,
+        "competition_level": "MEDIUM",
+        "cpc": 3.71,
+        "search_volume": 10,
+        "low_top_of_page_bid": 2.37,
+        "high_top_of_page_bid": 7.08,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          13816
+        ],
+        "monthly_searches": {
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10,
+          "2025-08": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm free alternative",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-05-30 23:24:20 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm like apps",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 19:41:10 +00:00",
+        "competition": 0.86,
+        "competition_level": "HIGH",
+        "search_volume": 10,
+        "categories": [
+          10019
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "apps like notebooklm",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-05-07 14:10:58 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm login",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 09:28:30 +00:00",
+        "competition": 0.15,
+        "competition_level": "LOW",
+        "cpc": 1.39,
+        "search_volume": 12100,
+        "low_top_of_page_bid": 1.32,
+        "high_top_of_page_bid": 5.7,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 12100,
+          "2026-06": 12100,
+          "2026-05": 14800,
+          "2026-04": 18100,
+          "2026-03": 18100,
+          "2026-02": 14800,
+          "2026-01": 12100,
+          "2025-12": 8100,
+          "2025-11": 8100,
+          "2025-10": 9900,
+          "2025-09": 12100,
+          "2025-08": 6600
+        },
+        "search_volume_trend": {
+          "quarterly": -18,
+          "yearly": 317
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "log in notebook lm",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 47,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20login&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "related_searches"
+        ],
+        "se_results_count": 10,
+        "last_updated_time": "2026-07-30 09:29:33 +00:00",
+        "previous_updated_time": "2026-05-15 18:43:18 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 22890.778,
+        "dofollow": 17211.111,
+        "referring_pages": 20612.333,
+        "referring_domains": 2529.222,
+        "referring_main_domains": 2316.889,
+        "rank": 245.889,
+        "main_domain_rank": 697.111,
+        "last_updated_time": "2026-07-30 09:29:36 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 17:16:54 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm mind map",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 06:51:58 +00:00",
+        "competition": 0.06,
+        "competition_level": "LOW",
+        "cpc": 4.74,
+        "search_volume": 320,
+        "low_top_of_page_bid": 2.79,
+        "high_top_of_page_bid": 7.79,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 210,
+          "2026-06": 260,
+          "2026-05": 390,
+          "2026-04": 480,
+          "2026-03": 320,
+          "2026-02": 320,
+          "2026-01": 260,
+          "2025-12": 260,
+          "2025-11": 320,
+          "2025-10": 390,
+          "2025-09": 480,
+          "2025-08": 390
+        },
+        "search_volume_trend": {
+          "monthly": -19,
+          "quarterly": -46,
+          "yearly": -64
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20mind%20map&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "people_also_ask",
+          "images",
+          "related_searches"
+        ],
+        "se_results_count": 108,
+        "last_updated_time": "2026-09-08 23:46:24 +00:00",
+        "previous_updated_time": "2026-07-03 18:56:58 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 12.4,
+        "dofollow": 9.2,
+        "referring_pages": 9.6,
+        "referring_domains": 1.2,
+        "referring_main_domains": 1.1,
+        "rank": 32.4,
+        "main_domain_rank": 665.2,
+        "last_updated_time": "2026-09-08 23:46:24 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 18:20:22 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm not working",
+      "keyword_info": {
+        "last_updated_time": "2026-08-24 21:34:54 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 70,
+        "categories": [
+          10019,
+          10019,
+          10168,
+          10168,
+          10883,
+          10883,
+          12187,
+          12187,
+          13069,
+          13070
+        ],
+        "monthly_searches": {
+          "2026-07": 20,
+          "2026-06": 50,
+          "2026-05": 90,
+          "2026-04": 110,
+          "2026-03": 90,
+          "2026-02": 170,
+          "2026-01": 50,
+          "2025-12": 40,
+          "2025-11": 20,
+          "2025-10": 20,
+          "2025-09": 70,
+          "2025-08": 20
+        },
+        "search_volume_trend": {
+          "monthly": -60,
+          "quarterly": -78,
+          "yearly": -33
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm not working",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20not%20working&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "discussions_and_forums",
+          "related_searches"
+        ],
+        "se_results_count": 118,
+        "last_updated_time": "2026-07-18 17:40:31 +00:00",
+        "previous_updated_time": "2026-05-09 03:34:08 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 19.1,
+        "dofollow": 13.5,
+        "referring_pages": 16.4,
+        "referring_domains": 8.6,
+        "referring_main_domains": 7.5,
+        "rank": 28.1,
+        "main_domain_rank": 673.8,
+        "last_updated_time": "2026-07-18 17:40:32 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 16:18:12 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm plus",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 23:51:37 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "cpc": 3.13,
+        "search_volume": 590,
+        "low_top_of_page_bid": 1.83,
+        "high_top_of_page_bid": 4.11,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 170,
+          "2026-07": 260,
+          "2026-06": 260,
+          "2026-05": 390,
+          "2026-04": 590,
+          "2026-03": 720,
+          "2026-02": 590,
+          "2026-01": 720,
+          "2025-12": 590,
+          "2025-11": 720,
+          "2025-10": 590,
+          "2025-09": 880
+        },
+        "search_volume_trend": {
+          "monthly": -35,
+          "quarterly": -35,
+          "yearly": -83
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 34,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20plus&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 160,
+        "last_updated_time": "2026-09-06 23:09:47 +00:00",
+        "previous_updated_time": "2026-06-30 21:28:48 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 10755.9,
+        "dofollow": 7942.8,
+        "referring_pages": 9616,
+        "referring_domains": 1100.3,
+        "referring_main_domains": 1006,
+        "rank": 160.4,
+        "main_domain_rank": 687.7,
+        "last_updated_time": "2026-09-06 23:09:47 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "transactional",
+        "last_updated_time": "2026-04-29 16:32:38 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm pro",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 17:10:56 +00:00",
+        "competition": 0.08,
+        "competition_level": "LOW",
+        "cpc": 5.4,
+        "search_volume": 880,
+        "low_top_of_page_bid": 2.11,
+        "high_top_of_page_bid": 9.8,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187
+        ],
+        "monthly_searches": {
+          "2026-08": 170,
+          "2026-07": 320,
+          "2026-06": 320,
+          "2026-05": 390,
+          "2026-04": 480,
+          "2026-03": 720,
+          "2026-02": 880,
+          "2026-01": 1300,
+          "2025-12": 1300,
+          "2025-11": 2400,
+          "2025-10": 1600,
+          "2025-09": 1300
+        },
+        "search_volume_trend": {
+          "monthly": -47,
+          "quarterly": -47,
+          "yearly": -87
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 40,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20pro&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 167,
+        "last_updated_time": "2026-08-01 10:24:24 +00:00",
+        "previous_updated_time": "2026-05-18 23:45:03 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 20990.4,
+        "dofollow": 16125.2,
+        "referring_pages": 18831.3,
+        "referring_domains": 2245.5,
+        "referring_main_domains": 2070.8,
+        "rank": 200.9,
+        "main_domain_rank": 796,
+        "last_updated_time": "2026-08-01 10:24:25 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-05-08 01:22:59 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm review",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 09:28:19 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "cpc": 3.94,
+        "search_volume": 260,
+        "low_top_of_page_bid": 0.2,
+        "high_top_of_page_bid": 5.83,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 110,
+          "2026-07": 170,
+          "2026-06": 210,
+          "2026-05": 260,
+          "2026-04": 260,
+          "2026-03": 390,
+          "2026-02": 390,
+          "2026-01": 320,
+          "2025-12": 320,
+          "2025-11": 260,
+          "2025-10": 260,
+          "2025-09": 320
+        },
+        "search_volume_trend": {
+          "monthly": -35,
+          "quarterly": -48,
+          "yearly": -58
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm review",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 7,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20review&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "discussions_and_forums",
+          "video",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 127,
+        "last_updated_time": "2026-05-23 14:29:12 +00:00",
+        "previous_updated_time": "2026-02-15 00:27:44 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 74.5,
+        "dofollow": 33.2,
+        "referring_pages": 67.7,
+        "referring_domains": 42.8,
+        "referring_main_domains": 30.3,
+        "rank": 63.1,
+        "main_domain_rank": 589.9,
+        "last_updated_time": "2026-05-23 14:29:12 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 19:35:49 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm reviews",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 19:37:40 +00:00",
+        "competition": 0.07,
+        "competition_level": "LOW",
+        "cpc": 1.47,
+        "search_volume": 260,
+        "low_top_of_page_bid": 0.02,
+        "high_top_of_page_bid": 6.35,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 170,
+          "2026-06": 210,
+          "2026-05": 260,
+          "2026-04": 260,
+          "2026-03": 390,
+          "2026-02": 390,
+          "2026-01": 320,
+          "2025-12": 320,
+          "2025-11": 260,
+          "2025-10": 260,
+          "2025-09": 320,
+          "2025-08": 260
+        },
+        "search_volume_trend": {
+          "monthly": -19,
+          "quarterly": -35,
+          "yearly": -47
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm review",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 9,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20reviews&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 107,
+        "last_updated_time": "2026-09-10 08:04:49 +00:00",
+        "previous_updated_time": "2026-07-05 06:25:22 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 99.1,
+        "dofollow": 41.7,
+        "referring_pages": 88.2,
+        "referring_domains": 59.8,
+        "referring_main_domains": 38.9,
+        "rank": 93.5,
+        "main_domain_rank": 540.6,
+        "last_updated_time": "2026-09-10 08:05:26 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 17:42:04 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm sources",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 14:39:45 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 30,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 20,
+          "2026-06": 20,
+          "2026-05": 40,
+          "2026-04": 50,
+          "2026-03": 20,
+          "2026-02": 40,
+          "2026-01": 40,
+          "2025-12": 40,
+          "2025-11": 30,
+          "2025-10": 50,
+          "2025-09": 40
+        },
+        "search_volume_trend": {
+          "monthly": -50,
+          "quarterly": -50,
+          "yearly": -75
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 39,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20sources&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 106,
+        "last_updated_time": "2026-08-14 20:07:06 +00:00",
+        "previous_updated_time": "2026-05-11 17:44:16 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 11174.8,
+        "dofollow": 8800.5,
+        "referring_pages": 9878.4,
+        "referring_domains": 1310.4,
+        "referring_main_domains": 1211.6,
+        "rank": 179,
+        "main_domain_rank": 706.9,
+        "last_updated_time": "2026-08-14 20:07:33 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 17:05:26 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm studio",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 15:17:04 +00:00",
+        "competition": 0.16,
+        "competition_level": "LOW",
+        "cpc": 7.12,
+        "search_volume": 90,
+        "low_top_of_page_bid": 1.7,
+        "high_top_of_page_bid": 9.07,
+        "categories": [
+          10013,
+          10109,
+          10592,
+          13537
+        ],
+        "monthly_searches": {
+          "2026-07": 40,
+          "2026-06": 70,
+          "2026-05": 90,
+          "2026-04": 90,
+          "2026-03": 170,
+          "2026-02": 110,
+          "2026-01": 110,
+          "2025-12": 70,
+          "2025-11": 50,
+          "2025-10": 70,
+          "2025-09": 50,
+          "2025-08": 90
+        },
+        "search_volume_trend": {
+          "monthly": -43,
+          "quarterly": -56,
+          "yearly": -56
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm studio",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 50,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20studio&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 106,
+        "last_updated_time": "2026-07-15 10:27:02 +00:00",
+        "previous_updated_time": "2026-05-07 04:18:06 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 20211.7,
+        "dofollow": 15172.9,
+        "referring_pages": 18274.2,
+        "referring_domains": 2209,
+        "referring_main_domains": 2033.6,
+        "rank": 245.1,
+        "main_domain_rank": 831.1,
+        "last_updated_time": "2026-07-15 10:27:02 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "transactional",
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 17:06:01 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm tips",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 10:08:42 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 40,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 10,
+          "2026-06": 20,
+          "2026-05": 40,
+          "2026-04": 40,
+          "2026-03": 40,
+          "2026-02": 40,
+          "2026-01": 50,
+          "2025-12": 40,
+          "2025-11": 50,
+          "2025-10": 40,
+          "2025-09": 50,
+          "2025-08": 70
+        },
+        "search_volume_trend": {
+          "monthly": -50,
+          "quarterly": -75,
+          "yearly": -86
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "notebook lm tips",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 22,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20tips&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "people_also_ask",
+          "discussions_and_forums",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 109,
+        "last_updated_time": "2026-08-14 20:01:48 +00:00",
+        "previous_updated_time": "2026-05-11 17:43:21 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 59.3,
+        "dofollow": 30,
+        "referring_pages": 54.7,
+        "referring_domains": 36.4,
+        "referring_main_domains": 28.1,
+        "rank": 108.7,
+        "main_domain_rank": 649.9,
+        "last_updated_time": "2026-08-14 20:04:12 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 16:58:00 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm tutorial",
+      "keyword_info": {
+        "last_updated_time": "2026-08-23 04:29:22 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "cpc": 4.81,
+        "search_volume": 320,
+        "low_top_of_page_bid": 0.96,
+        "high_top_of_page_bid": 6.15,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 170,
+          "2026-06": 260,
+          "2026-05": 320,
+          "2026-04": 390,
+          "2026-03": 390,
+          "2026-02": 390,
+          "2026-01": 480,
+          "2025-12": 390,
+          "2025-11": 260,
+          "2025-10": 260,
+          "2025-09": 320,
+          "2025-08": 320
+        },
+        "search_volume_trend": {
+          "monthly": -35,
+          "quarterly": -47,
+          "yearly": -56
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 17,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20tutorial&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "video",
+          "organic",
+          "people_also_ask",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 106,
+        "last_updated_time": "2026-09-08 23:46:05 +00:00",
+        "previous_updated_time": "2026-07-04 23:30:51 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 73,
+        "dofollow": 37.3,
+        "referring_pages": 65.2,
+        "referring_domains": 45.9,
+        "referring_main_domains": 33.3,
+        "rank": 97.8,
+        "main_domain_rank": 670.4,
+        "last_updated_time": "2026-09-08 23:46:07 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 20:04:47 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm use cases",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 07:22:47 +00:00",
+        "competition": 0.02,
+        "competition_level": "LOW",
+        "cpc": 0.01,
+        "search_volume": 210,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 50,
+          "2026-07": 110,
+          "2026-06": 140,
+          "2026-05": 210,
+          "2026-04": 210,
+          "2026-03": 320,
+          "2026-02": 260,
+          "2026-01": 210,
+          "2025-12": 210,
+          "2025-11": 170,
+          "2025-10": 210,
+          "2025-09": 260
+        },
+        "search_volume_trend": {
+          "monthly": -55,
+          "quarterly": -64,
+          "yearly": -76
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 4,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20use%20cases&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 107,
+        "last_updated_time": "2026-09-11 13:07:45 +00:00",
+        "previous_updated_time": "2026-07-06 00:54:33 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 64,
+        "dofollow": 30,
+        "referring_pages": 57.4,
+        "referring_domains": 41.8,
+        "referring_main_domains": 28.9,
+        "rank": 72.2,
+        "main_domain_rank": 533,
+        "last_updated_time": "2026-09-11 13:07:46 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 17:42:04 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm video overview",
+      "keyword_info": {
+        "last_updated_time": "2026-08-24 04:22:45 +00:00",
+        "competition": 0.01,
+        "competition_level": "LOW",
+        "cpc": 0.68,
+        "search_volume": 390,
+        "categories": [
+          10013,
+          10103,
+          10556
+        ],
+        "monthly_searches": {
+          "2026-07": 90,
+          "2026-06": 110,
+          "2026-05": 140,
+          "2026-04": 170,
+          "2026-03": 320,
+          "2026-02": 210,
+          "2026-01": 260,
+          "2025-12": 260,
+          "2025-11": 480,
+          "2025-10": 720,
+          "2025-09": 590,
+          "2025-08": 1300
+        },
+        "search_volume_trend": {
+          "monthly": -18,
+          "quarterly": -36,
+          "yearly": -93
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 5,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20video%20overview&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "organic",
+          "video",
+          "ai_overview",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 109,
+        "last_updated_time": "2026-08-03 10:47:16 +00:00",
+        "previous_updated_time": "2026-05-21 20:59:54 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 47.4,
+        "dofollow": 39.3,
+        "referring_pages": 44.7,
+        "referring_domains": 26.4,
+        "referring_main_domains": 25.5,
+        "rank": 51.6,
+        "main_domain_rank": 771.7,
+        "last_updated_time": "2026-08-03 10:47:17 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-05-03 01:10:27 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm without google account",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 01:02:22 +00:00",
+        "search_volume": 10,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13070
+        ],
+        "monthly_searches": {
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "monthly": -100,
+          "quarterly": -100,
+          "yearly": -100
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "foreign_intent": [
+          "informational"
+        ],
+        "last_updated_time": "2026-04-29 16:57:10 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm youtube",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 03:29:50 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "search_volume": 110,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-07": 50,
+          "2026-06": 110,
+          "2026-05": 110,
+          "2026-04": 170,
+          "2026-03": 210,
+          "2026-02": 140,
+          "2026-01": 140,
+          "2025-12": 170,
+          "2025-11": 110,
+          "2025-10": 110,
+          "2025-09": 70,
+          "2025-08": 90
+        },
+        "search_volume_trend": {
+          "monthly": -55,
+          "quarterly": -55,
+          "yearly": -44
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "youtube to notebooklm",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 23,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20youtube&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 108,
+        "last_updated_time": "2026-07-12 23:24:23 +00:00",
+        "previous_updated_time": "2026-05-03 04:08:30 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 55.4,
+        "dofollow": 33.2,
+        "referring_pages": 40.4,
+        "referring_domains": 18.9,
+        "referring_main_domains": 18.3,
+        "rank": 104.3,
+        "main_domain_rank": 929.7,
+        "last_updated_time": "2026-07-12 23:24:23 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 18:22:48 +00:00"
+      }
+    },
+    {
+      "keyword": "what is notebooklm",
+      "keyword_info": {
+        "last_updated_time": "2026-08-29 09:34:04 +00:00",
+        "competition": 0.07,
+        "competition_level": "LOW",
+        "cpc": 3.67,
+        "search_volume": 5400,
+        "low_top_of_page_bid": 0.38,
+        "high_top_of_page_bid": 9.94,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12197,
+          12211
+        ],
+        "monthly_searches": {
+          "2026-07": 4400,
+          "2026-06": 5400,
+          "2026-05": 5400,
+          "2026-04": 6600,
+          "2026-03": 8100,
+          "2026-02": 6600,
+          "2026-01": 6600,
+          "2025-12": 5400,
+          "2025-11": 5400,
+          "2025-10": 4400,
+          "2025-09": 4400,
+          "2025-08": 4400
+        },
+        "search_volume_trend": {
+          "monthly": -19,
+          "quarterly": -19
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 47,
+        "detected_language": "en"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=what%20is%20notebooklm&hl=en&gl=US&ie=UTF-8&uule=w+CAIQIFISCQs2MuSEtepUEUK33kOSuTsc",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "perspectives",
+          "related_searches"
+        ],
+        "se_results_count": 102,
+        "last_updated_time": "2026-09-03 11:16:11 +00:00",
+        "previous_updated_time": "2026-05-16 06:39:16 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 22043.1,
+        "dofollow": 16827.1,
+        "referring_pages": 19595,
+        "referring_domains": 2395.4,
+        "referring_main_domains": 2194.3,
+        "rank": 251.1,
+        "main_domain_rank": 657.1,
+        "last_updated_time": "2026-09-03 11:16:11 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-05-02 14:35:02 +00:00"
+      }
+    }
+  ]
+}

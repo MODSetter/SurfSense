@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 
+import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
 import {
   CitationProvider,
@@ -147,9 +148,13 @@ export function UserMessage() {
 export function AssistantMessage({
   citations,
   onCitation,
+  onModelSetup,
+  onRetry,
 }: {
   citations: Citation[]
   onCitation: (chunkId: number) => void
+  onModelSetup: () => void
+  onRetry: (assistantId: string) => void
 }) {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
@@ -158,6 +163,7 @@ export function AssistantMessage({
           <MessagePrimitive.Parts components={assistantMessageParts} />
         </div>
       </CitationProvider>
+      <ChatErrorNotice onModelSetup={onModelSetup} onRetry={onRetry} />
       <MessageActions hideWhenRunning timestampRight className="top-0.5" />
     </MessagePrimitive.Root>
   )

@@ -1,5 +1,4 @@
 import { IconBrandGithub } from "@tabler/icons-react";
-import { ArrowRight, Check, Database, KeyRound, Server, TerminalSquare } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ConnectorFaq } from "@/components/connectors-marketing/connector-faq";
@@ -10,6 +9,14 @@ import { BreadcrumbNav } from "@/components/seo/breadcrumb-nav";
 import { FAQJsonLd, JsonLd } from "@/components/seo/json-ld";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+	ArrowRightIcon,
+	CheckIcon,
+	ComputerTerminal01Icon,
+	Database01Icon,
+	Key01Icon,
+	ServerStack01Icon,
+} from "@/components/ui/icons";
 import { Separator } from "@/components/ui/separator";
 import type { FaqItem } from "@/lib/connectors-marketing/types";
 
@@ -64,19 +71,19 @@ const CURSOR_CONFIG = `{
 
 const STEPS = [
 	{
-		icon: KeyRound,
+		icon: Key01Icon,
 		title: "Create an API key",
 		description:
 			"In SurfSense, go to Settings, then API, and create a key. Enable API access on the workspaces you want your agents to reach. That key is all the server needs.",
 	},
 	{
-		icon: TerminalSquare,
+		icon: ComputerTerminal01Icon,
 		title: "Add the server to your client",
 		description:
 			"Point your client at https://mcp.surfsense.com/mcp with your key in an Authorization header — the hosted config for Cursor, Claude Code, and others is one paste. Prefer stdio? Switch to Self-host and run it against your own backend.",
 	},
 	{
-		icon: Server,
+		icon: ServerStack01Icon,
 		title: "Your agent has the tools",
 		description:
 			"Every scraper and knowledge base operation shows up as a native, typed MCP tool. Your agent picks a workspace once and the server carries the context between calls.",
@@ -86,7 +93,7 @@ const STEPS = [
 /** Mirrors the tool registry in surfsense_mcp (see its README). */
 const TOOL_GROUPS = [
 	{
-		icon: Server,
+		icon: ServerStack01Icon,
 		title: "Live scrapers",
 		description: "Structured, current platform data. One returned item is one billable unit.",
 		tools: [
@@ -111,7 +118,7 @@ const TOOL_GROUPS = [
 		],
 	},
 	{
-		icon: Database,
+		icon: Database01Icon,
 		title: "Knowledge base",
 		description: "Read and write the same knowledge base your SurfSense agents use.",
 		tools: [
@@ -125,7 +132,7 @@ const TOOL_GROUPS = [
 		],
 	},
 	{
-		icon: KeyRound,
+		icon: Key01Icon,
 		title: "Workspace selector",
 		description: "Pick a workspace once; every later call defaults to it.",
 		tools: ["surfsense_list_workspaces", "surfsense_select_workspace"],
@@ -168,7 +175,7 @@ function ConfigCard() {
 				{CURSOR_CONFIG}
 			</pre>
 			<p className="mt-3 flex items-center gap-1.5 text-xs text-muted-foreground">
-				<Check className="size-3.5 text-brand" aria-hidden />
+				<CheckIcon className="size-3.5 text-brand" aria-hidden />
 				Works with Claude Code, Cursor, Claude Desktop, and any MCP client
 			</p>
 		</div>
@@ -211,12 +218,12 @@ export default function McpServerPage() {
 							<BreadcrumbNav
 								className="mb-6"
 								items={[
-									{ name: "Connectors", href: "/connectors" },
+									{ name: "Plugins", href: "/plugins" },
 									{ name: "SurfSense MCP Server", href: "/mcp-server" },
 								]}
 							/>
 							<Badge variant="outline" className="mb-5 gap-1.5 py-1">
-								<Server className="size-3.5" />
+								<ServerStack01Icon className="size-3.5" />
 								SurfSense MCP server
 							</Badge>
 							<h1 className="text-3xl font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl">
@@ -232,7 +239,7 @@ export default function McpServerPage() {
 								<Button asChild size="lg">
 									<Link href="/register">
 										Get your API key
-										<ArrowRight className="size-4" />
+										<ArrowRightIcon className="size-4" />
 									</Link>
 								</Button>
 								<Button asChild variant="outline" size="lg">
@@ -385,7 +392,7 @@ export default function McpServerPage() {
 								<Button asChild size="lg">
 									<Link href="/register">
 										Start for free
-										<ArrowRight className="size-4" />
+										<ArrowRightIcon className="size-4" />
 									</Link>
 								</Button>
 								<Button asChild variant="outline" size="lg">
@@ -397,7 +404,7 @@ export default function McpServerPage() {
 
 							<nav aria-label="Other connectors" className="flex flex-wrap justify-center gap-2">
 								<Button asChild variant="ghost" size="sm">
-									<Link href="/connectors">All connectors</Link>
+									<Link href="/plugins">All plugins</Link>
 								</Button>
 								<Button asChild variant="ghost" size="sm">
 									<Link href="/external-mcp-connectors">External MCP Connectors</Link>

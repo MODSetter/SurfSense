@@ -115,8 +115,9 @@ normalized catalog boundary
 ([`05a-model-recommendations.md`](05a-model-recommendations.md)):
 
 - `GET /llm/system` — normalized local hardware and scan status.
-- `GET /llm/catalog` — hardware-ranked Recommended, Explore, and installed
-  entries with opaque catalog ids.
+- `GET /llm/catalog` — Curated, Explore, and installed entries with opaque
+  catalog ids. Curated and installed need no hardware scan; only Explore and the
+  fit badges do.
 - `POST /llm/install` — resolves the trusted runtime artifact server-side,
   streams download progress, and optionally selects it.
 - `GET/PUT /llm/selection/generation` — reads or validates the selected

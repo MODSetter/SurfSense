@@ -1,20 +1,3 @@
 {
-	"title": "Documentation",
-	"description": "SurfSense Documentation",
-	"root": true,
-	"pages": [
-		"---Guides---",
-		"index",
-		"installation",
-		"manual-installation",
-		"docker-installation",
-		"local-models",
-		"messaging-channels",
-		"connectors",
-		"how-to",
-		"---Developers---",
-		"testing",
-		"observability",
-		"code-of-conduct"
-	]
+	"pages": ["v2", "legacy"]
 }

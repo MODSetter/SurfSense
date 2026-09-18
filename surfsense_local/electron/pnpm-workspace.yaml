@@ -3,3 +3,7 @@ allowBuilds:
   esbuild: true
   # Only used for the Squirrel.Windows target; electron-builder.yml ships nsis.
   electron-winstaller: false
+
+overrides:
+  # @electron/osx-sign pins 4.x, which throws RangeError on protobuf-like files while signing.
+  isbinaryfile: ^5.0.7

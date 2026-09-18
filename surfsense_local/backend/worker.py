@@ -20,5 +20,7 @@ if __name__ == "__main__":
     multiprocessing.freeze_support()
     if sys.argv[1:] == ["--check-vision-runtime"]:
         check_vision_runtime()
+    elif len(sys.argv) == 2:
+        consume(sys.argv[1])
     else:
-        consume()
+        sys.exit("usage: worker.py <ingest|studio>")

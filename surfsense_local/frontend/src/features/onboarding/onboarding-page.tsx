@@ -1,6 +1,10 @@
 import { useState } from "react"
 
-import { CircleAlertIcon, RefreshCwIcon } from "@/components/ui/icons"
+import {
+  ArrowRightIcon,
+  CircleAlertIcon,
+  RefreshCwIcon,
+} from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -21,6 +25,8 @@ import {
 } from "@/features/model-selection/api"
 import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
 import { useModelSelection } from "@/features/model-selection/use-model-selection"
+
+import { OnboardingDither } from "./onboarding-dither"
 
 const ONBOARDING_STEPS = [1, 2] as const
 
@@ -63,26 +69,72 @@ function OnboardingProgress({ step }: { step: number }) {
   )
 }
 
+/**
+ * The hero's call to action, ported from the site's `FlowButton`
+ * (`surfsense_web/components/ui/flow-button.tsx`): two arrows trade places
+ * while a disc of `--primary` floods the pill from its centre and the corners
+ * tighten. Ported rather than shared -- the original is a Next.js `Link` --
+ * and cut down to the one shape this screen needs.
+ *
+ * The arrows carry no colour of their own so they ride the button's
+ * `currentColor` from `--primary` to `--primary-foreground` as the disc
+ * arrives underneath them.
+ */
+function FlowButton({
+  text,
+  onClick,
+}: {
+  text: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative flex cursor-pointer items-center gap-1 overflow-hidden rounded-[100px] border-[1.5px] border-primary/40 bg-transparent px-8 py-3 text-sm font-semibold text-primary transition-all duration-[600ms] ease-[cubic-bezier(0.23,1,0.32,1)] hover:rounded-[12px] hover:border-transparent hover:text-primary-foreground active:scale-[0.95]"
+    >
+      <ArrowRightIcon className="absolute left-[-25%] z-[9] size-4 transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:left-4" />
+      <span className="relative z-[1] -translate-x-3 transition-all duration-[800ms] ease-out group-hover:translate-x-3">
+        {text}
+      </span>
+      <span
+        aria-hidden="true"
+        className="absolute top-1/2 left-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary opacity-0 transition-all duration-[800ms] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:size-[220px] group-hover:opacity-100"
+      />
+      <ArrowRightIcon className="absolute right-4 z-[9] size-4 transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:right-[-25%]" />
+    </button>
+  )
+}
+
+/**
+ * The site's hero, rebuilt as the first thing the app ever shows: same
+ * headline, same lede, same dithered wave behind it, same pill. Where the site
+ * sends a visitor off to download, this one starts the setup.
+ *
+ * Kept in step with `HomeHero` in
+ * `surfsense_web/components/homepage/home/home-sections.tsx`. The two type
+ * scales are that page's `.ss-home-display` and `.ss-home-lede` written as
+ * utilities, and the accent clause is `--primary`, which is what the site's
+ * `--home-accent` resolves to. In this app's light theme that token is near
+ * black rather than peach, so the clause reads as plain heading text there --
+ * the alternative, peach on cream, does not carry enough contrast to set text
+ * in.
+ */
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
-    <Card className="w-full max-w-xl overflow-visible bg-transparent text-center ring-0">
-      <CardHeader className="-translate-y-8">
-        <CardTitle>
-          <h1 className="text-xl text-balance">
-            Think across everything you have collected.
-          </h1>
-        </CardTitle>
-        <CardDescription className="mx-auto max-w-md text-pretty">
-          SurfSense turns scattered documents, notes, and sources into one
-          searchable workspace.
-        </CardDescription>
-      </CardHeader>
-      <CardFooter className="justify-center border-t-0 bg-transparent">
-        <Button type="button" className="min-h-10 px-6" onClick={onNext}>
-          Start setting up
-        </Button>
-      </CardFooter>
-    </Card>
+    <div className="text-center">
+      <h1 className="text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
+        Air-gapped, open source{" "}
+        <span className="text-primary">NotebookLM alternative</span>
+      </h1>
+      <p className="mx-auto mt-8 max-w-2xl text-[clamp(1rem,1.6vw,1.25rem)] leading-[1.6] text-pretty text-muted-foreground">
+        A private research notebook that runs entirely on your own machine. Your
+        documents, your model keys, no cloud, no account.
+      </p>
+      <div className="mt-10 flex justify-center">
+        <FlowButton text="Start setting up" onClick={onNext} />
+      </div>
+    </div>
   )
 }
 
@@ -153,7 +205,6 @@ function ModelSetupStep({
               state={state}
               draftKey={null}
               disabled={busy}
-              installedFirst
               onSelect={select}
               onCatalogSelected={() => void refresh({ silent: true })}
               onModelUnavailable={() => void refresh({ silent: true })}
@@ -209,8 +260,9 @@ export function OnboardingPage({
   return (
     <main
       data-onboarding-page
-      className="flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
+      className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
+      {step === 1 ? <OnboardingDither /> : null}
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         <OnboardingProgress step={step} />

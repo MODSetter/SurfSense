@@ -1,4 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import type { ReleaseAsset } from "@/lib/app-release";
+import { APP_RELEASE_TAG } from "@/lib/app-release";
+
+export {
+	ASSET_LABELS,
+	GITHUB_RELEASES_URL,
+	getAssetLabel,
+	type ReleaseAsset,
+} from "@/lib/app-release";
 
 export type OSInfo = {
 	os: "macOS" | "Windows" | "Linux" | "Android" | "iOS";
@@ -39,17 +48,18 @@ export function useUserOS(): OSInfo {
 	return info;
 }
 
-export interface ReleaseAsset {
-	name: string;
-	url: string;
-}
-
+/**
+ * Resolved by tag: `/releases/latest` is pinned to the legacy 0.0.x app for
+ * good, so it will never name a 2.x build. Server-rendered pages should use
+ * `getReleaseAssets()` in `lib/release-assets.ts` instead of this hook.
+ */
 export function useLatestRelease() {
 	const [assets, setAssets] = useState<ReleaseAsset[]>([]);
+	const [isLoading, setIsLoading] = useState(true);
 
 	useEffect(() => {
 		const controller = new AbortController();
-		fetch("https://api.github.com/repos/MODSetter/SurfSense/releases/latest", {
+		fetch(`https://api.github.com/repos/MODSetter/SurfSense/releases/tags/${APP_RELEASE_TAG}`, {
 			signal: controller.signal,
 		})
 			.then((r) => r.json())
@@ -65,35 +75,17 @@ export function useLatestRelease() {
 					);
 				}
 			})
-			.catch(() => {});
+			.catch(() => {})
+			.finally(() => setIsLoading(false));
 		return () => controller.abort();
 	}, []);
 
-	return assets;
+	return { assets, isLoading };
 }
-
-export const ASSET_LABELS: Record<string, string> = {
-	".exe": "Windows (exe)",
-	"-arm64.dmg": "macOS Apple Silicon (dmg)",
-	"-x64.dmg": "macOS Intel (dmg)",
-	"-arm64.zip": "macOS Apple Silicon (zip)",
-	"-x64.zip": "macOS Intel (zip)",
-	".AppImage": "Linux (AppImage)",
-	".deb": "Linux (deb)",
-};
-
-export function getAssetLabel(name: string): string {
-	for (const [suffix, label] of Object.entries(ASSET_LABELS)) {
-		if (name.endsWith(suffix)) return label;
-	}
-	return name;
-}
-
-export const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/releases/latest";
 
 export function usePrimaryDownload() {
 	const { os, arch } = useUserOS();
-	const assets = useLatestRelease();
+	const { assets, isLoading } = useLatestRelease();
 	const isMobileOS = os === "Android" || os === "iOS";
 
 	const { primary, alternatives } = useMemo(() => {
@@ -112,5 +104,5 @@ export function usePrimaryDownload() {
 		return { primary, alternatives };
 	}, [assets, os, arch, isMobileOS]);
 
-	return { os, arch, assets, primary, alternatives, isMobileOS };
+	return { os, arch, assets, primary, alternatives, isMobileOS, isLoading };
 }

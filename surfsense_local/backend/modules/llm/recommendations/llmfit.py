@@ -1,8 +1,21 @@
+"""The llmfit adapter: shells out to the pinned binary and caches its verdict.
+
+This is the only module that knows llmfit's CLI/JSON contract. Everything
+above `LlmfitAdvisor` (CatalogService and up) only ever sees `ScoredModel`/
+`SystemProfile`/`AdvisorCatalog` — plain, versioned dataclasses, not llmfit's
+own vocabulary. That seam is what lets the cache live here too: the cache's
+job is "did we already ask llmfit this exact question," which only this
+module has enough context to answer.
+"""
+
 import asyncio
 import json
 import logging
+import os
 import re
 import subprocess
+from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -18,6 +31,14 @@ LOGGER = logging.getLogger(__name__)
 MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 VERSION_PATTERN = re.compile(r"(\d+\.\d+\.\d+)")
 
+# Bumped whenever ScoredModel's shape changes. A mismatch discards the cache
+# file and rescans: a cached row is an optimisation, never something worth
+# migrating.
+CACHE_VERSION = 1
+
+# Tuple fields survive a JSON round-trip as lists.
+_TUPLE_FIELDS = ("capability_ids", "gguf_sources", "notes")
+
 
 class LlmfitError(RuntimeError):
     def __init__(self, code: str, public_message: str, detail: str = "") -> None:
@@ -27,19 +48,48 @@ class LlmfitError(RuntimeError):
 
 
 class LlmfitAdvisor:
+    """Scores models with the pinned llmfit binary and caches the result.
+
+    The cache lives here rather than in CatalogService because it stores the
+    hardware profile llmfit itself produced, and nothing above this seam
+    should re-derive it. `scan(refresh=False)` never spawns llmfit at all —
+    not the per-model scoring subprocess, not even the cheap version/system
+    probe — it only ever answers from whatever the last explicit scan wrote
+    to disk, or reports "not scanned" so the caller can show scan-free
+    content instead. Only `refresh=True` (an explicit "Scan hardware" click)
+    probes hardware and pays for scoring, then refreshes the cache.
+    """
+
     def __init__(
         self,
         executable: Path,
         expected_version: str,
         timeout_seconds: float,
         priority_providers: tuple[str, ...] = (),
+        *,
+        cache_path: Path | None = None,
     ) -> None:
         self._executable = executable
         self._expected_version = expected_version
         self._timeout_seconds = timeout_seconds
         self._priority_providers = priority_providers
+        self._cache_path = cache_path
 
-    async def scan(self, max_context: int) -> AdvisorCatalog:
+    async def scan(self, max_context: int, *, refresh: bool = False) -> AdvisorCatalog:
+        if not refresh:
+            # An unrefreshed call is never a user action (it fires on every
+            # page load), so it must not spawn llmfit at all — not even the
+            # cheap version/system probe. It only ever answers from what the
+            # last explicit "Scan hardware" wrote, or reports "not scanned
+            # yet" so the caller shows scan-free content (installed +
+            # curated) and a "Scan hardware" action instead.
+            cached = self._load_cache()
+            if cached is not None:
+                return cached
+            return AdvisorCatalog(
+                system=None, models=(), llmfit_version=None, scanned=False
+            )
+
         try:
             version = await self._version()
             if version != self._expected_version:
@@ -47,6 +97,7 @@ class LlmfitAdvisor:
                     system=None,
                     models=(),
                     llmfit_version=version,
+                    scanned=True,
                     warnings=(
                         RecommendationWarning(
                             "version_mismatch",
@@ -54,8 +105,18 @@ class LlmfitAdvisor:
                         ),
                     ),
                 )
+            system = _parse_system(await self._json("--json", "system"))
+        except LlmfitError as error:
+            LOGGER.warning("llmfit probe failed (%s): %s", error.code, error)
+            return AdvisorCatalog(
+                system=None,
+                models=(),
+                llmfit_version=None,
+                scanned=True,
+                warnings=(RecommendationWarning(error.code, error.public_message),),
+            )
 
-            system_payload = await self._json("--json", "system")
+        try:
             fit_payloads = await asyncio.gather(
                 self._fit(max_context),
                 *(
@@ -63,22 +124,24 @@ class LlmfitAdvisor:
                     for provider in self._priority_providers
                 ),
             )
-            system = _parse_system(system_payload)
-            models_by_id: dict[str, ScoredModel] = {}
-            for payload in fit_payloads:
-                for row in _model_rows(payload):
-                    model = _parse_model(row)
-                    models_by_id.setdefault(model.canonical_id, model)
-            models = tuple(models_by_id.values())
-            return AdvisorCatalog(system, models, version)
         except LlmfitError as error:
             LOGGER.warning("llmfit scan failed (%s): %s", error.code, error)
             return AdvisorCatalog(
-                system=None,
+                system=system,
                 models=(),
-                llmfit_version=None,
+                llmfit_version=version,
+                scanned=True,
                 warnings=(RecommendationWarning(error.code, error.public_message),),
             )
+
+        models_by_id: dict[str, ScoredModel] = {}
+        for payload in fit_payloads:
+            for row in _model_rows(payload):
+                model = _parse_model(row)
+                models_by_id.setdefault(model.canonical_id, model)
+        models = tuple(models_by_id.values())
+        self._write_cache(system, version, models)
+        return AdvisorCatalog(system, models, version, scanned=True)
 
     async def _fit(self, max_context: int, provider: str | None = None) -> Any:
         args = [
@@ -154,6 +217,78 @@ class LlmfitAdvisor:
             )
         return stdout.decode().strip()
 
+    def _load_cache(self) -> AdvisorCatalog | None:
+        """The last explicit "Scan hardware" result, or None to show as unscanned.
+
+        This is the only thing `scan(refresh=False)` ever reads — it never
+        re-probes hardware to validate freshness, since re-probing is exactly
+        the subprocess spawn an unrefreshed call must not pay for. A stale
+        cache (e.g. after a hardware change) simply stays stale until the
+        next explicit rescan. Every failure mode is "not scanned", never
+        "broken": a missing, truncated, unreadable, or version-stale file is
+        just a miss.
+
+        The llmfit *version* check below is free (a string compare against
+        the pinned constant, no subprocess), unlike the hardware fingerprint
+        this used to also require — that's why it's still done here even
+        though nothing else on this path probes anything: an app update that
+        bumps the bundled binary must not keep serving scores computed by the
+        binary it replaced.
+        """
+        if self._cache_path is None:
+            return None
+        try:
+            document = json.loads(self._cache_path.read_text(encoding="utf-8"))
+            if document.get("cache_version") != CACHE_VERSION:
+                return None
+            if document.get("llmfit_version") != self._expected_version:
+                return None
+            system = SystemProfile(**document["system"])
+            models = tuple(_model_from_json(row) for row in document["models"])
+            return AdvisorCatalog(system, models, document["llmfit_version"])
+        except FileNotFoundError:
+            return None
+        except (OSError, ValueError, TypeError, KeyError) as error:
+            LOGGER.warning("discarding unreadable llmfit cache: %s", error)
+            return None
+
+    def _write_cache(
+        self, system: SystemProfile, version: str, models: tuple[ScoredModel, ...]
+    ) -> None:
+        if self._cache_path is None or not models:
+            return
+        document = {
+            "cache_version": CACHE_VERSION,
+            "system": asdict(system),
+            "llmfit_version": version,
+            "scanned_at": datetime.now(UTC).isoformat(),
+            "models": [_model_to_json(model) for model in models],
+        }
+        # Rename onto the final path so an interrupted multi-megabyte write
+        # cannot leave JSON that parses as garbage.
+        temporary = self._cache_path.with_suffix(".json.tmp")
+        try:
+            self._cache_path.parent.mkdir(parents=True, exist_ok=True)
+            temporary.write_text(json.dumps(document), encoding="utf-8")
+            os.replace(temporary, self._cache_path)
+        except OSError as error:
+            LOGGER.warning("could not write llmfit cache: %s", error)
+            temporary.unlink(missing_ok=True)
+
+
+def _model_to_json(model: ScoredModel) -> dict[str, Any]:
+    data = asdict(model)
+    data["fit"] = model.fit.value
+    return data
+
+
+def _model_from_json(data: dict[str, Any]) -> ScoredModel:
+    data = dict(data)
+    data["fit"] = FitLevel(data["fit"])
+    for name in _TUPLE_FIELDS:
+        data[name] = tuple(data.get(name) or ())
+    return ScoredModel(**data)
+
 
 def _code(value: Any) -> str | None:
     if not isinstance(value, str):
@@ -204,6 +339,53 @@ def _model_rows(payload: Any) -> list[dict[str, Any]]:
     return payload["models"]
 
 
+def _gguf_sources(value: Any) -> tuple[str, ...]:
+    """Hugging Face GGUF repos llmfit found for this model.
+
+    Real llmfit output is a list of `{"provider": ..., "repo": ...}` dicts,
+    not bare strings — this is the repo half of each one, which is all a
+    runtime needs to build an `hf.co/<repo>` pull target from.
+    """
+    if not isinstance(value, list):
+        return ()
+    repos: list[str] = []
+    for item in value:
+        if isinstance(item, dict) and isinstance(item.get("repo"), str):
+            repos.append(item["repo"])
+    return tuple(repos)
+
+
+def _fallback_ollama_name(
+    gguf_sources: tuple[str, ...], runtime: str | None, best_quant: str | None
+) -> str | None:
+    """`hf.co/<repo>[:<quant>]` for a model Ollama's own library doesn't have.
+
+    Ollama can pull any GGUF straight from Hugging Face this way. The quant
+    suffix is only trustworthy when llmfit scored the model against
+    `llama_cpp` specifically: on other runtimes (e.g. `mlx`, only ever seen
+    on Apple Silicon, where MLX beats llama.cpp) `best_quant` is a label in
+    that runtime's own vocabulary (`mlx-4bit`), not a GGUF file suffix, and
+    would make the pull fail. Without a trusted quant, Ollama's own default
+    for an untagged `hf.co/...` pull is to prefer `Q4_K_M` when present in
+    the repo, else one reasonable quant — a sane fallback, not a guess.
+
+    The tag is always explicit, never omitted: a bare `hf.co/<repo>` pull
+    request is accepted by Ollama, but it silently stores the result as
+    `hf.co/<repo>:latest` (confirmed against a real pull) — every later
+    exact-string match against this `ollama_name` (install verification,
+    "already installed" detection on a rescan) would then permanently fail
+    against an identifier that never matches what Ollama actually named it.
+    Requesting `:latest` up front keeps the string we hand out identical to
+    what comes back.
+    """
+    if not gguf_sources:
+        return None
+    repo = gguf_sources[0]
+    if runtime == "llama_cpp" and best_quant:
+        return f"hf.co/{repo}:{best_quant}"
+    return f"hf.co/{repo}:latest"
+
+
 def _parse_model(row: dict[str, Any]) -> ScoredModel:
     name = row.get("name")
     if not isinstance(name, str) or not name.strip():
@@ -228,8 +410,31 @@ def _parse_model(row: dict[str, Any]) -> ScoredModel:
         else ()
     )
     notes = row.get("notes", [])
-    gguf_sources = row.get("gguf_sources", [])
     estimate_basis = row.get("estimate_basis")
+    runtime = _code(row.get("runtime"))
+    best_quant = (
+        row.get("best_quant") if isinstance(row.get("best_quant"), str) else None
+    )
+    gguf_sources = _gguf_sources(row.get("gguf_sources"))
+
+    native_ollama_name = row.get("ollama_name")
+    native_ollama_name = (
+        native_ollama_name if isinstance(native_ollama_name, str) else None
+    )
+    ollama_name = native_ollama_name or _fallback_ollama_name(
+        gguf_sources, runtime, best_quant
+    )
+    # A fallback pull's fit badge must not overstate confidence: it's honest
+    # only when the quant used to build the pull target is the same one the
+    # fit/memory numbers above were computed for (the `runtime == "llama_cpp"`
+    # case in `_fallback_ollama_name`). Otherwise the badge describes a
+    # different runtime's memory profile than the file Ollama will actually
+    # fetch — relabel to Marginal (a hedge, not a promise) rather than either
+    # hiding the model entirely or carrying forward a number that doesn't
+    # match what gets installed.
+    trusted_quant = native_ollama_name is not None or runtime == "llama_cpp"
+    if native_ollama_name is None and gguf_sources and not trusted_quant:
+        fit = FitLevel.MARGINAL
 
     return ScoredModel(
         canonical_id=name,
@@ -245,11 +450,9 @@ def _parse_model(row: dict[str, Any]) -> ScoredModel:
         use_case=_code(row.get("use_case") or row.get("category")),
         fit=fit,
         score=_number(row.get("score")),
-        runtime=_code(row.get("runtime")),
+        runtime=runtime,
         run_mode=_code(row.get("run_mode")),
-        best_quant=(
-            row.get("best_quant") if isinstance(row.get("best_quant"), str) else None
-        ),
+        best_quant=best_quant,
         memory_required_gb=_number(row.get("memory_required_gb")),
         memory_available_gb=_number(row.get("memory_available_gb")),
         utilization_pct=_number(row.get("utilization_pct")),
@@ -262,14 +465,8 @@ def _parse_model(row: dict[str, Any]) -> ScoredModel:
         effective_context_length=_integer(row.get("effective_context_length")),
         capability_ids=capability_ids,
         license=row.get("license") if isinstance(row.get("license"), str) else None,
-        ollama_name=(
-            row.get("ollama_name") if isinstance(row.get("ollama_name"), str) else None
-        ),
-        gguf_sources=(
-            tuple(item for item in gguf_sources if isinstance(item, str))
-            if isinstance(gguf_sources, list)
-            else ()
-        ),
+        ollama_name=ollama_name,
+        gguf_sources=gguf_sources,
         notes=(
             tuple(item for item in notes if isinstance(item, str))
             if isinstance(notes, list)

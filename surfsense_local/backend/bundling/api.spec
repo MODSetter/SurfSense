@@ -10,6 +10,7 @@ import sys
 
 from PyInstaller.utils.hooks import (
     collect_all,
+    collect_data_files,
     collect_dynamic_libs,
     collect_submodules,
 )
@@ -24,6 +25,17 @@ datas.append(
         "modules/llm/recommendations",
     )
 )
+# Read by path, so the analyser cannot see it. Without this every remote model
+# reports its capability as unknown in a frozen build only.
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "connections" / "model-capabilities.json"),
+        "modules/llm/connections",
+    )
+)
+
+# Chat's three prompts are read through importlib.resources, not imported.
+datas += collect_data_files("modules.chat", includes=["prompts/*.md"])
 
 # uvicorn loads its loop, protocol, and lifespan implementations by string.
 hiddenimports += collect_submodules("uvicorn")
@@ -40,7 +52,24 @@ a = Analysis(
     binaries=binaries,
     datas=datas,
     hiddenimports=hiddenimports,
-    excludes=["docling", "torch", "torchvision"],
+    # 260 MB of dependencies the analyser cannot tell are optional: chonkie
+    # names transformers only under TYPE_CHECKING and imports pandas inside
+    # TableChef, and those two then reach opencv and scipy. Chunking here is
+    # RecursiveChunker over the Rust tokenizer, which touches none of them.
+    # onnxruntime's model-conversion tooling arrives the same way via collect_all;
+    # retrieval only builds an InferenceSession, which lives in onnxruntime.capi.
+    excludes=[
+        "docling",
+        "torch",
+        "torchvision",
+        "cv2",
+        "pandas",
+        "scipy",
+        "transformers",
+        "onnxruntime.transformers",
+        "onnxruntime.quantization",
+        "onnxruntime.tools",
+    ],
 )
 pyz = PYZ(a.pure)
 exe = EXE(pyz, a.scripts, [], exclude_binaries=True, name="api", console=True)

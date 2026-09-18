@@ -118,7 +118,7 @@ describe("License settings", () => {
     expect(screen.getByText("Active")).toBeTruthy()
     expect(screen.getByText("ada@example.com")).toBeTruthy()
     expect(
-      screen.getByText(/Renews 10 Sept 2027|Renews Sep 10, 2027/)
+      screen.getByText(/Expires 10 Sept 2027|Expires Sep 10, 2027/)
     ).toBeTruthy()
     expect(calls).toEqual([
       { method: "PUT", body: { certificate: CERTIFICATE } },

@@ -22,7 +22,7 @@
 | Chat thread | `new_chat_threads` | **`chat_threads`** | drop stale `new_` prefix |
 | Chat message | `new_chat_messages` | **`chat_messages`** | drop stale `new_` prefix |
 | FK | `thread_id` | **`chat_thread_id`** | explicit on `chat_messages` |
-| Document status | JSONB `{"state":…}` | **`status` TEXT** | enum: `pending` \| `processing` \| `ready` \| `failed` — simpler for SQLite; map from cloud `DocumentStatus` when copying ingest |
+| Document status | JSONB `{"state":…}` | **`status` TEXT** | enum: `pending` \| `processing` \| `ready` \| `failed` \| `cancelled` — simpler for SQLite; map from cloud `DocumentStatus` when copying ingest. `cancelled` was added in revision `0011` when ingest and Studio jobs became stoppable |
 | Dedup key | `unique_identifier_hash` | **`dedup_key`** | same role, clearer name; compute same hash when porting dedup logic |
 | Body text | `content` + `source_markdown` | **`content`** only | one markdown body field; cloud duplicated for Plate/BlockNote — Local drops editor legacy unless copied |
 | Artifact sidecar | `artifacts` | **`artifacts`** | keep (ADR-0003 shape when Studio ships) |
@@ -39,12 +39,23 @@ documents. No `/new_chat`.
 | `DELETE` | `/workspaces/{id}` | 1 (rows) / 2 (files) |
 | `GET` | `/workspaces/{id}/documents` | 1 |
 | `POST` | `/workspaces/{id}/documents` | 1 — writes a `NOTE` |
-| `GET` | `/workspaces/{id}/documents/{doc}` | 1 |
 | `PATCH` | `/workspaces/{id}/documents/{doc}` | 1 |
 | `DELETE` | `/workspaces/{id}/documents/{doc}` | 1 (rows) / 2 (files, index) |
 | `POST` | `/workspaces/{id}/documents/upload` | 2 |
 | `POST` | `/workspaces/{id}/documents/{doc}/retry` | 2 |
+| `POST` | `/workspaces/{id}/documents/{doc}/cancel` | stop a pending or running ingest; 409 if nothing is running |
 | `GET` | `/workspaces/{id}/documents/{doc}/original` | 2 |
+| `GET` | `/workspaces/{id}/documents/by-chunk/{chunk_id}` | 3 — the citation panel: a cited chunk plus its neighbours, workspace-scoped |
+
+**`GET /workspaces/{id}/documents/{doc}` was never built.** This table listed it
+as the Phase 1 way to read a body, and the list-semantics note below still
+explains the list omitting `content` on the grounds that the detail route adds
+it. Both halves of that arrangement exist except the route: `DocumentRead` does
+omit the body ("without the body it would bloat every poll with"), and
+`DocumentDetail` — the same shape plus `content` — is defined and used, but only
+as the response of `POST /documents` when a note is created. Nothing else serves
+a body; `by-chunk` answers a different question. So this is one decorator away,
+and until it exists the sentence below is describing a route that isn't there.
 
 Later phases add `/workspaces/{id}/chat/threads` (3), `/settings` (3), and the
 Studio routes (4).
@@ -139,7 +150,7 @@ erDiagram
     text label
     text provider
     text base_url
-    text api_key
+    blob api_key_ciphertext
     text updated_at
   }
 
@@ -148,6 +159,9 @@ erDiagram
     text provider
     int connection_id FK
     text name
+    real params_b
+    text vendor
+    text line
     text updated_at
   }
 ```
@@ -241,18 +255,24 @@ ADR-0003 shape: the searchable body is a `Document` with `document_type = ARTIFA
 ### `provider_connections` / `selected_models`
 
 `provider_connections` stores multiple named remote endpoint instances:
-`id`, `label`, `provider`, exact `base_url`, nullable `api_key`, and timestamps.
-The same provider (`openai_compatible`) may have many rows because organizations
-often expose separate vLLM or image endpoints. The key belongs to the connection,
-not to a model or provider type, and is never returned by the API. Phase 6 moves
-it behind the OS-backed connection secret store without changing connection
-identity.
+`id`, `label`, `provider`, exact `base_url`, **`api_key_ciphertext`**, and
+timestamps. The same provider (`openai_compatible`) may have many rows because
+organizations often expose separate vLLM or image endpoints. The key belongs to
+the connection, not to a model or provider type, and is never returned by the
+API. The Phase 6 move happened in revision `0007`, which drops the plaintext
+`api_key` column and adds the ciphertext one; connection identity is unchanged,
+and the Fernet key comes from the OS keychain through Electron.
 
 `selected_models` stores one active model per `role`: `generation` or
 `image_generation`. `provider` chooses the runtime adapter, `name` is the exact
 model id, and nullable `connection_id` identifies the remote endpoint. Ollama
-uses no connection; an OpenAI-compatible selection requires one. The FK uses
+**and `sdcpp`**, the bundled local image runtime admitted by revision `0009`,
+use no connection; an OpenAI-compatible selection requires one. The FK uses
 `ON DELETE CASCADE`, so disconnecting an endpoint clears only roles that use it.
+Revision `0010` adds three nullable fingerprint columns — `params_b`, `vendor`,
+`line` — recorded when a model is chosen. They are inputs to the prompt tier,
+which is computed on read rather than stored, so retuning a threshold needs no
+migration ([`api/05a-model-recommendations.md`](api/05a-model-recommendations.md)).
 
 The offerable local catalog, remote `/models` responses, hardware profile,
 llmfit scores, install plans, capabilities, and curated models are **not**
@@ -266,9 +286,19 @@ without improving inference. See
 | Store | Purpose |
 |---|---|
 | `app_settings` or `settings.json` | onboarding path, parser pack, opt-in model overrides |
-| `huey.db` | Huey queue |
+| `huey.db` | Huey queue — **two queues in one file**, `ingest` and `studio`, each drained by its own worker sidecar |
 | `provider_connections` | named OpenAI-compatible endpoints and their connection-scoped secret |
 | `selected_models` | chosen model per role (above) |
+| `onboarding_completion` | the durable "model onboarding is done" marker (revision `0003`); selecting or clearing a model never writes it |
+| `license_state` | singleton (`CHECK id = 1`): the imported certificate, when it was imported, and `clock_watermark`, the highest instant ever seen. Plan and expiry are re-derived from the certificate on every read rather than stored (revision `0006`) |
+| `egress_destinations` | one row per destination — `ollama_pull`, `image_model_pull`, or `host:<hostname>` for a BYO provider — with `enabled` defaulting to **false** and `last_call_at` (revision `0008`) |
+
+`workspaces` also gained a nullable `cloud_id` in revision `0005`: cloud-to-local
+import looks a workspace up by it and reuses the existing row rather than
+creating a second one, which is one of three things that make re-running the same
+bundle safe. The other two are the document digest, which skips anything already
+imported, and a first-import-only guard on chat threads.
+`chat_messages` gained `completed_at` in revision `0002`.
 
 ## Tables not in Local scope
 
@@ -283,6 +313,12 @@ without improving inference. See
 | 3 | `chat_threads`, `chat_messages`, settings; generation-only `selected_models` in initial migration |
 | 4 | `artifacts` (+ `ARTIFACT` documents) |
 | 5 | `provider_connections`; rebuild `selected_models` for connection identity and image role |
+| 6 | `license_state`, `egress_destinations`, `workspaces.cloud_id`; `provider_connections.api_key` becomes `api_key_ciphertext` |
+
+Revisions `0009`-`0011` came after the phases and belong to no single one: the
+`sdcpp` provider value, the selected-model fingerprint, and the `cancelled`
+document status. Eleven revisions ship as of this writing; all are hand-written,
+as the umbrella plan's migration decision requires.
 
 ## Open items
 

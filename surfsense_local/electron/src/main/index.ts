@@ -1,14 +1,50 @@
 import { join } from "node:path"
 
-import { app, BrowserWindow, ipcMain, Menu, shell } from "electron"
+import {
+  app,
+  BrowserWindow,
+  ipcMain,
+  Menu,
+  nativeTheme,
+  safeStorage,
+  shell,
+} from "electron"
+// Static on purpose: electron-updater is CJS and exposes `autoUpdater` through
+// a getter, which `await import()` cannot see (named export comes back
+// undefined). require() honours it, and the getter is lazy so dev pays nothing.
+import { autoUpdater } from "electron-updater"
 
-import { managedOriginalPath } from "./document-files.mts"
+import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
+import { loadSecret } from "./secret.ts"
 import { ollamaSpec } from "./sidecars/ollama.ts"
 import { exe } from "./sidecars/platform.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
-import { startAll, stopAll, type Sidecars } from "./sidecars/supervisor.ts"
+import {
+  sdcppSpec,
+  SDCPP_SIDECAR,
+  type ImageRuntime,
+} from "./sidecars/sdcpp.ts"
+import {
+  startAll,
+  startOne,
+  stopAll,
+  stopNamed,
+  type Sidecars,
+} from "./sidecars/supervisor.ts"
 import type { SidecarContext, SidecarSpec } from "./sidecars/types.ts"
+import {
+  attachUpdater,
+  readUpdatePrefs,
+  writeUpdatePrefs,
+  type Updates,
+  type UpdateState,
+} from "./updater.ts"
+import {
+  loadThemePreference,
+  saveThemePreference,
+  type ThemePreference,
+} from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
@@ -56,11 +92,49 @@ function onSidecarCrash(name: string, code: number | null): void {
   })
 }
 
+// sd-server takes its model as a startup argument and dies without one, so it
+// cannot be started at boot like the others: the model arrives later, on a
+// download, and changes again whenever a different one is chosen. The API is the
+// authority on which weights that is, so follow it and restart on a change.
+// ponytail: a poll, not a push. It costs one local request every few seconds and
+// needs no IPC channel of its own; a change is user-initiated and rare, so the
+// few seconds of lag are not felt.
+function watchImageModel(ctx: SidecarContext): void {
+  if (!ctx.packaged || ctx.imageModelsDir == null) return
+  const endpoint = `http://${ctx.host}:${ctx.apiPort}/llm/image/local/runtime`
+  let current: string | null = null
+
+  const reconcile = async () => {
+    if (!sidecars || shuttingDown) return
+    const response = await fetch(endpoint)
+    if (!response.ok) return
+    const runtime = (await response.json()) as ImageRuntime
+
+    const spec = sdcppSpec(ctx, runtime)
+    const wanted = spec ? spec.args.join("\u0000") : null
+    if (wanted === current) return
+
+    if (sidecars.has(SDCPP_SIDECAR)) await stopNamed(sidecars, SDCPP_SIDECAR)
+    current = wanted
+    if (spec) startOne(sidecars, spec, onSidecarCrash)
+  }
+
+  const timer = setInterval(() => {
+    void reconcile().catch(() => {
+      // The API is down or restarting; the next tick tries again.
+    })
+  }, 5000)
+  timer.unref()
+}
+
 async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
   const apiPort = await getFreePort(host)
   const dataDir = DATA_DIR
+  // Linux without a keyring daemon: keep booting on Chromium's built-in key
+  // rather than refusing to start; same fallback every Electron app takes.
+  if (process.platform === "linux") safeStorage.setUsePlainTextEncryption(true)
 
   const ctx: SidecarContext = {
     packaged,
@@ -70,6 +144,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     host,
     apiPort,
     dataDir,
+    secret: loadSecret(join(app.getPath("userData"), "secret.bin"), safeStorage),
     // Packaged: bundled embedding, voice, and parser packs. Dev: same staging dir.
     modelsDir: packaged
       ? join(process.resourcesPath, "models")
@@ -82,13 +157,24 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     ctx.ollamaPort = await getFreePort(host)
     ctx.ollamaModelsDir = join(dataDir, "ollama")
     ctx.ollamaUrl = `http://${host}:${ctx.ollamaPort}`
+    ctx.imagePort = await getFreePort(host)
+    ctx.imageModelsDir = join(dataDir, "images")
+    ctx.imageUrl = `http://${host}:${ctx.imagePort}`
   }
 
-  // ollamaSpec is null in dev (the developer runs their own `ollama serve`)
-  const specs = [apiSpec(ctx), workerSpec(ctx), ollamaSpec(ctx)].filter(
+  // ollamaSpec is null in dev (the developer runs their own `ollama serve`).
+  // sd-server is absent here on purpose: watchImageModel owns it, because only
+  // the API knows which model was chosen.
+  const specs = [
+    apiSpec(ctx),
+    workerSpec(ctx, "ingest"),
+    workerSpec(ctx, "studio"),
+    ollamaSpec(ctx),
+  ].filter(
     (s): s is SidecarSpec => s !== null
   )
   sidecars = startAll(specs, onSidecarCrash)
+  watchImageModel(ctx)
 
   // gate on the API only; fail fast if it dies during startup. Ollama is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
@@ -110,6 +196,18 @@ function registerDocumentHandlers(dataDir: string): void {
     }
     if (overlay == null || typeof overlay !== "object") return
     applyTitleBarOverlay(mainWindow, overlay)
+  })
+
+  ipcMain.handle("theme:set", (event, theme: unknown) => {
+    if (
+      !trusted(event.sender) ||
+      event.senderFrame !== event.sender.mainFrame
+    ) {
+      return
+    }
+    if (theme !== "dark" && theme !== "light" && theme !== "system") return
+    saveThemePreference(theme)
+    applyBackgroundColorToAllWindows(theme)
   })
 
   ipcMain.handle("documents:open", async (event, workspaceId, documentId) => {
@@ -160,6 +258,56 @@ function registerDocumentHandlers(dataDir: string): void {
   })
 }
 
+// Updates are the one call the app makes on its own, so they are off until the
+// user turns them on; "Check now" in Settings works either way.
+async function registerUpdateHandlers(): Promise<void> {
+  const prefsPath = join(app.getPath("userData"), "updates.json")
+  const trusted = (sender: Electron.WebContents): boolean =>
+    mainWindow !== null && sender === mainWindow.webContents
+  const broadcast = (state: UpdateState) =>
+    mainWindow?.webContents.send("updates:state", state)
+
+  let updates: Updates
+  if (app.isPackaged) {
+    // GitHub's CDN rejects the multi-range requests differential updates need.
+    autoUpdater.disableDifferentialDownload = true
+    updates = attachUpdater(autoUpdater, broadcast)
+  } else {
+    // ponytail: dev has no signed build to update; expose the same surface
+    // so the Settings row renders, and stay idle.
+    updates = {
+      check: async () => undefined,
+      install: () => undefined,
+      state: () => ({ status: "idle" }),
+    }
+  }
+
+  const check = (): void => {
+    writeUpdatePrefs(prefsPath, {
+      ...readUpdatePrefs(prefsPath),
+      lastCheckedAt: new Date().toISOString(),
+    })
+    void updates.check()
+  }
+
+  ipcMain.handle("updates:prefs", () => readUpdatePrefs(prefsPath))
+  ipcMain.handle("updates:set-automatic", (event, automatic: unknown) => {
+    if (!trusted(event.sender)) return readUpdatePrefs(prefsPath)
+    const prefs = { ...readUpdatePrefs(prefsPath), automatic: automatic === true }
+    writeUpdatePrefs(prefsPath, prefs)
+    return prefs
+  })
+  ipcMain.handle("updates:state", () => updates.state())
+  ipcMain.handle("updates:check", (event) => {
+    if (trusted(event.sender)) check()
+  })
+  ipcMain.handle("updates:install", (event) => {
+    if (trusted(event.sender)) updates.install()
+  })
+
+  if (readUpdatePrefs(prefsPath).automatic) check()
+}
+
 function applyTitleBarOverlay(
   win: BrowserWindow,
   overlay: { color?: string; symbolColor?: string }
@@ -171,6 +319,29 @@ function applyTitleBarOverlay(
       ? { symbolColor: overlay.symbolColor }
       : {}),
   })
+}
+
+// Mirrors --app-shell in frontend/src/index.css (:root / .dark). Used as the
+// BrowserWindow's native backgroundColor so a reload shows the right theme
+// immediately instead of flashing Electron's default opaque white while the
+// page is torn down and reloaded.
+// https://www.electronjs.org/docs/latest/api/browser-window#showing-window-gracefully
+const APP_SHELL_LIGHT = "#f3f2ee"
+const APP_SHELL_DARK = "#101010"
+
+function resolveBackgroundColor(theme: ThemePreference): string {
+  const resolvedDark =
+    theme === "system" ? nativeTheme.shouldUseDarkColors : theme === "dark"
+  return resolvedDark ? APP_SHELL_DARK : APP_SHELL_LIGHT
+}
+
+function currentWindows(): BrowserWindow[] {
+  return BrowserWindow.getAllWindows()
+}
+
+function applyBackgroundColorToAllWindows(theme: ThemePreference): void {
+  const color = resolveBackgroundColor(theme)
+  for (const win of currentWindows()) win.setBackgroundColor(color)
 }
 
 // Packaged only. Dev keeps Electron's default View menu (reload + DevTools).
@@ -217,6 +388,7 @@ function createWindow(apiUrl: string): void {
   const savedState = app.isPackaged ? loadWindowState() : null
   const win = new BrowserWindow({
     ...(savedState?.bounds ?? { width: 1280, height: 800 }),
+    backgroundColor: resolveBackgroundColor(loadThemePreference()),
     show: false,
     // https://www.electronjs.org/docs/latest/tutorial/custom-title-bar
     titleBarStyle: process.platform === "darwin" ? "hiddenInset" : "hidden",
@@ -275,6 +447,24 @@ function main(): void {
   app.on("web-contents-created", (_event, contents) => {
     denyAppWindows(contents)
   })
+
+  // The renderer's own matchMedia isn't a reliable single source of truth
+  // for the OS theme inside a packaged app (it can lag or diverge from what
+  // Chromium/Electron itself resolves), so nativeTheme is authoritative and
+  // the renderer only ever mirrors it: a sync read on preload boot for the
+  // first paint, then this push on every change.
+  ipcMain.on("theme:get-system", (event) => {
+    event.returnValue = nativeTheme.shouldUseDarkColors ? "dark" : "light"
+  })
+  nativeTheme.on("updated", () => {
+    const systemTheme = nativeTheme.shouldUseDarkColors ? "dark" : "light"
+    for (const win of currentWindows()) {
+      win.webContents.send("theme:system-changed", systemTheme)
+    }
+    if (loadThemePreference() === "system") {
+      applyBackgroundColorToAllWindows("system")
+    }
+  })
   app
     .whenReady()
     .then(async () => {
@@ -282,6 +472,7 @@ function main(): void {
       registerDocumentHandlers(boot.dataDir)
       installProductionMenu()
       createWindow(boot.apiUrl)
+      await registerUpdateHandlers()
       app.on("activate", () => {
         if (BrowserWindow.getAllWindows().length === 0)
           createWindow(boot.apiUrl)

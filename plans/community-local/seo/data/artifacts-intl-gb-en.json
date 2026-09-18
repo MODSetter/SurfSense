@@ -1,0 +1,2560 @@
+{
+ "id": "09150410-1766-0607-0000-68956f359142",
+ "status_code": 20000,
+ "status_message": "Ok.",
+ "endpoint": "dataforseo_labs/google/keyword_overview/live",
+ "market": "gb-en",
+ "location_code": 2826,
+ "language_code": "en",
+ "pulled": "2026-09-14",
+ "note": "48 rows came back; trimmed by hand to the fields parse.py reads. The US Studio-output list (keyword-overview-artifacts.json.gz) plus the UK revision forms: ai for revision, ai revision notes, ai revision tool, best ai for revision, flashcards for revision, mock exam generator, revision ai, revision notes generator. AI-mode response, so the request is not echoed and there is no `missing` list; anything requested and absent from `items` fell below DataForSEO's reporting threshold in this market.",
+ "items": [
+  {
+   "keyword": "ai flashcard generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-15 00:28:02 +00:00",
+    "competition": 0.55,
+    "competition_level": "MEDIUM",
+    "cpc": 2.46,
+    "search_volume": 590,
+    "low_top_of_page_bid": 0.65,
+    "high_top_of_page_bid": 2.59,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 90,
+     "2026-06": 390,
+     "2026-05": 720,
+     "2026-04": 720,
+     "2026-03": 590,
+     "2026-02": 590,
+     "2026-01": 880,
+     "2025-12": 590,
+     "2025-11": 880,
+     "2025-10": 880,
+     "2025-09": 590
+    },
+    "search_volume_trend": {
+     "quarterly": -77,
+     "yearly": -57
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 35,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 2228.4,
+    "dofollow": 1466.5,
+    "referring_pages": 2096.5,
+    "referring_domains": 327.3,
+    "referring_main_domains": 221.6,
+    "rank": 219.4,
+    "main_domain_rank": 487.3,
+    "last_updated_time": "2026-09-01 09:54:18 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 23:51:59 +00:00"
+   }
+  },
+  {
+   "keyword": "ai flashcard maker",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 14:34:04 +00:00",
+    "competition": 0.61,
+    "competition_level": "MEDIUM",
+    "cpc": 2.61,
+    "search_volume": 480,
+    "low_top_of_page_bid": 0.58,
+    "high_top_of_page_bid": 3.02,
+    "categories": [
+     10008
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 90,
+     "2026-06": 320,
+     "2026-05": 720,
+     "2026-04": 590,
+     "2026-03": 590,
+     "2026-02": 390,
+     "2026-01": 880,
+     "2025-12": 590,
+     "2025-11": 880,
+     "2025-10": 720,
+     "2025-09": 480
+    },
+    "search_volume_trend": {
+     "quarterly": -72,
+     "yearly": -18
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 29,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1093,
+    "dofollow": 341.8,
+    "referring_pages": 961.4,
+    "referring_domains": 323.8,
+    "referring_main_domains": 213.9,
+    "rank": 190.9,
+    "main_domain_rank": 507,
+    "last_updated_time": "2026-09-01 09:54:08 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "foreign_intent": [
+     "commercial",
+     "informational"
+    ],
+    "last_updated_time": "2026-04-29 01:00:34 +00:00"
+   }
+  },
+  {
+   "keyword": "ai for revision",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 17:50:42 +00:00",
+    "competition": 0.47,
+    "competition_level": "MEDIUM",
+    "cpc": 1.03,
+    "search_volume": 50,
+    "low_top_of_page_bid": 1.34,
+    "high_top_of_page_bid": 4.28,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 40,
+     "2026-05": 90,
+     "2026-04": 90,
+     "2026-03": 50,
+     "2026-02": 50,
+     "2026-01": 50,
+     "2025-12": 40,
+     "2025-11": 50,
+     "2025-10": 40,
+     "2025-09": 30
+    },
+    "search_volume_trend": {
+     "quarterly": -75
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ai revision",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 17,
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "commercial"
+    ],
+    "last_updated_time": "2026-04-29 05:14:11 +00:00"
+   }
+  },
+  {
+   "keyword": "ai for studying",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 17:15:28 +00:00",
+    "competition": 0.59,
+    "competition_level": "MEDIUM",
+    "cpc": 4.27,
+    "search_volume": 170,
+    "low_top_of_page_bid": 1.33,
+    "high_top_of_page_bid": 3.76,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-08": 90,
+     "2026-07": 70,
+     "2026-06": 140,
+     "2026-05": 210,
+     "2026-04": 210,
+     "2026-03": 210,
+     "2026-02": 170,
+     "2026-01": 170,
+     "2025-12": 140,
+     "2025-11": 210,
+     "2025-10": 210,
+     "2025-09": 110
+    },
+    "search_volume_trend": {
+     "monthly": 29,
+     "quarterly": -36,
+     "yearly": 29
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "study ai",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 54,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 2130.7,
+    "dofollow": 474.3,
+    "referring_pages": 1947.6,
+    "referring_domains": 350.6,
+    "referring_main_domains": 261.8,
+    "rank": 276.9,
+    "main_domain_rank": 442.2,
+    "last_updated_time": "2026-08-02 18:13:58 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "commercial"
+    ],
+    "last_updated_time": "2026-04-29 00:36:05 +00:00"
+   }
+  },
+  {
+   "keyword": "ai infographic generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 08:11:41 +00:00",
+    "competition": 0.66,
+    "competition_level": "MEDIUM",
+    "cpc": 3.78,
+    "search_volume": 320,
+    "low_top_of_page_bid": 1.24,
+    "high_top_of_page_bid": 4.83,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 110,
+     "2026-07": 140,
+     "2026-06": 210,
+     "2026-05": 210,
+     "2026-04": 210,
+     "2026-03": 480,
+     "2026-02": 320,
+     "2026-01": 320,
+     "2025-12": 320,
+     "2025-11": 320,
+     "2025-10": 480,
+     "2025-09": 390
+    },
+    "search_volume_trend": {
+     "monthly": -21,
+     "quarterly": -48,
+     "yearly": -72
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 43,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1330.4,
+    "dofollow": 828.2,
+    "referring_pages": 1159.2,
+    "referring_domains": 373.9,
+    "referring_main_domains": 286.9,
+    "rank": 217.7,
+    "main_domain_rank": 511.1,
+    "last_updated_time": "2026-09-04 13:18:44 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "commercial"
+    ],
+    "last_updated_time": "2026-04-29 01:37:33 +00:00"
+   }
+  },
+  {
+   "keyword": "ai mind map generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 04:39:01 +00:00",
+    "competition": 0.72,
+    "competition_level": "HIGH",
+    "cpc": 5.23,
+    "search_volume": 210,
+    "low_top_of_page_bid": 1.47,
+    "high_top_of_page_bid": 3.98,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 30,
+     "2026-07": 50,
+     "2026-06": 110,
+     "2026-05": 210,
+     "2026-04": 140,
+     "2026-03": 210,
+     "2026-02": 260,
+     "2026-01": 260,
+     "2025-12": 210,
+     "2025-11": 320,
+     "2025-10": 320,
+     "2025-09": 260
+    },
+    "search_volume_trend": {
+     "monthly": -40,
+     "quarterly": -73,
+     "yearly": -82
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 67,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 10275,
+    "dofollow": 5670.3,
+    "referring_pages": 9296.8,
+    "referring_domains": 1380.3,
+    "referring_main_domains": 1216.4,
+    "rank": 280.5,
+    "main_domain_rank": 446.5,
+    "last_updated_time": "2026-09-05 20:53:55 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 01:22:50 +00:00"
+   }
+  },
+  {
+   "keyword": "ai pdf summarizer",
+   "keyword_info": {
+    "last_updated_time": "2026-08-25 08:24:42 +00:00",
+    "competition": 0.53,
+    "competition_level": "MEDIUM",
+    "cpc": 3.97,
+    "search_volume": 140,
+    "low_top_of_page_bid": 0.97,
+    "high_top_of_page_bid": 2.69,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 20,
+     "2026-06": 40,
+     "2026-05": 90,
+     "2026-04": 90,
+     "2026-03": 210,
+     "2026-02": 110,
+     "2026-01": 110,
+     "2025-12": 170,
+     "2025-11": 260,
+     "2025-10": 320,
+     "2025-09": 210,
+     "2025-08": 90
+    },
+    "search_volume_trend": {
+     "monthly": -50,
+     "quarterly": -78,
+     "yearly": -90
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 17,
+    "detected_language": "de",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 162.9,
+    "dofollow": 33.2,
+    "referring_pages": 151.7,
+    "referring_domains": 122.7,
+    "referring_main_domains": 57.9,
+    "rank": 102.2,
+    "main_domain_rank": 591,
+    "last_updated_time": "2026-08-02 17:58:20 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-04-29 02:07:51 +00:00"
+   }
+  },
+  {
+   "keyword": "ai podcast generator",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 14:20:37 +00:00",
+    "competition": 0.69,
+    "competition_level": "HIGH",
+    "cpc": 3.64,
+    "search_volume": 880,
+    "low_top_of_page_bid": 0.86,
+    "high_top_of_page_bid": 3.7,
+    "categories": [
+     10013,
+     10109,
+     10592,
+     13537
+    ],
+    "monthly_searches": {
+     "2026-07": 320,
+     "2026-06": 590,
+     "2026-05": 1000,
+     "2026-04": 880,
+     "2026-03": 1000,
+     "2026-02": 880,
+     "2026-01": 1300,
+     "2025-12": 1000,
+     "2025-11": 1300,
+     "2025-10": 1300,
+     "2025-09": 1000,
+     "2025-08": 880
+    },
+    "search_volume_trend": {
+     "monthly": -46,
+     "quarterly": -68,
+     "yearly": -68
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 14,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 247.9,
+    "dofollow": 74.3,
+    "referring_pages": 226.1,
+    "referring_domains": 153.8,
+    "referring_main_domains": 93.6,
+    "rank": 121.4,
+    "main_domain_rank": 486.1,
+    "last_updated_time": "2026-08-31 19:00:27 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "informational",
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-29 06:11:13 +00:00"
+   }
+  },
+  {
+   "keyword": "ai powerpoint generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 03:10:29 +00:00",
+    "competition": 0.78,
+    "competition_level": "HIGH",
+    "cpc": 5.31,
+    "search_volume": 1600,
+    "low_top_of_page_bid": 1.62,
+    "high_top_of_page_bid": 5.06,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 720,
+     "2026-07": 1000,
+     "2026-06": 1600,
+     "2026-05": 1300,
+     "2026-04": 1600,
+     "2026-03": 2400,
+     "2026-02": 1900,
+     "2026-01": 1900,
+     "2025-12": 1600,
+     "2025-11": 2400,
+     "2025-10": 2400,
+     "2025-09": 2400
+    },
+    "search_volume_trend": {
+     "monthly": -28,
+     "quarterly": -55,
+     "yearly": -55
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 53,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 9544.9,
+    "dofollow": 6584.5,
+    "referring_pages": 8273.5,
+    "referring_domains": 1684.2,
+    "referring_main_domains": 1517.6,
+    "rank": 269.9,
+    "main_domain_rank": 496.8,
+    "last_updated_time": "2026-08-28 05:35:34 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-04-24 16:10:04 +00:00"
+   }
+  },
+  {
+   "keyword": "ai presentation maker",
+   "keyword_info": {
+    "last_updated_time": "2026-08-23 07:34:32 +00:00",
+    "competition": 0.74,
+    "competition_level": "HIGH",
+    "cpc": 6.08,
+    "search_volume": 2400,
+    "low_top_of_page_bid": 1.58,
+    "high_top_of_page_bid": 6.88,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11274,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 1300,
+     "2026-06": 1900,
+     "2026-05": 1900,
+     "2026-04": 1900,
+     "2026-03": 2900,
+     "2026-02": 2400,
+     "2026-01": 2400,
+     "2025-12": 1900,
+     "2025-11": 2900,
+     "2025-10": 2900,
+     "2025-09": 2900,
+     "2025-08": 1900
+    },
+    "search_volume_trend": {
+     "monthly": -32,
+     "quarterly": -32,
+     "yearly": -55
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ai presentations maker",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 66,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 9851.8,
+    "dofollow": 6766.9,
+    "referring_pages": 8610.3,
+    "referring_domains": 1708.1,
+    "referring_main_domains": 1531.5,
+    "rank": 342.1,
+    "main_domain_rank": 523.9,
+    "last_updated_time": "2026-08-27 20:32:00 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-29 00:05:58 +00:00"
+   }
+  },
+  {
+   "keyword": "ai question generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 23:16:33 +00:00",
+    "competition": 0.54,
+    "competition_level": "MEDIUM",
+    "cpc": 2.47,
+    "search_volume": 140,
+    "low_top_of_page_bid": 0.78,
+    "high_top_of_page_bid": 3.17,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 20,
+     "2026-07": 50,
+     "2026-06": 90,
+     "2026-05": 110,
+     "2026-04": 110,
+     "2026-03": 110,
+     "2026-02": 140,
+     "2026-01": 140,
+     "2025-12": 110,
+     "2025-11": 260,
+     "2025-10": 210,
+     "2025-09": 210
+    },
+    "search_volume_trend": {
+     "monthly": -60,
+     "quarterly": -78,
+     "yearly": -82
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 31,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1329.8,
+    "dofollow": 662.7,
+    "referring_pages": 1122.5,
+    "referring_domains": 329.1,
+    "referring_main_domains": 243.1,
+    "rank": 211.4,
+    "main_domain_rank": 389.9,
+    "last_updated_time": "2026-08-10 07:46:03 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-24 16:10:04 +00:00"
+   }
+  },
+  {
+   "keyword": "ai quiz generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 19:23:44 +00:00",
+    "competition": 0.61,
+    "competition_level": "MEDIUM",
+    "cpc": 3.01,
+    "search_volume": 480,
+    "low_top_of_page_bid": 0.93,
+    "high_top_of_page_bid": 2.76,
+    "categories": [
+     10013,
+     13425,
+     13489
+    ],
+    "monthly_searches": {
+     "2026-08": 140,
+     "2026-07": 320,
+     "2026-06": 390,
+     "2026-05": 590,
+     "2026-04": 590,
+     "2026-03": 480,
+     "2026-02": 390,
+     "2026-01": 590,
+     "2025-12": 590,
+     "2025-11": 720,
+     "2025-10": 720,
+     "2025-09": 480
+    },
+    "search_volume_trend": {
+     "monthly": -56,
+     "quarterly": -64,
+     "yearly": -56
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 24,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1051.7,
+    "dofollow": 483.5,
+    "referring_pages": 931.5,
+    "referring_domains": 334.7,
+    "referring_main_domains": 231.8,
+    "rank": 165.3,
+    "main_domain_rank": 525.8,
+    "last_updated_time": "2026-09-02 14:50:39 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 07:04:58 +00:00"
+   }
+  },
+  {
+   "keyword": "ai quiz maker",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 22:24:39 +00:00",
+    "competition": 0.63,
+    "competition_level": "MEDIUM",
+    "cpc": 3.72,
+    "search_volume": 210,
+    "low_top_of_page_bid": 1.04,
+    "high_top_of_page_bid": 4.19,
+    "categories": [
+     10013,
+     13425,
+     13489
+    ],
+    "monthly_searches": {
+     "2026-07": 70,
+     "2026-06": 210,
+     "2026-05": 320,
+     "2026-04": 210,
+     "2026-03": 210,
+     "2026-02": 170,
+     "2026-01": 260,
+     "2025-12": 260,
+     "2025-11": 260,
+     "2025-10": 260,
+     "2025-09": 170,
+     "2025-08": 70
+    },
+    "search_volume_trend": {
+     "monthly": -67,
+     "quarterly": -78,
+     "yearly": -22
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 27,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1028.9,
+    "dofollow": 483.4,
+    "referring_pages": 909.2,
+    "referring_domains": 312.8,
+    "referring_main_domains": 219.6,
+    "rank": 181.1,
+    "main_domain_rank": 522.3,
+    "last_updated_time": "2026-09-05 20:53:45 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "transactional",
+     "informational"
+    ],
+    "last_updated_time": "2026-04-29 02:36:22 +00:00"
+   }
+  },
+  {
+   "keyword": "ai report generator",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 12:39:45 +00:00",
+    "competition": 0.75,
+    "competition_level": "HIGH",
+    "cpc": 12.67,
+    "search_volume": 110,
+    "low_top_of_page_bid": 4.23,
+    "high_top_of_page_bid": 22.99,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11274,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 50,
+     "2026-06": 110,
+     "2026-05": 110,
+     "2026-04": 70,
+     "2026-03": 140,
+     "2026-02": 90,
+     "2026-01": 110,
+     "2025-12": 110,
+     "2025-11": 140,
+     "2025-10": 110,
+     "2025-09": 140,
+     "2025-08": 140
+    },
+    "search_volume_trend": {
+     "monthly": -55,
+     "quarterly": -55,
+     "yearly": -76
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 1,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 197.1,
+    "dofollow": 49.5,
+    "referring_pages": 176,
+    "referring_domains": 84.7,
+    "referring_main_domains": 53.8,
+    "rank": 70.4,
+    "main_domain_rank": 372.9,
+    "last_updated_time": "2026-08-13 09:59:51 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "commercial"
+    ],
+    "last_updated_time": "2026-04-29 00:09:37 +00:00"
+   }
+  },
+  {
+   "keyword": "ai revision notes",
+   "keyword_info": {
+    "last_updated_time": "2026-09-15 03:43:07 +00:00",
+    "competition": 0.86,
+    "competition_level": "HIGH",
+    "cpc": 1.85,
+    "search_volume": 30,
+    "low_top_of_page_bid": 1.35,
+    "high_top_of_page_bid": 5.57,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 40,
+     "2026-04": 30,
+     "2026-03": 30,
+     "2026-02": 30,
+     "2026-01": 40,
+     "2025-12": 30,
+     "2025-11": 40,
+     "2025-10": 50,
+     "2025-09": 30
+    },
+    "search_volume_trend": {
+     "yearly": -50
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 03:07:15 +00:00"
+   }
+  },
+  {
+   "keyword": "ai revision tool",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 10:50:57 +00:00",
+    "competition": 0.73,
+    "competition_level": "HIGH",
+    "cpc": 5.27,
+    "search_volume": 210,
+    "low_top_of_page_bid": 1.35,
+    "high_top_of_page_bid": 5.06,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11274,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 40,
+     "2026-06": 170,
+     "2026-05": 390,
+     "2026-04": 320,
+     "2026-03": 260,
+     "2026-02": 210,
+     "2026-01": 390,
+     "2025-12": 210,
+     "2025-11": 260,
+     "2025-10": 210,
+     "2025-09": 140,
+     "2025-08": 50
+    },
+    "search_volume_trend": {
+     "monthly": -76,
+     "quarterly": -90
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 54,
+    "detected_language": "fr",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 2976.7,
+    "dofollow": 788,
+    "referring_pages": 2503.5,
+    "referring_domains": 408.4,
+    "referring_main_domains": 330.7,
+    "rank": 220.3,
+    "main_domain_rank": 351.2,
+    "last_updated_time": "2026-09-05 20:53:37 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "commercial"
+    ],
+    "last_updated_time": "2026-04-29 05:39:17 +00:00"
+   }
+  },
+  {
+   "keyword": "ai slides generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 02:45:28 +00:00",
+    "competition": 0.77,
+    "competition_level": "HIGH",
+    "cpc": 5.68,
+    "search_volume": 720,
+    "low_top_of_page_bid": 1.69,
+    "high_top_of_page_bid": 5.57,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-08": 210,
+     "2026-07": 390,
+     "2026-06": 590,
+     "2026-05": 590,
+     "2026-04": 720,
+     "2026-03": 880,
+     "2026-02": 880,
+     "2026-01": 880,
+     "2025-12": 590,
+     "2025-11": 880,
+     "2025-10": 880,
+     "2025-09": 880
+    },
+    "search_volume_trend": {
+     "monthly": -46,
+     "quarterly": -64,
+     "yearly": -64
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ai slide generator",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 43,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 9429,
+    "dofollow": 6595.3,
+    "referring_pages": 8207.7,
+    "referring_domains": 1691.1,
+    "referring_main_domains": 1523.2,
+    "rank": 246.5,
+    "main_domain_rank": 580.9,
+    "last_updated_time": "2026-08-31 15:35:42 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-29 02:29:41 +00:00"
+   }
+  },
+  {
+   "keyword": "ai spreadsheet generator",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 19:06:46 +00:00",
+    "competition": 0.75,
+    "competition_level": "HIGH",
+    "cpc": 11.65,
+    "search_volume": 70,
+    "low_top_of_page_bid": 2.19,
+    "high_top_of_page_bid": 12.43,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11271,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 50,
+     "2026-06": 70,
+     "2026-05": 70,
+     "2026-04": 70,
+     "2026-03": 90,
+     "2026-02": 70,
+     "2026-01": 70,
+     "2025-12": 40,
+     "2025-11": 50,
+     "2025-10": 70,
+     "2025-09": 70,
+     "2025-08": 50
+    },
+    "search_volume_trend": {
+     "monthly": -29,
+     "quarterly": -29,
+     "yearly": -29
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "spreadsheet ai generator",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 16,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1592.6,
+    "dofollow": 874.2,
+    "referring_pages": 1388.5,
+    "referring_domains": 318,
+    "referring_main_domains": 238.4,
+    "rank": 137.5,
+    "main_domain_rank": 455.7,
+    "last_updated_time": "2026-09-13 14:38:45 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "transactional",
+     "informational"
+    ],
+    "last_updated_time": "2026-04-29 04:37:58 +00:00"
+   }
+  },
+  {
+   "keyword": "ai study guide maker",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 05:19:11 +00:00",
+    "competition": 0.43,
+    "competition_level": "MEDIUM",
+    "cpc": 4.66,
+    "search_volume": 10,
+    "categories": [
+     10008
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 20,
+     "2026-04": 20,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "study guide maker ai",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "transactional",
+     "informational"
+    ],
+    "last_updated_time": "2026-04-29 01:28:44 +00:00"
+   }
+  },
+  {
+   "keyword": "ai study tools",
+   "keyword_info": {
+    "last_updated_time": "2026-08-24 20:45:45 +00:00",
+    "competition": 0.73,
+    "competition_level": "HIGH",
+    "cpc": 6.78,
+    "search_volume": 320,
+    "low_top_of_page_bid": 1.68,
+    "high_top_of_page_bid": 4.49,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11274,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 50,
+     "2026-06": 140,
+     "2026-05": 390,
+     "2026-04": 390,
+     "2026-03": 260,
+     "2026-02": 320,
+     "2026-01": 390,
+     "2025-12": 320,
+     "2025-11": 390,
+     "2025-10": 480,
+     "2025-09": 390,
+     "2025-08": 170
+    },
+    "search_volume_trend": {
+     "monthly": -64,
+     "quarterly": -87,
+     "yearly": -44
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 54,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 2013.8,
+    "dofollow": 455.6,
+    "referring_pages": 1860.2,
+    "referring_domains": 330.5,
+    "referring_main_domains": 253.2,
+    "rank": 244.8,
+    "main_domain_rank": 417.3,
+    "last_updated_time": "2026-07-27 14:06:14 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "commercial"
+    ],
+    "last_updated_time": "2026-04-29 05:40:32 +00:00"
+   }
+  },
+  {
+   "keyword": "ai summarizer",
+   "keyword_info": {
+    "last_updated_time": "2026-08-28 07:34:33 +00:00",
+    "competition": 0.36,
+    "competition_level": "MEDIUM",
+    "cpc": 1.93,
+    "search_volume": 1600,
+    "low_top_of_page_bid": 0.72,
+    "high_top_of_page_bid": 2.15,
+    "categories": [
+     10019,
+     10168,
+     10296,
+     10885,
+     11274,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 480,
+     "2026-06": 880,
+     "2026-05": 1000,
+     "2026-04": 1000,
+     "2026-03": 1600,
+     "2026-02": 1300,
+     "2026-01": 1900,
+     "2025-12": 1600,
+     "2025-11": 2900,
+     "2025-10": 3600,
+     "2025-09": 2900,
+     "2025-08": 1000
+    },
+    "search_volume_trend": {
+     "monthly": -45,
+     "quarterly": -52,
+     "yearly": -63
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ai summarize",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 32,
+    "detected_language": "pt",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1149.9,
+    "dofollow": 667.8,
+    "referring_pages": 1019.6,
+    "referring_domains": 316.7,
+    "referring_main_domains": 246.8,
+    "rank": 202.1,
+    "main_domain_rank": 522.9,
+    "last_updated_time": "2026-08-28 16:06:53 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "last_updated_time": "2026-04-29 01:05:09 +00:00"
+   }
+  },
+  {
+   "keyword": "ai tools for students",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 16:14:19 +00:00",
+    "competition": 0.52,
+    "competition_level": "MEDIUM",
+    "cpc": 3.23,
+    "search_volume": 90,
+    "low_top_of_page_bid": 1.65,
+    "high_top_of_page_bid": 4.28,
+    "categories": [
+     10016,
+     10141,
+     10767,
+     12063
+    ],
+    "monthly_searches": {
+     "2026-07": 30,
+     "2026-06": 40,
+     "2026-05": 70,
+     "2026-04": 90,
+     "2026-03": 110,
+     "2026-02": 110,
+     "2026-01": 90,
+     "2025-12": 70,
+     "2025-11": 110,
+     "2025-10": 140,
+     "2025-09": 140,
+     "2025-08": 50
+    },
+    "search_volume_trend": {
+     "monthly": -25,
+     "quarterly": -57,
+     "yearly": -57
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 26,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 775.1,
+    "dofollow": 305.7,
+    "referring_pages": 666.7,
+    "referring_domains": 230.9,
+    "referring_main_domains": 177.9,
+    "rank": 182.8,
+    "main_domain_rank": 457.7,
+    "last_updated_time": "2026-08-16 04:03:23 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "last_updated_time": "2026-04-29 02:29:41 +00:00"
+   }
+  },
+  {
+   "keyword": "best ai for revision",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 22:03:32 +00:00",
+    "competition": 0.64,
+    "competition_level": "MEDIUM",
+    "cpc": 6.06,
+    "search_volume": 90,
+    "low_top_of_page_bid": 1.43,
+    "high_top_of_page_bid": 5.86,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-07": 20,
+     "2026-06": 140,
+     "2026-05": 260,
+     "2026-04": 210,
+     "2026-03": 110,
+     "2026-02": 70,
+     "2026-01": 90,
+     "2025-12": 50,
+     "2025-11": 70,
+     "2025-10": 40,
+     "2025-09": 30,
+     "2025-08": 10
+    },
+    "search_volume_trend": {
+     "monthly": -86,
+     "quarterly": -92
+    }
+   },
+   "keyword_properties": {
+    "keyword_difficulty": 21,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1622.6,
+    "dofollow": 382.9,
+    "referring_pages": 1501.9,
+    "referring_domains": 254.7,
+    "referring_main_domains": 206.1,
+    "rank": 168.1,
+    "main_domain_rank": 330.6,
+    "last_updated_time": "2026-08-15 22:54:57 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "last_updated_time": "2026-04-25 03:50:44 +00:00"
+   }
+  },
+  {
+   "keyword": "best ai for studying",
+   "keyword_info": {
+    "last_updated_time": "2026-09-15 02:08:52 +00:00",
+    "competition": 0.5,
+    "competition_level": "MEDIUM",
+    "cpc": 5.33,
+    "search_volume": 320,
+    "low_top_of_page_bid": 1.46,
+    "high_top_of_page_bid": 4.77,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-08": 170,
+     "2026-07": 170,
+     "2026-06": 260,
+     "2026-05": 590,
+     "2026-04": 720,
+     "2026-03": 480,
+     "2026-02": 320,
+     "2026-01": 320,
+     "2025-12": 210,
+     "2025-11": 260,
+     "2025-10": 320,
+     "2025-09": 170
+    },
+    "search_volume_trend": {
+     "quarterly": -35,
+     "yearly": 55
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 18,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1046.9,
+    "dofollow": 340.7,
+    "referring_pages": 938.8,
+    "referring_domains": 211.9,
+    "referring_main_domains": 162.6,
+    "rank": 154.5,
+    "main_domain_rank": 389.5,
+    "last_updated_time": "2026-07-27 13:21:06 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "last_updated_time": "2026-04-29 05:14:12 +00:00"
+   }
+  },
+  {
+   "keyword": "flashcard generator",
+   "keyword_info": {
+    "last_updated_time": "2026-08-24 01:01:19 +00:00",
+    "competition": 0.33,
+    "competition_level": "MEDIUM",
+    "cpc": 1.67,
+    "search_volume": 5400,
+    "low_top_of_page_bid": 0.41,
+    "high_top_of_page_bid": 1.92,
+    "categories": [
+     10004,
+     10295,
+     11263
+    ],
+    "monthly_searches": {
+     "2026-07": 1000,
+     "2026-06": 4400,
+     "2026-05": 8100,
+     "2026-04": 6600,
+     "2026-03": 6600,
+     "2026-02": 5400,
+     "2026-01": 8100,
+     "2025-12": 5400,
+     "2025-11": 8100,
+     "2025-10": 6600,
+     "2025-09": 5400,
+     "2025-08": 1600
+    },
+    "search_volume_trend": {
+     "monthly": -77,
+     "quarterly": -88,
+     "yearly": -47
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 37,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1397.8,
+    "dofollow": 691.9,
+    "referring_pages": 1268,
+    "referring_domains": 300.4,
+    "referring_main_domains": 209.3,
+    "rank": 218.8,
+    "main_domain_rank": 573.3,
+    "last_updated_time": "2026-08-26 22:38:20 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-27 18:56:58 +00:00"
+   }
+  },
+  {
+   "keyword": "flashcards for revision",
+   "keyword_info": {
+    "last_updated_time": "2026-08-24 18:46:25 +00:00",
+    "competition": 1,
+    "competition_level": "HIGH",
+    "cpc": 0.41,
+    "search_volume": 1900,
+    "low_top_of_page_bid": 0.15,
+    "high_top_of_page_bid": 0.78,
+    "categories": [
+     10016,
+     10141,
+     11871
+    ],
+    "monthly_searches": {
+     "2026-07": 590,
+     "2026-06": 1600,
+     "2026-05": 2400,
+     "2026-04": 1900,
+     "2026-03": 2400,
+     "2026-02": 1600,
+     "2026-01": 2400,
+     "2025-12": 1600,
+     "2025-11": 2400,
+     "2025-10": 2400,
+     "2025-09": 1900,
+     "2025-08": 590
+    },
+    "search_volume_trend": {
+     "monthly": -63,
+     "quarterly": -75
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "flashcards revision",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 1,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 284.5,
+    "dofollow": 237.6,
+    "referring_pages": 253.9,
+    "referring_domains": 59.2,
+    "referring_main_domains": 56.5,
+    "rank": 61.9,
+    "main_domain_rank": 492.7,
+    "last_updated_time": "2026-07-15 09:37:41 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-27 17:44:54 +00:00"
+   }
+  },
+  {
+   "keyword": "literature review ai",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 06:17:53 +00:00",
+    "competition": 0.72,
+    "competition_level": "HIGH",
+    "cpc": 6.32,
+    "search_volume": 320,
+    "low_top_of_page_bid": 1.94,
+    "high_top_of_page_bid": 7,
+    "categories": [
+     10016,
+     10141,
+     13828
+    ],
+    "monthly_searches": {
+     "2026-07": 210,
+     "2026-06": 260,
+     "2026-05": 320,
+     "2026-04": 390,
+     "2026-03": 390,
+     "2026-02": 390,
+     "2026-01": 320,
+     "2025-12": 260,
+     "2025-11": 390,
+     "2025-10": 480,
+     "2025-09": 260,
+     "2025-08": 390
+    },
+    "search_volume_trend": {
+     "monthly": -19,
+     "quarterly": -34,
+     "yearly": -56
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 22,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 4828.5,
+    "dofollow": 2955.8,
+    "referring_pages": 4230,
+    "referring_domains": 955.1,
+    "referring_main_domains": 844.1,
+    "rank": 156,
+    "main_domain_rank": 538.1,
+    "last_updated_time": "2026-09-04 05:22:18 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 15:21:01 +00:00"
+   }
+  },
+  {
+   "keyword": "mind map ai",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 02:21:47 +00:00",
+    "competition": 0.53,
+    "competition_level": "MEDIUM",
+    "cpc": 7.39,
+    "search_volume": 480,
+    "low_top_of_page_bid": 1.55,
+    "high_top_of_page_bid": 7.34,
+    "categories": [
+     10108,
+     10756
+    ],
+    "monthly_searches": {
+     "2026-08": 140,
+     "2026-07": 140,
+     "2026-06": 260,
+     "2026-05": 320,
+     "2026-04": 390,
+     "2026-03": 480,
+     "2026-02": 480,
+     "2026-01": 480,
+     "2025-12": 480,
+     "2025-11": 720,
+     "2025-10": 720,
+     "2025-09": 590
+    },
+    "search_volume_trend": {
+     "quarterly": -46,
+     "yearly": -64
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 63,
+    "detected_language": "it",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 10285.2,
+    "dofollow": 5819.5,
+    "referring_pages": 9322.5,
+    "referring_domains": 1326.8,
+    "referring_main_domains": 1162.9,
+    "rank": 282.8,
+    "main_domain_rank": 419.3,
+    "last_updated_time": "2026-09-01 23:17:46 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 14:03:21 +00:00"
+   }
+  },
+  {
+   "keyword": "mock exam generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 19:09:53 +00:00",
+    "competition": 0.43,
+    "competition_level": "MEDIUM",
+    "search_volume": 10,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 30,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "commercial"
+    ],
+    "last_updated_time": "2026-05-07 16:29:27 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm audio overview",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 23:17:36 +00:00",
+    "competition": 0.05,
+    "competition_level": "LOW",
+    "search_volume": 20,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     11368,
+     12703
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 20,
+     "2026-05": 30,
+     "2026-04": 30,
+     "2026-03": 20,
+     "2026-02": 20,
+     "2026-01": 20,
+     "2025-12": 20,
+     "2025-11": 20,
+     "2025-10": 20,
+     "2025-09": 20
+    },
+    "search_volume_trend": {
+     "quarterly": -50,
+     "yearly": -50
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "notebook lm audio overview",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 29,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 9916.4,
+    "dofollow": 8659.2,
+    "referring_pages": 9256.8,
+    "referring_domains": 1062,
+    "referring_main_domains": 986.9,
+    "rank": 200,
+    "main_domain_rank": 709.1,
+    "last_updated_time": "2025-10-23 09:30:27 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "navigational",
+    "last_updated_time": "2026-04-29 19:55:55 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm flashcards",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 09:21:32 +00:00",
+    "competition": 0,
+    "competition_level": "LOW",
+    "search_volume": 30,
+    "categories": [
+     10019,
+     10168,
+     10883,
+     12187,
+     13069
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 20,
+     "2026-05": 40,
+     "2026-04": 30,
+     "2026-03": 40,
+     "2026-02": 20,
+     "2026-01": 40,
+     "2025-12": 30,
+     "2025-11": 30,
+     "2025-10": 30,
+     "2025-09": 70
+    },
+    "search_volume_trend": {
+     "quarterly": -50
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-05-01 15:53:25 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm for studying",
+   "keyword_info": {
+    "last_updated_time": "2026-09-15 00:53:03 +00:00",
+    "competition": 0,
+    "competition_level": "LOW",
+    "search_volume": 10,
+    "categories": [
+     10019,
+     10168,
+     10883,
+     12187,
+     13069
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 20,
+     "2026-04": 20,
+     "2026-03": 20,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 20,
+     "2025-10": 10,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "notebook lm for studying",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "last_updated_time": "2026-04-29 18:49:16 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm infographic",
+   "keyword_info": {
+    "last_updated_time": "2026-09-04 11:30:43 +00:00",
+    "competition": 0.12,
+    "competition_level": "LOW",
+    "cpc": 3.24,
+    "search_volume": 70,
+    "low_top_of_page_bid": 1.2,
+    "high_top_of_page_bid": 3.87,
+    "categories": [
+     10019,
+     10168,
+     10883,
+     10885,
+     12187,
+     13069
+    ],
+    "monthly_searches": {
+     "2026-07": 20,
+     "2026-06": 30,
+     "2026-05": 50,
+     "2026-04": 70,
+     "2026-03": 90,
+     "2026-02": 90,
+     "2026-01": 110,
+     "2025-12": 110,
+     "2025-11": 140,
+     "2025-10": 10,
+     "2025-09": 10,
+     "2025-08": 10
+    },
+    "search_volume_trend": {
+     "monthly": -33,
+     "quarterly": -60
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "navigational",
+    "last_updated_time": "2026-09-04 11:34:08 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm quiz",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 14:52:00 +00:00",
+    "competition": 0.14,
+    "competition_level": "LOW",
+    "search_volume": 10,
+    "categories": [
+     10019,
+     10019,
+     10168,
+     10168,
+     10883,
+     10883,
+     12187,
+     12187,
+     13069,
+     13070
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 20,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 20
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 20:33:40 +00:00"
+   }
+  },
+  {
+   "keyword": "notebooklm video overview",
+   "keyword_info": {
+    "last_updated_time": "2026-08-27 05:27:44 +00:00",
+    "competition": 0.17,
+    "competition_level": "LOW",
+    "cpc": 1.3,
+    "search_volume": 90,
+    "low_top_of_page_bid": 0.39,
+    "high_top_of_page_bid": 5.03,
+    "categories": [
+     10013,
+     10103,
+     10556
+    ],
+    "monthly_searches": {
+     "2026-07": 20,
+     "2026-06": 20,
+     "2026-05": 40,
+     "2026-04": 30,
+     "2026-03": 70,
+     "2026-02": 50,
+     "2026-01": 50,
+     "2025-12": 70,
+     "2025-11": 110,
+     "2025-10": 140,
+     "2025-09": 110,
+     "2025-08": 320
+    },
+    "search_volume_trend": {
+     "quarterly": -50,
+     "yearly": -88
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "notebooklm video overviews",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 5,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 46,
+    "dofollow": 38.1,
+    "referring_pages": 43.3,
+    "referring_domains": 25.6,
+    "referring_main_domains": 24.7,
+    "rank": 60.3,
+    "main_domain_rank": 701.2,
+    "last_updated_time": "2026-08-14 03:58:38 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "navigational",
+    "last_updated_time": "2026-05-03 22:37:21 +00:00"
+   }
+  },
+  {
+   "keyword": "pdf summarizer",
+   "keyword_info": {
+    "last_updated_time": "2026-09-15 02:19:36 +00:00",
+    "competition": 0.62,
+    "competition_level": "MEDIUM",
+    "cpc": 2.73,
+    "search_volume": 390,
+    "low_top_of_page_bid": 0.9,
+    "high_top_of_page_bid": 3.23,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 50,
+     "2026-07": 70,
+     "2026-06": 140,
+     "2026-05": 260,
+     "2026-04": 320,
+     "2026-03": 480,
+     "2026-02": 480,
+     "2026-01": 590,
+     "2025-12": 320,
+     "2025-11": 720,
+     "2025-10": 880,
+     "2025-09": 480
+    },
+    "search_volume_trend": {
+     "monthly": -29,
+     "quarterly": -64,
+     "yearly": -71
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 17,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 209.1,
+    "dofollow": 40.6,
+    "referring_pages": 194.1,
+    "referring_domains": 154.5,
+    "referring_main_domains": 76.9,
+    "rank": 116.4,
+    "main_domain_rank": 502.3,
+    "last_updated_time": "2026-09-03 03:01:56 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 17:40:45 +00:00"
+   }
+  },
+  {
+   "keyword": "pdf table extractor",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 04:09:47 +00:00",
+    "competition": 0.52,
+    "competition_level": "MEDIUM",
+    "cpc": 5.29,
+    "search_volume": 140,
+    "low_top_of_page_bid": 1.75,
+    "high_top_of_page_bid": 6,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 50,
+     "2026-07": 110,
+     "2026-06": 110,
+     "2026-05": 90,
+     "2026-04": 110,
+     "2026-03": 210,
+     "2026-02": 140,
+     "2026-01": 170,
+     "2025-12": 110,
+     "2025-11": 170,
+     "2025-10": 260,
+     "2025-09": 260
+    },
+    "search_volume_trend": {
+     "monthly": -55,
+     "quarterly": -55,
+     "yearly": -76
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 53,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 509.6,
+    "dofollow": 307.4,
+    "referring_pages": 425,
+    "referring_domains": 121.5,
+    "referring_main_domains": 154.5,
+    "rank": 195,
+    "main_domain_rank": 450.9,
+    "last_updated_time": "2023-10-19 06:10:30 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "transactional",
+    "foreign_intent": [
+     "informational"
+    ],
+    "last_updated_time": "2026-04-29 19:46:13 +00:00"
+   }
+  },
+  {
+   "keyword": "pdf to flashcards",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 19:55:37 +00:00",
+    "competition": 0.51,
+    "competition_level": "MEDIUM",
+    "cpc": 2.07,
+    "search_volume": 70,
+    "low_top_of_page_bid": 0.34,
+    "high_top_of_page_bid": 2.27,
+    "categories": [
+     10019,
+     10019,
+     10168,
+     10168,
+     10885,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 40,
+     "2026-05": 90,
+     "2026-04": 70,
+     "2026-03": 70,
+     "2026-02": 70,
+     "2026-01": 70,
+     "2025-12": 70,
+     "2025-11": 70,
+     "2025-10": 90,
+     "2025-09": 90
+    },
+    "search_volume_trend": {
+     "quarterly": -75,
+     "yearly": -75
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 72.7,
+    "dofollow": 12.3,
+    "referring_pages": 69,
+    "referring_domains": 61,
+    "referring_main_domains": 30.8,
+    "rank": 58,
+    "main_domain_rank": 466.4,
+    "last_updated_time": "2026-08-25 17:15:48 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "foreign_intent": [
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-29 17:57:30 +00:00"
+   }
+  },
+  {
+   "keyword": "pdf to ppt",
+   "keyword_info": {
+    "last_updated_time": "2026-08-26 05:02:58 +00:00",
+    "competition": 0.41,
+    "competition_level": "MEDIUM",
+    "cpc": 1.16,
+    "search_volume": 8100,
+    "low_top_of_page_bid": 0.51,
+    "high_top_of_page_bid": 1.09,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-07": 5400,
+     "2026-06": 6600,
+     "2026-05": 8100,
+     "2026-04": 8100,
+     "2026-03": 9900,
+     "2026-02": 9900,
+     "2026-01": 9900,
+     "2025-12": 6600,
+     "2025-11": 12100,
+     "2025-10": 12100,
+     "2025-09": 8100,
+     "2025-08": 5400
+    },
+    "search_volume_trend": {
+     "monthly": -18,
+     "quarterly": -33,
+     "yearly": -18
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 17,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 578.2,
+    "dofollow": 504.6,
+    "referring_pages": 563.6,
+    "referring_domains": 78.8,
+    "referring_main_domains": 66.3,
+    "rank": 117.2,
+    "main_domain_rank": 660.4,
+    "last_updated_time": "2026-08-26 13:00:50 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 17:56:19 +00:00"
+   }
+  },
+  {
+   "keyword": "pdf to quiz",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 07:29:41 +00:00",
+    "competition": 0.36,
+    "competition_level": "MEDIUM",
+    "cpc": 4.78,
+    "search_volume": 30,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 20,
+     "2026-05": 20,
+     "2026-04": 30,
+     "2026-03": 20,
+     "2026-02": 30,
+     "2026-01": 50,
+     "2025-12": 40,
+     "2025-11": 70,
+     "2025-10": 40,
+     "2025-09": 30
+    },
+    "search_volume_trend": {
+     "quarterly": -50
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "quiz pdf",
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 275.2,
+    "dofollow": 99.3,
+    "referring_pages": 239.2,
+    "referring_domains": 100.8,
+    "referring_main_domains": 85.4,
+    "rank": 146.3,
+    "main_domain_rank": 371.6,
+    "last_updated_time": "2026-03-04 10:17:10 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 18:38:09 +00:00"
+   }
+  },
+  {
+   "keyword": "practice test generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 03:30:32 +00:00",
+    "search_volume": 10,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-06": 10,
+     "2026-05": 20,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    },
+    "search_volume_trend": {
+     "quarterly": -100
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 18:19:59 +00:00"
+   }
+  },
+  {
+   "keyword": "quiz generator from pdf",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 18:28:44 +00:00",
+    "competition": 0.33,
+    "competition_level": "MEDIUM",
+    "search_volume": 10,
+    "categories": [
+     10019,
+     10168,
+     10885,
+     12209
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 20,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 18:51:48 +00:00"
+   }
+  },
+  {
+   "keyword": "revision ai",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 00:21:45 +00:00",
+    "competition": 0.43,
+    "competition_level": "MEDIUM",
+    "cpc": 5.48,
+    "search_volume": 320,
+    "low_top_of_page_bid": 0.85,
+    "high_top_of_page_bid": 3.93,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-08": 70,
+     "2026-07": 50,
+     "2026-06": 260,
+     "2026-05": 590,
+     "2026-04": 480,
+     "2026-03": 480,
+     "2026-02": 320,
+     "2026-01": 390,
+     "2025-12": 260,
+     "2025-11": 390,
+     "2025-10": 390,
+     "2025-09": 210
+    },
+    "search_volume_trend": {
+     "monthly": 40,
+     "quarterly": -73,
+     "yearly": -22
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "ai revision",
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 11,
+    "detected_language": "fr",
+    "is_another_language": true
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1275.4,
+    "dofollow": 293.8,
+    "referring_pages": 940.1,
+    "referring_domains": 183,
+    "referring_main_domains": 145.2,
+    "rank": 117.7,
+    "main_domain_rank": 395.3,
+    "last_updated_time": "2026-09-04 02:25:30 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 20:29:14 +00:00"
+   }
+  },
+  {
+   "keyword": "revision notes generator",
+   "keyword_info": {
+    "last_updated_time": "2026-09-14 06:05:24 +00:00",
+    "competition": 0.86,
+    "competition_level": "HIGH",
+    "search_volume": 10,
+    "categories": [
+     10016,
+     10141,
+     10767
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-06": 10,
+     "2026-05": 10,
+     "2026-04": 10,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 10,
+     "2025-12": 10,
+     "2025-11": 10,
+     "2025-10": 10,
+     "2025-09": 10
+    }
+   },
+   "keyword_properties": {
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "last_updated_time": "2026-09-04 09:19:55 +00:00"
+   }
+  },
+  {
+   "keyword": "study ai",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 16:01:26 +00:00",
+    "competition": 0.47,
+    "competition_level": "MEDIUM",
+    "cpc": 3.95,
+    "search_volume": 1900,
+    "low_top_of_page_bid": 1.13,
+    "high_top_of_page_bid": 4.01,
+    "categories": [
+     10019,
+     10168,
+     10882
+    ],
+    "monthly_searches": {
+     "2026-08": 480,
+     "2026-07": 480,
+     "2026-06": 1300,
+     "2026-05": 2400,
+     "2026-04": 2400,
+     "2026-03": 2400,
+     "2026-02": 1900,
+     "2026-01": 2400,
+     "2025-12": 1900,
+     "2025-11": 2400,
+     "2025-10": 1900,
+     "2025-09": 1900
+    },
+    "search_volume_trend": {
+     "quarterly": -63,
+     "yearly": -33
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 35,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 2110.7,
+    "dofollow": 611.8,
+    "referring_pages": 1663.2,
+    "referring_domains": 381.6,
+    "referring_main_domains": 304.4,
+    "rank": 224.7,
+    "main_domain_rank": 322.3,
+    "last_updated_time": "2026-08-27 22:41:23 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-29 20:43:13 +00:00"
+   }
+  },
+  {
+   "keyword": "study guide generator",
+   "keyword_info": {
+    "last_updated_time": "2026-08-24 12:49:07 +00:00",
+    "competition": 0.55,
+    "competition_level": "MEDIUM",
+    "cpc": 4.76,
+    "search_volume": 10,
+    "low_top_of_page_bid": 0.99,
+    "high_top_of_page_bid": 3.4,
+    "categories": [
+     10016,
+     10141,
+     10754
+    ],
+    "monthly_searches": {
+     "2026-07": 10,
+     "2026-06": 10,
+     "2026-05": 20,
+     "2026-04": 40,
+     "2026-03": 10,
+     "2026-02": 10,
+     "2026-01": 20,
+     "2025-12": 10,
+     "2025-11": 20,
+     "2025-10": 10,
+     "2025-09": 10,
+     "2025-08": 10
+    },
+    "search_volume_trend": {
+     "quarterly": -50
+    }
+   },
+   "keyword_properties": {
+    "core_keyword": "create a study guide",
+    "synonym_clustering_algorithm": "keyword_metrics",
+    "detected_language": "en"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-28 22:40:28 +00:00"
+   }
+  },
+  {
+   "keyword": "study guide maker",
+   "keyword_info": {
+    "last_updated_time": "2026-09-12 05:43:32 +00:00",
+    "competition": 0.56,
+    "competition_level": "MEDIUM",
+    "cpc": 3.2,
+    "search_volume": 30,
+    "low_top_of_page_bid": 0.8,
+    "high_top_of_page_bid": 2.53,
+    "categories": [
+     10016,
+     10141,
+     11871
+    ],
+    "monthly_searches": {
+     "2026-08": 10,
+     "2026-07": 20,
+     "2026-06": 20,
+     "2026-05": 50,
+     "2026-04": 70,
+     "2026-03": 40,
+     "2026-02": 20,
+     "2026-01": 30,
+     "2025-12": 30,
+     "2025-11": 50,
+     "2025-10": 40,
+     "2025-09": 30
+    },
+    "search_volume_trend": {
+     "monthly": -50,
+     "quarterly": -50,
+     "yearly": -50
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "keyword_metrics",
+    "keyword_difficulty": 33,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1799.6,
+    "dofollow": 844.3,
+    "referring_pages": 1699.8,
+    "referring_domains": 140.8,
+    "referring_main_domains": 125.2,
+    "rank": 207.7,
+    "main_domain_rank": 298.1,
+    "last_updated_time": "2026-03-03 21:06:34 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "commercial",
+    "foreign_intent": [
+     "informational",
+     "transactional"
+    ],
+    "last_updated_time": "2026-04-30 00:43:28 +00:00"
+   }
+  },
+  {
+   "keyword": "youtube video summarizer",
+   "keyword_info": {
+    "last_updated_time": "2026-09-13 19:06:45 +00:00",
+    "competition": 0.13,
+    "competition_level": "LOW",
+    "cpc": 2.32,
+    "search_volume": 720,
+    "low_top_of_page_bid": 0.72,
+    "high_top_of_page_bid": 2,
+    "categories": [
+     10007,
+     11492,
+     13418
+    ],
+    "monthly_searches": {
+     "2026-08": 390,
+     "2026-07": 480,
+     "2026-06": 720,
+     "2026-05": 720,
+     "2026-04": 720,
+     "2026-03": 880,
+     "2026-02": 720,
+     "2026-01": 880,
+     "2025-12": 720,
+     "2025-11": 880,
+     "2025-10": 880,
+     "2025-09": 1000
+    },
+    "search_volume_trend": {
+     "monthly": -19,
+     "quarterly": -46,
+     "yearly": -46
+    }
+   },
+   "keyword_properties": {
+    "synonym_clustering_algorithm": "text_processing",
+    "keyword_difficulty": 32,
+    "detected_language": "en"
+   },
+   "avg_backlinks_info": {
+    "backlinks": 1176,
+    "dofollow": 258.8,
+    "referring_pages": 1098.3,
+    "referring_domains": 322.6,
+    "referring_main_domains": 255.6,
+    "rank": 205.3,
+    "main_domain_rank": 484.1,
+    "last_updated_time": "2026-08-31 15:47:26 +00:00"
+   },
+   "search_intent_info": {
+    "main_intent": "informational",
+    "last_updated_time": "2026-04-30 00:47:54 +00:00"
+   }
+  }
+ ]
+}

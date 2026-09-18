@@ -4,7 +4,9 @@ from datetime import datetime
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from modules.llm.profile import Fingerprint, Line, Tier, classify, from_name
 from shared.db import Base, text_enum
+from shared.secrets import decrypt, encrypt
 
 
 class ModelRole(enum.StrEnum):
@@ -25,7 +27,9 @@ class SelectedModel(Base):
     __tablename__ = "selected_models"
     __table_args__ = (
         CheckConstraint(
-            "(provider = 'ollama' AND connection_id IS NULL) OR "
+            # A connection is required exactly when the runtime is remote;
+            # Ollama and the bundled sd-server both answer on this machine.
+            "(provider IN ('ollama', 'sdcpp') AND connection_id IS NULL) OR "
             "(provider = 'openai_compatible' AND connection_id IS NOT NULL)",
             name="provider_connection",
         ),
@@ -38,9 +42,32 @@ class SelectedModel(Base):
         ForeignKey("provider_connections.id", ondelete="CASCADE"), nullable=True
     )
     name: Mapped[str]
+    # Collected when the model was chosen, so generation needs no network to
+    # know how to prompt it. Null on a row chosen before tiering shipped.
+    params_b: Mapped[float | None]
+    vendor: Mapped[str | None]
+    line: Mapped[Line | None] = mapped_column(text_enum(Line))
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
+
+    @property
+    def fingerprint(self) -> Fingerprint:
+        """What was collected when this model was chosen, else what its name says."""
+        if self.params_b is None and self.vendor is None and self.line is None:
+            return from_name(self.provider, self.name)
+        return Fingerprint(
+            provider=self.provider,
+            name=self.name,
+            params_b=self.params_b,
+            vendor=self.vendor,
+            line=self.line,
+        )
+
+    @property
+    def tier(self) -> Tier:
+        """Which of the three prompts this model gets."""
+        return classify(self.fingerprint)
 
 
 class ProviderConnection(Base):
@@ -54,10 +81,18 @@ class ProviderConnection(Base):
     label: Mapped[str] = mapped_column(String(collation="NOCASE"))
     provider: Mapped[str]
     base_url: Mapped[str]
-    # ponytail: plaintext is the Phase 5 ceiling; Phase 6 moves this value behind
-    # ConnectionSecretStore without changing connection ids or API DTOs.
-    api_key: Mapped[str | None]
+    api_key_ciphertext: Mapped[bytes | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
+
+    @property
+    def api_key(self) -> str | None:
+        if self.api_key_ciphertext is None:
+            return None
+        return decrypt(self.api_key_ciphertext)
+
+    @api_key.setter
+    def api_key(self, value: str | None) -> None:
+        self.api_key_ciphertext = None if value is None else encrypt(value)

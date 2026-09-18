@@ -14,7 +14,7 @@ from modules.documents.tasks import ingest_document
 from modules.workspaces.models import Workspace
 from shared.db import create_db_engine, create_session_factory
 from shared.migrations import upgrade_to_head
-from shared.queue import huey
+from shared.queue import ingest_queue
 
 pytestmark = pytest.mark.integration
 
@@ -35,7 +35,11 @@ def wait_for(engine: Engine, document_id: int) -> DocumentStatus:
     while time.monotonic() < deadline:
         with create_session_factory(engine)() as session:
             status = session.get(Document, document_id, populate_existing=True).status
-            if status in (DocumentStatus.READY, DocumentStatus.FAILED):
+            if status in (
+                DocumentStatus.READY,
+                DocumentStatus.FAILED,
+                DocumentStatus.CANCELLED,
+            ):
                 return status
         time.sleep(0.1)
 
@@ -65,10 +69,10 @@ def test_the_worker_ingests_a_job_the_api_enqueued() -> None:
         document_id = note.id
 
     ingest_document(document_id)
-    assert huey.pending_count() == 1, "the two processes share one queue file"
+    assert ingest_queue.pending_count() == 1, "the two processes share one queue file"
 
     worker = subprocess.Popen(
-        [sys.executable, "worker.py"],
+        [sys.executable, "worker.py", "ingest"],
         cwd=BACKEND,
         env={**os.environ, "SURFSENSE_LOCAL_MODELS_DIR": str(REAL_MODELS)},
         stdout=subprocess.DEVNULL,

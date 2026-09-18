@@ -5,6 +5,7 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 
 import { ApiError } from "@/lib/api"
 
@@ -19,6 +20,14 @@ import {
   type ChatThread,
 } from "./api"
 import { chatKeys } from "./query-keys"
+import type { ChatErrorKind } from "./sse"
+
+export type ChatTurnError = {
+  kind: ChatErrorKind
+  message: string
+  provider: string
+  retryText: string
+}
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
@@ -94,17 +103,25 @@ function areLiveMessagesPersisted(
   )
 }
 
-function toRuntimeMessage(message: ChatMessage): ThreadMessageLike {
+function toRuntimeMessage(
+  message: ChatMessage,
+  chatErrors: Record<string, ChatTurnError>
+): ThreadMessageLike {
   const value =
     message.role === "assistant" ? message.completed_at : message.created_at
   // SQLite stores CURRENT_TIMESTAMP in UTC but returns it without an offset.
   const timestamp =
     value && !/(?:Z|[+-]\d{2}:\d{2})$/i.test(value) ? `${value}Z` : value
+  const error =
+    message.role === "assistant" ? chatErrors[String(message.id)] : undefined
   return {
     id: String(message.id),
     role: message.role,
     content: [{ type: "text", text: message.content.text ?? "" }],
     ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
+    ...(error
+      ? { status: { type: "incomplete", reason: "error", error } as const }
+      : {}),
     metadata: {
       custom: {
         citations: message.content.citations ?? [],
@@ -136,7 +153,9 @@ export function useChatRuntime({
   const [animatingTitleThreadId, setAnimatingTitleThreadId] = useState<
     number | null
   >(null)
-  const [error, setError] = useState<string | null>(null)
+  const [chatErrors, setChatErrors] = useState<Record<string, ChatTurnError>>(
+    {}
+  )
   const streamController = useRef<AbortController | null>(null)
   const requestVersion = useRef(0)
 
@@ -184,7 +203,7 @@ export function useChatRuntime({
       setConversationView({ status: "active", threadId })
       rememberThread(workspaceId, threadId)
       setLiveMessages(null)
-      setError(null)
+      setChatErrors({})
       setIsRunning(false)
       setAutoNamingThreadId(null)
       setAnimatingTitleThreadId(null)
@@ -205,7 +224,7 @@ export function useChatRuntime({
     setConversationView({ status: "new" })
     rememberThread(workspaceId, null)
     setLiveMessages(null)
-    setError(null)
+    setChatErrors({})
     setIsRunning(false)
     setAutoNamingThreadId(null)
     setAnimatingTitleThreadId(null)
@@ -242,12 +261,11 @@ export function useChatRuntime({
         }
       }
     } catch (cause) {
-      setError(messageFrom(cause))
+      toast.error("Couldn’t delete chat", { description: messageFrom(cause) })
     }
   }
 
   const rename = async (threadId: number, title: string) => {
-    setError(null)
     try {
       const renamed = await renameThreadMutation.mutateAsync({
         threadId,
@@ -261,14 +279,13 @@ export function useChatRuntime({
       )
       return true
     } catch (cause) {
-      setError(messageFrom(cause))
+      toast.error("Couldn’t rename chat", { description: messageFrom(cause) })
       return false
     }
   }
 
-  const onNew = useCallback(
-    async (appendMessage: AppendMessage) => {
-      const text = submittedText(appendMessage)
+  const send = useCallback(
+    async (text: string) => {
       if (
         !text ||
         isRunning ||
@@ -282,13 +299,17 @@ export function useChatRuntime({
       streamController.current?.abort()
       streamController.current = controller
       const version = ++requestVersion.current
-      setError(null)
       setIsRunning(true)
 
       let threadId =
         conversationView.status === "active" ? conversationView.threadId : null
       let userMessageId: number | null = null
       let assistantMessageId: number | null = null
+      // Declared here (not inside the try) so the catch block below can still
+      // attach a failure to the right message, whether or not "accepted" ever
+      // remapped these to real ids.
+      let userId: number | string = `optimistic-user-${version}`
+      let assistantId: number | string = `optimistic-assistant-${version}`
       try {
         if (threadId === null) {
           setConversationView({ status: "creating" })
@@ -313,8 +334,6 @@ export function useChatRuntime({
           rememberThread(workspaceId, thread.id)
         }
 
-        let userId: number | string = `optimistic-user-${version}`
-        let assistantId: number | string = `optimistic-assistant-${version}`
         const currentMessages =
           queryClient.getQueryData<ChatMessage[]>(
             chatKeys.messages(threadId)
@@ -340,7 +359,7 @@ export function useChatRuntime({
         await streamMessage(
           threadId,
           text,
-          selectedDocumentIds.length > 0 ? selectedDocumentIds : undefined,
+          selectedDocumentIds,
           controller.signal,
           (event) => {
             if (requestVersion.current !== version) {
@@ -439,7 +458,16 @@ export function useChatRuntime({
                   ) ?? null
               )
             } else if (event.type === "error") {
-              setError(event.message)
+              const failedId = assistantId
+              setChatErrors((current) => ({
+                ...current,
+                [String(failedId)]: {
+                  kind: event.kind,
+                  message: event.message,
+                  provider: event.provider,
+                  retryText: text,
+                },
+              }))
             }
           }
         )
@@ -481,7 +509,18 @@ export function useChatRuntime({
             queryKey: chatKeys.messages(threadId),
           })
         } else if (!isAbort(cause) && requestVersion.current === version) {
-          setError(messageFrom(cause))
+          // The request to our own backend failed before any SSE frame could
+          // classify it (network drop, bad response, etc.) — "unknown" maps
+          // to a plain Retry, with no Model setup CTA that wouldn't apply.
+          setChatErrors((current) => ({
+            ...current,
+            [String(assistantId)]: {
+              kind: "unknown",
+              message: messageFrom(cause),
+              provider: "",
+              retryText: text,
+            },
+          }))
         }
       } finally {
         if (requestVersion.current === version) {
@@ -502,6 +541,20 @@ export function useChatRuntime({
     ]
   )
 
+  const onNew = useCallback(
+    (appendMessage: AppendMessage) => send(submittedText(appendMessage)),
+    [send]
+  )
+
+  const retry = useCallback(
+    (assistantId: string) => {
+      const failed = chatErrors[assistantId]
+      if (!failed) return
+      void send(failed.retryText)
+    },
+    [chatErrors, send]
+  )
+
   const cancel = useCallback(async () => {
     streamController.current?.abort()
     setIsRunning(false)
@@ -515,10 +568,26 @@ export function useChatRuntime({
   const isLoadingThreads = threadsQuery.isPending
   const isLoadingMessages =
     activeThreadId !== null && !usesLiveMessages && messagesQuery.isPending
-  const queryError = threadsQuery.error ?? messagesQuery.error
+
+  useEffect(() => {
+    if (threadsQuery.error) {
+      toast.error("Couldn’t load your chats", {
+        description: messageFrom(threadsQuery.error),
+      })
+    }
+  }, [threadsQuery.error])
+
+  useEffect(() => {
+    if (messagesQuery.error) {
+      toast.error("Couldn’t load this chat", {
+        description: messageFrom(messagesQuery.error),
+      })
+    }
+  }, [messagesQuery.error])
+
   const runtime = useExternalStoreRuntime<ChatMessage>({
     messages,
-    convertMessage: toRuntimeMessage,
+    convertMessage: (message) => toRuntimeMessage(message, chatErrors),
     onNew,
     isRunning,
     isSendDisabled: !canSend || isLoadingMessages || isLoadingThreads,
@@ -537,7 +606,6 @@ export function useChatRuntime({
     activeThread,
     activeThreadId,
     messages,
-    error: error ?? (queryError ? messageFrom(queryError) : null),
     isLoadingThreads,
     isLoadingMessages,
     isRunning,
@@ -548,6 +616,6 @@ export function useChatRuntime({
     startNewChat,
     rename,
     removeThread,
-    clearError: () => setError(null),
+    retry,
   }
 }

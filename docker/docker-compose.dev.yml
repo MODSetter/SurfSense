@@ -90,6 +90,26 @@ services:
       timeout: 5s
       retries: 5
 
+  # Catches outgoing mail locally instead of delivering it: SMTP on 1025, a web
+  # inbox on 8025. Point SMTP_HOST at it to exercise the real send path -- the
+  # socket, the MIME round trip -- without a provider account. Opt in with
+  # `--profile mail`; it is also what tests/integration/mailer runs against.
+  mailpit:
+    image: axllent/mailpit:v1.21
+    profiles:
+      - mail
+    ports:
+      - "127.0.0.1:${MAILPIT_SMTP_PORT:-1025}:1025"
+      - "127.0.0.1:${MAILPIT_WEB_PORT:-8025}:8025"
+    environment:
+      - MP_SMTP_AUTH_ACCEPT_ANY=1
+      - MP_SMTP_AUTH_ALLOW_INSECURE=1
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # Spawns sandbox containers on the host daemon as siblings, so it needs the
   # socket. Its own config path is baked into the image's CMD.
   opensandbox-server:
@@ -336,6 +356,8 @@ services:
       - ../surfsense_web/.env
     environment:
       AUTH_TYPE: ${AUTH_TYPE:-LOCAL}
+      # Hosted wind-down; unset for self-hosters. Read per request by proxy.ts.
+      SUNSET_MODE: ${SUNSET_MODE:-}
       ETL_SERVICE: ${ETL_SERVICE:-DOCLING}
       DEPLOYMENT_MODE: ${DEPLOYMENT_MODE:-self-hosted}
       SURFSENSE_BACKEND_INTERNAL_URL: http://backend:8000

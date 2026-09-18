@@ -1,0 +1,36 @@
+---
+title: Connectors
+description: Connect SurfSense to your tools and services
+---
+
+import { Card, Cards } from 'fumadocs-ui/components/card';
+import { Zap, Cable } from 'lucide-react';
+
+Connectors bring data into SurfSense — either as searchable knowledge or as live tools the AI agent can use during chat. There are two kinds:
+
+<Cards>
+  <Card
+    icon={<Zap />}
+    title="Native Connectors"
+    description="SurfSense's built-in scraper APIs: Reddit, YouTube, Instagram, TikTok, Google Maps, Google Search, Indeed, Amazon, Walmart, and Web Crawl — usable in chat, the API Playground, or via REST"
+    href="/docs/legacy/connectors/native"
+  />
+  <Card
+    icon={<Cable />}
+    title="External Connectors"
+    description="Third-party integrations: Notion, Slack, Linear, Jira, Google, GitHub, Obsidian, and more"
+    href="/docs/legacy/connectors/external"
+  />
+</Cards>
+
+## How connectors surface in SurfSense
+
+- **Native scrapers** — the AI agent uses them as tools automatically in chat, and you can run them yourself from the **API Playground** or your own code via the REST API.
+- **Integrations** — external connectors like Notion, Slack, Jira, or Linear give the agent real-time tools. Ask a question in chat and the agent searches or acts on the connected service directly; nothing is copied into SurfSense in the background.
+- **Knowledge Base** — file sources like Google Drive, OneDrive, and Dropbox are imported through the Documents sidebar's **Import** menu and indexed into your knowledge base alongside uploads and notes.
+
+To manage external connectors, open the **Connectors** dialog inside your workspace. Connected accounts, sync status, and disconnect options all live there.
+
+## Deprecated connectors
+
+Some older connectors (Discord, Microsoft Teams, Luma, Elasticsearch, the old web crawler, and standalone search APIs) have been retired. Existing connections remain manageable, but new ones can't be added. Their docs are kept for reference under [Deprecated](/docs/legacy/connectors/deprecated/discord). Public web search and crawling are now built in as [native scrapers](/docs/legacy/connectors/native), and other search APIs can still be wired up through a custom MCP server.

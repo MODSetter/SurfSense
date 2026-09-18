@@ -38,6 +38,27 @@ export function startAll(specs: SidecarSpec[], onCrash?: CrashHandler): Sidecars
   return children
 }
 
+/** Start one sidecar after boot. sd-server cannot run until a model is on disk. */
+export function startOne(
+  children: Sidecars,
+  spec: SidecarSpec,
+  onCrash?: CrashHandler,
+): void {
+  children.set(spec.name, spawnOne(spec, onCrash))
+}
+
+/** Stop one sidecar and forget it, leaving the rest running. */
+export async function stopNamed(
+  children: Sidecars,
+  name: string,
+  timeoutMs = 5000,
+): Promise<void> {
+  const child = children.get(name)
+  if (!child) return
+  children.delete(name)
+  await stopOne(child, timeoutMs)
+}
+
 function stopOne(child: ChildProcess, timeoutMs: number): Promise<void> {
   return new Promise((resolve) => {
     if (child.exitCode !== null || child.signalCode !== null || child.pid == null) {

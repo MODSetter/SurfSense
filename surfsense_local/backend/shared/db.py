@@ -1,10 +1,24 @@
+import asyncio
 import enum
+from contextvars import ContextVar
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import sqlite_vec
-from sqlalchemy import Connection, Engine, Enum, MetaData, create_engine, event
+from sqlalchemy import (
+    Connection,
+    DateTime,
+    Engine,
+    Enum,
+    MetaData,
+    TypeDecorator,
+    create_engine,
+    event,
+)
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+
+from shared.sqlite import enable_wal
 
 # SQLite is the only backend that lets constraints stay unnamed, and Alembic's
 # batch mode cannot drop what it cannot name. Retrofitting this later would not
@@ -18,8 +32,30 @@ NAMING_CONVENTION = {
 }
 
 
+class UtcDateTime(TypeDecorator[datetime]):
+    """SQLite keeps no offset: rows hold UTC wall time (func.now() is UTC), so a
+    value read back is stamped UTC. Serialised with its offset, the client stops
+    reading it as local time. Aware values written are converted to UTC first."""
+
+    impl = DateTime
+    cache_ok = True
+
+    def process_bind_param(
+        self, value: datetime | None, _dialect: Any
+    ) -> datetime | None:
+        if value is not None and value.tzinfo is not None:
+            return value.astimezone(UTC).replace(tzinfo=None)
+        return value
+
+    def process_result_value(
+        self, value: datetime | None, _dialect: Any
+    ) -> datetime | None:
+        return value.replace(tzinfo=UTC) if value is not None else None
+
+
 class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
+    type_annotation_map: ClassVar = {datetime: UtcDateTime}
 
 
 def import_models() -> None:
@@ -32,6 +68,7 @@ def import_models() -> None:
     import modules.chat.models
     import modules.chunks.models
     import modules.documents.models
+    import modules.egress.models
     import modules.license.models
     import modules.llm.models
     import modules.workspaces.models
@@ -59,14 +96,38 @@ def _apply_pragmas(dbapi_connection: Any, _record: Any) -> None:
     dbapi_connection.enable_load_extension(False)
 
     cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode = WAL")
-    cursor.execute("PRAGMA foreign_keys = ON")
+    # First, so what follows waits for a concurrent writer instead of failing.
     cursor.execute("PRAGMA busy_timeout = 5000")
+    cursor.execute("PRAGMA foreign_keys = ON")
     cursor.close()
+    enable_wal(dbapi_connection)
+
+
+# The API sets this for the span of one request. Waiting for the write lock on
+# the event loop would stall every request, including the one about to release
+# it, so a transaction opened there is a programming error, not a slow path.
+serving_request: ContextVar[bool] = ContextVar("serving_request", default=False)
+
+
+def _on_event_loop() -> bool:
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return False
+    return True
 
 
 def _begin(connection: Connection) -> None:
-    connection.exec_driver_sql("BEGIN")
+    if serving_request.get() and _on_event_loop():
+        raise RuntimeError(
+            "SQLite transaction opened on the event loop; "
+            "run session work through api.dependencies.transact"
+        )
+    # Take the write lock up front: a read-then-write transaction then waits on
+    # busy_timeout instead of failing at once with SQLITE_BUSY_SNAPSHOT. The
+    # price is that no transaction may stay open across a slow call (a model,
+    # a probe, a stream), which is what the guard above and transact() enforce.
+    connection.exec_driver_sql("BEGIN IMMEDIATE")
 
 
 def create_db_engine(path: Path) -> Engine:

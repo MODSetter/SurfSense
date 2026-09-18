@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from limits.storage import MemoryStorage
 from slowapi import Limiter
 from starlette.requests import Request
 
@@ -26,10 +25,12 @@ def get_real_client_ip(request: Request) -> str:
     return request.client.host if request.client else "127.0.0.1"
 
 
+_DEFAULT_LIMIT = "1024/minute"
+
 limiter = Limiter(
     key_func=get_real_client_ip,
     storage_uri=config.REDIS_APP_URL,
-    default_limits=["1024/minute"],
+    default_limits=[_DEFAULT_LIMIT],
     in_memory_fallback_enabled=True,
-    in_memory_fallback=[MemoryStorage()],
+    in_memory_fallback=[_DEFAULT_LIMIT],
 )

@@ -1,6 +1,6 @@
 import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
@@ -49,8 +49,9 @@ function installApi() {
       return Response.json({
         hardware: {},
         llmfit_version: "1.0",
-        recommended: [],
+        curated: [],
         explore: [],
+        scanned: true,
         installed: [
           {
             catalog_id: "opaque-llama",
@@ -90,13 +91,28 @@ function installApi() {
   })
 }
 
+beforeEach(() => {
+  // The welcome step mounts OnboardingDither, which reads matchMedia.
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  })
+})
+
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
 })
 
 describe("model onboarding", () => {
-  it("shows the model tabs and catalog skeleton while selection data loads", async () => {
+  it("shows the model tabs without a catalog skeleton while selection data loads", async () => {
+    // The catalog GET no longer probes hardware on an unrefreshed load, so
+    // it's expected to resolve fast enough that no loading state is shown —
+    // this pending promise never resolves, confirming nothing renders for it.
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => undefined))
@@ -108,14 +124,8 @@ describe("model onboarding", () => {
 
     expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
     expect(
-      screen.getByRole("status", { name: "Scanning model catalog" })
-    ).toBeTruthy()
-    expect(
-      document.querySelector('[data-slot="hardware-name-skeleton"]')
-    ).toBeTruthy()
-    expect(
-      document.querySelector('[data-slot="hardware-memory-skeleton"]')
-    ).toBeTruthy()
+      screen.queryByRole("status", { name: "Scanning model catalog" })
+    ).toBeNull()
     expect(
       screen.queryByRole("status", { name: "Loading installed models" })
     ).toBeNull()
@@ -128,7 +138,7 @@ describe("model onboarding", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Think across everything you have collected.",
+        name: "Air-gapped, open source NotebookLM alternative",
       })
     ).toBeTruthy()
     const firstProgress = screen.getByLabelText("Onboarding step 1 of 2")
@@ -139,7 +149,7 @@ describe("model onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
     await screen.findByText(
-      "Only models compatible with this computer are shown."
+      "Only models compatible with this machine are shown."
     )
     const secondProgress = screen.getByLabelText("Onboarding step 2 of 2")
     expect(secondProgress.children[0]?.getAttribute("data-state")).toBe(
@@ -174,7 +184,9 @@ describe("model onboarding", () => {
       screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
     ).toBeTruthy()
     expect(
-      screen.getByRole("button", { name: "Start chatting" }).hasAttribute("disabled")
+      screen
+        .getByRole("button", { name: "Start chatting" })
+        .hasAttribute("disabled")
     ).toBe(false)
     expect(
       screen.getByRole("button", { name: "Delete Llama 3.2 1B" })
@@ -197,7 +209,7 @@ describe("model onboarding", () => {
   })
 
   it("leaves onboarding only after Start chatting, and needs a chat model", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn<typeof fetch>(async (input) => {
       const path = String(input)
       if (path === "/llm/selection/generation") {
         return Response.json({ detail: "not selected" }, { status: 404 })
@@ -222,9 +234,10 @@ describe("model onboarding", () => {
         return Response.json({
           hardware: {},
           llmfit_version: "1.0",
-          recommended: [],
+          curated: [],
           explore: [],
           installed: [],
+          scanned: true,
           warnings: [],
           runtime_status: {},
         })
@@ -238,9 +251,9 @@ describe("model onboarding", () => {
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
     expect(
-      (await screen.findByRole("button", { name: "Start chatting" })).hasAttribute(
-        "disabled"
-      )
+      (
+        await screen.findByRole("button", { name: "Start chatting" })
+      ).hasAttribute("disabled")
     ).toBe(true)
     expect(onComplete).not.toHaveBeenCalled()
     expect(
@@ -257,7 +270,9 @@ describe("model onboarding", () => {
     const onComplete = vi.fn()
     render(<OnboardingPage onComplete={onComplete} />)
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
-    await user.click(await screen.findByRole("button", { name: "Start chatting" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Start chatting" })
+    )
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
     expect(
       fetchMock.mock.calls.some(

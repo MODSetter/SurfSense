@@ -1,0 +1,20 @@
+{
+	"title": "SurfSense 0.0.40",
+	"description": "The hosted and Docker self-host stack, last released as 0.0.40",
+	"root": true,
+	"pages": [
+		"---Guides---",
+		"index",
+		"installation",
+		"manual-installation",
+		"docker-installation",
+		"local-models",
+		"messaging-channels",
+		"connectors",
+		"how-to",
+		"---Developers---",
+		"testing",
+		"observability",
+		"code-of-conduct"
+	]
+}

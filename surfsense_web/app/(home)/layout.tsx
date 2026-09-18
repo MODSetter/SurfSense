@@ -1,25 +1,24 @@
-"use client";
+import { getStarCount, STARS_HREF } from "@/components/site/github-stars";
+import { SiteShell } from "@/components/site/site-shell";
+import "./home.css";
 
-import { usePathname } from "next/navigation";
-import { FooterNew } from "@/components/homepage/footer-new";
-import { GlobalAnnouncement } from "@/components/homepage/global-announcement";
-import { Navbar } from "@/components/homepage/navbar";
-
-export default function HomePageLayout({ children }: { children: React.ReactNode }) {
-	const pathname = usePathname();
-	const isAuthPage = pathname === "/login" || pathname === "/register";
-	const isFreeModelChat = /^\/free\/[^/]+$/.test(pathname);
-
-	if (isFreeModelChat) {
-		return <>{children}</>;
-	}
+/**
+ * Layout for every marketing route.
+ *
+ * A server component so it can await the star count, which is cached in Next's
+ * Data Cache and therefore fetched at most once an hour rather than once per
+ * visitor. The route branching that needs `usePathname` lives in `SiteShell`,
+ * the client half.
+ *
+ * The fetch is cached, so it does not opt these routes into dynamic rendering:
+ * they stay static and are revalidated on the same hourly schedule.
+ */
+export default async function HomePageLayout({ children }: { children: React.ReactNode }) {
+	const starCount = await getStarCount();
 
 	return (
-		<main className="min-h-screen bg-linear-to-b from-gray-50 to-gray-100 text-gray-900 dark:from-black dark:to-gray-900 dark:text-white overflow-x-hidden">
-			<GlobalAnnouncement />
-			<Navbar />
+		<SiteShell starCount={starCount} starsHref={STARS_HREF}>
 			{children}
-			{!isAuthPage && <FooterNew />}
-		</main>
+		</SiteShell>
 	);
 }

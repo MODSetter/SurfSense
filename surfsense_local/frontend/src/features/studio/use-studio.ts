@@ -1,10 +1,13 @@
 import { useEffect, useRef, useState } from "react"
+import { toast } from "sonner"
 
 import {
+  cancelArtifact,
   createJob,
   deleteArtifact,
   listArtifacts,
   listFormats,
+  regenerateArtifact,
   type Artifact,
   type StudioFormat,
   type StudioJobCreate,
@@ -14,7 +17,7 @@ function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
 }
 
-function messageFrom(error: unknown) {
+export function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
 
@@ -44,6 +47,12 @@ export function useStudio(workspaceId: number) {
   const [error, setError] = useState<string | null>(null)
   const pollController = useRef<AbortController | null>(null)
   const hasRunning = artifacts.some(isRunning)
+  // Read inside the poll loop instead of closing over `artifacts` directly,
+  // so the diff against each new poll result always sees the latest state.
+  const artifactsRef = useRef(artifacts)
+  useEffect(() => {
+    artifactsRef.current = artifacts
+  }, [artifacts])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -87,6 +96,22 @@ export function useStudio(workspaceId: number) {
           if (pollController.current !== controller) {
             return
           }
+          for (const artifact of next) {
+            const before = artifactsRef.current.find(
+              (candidate) => candidate.id === artifact.id
+            )
+            if (!before || !isRunning(before)) continue
+            if (artifact.status === "ready") {
+              toast.success(`${artifact.title} is ready`)
+            } else if (artifact.status === "failed") {
+              // The raw error (often a multi-line HTTP exception) belongs in
+              // the row's own Ctrl/Cmd-hover tooltip, not a toast.
+              toast.error(`${artifact.title} failed`, {
+                description:
+                  "This artifact couldn't be generated. Retry it from the artifacts tab.",
+              })
+            }
+          }
           setArtifacts(next)
           if (!next.some(isRunning)) {
             return
@@ -117,6 +142,36 @@ export function useStudio(workspaceId: number) {
     }
   }
 
+  // Puts the artifact back to "pending" in state; the poll effect picks it up
+  // the same way it does a freshly created one.
+  const regenerate = async (artifactId: number) => {
+    setError(null)
+    try {
+      const updated = await regenerateArtifact(artifactId)
+      setArtifacts((current) =>
+        current.map((artifact) =>
+          artifact.id === artifactId ? updated : artifact
+        )
+      )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
+  const cancel = async (artifactId: number) => {
+    setError(null)
+    try {
+      const updated = await cancelArtifact(artifactId)
+      setArtifacts((current) =>
+        current.map((artifact) =>
+          artifact.id === artifactId ? updated : artifact
+        )
+      )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
   const remove = async (artifactId: number) => {
     setError(null)
     try {
@@ -134,6 +189,8 @@ export function useStudio(workspaceId: number) {
     isCreating,
     error,
     create,
+    regenerate,
+    cancel,
     remove,
     clearError: () => setError(null),
   }

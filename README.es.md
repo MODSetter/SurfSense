@@ -129,7 +129,7 @@ Para Windows:
 irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
 ```
 
-El script de instalación configura [Watchtower](https://github.com/nicholas-fedor/watchtower) automáticamente para actualizaciones automáticas diarias. Para omitirlo, agrega la opción `--no-watchtower`. Para Docker Compose, instalación manual y otras opciones de despliegue, consulta la [documentación](https://www.surfsense.com/docs/).
+El script de instalación configura [Watchtower](https://github.com/nicholas-fedor/watchtower) automáticamente para actualizaciones automáticas diarias. Para omitirlo, agrega la opción `--no-watchtower`. Para Docker Compose, instalación manual y otras opciones de despliegue, consulta la [documentación](https://www.surfsense.com/docs/legacy/).
 
 ## Todo lo demás que viene incluido
 

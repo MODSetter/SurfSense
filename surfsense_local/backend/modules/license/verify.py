@@ -8,12 +8,14 @@ from datetime import UTC, datetime, timedelta
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
-# The Keygen account's Ed25519 public key, as the dashboard shows it. Compiled
-# in, never read from config or disk. Tests swap it for the fixture key.
-# TODO(release): this is the contracts/license-sample TEST key; replace with
-# the account key before v1.0.0.
-KEYGEN_PUBLIC_KEY_HEX = (
-    "26c9700024d49bf40cf51cbc4fe73dd9544597170f5a8682d8166ccd0ad2cbe6"
+# The Keygen account's Ed25519 public keys, as the dashboard shows them. Compiled
+# in, never read from config or disk. Tests swap them for the fixture key.
+#
+# A tuple around one key: a file signed by any listed key is accepted, so
+# replacing the account key is a release that trusts both rather than a recall
+# that invalidates every license already issued. Newest first.
+KEYGEN_PUBLIC_KEYS_HEX = (
+    "cef8ffb796122d0126d29e6db03df39305417d4fe271bc234a9bc62f0521c41e",
 )
 
 # A laptop clock a few minutes fast is not tampering; keygen-go uses the same.
@@ -52,12 +54,16 @@ def verify(certificate: str, now: datetime) -> Verified:
     if alg != "base64+ed25519":
         raise LicenseRejectedError("unsupported_algorithm")
 
-    try:
-        Ed25519PublicKey.from_public_bytes(bytes.fromhex(KEYGEN_PUBLIC_KEY_HEX)).verify(
-            base64.b64decode(sig), f"license/{enc}".encode()
-        )
-    except (InvalidSignature, binascii.Error) as failure:
-        raise LicenseRejectedError("bad_signature") from failure
+    for key_hex in KEYGEN_PUBLIC_KEYS_HEX:
+        try:
+            Ed25519PublicKey.from_public_bytes(bytes.fromhex(key_hex)).verify(
+                base64.b64decode(sig), f"license/{enc}".encode()
+            )
+            break
+        except (InvalidSignature, binascii.Error):
+            continue
+    else:
+        raise LicenseRejectedError("bad_signature")
 
     payload = json.loads(base64.b64decode(enc))
     meta, attributes = payload["meta"], payload["data"]["attributes"]

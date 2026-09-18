@@ -1,0 +1,1435 @@
+{
+  "id": "09172305-1766-0607-0000-9ff3ca4c1aca",
+  "status_code": 20000,
+  "status_message": "Ok.",
+  "items": [
+    {
+      "keyword": "analizar documentos con ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 08:54:22 +00:00",
+        "competition": 0.66,
+        "competition_level": "MEDIUM",
+        "cpc": 1.61,
+        "search_volume": 40,
+        "low_top_of_page_bid": 0.26,
+        "high_top_of_page_bid": 2.44,
+        "categories": [
+          10004,
+          10276,
+          11099,
+          12397
+        ],
+        "monthly_searches": {
+          "2026-08": 20,
+          "2026-07": 20,
+          "2026-06": 30,
+          "2026-05": 30,
+          "2026-04": 30,
+          "2026-03": 50,
+          "2026-02": 40,
+          "2026-01": 140,
+          "2025-12": 50,
+          "2025-11": 30,
+          "2025-10": 50,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "quarterly": -33
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "it",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 00:50:08 +00:00"
+      }
+    },
+    {
+      "keyword": "chatear con pdf",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 15:07:03 +00:00",
+        "competition": 0.38,
+        "competition_level": "MEDIUM",
+        "search_volume": 40,
+        "categories": [
+          10108,
+          10112,
+          10611
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 20,
+          "2026-05": 40,
+          "2026-04": 30,
+          "2026-03": 20,
+          "2026-02": 30,
+          "2026-01": 40,
+          "2025-12": 50,
+          "2025-11": 70,
+          "2025-10": 90,
+          "2025-09": 30
+        },
+        "search_volume_trend": {
+          "quarterly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "chatpdf",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=chatear%20con%20pdf&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "organic",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 7500000,
+        "last_updated_time": "2025-10-31 23:14:51 +00:00",
+        "previous_updated_time": "2025-01-08 14:44:11 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 1187.5,
+        "dofollow": 695.4,
+        "referring_pages": 1174.2,
+        "referring_domains": 37.8,
+        "referring_main_domains": 37.6,
+        "rank": 56.9,
+        "main_domain_rank": 464.1,
+        "last_updated_time": "2025-10-31 23:14:52 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 06:35:33 +00:00"
+      }
+    },
+    {
+      "keyword": "crear infografía con ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 22:30:50 +00:00",
+        "competition": 0.55,
+        "competition_level": "MEDIUM",
+        "cpc": 0.74,
+        "search_volume": 390,
+        "low_top_of_page_bid": 0.29,
+        "high_top_of_page_bid": 1.08,
+        "categories": [
+          10007,
+          11493,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-08": 90,
+          "2026-07": 140,
+          "2026-06": 260,
+          "2026-05": 480,
+          "2026-04": 480,
+          "2026-03": 480,
+          "2026-02": 480,
+          "2026-01": 480,
+          "2025-12": 320,
+          "2025-11": 480,
+          "2025-10": 390,
+          "2025-09": 210
+        },
+        "search_volume_trend": {
+          "monthly": -36,
+          "quarterly": -65
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=crear%20infograf%C3%ADa%20con%20ia&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "organic",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 125,
+        "last_updated_time": "2026-08-01 08:26:33 +00:00",
+        "previous_updated_time": "2026-05-22 19:26:56 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 124,
+        "dofollow": 27.2,
+        "referring_pages": 115.7,
+        "referring_domains": 101.6,
+        "referring_main_domains": 65.1,
+        "rank": 46.4,
+        "main_domain_rank": 548.5,
+        "last_updated_time": "2026-08-01 08:26:34 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 05:54:31 +00:00"
+      }
+    },
+    {
+      "keyword": "crear mapa conceptual ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-15 03:04:37 +00:00",
+        "competition": 0.49,
+        "competition_level": "MEDIUM",
+        "cpc": 0.76,
+        "search_volume": 90,
+        "low_top_of_page_bid": 0.31,
+        "high_top_of_page_bid": 0.96,
+        "categories": [
+          10016,
+          10141,
+          10767
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 30,
+          "2026-05": 90,
+          "2026-04": 90,
+          "2026-03": 90,
+          "2026-02": 70,
+          "2026-01": 110,
+          "2025-12": 110,
+          "2025-11": 170,
+          "2025-10": 170,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "quarterly": -67
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "crear mapas conceptuales con ia",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 8,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-25 12:22:06 +00:00"
+      }
+    },
+    {
+      "keyword": "crear podcast con ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 11:53:11 +00:00",
+        "competition": 0.59,
+        "competition_level": "MEDIUM",
+        "cpc": 1.31,
+        "search_volume": 260,
+        "low_top_of_page_bid": 0.3,
+        "high_top_of_page_bid": 1.34,
+        "categories": [
+          10013,
+          10109,
+          10592,
+          13537
+        ],
+        "monthly_searches": {
+          "2026-08": 50,
+          "2026-07": 70,
+          "2026-06": 260,
+          "2026-05": 480,
+          "2026-04": 320,
+          "2026-03": 260,
+          "2026-02": 260,
+          "2026-01": 320,
+          "2025-12": 210,
+          "2025-11": 260,
+          "2025-10": 260,
+          "2025-09": 170
+        },
+        "search_volume_trend": {
+          "monthly": -29,
+          "quarterly": -81,
+          "yearly": -29
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=crear%20podcast%20con%20ia&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "video",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 119,
+        "last_updated_time": "2026-09-13 20:11:07 +00:00",
+        "previous_updated_time": "2026-07-09 08:19:35 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 32.2,
+        "dofollow": 3.8,
+        "referring_pages": 31.2,
+        "referring_domains": 28.1,
+        "referring_main_domains": 19.7,
+        "rank": 32.7,
+        "main_domain_rank": 460.4,
+        "last_updated_time": "2026-09-13 20:11:07 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-27 05:48:51 +00:00"
+      }
+    },
+    {
+      "keyword": "crear presentación con ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 11:10:31 +00:00",
+        "competition": 0.71,
+        "competition_level": "HIGH",
+        "cpc": 1.41,
+        "search_volume": 260,
+        "low_top_of_page_bid": 0.36,
+        "high_top_of_page_bid": 1.48,
+        "categories": [
+          10016,
+          10141,
+          13828
+        ],
+        "monthly_searches": {
+          "2026-08": 50,
+          "2026-07": 50,
+          "2026-06": 210,
+          "2026-05": 320,
+          "2026-04": 320,
+          "2026-03": 320,
+          "2026-02": 320,
+          "2026-01": 260,
+          "2025-12": 210,
+          "2025-11": 320,
+          "2025-10": 390,
+          "2025-09": 210
+        },
+        "search_volume_trend": {
+          "quarterly": -76,
+          "yearly": -44
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "crear presentaciones con ia",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 23,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "last_updated_time": "0001-01-01 00:00:00 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-26 04:17:08 +00:00"
+      }
+    },
+    {
+      "keyword": "generador de infografías ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 16:11:19 +00:00",
+        "competition": 0.43,
+        "competition_level": "MEDIUM",
+        "search_volume": 30,
+        "categories": [
+          10004,
+          10295,
+          11263
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 20,
+          "2026-05": 30,
+          "2026-04": 40,
+          "2026-03": 40,
+          "2026-02": 40,
+          "2026-01": 40,
+          "2025-12": 30,
+          "2025-11": 20,
+          "2025-10": 30,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "quarterly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "generador de infografias ia",
+        "synonym_clustering_algorithm": "keyword_metrics",
+        "detected_language": "es"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "transactional",
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-28 15:34:35 +00:00"
+      }
+    },
+    {
+      "keyword": "generador de informes ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 12:40:30 +00:00",
+        "competition": 0.86,
+        "competition_level": "HIGH",
+        "cpc": 16.37,
+        "search_volume": 10,
+        "categories": [
+          10004,
+          10295,
+          11263
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "ca",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-27 21:16:05 +00:00"
+      }
+    },
+    {
+      "keyword": "generador de podcast ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 16:47:08 +00:00",
+        "competition": 0.71,
+        "competition_level": "HIGH",
+        "cpc": 0.35,
+        "search_volume": 30,
+        "categories": [
+          10013,
+          10109,
+          10570,
+          11865
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 40,
+          "2026-04": 40,
+          "2026-03": 50,
+          "2026-02": 30,
+          "2026-01": 70,
+          "2025-12": 30,
+          "2025-11": 30,
+          "2025-10": 40,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "generar podcast con ia",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "ca",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-05-07 17:22:48 +00:00"
+      }
+    },
+    {
+      "keyword": "generador de presentaciones ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 03:53:26 +00:00",
+        "competition": 0.71,
+        "competition_level": "HIGH",
+        "cpc": 0.74,
+        "search_volume": 140,
+        "low_top_of_page_bid": 0.38,
+        "high_top_of_page_bid": 1.54,
+        "categories": [
+          10004,
+          10295,
+          11263
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 20,
+          "2026-06": 110,
+          "2026-05": 260,
+          "2026-04": 170,
+          "2026-03": 210,
+          "2026-02": 170,
+          "2026-01": 140,
+          "2025-12": 140,
+          "2025-11": 170,
+          "2025-10": 140,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "monthly": -50,
+          "quarterly": -91,
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "generador de presentaciones con ia",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 22,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=generador%20de%20presentaciones%20ia&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 129,
+        "last_updated_time": "2026-08-11 20:56:40 +00:00",
+        "previous_updated_time": "2026-05-11 18:36:36 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 278.9,
+        "dofollow": 56.1,
+        "referring_pages": 272.3,
+        "referring_domains": 240.2,
+        "referring_main_domains": 177,
+        "rank": 138.3,
+        "main_domain_rank": 577.2,
+        "last_updated_time": "2026-08-11 20:58:59 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "transactional",
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-28 01:52:42 +00:00"
+      }
+    },
+    {
+      "keyword": "hablar con pdf",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 05:46:25 +00:00",
+        "competition": 0.43,
+        "competition_level": "MEDIUM",
+        "cpc": 0.03,
+        "search_volume": 10,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 10,
+          "2026-05": 10,
+          "2026-04": 10,
+          "2026-03": 10,
+          "2026-02": 10,
+          "2026-01": 10,
+          "2025-12": 10,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "es"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-27 21:44:27 +00:00"
+      }
+    },
+    {
+      "keyword": "hacer presentación con ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 22:03:58 +00:00",
+        "competition": 0.73,
+        "competition_level": "HIGH",
+        "cpc": 0.78,
+        "search_volume": 140,
+        "low_top_of_page_bid": 0.26,
+        "high_top_of_page_bid": 0.88,
+        "categories": [
+          10008
+        ],
+        "monthly_searches": {
+          "2026-08": 30,
+          "2026-07": 50,
+          "2026-06": 110,
+          "2026-05": 210,
+          "2026-04": 210,
+          "2026-03": 140,
+          "2026-02": 170,
+          "2026-01": 170,
+          "2025-12": 140,
+          "2025-11": 210,
+          "2025-10": 210,
+          "2025-09": 110
+        },
+        "search_volume_trend": {
+          "monthly": -40,
+          "quarterly": -73
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ia para hacer presentaciones",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 21,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=hacer%20presentaci%C3%B3n%20con%20ia&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 127,
+        "last_updated_time": "2026-08-11 18:28:19 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 237.8,
+        "dofollow": 41.1,
+        "referring_pages": 232.4,
+        "referring_domains": 203.4,
+        "referring_main_domains": 148.8,
+        "rank": 112.3,
+        "main_domain_rank": 611.1,
+        "last_updated_time": "2026-08-11 18:28:26 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-27 20:37:30 +00:00"
+      }
+    },
+    {
+      "keyword": "ia de código abierto",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 03:01:48 +00:00",
+        "competition": 0.35,
+        "competition_level": "MEDIUM",
+        "cpc": 2.53,
+        "search_volume": 70,
+        "low_top_of_page_bid": 0.49,
+        "high_top_of_page_bid": 2.46,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          13816
+        ],
+        "monthly_searches": {
+          "2026-08": 90,
+          "2026-07": 90,
+          "2026-06": 70,
+          "2026-05": 90,
+          "2026-04": 90,
+          "2026-03": 90,
+          "2026-02": 110,
+          "2026-01": 70,
+          "2025-12": 50,
+          "2025-11": 50,
+          "2025-10": 50,
+          "2025-09": 50
+        },
+        "search_volume_trend": {
+          "quarterly": 29,
+          "yearly": 800
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "es"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-28 00:38:58 +00:00"
+      }
+    },
+    {
+      "keyword": "ia local",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 16:02:21 +00:00",
+        "competition": 0.07,
+        "competition_level": "LOW",
+        "cpc": 0.71,
+        "search_volume": 390,
+        "low_top_of_page_bid": 0.43,
+        "high_top_of_page_bid": 1.82,
+        "categories": [
+          10017,
+          10142,
+          10769,
+          12067
+        ],
+        "monthly_searches": {
+          "2026-08": 590,
+          "2026-07": 480,
+          "2026-06": 590,
+          "2026-05": 590,
+          "2026-04": 480,
+          "2026-03": 390,
+          "2026-02": 320,
+          "2026-01": 320,
+          "2025-12": 210,
+          "2025-11": 210,
+          "2025-10": 210,
+          "2025-09": 140
+        },
+        "search_volume_trend": {
+          "monthly": 23,
+          "yearly": 436
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "ml",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ia%20local&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "ai_overview",
+          "video",
+          "organic",
+          "people_also_ask"
+        ],
+        "se_results_count": 110,
+        "last_updated_time": "2026-09-10 02:04:36 +00:00",
+        "previous_updated_time": "2026-07-08 12:11:46 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 663.2,
+        "dofollow": 655.7,
+        "referring_pages": 661.7,
+        "referring_domains": 11,
+        "referring_main_domains": 4.2,
+        "rank": 21.2,
+        "main_domain_rank": 399.2,
+        "last_updated_time": "2026-09-10 02:04:38 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-29 16:31:56 +00:00"
+      }
+    },
+    {
+      "keyword": "ia offline",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 11:55:03 +00:00",
+        "competition": 0,
+        "competition_level": "LOW",
+        "search_volume": 50,
+        "categories": [
+          10019,
+          10168,
+          12202
+        ],
+        "monthly_searches": {
+          "2026-08": 40,
+          "2026-07": 30,
+          "2026-06": 50,
+          "2026-05": 70,
+          "2026-04": 70,
+          "2026-03": 70,
+          "2026-02": 70,
+          "2026-01": 70,
+          "2025-12": 70,
+          "2025-11": 50,
+          "2025-10": 50,
+          "2025-09": 30
+        },
+        "search_volume_trend": {
+          "monthly": 33,
+          "quarterly": -20,
+          "yearly": 100
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "en",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-28 16:10:42 +00:00"
+      }
+    },
+    {
+      "keyword": "ia para abogados",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 06:39:25 +00:00",
+        "competition": 0.74,
+        "competition_level": "HIGH",
+        "cpc": 5.34,
+        "search_volume": 390,
+        "low_top_of_page_bid": 1.47,
+        "high_top_of_page_bid": 5.51,
+        "categories": [
+          10018,
+          10018,
+          10163,
+          10163,
+          13686
+        ],
+        "monthly_searches": {
+          "2026-08": 260,
+          "2026-07": 390,
+          "2026-06": 390,
+          "2026-05": 480,
+          "2026-04": 390,
+          "2026-03": 480,
+          "2026-02": 390,
+          "2026-01": 320,
+          "2025-12": 320,
+          "2025-11": 390,
+          "2025-10": 320,
+          "2025-09": 390
+        },
+        "search_volume_trend": {
+          "monthly": -33,
+          "quarterly": -33,
+          "yearly": 53
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 15,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ia%20para%20abogados&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 126,
+        "last_updated_time": "2026-09-07 17:32:54 +00:00",
+        "previous_updated_time": "2026-07-05 10:50:33 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 394.4,
+        "dofollow": 55.9,
+        "referring_pages": 379.6,
+        "referring_domains": 56.2,
+        "referring_main_domains": 36,
+        "rank": 116.6,
+        "main_domain_rank": 506.7,
+        "last_updated_time": "2026-09-07 17:32:55 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 15:39:59 +00:00"
+      }
+    },
+    {
+      "keyword": "ia para documentos",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 05:48:59 +00:00",
+        "competition": 0.67,
+        "competition_level": "HIGH",
+        "cpc": 1.38,
+        "search_volume": 110,
+        "low_top_of_page_bid": 0.38,
+        "high_top_of_page_bid": 2.37,
+        "categories": [
+          10018,
+          10161,
+          10163
+        ],
+        "monthly_searches": {
+          "2026-08": 70,
+          "2026-07": 70,
+          "2026-06": 110,
+          "2026-05": 170,
+          "2026-04": 140,
+          "2026-03": 140,
+          "2026-02": 140,
+          "2026-01": 90,
+          "2025-12": 110,
+          "2025-11": 90,
+          "2025-10": 110,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "quarterly": -36,
+          "yearly": 75
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ia documentos",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 4,
+        "detected_language": "pt",
+        "is_another_language": true
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ia%20para%20documentos&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "images",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 174,
+        "last_updated_time": "2026-08-17 10:59:29 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 195.3,
+        "dofollow": 61.3,
+        "referring_pages": 166.7,
+        "referring_domains": 96.5,
+        "referring_main_domains": 65.9,
+        "rank": 72.7,
+        "main_domain_rank": 484.6,
+        "last_updated_time": "2026-08-17 10:59:29 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 16:57:59 +00:00"
+      }
+    },
+    {
+      "keyword": "ia para empresas",
+      "keyword_info": {
+        "last_updated_time": "2026-09-16 04:15:48 +00:00",
+        "competition": 0.57,
+        "competition_level": "MEDIUM",
+        "cpc": 11.04,
+        "search_volume": 320,
+        "low_top_of_page_bid": 3.62,
+        "high_top_of_page_bid": 10.81,
+        "categories": [
+          10018,
+          10161,
+          10163,
+          10842
+        ],
+        "monthly_searches": {
+          "2026-08": 260,
+          "2026-07": 210,
+          "2026-06": 260,
+          "2026-05": 320,
+          "2026-04": 320,
+          "2026-03": 320,
+          "2026-02": 260,
+          "2026-01": 320,
+          "2025-12": 210,
+          "2025-11": 210,
+          "2025-10": 320,
+          "2025-09": 720
+        },
+        "search_volume_trend": {
+          "monthly": 24,
+          "yearly": 24
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "empresia",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ia%20para%20empresas&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 131,
+        "last_updated_time": "2026-09-10 02:04:31 +00:00",
+        "previous_updated_time": "2026-07-05 06:06:00 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 79.7,
+        "dofollow": 4.6,
+        "referring_pages": 79,
+        "referring_domains": 68.3,
+        "referring_main_domains": 31.8,
+        "rank": 39.6,
+        "main_domain_rank": 492.6,
+        "last_updated_time": "2026-09-10 02:04:32 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-28 16:35:06 +00:00"
+      }
+    },
+    {
+      "keyword": "ia para empresas pequeñas",
+      "keyword_info": {
+        "last_updated_time": "2026-09-04 06:24:56 +00:00",
+        "categories": [
+          10018,
+          10161,
+          10163,
+          10842
+        ]
+      },
+      "keyword_properties": {
+        "core_keyword": "ia para pequeñas empresas",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es"
+      },
+      "search_intent_info": {
+        "main_intent": "commercial",
+        "last_updated_time": "2026-09-04 06:25:27 +00:00"
+      }
+    },
+    {
+      "keyword": "ia privada",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 13:03:21 +00:00",
+        "competition": 0.27,
+        "competition_level": "LOW",
+        "cpc": 1.88,
+        "search_volume": 170,
+        "low_top_of_page_bid": 0.67,
+        "high_top_of_page_bid": 2.44,
+        "categories": [
+          10018,
+          10161,
+          10163,
+          10842
+        ],
+        "monthly_searches": {
+          "2026-08": 170,
+          "2026-07": 170,
+          "2026-06": 260,
+          "2026-05": 170,
+          "2026-04": 170,
+          "2026-03": 140,
+          "2026-02": 110,
+          "2026-01": 140,
+          "2025-12": 210,
+          "2025-11": 140,
+          "2025-10": 110,
+          "2025-09": 70
+        },
+        "search_volume_trend": {
+          "quarterly": -35,
+          "yearly": 143
+        }
+      },
+      "keyword_properties": {
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=ia%20privada&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 127,
+        "last_updated_time": "2026-08-11 14:21:39 +00:00",
+        "previous_updated_time": "2026-06-07 18:51:38 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 62.4,
+        "dofollow": 20.1,
+        "referring_pages": 48.9,
+        "referring_domains": 32.3,
+        "referring_main_domains": 23.9,
+        "rank": 45.3,
+        "main_domain_rank": 442.1,
+        "last_updated_time": "2026-08-11 14:21:39 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "foreign_intent": [
+          "navigational"
+        ],
+        "last_updated_time": "2026-04-28 16:25:53 +00:00"
+      }
+    },
+    {
+      "keyword": "ia sin internet",
+      "keyword_info": {
+        "last_updated_time": "2026-09-12 15:57:29 +00:00",
+        "competition": 0.01,
+        "competition_level": "LOW",
+        "search_volume": 40,
+        "categories": [
+          10007,
+          11491,
+          13418
+        ],
+        "monthly_searches": {
+          "2026-08": 30,
+          "2026-07": 20,
+          "2026-06": 40,
+          "2026-05": 50,
+          "2026-04": 70,
+          "2026-03": 40,
+          "2026-02": 50,
+          "2026-01": 30,
+          "2025-12": 40,
+          "2025-11": 70,
+          "2025-10": 30,
+          "2025-09": 20
+        },
+        "search_volume_trend": {
+          "monthly": 50,
+          "quarterly": -25,
+          "yearly": 200
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "fr",
+        "is_another_language": true
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 16:05:12 +00:00"
+      }
+    },
+    {
+      "keyword": "inteligencia artificial local",
+      "keyword_info": {
+        "last_updated_time": "2026-09-14 09:33:57 +00:00",
+        "competition": 0.04,
+        "competition_level": "LOW",
+        "search_volume": 20,
+        "categories": [
+          10019,
+          10168,
+          10882
+        ],
+        "monthly_searches": {
+          "2026-08": 20,
+          "2026-07": 20,
+          "2026-06": 20,
+          "2026-05": 20,
+          "2026-04": 20,
+          "2026-03": 20,
+          "2026-02": 10,
+          "2026-01": 20,
+          "2025-12": 20,
+          "2025-11": 10,
+          "2025-10": 10,
+          "2025-09": 10
+        },
+        "search_volume_trend": {
+          "yearly": 100
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "inteligencia artificial en local",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-28 00:58:01 +00:00"
+      }
+    },
+    {
+      "keyword": "mapa mental con ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 07:55:57 +00:00",
+        "competition": 0.39,
+        "competition_level": "MEDIUM",
+        "cpc": 1.48,
+        "search_volume": 170,
+        "low_top_of_page_bid": 0.24,
+        "high_top_of_page_bid": 1.44,
+        "categories": [
+          10108,
+          10756
+        ],
+        "monthly_searches": {
+          "2026-08": 30,
+          "2026-07": 30,
+          "2026-06": 70,
+          "2026-05": 140,
+          "2026-04": 170,
+          "2026-03": 170,
+          "2026-02": 260,
+          "2026-01": 210,
+          "2025-12": 210,
+          "2025-11": 320,
+          "2025-10": 320,
+          "2025-09": 170
+        },
+        "search_volume_trend": {
+          "quarterly": -57,
+          "yearly": -25
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "mapa mental ia",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 14,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=mapa%20mental%20con%20ia&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "organic",
+          "images",
+          "related_searches"
+        ],
+        "se_results_count": 62,
+        "last_updated_time": "2026-07-16 20:00:31 +00:00",
+        "previous_updated_time": "2026-05-01 15:31:32 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 522.9,
+        "dofollow": 273.5,
+        "referring_pages": 484.7,
+        "referring_domains": 262.1,
+        "referring_main_domains": 207.9,
+        "rank": 115.9,
+        "main_domain_rank": 477.5,
+        "last_updated_time": "2026-07-16 20:00:33 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 16:01:01 +00:00"
+      }
+    },
+    {
+      "keyword": "notebooklm en español",
+      "keyword_info": {
+        "last_updated_time": "2026-09-13 13:39:25 +00:00",
+        "competition": 0.05,
+        "competition_level": "LOW",
+        "cpc": 1.94,
+        "search_volume": 1900,
+        "low_top_of_page_bid": 0.58,
+        "high_top_of_page_bid": 1.74,
+        "categories": [
+          10019,
+          10168,
+          10883,
+          12187,
+          13069
+        ],
+        "monthly_searches": {
+          "2026-08": 720,
+          "2026-07": 1000,
+          "2026-06": 1600,
+          "2026-05": 2900,
+          "2026-04": 2900,
+          "2026-03": 2400,
+          "2026-02": 1600,
+          "2026-01": 1600,
+          "2025-12": 1600,
+          "2025-11": 1900,
+          "2025-10": 2900,
+          "2025-09": 1600
+        },
+        "search_volume_trend": {
+          "monthly": -28,
+          "quarterly": -55,
+          "yearly": -18
+        }
+      },
+      "keyword_properties": {
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 25,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=notebooklm%20en%20espa%C3%B1ol&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "organic",
+          "ai_overview",
+          "people_also_ask",
+          "video",
+          "related_searches"
+        ],
+        "se_results_count": 106,
+        "last_updated_time": "2026-09-01 04:19:30 +00:00",
+        "previous_updated_time": "2026-07-20 11:58:24 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 10572.4,
+        "dofollow": 7778.8,
+        "referring_pages": 9487.4,
+        "referring_domains": 1097.1,
+        "referring_main_domains": 983.9,
+        "rank": 141.9,
+        "main_domain_rank": 649.4,
+        "last_updated_time": "2026-09-01 04:21:16 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "navigational",
+        "last_updated_time": "2026-04-29 18:07:45 +00:00"
+      }
+    },
+    {
+      "keyword": "resumen de documentos",
+      "keyword_info": {
+        "last_updated_time": "2026-09-15 15:55:48 +00:00",
+        "competition": 0.56,
+        "competition_level": "MEDIUM",
+        "cpc": 1.14,
+        "search_volume": 90,
+        "low_top_of_page_bid": 0.37,
+        "high_top_of_page_bid": 0.97,
+        "categories": [
+          10004,
+          10276,
+          11099,
+          12397
+        ],
+        "monthly_searches": {
+          "2026-08": 10,
+          "2026-07": 10,
+          "2026-06": 40,
+          "2026-05": 90,
+          "2026-04": 70,
+          "2026-03": 70,
+          "2026-02": 70,
+          "2026-01": 170,
+          "2025-12": 70,
+          "2025-11": 170,
+          "2025-10": 170,
+          "2025-09": 90
+        },
+        "search_volume_trend": {
+          "quarterly": -75,
+          "yearly": -50
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "resumir documentos",
+        "synonym_clustering_algorithm": "text_processing",
+        "keyword_difficulty": 7,
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=resumen%20de%20documentos&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "organic",
+          "related_searches",
+          "images"
+        ],
+        "se_results_count": 295000000,
+        "last_updated_time": "2026-05-10 10:37:08 +00:00",
+        "previous_updated_time": "2026-03-23 06:43:08 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 327.3,
+        "dofollow": 127.9,
+        "referring_pages": 271.4,
+        "referring_domains": 169.5,
+        "referring_main_domains": 122.8,
+        "rank": 83.8,
+        "main_domain_rank": 402.8,
+        "last_updated_time": "2026-05-10 10:37:09 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 19:27:46 +00:00"
+      }
+    },
+    {
+      "keyword": "resumir pdf con ia",
+      "keyword_info": {
+        "last_updated_time": "2026-09-17 03:12:21 +00:00",
+        "competition": 0.52,
+        "competition_level": "MEDIUM",
+        "cpc": 0.6,
+        "search_volume": 260,
+        "low_top_of_page_bid": 0.35,
+        "high_top_of_page_bid": 0.81,
+        "categories": [
+          10019,
+          10168,
+          10885,
+          12209
+        ],
+        "monthly_searches": {
+          "2026-08": 40,
+          "2026-07": 40,
+          "2026-06": 110,
+          "2026-05": 260,
+          "2026-04": 210,
+          "2026-03": 260,
+          "2026-02": 260,
+          "2026-01": 320,
+          "2025-12": 260,
+          "2025-11": 480,
+          "2025-10": 590,
+          "2025-09": 260
+        },
+        "search_volume_trend": {
+          "quarterly": -64,
+          "yearly": -43
+        }
+      },
+      "keyword_properties": {
+        "core_keyword": "ia para resumir pdf",
+        "synonym_clustering_algorithm": "text_processing",
+        "detected_language": "es"
+      },
+      "serp_info": {
+        "check_url": "https://www.google.com/search?q=resumir%20pdf%20con%20ia&hl=es&gl=ES&ie=UTF-8&uule=w+CAIQIFISCYu8YTJ440IMEeyjaAeULOym",
+        "serp_item_types": [
+          "ai_overview",
+          "organic",
+          "people_also_ask",
+          "related_searches"
+        ],
+        "se_results_count": 130,
+        "last_updated_time": "2026-09-11 17:01:47 +00:00",
+        "previous_updated_time": "2026-07-04 02:23:58 +00:00"
+      },
+      "avg_backlinks_info": {
+        "backlinks": 71.4,
+        "dofollow": 9,
+        "referring_pages": 63.1,
+        "referring_domains": 43.9,
+        "referring_main_domains": 26.6,
+        "rank": 31.8,
+        "main_domain_rank": 572.6,
+        "last_updated_time": "2026-09-11 17:01:50 +00:00"
+      },
+      "search_intent_info": {
+        "main_intent": "informational",
+        "last_updated_time": "2026-04-29 19:48:15 +00:00"
+      }
+    }
+  ]
+}

@@ -55,3 +55,32 @@ def ollama_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
 
     server.shutdown()
     server.server_close()
+
+
+class StubOllamaUnauthorized(BaseHTTPRequestHandler):
+    """A chat endpoint that always answers 401, as if the connection were bad."""
+
+    def do_POST(self) -> None:
+        self.rfile.read(int(self.headers["Content-Length"]))
+        body = b'{"error": "unauthorized"}'
+        self.send_response(401)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args: object) -> None:
+        """Keep the request log out of the test output."""
+
+
+@pytest.fixture
+def ollama_server_unauthorized(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """A chat stand-in that fails every request, for exercising error handling."""
+    server = ThreadingHTTPServer(("127.0.0.1", 0), StubOllamaUnauthorized)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    url = f"http://127.0.0.1:{server.server_port}"
+    monkeypatch.setattr(get_llm_settings(), "ollama_base_url", url)
+
+    yield
+
+    server.shutdown()
+    server.server_close()

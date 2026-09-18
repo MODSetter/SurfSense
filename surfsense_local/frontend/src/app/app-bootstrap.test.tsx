@@ -1,9 +1,21 @@
 import { act, cleanup, screen } from "@testing-library/react"
-import { afterEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 import { AppBootstrap } from "./app-bootstrap"
+
+beforeEach(() => {
+  // The onboarding welcome step mounts OnboardingDither, which reads matchMedia.
+  Object.defineProperty(window, "matchMedia", {
+    configurable: true,
+    value: vi.fn().mockReturnValue({
+      matches: false,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    }),
+  })
+})
 
 afterEach(() => {
   cleanup()
@@ -50,9 +62,10 @@ describe("app bootstrap", () => {
           return Response.json({
             hardware: null,
             llmfit_version: null,
-            recommended: [],
+            curated: [],
             explore: [],
             installed: [],
+            scanned: true,
             warnings: [],
             runtime_status: {},
           })
@@ -65,7 +78,7 @@ describe("app bootstrap", () => {
 
     expect(
       await screen.findByRole("heading", {
-        name: "Think across everything you have collected.",
+        name: "Air-gapped, open source NotebookLM alternative",
       })
     ).toBeTruthy()
     expect(

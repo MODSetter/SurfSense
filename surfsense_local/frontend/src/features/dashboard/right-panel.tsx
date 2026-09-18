@@ -1,96 +1,38 @@
 import type { ReactNode } from "react"
 
-import { FolderLibraryIcon, Shapes01Icon } from "@/components/ui/icons"
-import { SegmentedControl } from "@/components/ui/segmented-control"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
-
-export type RightTab = "sources" | "artifacts"
-
+// The right column: Studio's generate control sits above the artifact
+// list, and an inspected citation or artifact swaps out for the whole panel.
+// There used to be a Sources tab here too — sources now live in the left
+// sidebar, so this panel has exactly one thing to show and no switcher.
 export function RightPanel({
   inspect,
-  tab,
-  onTabChange,
   studio,
-  sources,
   artifacts,
 }: {
   inspect: ReactNode
-  tab: RightTab
-  onTabChange: (tab: RightTab) => void
   studio: ReactNode
-  sources: ReactNode
   artifacts: ReactNode
 }) {
   if (inspect) return inspect
 
   return (
     <aside
-      className="flex h-full min-w-0 select-none flex-col border-l bg-background"
-      aria-label={
-        tab === "sources" ? "Workspace sources" : "Workspace artifacts"
-      }
+      className="flex h-full min-h-0 min-w-0 flex-col gap-5 overflow-hidden border-l bg-background select-none"
+      aria-label="Workspace artifacts"
     >
-      <Tabs
-        value={tab}
-        onValueChange={(value) => onTabChange(value as RightTab)}
-        className="h-full min-h-0 gap-0"
-      >
-        <header className="flex h-14 shrink-0 items-center gap-2 px-3">
-          <h2 className="font-heading text-base font-medium">
-            {tab === "sources" ? "Sources" : "Artifacts"}
-          </h2>
-          <SegmentedControl
-            count={2}
-            selectedIndex={tab === "sources" ? 0 : 1}
-            className="ml-auto h-7 w-14 shrink-0"
-          >
-            <TabsList className="relative h-full bg-transparent p-0">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <TabsTrigger
-                    value="sources"
-                    aria-label="Sources"
-                    className="h-full px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  >
-                    <FolderLibraryIcon />
-                  </TabsTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" collisionPadding={8}>
-                  Sources
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <TabsTrigger
-                    value="artifacts"
-                    aria-label="Artifacts"
-                    className="h-full px-0 data-[state=active]:bg-transparent data-[state=active]:shadow-none"
-                  >
-                    <Shapes01Icon />
-                  </TabsTrigger>
-                </TooltipTrigger>
-                <TooltipContent side="bottom" collisionPadding={8}>
-                  Artifacts
-                </TooltipContent>
-              </Tooltip>
-            </TabsList>
-          </SegmentedControl>
-        </header>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-hidden px-3 py-2">
-          <div className="shrink-0">{studio}</div>
-          <TabsContent value="sources" className="min-h-0 min-w-0 flex-1">
-            {sources}
-          </TabsContent>
-          <TabsContent value="artifacts" className="min-h-0 min-w-0 flex-1">
-            {artifacts}
-          </TabsContent>
-        </div>
-      </Tabs>
+      {/* Same heading, spacing and placement as the left sidebar's
+          "SurfSense" header — Studio's format cards start exactly where
+          "New chat" does over there, so they don't need a heading of
+          their own. */}
+      <header className="shrink-0 space-y-6 px-3 py-3">
+        <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
+          Studio
+        </h2>
+        {studio}
+      </header>
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden px-3 pb-2">
+        {artifacts}
+      </div>
     </aside>
   )
 }

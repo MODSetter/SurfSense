@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import {
+  cancelDocument,
   deleteDocument,
   isSupportedSourceFile,
   listDocuments,
@@ -32,9 +33,18 @@ function wait(milliseconds: number, signal: AbortSignal) {
   })
 }
 
+function readyIdsOf(documents: WorkspaceDocument[]) {
+  return documents.flatMap((document) =>
+    document.status === "ready" ? [document.id] : []
+  )
+}
+
 export function useSources(workspaceId: number) {
   const [documents, setDocuments] = useState<WorkspaceDocument[]>([])
   const [selectedDocumentIdSet, setSelectedDocumentIdSet] = useState(
+    () => new Set<number>()
+  )
+  const [excludedDocumentIdSet, setExcludedDocumentIdSet] = useState(
     () => new Set<number>()
   )
   const [isLoading, setIsLoading] = useState(true)
@@ -177,6 +187,20 @@ export function useSources(workspaceId: number) {
     }
   }
 
+  const cancel = async (documentId: number) => {
+    setError(null)
+    try {
+      const updated = await cancelDocument(workspaceId, documentId)
+      setDocuments((current) =>
+        current.map((document) =>
+          document.id === documentId ? updated : document
+        )
+      )
+    } catch (cause) {
+      setError(messageFrom(cause))
+    }
+  }
+
   const upload = async (files: File[]) => {
     if (files.length === 0) {
       return
@@ -269,6 +293,11 @@ export function useSources(workspaceId: number) {
       ? [document.id]
       : []
   )
+  const includedDocumentIds = documents.flatMap((document) =>
+    document.status === "ready" && !excludedDocumentIdSet.has(document.id)
+      ? [document.id]
+      : []
+  )
 
   const setDocumentSelected = (documentId: number, selected: boolean) => {
     setSelectedDocumentIdSet((current) => {
@@ -280,6 +309,26 @@ export function useSources(workspaceId: number) {
       }
       return next
     })
+  }
+
+  const setDocumentIncluded = (documentId: number, included: boolean) => {
+    setExcludedDocumentIdSet((current) => {
+      const next = new Set(current)
+      if (included) {
+        next.delete(documentId)
+      } else {
+        next.add(documentId)
+      }
+      return next
+    })
+  }
+
+  const toggleAllIncluded = () => {
+    const readyIds = readyIdsOf(documents)
+    const allIncluded =
+      readyIds.length > 0 &&
+      readyIds.every((id) => !excludedDocumentIdSet.has(id))
+    setExcludedDocumentIdSet(allIncluded ? new Set(readyIds) : new Set())
   }
 
   const deleteOne = async (documentId: number) => {
@@ -340,6 +389,7 @@ export function useSources(workspaceId: number) {
   return {
     documents,
     selectedDocumentIds,
+    includedDocumentIds,
     isLoading,
     isUploading,
     isDeleting,
@@ -348,9 +398,12 @@ export function useSources(workspaceId: number) {
     openOriginal,
     revealOriginal,
     retry,
+    cancel,
     deleteOne,
     deleteSelected,
     setDocumentSelected,
+    setDocumentIncluded,
+    toggleAllIncluded,
     upload,
   }
 }

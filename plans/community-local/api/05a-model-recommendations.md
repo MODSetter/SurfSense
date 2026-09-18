@@ -33,7 +33,7 @@ llmfit catalog + hardware fit
        └── llama.cpp (future)
              │
              ▼
-      Recommended + Explore API
+        Curated + Explore API
 ```
 
 - **llmfit** answers which generation configurations fit this hardware. It is
@@ -56,8 +56,14 @@ Commands:
 
 ```bash
 llmfit --json system
-llmfit --max-context 8192 --json fit -n 1000
+llmfit --max-context 8192 --json fit
 ```
+
+As built there is **no `-n` result cap** — the scan takes llmfit's whole
+compatible set, which is what "without a result count limit" under Catalog
+assembly asks for. `_fit()` appends `--providers <name>` when a provider filter
+is passed, which is how the curated manifest's `advisor_providers` narrows a
+targeted scan.
 
 The adapter accepts only the fields SurfSense uses:
 
@@ -85,6 +91,14 @@ llmfit execution estimate, not proof that SurfSense has an installer.
 Cache the successful system profile and scored catalog for the API process.
 A manual refresh invalidates both and performs one new scan. Concurrent callers
 share one in-flight scan.
+
+**Built one layer deeper than that.** The cache is on disk, at
+`{data_dir}/llmfit-scan.json`, written atomically through a `.tmp` rename and
+invalidated when either its `cache_version` or the recorded `llmfit_version`
+stops matching — so a scan survives an app restart, not just the process. The
+in-memory copy and its lock sit in front of it. The consequence that matters:
+**`scan()` never spawns llmfit unless `refresh=True`.** Loading the catalog
+page costs no hardware probe; only the explicit "Scan hardware" action does.
 
 ## Domain contracts
 
@@ -138,23 +152,34 @@ Shape:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
+  "advisor_providers": ["Alibaba"],
   "models": [
     {
       "model_id": "Qwen/Qwen3-8B",
-      "family": "Qwen",
+      "family": "Qwen3",
       "minimum_fit": "good",
       "minimum_context": 8192,
-      "allowed_quantizations": ["Q4_K_M", "Q5_K_M"],
+      "allowed_quantizations": ["Q4_K_M"],
       "artifacts": {
         "ollama": {
-          "name": "qwen3:8b"
+          "name": "qwen3:8b",
+          "quantization": "Q4_K_M"
         }
-      }
+      },
+      "label": "Qwen3 8B",
+      "parameter_count": "8B",
+      "size_bytes": 5225374496
     }
   ]
 }
 ```
+
+`schema_version` is **2**. Version 2 added the three display fields — `label`,
+`parameter_count`, `size_bytes` — so a curated row can render before any
+hardware scan has produced an estimate for it, and `advisor_providers` at the
+top level to scope a targeted scan. The shipped manifest carries eight Qwen
+entries.
 
 Entries are exact model configurations, even though the frontend groups them by
 `family`. Prefer an immutable runtime artifact or digest when the runtime
@@ -180,18 +205,38 @@ count limit. For each llmfit generation model:
    identity. Record collisions once per scan in developer logs; they are not a
    user-actionable recommendation warning.
 8. Partition and rank:
-   - **Recommended:** exact manifest entry, verified install plan, and `perfect` or
-     `good` fit;
+   - **Curated** (called *Recommended* when this was written, renamed in the
+     code): every exact manifest entry;
    - **Explore:** remaining installable `perfect`, `good`, or `marginal`
      entries;
    - **Installed:** always visible, including a warning when marginal or too
      tight.
 
-A curated model that does not fit moves to Explore with its fit warning;
-SurfSense never promises that team-tested means suitable for every computer.
-Recommended models are removed
-from Explore to avoid duplicates. Ranking is deterministic: fit class, llmfit
-score, then canonical id.
+Ranking is deterministic: fit class, llmfit score, then canonical id. Curated
+rows are excluded from Explore, so nothing appears twice.
+
+**Two rules here were built the other way round, deliberately.**
+
+*A curated model that does not fit stays curated.* This spec had it move to
+Explore with its fit warning. The code keeps it in its own section at whatever
+fit the scan found, on the reasoning that a poor fit is better shown as an
+honest badge than hidden among thousands of Explore rows — and that acting on
+one is already gated by the marginal/too-tight install confirmation. The promise
+this section was protecting still holds: team-tested is not a claim about every
+computer, it is just made in the badge instead of in the bucket.
+
+*Neither Curated nor Installed needs a scan.* Steps 1-8 read as a pipeline that
+begins with llmfit output, which would leave a fresh install looking at an empty
+page until it ran a hardware probe. As built, Curated is populated straight from
+the manifest — the display fields added in `schema_version` 2 are exactly what
+makes a row renderable with no estimate — and Installed from the runtime's own
+inventory. A manifest row that no scan has matched is still installable, because
+resolving it needs only the `ollama_name` the manifest already pins, so a real
+install plan is registered against the placeholder and `/install` behaves
+identically. Rows with no estimate carry `fit: unknown` and null resource
+fields, and the frontend suppresses the badge entirely until a scan has
+happened rather than showing "unknown" to someone who never asked. Only Explore
+and the fit badges require step 1.
 
 ## HTTP contract
 
@@ -207,12 +252,19 @@ Returns:
 ```json
 {
   "hardware": {},
-  "recommended": [],
+  "curated": [],
   "explore": [],
   "installed": [],
-  "warnings": []
+  "warnings": [],
+  "scanned": false,
+  "llmfit_version": null,
+  "runtime_status": {}
 }
 ```
+
+The bucket is `curated`, not `recommended`. `scanned` tells the frontend whether
+a hardware scan stands behind these rows, which is what lets it render curated
+and installed models immediately and offer "Scan hardware" in place of Explore.
 
 Each catalog row includes an opaque `catalog_id`, canonical model id, family,
 display label, fit, resource estimates, license, installed/selected state,
@@ -260,6 +312,50 @@ is generating. If the deleted model is
 selected, the same transaction clears `SelectedModel` and reports
 `selection_cleared: true`.
 
+## Prompt tiers
+
+Not in the original spec, and now depended on by chat and by every Studio
+format: a selected model is **fingerprinted at selection time**, and its
+fingerprint decides which of three prompts it is given.
+
+`modules/llm/profile/` owns the classification. A `Fingerprint` carries
+`provider`, `name`, and three nullable facts — `params_b`, `vendor`, and `line`
+(`flagship` or `small`) — collected from Ollama's `/api/tags` and `/api/show`,
+from a remote connection's `/models`, or, failing both, from heuristics on the
+name. `classify()` turns it into a `Tier`:
+
+| Known | Tier |
+|---|---|
+| `params_b` < 7.0 | `compact` |
+| `params_b` < 100.0 | `capable` |
+| `params_b` ≥ 100.0 | `frontier` |
+| no count, but a `vendor` | `frontier` |
+| no count, `line` is flagship / small | `frontier` / `capable` |
+| nothing, provider is Ollama | `compact` |
+| nothing, remote | `capable` |
+
+The thresholds encode a claim about scaffolding, not about quality: below the
+first a model loses accuracy when asked to follow a structure, between the two
+it gains from one, and above the second it writes better from judgement than
+from steps. The last two rows are the same bet — a hosted endpoint runs models
+too big for a laptop, Ollama runs the laptop.
+
+Revision `0010` adds `params_b`, `vendor` and `line` to `selected_models`. **The
+tier itself is not stored**: `SelectedModel.tier` calls `classify()` on read, so
+retuning a threshold changes behaviour without a migration or a re-selection.
+
+`modules/llm/prompting/` is the other half. `load(package, tier, case=None,
+**slots)` reads `{package}/prompts/{tier}.md`, or `{package}/prompts/{case}/{tier}.md`
+when a package has more than one prompt, and fills `$slot` placeholders through
+`string.Template`; `focus()` appends the user's steer as one line. Every prompt
+therefore lives as markdown beside the code that uses it — eleven cases at three
+tiers, so 33 files: chat, the four `content/` formats, `office/`, `web/html/`,
+the two `media/visual/` formats, and podcast outline and draft separately. A
+unit test asserts every case ships all three. No `import` statement names any of
+them, so the PyInstaller specs collect them by path, split along what each binary
+runs: `api.spec` takes only `modules.chat`'s three, and `worker.spec` takes those
+plus every `*.md` under `worker.studio`.
+
 ## Failure behavior
 
 - llmfit missing, timed out, or malformed: return installed runtime models and
@@ -280,9 +376,10 @@ selected, the same transaction clears `SelectedModel` and reports
 
 - Adapter fixtures cover system JSON, fit JSON, labels versus machine codes,
   nullable estimates, unknown fields, timeout, nonzero exit, and malformed JSON.
-- Catalog policy covers Recommended/Explore partitioning, family grouping metadata,
+- Catalog policy covers Curated/Explore partitioning, family grouping metadata,
   deterministic ranking, deduplication, memory reserve, and installed models
-  that no longer fit.
+  that no longer fit. Also: a catalog served with no scan at all, curated
+  placeholders staying installable, and the scan cache surviving a restart.
 - Runtime resolution covers valid/absent Ollama mappings and prevents an
   arbitrary renderer-supplied tag or URL.
 - Integration covers catalog → install progress → installed inventory →
@@ -293,11 +390,12 @@ selected, the same transaction clears `SelectedModel` and reports
 
 ## Acceptance
 
-- A clean supported machine sees hardware-ranked Recommended models followed by Explore.
+- A clean supported machine sees Curated models followed by Explore, with Curated
+  present before any hardware scan has run.
 - Every enabled Download action resolves to a runtime artifact SurfSense can
   install.
 - One Download & Use action installs and selects a model.
 - llmfit being unavailable degrades recommendations without breaking installed
   model selection or chat.
 - Adding a fake llama.cpp runtime in tests requires no change to llmfit parsing,
-  Recommended partitioning, or the frontend catalog schema.
+  Curated partitioning, or the frontend catalog schema.

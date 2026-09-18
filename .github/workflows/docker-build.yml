@@ -6,7 +6,8 @@ on:
       - main
       - dev
     tags:
-      - 'v*'
+      # Hosted stack stays on 0.x; v1.* and up is the desktop app.
+      - 'v0.*'
       - 'beta-v*'
     paths:
       - 'surfsense_backend/**'

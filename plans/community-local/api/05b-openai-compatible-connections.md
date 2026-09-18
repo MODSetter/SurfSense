@@ -77,7 +77,7 @@ generation, or both.
 | `label` | TEXT, required; user-facing name unique case-insensitively |
 | `provider` | TEXT, required; `openai_compatible` in this phase |
 | `base_url` | TEXT, required; exact API root, normally ending in `/v1` |
-| `api_key` | TEXT nullable until the Phase 6 keychain move; never returned by an API |
+| `api_key_ciphertext` | BLOB nullable; never returned by an API. **Was `api_key` (TEXT plaintext); the Phase 6 keychain move has since happened** — revision `0007` drops the plaintext column and adds this one |
 | `created_at`, `updated_at` | timestamps |
 
 The URL is stored without a trailing slash. Accept only `http` and `https`;
@@ -86,9 +86,15 @@ link-local destinations are valid because the desktop API is loopback-only and
 internal-network access is the feature. If the API ever binds externally, this
 becomes an SSRF boundary and must be redesigned before that release.
 
-The Phase 6 keychain work moves `api_key` behind a `ConnectionSecretStore`
-without changing connection ids or HTTP DTOs. Until then, preserve the current
-local-only plaintext limitation and never log or return a key.
+**Done, and built as envelope encryption rather than a `ConnectionSecretStore`**,
+with connection ids and HTTP DTOs unchanged as intended. Electron holds one
+per-install secret under `safeStorage` (the OS keychain) and passes it to both
+Python sidecars as `SURFSENSE_LOCAL_SECRET`; `shared/secrets.py` builds a Fernet
+from it — falling back to a `{data_dir}/secret` file when the variable is absent,
+which is the dev path — and the `ProviderConnection.api_key` property encrypts
+and decrypts around the ciphertext column. The sidecars need the keys to make
+calls, which is why the secret cannot stay inside Electron. Never log or return
+a key.
 
 ### `selected_models`
 
@@ -97,14 +103,18 @@ Keep one table and one row per role:
 | Column | Contract |
 |---|---|
 | `role` | primary key: `generation` or `image_generation` |
-| `provider` | `ollama` or `openai_compatible` |
+| `provider` | `ollama`, `openai_compatible`, or **`sdcpp`** — the bundled local image runtime, added in revision `0009` |
 | `connection_id` | nullable FK to `provider_connections.id`, `ON DELETE CASCADE` |
 | `name` | exact provider model id |
+| `params_b`, `vendor`, `line` | nullable model fingerprint, added in revision `0010`; feeds the prompt tier ([`05a`](05a-model-recommendations.md)) |
 | `updated_at` | timestamp |
 
 Invariants:
 
-- `ollama` selections have `connection_id = NULL`;
+- `ollama` **and `sdcpp`** selections have `connection_id = NULL`; revision
+  `0009`'s check constraint reads
+  `(provider IN ('ollama','sdcpp') AND connection_id IS NULL) OR (provider = 'openai_compatible' AND connection_id IS NOT NULL)`;
+- `sdcpp` is valid for `image_generation` only, never for chat;
 - `openai_compatible` selections require a connection id;
 - deleting a connection removes every role selection that uses it;
 - onboarding requires only `generation`; `image_generation` is always optional;
@@ -173,8 +183,18 @@ resolve generation selection
   └── openai_compatible + connection_id → load connection → chat provider
 
 resolve image_generation selection
+  ├── sdcpp + no connection_id → bundled sd-server, wrapped in the same
+  │                              image provider pointed at its loopback URL
   └── openai_compatible + connection_id → load connection → image provider
 ```
+
+The `sdcpp` branch is the one this spec did not anticipate: a bundled
+stable-diffusion.cpp `sd-server`, supervised by Electron and started on demand
+once the API reports a chosen image model, offering three downloadable models
+(SD 1.5, SDXL Base, SDXL Turbo). It reuses `OpenAICompatibleImageProvider`
+against its own loopback URL, so it is a new *selection* target rather than a
+new protocol. Being loopback, it takes no egress decision and needs no key —
+which is what makes an image role reachable on a fully offline machine.
 
 Chat, title generation, and text Studio builders use the generation resolver.
 The image Studio format uses the image resolver. No caller reads secrets or
@@ -190,8 +210,14 @@ POST   /llm/connections
 PUT    /llm/connections/{connection_id}
 DELETE /llm/connections/{connection_id}
 GET    /llm/connections/{connection_id}/models
+POST   /llm/connections/{connection_id}/chat-test
 POST   /llm/connections/{connection_id}/image-test
 ```
+
+`chat-test` shipped alongside `image-test` and is missing from this list until
+now: it runs one non-streaming completion against a chosen model and returns the
+reply text, so a model whose capability is `unknown` can be confirmed before it
+is assigned to the chat role.
 
 Write body:
 
@@ -245,19 +271,33 @@ The normalized response is:
     "connection_label": "Engineering vLLM",
     "name": "qwen3-32b",
     "capabilities": [],
-    "capability_known": false
+    "capability_source": "unknown"
   }
 ]
 ```
 
-Capability detection is progressive:
+The field is `capability_source`, not the boolean `capability_known` sketched
+here, because there are now three answers rather than two. Capability detection
+is progressive:
 
-1. honor explicit recognized metadata returned by the endpoint;
-2. recognize OpenAI-compatible extensions already supported by SurfSense;
-3. otherwise return unknown rather than guessing.
+1. honor explicit recognized metadata returned by the endpoint → `declared`;
+2. **look the model id up in a vendored catalogue → `catalog`**;
+3. otherwise return unknown rather than guessing → `unknown`.
+
+Step 2 is new. `connections/model-capabilities.json` is a build-time snapshot of
+[models.dev](https://models.dev), fetched by
+`backend/scripts/fetch_model_capabilities.py`, which derives each model's
+capabilities from its modality shape (text→text is `completion`, an image output
+is `image_generation`) and excludes `openrouter`. It ships as PyInstaller data in
+both specs. A model absent from the snapshot stays `unknown` — the catalogue
+narrows the guessing problem, it does not remove it — and an entry with an empty
+capability tuple is a *known* "neither role", which is not the same thing.
 
 The standard `/models` shape does not reliably identify chat, vision-input,
-embedding, or image-generation support. Unknown models remain visible.
+embedding, or image-generation support. Unknown models remain visible, and
+`unknown` leaves both role buttons enabled; only a *known* mismatch disables
+one. Selection validation uses the same rule: a remote choice is rejected only
+when the capability is known and does not support the role.
 
 If discovery fails after a connection was saved, return a bounded provider
 error and retain the connection. A manual model-id field may be used for an
@@ -353,14 +393,19 @@ Artifact(format=image)
   → existing ArtifactFile(primary)
 ```
 
-`infographic` is not routed to an image model. The selected generation model
-emits a strict infographic schema; a trusted deterministic builder renders
-SVG/HTML and an optional PNG preview. This keeps labels and numbers accurate,
-works with vLLM, and follows the existing “structured content → trusted
-builder” Studio rule.
+**`infographic` is routed to an image model, contrary to what this section said.**
+The deterministic SVG/HTML builder was never written. What shipped: the
+generation model writes a short factual brief (title, summary, up to eight
+sections) and the *image* model paints a prompt built from it, so
+`formats.py` gives `infographic` the same `requires_roles` as `image`.
 
-If no image model is selected, only the Image format is unavailable.
-Infographic remains available whenever generation is available.
+If no image model is selected, **both** Image and Infographic are unavailable.
+The mitigation for the offline case is the `sdcpp` selection above rather than a
+separate builder: a local sd-server satisfies the image role with no endpoint,
+no key and no egress. Whether to also build the deterministic infographic
+renderer — which would keep labels and numbers exact, and works where a
+diffusion model cannot be run at all — is an open product call, not something
+this spec can claim is done.
 
 ## Migration from OpenRouter
 
@@ -437,11 +482,12 @@ Delete:
   it.
 - Chat and all text Studio formats continue through the selected generation
   model.
-- Image writes through existing artifact storage; infographic requires no image
-  endpoint.
+- Image writes through existing artifact storage. Infographic **does** require an
+  image role — a remote connection or the bundled local sd-server — which is the
+  opposite of what this line originally asserted.
 - OpenRouter image models discovered through its modality filter work through
   `/images` without a separate provider, table, credential flow, or branded UI.
 - A user with no image connection can finish onboarding and use every format
-  except Image.
+  except Image **and Infographic**.
 - No standalone OpenRouter provider or legacy Chat Completions image parser
   remains.

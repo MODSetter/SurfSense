@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from modules.llm.profile import Fingerprint, from_ollama
 from modules.llm.providers.ollama.catalog import OFFERINGS
 from modules.llm.providers.types import CatalogEntry, DownloadProgress, Message, Model
 from modules.llm.recommendations.types import (
@@ -16,6 +17,21 @@ from shared.config import get_llm_settings
 
 # A pull runs for minutes; a tag lookup is instant. Long read, short connect.
 TIMEOUT = httpx.Timeout(600.0, connect=5.0)
+
+# Ollama's default context window is 4096 tokens and it silently drops whatever
+# does not fit, so a 24k-char Studio grounding reached the model at a third of its
+# length (measured: 2050 of ~6900 tokens evaluated). Size the window to the prompt.
+MIN_CTX = 4096
+
+
+def num_ctx(messages: list[Message], max_tokens: int | None) -> int:
+    """The smallest power-of-two window that holds the prompt and the reply.
+
+    ~3 chars per token is conservative for prose; Ollama clamps anything above the
+    model's trained maximum, so overshooting is safe and undershooting is not.
+    """
+    needed = sum(len(m.content) for m in messages) // 3 + (max_tokens or 2048)
+    return max(MIN_CTX, 1 << (needed - 1).bit_length())
 
 
 class OllamaProvider:
@@ -186,8 +202,7 @@ class OllamaProvider:
             )
             if value is not None
         }
-        if options:
-            body["options"] = options
+        body["options"] = {**options, "num_ctx": num_ctx(messages, max_tokens)}
         async with (
             self._client() as client,
             client.stream("POST", "/api/chat", json=body) as reply,
@@ -200,6 +215,14 @@ class OllamaProvider:
                 if delta:
                     yield delta
 
+    async def inspect(self, name: str) -> Fingerprint:
+        """What this runtime knows about an installed model, for prompt tiering."""
+        async with self._client() as client:
+            tag, show = await asyncio.gather(
+                self._tag(client, name), self._show(client, name)
+            )
+        return from_ollama(name, tag, show)
+
     async def _capabilities(
         self, client: httpx.AsyncClient, name: str
     ) -> tuple[str, ...]:
@@ -209,15 +232,23 @@ class OllamaProvider:
     async def _details(
         self, client: httpx.AsyncClient, name: str
     ) -> tuple[tuple[str, ...], str | None]:
-        reply = await client.post("/api/show", json={"model": name})
-        if reply.status_code != 200:
-            return (), None
-        body = reply.json()
+        body = await self._show(client, name)
         details = body.get("details", {})
         quantization = (
             details.get("quantization_level") if isinstance(details, dict) else None
         )
         return tuple(body.get("capabilities", [])), quantization
+
+    async def _show(self, client: httpx.AsyncClient, name: str) -> dict:
+        reply = await client.post("/api/show", json={"model": name})
+        return reply.json() if reply.status_code == 200 else {}
+
+    async def _tag(self, client: httpx.AsyncClient, name: str) -> dict:
+        reply = await client.get("/api/tags")
+        if reply.status_code != 200:
+            return {}
+        rows = reply.json().get("models", [])
+        return next((row for row in rows if row.get("name") == name), {})
 
 
 def _progress(event: dict) -> DownloadProgress:

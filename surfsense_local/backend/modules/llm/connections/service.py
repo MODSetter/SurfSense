@@ -1,19 +1,31 @@
 import asyncio
 from dataclasses import dataclass
+from typing import Literal
 from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
+from modules.llm.connections.model_capabilities import lookup_capabilities
 from modules.llm.models import ProviderConnection
 
 DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
+
+# Where a model's capabilities came from. "declared" is the endpoint's own word
+# for it, "catalog" the reviewed table shipped with the app. Nothing is guessed:
+# an id neither source knows stays "unknown" and the picker says so.
+CapabilitySource = Literal["declared", "catalog", "unknown"]
 
 
 @dataclass(frozen=True)
 class DiscoveredModel:
     name: str
     capabilities: tuple[str, ...]
-    capability_known: bool
+    capability_source: CapabilitySource
+
+    @property
+    def capability_known(self) -> bool:
+        """Whether these capabilities are known rather than merely unlisted."""
+        return self.capability_source != "unknown"
 
 
 def normalize_base_url(value: str) -> str:
@@ -55,39 +67,60 @@ def _modalities(entry: dict) -> set[str]:
     } - {None}
 
 
-def parse_models(payload: object) -> list[DiscoveredModel]:
+def _entries(payload: object) -> dict[str, set[str]]:
+    """Enumerate a listing into id -> declared output modalities.
+
+    Listing and classifying are kept apart because a full catalogue can take
+    more than one request, and an id may appear in several of them. Collecting
+    raw modalities first means classification runs once, over the union, with no
+    ranking of partial answers to reconcile afterwards.
+    """
     if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
         raise ValueError("model endpoint did not return an OpenAI list envelope")
 
-    models: list[DiscoveredModel] = []
+    entries: dict[str, set[str]] = {}
     for entry in payload["data"]:
         if not isinstance(entry, dict) or not isinstance(entry.get("id"), str):
             continue
         name = entry["id"].strip()
         if not name:
             continue
-        modalities = _modalities(entry)
-        capabilities: list[str] = []
+        entries.setdefault(name, set()).update(_modalities(entry))
+    return entries
+
+
+def _classify(name: str, modalities: set[str]) -> DiscoveredModel:
+    """Resolve one model against every source, in order, first answer winning.
+
+    The same three doors for every model from every endpoint: what the endpoint
+    published, then the reviewed catalogue, then nothing. There is no fourth
+    door that guesses.
+    """
+    if modalities:
+        capabilities = []
         if "text" in modalities:
             capabilities.append("completion")
         if "image" in modalities:
             capabilities.append("image_generation")
-        models.append(
-            DiscoveredModel(
-                name=name,
-                capabilities=tuple(capabilities),
-                capability_known=bool(modalities),
-            )
-        )
-    return models
+        return DiscoveredModel(name, tuple(capabilities), "declared")
+    catalogued = lookup_capabilities(name)
+    if catalogued is not None:
+        return DiscoveredModel(name, catalogued, "catalog")
+    return DiscoveredModel(name, (), "unknown")
 
 
-async def _request_models(
+def parse_models(payload: object) -> list[DiscoveredModel]:
+    return [
+        _classify(name, modalities) for name, modalities in _entries(payload).items()
+    ]
+
+
+async def _request_entries(
     base_url: str,
     api_key: str | None,
     *,
     image_only: bool = False,
-) -> list[DiscoveredModel]:
+) -> dict[str, set[str]]:
     params = {"output_modalities": "image"} if image_only else None
     async with httpx.AsyncClient(
         timeout=DISCOVERY_TIMEOUT,
@@ -95,39 +128,39 @@ async def _request_models(
     ) as client:
         reply = await client.get(f"{base_url}/models", params=params)
         reply.raise_for_status()
-        return parse_models(reply.json())
+        return _entries(reply.json())
 
 
 async def probe_connection(base_url: str, api_key: str | None) -> list[DiscoveredModel]:
-    return await _request_models(base_url, api_key)
+    entries = await _request_entries(base_url, api_key)
+    return [_classify(name, modalities) for name, modalities in entries.items()]
 
 
 async def discover_models(connection: ProviderConnection) -> list[DiscoveredModel]:
     baseline, optional = await asyncio.gather(
-        _request_models(connection.base_url, connection.api_key),
-        _optional_image_models(connection.base_url, connection.api_key),
+        _request_entries(connection.base_url, connection.api_key),
+        _optional_image_entries(connection.base_url, connection.api_key),
     )
-    merged: dict[str, DiscoveredModel] = {model.name: model for model in baseline}
-    for model in optional:
-        existing = merged.get(model.name)
-        if existing is None:
-            merged[model.name] = model
-            continue
-        capabilities = tuple(
-            sorted(set(existing.capabilities) | set(model.capabilities))
-        )
-        merged[model.name] = DiscoveredModel(
-            name=model.name,
-            capabilities=capabilities,
-            capability_known=existing.capability_known or model.capability_known,
-        )
-    return sorted(merged.values(), key=lambda model: model.name.casefold())
+    merged = {name: set(modalities) for name, modalities in baseline.items()}
+    for name, modalities in optional.items():
+        merged.setdefault(name, set()).update(modalities)
+    return sorted(
+        (_classify(name, modalities) for name, modalities in merged.items()),
+        key=lambda model: model.name.casefold(),
+    )
 
 
-async def _optional_image_models(
+async def _optional_image_entries(
     base_url: str, api_key: str | None
-) -> list[DiscoveredModel]:
+) -> dict[str, set[str]]:
+    """Ask again for image models, because a default listing may not hold them.
+
+    OpenRouter serves 444 models from /models and 54 from the image-filtered
+    query, 43 of which the first call never returns at all. This is enumeration,
+    not classification. An endpoint that ignores the parameter answers with the
+    same set, so the union is a no-op and no provider has to be recognised.
+    """
     try:
-        return await _request_models(base_url, api_key, image_only=True)
+        return await _request_entries(base_url, api_key, image_only=True)
     except (httpx.HTTPError, ValueError):
-        return []
+        return {}
