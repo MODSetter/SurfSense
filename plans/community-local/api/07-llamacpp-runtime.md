@@ -4,8 +4,8 @@
 > packaging for all three targets. Supersedes the Ollama runtime decision in
 > [`../00-umbrella-plan.md`](../00-umbrella-plan.md) and the `hf.co/` fallback in
 > [`05d-llmfit-catalog-expansion.md`](05d-llmfit-catalog-expansion.md). Extends
-> [`05a-model-recommendations.md`](05a-model-recommendations.md) — its
-> "llama.cpp, later" section is now this document.
+> [`05a-model-recommendations.md`](05a-model-recommendations.md), which is
+> reduced to what survives here: prompt tiers, fingerprinting and onboarding.
 
 ## Goal
 

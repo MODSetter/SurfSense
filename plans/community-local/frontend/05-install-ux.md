@@ -2,7 +2,7 @@
 
 > Owns: the generation catalog and one-click install flow.
 > API contract:
-> [`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
+> [`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md).
 >
 > **Phase 7 supersedes the catalog half of this document** —
 > [`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md) replaces
@@ -269,7 +269,7 @@ branch rendering on a provider name. Fit-badge copy branches on the budget's
 
 ## Needs from API
 
-Normalized catalog and install stream —
-[`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
+Catalog, search and install stream —
+[`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md).
 Binary/model packaging and airgap imports —
 [`../api/05c-packaging.md`](../api/05c-packaging.md).

@@ -21,8 +21,7 @@ Installers for Paths A / B / C.
   pointed at them; `scripts/fetch_embedding_model.py` fetches the same files for CI.
 - A pinned `llama-server` build plus the versioned curated-model manifest;
   catalog and install routes are specified in
-  [`07-llamacpp-runtime.md`](07-llamacpp-runtime.md) (which supersedes the
-  route table in [`05a-model-recommendations.md`](05a-model-recommendations.md)).
+  [`07-llamacpp-runtime.md`](07-llamacpp-runtime.md).
 
 ## Files no import statement names
 
@@ -143,8 +142,7 @@ user finds by search.
 ### First-run model download
 
 The generation model arrives in first-run setup with progress through the
-normalized catalog boundary
-([`05a-model-recommendations.md`](05a-model-recommendations.md)):
+catalog boundary ([`07-llamacpp-runtime.md`](07-llamacpp-runtime.md)):
 
 - `GET /llm/system` — the hardware budget, from the runtime's allocator. No
   scan, no status flag, no button.
