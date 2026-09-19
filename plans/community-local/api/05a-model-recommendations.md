@@ -135,6 +135,12 @@ the server and is never accepted from the renderer.
 
 ### llama.cpp, later
 
+> **Now.** [`07-llamacpp-runtime.md`](07-llamacpp-runtime.md) is this section,
+> specified. It goes further than "adding a runtime": llama.cpp becomes the
+> *only* local runtime, llmfit leaves the installer for CI, and the Explore
+> bucket becomes a Hugging Face search over every GGUF rather than the subset
+> llmfit happens to know.
+
 A future adapter resolves a canonical model and quantization to a verified GGUF,
 downloads atomically, starts `llama-server`, and implements the existing
 `Generator` stream. Adding it changes the runtime registry and packaging, not
