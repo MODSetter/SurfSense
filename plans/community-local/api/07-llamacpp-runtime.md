@@ -53,8 +53,8 @@ Ollama's native API does not.
 | **Downloads** | **SurfSense fetches the GGUF**, not `POST /models` | `llama-server` is a second process we do not proxy; an in-process fetch is the only place `egress.require()` actually holds. Also buys resume, checksums, and the header as the file lands. |
 | **Quantization** | **One pinned file per entry in v1** | A pinned file is what "tested by SurfSense" can honestly claim. Per-machine selection is possible at no extra cost (one header read prices every quant), so a second variant on the largest entries is a cheap follow-on, not v1. See **The quantization ladder**. |
 | **Context** | **Fixed at load. Floor 16K, capped at the model's own `context_length`** | llama.cpp fixes context at load, so `num_ctx()`'s per-request sizing has no equivalent. The floor is 3K history plus ~8K grounding plus a reply. Growing on occupancy is additive later; it needs a mid-conversation reload and two constants with nothing measured behind them. |
-| **Windows CUDA** | **In the installer.** No post-install download | Airgapped. Dropping Ollama frees ~500 MB; CUDA 13.4 + cudart costs 573 MB. Net ≈ +100 MB, under the 2 GB `makensis` ceiling that forced `pruneCudaRunners()`. |
-| **CUDA version** | 13.4 only | CUDA 13 requires Turing (7.5)+. Shipping 12.4 as well for Pascal costs another 645 MB — that is what made Ollama's archive 1.8 GB. Pascal falls through to Vulkan automatically via backend scoring. |
+| **GPU backend** | **Vulkan on every platform off Apple Silicon. No CUDA** | Measured on an RTX 3050 at `b11050`: CUDA leads Vulkan **9.1%** on `pp512`, **10.2%** on `pp8192`, **2.1%** on decode — 0.66 s on an 11 s turn, for 685 MB. Vulkan covers NVIDIA, AMD and Intel from one 31 MB archive, its loader ships with Windows, and it is what the app already does today (`pruneCudaRunners()`). CUDA is specified as an optional later addition in [`08-cuda-backend.md`](08-cuda-backend.md), which needs **no code change** — ggml selects it by the files present. |
+| **Device selection** | First device with `type == GPU`. **Never sum** | The same physical card appears once per loaded backend, and an integrated GPU can advertise more memory than a discrete one (16198 MiB against 6002 MiB, measured). ggml's ordering already expresses backend preference, so this **is** backend selection. Specified in **7.2**. |
 | **Backend selection** | Runtime, by ggml | Releases are built `GGML_BACKEND_DL=ON`. A failed `dlopen` is skipped silently, so a missing Vulkan loader degrades to CPU rather than failing. |
 | **Prompt tier fallback** | Keys on **loopback**, not provider name | `provider == "ollama" → COMPACT` breaks the moment a Mac user runs a 4B through LM Studio. `host_destination()` already computes loopback. |
 
@@ -138,7 +138,7 @@ Every machine gets a GPU-resident pick, so six rungs strand nobody. Three gaps:
 - **A gap at 16 GB.** 14B misses by 69 MiB (0.6%), so a 16 GB Mac drops to 8B
   with 3.9 GB spare.
 - **The 4070 row is decided by an uncalibrated constant.** 31 MiB of margin at
-  1,024 MiB overhead; at Hermes' measured 1.5 GiB it does not fit and that
+  1,024 MiB overhead; at Hermes' 2 GiB margin floor it does not fit and that
   machine drops a rung.
 
 **Manifest growth is follow-on work, not phase 7.** v1 ships these six re-pinned
@@ -335,10 +335,12 @@ is derived from the codebase rather than chosen.
 | **Runtime overhead** | prediction | **unmeasured.** See below. |
 
 > **ponytail: runtime overhead.** The `overhead` term in
-> `need = weights + KV(window) + overhead` is a placeholder. Hermes measured
-> 1.5 GiB, but on a 32 GiB discrete card; today's `recommendation_reserve_gb: 2.0`
-> is self-flagged as uncalibrated. On a 5.4 GB budget the difference between
-> 1.0 and 1.5 GiB moves rows across the `FITS`/`PARTIAL` line, and on a 12 GB
+> `need = weights + KV(window) + overhead` is a placeholder. Hermes uses
+> `max(2 GiB, 9% of total)` (`_MARGIN_FLOOR = 2 << 30`, `_MARGIN_FRACTION = 0.09`
+> in `local_runtime/hardware.py`), which on a 6 GB card holds back a third of it;
+> today's `recommendation_reserve_gb: 2.0` is self-flagged as uncalibrated. On a
+> 5.4 GB budget the difference between 1.0 and 2.0 GiB moves rows across the
+> `FITS`/`PARTIAL` line, and on a 12 GB
 > NVIDIA card it decides whether Qwen3 14B is recommended at all (31 MiB of
 > margin at 1,024 MiB overhead). **Measure real RSS after loading three or four
 > models on each target before 7.4 ships.** It is the only unmeasured number in
@@ -424,6 +426,91 @@ header and a truncated-response retry.
 OS APIs. First hit wins, cached; warm the probe in the background at first
 launch, not on the path of the first render (a cold `ggml_backend_load_all()` on
 macOS compiles 20 Metal shader libraries, measured at ~20 s once, 180 ms after).
+That cold penalty is **Metal-only**: measured off Apple Silicon the same call is
+77 ms with one backend and 205 ms with two.
+
+#### The probe must run from the library directory
+
+**This is the single most likely way this phase ships broken.**
+`ggml_backend_load_all()` discovers backends by scanning **the directory of the
+running executable**, not the directory the libraries were loaded from. The
+backend probe runs inside the frozen `surfsense-api.exe`, which lives in
+`resources/backend/`; the ggml libraries live in `resources/llamacpp/`. Different
+directories, so the scan finds nothing.
+
+Verified on a Windows machine with a working RTX 3050, same minute, same process
+otherwise:
+
+```text
+python wprobe.py                      →  device count 0     ← card invisible
+cd <llamacpp dir> && python wprobe.py →  device count 2     ← CUDA0 + CPU
+```
+
+**Loading the libraries by absolute path is not sufficient.** The backend scan is
+a separate step keyed on the host executable. Set the working directory around
+`ggml_backend_load_all()`, or spawn the probe from the library directory.
+
+`GGML_BACKEND_PATH` is **not** the escape hatch — it expects a *file*, not a
+directory. Passing one logs `load_backend: failed to load <dir>` and leaves the
+count at zero.
+
+The failure is silent and indistinguishable from a genuinely GPU-less machine:
+every row badges *"Works here, runs on your processor"* and nothing reports an
+error. See **Failure behavior**.
+
+#### Two library handles on Windows, one on Linux
+
+The exported symbols are split, and the intuitive single handle fails:
+
+| Library | Exports |
+|---|---|
+| `ggml.dll` / `libggml.so` | `ggml_backend_load_all`, `dev_count`, `dev_get` |
+| `ggml-base.dll` / `libggml-base.so` | `dev_name`, `dev_description`, `dev_type`, `dev_memory` |
+
+Linux resolves the second through the ELF dependency, so one
+`CDLL("libggml.so")` works — but `CDLL("libggml-base.so")` raises `undefined
+symbol: ggml_backend_load_all`. **Windows needs both handles**; PE exports do not
+chain, and `ggml.dll` alone raises `AttributeError: function
+'ggml_backend_dev_name' not found`.
+
+#### Device selection: first `type == GPU`, never a sum
+
+A machine reports one entry per *(backend, device)* pair, so the same physical
+card can appear more than once and an integrated GPU can advertise more memory
+than a discrete one. Measured:
+
+```text
+[0] Vulkan0  type=GPU    6002.0 MiB total, 5234.0 MiB free   NVIDIA GeForce RTX 3050
+[1] Vulkan1  type=ACCEL 16198.3 MiB total                    AMD Radeon(TM) Graphics
+[2] CPU      type=CPU   31884.6 MiB total, 22750.2 MiB free  AMD Ryzen 5 9600X
+```
+
+```python
+def select_device(devices):
+    """First GPU wins. ggml orders backends by preference, so this is also
+    backend selection."""
+    return next((d for d in devices if d.type == DeviceType.GPU), None)
+```
+
+- **First, not largest.** Sorting by memory picks the 16 GB integrated chip over
+  the 6 GB discrete card and places every layer on the slower device.
+- **Never aggregate.** No `sum()` across devices. One device becomes
+  `HardwareBudget.usable_vram_bytes`.
+- **`ACCEL` is not a GPU** for budgeting — an integrated part carving from system
+  RAM has no memory of its own to place layers in.
+
+This rule is required here, under Vulkan alone. It becomes load-bearing if
+[`08-cuda-backend.md`](08-cuda-backend.md) ever ships, because two loaded
+backends list the same card twice, **both typed `GPU`**, so type filtering does
+not deduplicate them.
+
+#### `ram_available_bytes` does not come from ggml reliably
+
+ggml's CPU device reports real available memory on native Windows (31884.6 MiB
+total against 22750.2 MiB free, measured) but **`total == free` under WSL2**,
+where the figure is virtualised. Keep the OS API in the chain for the RAM half
+rather than trusting the CPU device, since `ram_available_bytes` is what
+separates `PARTIAL` from `TOO_BIG`.
 
 Two budget modes. **Capacity** (total − margin) for catalog pricing; **live**
 (free now) for launch decisions. Pricing against live-free while a model is
@@ -434,9 +521,19 @@ Per-layer KV from the header. Split today's single `recommendation_reserve_gb: 2
 (flagged `ponytail` as uncalibrated) into a measured runtime overhead, a device
 margin, and a UMA headroom.
 
-> **ponytail:** the runtime overhead constant is a placeholder until measured
-> against real RSS on all three targets. On a 5.4 GB budget it moves rows across
-> the fits/spills line.
+> **Do not double-count.** ggml's `free` **already excludes** the desktop's
+> allocation and the backend context. Measured on a 6144 MiB RTX 3050: 986 MiB
+> was gone before a single weight loaded — ~445 MiB to the desktop, ~541 MiB to
+> the CUDA context (`nvidia-smi` idle free 5699 MiB against ggml's 5158 MiB).
+> Budget from `free` **and** add a ~1 GiB overhead term and the same memory is
+> charged twice, demoting rows that fit. State explicitly which number `margin`
+> and `overhead` are each subtracted from: against `free`, `margin` is ~0 and
+> `overhead` covers per-model compute buffers only.
+
+> **ponytail:** the *per-model* half of the overhead constant is still a
+> placeholder until measured against real RSS with a model loaded. The
+> pre-model half is now measured at 986 MiB on a discrete card. On a 5.4 GB
+> budget it moves rows across the fits/spills line.
 
 **Tests:** decision-table over constructed profiles — no GGUF parsing in the fit
 tests, so the estimator is testable independently of the reader.
@@ -463,6 +560,19 @@ history tokens plus ~8,000 of grounding plus a reply) and capped at the model's
 own `context_length`. No ladder, no reload mid-conversation. Growing on
 occupancy is additive later; it would mean reloading the model between turns and
 two constants copied from Hermes with no evidence they suit RAG.
+
+**Router mode runs with an empty models directory**, so the sidecar lifecycle is
+testable before any model exists. Verified on Windows and Linux at `b11050`:
+`GET /health` → `{"status":"ok"}`, `GET /models` → `{"data":[],"object":"list"}`,
+and `GET /props` → `"role":"router"` — which is the reliable check that the
+sidecar came up in router mode rather than single-model mode. SIGTERM shuts it
+down cleanly (`cleaning up before exit`), and on Windows `taskkill /PID <pid> /T
+/F` walks the tree and reports each child terminated.
+
+> **Partially verified only.** The `taskkill /T` check above ran with no model
+> loaded, so it reaped `conhost.exe` rather than a model worker. The case 7.5
+> actually cares about — reaping the **grandchild** the router spawns per loaded
+> model — still needs a run with a model resident.
 
 **Tests:** a fake llama-server (aiohttp) covering health, models, props, load,
 chat stream, delete; install against a fake HF serving a real small GGUF.
@@ -1009,14 +1119,13 @@ The gate is additive later. What it needs first is a prefill model: a handful of
 > **Why prefill, when the gate lands.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
 > characters of grounding is roughly 8,000 prefill tokens against ~300 decoded,
 > the inverse of an agent's ratio. Decode is memory-bound; prefill is
-> compute-bound, which is why CUDA leads Vulkan ~36-40% on `pp512` and ~10% on
-> `tg128`. A decode-only prediction mis-ranks for this app.
+> compute-bound. A decode-only prediction mis-ranks for this app.
 
 > **RAG is prefill-dominated.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
 > characters of grounding is roughly 8,000 prefill tokens against ~300 decoded —
 > the inverse of an agent's ratio. Decode is memory-bound; prefill is
-> compute-bound, which is why CUDA leads Vulkan ~36–40% on `pp512` and ~10% on
-> `tg128`. A decode-only prediction mis-ranks for this app. Use llmfit's
+> compute-bound. (An earlier draft cited a 36–40% CUDA lead here; measured, it
+> is **9.1%** — see [`08-cuda-backend.md`](08-cuda-backend.md).) Use llmfit's
 > `prefill_tps`/`ttft_ms` from the manifest until measured class constants exist.
 
 **Tests:** policy decision-table across the six hardware profiles above.
@@ -1030,12 +1139,13 @@ llama.cpp has no stable channel).
 | Target | Asset | Size |
 |---|---|---|
 | darwin-arm64 | `bin-macos-arm64.tar.gz` | 11 MB |
-| win32-x64 | `bin-win-vulkan-x64.zip` + `cuda-13.4` + `cudart` | 31 + 150 + 423 MB |
+| win32-x64 | `bin-win-vulkan-x64.zip` | 31 MB |
 | linux-x64 | `bin-ubuntu-vulkan-x64.tar.gz` | 30 MB |
 
 Verified: the Vulkan archive is the CPU archive plus exactly one file
 (`libggml-vulkan.so` / `ggml-vulkan.dll`), and all CPU micro-architecture
-variants ship inside — 15 on Windows, 10 on Linux. `ggml_backend_load_best()`
+variants ship inside — 15 on Windows, 10 on Linux (the CUDA archive carries 14
+on Linux, so the figure is per archive, not per platform). `ggml_backend_load_best()`
 searches the executable's own directory and probes `cuda` before `vulkan`, so
 the CUDA DLLs sit in the same flat folder and win automatically.
 
@@ -1209,7 +1319,28 @@ compliance. That plausibly collapses three tiers to two.
 
 - Runtime missing or crashed: catalog stays visible, installs disabled, an
   already-selected remote connection still answers.
-- No Vulkan loader: `dlopen` fails, backend skipped silently, CPU runs.
+- No Vulkan loader: `dlopen` fails, backend skipped silently, CPU runs. (Not
+  observed on Windows — `vulkan-1.dll` is present in `C:\Windows\System32` on a
+  stock install, so nothing needs bundling there. Linux supplies it through
+  `libvulkan1`; see 7.5.)
+- **A GPU exists and ggml cannot see it: say so.** The silent skip above is
+  correct when there is no GPU and wrong when there is one, and the two are
+  indistinguishable from ggml alone — both print `(none)` and exit **0**, with no
+  warning even under `GGML_BACKEND_DEBUG=1`. Two real causes: the probe ran
+  outside the library directory (7.2), or a backend library's dependencies are
+  missing from the package. Cross-check against the OS:
+
+  | OS reports a GPU | ggml reports a GPU | Meaning |
+  |---|---|---|
+  | yes | yes | normal |
+  | no | no | genuine CPU-only machine, badge accordingly |
+  | **yes** | **no** | **broken install.** Say so; never badge CPU-only. |
+
+  Sources: `Win32_VideoController` on Windows, `/sys/class/drm` on Linux. Filter
+  virtual adapters — the test machine carried a `Parsec Virtual Display Adapter`
+  beside two real GPUs. Odysseus codes around the same failure explicitly
+  (*"nvcc found but CUDA runtime is not visible"*), which is independent evidence
+  it is common enough to handle rather than assume away.
 - HF unreachable: curated and installed render from the manifest and disk;
   search reports the destination is unavailable, not an error.
 - Header read truncated: retry wider once, then fall back to a file-size estimate
@@ -1263,7 +1394,24 @@ compliance. That plausibly collapses three tiers to two.
   the first user turn rather than dropping it. Only the user-facing set reaches
   the serialized response — `system_role` and `typed_content` never appear in
   an API payload.
-- Runtime: fake llama-server for health/models/props/load/chat/delete.
+- **Device selection**: `select_device()` over fixtures — a discrete 6 GB card
+  beside a 16 GB integrated one selects the **discrete** card; `ACCEL` alone
+  yields no GPU; `usable_vram_bytes` never exceeds any single device's memory
+  (asserted against a listing where the same card appears twice, which a naive
+  sum turns into 12 GB on a 6 GB card); a CPU-only listing returns `None`.
+- **Library loading**: two `ctypes` handles on Windows, one on Linux. A
+  regression is an `AttributeError` at startup, not a wrong answer, so it is
+  worth an explicit test rather than leaving it to the first packaged run.
+- **Probe working directory**: devices are found when the probe runs from the
+  library directory and **not** found when it does not. The second assertion is
+  what stops the search-path bug from returning; without it the test passes in a
+  dev shell and the bug ships.
+- **Broken-install detection**: the three OS-versus-ggml rows in **Failure
+  behavior**; the mismatch row produces a distinct error state, never a
+  `has_gpu: false` budget.
+- Runtime: fake llama-server for health/models/props/load/chat/delete; router
+  mode against an empty models directory, asserting `/props` reports
+  `role: router`.
 - Migration: an Ollama selection and an `ollama_pull` row, upgraded.
 - Packaging: staged checksum; `--list-devices` from the packaged path per OS.
 
@@ -1277,7 +1425,8 @@ nor `huggingface.co` appears in it.
 - The recommended model installs and answers with citations.
 - A model found through search — one Ollama's library never carried — installs
   and answers.
-- A Windows machine with an RTX card runs on CUDA, from the installer alone.
+- A Windows machine with an RTX card runs on Vulkan, from the installer alone,
+  and the catalog prices against that card rather than an integrated GPU.
 - A machine with no usable GPU runs on CPU with no error.
 - Airgapped: curated install from a local `.gguf`, chat, and Studio all work.
 - `grep -i ollama` returns only the intended survivors.
@@ -1353,6 +1502,38 @@ Three decisions follow from that, and this table is the reason for all three:
    quality tracks `best_quant` exactly, scoring at the wrong budget scores the
    wrong file. See **Authoring**, where this is a hard assertion rather than a
    convention.
+
+**Windows and Linux, measured on an RTX 3050 / Ryzen 5 9600X at `b11050`.**
+Both platforms were previously reasoned from documentation only.
+
+| Measurement | Value |
+|---|---|
+| `ggml_backend_load_all()`, one backend | 77 ms (Win) · 194 ms (Linux) |
+| `ggml_backend_load_all()`, two backends | 205 ms |
+| `ggml_backend_dev_memory()` first call, CUDA | 47.89 ms |
+| `ggml_backend_dev_memory()` first call, Vulkan | 3.50 ms |
+| `ggml_backend_dev_memory()`, CPU | 0.01 ms |
+| RTX 3050, `nvidia-smi` idle | 6144 MiB total, 5699 MiB free |
+| RTX 3050, ggml after context init | 6143.5 MiB total, 5158 MiB free |
+| Consumed before any weight loads | **986 MiB** (~445 desktop, ~541 context) |
+| CPU device, native Windows | 31884.6 MiB total, 22750.2 MiB free |
+| CPU device, WSL2 | 26048.6 MiB total, **26048.6 MiB free** (virtualised) |
+| `vulkan-1.dll` on stock Windows | present in `System32`, nothing to bundle |
+
+GPU backend comparison, same card and model (Qwen3 4B Q4_K_M, `-ngl 99`):
+
+| test | CUDA 13.4 | Vulkan | CUDA advantage |
+|---|---|---|---|
+| `pp512` | 1929.18 ± 8.84 | 1767.62 ± 1.43 | +9.1% |
+| `pp8192` | 1537.12 ± 5.84 | 1394.77 ± 5.04 | +10.2% |
+| `tg300` | 52.19 ± 0.22 | 51.13 ± 0.11 | +2.1% |
+
+0.66 s on an 11 s turn, for 685 MB. Full working in
+[`08-cuda-backend.md`](08-cuda-backend.md) — **Appendix**, including why the
+earlier 36–40% figure was retired.
+
+Asset sizes at `b11050`, verified against the live release: macos-arm64 11.2 MB,
+win-vulkan 31.8 MB, ubuntu-vulkan 30.4 MB — the figures in **7.5** are accurate.
 
 Device query versus advisor, same machine:
 

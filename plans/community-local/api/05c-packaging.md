@@ -125,9 +125,11 @@ is measured on that machine by the runtime that will do the work.**
   licence and notices. Prune to `llama-server` plus the libraries it links: the
   macOS tarball ships 24 executables and only one is needed, which also shrinks
   the notarization surface.
-- Sizes and per-OS details, including CUDA inside the Windows installer, are in
-  [`07-llamacpp-runtime.md`](07-llamacpp-runtime.md) under **Packaging, three
-  targets**.
+- Sizes and per-OS details are in [`07-llamacpp-runtime.md`](07-llamacpp-runtime.md)
+  under **Packaging, three targets**. The GPU backend is **Vulkan on every
+  platform off Apple Silicon**; no CUDA payload ships. Adding one later is
+  specified in [`08-cuda-backend.md`](08-cuda-backend.md) and needs no code
+  change.
 - Code signing, notarization and antivirus smoke tests cover `llama-server` and
   its libraries. Note it spawns **child processes** in router mode, so the
   hardened runtime needs testing against a grandchild, not just the sidecar.
