@@ -52,7 +52,7 @@ Ollama's native API does not.
 | **Hardware budget** | `ggml_backend_dev_memory()` via `ctypes`, from the shipped libs | The allocator's own view. Falls back to `llama-server --list-devices`, then OS APIs. |
 | **Downloads** | **SurfSense fetches the GGUF**, not `POST /models` | `llama-server` is a second process we do not proxy; an in-process fetch is the only place `egress.require()` actually holds. Also buys resume, checksums, and the header as the file lands. |
 | **Quantization** | **One pinned file per entry in v1** | A pinned file is what "tested by SurfSense" can honestly claim. Per-machine selection is possible at no extra cost (one header read prices every quant), so a second variant on the largest entries is a cheap follow-on, not v1. See **The quantization ladder**. |
-| **KV precision** | **`f16` when it fits, `q8_0` when it buys residency.** Symmetric `-ctk`/`-ctv` always | Measured: `f16` KV at a 16K window **cannot allocate** on a 6 GB card (`ErrorOutOfDeviceMemory`), while `q8_0` at the same depth runs. Quality is lossless either way. So the choice is not a global default but an output of the fit calculation — pay the precision cost only where it converts a spill into residency. Requires flash attention; see **Failure behavior**. |
+| **KV precision** | **`f16` when it fits, `q8_0` when it buys residency.** Symmetric `-ctk`/`-ctv` always | Measured: `f16` KV at a 16K window **cannot allocate** on a 6 GB card (`ErrorOutOfDeviceMemory`), while `q8_0` at the same depth runs. Quality is lossless either way. So the choice is not a global default but an output of the fit calculation — pay the precision cost only where it converts a spill into residency. Requires flash attention; see **Failure behavior**. **Conditional on per-model load args working** — see 7.3; if they do not, this decision degrades to one global choice. |
 | **Context** | **Fixed at load. Floor 16K, capped at the model's own `context_length`** | llama.cpp fixes context at load, so `num_ctx()`'s per-request sizing has no equivalent. The floor is 3K history plus ~8K grounding plus a reply. Growing on occupancy is additive later; it needs a mid-conversation reload and two constants with nothing measured behind them. |
 | **GPU backend** | **Vulkan on every platform off Apple Silicon. No CUDA** | Measured on an RTX 3050 at `b11050`: CUDA leads Vulkan **9.1%** on `pp512`, **10.2%** on `pp8192`, **2.1%** on decode — 0.66 s on an 11 s turn, for 685 MB. Vulkan covers NVIDIA, AMD and Intel from one 31 MB archive, its loader ships with Windows, and it is what the app already does today (`pruneCudaRunners()`). CUDA is specified as an optional later addition in [`08-cuda-backend.md`](08-cuda-backend.md), which needs **no code change** — ggml selects it by the files present. |
 | **Device selection** | First device with `type == GPU`. **Never sum** | The same physical card appears once per loaded backend, and an integrated GPU can advertise more memory than a discrete one (16198 MiB against 6002 MiB, measured). ggml's ordering already expresses backend preference, so this **is** backend selection. Specified in **7.2**. |
@@ -209,10 +209,21 @@ Sidecar flags: `--models-dir <dataDir>/models --port <free> --models-max 1
 --sleep-idle-seconds 300 --no-ui --jinja --reasoning-format deepseek`.
 
 Per-model at load, decided by the fit calculation rather than fixed here:
-`-fa on` and, when `q8_0` is chosen, `-ctk q8_0 -ctv q8_0`. **Set both cache
-types or neither** — symmetric quantization enables the fused flash-attention
-kernel, while a mismatched pair falls back to an unoptimised path that exists
-for correctness only.
+`-c <window>`, `-fa on` and, when `q8_0` is chosen, `-ctk q8_0 -ctv q8_0`.
+**Set both cache types or neither** — symmetric quantization enables the fused
+flash-attention kernel, while a mismatched pair falls back to an unoptimised
+path that exists for correctness only.
+
+> **All four of those flags ride the same unverified mechanism.** The ponytail
+> in 7.3 records that `POST /models/load` ignored `{"args": ["-c", "16384"]}`.
+> It is written up as a context problem because context is what was measured,
+> but nothing distinguishes `-c` from `-fa` or `-ctk`/`-ctv`: they are the same
+> field on the same call. If the router turns out to honour flags only at
+> startup, then **KV precision cannot be per model either**, and the Decisions
+> row above degrades from "an output of the fit calculation" to one global
+> choice made for whichever model is largest. Resolve the mechanism once and
+> both decisions follow; do not resolve it for context alone and assume the
+> rest.
 
 `--sleep-idle-seconds` is not optional: measured at `b11050`, a model without it
 self-evicted after roughly 30 s idle, which turns the second question of a
@@ -243,10 +254,20 @@ that appeared inside the reasoning.
 > **Provenance.** The shapes and runtime calls below are grounded: the
 > llama-server README at `b11043`, `nm` on the shipped libraries plus a live
 > `ctypes` call, real GGUF headers read over HTTP Range, and live Hugging Face
-> responses. **The HTTP routes are proposed, not reported** — no such surface
-> exists yet. They follow this codebase's conventions: the `/llm` prefix, `*Read`
-> Pydantic response models in `modules/llm/schemas.py`, and the NDJSON
-> `{"type": …}` stream frame that `_event()` already emits.
+> responses. **The HTTP routes below are proposed, not reported.** They follow
+> this codebase's conventions: the `/llm` prefix, `*Read` Pydantic response
+> models in `modules/llm/schemas.py`, and the NDJSON `{"type": …}` stream frame
+> that `_event()` already emits.
+>
+> **Three of the six are not new paths, they are replacements at the same path.**
+> `GET /llm/system`, `GET /llm/catalog` and `POST /llm/install` exist today, in
+> `modules/llm/recommendations/router.py`, serving `RecommendationSystemRead`,
+> `RecommendationCatalogRead` (with the `scanned` flag the renderer reads) and
+> the same NDJSON install stream. So this is an **in-place breaking reshape, not
+> an addition**: route, response schema and frontend have to move in one commit,
+> because there is no additive path that does not serve two incompatible shapes
+> at once. Only the two `/llm/search` routes and `DELETE /llm/models/…` are
+> genuinely new surface.
 
 ### Domain shapes
 
@@ -342,6 +363,22 @@ which is the `scanned` flag this phase deletes.
 is **opening a search result**, not hovering or typing. The list-level badge
 stays `approximate` until then.
 
+**Installing a searched build needs an id the manifest cannot supply.**
+`InstallRequest` keys on `catalog_id`, and [`../frontend/05-install-ux.md`](../frontend/05-install-ux.md)
+requires that the renderer send *only* that — no repo, file, artifact URL, local
+path or quantization. A curated row's id comes from the manifest; a search hit
+has no manifest entry, so there is nothing to key on. Closing that by letting the
+renderer post a repo and file would hand the frontend the ability to name an
+arbitrary download, which is the exact capability the install contract exists to
+withhold.
+
+So `GET /llm/search/{repo}` **mints a server-side install ticket per quant** and
+returns it as that row's `catalog_id`, held with the same 300 s TTL as the search
+cache. The install route then resolves tickets and manifest ids through one
+lookup and cannot tell them apart. An expired ticket reuses the existing
+`422 catalog id is stale or unknown; refresh the catalog` rather than inventing a
+second staleness error, since it is the same failure and already has copy.
+
 Deleted with the Ollama adapter: `GET /llm/providers/{provider}/catalog` and
 `POST /llm/providers/{provider}/pull`. Both are Ollama-shaped, and their
 replacements are the rows above.
@@ -357,8 +394,9 @@ Unchanged: `GET /llm/providers`, `GET|PUT /llm/selection/{role}`,
 | Alembic revision for 7.6 | `0012` (head is `0011_document_cancelled_status`) |
 | Egress destinations | `model_download`, `model_search` (both `huggingface.co`) |
 
-`"ollama"` appears at **18 non-test Python sites**; each becomes `"llamacpp"` or
-is deleted with the adapter.
+`"ollama"` appears at **115 lines across 24 non-test Python files**; each becomes
+`"llamacpp"` or is deleted with the adapter. Counted across the whole tree it is
+**421 lines in 66 files**, which is the figure 7.6 works from.
 
 ### Out of scope
 
@@ -444,9 +482,26 @@ feature that tells the truth.
 
 ## Phases
 
-Phases 7.0–7.5 keep Ollama registered and working. `REGISTRY` carries both
-adapters, so each ships independently and is reversible. **7.6 is the only
-irreversible phase and the only one that touches user data.**
+Phases 7.0–7.5 keep Ollama registered. `REGISTRY` carries both adapters, so each
+ships independently and is reversible. **7.6 is the only irreversible phase and
+the only one that touches user data.**
+
+> **"Registered and working" is true of chat, not of catalog or install, and the
+> difference is worth stating before someone plans around the stronger claim.**
+> Two seams are llmfit-shaped and cannot serve both runtimes at once:
+> `LocalRuntime.resolve(ScoredModel) -> InstallPlan` asks a runtime to map a
+> *scored* model onto an install plan, and `LlamaCppProvider` has nothing to
+> resolve because it installs a `GgufArtifact`; and `CatalogService.__init__`
+> requires an advisor that 7.4 removes. So from 7.4 onward **Ollama's catalog and
+> install path is dead even though its adapter is still registered**, and what
+> survives to 7.6 is that an existing Ollama selection still answers, through
+> `resolve_generation()` and the chat path.
+>
+> That is enough for the property the staging is for — no user loses chat
+> mid-swap, and every phase before 7.6 reverts with one commit — but it is not
+> "both runtimes fully working side by side", and trying to preserve that would
+> mean keeping two catalog services alive for the sake of a runtime being
+> deleted three phases later.
 
 ### 7.0 — De-Ollama the domain
 
@@ -463,6 +518,16 @@ llmfit adapter switches to `recommend --force-runtime llamacpp --output-llamacpp
 -n <bulk> --no-dashboard`. Bump `CACHE_VERSION`.
 
 **Tests:** `llmfit.py` fixtures. No UI change.
+
+> **Most of this phase cancels itself out, so do not ship it on its own.** The
+> `CACHE_VERSION` bump is pointless because 7.4 deletes `CACHE_VERSION` and the
+> scan cache; retargeting the llmfit adapter is pointless because 7.4 moves
+> llmfit out of the app, leaving `recommendations/llmfit.py` with no consumer.
+> What genuinely survives is the **domain change** at the top of this section —
+> `ollama_name` becoming `artifacts`, and the five deletions — plus the llmfit
+> *parsing*, which becomes the authoring script's. Fold the rest into 7.4 and
+> land them together rather than writing code whose only reader is deleted two
+> phases later.
 
 ### 7.1 — GGUF header reader
 
@@ -483,12 +548,22 @@ header and a truncated-response retry.
 
 ### 7.2 — Hardware budget and estimator
 
-`modules/llm/hardware.py` — `ctypes` into `libggml`, then `--list-devices`, then
+`modules/llm/hardware/` — `ctypes` into `libggml`, then `--list-devices`, then
 OS APIs. First hit wins, cached; warm the probe in the background at first
 launch, not on the path of the first render (a cold `ggml_backend_load_all()` on
 macOS compiles 20 Metal shader libraries, measured at ~20 s once, 180 ms after).
 That cold penalty is **Metal-only**: measured off Apple Silicon the same call is
 77 ms with one backend and 205 ms with two.
+
+> **Folders, not two files.** Earlier drafts named `hardware.py` and `fit.py`.
+> Between them they carry library loading, the working-directory dance, device
+> enumeration, device selection, the `--list-devices` fallback parser, OS memory
+> APIs, the OS-versus-ggml cross-check, budget assembly, calibration storage, the
+> KV term, compute buffers, the reserve table, the need/usable comparison, KV
+> precision selection, context sizing and badge copy. That is sixteen
+> responsibilities in two files, against the repo's one-responsibility-per-file
+> rule in `AGENTS.md`. Split them along those lines; the names above are the
+> package, not the module.
 
 #### The probe must run from the library directory
 
@@ -579,7 +654,7 @@ loaded makes every row read as too large.
 
 #### Two subtractions, on opposite sides of the comparison
 
-`modules/llm/fit.py`. The single `overhead` term earlier drafts carried is **two
+`modules/llm/fit/`. The single `overhead` term earlier drafts carried is **two
 different quantities**, and collapsing them is what made the first prediction of
 this wrong by 922 MiB:
 
@@ -1065,7 +1140,7 @@ and sanely spread — which is exactly the population the curated tier draws fro
 > but the numbers described files the manifest does not ship. **Any rank quoted
 > anywhere must name the quantization it was taken at.**
 
-Three checks before committing a rank:
+Four checks before committing a rank:
 
 1. within a family, rank rises with parameter count — the invariant in **Tests**
 2. anything at or near 100 is suspect; nothing worth curating maxes a scale
@@ -1531,17 +1606,19 @@ The v1 step is deliberately crude: an `f` ceiling is not a latency judgement and
 should not be described as one. It is a placeholder that is wrong in the safe
 direction — it stars models that run, rather than refusing models that work.
 
-> **Why prefill, when the gate lands.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
-> characters of grounding is roughly 8,000 prefill tokens against ~300 decoded,
-> the inverse of an agent's ratio. Decode is memory-bound; prefill is
-> compute-bound. A decode-only prediction mis-ranks for this app.
-
-> **RAG is prefill-dominated.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
-> characters of grounding is roughly 8,000 prefill tokens against ~300 decoded —
-> the inverse of an agent's ratio. Decode is memory-bound; prefill is
-> compute-bound. (An earlier draft cited a 36–40% CUDA lead here; measured, it
-> is **9.1%** — see [`08-cuda-backend.md`](08-cuda-backend.md).) Use llmfit's
-> `prefill_tps`/`ttft_ms` from the manifest until measured class constants exist.
+> **RAG is prefill-dominated, which is why the gate must measure prefill.**
+> `HISTORY_BUDGET_TOKENS = 3000` plus ~24k characters of grounding is roughly
+> 8,000 prefill tokens against ~300 decoded — the inverse of an agent's ratio.
+> Decode is memory-bound; prefill is compute-bound. A decode-only prediction
+> mis-ranks for this app. (An earlier draft cited a 36–40% CUDA lead here;
+> measured, it is **9.1%** — see [`08-cuda-backend.md`](08-cuda-backend.md).)
+>
+> **There is no manifest field to fall back on.** An earlier draft ended this
+> block with *"use llmfit's `prefill_tps`/`ttft_ms` from the manifest until
+> measured class constants exist"*. Those were `ScoredModel` fields, produced by
+> a scan that no longer runs, and schema 3 carries `shape`, `capabilities`,
+> `decode_fraction` and `variants` and nothing else. Until the turn-based
+> calibration below lands there is a shipped default and no second source.
 
 **Tests:** policy decision-table across the six hardware profiles above.
 
@@ -1560,12 +1637,15 @@ llama.cpp has no stable channel).
 Verified: the Vulkan archive is the CPU archive plus exactly one file
 (`libggml-vulkan.so` / `ggml-vulkan.dll`), and all CPU micro-architecture
 variants ship inside — 15 on Windows, 10 on Linux (the CUDA archive carries 14
-on Linux, so the figure is per archive, not per platform). `ggml_backend_load_best()`
-searches the executable's own directory and probes `cuda` before `vulkan`, so
-the CUDA DLLs sit in the same flat folder and win automatically.
+on Linux, so the figure is per archive, not per platform).
 
-cudart carries `cudart64_*.dll`, `cublas64_*.dll`, `cublasLt64_*.dll`; all must
-be beside `llama-server.exe` or it fails at launch with a missing-DLL error.
+> **No CUDA payload ships, and the CUDA staging notes have moved.** Earlier
+> drafts described the flat-folder probe order and the `cudart64_*` /
+> `cublas64_*` / `cublasLt64_*` DLLs here, before the backend decision was made.
+> This phase stages Vulkan on every platform off Apple Silicon and nothing else,
+> so those notes belong to [`08-cuda-backend.md`](08-cuda-backend.md), which
+> already carries them. Leaving them in a Vulkan-only packaging section reads as
+> work to do.
 
 Prune to `llama-server` plus its libraries: 24 executables → 1, which also
 shrinks the macOS notarization surface.
@@ -1586,7 +1666,7 @@ from the final packaged resource path.
 
 ### 7.6 — Remove Ollama completely
 
-~440 references across 66 files. The only irreversible phase.
+421 references across 66 files. The only irreversible phase.
 
 **Delete:**
 
@@ -1599,12 +1679,38 @@ electron/scripts/fetch-ollama.mjs
 electron/ollama/                               501 MB staged
 ```
 
+**llmfit's packaging goes in the same phase**, and is easy to miss because none
+of it has "ollama" in the name, so the definition-of-done grep below will not
+catch a single one:
+
+```text
+electron/scripts/fetch-llmfit.mjs
+electron/scripts/check-llmfit.mjs
+backend/tests/fixtures/llmfit/                 fit.json, system.json
+```
+
+plus `SidecarContext.llmfitPath`, `python.ts`'s `SURFSENSE_LOCAL_LLMFIT_PATH`,
+the four `llmfit_*` settings in `shared/config.py`, `recommendation_reserve_gb`
+(replaced by the reserve table in 7.2), and the llmfit staging and smoke steps
+in `release-local.yml`. **Decisions** says llmfit is not shipped and not in the
+build; this is what that costs in files. `modules/llm/recommendations/llmfit.py`
+itself is deleted earlier, in 7.4, when its parsing moves into the authoring
+script.
+
 **Rewrite:** `shared/config.py` (`ollama_base_url`/`ollama_models_dir` →
 `llamacpp_*`), `sidecars/types.ts` (`SidecarContext.ollama*`),
 `sidecars/python.ts` (stops passing `OLLAMA_*`), `electron-builder.yml`,
 `electron/package.json` (`build:ollama` and the `dist` chain),
 `.github/workflows/release-local.yml`, `modules/llm/router.py`,
 `modules/llm/resolution.py`, `modules/llm/selection.py`, `modules/chat/errors.py`.
+
+**Two files in `modules/llm/profile/` are Ollama-shaped and neither appears in
+any phase's file list.** `classify.py` is covered by the **Decisions** table
+(*Prompt tier fallback* — key on loopback, not on a provider name) but is not
+listed anywhere as work. `fingerprint.py` is not covered at all:
+`from_ollama(name, tag, show)` is built from `/api/tags` and `/api/show`, and it
+needs a `from_llamacpp()` reading `GET /models` and `GET /props` instead. Both
+land here.
 
 **Frontend:** `selected-roles.tsx` (`llamacpp` → "Local"; a loopback connection
 is arguably also "Local"), `chat-error-notice.tsx`. **Keep**
@@ -1613,7 +1719,18 @@ is arguably also "Local"), `chat-error-notice.tsx`. **Keep**
 **Egress:** `ollama_pull → registry.ollama.ai` becomes two destinations against
 `huggingface.co` — `model_download` (a repo you named) and `model_search` (text
 you typed). Same host, different consent. `ollama_pull_host()`'s `hf.co/`
-special-case disappears.
+special-case disappears, and with both destinations now static the dynamic
+host-resolution path goes with it.
+
+> **The migration maps an existing grant to `model_download` only.**
+> `model_search` starts unset. This is the one place "same host, different
+> consent" has to be honoured rather than restated: a user who allowed model
+> downloads allowed *fetching a file they named*, and search sends text they are
+> typing to the same host for a different reason. Splitting one destination into
+> two and carrying the grant across both would manufacture consent nobody gave,
+> which is precisely the distinction the split exists to draw. The asymmetry is
+> safe in the other direction: an unset `model_search` degrades to the airgapped
+> product, which **Failure behavior** already specifies.
 
 **Three things that will bite:**
 
@@ -1639,7 +1756,18 @@ returns only the `connection-form.tsx` preset and its test, revisions `0004`
 and `0009`, and the new migration's `WHERE destination = 'ollama_pull'`.
 
 **Tests:** a migration test over a database seeded with an Ollama selection and
-an `ollama_pull` egress row.
+an `ollama_pull` egress row, asserting the grant lands on `model_download` and
+that `model_search` is **not** created.
+
+> **`test_ollama_num_ctx.py` is deleted here and its subject is not.** Those two
+> tests assert that a full Studio grounding gets a window large enough to hold
+> it, which is a real regression guard: Ollama's 4096 default silently dropped a
+> 24k-character grounding to a third of its length, measured. llama.cpp fixes
+> context at load, so `num_ctx()` has no successor, but the behaviour does. The
+> replacement belongs in 7.2, against the context floor: assert the 16K floor
+> covers `HISTORY_BUDGET_TOKENS` plus `build_context`'s grounding budget plus a
+> reply, so the floor is checked against its stated derivation rather than
+> asserted as a constant. Write it before deleting the old one.
 
 ### 7.7 — Capabilities and multimodal
 
