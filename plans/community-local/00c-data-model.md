@@ -265,7 +265,7 @@ and the Fernet key comes from the OS keychain through Electron.
 
 `selected_models` stores one active model per `role`: `generation` or
 `image_generation`. `provider` chooses the runtime adapter, `name` is the exact
-model id, and nullable `connection_id` identifies the remote endpoint. Ollama
+model id, and nullable `connection_id` identifies the remote endpoint. Local
 **and `sdcpp`**, the bundled local image runtime admitted by revision `0009`,
 use no connection; an OpenAI-compatible selection requires one. The FK uses
 `ON DELETE CASCADE`, so disconnecting an endpoint clears only roles that use it.
@@ -275,7 +275,7 @@ which is computed on read rather than stored, so retuning a threshold needs no
 migration ([`api/05a-model-recommendations.md`](api/05a-model-recommendations.md)).
 
 The offerable local catalog, remote `/models` responses, hardware profile,
-llmfit scores, install plans, capabilities, and curated models are **not**
+Fit estimates, install plans, capabilities, and curated models are **not**
 stored. Local recommendations are recomputed from the packaged inputs; remote
 inventory is fetched live. Persisting either would create synchronization work
 without improving inference. See
@@ -291,7 +291,7 @@ without improving inference. See
 | `selected_models` | chosen model per role (above) |
 | `onboarding_completion` | the durable "model onboarding is done" marker (revision `0003`); selecting or clearing a model never writes it |
 | `license_state` | singleton (`CHECK id = 1`): the imported certificate, when it was imported, and `clock_watermark`, the highest instant ever seen. Plan and expiry are re-derived from the certificate on every read rather than stored (revision `0006`) |
-| `egress_destinations` | one row per destination — `ollama_pull`, `image_model_pull`, or `host:<hostname>` for a BYO provider — with `enabled` defaulting to **false** and `last_call_at` (revision `0008`) |
+| `egress_destinations` | one row per destination — `model_download` and `model_search` (both `huggingface.co`, renamed from `ollama_pull` by revision `0012`, see [`api/07-llamacpp-runtime.md`](api/07-llamacpp-runtime.md)), `image_model_pull`, or `host:<hostname>` for a BYO provider — with `enabled` defaulting to **false** and `last_call_at` (revision `0008`) |
 
 `workspaces` also gained a nullable `cloud_id` in revision `0005`: cloud-to-local
 import looks a workspace up by it and reuses the existing row rather than

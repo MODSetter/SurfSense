@@ -2,6 +2,10 @@
 
 > Workstreams: [`frontend/`](frontend/), [`api/`](api/), [`worker/`](worker/).
 
+> Updated for [`api/07-llamacpp-runtime.md`](api/07-llamacpp-runtime.md):
+> **Phase 7** replaces the Ollama sidecar with `llama-server` and removes the
+> bundled llmfit binary.
+
 ## Process layout at runtime
 
 ```text
@@ -10,7 +14,7 @@
 │  • BrowserWindow → frontend/dist (workspace UI)             │
 │  • spawn surfsense-api                                      │
 │  • spawn surfsense-worker                                   │
-│  • packaged Ollama sidecar; bundled llmfit executable       │
+│  • packaged llama-server sidecar (router mode)              │
 │  • on quit: SIGTERM workers, wait, exit                     │
 └─────────────────────────────────────────────────────────────┘
          │                              │
@@ -20,7 +24,8 @@
 │ FastAPI :8xxx   │          │ huey_consumer -w1│
 │ LLM catalog     │          │ Docling + embed  │
 │ runtime adapters│          │                 │
-│ llmfit JSON CLI │          │                 │
+│ GGUF header +   │          │                 │
+│ ggml budget     │          │                 │
 │ SQLite R/W      │          │                 │
 └────────┬────────┘          └────────┬─────────┘
          │                            │
@@ -42,20 +47,18 @@
          ▼                   ▼                   ▼
    ┌───────────┐      ┌─────────────┐     ┌───────────┐
    │ A Airgap  │      │ B Slim +    │     │ C BYO     │
-   │ full pack │      │ on-demand   │     │ Ollama/   │
+   │ full pack │      │ on-demand   │     │ endpoint  │
    └───────────┘      └─────────────┘     └───────────┘
                              ▼
-                    llmfit hardware scan
+              ggml device query (~180 ms, no scan)
                              ▼
-                  Curated + Explore
-           (Curated and Installed render with no
-            scan; only Explore needs one)
+              Curated (offline)  +  HF search (network)
+            every row badged FITS / PARTIAL / TOO_BIG
                              ▼
                  one-click Download & Use
                              ▼
                     runtime install plan
-                    ├─ Ollama tag (v1)
-                    └─ verified GGUF (later)
+                    └─ pinned GGUF (repo + file + quant)
                              ▼
               Create workspace → upload document
 ```
@@ -64,15 +67,15 @@
 
 ```text
 LOCAL                                      REMOTE
-llmfit catalogue + fit                    provider_connections
+curated manifest + HF search              provider_connections
         │                                           │
         ▼                                           ▼
-SurfSense adapter + policy                live GET /models per endpoint
-        │                                           │
-        ▼                                           ▼
-runtime artifact resolver                 SelectedModel(connection_id, name)
-  ├── Ollama ── pull tag ── chat             ├── generation
-  └── llama.cpp (future) ── chat             │   └── core vLLM/gateway
+fit estimator (ggml budget +              live GET /models per endpoint
+ GGUF header), rank from manifest                   │
+        │                                           ▼
+        ▼                                 SelectedModel(connection_id, name)
+GgufArtifact resolver                        ├── generation
+  └── llama.cpp ── fetch file ── chat        │   └── core vLLM/gateway
                                               │       └── /chat/completions
                                               └── image_generation
                                                   ├── vLLM-Omni/gateway
@@ -81,8 +84,10 @@ runtime artifact resolver                 SelectedModel(connection_id, name)
                                                       └── /images on 404/405
 ```
 
-llmfit never handles a SurfSense chat request. It can disappear and an already
-installed model still answers through its runtime adapter. Remote model lists
+llmfit is not in the app at all: it runs on a maintainer's machine a few times a
+year and its numbers ship as data in the manifest. The fit badge comes from the
+runtime's own allocator plus the model's GGUF header, so it works offline and
+covers every GGUF, not a curated subset. Remote model lists
 are fetched live and never copied into SQLite. Two endpoints with the same model
 id remain distinct because selection identity includes the connection id.
 

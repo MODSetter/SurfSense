@@ -43,12 +43,16 @@ Ollama's native API does not.
 | **`rank`** | **Curated entries only. A searched model never carries one, from llmfit or anywhere else** | A preference order over models we tested, **for this app's job** — answering from the user's documents with citations that resolve — not general capability. An integer typed by a person, with llmfit proposing. Called `rank`, not `quality`, because it is only ever a sort key: nothing reads its magnitude, so it must not imply a measurement we do not have. Attaching one to an arbitrary repo attaches a base model's score to a derivative that behaves differently: of the top 100 GGUF repos by downloads, 38 match an llmfit entry, and those matches include `Huihui-Qwen3.8-27B-abliterated-GGUF` and `Qwen3.8-27B-Uncensored-GGUF` resolving to the base model's score. A wrong number people trust is worse than a blank they investigate. Search rows are **described, not judged**. |
 | **Search order** | `sort=downloads`, descending | The only HF sort that behaves as a default. Presented as a popularity fact, never as an endorsement. See **Search ordering**. |
 | **Fit badge** | **Every row, both tiers** | Fit is subtraction, not judgement — the opposite of `rank`. Coarse from file size in the search list, exact from the header on open, exact from `shape` offline for curated. Three states, no `unknown`. |
+| **Recommendation** | Highest `rank` among `FITS` entries. **No speed gate in v1** | A latency gate needs a prefill model, and llmfit's `prefill_tps` is an estimate for a generic machine. Rather than invent a threshold, v1 starves the gate: the ★ is the best-ranked entry that fits entirely on the device, tie-broken toward the smaller build. Additive once `llama-bench pp512` numbers exist per device class. |
 | **Curated manifest** | **Stays, schema 3, authored by hand** | It is the whole product airgapped, the first-run default, and the only tier the recommendation reads. `scripts/refresh_curated_models.py` writes it; a person commits it; **llmfit never runs in CI**. |
+| **Why `rank` can be authored at all** | Quality is a function of *(model, quantization)*, not of hardware | Measured twice: across 2,424 models at a fixed quant, quality differs 0/2424; and on one model swept 12G to 48G, quality does not move once `best_quant` stops moving. Hardware reaches quality through exactly one channel, the quantization, and pinning the file closes it. So the number is a property of a file, computable once and shipped as data, and a scan on the user's machine has nothing to discover. This is the load-bearing fact under the whole authoring design. See **Appendix**. |
+| **Which llmfit field** | `score_components.quality` only. **`score` is discarded** | `score` blends fit, speed and context into quality, so three of its four terms describe a machine. In the same sweep it runs 65.1, 63.8, 63.6, 66.2, 63.6, 67.4 — non-monotonic and hardware-dependent. The composite is a statement about a laptop; the component is a statement about a file. Same reason `fit_level`, `memory_required_gb`, `estimated_tps` and `best_quant` are all read and thrown away. |
+| **Scoring quantization** | The pinned one, found by a ladder sweep. A miss is a hard failure | llmfit cannot be asked for a score at a named quantization, and quality tracks `best_quant` exactly, so the budget decides which file gets graded. Qwen3 8B is **78** at the pinned Q4_K_M and **83** at Q8_0. See **Scoring at the pinned quantization**. |
 | **Manifest validation** | Existing unit tests. **No new CI** | Pydantic (`extra="forbid"`, `model_validator`) plus `test_curated_models.py` already reject malformed manifests. A dead pin is a runtime failure, gracefully handled — CI cannot prevent a repo disappearing after the build anyway. `validated: true` is the real check, and it is a human one. |
 | **Hardware budget** | `ggml_backend_dev_memory()` via `ctypes`, from the shipped libs | The allocator's own view. Falls back to `llama-server --list-devices`, then OS APIs. |
 | **Downloads** | **SurfSense fetches the GGUF**, not `POST /models` | `llama-server` is a second process we do not proxy; an in-process fetch is the only place `egress.require()` actually holds. Also buys resume, checksums, and the header as the file lands. |
-| **Quantization** | Pinned per entry; two variants on the two largest | A pinned file is what "tested by SurfSense" can honestly claim. See **The quantization ladder**. |
-| **Context** | Set at load, grown on occupancy. Floor 16K | llama.cpp fixes context at load; `num_ctx()`'s per-request sizing has no equivalent. 3K history + ~8K grounding + reply. |
+| **Quantization** | **One pinned file per entry in v1** | A pinned file is what "tested by SurfSense" can honestly claim. Per-machine selection is possible at no extra cost (one header read prices every quant), so a second variant on the largest entries is a cheap follow-on, not v1. See **The quantization ladder**. |
+| **Context** | **Fixed at load. Floor 16K, capped at the model's own `context_length`** | llama.cpp fixes context at load, so `num_ctx()`'s per-request sizing has no equivalent. The floor is 3K history plus ~8K grounding plus a reply. Growing on occupancy is additive later; it needs a mid-conversation reload and two constants with nothing measured behind them. |
 | **Windows CUDA** | **In the installer.** No post-install download | Airgapped. Dropping Ollama frees ~500 MB; CUDA 13.4 + cudart costs 573 MB. Net ≈ +100 MB, under the 2 GB `makensis` ceiling that forced `pruneCudaRunners()`. |
 | **CUDA version** | 13.4 only | CUDA 13 requires Turing (7.5)+. Shipping 12.4 as well for Pascal costs another 645 MB — that is what made Ollama's archive 1.8 GB. Pascal falls through to Vulkan automatically via backend scoring. |
 | **Backend selection** | Runtime, by ggml | Releases are built `GGML_BACKEND_DL=ON`. A failed `dlopen` is skipped silently, so a missing Vulkan loader degrades to CPU rather than failing. |
@@ -137,11 +141,15 @@ Every machine gets a GPU-resident pick, so six rungs strand nobody. Three gaps:
   1,024 MiB overhead; at Hermes' measured 1.5 GiB it does not fit and that
   machine drops a rung.
 
-Manifest changes, in priority order:
+**Manifest growth is follow-on work, not phase 7.** v1 ships these six re-pinned
+to GGUF; the runtime swap is the deliverable and the search tier covers the gaps
+meanwhile. In priority order, once it lands:
 
 1. **A rung above 32B** — an 80B-A3B-class MoE. The only thing that serves
-   48–64 GB machines. MoE needs a `decode_fraction` field (active bytes read per
-   token) or the speed prediction is wrong by an order of magnitude.
+   48–64 GB machines. An MoE is the right shape for them: 80B of memory but ~3B
+   read per token, so it is the only way to spend that memory without the machine
+   crawling. Needs the `decode_fraction` field, which is computed from the header
+   (see **Authoring**) — without it the speed prediction is wrong by roughly 10×.
 2. **A second variant on 8B and 32B** (`Q6_K`), filling the 16 GB gap and giving
    the 4090 somewhere to go. Two extra pins, not fifty.
 3. **A vision entry.** All six are text-only, in an app with a PDF pipeline.
@@ -184,6 +192,193 @@ routes `<think>` blocks to `message.reasoning_content`; without it a thinking
 model's trace enters `parts[]` and `resolve_citations()` rewrites `[n]` tokens
 that appeared inside the reasoning.
 
+## Contracts
+
+> **Provenance.** The shapes and runtime calls below are grounded: the
+> llama-server README at `b11043`, `nm` on the shipped libraries plus a live
+> `ctypes` call, real GGUF headers read over HTTP Range, and live Hugging Face
+> responses. **The HTTP routes are proposed, not reported** — no such surface
+> exists yet. They follow this codebase's conventions: the `/llm` prefix, `*Read`
+> Pydantic response models in `modules/llm/schemas.py`, and the NDJSON
+> `{"type": …}` stream frame that `_event()` already emits.
+
+### Domain shapes
+
+```python
+@dataclass(frozen=True)
+class GgufArtifact:
+    """One downloadable build. `file` is required: a repo holds ~20 quants, and
+    repo + quantization does not name one (Q4_K_M vs UD-Q4_K_M vs a split set)."""
+    repo: str                 # "unsloth/Qwen3-8B-GGUF"
+    file: str                 # "Qwen3-8B-Q4_K_M.gguf"
+    quantization: str         # "Q4_K_M"
+    size_bytes: int
+    mmproj: str | None = None # vision projector, fetched alongside
+
+
+@dataclass(frozen=True)
+class ModelShape:
+    """Estimator inputs. Committed to the manifest for curated entries, read from
+    the header for everything else. Names mirror the GGUF metadata keys."""
+    architecture: str         # general.architecture
+    block_count: int          # <arch>.block_count
+    head_count_kv: int        # <arch>.attention.head_count_kv
+    key_length: int           # <arch>.attention.key_length
+    value_length: int         # <arch>.attention.value_length
+    context_length: int       # <arch>.context_length
+    n_vocab: int
+    sliding_window: int = 0   # <arch>.attention.sliding_window
+    expert_count: int = 0     # <arch>.expert_count; > 0 means MoE
+
+
+@dataclass(frozen=True)
+class HardwareBudget:
+    usable_vram_bytes: int    # capacity (total − margin) or live (free now)
+    total_device_bytes: int
+    ram_available_bytes: int
+    uma: bool                 # unified memory: selects badge copy and headroom
+    has_gpu: bool             # False when --list-devices prints "(none)"
+
+
+class FitState(StrEnum):
+    FITS = "fits"
+    PARTIAL = "partial"
+    TOO_BIG = "too_big"
+
+
+@dataclass(frozen=True)
+class FitVerdict:
+    state: FitState
+    need_bytes: int           # weights + KV(window) + overhead
+    budget_bytes: int         # vram, or vram + ram for the TOO_BIG comparison
+    approximate: bool = False # priced from file size alone, header not read yet
+
+
+@dataclass(frozen=True)
+class ContentPart:
+    kind: Literal["text", "image"]
+    text: str | None = None
+    path: str | None = None   # local file path; image_url.url accepts one
+```
+
+`Capabilities` is defined in **7.7**. `Message.content` widens to
+`str | tuple[ContentPart, ...]` there and nowhere else.
+
+### HTTP routes — proposed
+
+**Two catalog endpoints, deliberately.** Curated plus installed renders offline
+and instantly; search needs `huggingface.co` and is paged. One response covering
+both would either block on the network or return partial results behind a flag,
+which is the `scanned` flag this phase deletes.
+
+| Route | Returns | Network |
+|---|---|---|
+| `GET /llm/system` | `HardwareBudget` plus device list | none |
+| `GET /llm/catalog` | `{curated: [...], installed: [...]}`, every row badged | **none** |
+| `GET /llm/search?q=&limit=&cursor=` | HF hits, coarse badge from file size | huggingface.co |
+| `GET /llm/search/{repo:path}` | quant list with exact sizes, exact badge after the header read | huggingface.co |
+| `POST /llm/install` | NDJSON progress, existing `_event()` frame shape | huggingface.co |
+| `DELETE /llm/models/{model_id:path}` | `ModelDeleteRead`, `selection_cleared` | none |
+
+`GET /llm/search/{repo}` is where the 2–4 MB header read happens, so the trigger
+is **opening a search result**, not hovering or typing. The list-level badge
+stays `approximate` until then.
+
+Deleted with the Ollama adapter: `GET /llm/providers/{provider}/catalog` and
+`POST /llm/providers/{provider}/pull`. Both are Ollama-shaped, and their
+replacements are the rows above.
+
+Unchanged: `GET /llm/providers`, `GET|PUT /llm/selection/{role}`,
+`GET|POST /llm/onboarding`, and everything under `/llm/connections`.
+
+### Identifiers
+
+| | Value |
+|---|---|
+| Registry key and `selected_models.provider` | `"llamacpp"` |
+| Alembic revision for 7.6 | `0012` (head is `0011_document_cancelled_status`) |
+| Egress destinations | `model_download`, `model_search` (both `huggingface.co`) |
+
+`"ollama"` appears at **18 non-test Python sites**; each becomes `"llamacpp"` or
+is deleted with the adapter.
+
+### Out of scope
+
+Local image generation is untouched. `modules/llm/router.py` carries four image
+routes (`/image/local`, `/image/local/runtime`, `/image/local/{name}`,
+`/image/local/{name}/install`) and `resolve_image_generation()` dispatches on
+`sdcpp.PROVIDER` through `OpenAICompatibleImageProvider`. None of that changes,
+and the sd-server sidecar keeps its own lifecycle. The only shared file is
+`modules/llm/router.py`, which is edited around them.
+
+Also unchanged: ingestion, the bge-small 384-dimensional index, retrieval, the
+chat SSE protocol, Kokoro, and the OpenAI-compatible connection path.
+
+### Constants: what v1 carries, and what it deliberately does not
+
+A constant here is a fixed number compiled into the fit path. Not user-facing,
+not per-machine: decided once, written down, and wrong for everybody if wrong at
+all. Earlier drafts of this phase needed five. **v1 carries one.**
+
+**Prediction constants are not runtime constants.** Almost everything below only
+decides what the screen says. `--fit` does its own allocation at load and moves
+layers if our sum was optimistic, so an inaccurate prediction produces a wrong
+*label*, not a broken model. The single exception is the context floor, which is
+passed to the runtime as `-c` and genuinely changes behaviour — which is why it
+is derived from the codebase rather than chosen.
+
+#### In v1
+
+| Constant | Kind | Basis |
+|---|---|---|
+| **Context floor, 16K** | **runtime** | `HISTORY_BUDGET_TOKENS = 3000` plus ~8,000 tokens of grounding (~24k characters from `build_context`) plus a reply. Grounded, not chosen. |
+| **Runtime overhead** | prediction | **unmeasured.** See below. |
+
+> **ponytail: runtime overhead.** The `overhead` term in
+> `need = weights + KV(window) + overhead` is a placeholder. Hermes measured
+> 1.5 GiB, but on a 32 GiB discrete card; today's `recommendation_reserve_gb: 2.0`
+> is self-flagged as uncalibrated. On a 5.4 GB budget the difference between
+> 1.0 and 1.5 GiB moves rows across the `FITS`/`PARTIAL` line, and on a 12 GB
+> NVIDIA card it decides whether Qwen3 14B is recommended at all (31 MiB of
+> margin at 1,024 MiB overhead). **Measure real RSS after loading three or four
+> models on each target before 7.4 ships.** It is the only unmeasured number in
+> the fit path, and the only one in this phase that a person still has to go and
+> find out.
+
+#### Not in v1, and why
+
+Each of these was in an earlier draft. Each was dropped because it would have
+meant writing an invented number into a spec where it would be indistinguishable
+from a measured one. That is the specific failure this phase exists to avoid:
+llmfit called Qwen3 8B a "Perfect" fit for an 8 GB Mac because it was working
+from a memory figure that was not true on that machine.
+
+| Constant | What it would enable | Why not now | What it needs first |
+|---|---|---|---|
+| `felt_cost` | a formula predicting how slow a model *feels* on this machine | the recommendation is "highest `rank` that fits"; no latency judgement is made | a prefill model — `llama-bench pp512` per device class. llmfit's `prefill_tps` is an estimate for a generic machine. |
+| **Speed floor** | refusing to star a model that fits but crawls | same | a `felt_cost` that means something, plus a threshold from real sessions rather than copied from an agent app |
+| **Ladder rungs** | starting narrow so a **bigger model stays GPU-resident**, widening only when a conversation needs it. The benefit is memory, not long chats: Qwen3 4B on an 8 GB M2 is `FITS` at 16K and `PARTIAL` at 40K, purely from KV cache. | context is fixed at load | evidence that mid-conversation reloads are worth the complexity for document Q&A |
+| **Growth threshold** | when to step up a rung | same | measured occupancy over real sessions |
+| `decode_fraction` | correct speed prediction for mixture-of-experts models | **nothing to apply it to** — no MoE entry ships in v1. The value itself is computable today, from `expert_used_count` and the tensor table. | only the 80B-A3B-class rung |
+
+#### When they come back
+
+Each is additive and none requires a migration or a contract change.
+
+- **The speed gate** (`felt_cost` + floor) lands with the first real prefill
+  measurements. It slots into the recommendation policy as a filter over the
+  `FITS` set; the ordering and the badges are untouched. The reasoning about
+  *why* it must measure prefill and not decode is kept under the policy block so
+  it is not rediscovered.
+- **The context ladder** (rungs + threshold) lands if fixed-at-load proves
+  limiting on large machines. It changes `POST /models/load` timing only.
+- **`decode_fraction`** lands with the MoE rung, as a manifest field that
+  defaults to `1.0` for every dense entry already shipped.
+
+Shipping without them is not a gap to apologise for. Four of the five were
+numbers nobody had measured, and a confident wrong badge is worse than a narrower
+feature that tells the truth.
+
 ## Phases
 
 Phases 7.0–7.5 keep Ollama registered and working. `REGISTRY` carries both
@@ -208,14 +403,17 @@ llmfit adapter switches to `recommend --force-runtime llamacpp --output-llamacpp
 
 ### 7.1 — GGUF header reader
 
-`modules/llm/gguf/header.py`, stdlib only. Local file or `Range: bytes=0-4194303`
+`modules/llm/gguf/header.py`, stdlib only. Local file or `Range: bytes=0-8388607`
 against `huggingface.co`. Yields architecture, `block_count`, `context_length`,
 `embedding_length`, `head_count_kv`, key/value lengths, `sliding_window`,
 `expert_count`, `n_vocab`, chat template, exact tensor bytes.
 
 Verified: HF returns `206` with `accept-ranges: bytes`. A 135M model's metadata
-ends at 1.77 MB and its tensor table at 1.79 MB, in 2.5 s. Budget 4 MB and
-retry wider on a truncated parse — the vocab token list is what makes it large.
+ends at 1.77 MB and its tensor table at 1.79 MB, in 2.5 s. **Bigger models need
+more:** Qwen3-Coder-30B-A3B's metadata alone runs to 5.94 MB, with 579 tensor
+entries after it, so a 4 MB budget fails on it. Budget **8 MB** and retry wider
+on a truncated parse. The vocabulary token list is what makes the metadata
+large, so the figure scales with vocab size rather than with the model.
 
 **Tests:** a checked-in truncated GGUF; a fake HTTP server asserting the Range
 header and a truncated-response retry.
@@ -253,8 +451,18 @@ partitioning, or the frontend catalog schema" — becomes a real test.
 Chat composes `OpenAICompatibleChatProvider` rather than reimplementing
 streaming. Install fetches the GGUF into `--models-dir` with real filenames, not
 llama.cpp's content-addressed HF cache layout (`LLAMA_CACHE` points at the app
-data dir so nothing writes to `~/.cache`). Context set via `POST /models/load`
-with `args`, on a ladder grown at turn boundaries.
+data dir so nothing writes to `~/.cache`).
+
+**Context is fixed at load, not grown.** `POST /models/load {"args": ["-c", N]}`
+with `N` the largest window that keeps the verdict at **`FITS`** — not the
+largest that fits at all. KV cache is allocated upfront and competes with the
+weights for device memory, so maximising context silently demotes models out of
+GPU residency: Qwen3 4B on an 8 GB M2 is `FITS` at 16K (4,632 MiB) and `PARTIAL`
+at its native 40K (6,468 MiB). Floored at 16K (3,000
+history tokens plus ~8,000 of grounding plus a reply) and capped at the model's
+own `context_length`. No ladder, no reload mid-conversation. Growing on
+occupancy is additive later; it would mean reloading the model between turns and
+two constants copied from Hermes with no evidence they suit RAG.
 
 **Tests:** a fake llama-server (aiohttp) covering health, models, props, load,
 chat stream, delete; install against a fake HF serving a real small GGUF.
@@ -312,12 +520,12 @@ Manifest `schema_version` **3**. One entry, before and after:
   "capabilities": [],           // user-facing only. Today: "vision" or nothing.
 
   // ── JUDGEMENT. Two fields, typed by a person. ──
-  "rank": 83,               // our preference order for document Q&A.
+  "rank": 78,               // our preference order for document Q&A.
                             // Not a benchmark. Never displayed.
   "validated": true,        // someone downloaded this exact file and ran it
 
-  "decode_fraction": 1.0    // 1.0 dense; the active slice for MoE (not derivable
-}                           // from the header — set by hand, see below)
+  "decode_fraction": 1.0    // 1.0 dense; the active slice for MoE, computed
+}                           // from the header (see below)
 ```
 
 **The split is the point.** Everything above the line comes free from the GGUF
@@ -333,8 +541,21 @@ Committing what the header said at authoring time is what lets `weights +
 KV(16K) + overhead` run against the manifest alone, on first paint, with no
 network. It is the same reason Hermes carries estimator inputs inline.
 
-`decode_fraction` is the fraction of the build's bytes read per decoded token —
-`1.0` dense, the active slice for MoE. Without it an MoE entry's speed
+`decode_fraction` is the fraction of the build's bytes read per decoded token:
+`1.0` for a dense model, the active slice for MoE. **It is computed, not typed.**
+The header carries `<arch>.expert_count` and `<arch>.expert_used_count` (verified:
+128 and 8 on Qwen3-Coder-30B-A3B), and expert tensors are identifiable in the
+tensor table the reader already parses — `blk.N.ffn_{down,gate,up}_exps.weight`,
+144 of that model's 579 tensors. So:
+
+```
+decode_fraction = (non_expert_bytes + expert_bytes × used_count / expert_count)
+                  ÷ total_bytes
+```
+
+Sanity check: Qwen3-Coder-**30B-A3B** is 30B total against 3B active, so the
+formula should land near 0.1, which is the range Hermes hand-authored (0.08 to
+0.15) for comparable models. Without it an MoE entry's speed
 prediction is wrong by an order of magnitude, which matters the moment the
 80B-A3B-class rung lands.
 
@@ -357,11 +578,13 @@ $ uv run scripts/refresh_curated_models.py \
     --repo unsloth/Qwen3-Next-80B-A3B-GGUF --quant Q4_K_M
 
   resolving unsloth/Qwen3-Next-80B-A3B-GGUF … Q4_K_M found, 45.2 GB
-  reading GGUF header (4 MB range) … qwen3next, 48 layers, 2 kv-heads, ctx 262144
-  llmfit … best_quant=Q4_K_M ✓ matches pin
+  reading GGUF header (8 MB range) … qwen3next, 48 layers, 2 kv-heads, ctx 262144
+  llmfit … sweeping budgets for the quantization ladder
+          Q3_K_M 88 · Q4_K_M 94 · Q5_K_M 96 · Q6_K 97 · Q8_0 97
+          pinned quant Q4_K_M found in ladder ✓
   llmfit proposes rank 94  (would be highest in the list — currently 92)
 
-  ⚠ MoE detected — decode_fraction not derivable from the header. Set it manually.
+  MoE detected: 128 experts, 8 used → decode_fraction 0.09
   ⚠ validated=false until you run this file.
 
   wrote curated-models.json (+1 entry)
@@ -387,15 +610,56 @@ a year:
 | A hardware class is under-served (see **The quantization ladder**) | occasional |
 | Someone reports a bad recommendation | reactive |
 
-**The budget flags are mandatory.** Run bare, llmfit detects whatever laptop the
-script is on and grades a quantization nobody pinned, so the numbers would
-describe a different file than the one in `artifacts`. The `best_quant`
-assertion catches that at authoring time, where a person is already looking.
+#### Scoring at the pinned quantization
 
-> **ponytail:** llmfit has no way to request a score at a named quantization —
-> `plan --quant` returns memory requirements but carries no quality field. Until
-> it does, the declared budget is chosen so llmfit lands on the pinned quant, and
-> the assertion above is what keeps the two in step.
+**llmfit has no flag for this, so the script has to work for it.** There is no
+way to ask for a score at a named quantization: `recommend` and `info` grade
+whatever `best_quant` the detected hardware selects, and `plan --quant` accepts a
+quantization but returns only `weight_gb`, `kv_cache_gb`, `total_vram_gb`,
+`estimated_tps` and `recommended_gpu` — **no quality field**. Verified on
+`1.1.11`.
+
+That matters because quality tracks `best_quant` exactly (see **Appendix**).
+Score at the wrong budget and you have graded a different file than the one in
+`artifacts`. Qwen3 8B is 78 at the pinned Q4_K_M and 83 at Q8_0; run the script
+on a workstation and you commit 83 for a file that behaves like 78.
+
+**The procedure: build the model's ladder, then index into it.** Do not search
+for a single budget. Sweep the device budget across the model's whole
+quantization ladder, record the `(best_quant → quality)` pair at each step, and
+look up the pinned quantization in the resulting map.
+
+```
+for budget in multiplicative_steps(lower, upper, ratio=1.01):
+    row = llmfit recommend --force-runtime llamacpp --no-dashboard \
+                           --memory {budget} --ram 128G -n 20000
+    ladder[row.best_quant] = row.score_components.quality
+
+rank_proposal = ladder[pinned_quant]      # KeyError is a hard failure
+```
+
+Three properties this needs, each learned from a measured failure:
+
+- **Multiplicative steps at 1 % or finer.** The window in which a given
+  quantization is `best_quant` scales with the model, so fixed steps are wrong at
+  both ends. Qwen3 0.6B reads `Q3_K_M` at 1400M, `Q4_K_M` at 1420M and `Q5_K_M`
+  at 1500M — a Q4_K_M window roughly 6 % wide, which a 1G-step sweep skips
+  entirely and silently. Qwen3 32B's is 22G to 24G, with 21G reading Q3_K_M and 25G reading Q5_K_M.
+- **`--ram` pinned high and constant.** It is swept as one variable, not two.
+- **A missing rung is a hard failure, never a fallback.** If the pinned
+  quantization never appears in the ladder, the script **exits non-zero and says
+  so**. It must not fall back to the nearest rung or to the bare-hardware score:
+  that is precisely the silent mis-grade this section exists to prevent. The
+  operator then types the rank by hand, which is always allowed.
+
+The `best_quant` assertion in the transcript above is the visible half of this.
+The ladder sweep is what makes it something the script can actually assert
+rather than something the operator has to remember.
+
+> **ponytail:** this whole subsection is a workaround for a missing llmfit flag.
+> If `plan --quant` ever grows a quality field, or `recommend` grows
+> `--quant`, the sweep collapses to one call and this text should be deleted
+> rather than kept for history.
 
 Numbers are source rather than build output for three reasons beyond speed: a
 rank moving 78 → 94 appears in a pull request where someone notices, a tag
@@ -434,8 +698,15 @@ well:
 
 Community fine-tunes scoring a perfect 100, above published models. That number
 is closer to the name than to measured behaviour. It behaves on models it knows
-properly — the shipped six come back `38 · 53 · 68 · 83 · 90 · 92`, monotonic
+properly — the shipped six come back `33 · 48 · 63 · 78 · 85 · 92`, monotonic
 and sanely spread — which is exactly the population the curated tier draws from.
+
+> **Those figures are at the pinned Q4_K_M**, recovered by the ladder sweep
+> above. An earlier draft of this document carried `38 · 53 · 68 · 83 · 90 · 92`,
+> which is the same six graded at whatever `best_quant` a large budget selected —
+> Q8_0 for five of them. The order was unaffected, so no pick or test changed,
+> but the numbers described files the manifest does not ship. **Any rank quoted
+> anywhere must name the quantization it was taken at.**
 
 Three checks before committing a rank:
 
@@ -720,19 +991,26 @@ Deleted: the collision-resolution block, `_placeholder_row()`,
 **Recommendation policy**, its own module and its own test file:
 
 ```text
-fitting  = entries the estimator does not refuse
-resident = fitting, weights entirely in VRAM
-pleasant = resident, felt_cost(representative RAG turn) under floor
-
-pleasant → max(rank, -size)           reason: best-rank-resident
-                                       or speed-gated-rank if the floor
-                                       eliminated a higher-ranked candidate
-resident → max(speed)                 reason: fastest-resident
-else     → no recommendation; spilled entries stay installable
+resident = curated entries whose state is FITS
+resident → max(rank, -size)     reason: best-rank-resident
+else     → no recommendation; PARTIAL entries stay installable,
+                                just never starred
 ```
 
-Rank is editorial and static per pinned file. Speed is physics per machine.
-Predictions order candidates and gate the floor; they are never displayed.
+**No speed gate in v1.** An earlier draft gated on predicted latency, which
+required two constants with nothing measured behind them. The policy is now
+"highest rank among the entries that fit entirely on the device", and the tie
+break prefers the smaller build, which leaves more room for context.
+
+The gate is additive later. What it needs first is a prefill model: a handful of
+`llama-bench pp512` runs per device class, since llmfit's `prefill_tps` and
+`ttft_ms` are estimates for a generic machine and this app is prefill-dominated.
+
+> **Why prefill, when the gate lands.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
+> characters of grounding is roughly 8,000 prefill tokens against ~300 decoded,
+> the inverse of an agent's ratio. Decode is memory-bound; prefill is
+> compute-bound, which is why CUDA leads Vulkan ~36-40% on `pp512` and ~10% on
+> `tg128`. A decode-only prediction mis-ranks for this app.
 
 > **RAG is prefill-dominated.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
 > characters of grounding is roughly 8,000 prefill tokens against ~300 decoded —
@@ -967,11 +1245,16 @@ compliance. That plausibly collapses three tiers to two.
   `rank` and a pinned `quantization`; every `shape.architecture` is
   in the 152-name list; a curated row prices and badges with no network at all.
 - **`rank` rises with parameter count within a family.** Today this passes
-  trivially — the shipped six are one family and score `38 · 53 · 68 · 83 · 90 ·
-  92`. The first failure is the signal to look, and it is expected: a
+  trivially — the shipped six are one family and score `33 · 48 · 63 · 78 · 85 ·
+  92` at the pinned Q4_K_M. The first failure is the signal to look, and it is expected: a
   mixture-of-experts, a second dense family, or a specialist ranked for document
   Q&A rather than for what it was tuned on will all break size-ordering
   legitimately. The assertion exists to make that a decision, not a drift.
+- **Authoring: every committed `rank` was taken at that entry's pinned
+  quantization.** The ladder sweep records which rung it read; the script fails
+  non-zero when the pinned rung is absent rather than grading a neighbour. This
+  is a script-level test, not an app test — nothing in the product can check it,
+  which is exactly why it is written down.
 - A curated entry with a `vision` capability is never preferred over a
   higher-ranked text model for the ★; capabilities do not enter the ordering.
 - Capabilities: `vision` requires **both** `IMAGE in inputs` and
@@ -1034,6 +1317,42 @@ Holding the quantization fixed (2,424 models): **quality differs 0/2424, memory
 differs 0/2424.** Quality and memory are functions of *(model, quantization)*,
 not of hardware — hardware only enters by choosing the quantization. That is
 what makes a pinned manifest's numbers deterministic and build-time computable.
+
+**The same result on a single model, swept.** The population statistic above says
+hardware does not move quality. This says *why*, and it is the observation the
+whole authoring design rests on. Qwen3 8B, `--ram 64G` held fixed, sweeping the
+device budget:
+
+| `--memory` | `best_quant` | `quality` | `estimated_tps` | `score` |
+|---|---|---|---|---|
+| 6G | Q3_K_M | 75 | 17.9 | 65.1 |
+| 7G | Q4_K_M | 78 | 13.4 | 63.8 |
+| 8G | Q5_K_M | 81 | 10.7 | 63.6 |
+| 10G | Q6_K | 82 | 9.0 | 66.2 |
+| 12G | Q8_0 | **83** | 6.7 | 63.6 |
+| 16G | Q8_0 | **83** | 6.7 | 67.4 |
+| 24G | Q8_0 | **83** | 6.7 | 67.4 |
+| 48G | Q8_0 | **83** | 6.7 | 67.4 |
+
+Read the last four rows: 12 GB to 48 GB, four times the memory, and `quality`
+does not move. **It stops moving the instant the quantization stops moving.**
+Hardware reaches quality through exactly one channel, `best_quant`, and that
+channel is one we close by pinning the file.
+
+Three decisions follow from that, and this table is the reason for all three:
+
+1. **`rank` is authored once and shipped frozen.** A number that does not vary
+   with the machine is data, not a per-machine computation. There is nothing for
+   a scan on the user's device to discover.
+2. **Only `score_components.quality` is read; `score` is discarded.** In the same
+   sweep `score` runs 65.1, 63.8, 63.6, 66.2, 63.6, 67.4 — non-monotonic, and
+   moving with hardware because it blends fit and speed into the quality term.
+   The composite is a statement about a laptop; the component is a statement
+   about a file.
+3. **The declared budget must land llmfit on the pinned quantization.** Since
+   quality tracks `best_quant` exactly, scoring at the wrong budget scores the
+   wrong file. See **Authoring**, where this is a hard assertion rather than a
+   convention.
 
 Device query versus advisor, same machine:
 
