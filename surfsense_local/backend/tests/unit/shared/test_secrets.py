@@ -25,3 +25,21 @@ def test_tampered_ciphertext_is_rejected() -> None:
     token[-1] ^= 0xFF
     with pytest.raises(InvalidToken):
         decrypt(bytes(token))
+
+
+def test_rotated_secret_reads_as_no_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    """secret.bin reminted: the old ciphertext is gone, not a 500."""
+    connection = ProviderConnection(
+        label="x", provider="openai_compatible", base_url="http://h", api_key="sk-1"
+    )
+    token = connection.api_key_ciphertext
+    monkeypatch.setenv("SURFSENSE_LOCAL_SECRET", "a-different-secret")
+    from shared.secrets import _fernet
+
+    _fernet.cache_clear()
+    stale = ProviderConnection(
+        label="y", provider="openai_compatible", base_url="http://h"
+    )
+    stale.api_key_ciphertext = token
+    assert stale.api_key is None
+    assert stale.api_key_ciphertext is None
