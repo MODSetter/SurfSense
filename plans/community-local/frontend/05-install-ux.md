@@ -82,9 +82,15 @@ which owns the copy.
 
 ```text
 ●  Full speed        Runs entirely on the GPU
-◐  Reduced speed     Too big for the GPU, so part runs on the CPU
+◐  Reduced speed     A little too big for the GPU. Most of it still fits.
+◐  Reduced speed     Well over the GPU's memory. Expect it to be slow.
 ○  Won't fit         Needs about 21 GB. This Mac has 13.6 GB
 ```
+
+**Reduced speed has two reason lines, chosen by `offload_fraction`**, which the
+verdict carries. The verdict word does not change; only the explanation
+sharpens, because one sentence is wrong at both ends of a range running from
+barely noticeable to unusable.
 
 A search row is badged from its file size alone and rendered as approximate
 until its header is read, which happens when the row is opened.
@@ -123,6 +129,12 @@ selects the ★; no number, score or star rating appears anywhere else.
   slower, and llama.cpp places the layers. Only **Won't fit** blocks install,
   and it states required and available bytes and names a smaller model rather
   than greying out a control.
+- **A Reduced speed model can carry the ★.** The recommendation gates on
+  predicted speed, not on full residency — on a 6 GB card the best model to use
+  is routinely one that spills a little. Measured: an RTX 3050 runs Qwen3 8B at
+  roughly 28% on the CPU without noticeable lag, while a residency-only rule
+  would have starred a 1.7B. Do not assume the ★ is always a **Full speed** row,
+  and do not style it as though it were.
 - Search shows a progress indicator while a row's header is fetched (2 to 3
   seconds) and resolves the approximate badge to a firm one.
 - A failed or cancelled install remains retryable and is never shown as

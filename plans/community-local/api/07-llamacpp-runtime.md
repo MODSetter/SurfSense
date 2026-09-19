@@ -37,13 +37,13 @@ Ollama's native API does not.
 | **Runtime** | `llama-server` router mode, single sidecar | `--models-dir`, `--models-max 1`, LRU eviction, one PID for the supervisor to reap. Maps 1:1 onto every Ollama call the adapter makes. |
 | **MLX** | **Not shipped.** Revisit after launch | Ollama switched its Apple Silicon engine to MLX in Mar 2026, so the swap costs Mac speed on models under ~14B. MLX's format covers 23,985 HF repos against GGUF's 204,797 — one format and the full catalog wins. Mac users who want MLX point a connection at LM Studio; see **The Mac path**. |
 | **llmfit** | **Authoring-time only. Not shipped, and not in CI.** | A person runs `scripts/refresh_curated_models.py` when adding or changing a curated entry — a few times a year — and commits the numbers. llmfit is not a gate, not a hardware source, not in any request path, and not in the build. Removes 27 MB, a pinned version, and five failure modes per installer. |
-| **Gating** | Only physics refuses | `can_install = state != TOO_BIG`, and `TOO_BIG` *is* the physics refusal — weights + KV at the 16K floor exceeding VRAM **plus** RAM. No other fit level gates anything; `PARTIAL` installs like `FITS`. Eligibility (architecture, chat template, gated repo) blocks separately and is not a fit state. See **Fit states**. |
+| **Gating** | Only physics refuses | `can_install = state != TOO_BIG`, and `TOO_BIG` *is* the physics refusal — `need` at the 16K floor exceeding usable VRAM **plus** RAM. No other fit level gates anything; `PARTIAL` installs like `FITS`. Eligibility (architecture, chat template, gated repo) blocks separately and is not a fit state. See **Fit states**. |
 | **Catalog** | Two tiers — curated manifest, and Hugging Face search | Curated is the offline product and ships frozen. Search is a network feature that is simply absent airgapped. |
 | **Fit estimate** | Our own, from the GGUF header | llmfit cannot score a model outside its database (`llmfit plan` states the precondition). Search needs an estimate anyway; once it exists, llmfit's is redundant *and* less accurate here. |
 | **`rank`** | **Curated entries only. A searched model never carries one, from llmfit or anywhere else** | A preference order over models we tested, **for this app's job** — answering from the user's documents with citations that resolve — not general capability. An integer typed by a person, with llmfit proposing. Called `rank`, not `quality`, because it is only ever a sort key: nothing reads its magnitude, so it must not imply a measurement we do not have. Attaching one to an arbitrary repo attaches a base model's score to a derivative that behaves differently: of the top 100 GGUF repos by downloads, 38 match an llmfit entry, and those matches include `Huihui-Qwen3.8-27B-abliterated-GGUF` and `Qwen3.8-27B-Uncensored-GGUF` resolving to the base model's score. A wrong number people trust is worse than a blank they investigate. Search rows are **described, not judged**. |
 | **Search order** | `sort=downloads`, descending | The only HF sort that behaves as a default. Presented as a popularity fact, never as an endorsement. See **Search ordering**. |
 | **Fit badge** | **Every row, both tiers** | Fit is subtraction, not judgement — the opposite of `rank`. Coarse from file size in the search list, exact from the header on open, exact from `shape` offline for curated. Three states, no `unknown`. |
-| **Recommendation** | Highest `rank` among `FITS` entries. **No speed gate in v1** | A latency gate needs a prefill model, and llmfit's `prefill_tps` is an estimate for a generic machine. Rather than invent a threshold, v1 starves the gate: the ★ is the best-ranked entry that fits entirely on the device, tie-broken toward the smaller build. Additive once `llama-bench pp512` numbers exist per device class. |
+| **Recommendation** | Highest `rank` among entries predicted **fast enough**, not among entries that fit entirely | Residency is a mechanism; speed is the goal, and on small cards they disagree. Measured on an RTX 3050: Qwen3 4B spills ~20% and Qwen3 8B ~28%, and a user runs the 8B without noticing. A `FITS`-only rule stars a 1.7B on that machine while the owner is happily using the 8B. v1 approximates the gate with an offload-fraction ceiling; the roofline and its self-calibration follow. See **Recommendation policy**. |
 | **Curated manifest** | **Stays, schema 3, authored by hand** | It is the whole product airgapped, the first-run default, and the only tier the recommendation reads. `scripts/refresh_curated_models.py` writes it; a person commits it; **llmfit never runs in CI**. |
 | **Why `rank` can be authored at all** | Quality is a function of *(model, quantization)*, not of hardware | Measured twice: across 2,424 models at a fixed quant, quality differs 0/2424; and on one model swept 12G to 48G, quality does not move once `best_quant` stops moving. Hardware reaches quality through exactly one channel, the quantization, and pinning the file closes it. So the number is a property of a file, computable once and shipped as data, and a scan on the user's machine has nothing to discover. This is the load-bearing fact under the whole authoring design. See **Appendix**. |
 | **Which llmfit field** | `score_components.quality` only. **`score` is discarded** | `score` blends fit, speed and context into quality, so three of its four terms describe a machine. In the same sweep it runs 65.1, 63.8, 63.6, 66.2, 63.6, 67.4 — non-monotonic and hardware-dependent. The composite is a statement about a laptop; the component is a statement about a file. Same reason `fit_level`, `memory_required_gb`, `estimated_tps` and `best_quant` are all read and thrown away. |
@@ -52,6 +52,7 @@ Ollama's native API does not.
 | **Hardware budget** | `ggml_backend_dev_memory()` via `ctypes`, from the shipped libs | The allocator's own view. Falls back to `llama-server --list-devices`, then OS APIs. |
 | **Downloads** | **SurfSense fetches the GGUF**, not `POST /models` | `llama-server` is a second process we do not proxy; an in-process fetch is the only place `egress.require()` actually holds. Also buys resume, checksums, and the header as the file lands. |
 | **Quantization** | **One pinned file per entry in v1** | A pinned file is what "tested by SurfSense" can honestly claim. Per-machine selection is possible at no extra cost (one header read prices every quant), so a second variant on the largest entries is a cheap follow-on, not v1. See **The quantization ladder**. |
+| **KV precision** | **`f16` when it fits, `q8_0` when it buys residency.** Symmetric `-ctk`/`-ctv` always | Measured: `f16` KV at a 16K window **cannot allocate** on a 6 GB card (`ErrorOutOfDeviceMemory`), while `q8_0` at the same depth runs. Quality is lossless either way. So the choice is not a global default but an output of the fit calculation — pay the precision cost only where it converts a spill into residency. Requires flash attention; see **Failure behavior**. |
 | **Context** | **Fixed at load. Floor 16K, capped at the model's own `context_length`** | llama.cpp fixes context at load, so `num_ctx()`'s per-request sizing has no equivalent. The floor is 3K history plus ~8K grounding plus a reply. Growing on occupancy is additive later; it needs a mid-conversation reload and two constants with nothing measured behind them. |
 | **GPU backend** | **Vulkan on every platform off Apple Silicon. No CUDA** | Measured on an RTX 3050 at `b11050`: CUDA leads Vulkan **9.1%** on `pp512`, **10.2%** on `pp8192`, **2.1%** on decode — 0.66 s on an 11 s turn, for 685 MB. Vulkan covers NVIDIA, AMD and Intel from one 31 MB archive, its loader ships with Windows, and it is what the app already does today (`pruneCudaRunners()`). CUDA is specified as an optional later addition in [`08-cuda-backend.md`](08-cuda-backend.md), which needs **no code change** — ggml selects it by the files present. |
 | **Device selection** | First device with `type == GPU`. **Never sum** | The same physical card appears once per loaded backend, and an integrated GPU can advertise more memory than a discrete one (16198 MiB against 6002 MiB, measured). ggml's ordering already expresses backend preference, so this **is** backend selection. Specified in **7.2**. |
@@ -67,7 +68,8 @@ Ollama's native API does not.
          │
          ▼
   FitEstimator ── advisory only
-         │          weights + KV(window) + overhead  vs  VRAM + RAM
+         │          need   = weights + KV(window) + compute_buffers
+         │          usable = device_free − fit_reserve
          │          → FITS | PARTIAL | TOO_BIG   (TOO_BIG = the physics refusal)
          ▼
   CatalogService
@@ -118,12 +120,31 @@ The shipped six, measured at Q4_K_M and a 16K window:
 | Qwen3 14B | 9.00 | 40 | 8 | 10,969 |
 | Qwen3 32B | 19.76 | 64 | 8 | 22,047 |
 
+> **This column excludes `compute_buffers` and predates the fit reserve**, so it
+> under-states `need` by roughly 170 MiB at 16K and prices against raw free
+> memory. `GPU` / `RAM` in the map below is therefore a simplification — the real
+> output is an offload fraction, and the map shows it where measured.
+>
+> **The one row since measured came out a state worse than predicted, and it is
+> the row that rewrote the recommendation policy.** Qwen3 4B on an RTX 3050 needs
+> 4,858 MiB against `5,234 − 1,028 = 4,206 MiB` usable: `PARTIAL` at `f ≈ 0.20`,
+> not `FITS` with 490 MiB spare. llama.cpp spilled 602 MiB of weights and 320 MiB
+> of KV. Under a `FITS`-only rule that machine's ★ fell to **Qwen3 1.7B** — while
+> its owner runs **Qwen3 8B** (`f ≈ 0.28`, computed) without noticeable lag. That
+> contradiction is what moved the gate from residency to speed; see
+> **Recommendation policy**.
+>
+> The other five rows are unverified predictions and are **not** re-derived here:
+> applying a reserve measured once on a 6 GB Windows card to an M4 Max would be
+> inventing numbers, which is the failure this phase exists to avoid. Re-derive
+> each row when its hardware is measured.
+
 What each machine gets:
 
 ```text
 machine          0.6B 1.7B   4B   8B  14B  32B   →  recommended
 M2 8 GB           GPU  GPU  GPU  RAM  RAM    —   →  Qwen3 4B     (831 MiB spare)
-RTX 3050 6 GB     GPU  GPU  GPU  RAM  RAM  RAM   →  Qwen3 4B     (490 MiB spare)
+RTX 3050 6 GB     GPU  GPU  ~20% ~28%  RAM  RAM   →  Qwen3 8B     (f ≈ 0.28)
 M4 16 GB          GPU  GPU  GPU  GPU  RAM  RAM   →  Qwen3 8B   (3,857 MiB spare)
 RTX 4070 12 GB    GPU  GPU  GPU  GPU  GPU  RAM   →  Qwen3 14B     (31 MiB spare)
 RTX 4090 24 GB    GPU  GPU  GPU  GPU  GPU  GPU   →  Qwen3 32B    (953 MiB spare)
@@ -187,6 +208,31 @@ path now, not dead code.
 Sidecar flags: `--models-dir <dataDir>/models --port <free> --models-max 1
 --sleep-idle-seconds 300 --no-ui --jinja --reasoning-format deepseek`.
 
+Per-model at load, decided by the fit calculation rather than fixed here:
+`-fa on` and, when `q8_0` is chosen, `-ctk q8_0 -ctv q8_0`. **Set both cache
+types or neither** — symmetric quantization enables the fused flash-attention
+kernel, while a mismatched pair falls back to an unoptimised path that exists
+for correctness only.
+
+`--sleep-idle-seconds` is not optional: measured at `b11050`, a model without it
+self-evicted after roughly 30 s idle, which turns the second question of a
+conversation into a reload.
+
+> **Never pass an explicit `-ngl`.** `--fit` owns layer placement, and setting
+> `n_gpu_layers` by hand **disables it**:
+>
+> ```
+> common_fit_params: failed to fit params to free device memory:
+>                    n_gpu_layers already set by user to 99, abort
+> ```
+>
+> Measured at `b11050`: with `-ngl 99` the model then loaded **entirely on the
+> CPU** — 478 MiB of VRAM touched on a machine with a working RTX 3050, no error,
+> exit 0. It looks like it worked. This is the same silent-GPU-blindness class as
+> the probe search path (7.2) and the missing-backend case in **Failure
+> behavior**, and it is the easiest of the three to introduce by accident, since
+> `-ngl 99` reads as "use the GPU harder".
+
 `--no-ui` because llama-server ships its own web UI. `--reasoning-format deepseek`
 routes `<think>` blocks to `message.reasoning_content`; without it a thinking
 model's trace enters `parts[]` and `resolve_citations()` rewrites `[n]` tokens
@@ -236,9 +282,13 @@ class ModelShape:
 
 @dataclass(frozen=True)
 class HardwareBudget:
-    usable_vram_bytes: int    # capacity (total − margin) or live (free now)
+    """One device, never a sum across devices. See 7.2 — device selection."""
+    usable_vram_bytes: int    # device_free − fit_reserve. NOT raw free: llama.cpp's
+                              # own fitter refuses to use the last slice, measured
+                              # at 1,028 MiB of 5,234 free on an RTX 3050.
     total_device_bytes: int
-    ram_available_bytes: int
+    fit_reserve_bytes: int    # what was subtracted, carried so the badge can explain
+    ram_available_bytes: int  # from OS APIs, not the ggml CPU device (see 7.2)
     uma: bool                 # unified memory: selects badge copy and headroom
     has_gpu: bool             # False when --list-devices prints "(none)"
 
@@ -252,8 +302,13 @@ class FitState(StrEnum):
 @dataclass(frozen=True)
 class FitVerdict:
     state: FitState
-    need_bytes: int           # weights + KV(window) + overhead
-    budget_bytes: int         # vram, or vram + ram for the TOO_BIG comparison
+    need_bytes: int           # weights + KV(window) + compute_buffers
+    budget_bytes: int         # usable_vram, or usable_vram + ram for TOO_BIG
+    offload_fraction: float   # 0.0 fully resident … 1.0 all on the CPU.
+                              # The recommendation gates on this, and the
+                              # badge's reason line is graded by it. Do not
+                              # collapse it into `state` — three buckets lose
+                              # the difference between 5% and 70% spilled.
     approximate: bool = False # priced from file size alone, header not read yet
 
 
@@ -335,20 +390,23 @@ is derived from the codebase rather than chosen.
 | Constant | Kind | Basis |
 |---|---|---|
 | **Context floor, 16K** | **runtime** | `HISTORY_BUDGET_TOKENS = 3000` plus ~8,000 tokens of grounding (~24k characters from `build_context`) plus a reply. Grounded, not chosen. |
-| **Runtime overhead** | prediction | Pre-model half **measured at 986 MiB** on a discrete card; the per-model half is a bootstrap value, replaced by the machine's own measurement after its first load. See below and **7.2**. |
+| **Fit reserve** | prediction | **Measured: 1,028 MiB** on a Windows / Vulkan / discrete 6 GB card. A per-platform bootstrap, replaced by the machine's own figure after its first load. Two rows still blank. See **7.2**. |
+| **Compute buffers** | prediction | **Measured: ~170 MiB** for a 4B at 16K. Part of `need`, scales with context and batch. |
 
-> **ponytail: runtime overhead.** The `overhead` term in
-> `need = weights + KV(window) + overhead` is a placeholder. Hermes uses
-> `max(2 GiB, 9% of total)` (`_MARGIN_FLOOR = 2 << 30`, `_MARGIN_FRACTION = 0.09`
-> in `local_runtime/hardware.py`), which on a 6 GB card holds back a third of it;
-> today's `recommendation_reserve_gb: 2.0` is self-flagged as uncalibrated. On a
-> 5.4 GB budget the difference between 1.0 and 2.0 GiB moves rows across the
-> `FITS`/`PARTIAL` line, and on a 12 GB
-> NVIDIA card it decides whether Qwen3 14B is recommended at all (31 MiB of
-> margin at 1,024 MiB overhead). **Measure real RSS after loading three or four
-> models on each target before 7.4 ships**, and ship that as the bootstrap
-> value — but it is wrong at most once per machine, because 7.2 records what the
-> load actually cost and prefers that number afterwards.
+> **No longer a ponytail, with one caveat.** The reserve was an unmeasured
+> placeholder at ~1,024 MiB. Measured on an RTX 3050, `--fit` holds back
+> **1,028.34 MiB** of 5,234 free — the guess was within 4.3 MiB. Hermes'
+> equivalent is `max(2 GiB, 9% of total)` (`_MARGIN_FLOOR = 2 << 30`,
+> `_MARGIN_FRACTION = 0.09` in `local_runtime/hardware.py`), roughly twice as
+> conservative.
+>
+> **The caveat is generality, not accuracy.** 1,028 MiB is 17% of a 6 GB card, so
+> that single point cannot distinguish a constant reserve from a proportional
+> one, and the two diverge badly at 24 GB. Metal and Linux are unmeasured and the
+> numbers certainly do not carry — Metal has no separate VRAM at all. This is why
+> 7.2 stores the reserve as a `(platform, backend)` table with blanks rather than
+> a scalar, and why an unmeasured row rounds **up**: over-estimating costs a
+> pessimistic badge on one screen, under-estimating ships the llmfit failure.
 
 #### Not in v1, and why
 
@@ -360,11 +418,11 @@ from a memory figure that was not true on that machine.
 
 | Constant | What it would enable | Why not now | What it needs first |
 |---|---|---|---|
-| `felt_cost` | a formula predicting how slow a model *feels* on this machine | the recommendation is "highest `rank` that fits"; no latency judgement is made | a prefill model — `llama-bench pp512` per device class. llmfit's `prefill_tps` is an estimate for a generic machine. |
-| **Speed floor** | refusing to star a model that fits but crawls | same | a `felt_cost` that means something, plus a threshold from real sessions rather than copied from an agent app |
+| `felt_cost` | a time estimate replacing v1's crude `MAX_OFFLOAD` ceiling | the roofline is specified under **Recommendation policy**; v1 ships the ceiling because it fixes the observed failure with one number | its constants, which come from completed turns rather than a benchmark — see **Where the constants come from** |
+| **Speed floor** | a threshold in seconds rather than in spilled fraction | same | a `felt_cost` that means something, plus a threshold from real sessions rather than copied from an agent app |
 | **Ladder rungs** | starting narrow so a **bigger model stays GPU-resident**, widening only when a conversation needs it. The benefit is memory, not long chats: Qwen3 4B on an 8 GB M2 is `FITS` at 16K and `PARTIAL` at 40K, purely from KV cache. | context is fixed at load | evidence that mid-conversation reloads are worth the complexity for document Q&A |
 | **Growth threshold** | when to step up a rung | same | measured occupancy over real sessions |
-| `decode_fraction` | correct speed prediction for mixture-of-experts models | **nothing to apply it to** — no MoE entry ships in v1. The value itself is computable today, from `expert_used_count` and the tensor table. | only the 80B-A3B-class rung |
+| `decode_fraction` | correct speed prediction, and the only way an MoE is priced sanely | it is an **input to the speed model**, which v1 approximates with `MAX_OFFLOAD`. Compute and commit it now regardless: it is free from the header, and `1.0` for every dense entry shipped. | nothing — this one is ready |
 
 #### When they come back
 
@@ -519,10 +577,75 @@ Two budget modes. **Capacity** (total − margin) for catalog pricing; **live**
 (free now) for launch decisions. Pricing against live-free while a model is
 loaded makes every row read as too large.
 
-`modules/llm/fit.py` — `weights + KV(window) + overhead` vs `VRAM + RAM`.
-Per-layer KV from the header. Split today's single `recommendation_reserve_gb: 2.0`
-(flagged `ponytail` as uncalibrated) into a measured runtime overhead, a device
-margin, and a UMA headroom.
+#### Two subtractions, on opposite sides of the comparison
+
+`modules/llm/fit.py`. The single `overhead` term earlier drafts carried is **two
+different quantities**, and collapsing them is what made the first prediction of
+this wrong by 922 MiB:
+
+```text
+need   = weights + KV(window) + compute_buffers      what the model allocates
+usable = device_free − fit_reserve                   what --fit will actually use
+FITS  iff  need ≤ usable
+```
+
+Measured, Qwen3 4B Q4_K_M at 16K on an RTX 3050 with 5,234 MiB free:
+
+| | MiB |
+|---|---|
+| `Vulkan0` model buffer | 2078.04 |
+| `Vulkan0` KV buffer | 1984.00 |
+| `Vulkan0` compute buffer | 143.62 |
+| **placed on device** | **4205.66** |
+| **left deliberately unused** | **1028.34** |
+
+Treating that 1,028 MiB as part of `need` rather than as a subtraction from
+available memory predicts `FITS` with 378 MiB spare. llama.cpp instead spilled
+602 MiB of weights and 320 MiB of KV to the CPU — a `PARTIAL`. Same numbers,
+opposite verdict, purely from which side of the comparison the term sits on.
+
+`compute_buffers` was absent from the formula entirely. It is ~170 MiB for a 4B
+at 16K (143.62 device + 26.01 host) and scales with context and batch, so it is
+not a rounding error on a 6 GB card.
+
+This replaces today's single `recommendation_reserve_gb: 2.0`, which was flagged
+`ponytail` as uncalibrated.
+
+#### The fit reserve is a table, not a number
+
+Keyed by `(platform, backend, memory model)`, because none of it transfers: Metal
+has no separate VRAM at all, and a CUDA context alone costs ~541 MiB against
+Vulkan's much lighter footprint.
+
+| platform / backend | reserve | basis |
+|---|---|---|
+| windows / vulkan / discrete | **1028 MiB** | measured, `b11050`, RTX 3050 6 GB |
+| linux / vulkan / discrete | — | unmeasured |
+| macos / metal / uma | — | unmeasured |
+| no GPU device | n/a | `PARTIAL` is unreachable; see **Fit states** |
+
+> **6 GB cannot distinguish a constant from a proportion.** 1,028 MiB is 17% of
+> that card; Hermes uses `max(2 GiB, 9%)`. One measurement cannot tell the two
+> models apart, and they diverge badly on a 24 GB card. Record the figure with
+> its device, and do not generalise from it.
+
+**Why shipping with two blank rows is safe.** An unmeasured row falls back to a
+deliberately generous default, because the errors are asymmetric:
+
+- **reserve too large** → predicts `PARTIAL` where reality is `FITS`. The user
+  sees *Reduced speed*, installs anyway (`PARTIAL` installs exactly like
+  `FITS`), and the self-calibration below replaces the guess after the first
+  load. Under-promise, self-correcting.
+- **reserve too small** → predicts `FITS` where reality is `PARTIAL`. That is
+  precisely the llmfit failure this phase exists to delete: a confident badge
+  about a model that spills.
+
+So the bootstrap does not have to be right. It has to **not under-estimate** —
+the same rule as **Boundaries**: *unknown shapes round up; never underestimate
+memory*.
+
+Per-layer KV comes from the header; the formula is validated exactly in the
+**Appendix**.
 
 > **Do not double-count.** ggml's `free` **already excludes** the desktop's
 > allocation and the backend context. Measured on a 6144 MiB RTX 3050: 986 MiB
@@ -551,6 +674,10 @@ side of `POST /models/load`:
 ```python
 real_overhead = (free_before - free_after) - weights_bytes - kv_bytes(n_ctx)
 ```
+
+This residual **already contains the compute buffers**, which is why they need no
+separate per-model table: the first load measures everything that is neither
+weights nor KV, on the machine that will run it.
 
 ```text
 first run         predict with the shipped constant
@@ -592,6 +719,17 @@ streaming. Install fetches the GGUF into `--models-dir` with real filenames, not
 llama.cpp's content-addressed HF cache layout (`LLAMA_CACHE` points at the app
 data dir so nothing writes to `~/.cache`).
 
+> **ponytail: the mechanism below is unverified.** `POST /models/load` with
+> `{"model": …, "args": ["-c", "16384"]}` was sent at `b11050` and the router
+> **ignored the args** — the worker came up at the model's own default
+> (`n_ctx_slot` 34304 / 28160 / 12288 for the 0.6B / 1.7B / 4B, not 16384). The
+> same `-c 16384` passed directly to `llama-server` on the command line **is**
+> honoured, so the flag works and the router's plumbing for it does not, at least
+> not in this shape. Fixed-context-at-load is a Decisions-table entry and the
+> reason the 16K floor exists, so **resolve this first in 7.3**: either the field
+> name differs, the args need another shape, or context must be set per model at
+> router startup. Do not build the context ladder on top of an unconfirmed call.
+
 **Context is fixed at load, not grown.** `POST /models/load {"args": ["-c", N]}`
 with `N` the largest window that keeps the verdict at **`FITS`** — not the
 largest that fits at all. KV cache is allocated upfront and competes with the
@@ -603,6 +741,14 @@ own `context_length`. No ladder, no reload mid-conversation. Growing on
 occupancy is additive later; it would mean reloading the model between turns and
 two constants copied from Hermes with no evidence they suit RAG.
 
+**The router costs no device memory until a model loads** (measured: VRAM
+unchanged at the idle baseline with the router up and three models discovered),
+and it **auto-discovers** everything in `--models-dir` as `status: "unloaded"`,
+spawning one worker per loaded model with `--port 0 --model <path>`. Pass
+`--sleep-idle-seconds` deliberately: at `b11050` a model self-evicted after
+roughly 30 s idle without it, which would turn the second question of a
+conversation into a reload.
+
 **Router mode runs with an empty models directory**, so the sidecar lifecycle is
 testable before any model exists. Verified on Windows and Linux at `b11050`:
 `GET /health` → `{"status":"ok"}`, `GET /models` → `{"data":[],"object":"list"}`,
@@ -611,10 +757,21 @@ sidecar came up in router mode rather than single-model mode. SIGTERM shuts it
 down cleanly (`cleaning up before exit`), and on Windows `taskkill /PID <pid> /T
 /F` walks the tree and reports each child terminated.
 
-> **Partially verified only.** The `taskkill /T` check above ran with no model
-> loaded, so it reaped `conhost.exe` rather than a model worker. The case 7.5
-> actually cares about — reaping the **grandchild** the router spawns per loaded
-> model — still needs a run with a model resident.
+**Grandchild reaping verified**, with a model resident, on Windows at `b11050`:
+
+```text
+router          132  llama-server.exe
+  child       10828  conhost.exe
+  child        8820  llama-server.exe     ← the model worker
+    grandchild 18688  conhost.exe
+
+taskkill /PID 132 /T /F   →  all four terminated, depth first
+SURVIVORS: none
+```
+
+> **Windows only.** macOS and Linux reap through process groups and signals, not
+> `taskkill /T`, and the macOS hardened runtime case (7.5) is still untested
+> against a grandchild.
 
 **Tests:** a fake llama-server (aiohttp) covering health, models, props, load,
 chat stream, delete; install against a fake HF serving a real small GGUF.
@@ -718,7 +875,7 @@ of five; this is where the rest would go.
 reading its GGUF header, and a curated entry is not downloaded yet — so without
 these fields an airgapped machine has no fit badge on the one tier it can use.
 Committing what the header said at authoring time is what lets `weights +
-KV(16K) + overhead` run against the manifest alone, on first paint, with no
+KV(16K) + compute_buffers` run against the manifest alone, on first paint, with no
 network. It is the same reason Hermes carries estimator inputs inline.
 
 `decode_fraction` is the fraction of the build's bytes read per decoded token:
@@ -1064,8 +1221,10 @@ five-level score (`perfect`/`good`/`marginal`/`too_tight`/`unknown`) and becomes
 a three-state statement about **where the weights will live**. There is no
 `unknown`: every row has a file size, so every row has a badge.
 
-Let `need = weights + KV(window) + overhead`, `vram` = usable device memory from
-the budget probe, `ram` = host memory available to the budget.
+Let `need = weights + KV(window) + compute_buffers`, `vram` =
+`HardwareBudget.usable_vram_bytes` (device free **minus** the fit reserve), and
+`ram` = host memory available to the budget. The two subtractions sit on opposite
+sides of the comparison and must not be collapsed into one term — see 7.2.
 
 | State | Condition | What happens at load |
 |---|---|---|
@@ -1076,6 +1235,12 @@ the budget probe, `ram` = host memory available to the budget.
 `TOO_BIG` is evaluated at the floor, not at the requested window: a model that
 will not fit at 16K cannot be rescued by a smaller context, and the remedy to
 offer is a smaller quantization or a smaller model.
+
+**Keep `offload_fraction`, do not collapse it into the state.** `PARTIAL` spans
+everything from barely-noticeable to unusable, and the number is already known
+from the same subtraction that produced the state. Two consumers need it: the
+recommendation gate, and the graded reason line below. Discarding it is what
+made an earlier draft star a 1.7B on a machine happily running an 8B.
 
 **Wording is per platform. The state set is not.** One label set is wrong on two
 of the three targets, so the copy branches on two facts the budget already
@@ -1139,12 +1304,18 @@ transfer that does not happen. With no GPU at all, `FITS` means the processor an
 > hyphens.** Use commas, full stops or parentheses. Applies to badges, empty
 > states, error copy and the recommendation line.
 
-> **Optional refinement, not a design change.** `PARTIAL` spans a wide range: 5%
-> spilled is barely noticeable, 70% crawls. The number is already known
-> (`need - vram`), so the reason line can be graded without adding a state —
-> *"A little too big for the GPU. Most of it still fits."* against *"Well over
-> your GPU's memory. Expect it to be slow."* Same badge, sharper sentence. Ships
-> after the first version if wanted.
+**Grade the `PARTIAL` reason line by `offload_fraction`.** Not optional: the
+range is wide enough that one sentence is wrong at both ends, and the number is
+already on the verdict.
+
+```text
+f ≲ 0.25   ◐  Reduced speed     A little too big for the graphics card. Most of it still fits.
+f ≳ 0.5    ◐  Reduced speed     Well over your graphics card's memory. Expect it to be slow.
+```
+
+The verdict word does not change, because the state has not changed. Only the
+explanation sharpens. An earlier draft filed this as a copy refinement; it is
+really the same information the recommendation gate needs, surfaced.
 
 > **Decision: `PARTIAL` stays available on unified memory.** Hermes'
 > `_uma_budget()` sets `ram_available_bytes = 0`, so on Apple Silicon their
@@ -1196,18 +1367,35 @@ Deleted: the collision-resolution block, `_placeholder_row()`,
 **Recommendation policy**, its own module and its own test file:
 
 ```text
-resident = (entry, variant) pairs whose state is FITS
-resident → max(variant.rank, -variant.size_bytes)   reason: best-rank-resident
-else     → no recommendation; PARTIAL pairs stay installable,
+eligible = (entry, variant) pairs that are not TOO_BIG
+                            and whose offload_fraction ≤ MAX_OFFLOAD
+eligible → max(variant.rank, -variant.size_bytes)   reason: best-rank-eligible
+else     → no recommendation; every non-TOO_BIG pair stays installable,
                                 just never starred
 ```
 
 ```python
 candidates = [(e, v) for e in curated for v in e.variants
-              if fit(e.shape, v.size_bytes).state is FitState.FITS]
+              for verdict in [fit(e.shape, v.size_bytes)]
+              if verdict.state is not FitState.TOO_BIG
+              and verdict.offload_fraction <= MAX_OFFLOAD]
 pick = max(candidates, key=lambda ev: (ev[1].rank, -ev[1].size_bytes),
            default=None)
 ```
+
+> **`MAX_OFFLOAD` is provisional, and may not be needed at all.** On the one
+> machine measured, *every* offload fraction stayed usable: even fully on the CPU
+> this model decoded at 13 t/s, above reading pace, and prefill held at half
+> device speed. No sensible threshold would have fired anywhere in the curated
+> range. Before shipping a constant, check whether the gate ever triggers — a
+> mechanism that never fires is worse than no mechanism, because it reads as
+> protection that was never tested. The reason the `FITS`-only rule had to go is
+> unchanged and does not depend on this number: it refused configurations that
+> demonstrably work.
+
+`MAX_OFFLOAD` is a v1 placeholder for the speed gate below, not a latency
+judgement. Set it generously: the failure it exists to prevent is starring a
+model that crawls, and the failure it replaced was refusing models that work.
 
 **The policy ranges over builds, not models**, because that is what the user
 installs and what `rank` describes. With v1's single variant per entry the
@@ -1218,14 +1406,130 @@ larger variant is `TOO_BIG` and whose smaller one `FITS` is still recommendable
 on its smaller build; that falls out of the cross-product rather than needing a
 special case.
 
-**No speed gate in v1.** An earlier draft gated on predicted latency, which
-required two constants with nothing measured behind them. The policy is now
-"highest rank among the entries that fit entirely on the device", and the tie
-break prefers the smaller build, which leaves more room for context.
+#### Why the gate is on speed, not on residency
 
-The gate is additive later. What it needs first is a prefill model: a handful of
-`llama-bench pp512` runs per device class, since llmfit's `prefill_tps` and
-`ttft_ms` are estimates for a generic machine and this app is prefill-dominated.
+An earlier draft gated on `FITS` alone, on the reasoning that a latency gate
+needed constants nobody had measured. That is true and it still produced the
+wrong answer, because **residency is a mechanism and speed is the goal.** They
+coincide on a large card and diverge on a small one:
+
+```text
+RTX 3050, 6 GB, measured
+  Qwen3 4B   f ≈ 0.20 spilled    →  PARTIAL
+  Qwen3 8B   f ≈ 0.28 spilled    →  PARTIAL, and runs without noticeable lag
+```
+
+A `FITS`-only rule stars **Qwen3 1.7B** on that machine while its owner is
+running the 8B perfectly happily. The rule is not conservative, it is wrong: it
+bans a configuration that works.
+
+The reason a fifth spilled is barely noticeable is that decode is
+bandwidth-bound and the split is not proportional. Which is also why a single
+threshold on `f` is a crude instrument, and why the real gate is a time estimate.
+
+#### The speed model
+
+Keep the offload fraction the fit calculation already computes. Decode reads the
+weights once per token, so:
+
+```text
+f              = bytes_on_cpu / total_bytes      0.0 resident … 1.0 all CPU
+t_token        = W × decode_fraction × ( f/BW_cpu + (1−f)/BW_gpu )
+decode_tps     = efficiency / t_token
+```
+
+**Measured, and it holds.** Qwen3 4B on an RTX 3050, `-ngl` used to set `f`
+directly so model size is held constant:
+
+| layers on GPU | `f` | decode t/s | vs resident | implied `r` |
+|---|---|---|---|---|
+| 36/36 | 0.00 | **52.45** | 1.00 | — |
+| 28/36 | 0.22 | 33.17 | 0.63 | 3.7 |
+| 18/36 | 0.50 | 19.85 | 0.38 | 4.3 |
+| 9/36 | 0.75 | 12.93 | 0.25 | 5.1 |
+| 0/36 | 1.00 | 13.13 | 0.25 | 4.0 |
+
+The slowdown reduces to `1/(f·r + 1 − f)` where `r = BW_gpu / BW_cpu`, and every
+point fits **r ≈ 4** within ±20%. Cross-checked against absolutes: 131 GB/s
+effective on the device (78% of the card's rating) against 33 GB/s on the host,
+ratio 4.0. So `r` comes from published bandwidths and needs no per-card
+measurement.
+
+> **`r` is what makes spill tolerable here, and it is hardware-specific.** On a
+> high-bandwidth card `r` is far larger — roughly 12 on a 4090 — so the same
+> `f = 0.3` would cost ~78% rather than ~31%. Small cards have modest bandwidth
+> *and* are the only ones that spill, which limits the damage, but a threshold
+> calibrated on a 3050 is **not** conservative for other hardware. On unified
+> memory `r` approaches 1 and spilling barely means anything.
+
+**Prefill degrades roughly half as much as decode**, which matters more here than
+anywhere because this app is prefill-dominated:
+
+| `f` | prefill ratio | decode ratio |
+|---|---|---|
+| 0.22 | 0.81 | 0.63 |
+| 0.50 | 0.67 | 0.38 |
+| 1.00 | **0.50** | **0.25** |
+
+Fully on the CPU, prefill still runs at half device speed while decode drops to a
+quarter. A turn of ~8,000 prefill against ~300 decoded therefore loses
+substantially less to spilling than any decode-focused benchmark implies — and
+than Hermes' `PLEASANT_FLOOR_TOK_S = 20.0`, which was tuned for agentic bursts,
+would suggest. **Do not import that threshold.**
+
+`decode_fraction` is the manifest field already defined and computed from the
+header — **this is the thing it is for.** The spec previously filed it as
+"nothing to apply it to"; the speed model is the application.
+
+Decode alone still mis-ranks for this app, because a turn is ~8,000 prefill
+tokens against ~300 decoded. Prefill is compute-bound rather than
+bandwidth-bound and degrades differently under offload, so it needs its own
+term:
+
+```text
+felt_time ≈ prefill_tokens / prefill_tps  +  decode_tokens / decode_tps
+eligible  = pairs whose felt_time ≤ budget
+pick      = max(eligible, key=rank)
+```
+
+#### Where the constants come from: every turn is a measurement
+
+`BW_gpu`, `BW_cpu`, `efficiency` and the prefill rate are per-machine. Both
+reference implementations ship them as hardcoded tables — Hermes has a
+`GPU_BANDWIDTH` dict and `_estimate_speed(..., offload_frac=0.0)`; Odysseus adds
+`FALLBACK_K = {"cuda": 220, "rocm": 180, "metal": 150, …}`; llmfit's own output
+admits `"method": "gpu_bandwidth_roofline"`, `"efficiency": 0.55`.
+
+**We do not copy that.** A table of bandwidths for cards nobody tested is the
+llmfit failure in a new costume. Instead:
+
+> **A completed chat turn already carries everything the model needs** — prompt
+> tokens, generated tokens, time to first token, total time — and the offload
+> fraction of the loaded model is known. That is enough to solve for this
+> machine's constants, with no benchmark, no extra binary and no user-visible
+> step.
+
+```text
+first run      predict with a conservative shipped default
+after turn 1   record (prompt_tokens, decode_tokens, ttft, total, f)
+thereafter     predict with this machine's own numbers
+```
+
+Identical in shape to the memory self-calibration in **7.2**, and it reuses the
+same per-device store. It is also why no `llama-bench` run ever has to ship.
+
+#### Staging
+
+| | |
+|---|---|
+| **v1** | Retain `f` on the verdict. Gate on an offload-fraction ceiling instead of `FITS`. One number, conservative, and it fixes the 3050 case. |
+| **next** | The roofline above with a shipped default, plus badge copy graded by `f`. |
+| **then** | Turn-based self-calibration, which retires the shipped constants. |
+| **never** | A hardcoded per-GPU bandwidth table. |
+
+The v1 step is deliberately crude: an `f` ceiling is not a latency judgement and
+should not be described as one. It is a placeholder that is wrong in the safe
+direction — it stars models that run, rather than refusing models that work.
 
 > **Why prefill, when the gate lands.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
 > characters of grounding is roughly 8,000 prefill tokens against ~300 decoded,
@@ -1434,6 +1738,19 @@ compliance. That plausibly collapses three tiers to two.
   observed on Windows — `vulkan-1.dll` is present in `C:\Windows\System32` on a
   stock install, so nothing needs bundling there. Linux supplies it through
   `libvulkan1`; see 7.5.)
+- **Quantized KV without working flash attention: assert, do not assume.**
+  `q8_0` cache requires flash attention, and when the fused kernel is
+  unavailable llama.cpp falls back to CPU attention **silently** — no warning,
+  the device sits near 0% utilisation and throughput collapses. Two known
+  triggers: asymmetric `-ctk`/`-ctv`, and Vulkan on non-NVIDIA hardware, whose
+  vendor-neutral `GL_KHR_cooperative_matrix` path was only optimised in mid-2026
+  and has an open report of extreme degradation on AMD. So: set both cache types
+  identically, verify flash attention engaged after load, and fall back to `f16`
+  — accepting the memory cost — rather than running at CPU-attention speed.
+  **This is the third silent-degradation case in this phase**, after the probe's
+  backend search path (7.2) and a missing backend dependency below. The pattern
+  is constant: llama.cpp degrades quietly and exits 0. Assume nothing worked
+  until something says it did.
 - **A GPU exists and ggml cannot see it: say so.** The silent skip above is
   correct when there is no GPU and wrong when there is one, and the two are
   indistinguishable from ggml alone — both print `(none)` and exit **0**, with no
@@ -1470,6 +1787,21 @@ compliance. That plausibly collapses three tiers to two.
 - GGUF reader: truncated file, oversized vocab, split parts, Range retry.
 - Estimator: decision-table over constructed profiles; f16 vs q8_0 KV (a 1 GB
   swing on an 8 GB machine, measured).
+- **KV precision is chosen, not defaulted**: a profile where `f16` fits selects
+  `f16`; one where only `q8_0` fits selects `q8_0` and records why; one where
+  neither fits is `PARTIAL` or `TOO_BIG` as the sizes dictate.
+- **`-ctk` and `-ctv` are always equal** in any launch argument set the provider
+  builds — asserted on the spawned command line, since a mismatch silently
+  disables the fused kernel.
+- **The two subtractions stay on their own sides.** A profile where
+  `weights + KV + compute ≤ device_free` but `> device_free − fit_reserve`
+  asserts **`PARTIAL`**, not `FITS` — the real RTX 3050 case, and the one a
+  single collapsed `overhead` term gets backwards.
+- **An unmeasured `(platform, backend)` row rounds up.** A budget for a platform
+  with no measured reserve never yields a *more* optimistic verdict than the
+  measured Windows row on equivalent memory.
+- `compute_buffers` is part of `need`: removing the term flips at least one
+  fixture from `PARTIAL` to `FITS`, which is the regression to catch.
 - Fit states: each of `FITS` / `PARTIAL` / `TOO_BIG` at its boundary, ±1 byte;
   `TOO_BIG` evaluated at the 16K floor, not the requested window; `PARTIAL`
   reachable on a `uma` budget (the Hermes divergence — a regression here silently
@@ -1478,6 +1810,15 @@ compliance. That plausibly collapses three tiers to two.
   the right platform wording for all three budget shapes.
 - Recommendation policy: the six hardware profiles above, asserting both pick
   and reason key; and that a searched row is never eligible to be the pick.
+- **A `PARTIAL` pair below `MAX_OFFLOAD` is starrable.** The regression fixture
+  is the measured RTX 3050: a higher-ranked model at `f ≈ 0.28` beats a fully
+  resident lower-ranked one. A `FITS`-only policy fails this test, which is the
+  point of having it.
+- **`offload_fraction` survives to the verdict** and is not recomputed by the
+  renderer; the graded reason line is selected from it, and the same fraction
+  drives both the gate and the copy.
+- `TOO_BIG` is still refused regardless of rank: the ceiling relaxes residency,
+  never physics.
 - Catalog: curated renders with no network; search gated on egress; arch,
   template, and gated-repo rejections; a search row carries no `rank` field at
   all — asserted on the serialized response, so it cannot be reintroduced
@@ -1641,6 +1982,80 @@ Both platforms were previously reasoned from documentation only.
 | CPU device, native Windows | 31884.6 MiB total, 22750.2 MiB free |
 | CPU device, WSL2 | 26048.6 MiB total, **26048.6 MiB free** (virtualised) |
 | `vulkan-1.dll` on stock Windows | present in `System32`, nothing to bundle |
+
+**Offload sweep**, Qwen3 4B Q4_K_M, `-ngl` controlling `f` directly, f16 KV,
+`-p 512 -n 300`, Vulkan, RTX 3050:
+
+| ngl | `f` | pp512 | tg300 |
+|---|---|---|---|
+| 99 | 0.00 | 1805.50 ± 1.75 | 52.45 ± 0.17 |
+| 28 | 0.22 | 1454.68 ± 0.93 | 33.17 ± 0.25 |
+| 18 | 0.50 | 1206.29 ± 9.86 | 19.85 ± 1.06 |
+| 9 | 0.75 | 1027.97 ± 26.10 | 12.93 ± 0.43 |
+| 0 | 1.00 | 907.43 ± 26.49 | 13.13 ± 0.67 |
+
+`ngl 0` edging out `ngl 9` is real: splitting across devices costs transfers that
+outweigh nine layers of device work.
+
+**KV precision.** Resident, depth 0: `f16` pp8192 1437.66 / tg300 52.47 against
+`q8_0` 1300.44 / 51.34.
+
+> **That comparison is at the wrong depth and should not be quoted as q8_0's
+> cost.** At depth 0 the cache is nearly empty, so its precision cannot matter;
+> published CUDA figures showing ~18% at 8K depth were measured under different
+> conditions. The valid comparison — `f16` at 16K depth — **could not be taken**,
+> because it fails to allocate on this card. What is known: `q8_0` at depth 16384
+> decodes at 27.46 t/s against 51.34 at depth 0, and that halving is the cost of
+> attending over a long context, not of quantizing it. **q8_0's real cost at
+> depth on Vulkan is unmeasured**; it needs a card with enough VRAM to run `f16`
+> at 16K.
+
+**The decisive result.** `f16` KV at a 16K window on a 6 GB card:
+
+```text
+ggml_vulkan: Device memory allocation of size 316407808 failed.
+ggml_vulkan: vk::Device::allocateMemory: ErrorOutOfDeviceMemory
+llama_bench: error: failed to create context
+```
+
+`q8_0` at the same depth runs. On this class of card the planned configuration
+does not fit, which is what makes KV precision a fit-calculation output rather
+than a default.
+
+**Fit terms, measured.** Qwen3 4B Q4_K_M at `-c 16384`, `--fit` on, RTX 3050
+with 5,234 MiB free, from llama.cpp's own allocation log:
+
+| buffer | MiB |
+|---|---|
+| `Vulkan0` model | 2078.04 |
+| `CPU_Mapped` model (spilled) | 602.16 |
+| `Vulkan0` KV | 1984.00 |
+| `CPU` KV (spilled) | 320.00 |
+| `Vulkan0` compute | 143.62 |
+| `Vulkan_Host` compute | 26.01 |
+| `Vulkan_Host` output | 2.32 |
+| **placed on device** | **4205.66** |
+| **fit reserve (unused)** | **1028.34** |
+
+**The KV formula is exact, not approximate.**
+`2 × 36 layers × 8 kv_heads × 128 × 2 bytes × 16384` = **2304 MiB**, against
+`1984 + 320` measured. Qwen3 0.6B independently: predicted `378 + 1792 + ~60` =
+2,234 MiB, measured VRAM delta **2,234 MiB**. That is the evidence that a curated
+row can be priced offline from committed `shape` fields alone.
+
+**Router lifecycle.** Router up with three models discovered: VRAM unchanged from
+idle. Worker spawn: `--port 0 --model <path>`. Idle eviction ~30 s without
+`--sleep-idle-seconds`. Grandchild reaping via `taskkill /T /F`: four processes,
+depth first, no survivors.
+
+**`-ngl` disables `--fit`.** With `-ngl 99`: `common_fit_params: failed to fit
+params to free device memory: n_gpu_layers already set by user to 99, abort`,
+after which the model loaded entirely on CPU with 478 MiB of VRAM touched, no
+error, exit 0.
+
+**`POST /models/load` ignored `{"args": ["-c","16384"]}`** — workers came up at
+`n_ctx_slot` 34304 / 28160 / 12288 (model defaults). The same flag on the
+`llama-server` command line **is** honoured (`n_ctx_slot = 16384`). See 7.3.
 
 GPU backend comparison, same card and model (Qwen3 4B Q4_K_M, `-ngl 99`):
 

@@ -54,6 +54,7 @@ claimed, which is why that claim was removed rather than carried forward.
 | **CUDA version** | 13.4, Windows x64 | Requires Turing (7.5)+. Shipping 12.4 as well for Pascal costs another ~645 MB — that is what made Ollama's archive 1.8 GB. Pre-Turing cards fall through to Vulkan automatically. |
 | **Reversibility** | Cheap in both directions | Adding CUDA is four files. Removing it is deleting four files. Neither touches a contract, a schema or a migration. |
 | **Diagnostics** | Mandatory if shipped | A missing cudart is **silent**: the app reports no GPU, exit 0. See **Failure behavior**. |
+| **Quantized KV** | A real argument **for** CUDA, and the only one that strengthened | `q8_0` KV requires flash attention. CUDA's FA path is the mature one; Vulkan has two, and the vendor-neutral `GL_KHR_cooperative_matrix` path used by AMD and Intel was only optimised in mid-2026 and carries an open report of extreme degradation on AMD. Since [`07`](07-llamacpp-runtime.md) now selects `q8_0` whenever it converts a spill into residency, the backend's FA quality stops being cosmetic. Note CUDA's `GGML_CUDA_FA_ALL_QUANTS` build flag decides which K/V combinations get fused kernels. |
 
 ## Boundaries
 
@@ -198,6 +199,21 @@ Run against both staged builds on the same card, same model, same build number.
 - Confirm from the log that Vulkan chose device 0. If decode collapses, it picked
   the integrated GPU and the run is void.
 
+**What the follow-up measurements changed.** Since this document was written,
+the offload sweep in [`07`](07-llamacpp-runtime.md) established two things that
+bear on the decision:
+
+- **The roofline holds with `r ≈ 4` on a 6 GB card**, so the speed cost of
+  spilling is now predictable rather than guessed. CUDA's advantage over Vulkan
+  on the same card was 2.1% on decode, which moves `r` to ~4.1 — immaterial.
+- **Prefill degrades half as much as decode under offload** (0.50 against 0.25
+  fully on the CPU). Because this app is prefill-dominated, the workload is
+  *less* sensitive to backend decode speed than a chat or agent app would be —
+  which weakens the case for CUDA further, since its measured lead was almost
+  entirely in prefill (10.2%) and nearly absent in decode (2.1%).
+
+Together these make the 0.66 s per turn figure below more, not less, reliable.
+
 **Decision rule, fixed in advance so the result cannot be rationalised:**
 
 | Result | Action |
@@ -313,6 +329,12 @@ binary starts. A real NVIDIA machine must confirm, once per pinned build:
   leaves the count at zero.
 - **Pre-Turing NVIDIA card** — the CUDA backend is skipped silently and Vulkan
   runs. Correct behavior, no message needed.
+- **Flash attention not engaged** — with CUDA present this is less likely than on
+  Vulkan, but the failure shape is identical: quantized KV falls back to CPU
+  attention with no warning and near-zero device utilisation. The assertion
+  specified in [`07`](07-llamacpp-runtime.md) — **Failure behavior** applies
+  unchanged; shipping CUDA does not remove the need for it, it only makes the
+  check more likely to pass.
 - **Duplicate devices** — not a failure, the normal state. Handled by
   `select_device()`.
 - **Vulkan loader missing on Windows** — not observed. `vulkan-1.dll` is present
