@@ -214,6 +214,9 @@ class GgufArtifact:
     quantization: str         # "Q4_K_M"
     size_bytes: int
     mmproj: str | None = None # vision projector, fetched alongside
+    # A curated manifest variant is this plus judgement (`rank`, `rank_basis`,
+    # `validated`); a searched build is this alone. The runtime never sees the
+    # judgement half — see 7.4.
 
 
 @dataclass(frozen=True)
@@ -332,7 +335,7 @@ is derived from the codebase rather than chosen.
 | Constant | Kind | Basis |
 |---|---|---|
 | **Context floor, 16K** | **runtime** | `HISTORY_BUDGET_TOKENS = 3000` plus ~8,000 tokens of grounding (~24k characters from `build_context`) plus a reply. Grounded, not chosen. |
-| **Runtime overhead** | prediction | **unmeasured.** See below. |
+| **Runtime overhead** | prediction | Pre-model half **measured at 986 MiB** on a discrete card; the per-model half is a bootstrap value, replaced by the machine's own measurement after its first load. See below and **7.2**. |
 
 > **ponytail: runtime overhead.** The `overhead` term in
 > `need = weights + KV(window) + overhead` is a placeholder. Hermes uses
@@ -343,9 +346,9 @@ is derived from the codebase rather than chosen.
 > `FITS`/`PARTIAL` line, and on a 12 GB
 > NVIDIA card it decides whether Qwen3 14B is recommended at all (31 MiB of
 > margin at 1,024 MiB overhead). **Measure real RSS after loading three or four
-> models on each target before 7.4 ships.** It is the only unmeasured number in
-> the fit path, and the only one in this phase that a person still has to go and
-> find out.
+> models on each target before 7.4 ships**, and ship that as the bootstrap
+> value — but it is wrong at most once per machine, because 7.2 records what the
+> load actually cost and prefers that number afterwards.
 
 #### Not in v1, and why
 
@@ -535,6 +538,45 @@ margin, and a UMA headroom.
 > pre-model half is now measured at 986 MiB on a discrete card. On a 5.4 GB
 > budget it moves rows across the fits/spills line.
 
+#### The overhead constant is a bootstrap value, not a permanent guess
+
+The shipped constant is a prediction for a machine nobody tested. **After one
+successful load, that machine's real figure is known**, and the same rule the
+rest of this phase runs on applies: anything that differs per machine is measured
+on that machine by the runtime that will do the work.
+
+The instrument is already in use — `ggml_backend_dev_memory()`, sampled either
+side of `POST /models/load`:
+
+```python
+real_overhead = (free_before - free_after) - weights_bytes - kv_bytes(n_ctx)
+```
+
+```text
+first run         predict with the shipped constant
+after first load  record the machine's real overhead, keyed by device name
+every run after   prefer the recorded value
+```
+
+Three reasons this is worth ~15 lines in the load path:
+
+- **The constant is wrong at most once per machine**, on a screen shown before
+  anything is installed, instead of wrong forever on every machine that was not
+  one of the three targets.
+- **It self-corrects per backend and per driver.** A CUDA context alone costs
+  ~541 MiB (measured); Metal and Vulkan differ; a driver update changes it. A
+  committed table cannot track that and no longer has to.
+- **It retires the last `ponytail` in the fit path.** Nobody repeats the
+  measurement session after the first release.
+
+Storage is a small JSON file in the app data dir keyed by device name — no
+migration, and no settings table needs inventing for it. Invalidate on a
+llama.cpp build bump or when the device name changes.
+
+**Tests:** a recorded value is preferred over the constant; a recorded value from
+a different device name or build is ignored; a corrupt or missing file falls back
+to the constant rather than raising, since this sits on the first-render path.
+
 **Tests:** decision-table over constructed profiles — no GGUF parsing in the fit
 tests, so the estimator is testable independently of the reader.
 
@@ -607,17 +649,9 @@ Manifest `schema_version` **3**. One entry, before and after:
   "label": "Qwen3 8B",
   "parameter_count": "8B",
 
-  // ── DERIVED. The script writes all of this. No human input, ever. ──
-  "artifacts": {
-    "llamacpp": {
-      "repo": "unsloth/Qwen3-8B-GGUF",
-      "file": "Qwen3-8B-Q4_K_M.gguf",
-      "quantization": "Q4_K_M",
-      "size_bytes": 5027784512,
-      "mmproj": null
-    }
-  },
-  // Estimator inputs, read from the real GGUF header at authoring time.
+  // ── DERIVED, per model. The script writes all of this, no human input ever.
+  //    Quantization-independent: measured, the architecture fields are
+  //    identical across Q4_K_M, Q8_0 and f16 of the same model.
   "shape": {
     "architecture": "qwen3",
     "block_count": 36,
@@ -628,21 +662,57 @@ Manifest `schema_version` **3**. One entry, before and after:
     "n_vocab": 151936
   },
   "capabilities": [],           // user-facing only. Today: "vision" or nothing.
+  "decode_fraction": 1.0,       // 1.0 dense; the active slice for MoE, computed
+                                // from the header (see below)
 
-  // ── JUDGEMENT. Two fields, typed by a person. ──
-  "rank": 78,               // our preference order for document Q&A.
-                            // Not a benchmark. Never displayed.
-  "validated": true,        // someone downloaded this exact file and ran it
+  // ── One entry per shipped build. v1 ships exactly one.
+  "variants": [
+    {
+      // DERIVED
+      "repo": "unsloth/Qwen3-8B-GGUF",
+      "file": "Qwen3-8B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "size_bytes": 5027784512,
+      "mmproj": null,
 
-  "decode_fraction": 1.0    // 1.0 dense; the active slice for MoE, computed
-}                           // from the header (see below)
+      // JUDGEMENT. Three fields, typed by a person, beside the build they judge.
+      "rank": 78,                     // preference order for document Q&A.
+                                      // Not a benchmark. Never displayed.
+      "rank_basis": "llmfit-1.1.11",  // what produced it
+      "validated": true               // someone ran THIS file
+    }
+  ]
+}
 ```
 
-**The split is the point.** Everything above the line comes free from the GGUF
-header and the Hugging Face listing; everything below it is three small decisions
-a person makes in a minute. That is what keeps the manifest maintainable at
-twenty entries instead of six — the tedious half scales automatically, the half
-that needs a brain stays tiny.
+**The split is the point.** Everything marked DERIVED comes free from the GGUF
+header and the Hugging Face listing; everything marked JUDGEMENT is three small
+decisions a person makes in a minute. That is what keeps the manifest
+maintainable at twenty entries instead of six — the tedious half scales
+automatically, the half that needs a brain stays tiny.
+
+**Why `rank` lives inside the variant.** Quality is a function of *(model,
+quantization)*, not of the model alone: llmfit returns 75 · 78 · 81 · 82 · 83 for
+Qwen3 8B at Q3_K_M · Q4_K_M · Q5_K_M · Q6_K · Q8_0 (see **Appendix**). A rank at
+the top level therefore describes a build without naming it, and that is not
+hypothetical — an earlier draft of this document carried five ranks taken at
+Q8_0 while the manifest pinned Q4_K_M, and nothing in the schema could catch it.
+Nested, the mismatch is **impossible to express**: the rank sits beside the
+quantization it was measured at, and `test_curated_models.py` asserts the pair
+mechanically instead of a person remembering a rule.
+
+`rank_basis` records what produced the number — `llmfit-<version>` today, an
+internal eval identifier later. It exists so a manifest part-way through that
+migration is detectable, and so ranks from different bases are never compared.
+
+**`variants` is a list from the start, and v1 puts one thing in it.** Authoring
+is unchanged: one pin, one rank, the same twenty minutes. The list costs nothing
+now and is the only part of this schema that is expensive to add later, because
+changing it means `schema_version: 4` and re-authoring every entry. It also
+closes the gap named first under **The quantization ladder**: with two variants a
+24 GB card and a 64 GB machine stop receiving the identical file. The ladder
+sweep in **Authoring** already computes a rank for every rung and discards four
+of five; this is where the rest would go.
 
 **`shape` is what makes the curated tier work offline.** Pricing a model means
 reading its GGUF header, and a curated entry is not downloaded yet — so without
@@ -669,14 +739,20 @@ formula should land near 0.1, which is the range Hermes hand-authored (0.08 to
 prediction is wrong by an order of magnitude, which matters the moment the
 80B-A3B-class rung lands.
 
-`validated: true` means a person downloaded that exact file and ran it. False is
-allowed and honest; it is not a gate.
+`decode_fraction` stays **per model, not per variant**: it is an expert-to-total
+byte ratio, so it barely moves with quantization. `shape` and `capabilities` are
+per-model for the same reason — the architecture fields are identical across
+quantizations, measured.
 
-Dropped from v2: `minimum_fit` (a gate — only physics gates now),
-`allowed_quantizations` (redundant once `artifacts.llamacpp` names the file),
-`minimum_context` (the context ladder and the model's own `context_length`
-replace it), and top-level `advisor_providers` (scoped an llmfit scan that no
-longer runs).
+`validated: true` means a person downloaded **that variant's** file and ran it.
+False is allowed and honest; it is not a gate. Per-variant is the only place it
+means anything precise once an entry ships more than one build.
+
+Dropped from v2: `artifacts` (replaced by `variants`, which can hold more than
+one), `minimum_fit` (a gate — only physics gates now), `allowed_quantizations`
+(redundant once a variant names its file), `minimum_context` (the model's own
+`context_length` replaces it), and top-level `advisor_providers` (scoped an
+llmfit scan that no longer runs).
 
 #### Authoring
 
@@ -693,6 +769,7 @@ $ uv run scripts/refresh_curated_models.py \
           Q3_K_M 88 · Q4_K_M 94 · Q5_K_M 96 · Q6_K 97 · Q8_0 97
           pinned quant Q4_K_M found in ladder ✓
   llmfit proposes rank 94  (would be highest in the list — currently 92)
+          writing variants[0]: Q4_K_M, rank 94, basis llmfit-1.1.11
 
   MoE detected: 128 experts, 8 used → decode_fraction 0.09
   ⚠ validated=false until you run this file.
@@ -701,7 +778,7 @@ $ uv run scripts/refresh_curated_models.py \
 ```
 
 The person then downloads it, chats with it, confirms citations resolve, sets
-`decode_fraction` and `validated: true`, and commits. Twenty minutes, most of it
+`variants[0].validated: true`, and commits. Twenty minutes, most of it
 waiting for the download.
 
 ```text
@@ -745,8 +822,15 @@ for budget in multiplicative_steps(lower, upper, ratio=1.01):
                            --memory {budget} --ram 128G -n 20000
     ladder[row.best_quant] = row.score_components.quality
 
-rank_proposal = ladder[pinned_quant]      # KeyError is a hard failure
+variant.rank       = ladder[pinned_quant]   # KeyError is a hard failure
+variant.rank_basis = f"llmfit-{llmfit_version}"
 ```
+
+Because the rank is written **into the variant**, it is stored beside the
+quantization it was read at and cannot drift from it. The `best_quant` assertion
+below is what catches a bad *read*; the schema is what prevents a bad *write*.
+Adding a second variant later means indexing the same ladder at a second rung —
+the sweep already computed it.
 
 Three properties this needs, each learned from a measured failure:
 
@@ -781,6 +865,12 @@ when someone adds a model, not when someone cuts a release.
 `rank` orders the curated rows and selects the ★. It does **two** things and
 nothing else. It is never displayed, never compared outside the app,
 and never applied to a searched model.
+
+It is a property of a **variant**, not of a model: the same model at two
+quantizations is two builds that answer differently, and the schema stores the
+number beside the build. Where this section says "a model's rank", read "the rank
+of the variant under consideration". With one variant per entry, as v1 ships, the
+two readings coincide.
 
 Because it is only ever a sort key, it does not need to be a measurement — it
 needs to be an **order**. Hence `rank`, not `quality`: calling it quality would
@@ -1084,6 +1174,11 @@ Curated sorts by `(fit state, -rank, model_id)` — fit coarsely, rank finely �
 which is what today's `_sort_key` already does. Sorting by rank alone would put a
 `TOO_BIG` 32B at the top of an 8 GB machine's screen.
 
+**One row per model, not per variant.** A model with two builds is one row; the
+row takes the best state and rank among its variants, and the row's install
+action uses that variant. Listing builds separately would show the same model
+twice on a screen whose job is choosing a model.
+
 The recommendation is the top row of the `FITS` bucket, subject to the speed
 floor. Search sorts by downloads.
 **Neither list displays a rank**; rank only orders curated rows and selects the
@@ -1101,11 +1196,27 @@ Deleted: the collision-resolution block, `_placeholder_row()`,
 **Recommendation policy**, its own module and its own test file:
 
 ```text
-resident = curated entries whose state is FITS
-resident → max(rank, -size)     reason: best-rank-resident
-else     → no recommendation; PARTIAL entries stay installable,
+resident = (entry, variant) pairs whose state is FITS
+resident → max(variant.rank, -variant.size_bytes)   reason: best-rank-resident
+else     → no recommendation; PARTIAL pairs stay installable,
                                 just never starred
 ```
+
+```python
+candidates = [(e, v) for e in curated for v in e.variants
+              if fit(e.shape, v.size_bytes).state is FitState.FITS]
+pick = max(candidates, key=lambda ev: (ev[1].rank, -ev[1].size_bytes),
+           default=None)
+```
+
+**The policy ranges over builds, not models**, because that is what the user
+installs and what `rank` describes. With v1's single variant per entry the
+cross-product is the entry list and the behavior is identical — but writing it
+this way now is the difference between adding a `Q6_K` build later as a manifest
+edit and rewriting the policy, its test file and every fixture. A model whose
+larger variant is `TOO_BIG` and whose smaller one `FITS` is still recommendable
+on its smaller build; that falls out of the cross-product rather than needing a
+special case.
 
 **No speed gate in v1.** An earlier draft gated on predicted latency, which
 required two constants with nothing measured behind them. The policy is now
@@ -1372,9 +1483,20 @@ compliance. That plausibly collapses three tiers to two.
   all — asserted on the serialized response, so it cannot be reintroduced
   silently.
 - Manifest (extends `test_curated_models.py`, which already covers unique ids,
-  display metadata, and each rejection path): every entry has a `shape`, a
-  `rank` and a pinned `quantization`; every `shape.architecture` is
-  in the 152-name list; a curated row prices and badges with no network at all.
+  display metadata, and each rejection path): every entry has a `shape` and at
+  least one variant; every variant has a `quantization`, a `rank` and a
+  `rank_basis`; every `shape.architecture` is in the 152-name list; a curated
+  row prices and badges with no network at all. Note
+  `test_packaged_manifest_has_eight_unique_curated_models` asserts `len == 8`
+  and `advisor_providers == ["Alibaba"]` — both become wrong, and both are
+  updated in the same commit as the manifest, never before.
+- **A model with two variants is one row**, taking the best state and rank among
+  them, and recommending the variant that produced them. Asserted with a fixture
+  carrying a `TOO_BIG` large build and a `FITS` small one: the row is
+  recommendable on the smaller build.
+- **Ranks are never compared across `rank_basis` values.** A fixture mixing an
+  `llmfit-*` rank with an eval-derived one is rejected rather than silently
+  sorted.
 - **`rank` rises with parameter count within a family.** Today this passes
   trivially — the shipped six are one family and score `33 · 48 · 63 · 78 · 85 ·
   92` at the pinned Q4_K_M. The first failure is the signal to look, and it is expected: a

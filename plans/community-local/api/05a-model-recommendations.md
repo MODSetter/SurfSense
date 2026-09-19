@@ -1,5 +1,12 @@
 # API — Phase 5: Hardware-aware model recommendations
 
+> **The runtime and manifest halves are superseded by Phase 7.**
+> [`07-llamacpp-runtime.md`](07-llamacpp-runtime.md) replaces Ollama with
+> `llama-server`, moves llmfit out of the app, and takes the manifest to
+> `schema_version` **3** with a `variants` list. The `schema_version: 2` shape
+> below describes what ships **today**, not what phase 7 writes. The catalog
+> boundary, the normalized shapes and the frontend contract still govern.
+>
 > Owns: `backend/modules/llm/recommendations/`, the llmfit adapter, the
 > runtime-install boundary, and the normalized catalog API. Packaging:
 > [`05c-packaging.md`](05c-packaging.md). Frontend:
