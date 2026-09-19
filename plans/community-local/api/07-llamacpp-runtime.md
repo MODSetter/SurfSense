@@ -36,10 +36,15 @@ Ollama's native API does not.
 |---|---|---|
 | **Runtime** | `llama-server` router mode, single sidecar | `--models-dir`, `--models-max 1`, LRU eviction, one PID for the supervisor to reap. Maps 1:1 onto every Ollama call the adapter makes. |
 | **MLX** | **Not shipped.** Revisit after launch | Ollama switched its Apple Silicon engine to MLX in Mar 2026, so the swap costs Mac speed on models under ~14B. MLX's format covers 23,985 HF repos against GGUF's 204,797 — one format and the full catalog wins. Mac users who want MLX point a connection at LM Studio; see **The Mac path**. |
-| **llmfit** | **Build-time only. Not shipped.** | It ranks the curated entries in CI and writes the numbers into the manifest. It is not a gate, not a hardware source, and not in any request path. Removes 27 MB, a pinned version, and five failure modes per installer. |
-| **Gating** | Only physics refuses | Weights + minimum KV exceeding VRAM **plus** RAM. `can_install` never reads a fit level. Everything else is a badge. |
+| **llmfit** | **Authoring-time only. Not shipped, and not in CI.** | A person runs `scripts/refresh_curated_models.py` when adding or changing a curated entry — a few times a year — and commits the numbers. llmfit is not a gate, not a hardware source, not in any request path, and not in the build. Removes 27 MB, a pinned version, and five failure modes per installer. |
+| **Gating** | Only physics refuses | `can_install = state != TOO_BIG`, and `TOO_BIG` *is* the physics refusal — weights + KV at the 16K floor exceeding VRAM **plus** RAM. No other fit level gates anything; `PARTIAL` installs like `FITS`. Eligibility (architecture, chat template, gated repo) blocks separately and is not a fit state. See **Fit states**. |
 | **Catalog** | Two tiers — curated manifest, and Hugging Face search | Curated is the offline product and ships frozen. Search is a network feature that is simply absent airgapped. |
 | **Fit estimate** | Our own, from the GGUF header | llmfit cannot score a model outside its database (`llmfit plan` states the precondition). Search needs an estimate anyway; once it exists, llmfit's is redundant *and* less accurate here. |
+| **`rank`** | **Curated entries only. A searched model never carries one, from llmfit or anywhere else** | A preference order over models we tested, **for this app's job** — answering from the user's documents with citations that resolve — not general capability. An integer typed by a person, with llmfit proposing. Called `rank`, not `quality`, because it is only ever a sort key: nothing reads its magnitude, so it must not imply a measurement we do not have. Attaching one to an arbitrary repo attaches a base model's score to a derivative that behaves differently: of the top 100 GGUF repos by downloads, 38 match an llmfit entry, and those matches include `Huihui-Qwen3.8-27B-abliterated-GGUF` and `Qwen3.8-27B-Uncensored-GGUF` resolving to the base model's score. A wrong number people trust is worse than a blank they investigate. Search rows are **described, not judged**. |
+| **Search order** | `sort=downloads`, descending | The only HF sort that behaves as a default. Presented as a popularity fact, never as an endorsement. See **Search ordering**. |
+| **Fit badge** | **Every row, both tiers** | Fit is subtraction, not judgement — the opposite of `rank`. Coarse from file size in the search list, exact from the header on open, exact from `shape` offline for curated. Three states, no `unknown`. |
+| **Curated manifest** | **Stays, schema 3, authored by hand** | It is the whole product airgapped, the first-run default, and the only tier the recommendation reads. `scripts/refresh_curated_models.py` writes it; a person commits it; **llmfit never runs in CI**. |
+| **Manifest validation** | Existing unit tests. **No new CI** | Pydantic (`extra="forbid"`, `model_validator`) plus `test_curated_models.py` already reject malformed manifests. A dead pin is a runtime failure, gracefully handled — CI cannot prevent a repo disappearing after the build anyway. `validated: true` is the real check, and it is a human one. |
 | **Hardware budget** | `ggml_backend_dev_memory()` via `ctypes`, from the shipped libs | The allocator's own view. Falls back to `llama-server --list-devices`, then OS APIs. |
 | **Downloads** | **SurfSense fetches the GGUF**, not `POST /models` | `llama-server` is a second process we do not proxy; an in-process fetch is the only place `egress.require()` actually holds. Also buys resume, checksums, and the header as the file lands. |
 | **Quantization** | Pinned per entry; two variants on the two largest | A pinned file is what "tested by SurfSense" can honestly claim. See **The quantization ladder**. |
@@ -59,10 +64,10 @@ Ollama's native API does not.
          ▼
   FitEstimator ── advisory only
          │          weights + KV(window) + overhead  vs  VRAM + RAM
-         │          → fits-gpu | needs-ram | too-big | PhysicsRefusal
+         │          → FITS | PARTIAL | TOO_BIG   (TOO_BIG = the physics refusal)
          ▼
   CatalogService
-     ├── curated   manifest, ranked by llmfit AT BUILD TIME, ships frozen
+     ├── curated   manifest: shape derived + rank by hand, ships frozen
      └── search    HF /api/models?filter=gguf  +  /tree/main
          │
          ▼
@@ -91,32 +96,37 @@ bytes, and an unconstrained fit-maximiser hands small machines a Q2_K build
 that answers noticeably worse (llmfit currently recommends exactly that for
 Qwen3-14B on an 8 GB Mac).
 
-The shipped eight, measured at Q4_K_M and a 16K window:
+**The two Qwen2.5-Coder entries are dropped.** SurfSense has no coding job — the
+Studio formats are summary, flashcards, mindmap, quiz, podcast, office, web and
+visuals, and chat is document Q&A with citations. A coding model was taking two
+of eight slots in a list whose real gaps are a rung for 48-64 GB machines and a
+vision entry. Anyone who wants one searches for it, gets a fit badge, and
+installs it — that is what the search tier is for.
+
+The shipped six, measured at Q4_K_M and a 16K window:
 
 | model | file GB | layers | kv_heads | needs @16K |
 |---|---|---|---|---|
 | Qwen3 0.6B | 0.40 | 28 | 8 | 2,354 MiB |
 | Qwen3 1.7B | 1.11 | 28 | 8 | 3,032 |
 | Qwen3 4B | 2.50 | 36 | 8 | 4,630 |
-| Qwen2.5-Coder 7B | 4.68 | 28 | 4 | 5,966 |
 | Qwen3 8B | 5.03 | 36 | 8 | 7,043 |
 | Qwen3 14B | 9.00 | 40 | 8 | 10,969 |
 | Qwen3 32B | 19.76 | 64 | 8 | 22,047 |
-| Qwen2.5-Coder 32B | 19.85 | 64 | 8 | 22,132 |
 
 What each machine gets:
 
 ```text
-machine          0.6B 1.7B  4B  C7B  8B  14B  32B C32B   →  recommended
-M2 8 GB           GPU  GPU GPU  RAM RAM  RAM    —    —   →  Qwen3 4B     (831 MiB spare)
-RTX 3050 6 GB     GPU  GPU GPU  RAM RAM  RAM  RAM  RAM   →  Qwen3 4B     (490 MiB spare)
-M4 16 GB          GPU  GPU GPU  GPU GPU  RAM  RAM  RAM   →  Qwen3 8B   (3,857 MiB spare)
-RTX 4070 12 GB    GPU  GPU GPU  GPU GPU  GPU  RAM  RAM   →  Qwen3 14B     (31 MiB spare)
-RTX 4090 24 GB    GPU  GPU GPU  GPU GPU  GPU  GPU  GPU   →  Qwen3 32B    (953 MiB spare)
-M4 Max 64 GB      GPU  GPU GPU  GPU GPU  GPU  GPU  GPU   →  Qwen3 32B  (26,000 MiB spare)
+machine          0.6B 1.7B   4B   8B  14B  32B   →  recommended
+M2 8 GB           GPU  GPU  GPU  RAM  RAM    —   →  Qwen3 4B     (831 MiB spare)
+RTX 3050 6 GB     GPU  GPU  GPU  RAM  RAM  RAM   →  Qwen3 4B     (490 MiB spare)
+M4 16 GB          GPU  GPU  GPU  GPU  RAM  RAM   →  Qwen3 8B   (3,857 MiB spare)
+RTX 4070 12 GB    GPU  GPU  GPU  GPU  GPU  RAM   →  Qwen3 14B     (31 MiB spare)
+RTX 4090 24 GB    GPU  GPU  GPU  GPU  GPU  GPU   →  Qwen3 32B    (953 MiB spare)
+M4 Max 64 GB      GPU  GPU  GPU  GPU  GPU  GPU   →  Qwen3 32B  (26,000 MiB spare)
 ```
 
-Every machine gets a GPU-resident pick, so eight rungs strand nobody. Three gaps:
+Every machine gets a GPU-resident pick, so six rungs strand nobody. Three gaps:
 
 - **The top collapses.** 24 GB and 64 GB — 2.7× apart — get the same file, and
   the larger wastes 26 GB. A higher quant does not fix this; 32B at Q8 is ~35 GB
@@ -134,7 +144,8 @@ Manifest changes, in priority order:
    token) or the speed prediction is wrong by an order of magnitude.
 2. **A second variant on 8B and 32B** (`Q6_K`), filling the 16 GB gap and giving
    the 4090 somewhere to go. Two extra pins, not fifty.
-3. **A vision entry.** All eight are text-only, in an app with a PDF pipeline.
+3. **A vision entry.** All six are text-only, in an app with a PDF pipeline.
+   Vision is a **capability**, not a separate list — see **Ranking**.
 4. **Calibrate the overhead constant** before shipping. It decides the 4070 row.
 
 ## The Mac path
@@ -250,18 +261,456 @@ chat stream, delete; install against a fake HF serving a real small GGUF.
 
 ### 7.4 — Catalog: curated + search
 
-Manifest `schema_version` 3: `artifacts.llamacpp = {repo, quant, mmproj}`, plus
-`quality`, `estimated_tps`, `prefill_tps`, `ttft_ms`, `use_case`,
-`capability_ids`, `license`, `decode_fraction` — all written by a CI job running
-llmfit. Ships frozen; airgapped means no refresh path.
+**`curated-models.json` stays.** It is the only tier that works with no network,
+so it is the entire product airgapped, the default on first run, and the only
+thing the recommendation can read. It ships frozen in the build; there is no
+refresh path.
 
-Search: `?filter=gguf&search=&sort=downloads&limit≤50`, 300 s TTL cache (HF
-allows 500 requests per 5 minutes), `tree/main?recursive=true` for quants. Group
-split parts (`-00001-of-00003`); exclude `mmproj*` and `*draft*` from the quant
-list.
+Manifest `schema_version` **3**. One entry, before and after:
+
+```jsonc
+// v2 — today
+{
+  "model_id": "Qwen/Qwen3-8B",
+  "family": "Qwen3",
+  "minimum_fit": "good",
+  "minimum_context": 8192,
+  "allowed_quantizations": ["Q4_K_M"],
+  "artifacts": { "ollama": { "name": "qwen3:8b", "quantization": "Q4_K_M" } },
+  "label": "Qwen3 8B",
+  "parameter_count": "8B",
+  "size_bytes": 5225374496
+}
+
+// v3
+{
+  "model_id": "Qwen/Qwen3-8B",
+  "family": "Qwen3",
+  "label": "Qwen3 8B",
+  "parameter_count": "8B",
+
+  // ── DERIVED. The script writes all of this. No human input, ever. ──
+  "artifacts": {
+    "llamacpp": {
+      "repo": "unsloth/Qwen3-8B-GGUF",
+      "file": "Qwen3-8B-Q4_K_M.gguf",
+      "quantization": "Q4_K_M",
+      "size_bytes": 5027784512,
+      "mmproj": null
+    }
+  },
+  // Estimator inputs, read from the real GGUF header at authoring time.
+  "shape": {
+    "architecture": "qwen3",
+    "block_count": 36,
+    "head_count_kv": 8,
+    "key_length": 128,
+    "value_length": 128,
+    "context_length": 40960,
+    "n_vocab": 151936
+  },
+  "capabilities": [],           // user-facing only. Today: "vision" or nothing.
+
+  // ── JUDGEMENT. Two fields, typed by a person. ──
+  "rank": 83,               // our preference order for document Q&A.
+                            // Not a benchmark. Never displayed.
+  "validated": true,        // someone downloaded this exact file and ran it
+
+  "decode_fraction": 1.0    // 1.0 dense; the active slice for MoE (not derivable
+}                           // from the header — set by hand, see below)
+```
+
+**The split is the point.** Everything above the line comes free from the GGUF
+header and the Hugging Face listing; everything below it is three small decisions
+a person makes in a minute. That is what keeps the manifest maintainable at
+twenty entries instead of six — the tedious half scales automatically, the half
+that needs a brain stays tiny.
+
+**`shape` is what makes the curated tier work offline.** Pricing a model means
+reading its GGUF header, and a curated entry is not downloaded yet — so without
+these fields an airgapped machine has no fit badge on the one tier it can use.
+Committing what the header said at authoring time is what lets `weights +
+KV(16K) + overhead` run against the manifest alone, on first paint, with no
+network. It is the same reason Hermes carries estimator inputs inline.
+
+`decode_fraction` is the fraction of the build's bytes read per decoded token —
+`1.0` dense, the active slice for MoE. Without it an MoE entry's speed
+prediction is wrong by an order of magnitude, which matters the moment the
+80B-A3B-class rung lands.
+
+`validated: true` means a person downloaded that exact file and ran it. False is
+allowed and honest; it is not a gate.
+
+Dropped from v2: `minimum_fit` (a gate — only physics gates now),
+`allowed_quantizations` (redundant once `artifacts.llamacpp` names the file),
+`minimum_context` (the context ladder and the model's own `context_length`
+replace it), and top-level `advisor_providers` (scoped an llmfit scan that no
+longer runs).
+
+#### Authoring
+
+A script run by hand, **never CI**. The manifest is **source, not build output**.
+
+```bash
+$ uv run scripts/refresh_curated_models.py \
+    --add Qwen/Qwen3-Next-80B-A3B \
+    --repo unsloth/Qwen3-Next-80B-A3B-GGUF --quant Q4_K_M
+
+  resolving unsloth/Qwen3-Next-80B-A3B-GGUF … Q4_K_M found, 45.2 GB
+  reading GGUF header (4 MB range) … qwen3next, 48 layers, 2 kv-heads, ctx 262144
+  llmfit … best_quant=Q4_K_M ✓ matches pin
+  llmfit proposes rank 94  (would be highest in the list — currently 92)
+
+  ⚠ MoE detected — decode_fraction not derivable from the header. Set it manually.
+  ⚠ validated=false until you run this file.
+
+  wrote curated-models.json (+1 entry)
+```
+
+The person then downloads it, chats with it, confirms citations resolve, sets
+`decode_fraction` and `validated: true`, and commits. Twenty minutes, most of it
+waiting for the download.
+
+```text
+every build
+    read the committed JSON. No llmfit, no network, no subprocess.
+```
+
+**What triggers a refresh** — events, not a schedule; realistically four or five
+a year:
+
+| Trigger | Cadence |
+|---|---|
+| A model worth recommending ships (a new family, a good MoE, a vision entry) | the main one |
+| A quantizer deletes or re-uploads a pinned file, so users hit a 404 | reactive |
+| The pinned llama.cpp build is bumped and pins want re-verifying | on bump |
+| A hardware class is under-served (see **The quantization ladder**) | occasional |
+| Someone reports a bad recommendation | reactive |
+
+**The budget flags are mandatory.** Run bare, llmfit detects whatever laptop the
+script is on and grades a quantization nobody pinned, so the numbers would
+describe a different file than the one in `artifacts`. The `best_quant`
+assertion catches that at authoring time, where a person is already looking.
+
+> **ponytail:** llmfit has no way to request a score at a named quantization —
+> `plan --quant` returns memory requirements but carries no quality field. Until
+> it does, the declared budget is chosen so llmfit lands on the pinned quant, and
+> the assertion above is what keeps the two in step.
+
+Numbers are source rather than build output for three reasons beyond speed: a
+rank moving 78 → 94 appears in a pull request where someone notices, a tag
+rebuilds to the same manifest forever, and the cadence is honest — these change
+when someone adds a model, not when someone cuts a release.
+
+#### Ranking
+
+`rank` orders the curated rows and selects the ★. It does **two** things and
+nothing else. It is never displayed, never compared outside the app,
+and never applied to a searched model.
+
+Because it is only ever a sort key, it does not need to be a measurement — it
+needs to be an **order**. Hence `rank`, not `quality`: calling it quality would
+imply we measured something we did not.
+
+**`rank` means "good at this app's job"** — answering from the user's documents
+with citations that resolve — not general capability. That distinction does real
+work. llmfit rates Qwen2.5-Coder 7B at **89** against Qwen3 8B's **83**, because
+it is measuring coding ability; for document Q&A the coder is the weaker model
+and should rank *below* it. A proposal that grades the wrong task is exactly what
+the human review step exists to correct.
+
+**llmfit proposes; a person decides.** It carries real model-specific signal —
+grouping ~4,000 scored models by *(parameter count, quantization)*, 224 of 230
+groups show quality varying between models of identical size and quant, so it is
+not parameter count in disguise. But it is unreliable on models it does not know
+well:
+
+```
+22.1B @ Q6_K
+   100.0   mconcat/Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-NV
+   100.0   crushleorey/Qwopus3.6-27B-v2-NVFP4
+    88.0   upstage/solar-pro-preview-instruct
+```
+
+Community fine-tunes scoring a perfect 100, above published models. That number
+is closer to the name than to measured behaviour. It behaves on models it knows
+properly — the shipped six come back `38 · 53 · 68 · 83 · 90 · 92`, monotonic
+and sanely spread — which is exactly the population the curated tier draws from.
+
+Three checks before committing a rank:
+
+1. within a family, rank rises with parameter count — the invariant in **Tests**
+2. anything at or near 100 is suspect; nothing worth curating maxes a scale
+3. crossing families, cross-check a public leaderboard — that is the comparison
+   llmfit is least reliable at
+4. a specialist (a coder, a reasoning-tuned variant) is ranked for *this* task,
+   not for the task it was tuned on
+
+If llmfit has no entry, or proposes something absurd, **type the integer by
+hand**. The field is an int; nothing requires llmfit to have produced it. A
+number written by someone who ran the model beats a scraped 100.
+
+**Parameter count is not a sufficient substitute.** Within the shipped six it
+happens to work, since they are one family of dense models. It breaks the moment
+the list grows: MoE (80B total, ~3B active reads nothing like a dense 80B),
+a second dense family where sizes stop being comparable, and any specialist whose
+size says nothing about how it handles documents.
+
+**One list, not tracks.** SurfSense has one job — the Studio formats are summary,
+flashcards, mindmap, quiz, podcast, office, web and visuals, and chat is document
+Q&A. All twenty-three prompt cases are the same shape: read documents, write
+prose or JSON. A single ranking is therefore meaningful, and splitting it would
+import a general-catalog framing this app does not need.
+
+**Vision is a capability, not a rank position.** Nobody chooses a vision model
+*instead of* a general one; they need one when the documents are images. It is
+already in the manifest, derived from the header and `input_modalities` (and
+gated on `typed_content` — see **7.7**):
+
+```jsonc
+"capabilities": ["vision"]
+```
+
+So the ★ stays "the best-ranked model that fits", and a vision entry surfaces
+when it is relevant (*your PDFs contain scanned pages, and this model can read
+them*), never as a competitor in the ordering. `vision` is the only capability
+that reaches the UI; everything else `chat_template_caps` reports is an internal
+constraint.
+
+Tracks would only be warranted if SurfSense gained jobs wanting genuinely
+different models — a conversational model for podcasts against an analytical one
+for chat, say. Nothing today does.
+
+**If llmfit disappears tomorrow:** committed ranks are unaffected, the schema is
+unaffected (`rank` is an int), the refresh script loses its proposer and a person
+types the number, and the app never knew about it. That is the test a long-term
+dependency should pass, and the reason to keep it outside the product.
+
+> **Long-term destination, not phase 7.** llmfit grades general capability.
+> SurfSense needs something narrower: *does this model answer from the user's
+> documents, and cite the right chunks?* No external leaderboard measures that.
+> The honest end state is a small internal eval — 20-40 fixed questions over a
+> fixed document set, run through the real chat path, scored on whether the
+> answer came from the sources and whether `[n]` citations resolved — with `rank`
+> set from that. It measures the actual pipeline, catches the RAG failure that
+> matters most (answering confidently *without* the sources), reruns in minutes,
+> and would also tell you whether the compact/capable/frontier tier split still
+> earns its keep after 7.8 lands. Nothing measures that today.
+
+**Staleness is acceptable, by design.** Airgapped means no refresh path, so a
+shipped list ages. That would be fatal if curated were the only way to get a
+model. It is not: 204,797 models are one search away, badged and installable,
+with no rank attached. So curated ages into "a starting point we tested a while
+ago" rather than a boundary — which is what makes a few-times-a-year cadence a
+choice instead of a liability.
+
+**Search:** `?filter=gguf&search=&sort=downloads&direction=-1&limit≤50`, 300 s
+TTL cache (HF allows 500 requests per 5 minutes), `tree/main?recursive=true` for
+quants. Group split parts (`-00001-of-00003`); exclude `mmproj*` and `*draft*`
+from the quant list.
 
 Gates: architecture in the 152-name list · chat template present · repo not
 `gated` · disk space · physics. Nothing else.
+
+**Gate on the header, not on Hugging Face's tags.** Counted on `library=gguf`:
+
+| `pipeline_tag` | GGUF repos |
+|---|---|
+| `text-generation` | 37,849 |
+| `image-text-to-text` | 5,327 |
+| `any-to-any` | 315 |
+| `audio-text-to-text` | 27 |
+| `automatic-speech-recognition` | 547 — not chat |
+| `feature-extraction` | 681 — embeddings, exclude |
+
+That totals ~43,500 of 204,797, so **roughly 80% of GGUF repos carry no useful
+pipeline tag at all** — filtering the search by tag would hide four-fifths of the
+catalog, including working chat models whose uploader left the field blank. The
+two header gates do the job structurally instead: a supported architecture
+excludes Whisper-type models, and a present chat template excludes embedding
+models. Pipeline tags are worth offering as an optional facet ("vision models
+only"); they are not the gate.
+
+**Search ordering.** All five HF sort fields work on `filter=gguf`; only one is
+usable as a default:
+
+| `sort=` | Top result | Verdict |
+|---|---|---|
+| `downloads` | `unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF` | **default** |
+| `likes` | `unsloth/Qwen3.8-27B-GGUF` | surfaces uncensored derivatives in the top few |
+| `trendingScore` | `prism-ml/Ternary-Bonsai-2-27B-gguf` | same |
+| `lastModified` | `tapiocaTakeshi/Qubit` | surfaces half-finished uploads |
+| `createdAt` | `mradermacher/HuatuoGPT-3-9B-i1-GGUF` | same |
+
+Every order surfaces abliterated and uncensored fine-tunes somewhere near the
+top. That is what an open catalog means, and it is not a reason to reintroduce
+grading — the curated tier is what serves someone who does not want to evaluate
+models, and it is the only tier the recommendation reads. Copy must present the
+count as popularity, not endorsement.
+
+**What a search row shows** — facts about the file, never a judgement of it:
+fit verdict · size per quantization · architecture · context length · chat
+template present · vision capability · license · gated · downloads, likes,
+last updated · **provenance**.
+
+Provenance is free and worth surfacing: 32 of the top 40 GGUF repos carry a
+`base_model:quantized:<repo>` tag, so a row can read *"quantized from
+`Qwen/Qwen3.8-27B`"*. That is a statement about where the file came from, not a
+grade — and it is most of what a quality score was doing for a user anyway,
+letting them recognise an unfamiliar repo as a repackaging of a model they know.
+The 8 of 40 with no such tag are informative by their absence.
+
+**Fit badges appear on both tiers. Quality appears on neither.** These look
+alike and are not:
+
+| | What it is | Needs | Where |
+|---|---|---|---|
+| fit badge | subtraction — does this file fit in this memory | device memory + file size | **every row, both tiers** |
+| `rank` | a preference order over models we tested | a person to have decided | curated only, and never displayed |
+
+"This 40 GB file will not fit in your 8 GB of memory" is no more a judgement than
+"this file is 40 GB", and it is the single most useful thing to tell someone
+browsing 204,797 models they have no size intuition for. Withholding it does not
+protect them; it makes them download 40 GB to find out.
+
+Two stages, so the list stays cheap:
+
+```text
+search list   file size is already in the HF response
+              → coarse badge from size alone, no extra request
+
+open a model  read 2-4 MB of its GGUF header (2.5 s)
+              → exact badge, conversation memory included
+
+curated       shape is in the manifest
+              → exact badge offline, on first paint
+```
+
+#### Fit states
+
+Badge vocabulary changes meaning with the swap. It stops being llmfit's
+five-level score (`perfect`/`good`/`marginal`/`too_tight`/`unknown`) and becomes
+a three-state statement about **where the weights will live**. There is no
+`unknown`: every row has a file size, so every row has a badge.
+
+Let `need = weights + KV(window) + overhead`, `vram` = usable device memory from
+the budget probe, `ram` = host memory available to the budget.
+
+| State | Condition | What happens at load |
+|---|---|---|
+| `FITS` | `need ≤ vram` | every layer on the device, full speed |
+| `PARTIAL` | `vram < need ≤ vram + ram` | `--fit` places some layers on the CPU; runs, slower |
+| `TOO_BIG` | `need > vram + ram` at the **16K floor** | physics refusal — the only state that blocks install |
+
+`TOO_BIG` is evaluated at the floor, not at the requested window: a model that
+will not fit at 16K cannot be rescued by a smaller context, and the remedy to
+offer is a smaller quantization or a smaller model.
+
+**Wording is per platform. The state set is not.** One label set is wrong on two
+of the three targets, so the copy branches on two facts the budget already
+carries: `uma`, and whether any non-CPU device exists.
+
+A badge is a **verdict plus one plain line of why**. The verdict is what someone
+choosing a model needs (fast, slower, or impossible); the mechanism is the
+explanation, not the headline.
+
+**Discrete GPU** (Windows or Linux with an NVIDIA or AMD card)
+
+```text
+●  Full speed        Runs entirely on your graphics card
+◐  Reduced speed     Too big for your graphics card, so part runs on the processor
+○  Won't fit         Needs about 21 GB. This PC has 13.6 GB
+```
+
+**Apple Silicon** (`uma`)
+
+```text
+●  Full speed        Runs entirely on the GPU
+◐  Reduced speed     Too big for the GPU, so part runs on the CPU
+○  Won't fit         Needs about 21 GB. This Mac has 13.6 GB
+```
+
+**No GPU device** (`--list-devices` prints `(none)`)
+
+```text
+●  Works here        Runs on your processor
+○  Won't fit         Needs about 21 GB. This PC has 16 GB
+```
+
+Terse variant, if rows are tight: verdict as the badge, reason as dimmed
+trailing text, full explanation in the row's detail view.
+
+```text
+●  Full speed
+◐  Reduced speed     (part runs on the processor)
+○  Won't fit         (needs 21 GB, you have 13.6 GB)
+```
+
+**"Full speed", not "Fast".** Fast is a promise the badge cannot keep: a 32B
+running entirely on a 4090 is still slower than a 4B. *Full speed* is relative
+to the model, which is exactly what the state means — as fast as this machine
+can run this particular model. Same reason *Reduced speed* beats *Slower*: it
+says reduced from what it could be, not slow in absolute terms.
+
+**"Works here" on a machine with no GPU.** Technically that case is `FITS`, but
+"Full speed" reads as a boast about a slow situation when there is no faster
+alternative to contrast with. The useful information is simply: yes, you can run
+this. That is the one place the verdict word differs and not just the
+explanation.
+
+On Apple Silicon there is no separate system RAM to spill into. A model over
+Metal's working set is not copied anywhere; llama.cpp runs some layers on the CPU
+backend against the same physical memory, so "uses system RAM" would describe a
+transfer that does not happen. With no GPU at all, `FITS` means the processor and
+`PARTIAL` is unreachable because there is nothing to spill from.
+
+> **Copy rule for every user-facing string in this phase: no em dashes and no
+> hyphens.** Use commas, full stops or parentheses. Applies to badges, empty
+> states, error copy and the recommendation line.
+
+> **Optional refinement, not a design change.** `PARTIAL` spans a wide range: 5%
+> spilled is barely noticeable, 70% crawls. The number is already known
+> (`need - vram`), so the reason line can be graded without adding a state —
+> *"A little too big for the GPU. Most of it still fits."* against *"Well over
+> your GPU's memory. Expect it to be slow."* Same badge, sharper sentence. Ships
+> after the first version if wanted.
+
+> **Decision: `PARTIAL` stays available on unified memory.** Hermes'
+> `_uma_budget()` sets `ram_available_bytes = 0`, so on Apple Silicon their
+> physics check is `need ≤ vram` alone and the middle state cannot occur — on an
+> 8 GB M2 that refuses Qwen3 8B (7,043 MiB against ~5,461) outright. We do not
+> copy that. It genuinely runs with CPU layers, and refusing it removes a real
+> option from the users with the least choice. On UMA the refusal threshold is
+> total RAM, not the device working set.
+
+**One modifier, not a fourth state.** A search row badged from file size alone,
+and a row whose header read was truncated, carry the same three states at lower
+precision — rendered as approximate (a `~`, or a lighter treatment) and resolving
+to the firm badge once the header lands.
+
+**Eligibility is not fit.** These block or warn independently and must not be
+rendered as fit states — a model can be `FITS` and still gated:
+
+| Condition | Effect |
+|---|---|
+| architecture not in llama.cpp's 152-name list | not installable; no amount of memory helps |
+| no chat template in the header | installable, warns — will produce garbage in a chat UI |
+| repo is `gated` | needs a Hugging Face account before the download resolves |
+
+#### List order
+
+Curated sorts by `(fit state, -rank, model_id)` — fit coarsely, rank finely —
+which is what today's `_sort_key` already does. Sorting by rank alone would put a
+`TOO_BIG` 32B at the top of an 8 GB machine's screen.
+
+The recommendation is the top row of the `FITS` bucket, subject to the speed
+floor. Search sorts by downloads.
+**Neither list displays a rank**; rank only orders curated rows and selects the
+recommendation.
+
+**A searched model can be installed, selected, and used. It can never be
+recommended**, because recommending requires ranking and ranking requires a
+`rank` that only the manifest carries. The two tiers differ in kind, not degree.
 
 Deleted: the collision-resolution block, `_placeholder_row()`,
 `_synthetic_curated_model()`, `_runtime_target_model()`, the disk scan cache,
@@ -275,14 +724,14 @@ fitting  = entries the estimator does not refuse
 resident = fitting, weights entirely in VRAM
 pleasant = resident, felt_cost(representative RAG turn) under floor
 
-pleasant → max(quality, -size)        reason: best-quality-resident
-                                       or speed-gated-quality if the floor
-                                       eliminated a higher-quality candidate
+pleasant → max(rank, -size)           reason: best-rank-resident
+                                       or speed-gated-rank if the floor
+                                       eliminated a higher-ranked candidate
 resident → max(speed)                 reason: fastest-resident
 else     → no recommendation; spilled entries stay installable
 ```
 
-Quality is editorial and static per pinned file. Speed is physics per machine.
+Rank is editorial and static per pinned file. Speed is physics per machine.
 Predictions order candidates and gate the floor; they are never displayed.
 
 > **RAG is prefill-dominated.** `HISTORY_BUDGET_TOKENS = 3000` plus ~24k
@@ -394,8 +843,52 @@ an `ollama_pull` egress row.
 `Capabilities(inputs, tools, system_role, typed_content, context_tokens)` at the
 `Generator` seam, from `GET /models.architecture.input_modalities` and
 `GET /props.chat_template_caps` — template-derived truth, not a name regex.
-`supports_system_role` matters immediately: `build_messages()` always emits a
-system message and silently degrades on templates without it.
+
+**Two kinds, two sources, and only one of them reaches the UI.**
+
+```text
+GET /models → architecture.input_modalities     what the model can ACCEPT
+GET /props  → chat_template_caps                what the TEMPLATE supports
+```
+
+| | Field | Surfaced? |
+|---|---|---|
+| **Capability** | `vision` | **yes** — a row badge and a search facet |
+| **Constraint** | `supports_system_role` | no — changes how the request is built |
+| **Constraint** | `supports_typed_content` | no — precondition for vision |
+| Recorded, unused | `tools`, `tool_calls` | no |
+| Recorded, unused | reasoning support | no |
+
+One struct is fine; one *list that reaches the renderer* is not.
+`supports_system_role` is meaningless to a person and `typed_content` is an
+implementation detail. The manifest's `capabilities` array carries only the
+user-facing set, which today means `["vision"]` and nothing else.
+
+**`supports_system_role` matters immediately.** `build_messages()` always emits a
+system message and silently degrades on templates that do not support one. That
+is a live bug the swap fixes.
+
+**Vision needs both halves.** "The model accepts images" is the obvious check and
+it is not sufficient:
+
+```python
+can_see = Modality.IMAGE in caps.inputs and caps.typed_content
+```
+
+A model can accept images architecturally while its chat template takes only
+string content, leaving no way to hand it one. Checking `input_modalities` alone
+produces a vision badge on a model that cannot be sent a picture.
+
+**What is deliberately absent.** `audio` and `video` are not modelled, because
+nothing can feed them: Docling's `allowed_formats` in `worker/ingestion/parsing.py`
+is PDF, DOCX, PPTX, XLSX, HTML, CSV, MD and **IMAGE**. Podcasts are audio *out*
+and Kokoro owns that; audio *in* would need ingestion to accept and transcribe
+media first, at which point `audio` becomes relevant and not before. `tts` and
+`embedding` are fixed (Kokoro, and bge-small against a 384-dimensional index).
+
+`IMAGE` being in that list already is what makes vision worth doing at all:
+SurfSense accepts standalone images today, on top of PDF pages that are
+effectively pictures. A vision model has something to look at on day one.
 
 `Message.content` widens from `str` to `str | tuple[ContentPart, ...]`. The
 adapter **downgrades at the seam**: a text-only model gets the image replaced by
@@ -443,21 +936,56 @@ compliance. That plausibly collapses three tiers to two.
   search reports the destination is unavailable, not an error.
 - Header read truncated: retry wider once, then fall back to a file-size estimate
   with the badge marked approximate.
-- Physics refusal: state required and available bytes and name a smaller model.
+- `TOO_BIG` (the physics refusal): state required and available bytes and name a
+  smaller quantization or a smaller model. Never a bare disabled control.
 - Cancelled download: `POST /models/unload`, partial file removed, never selected.
+- **Dead curated pin** (the repo or file 404s at download): say the model is no
+  longer available from this source, drop it from the recommendation, and fall
+  through to the next-best entry. This must be handled here rather than checked
+  at build time — a repo can disappear between the release and a user's first
+  install, so no pre-flight check can prevent it.
 
 ## Tests
 
 - GGUF reader: truncated file, oversized vocab, split parts, Range retry.
 - Estimator: decision-table over constructed profiles; f16 vs q8_0 KV (a 1 GB
   swing on an 8 GB machine, measured).
+- Fit states: each of `FITS` / `PARTIAL` / `TOO_BIG` at its boundary, ±1 byte;
+  `TOO_BIG` evaluated at the 16K floor, not the requested window; `PARTIAL`
+  reachable on a `uma` budget (the Hermes divergence — a regression here silently
+  refuses Qwen3 8B on an 8 GB Mac); `PARTIAL` unreachable with no GPU device;
+  `can_install` true for `PARTIAL` and false only for `TOO_BIG`; copy resolves to
+  the right platform wording for all three budget shapes.
 - Recommendation policy: the six hardware profiles above, asserting both pick
-  and reason key.
+  and reason key; and that a searched row is never eligible to be the pick.
 - Catalog: curated renders with no network; search gated on egress; arch,
-  template, and gated-repo rejections.
+  template, and gated-repo rejections; a search row carries no `rank` field at
+  all — asserted on the serialized response, so it cannot be reintroduced
+  silently.
+- Manifest (extends `test_curated_models.py`, which already covers unique ids,
+  display metadata, and each rejection path): every entry has a `shape`, a
+  `rank` and a pinned `quantization`; every `shape.architecture` is
+  in the 152-name list; a curated row prices and badges with no network at all.
+- **`rank` rises with parameter count within a family.** Today this passes
+  trivially — the shipped six are one family and score `38 · 53 · 68 · 83 · 90 ·
+  92`. The first failure is the signal to look, and it is expected: a
+  mixture-of-experts, a second dense family, or a specialist ranked for document
+  Q&A rather than for what it was tuned on will all break size-ordering
+  legitimately. The assertion exists to make that a decision, not a drift.
+- A curated entry with a `vision` capability is never preferred over a
+  higher-ranked text model for the ★; capabilities do not enter the ordering.
+- Capabilities: `vision` requires **both** `IMAGE in inputs` and
+  `typed_content`; a model with image input and a string-only template reports
+  no vision badge. `supports_system_role` false routes the system message into
+  the first user turn rather than dropping it. Only the user-facing set reaches
+  the serialized response — `system_role` and `typed_content` never appear in
+  an API payload.
 - Runtime: fake llama-server for health/models/props/load/chat/delete.
 - Migration: an Ollama selection and an `ollama_pull` row, upgraded.
 - Packaging: staged checksum; `--list-devices` from the packaged path per OS.
+
+No new CI job. The build stays install → freeze → package → sign; neither llmfit
+nor `huggingface.co` appears in it.
 
 ## Acceptance
 
