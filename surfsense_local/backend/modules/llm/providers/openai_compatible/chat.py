@@ -14,13 +14,29 @@ MAX_ERROR_CHARS = 400
 class OpenAICompatibleChatProvider:
     name = "openai_compatible"
 
-    def __init__(self, base_url: str, api_key: str | None = None) -> None:
+    def __init__(
+        self,
+        base_url: str,
+        api_key: str | None = None,
+        *,
+        transport: httpx.BaseTransport | None = None,
+        thinking_off: dict[str, object] | None = None,
+    ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
+        # Local runtimes compose this provider and need a seam to test against.
+        self._transport = transport
+        # What `reasoning=False` means on this endpoint, supplied by whoever
+        # knows what it is. There is no portable OpenAI shape for it, and a
+        # strict endpoint rejects a field it does not recognise, so a caller
+        # that cannot name one gets today's behaviour: the flag is ignored.
+        self._thinking_off = thinking_off
 
     def _client(self) -> httpx.AsyncClient:
         headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
-        return httpx.AsyncClient(timeout=TIMEOUT, headers=headers)
+        return httpx.AsyncClient(
+            timeout=TIMEOUT, headers=headers, transport=self._transport
+        )
 
     async def health(self) -> bool:
         try:
@@ -61,6 +77,7 @@ class OpenAICompatibleChatProvider:
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning: bool | None = None,
+        json_schema: dict | None = None,
     ) -> AsyncIterator[str]:
         body: dict[str, object] = {
             "model": model,
@@ -74,7 +91,18 @@ class OpenAICompatibleChatProvider:
             body["max_tokens"] = max_tokens
         if temperature is not None:
             body["temperature"] = temperature
-        # `reasoning` is intentionally ignored: it has no portable OpenAI shape.
+        if json_schema is not None:
+            # Masks every token that would produce invalid JSON, so malformed
+            # output stops being something to repair afterwards.
+            body["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {"name": "response", "schema": json_schema},
+            }
+        if reasoning is False and self._thinking_off is not None:
+            # A caller asking for no reasoning is usually also capping tokens,
+            # and a thinking model spends that cap before its first answer
+            # token, so this is what keeps a short request from returning "".
+            body.update(self._thinking_off)
         async with (
             self._client() as client,
             client.stream(

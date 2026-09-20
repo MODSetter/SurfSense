@@ -6,7 +6,7 @@ from modules.llm.providers.types import CatalogEntry, DownloadProgress, Message,
 
 
 class Generator(Protocol):
-    """Anything that can answer. Ollama today, other backends later."""
+    """Anything that can answer. llama.cpp locally, or a remote endpoint."""
 
     name: str
 
