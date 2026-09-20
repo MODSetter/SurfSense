@@ -55,10 +55,17 @@ def test_a_failed_migration_leaves_nothing_behind(tmp_path: Path) -> None:
     assert inspect(engine).get_table_names() == []
 
 
-def test_connection_migration_preserves_only_ollama_selection(
+def test_connection_migration_drops_old_remote_secrets(
     tmp_path: Path,
 ) -> None:
-    """The breaking migration drops old remote secrets without harming local setup."""
+    """The breaking migration at 0004 drops old remote secrets.
+
+    It used to assert the local Ollama selection survived to head as well. It no
+    longer does: 0012 clears it, because the weights are in a format the app
+    stopped managing and a selection nothing can resolve kills chat. That the
+    selection is cleared rather than remapped is pinned in
+    `test_migration_0012.py`; what this still guards is the credentials table.
+    """
     engine = create_db_engine(tmp_path / "surfsense.db")
     config = Config()
     config.set_main_option(
@@ -83,12 +90,10 @@ def test_connection_migration_preserves_only_ollama_selection(
     command.upgrade(config, "head")
 
     with engine.connect() as connection:
-        selected = connection.execute(
-            text(
-                "SELECT role, provider, connection_id, name FROM selected_models"
-            )
-        ).one()
+        selections = connection.execute(
+            text("SELECT role, provider FROM selected_models")
+        ).all()
         tables = inspect(connection).get_table_names()
-    assert tuple(selected) == ("generation", "ollama", None, "qwen3:4b")
+    assert selections == []
     assert "provider_credentials" not in tables
     assert "provider_connections" in tables
