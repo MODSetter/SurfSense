@@ -16,7 +16,7 @@ import {
 // `null` connections mean the list is still loading or failed to load, which is
 // not the same as a connection that no longer exists.
 function sourceOf(selection: ModelSelection, connections: Connection[] | null) {
-  if (selection.provider === "ollama") return "Local"
+  if (selection.provider === "llamacpp") return "Local"
   if (connections === null) return null
   return (
     connections.find((connection) => connection.id === selection.connection_id)
@@ -122,7 +122,7 @@ export function SelectedRoles({
   }, [])
 
   const connections = state.status === "ready" ? state.connections : null
-  // Same enrichment the composer's model picker uses: the raw ollama pull
+  // Same enrichment the composer's model picker uses: the raw model file
   // name can be an unreadable `hf.co/...` id, so prefer the scanned/curated
   // display name for the matching installed model when one is available.
   const generationDisplayName =

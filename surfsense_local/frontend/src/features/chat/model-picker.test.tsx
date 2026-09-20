@@ -21,7 +21,7 @@ describe("composer model picker", () => {
         if (path === "/llm/providers") {
           return Response.json([
             {
-              name: "ollama",
+              name: "llamacpp",
               healthy: true,
               can_download: true,
               requires_key: false,
@@ -29,7 +29,7 @@ describe("composer model picker", () => {
             },
           ])
         }
-        if (path === "/llm/providers/ollama/models") {
+        if (path === "/llm/providers/llamacpp/models") {
           return Response.json([
             {
               name: "llama3.2:1b",
@@ -46,7 +46,7 @@ describe("composer model picker", () => {
         if (path === "/llm/selection/generation" && init?.method === "PUT") {
           return Response.json({
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: JSON.parse(String(init.body)).name,
             updated_at: "2026-09-09T00:00:00Z",
@@ -62,7 +62,7 @@ describe("composer model picker", () => {
       <ModelPicker
         model={{
           role: "generation",
-          provider: "ollama",
+          provider: "llamacpp",
           connection_id: null,
           name: "llama3.2:1b",
           updated_at: "2026-09-09T00:00:00Z",
@@ -128,7 +128,7 @@ describe("composer model picker", () => {
 
     await waitFor(() =>
       expect(onModelSelected).toHaveBeenCalledWith(
-        expect.objectContaining({ provider: "ollama", name: "qwen3:1.7b" })
+        expect.objectContaining({ provider: "llamacpp", name: "qwen3:1.7b" })
       )
     )
 

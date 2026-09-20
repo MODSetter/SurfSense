@@ -11,7 +11,7 @@ function installApi() {
     if (path === "/llm/providers") {
       return Response.json([
         {
-          name: "ollama",
+          name: "llamacpp",
           healthy: true,
           can_download: true,
           requires_key: false,
@@ -19,7 +19,7 @@ function installApi() {
         },
       ])
     }
-    if (path === "/llm/providers/ollama/models") {
+    if (path === "/llm/providers/llamacpp/models") {
       return Response.json([
         {
           name: "llama3.2:1b",
@@ -31,7 +31,7 @@ function installApi() {
     if (path === "/llm/selection/generation") {
       return Response.json({
         role: "generation",
-        provider: "ollama",
+        provider: "llamacpp",
         name: "llama3.2:1b",
         updated_at: "2026-09-05T00:00:00Z",
       })
@@ -47,41 +47,25 @@ function installApi() {
     }
     if (path === "/llm/catalog") {
       return Response.json({
-        hardware: {},
-        llmfit_version: "1.0",
+        budget: {
+          device_total_bytes: 16_000_000_000,
+          device_free_bytes: 14_000_000_000,
+          usable_vram_bytes: 12_900_000_000,
+          fit_reserve_bytes: 1_073_741_824,
+          ram_available_bytes: 16_000_000_000,
+          uma: true,
+          has_gpu: true,
+        },
         curated: [],
-        explore: [],
-        scanned: true,
         installed: [
           {
-            catalog_id: "opaque-llama",
-            canonical_id: "meta-llama/Llama-3.2-1B",
-            family: "Llama",
-            label: "Llama 3.2 1B",
-            publisher: "Meta",
-            parameter_count: 1_000_000_000,
-            fit: "perfect",
-            score: 90,
-            memory_required_gb: 2,
-            disk_size_gb: 1.2,
-            estimated_tps: 40,
-            prefill_tps: 100,
-            ttft_ms: 200,
-            effective_context_length: 8192,
-            estimate_confidence: "high",
-            license: "Llama",
-            runtime: "ollama",
-            runtime_model: "llama3.2:1b",
-            quantization: "Q4_K_M",
-            installed: true,
+            model_id: "Llama 3.2 1B",
+            file: "Llama-3.2-1B-Q4_K_M.gguf",
+            size_bytes: 1_200_000_000,
             selected: true,
-            can_install: true,
-            can_delete: true,
-            warnings: [],
           },
         ],
-        warnings: [],
-        runtime_status: {},
+        recommended_model_id: null,
       })
     }
     if (init?.method === "PUT") {
@@ -148,8 +132,10 @@ describe("model onboarding", () => {
     )
     await user.click(screen.getByRole("button", { name: "Start setting up" }))
 
+    // The catalog no longer filters by fit, so this line stopped describing
+    // anything: every model is listed and every one carries an honest badge.
     await screen.findByText(
-      "Only models compatible with this machine are shown."
+      "Every model below is priced against this computer."
     )
     const secondProgress = screen.getByLabelText("Onboarding step 2 of 2")
     expect(secondProgress.children[0]?.getAttribute("data-state")).toBe(
@@ -221,7 +207,7 @@ describe("model onboarding", () => {
       if (path === "/llm/providers") {
         return Response.json([
           {
-            name: "ollama",
+            name: "llamacpp",
             healthy: true,
             can_download: true,
             requires_key: false,
@@ -229,7 +215,7 @@ describe("model onboarding", () => {
           },
         ])
       }
-      if (path === "/llm/providers/ollama/models") return Response.json([])
+      if (path === "/llm/providers/llamacpp/models") return Response.json([])
       if (path === "/llm/catalog") {
         return Response.json({
           hardware: {},

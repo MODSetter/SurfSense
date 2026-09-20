@@ -103,7 +103,7 @@ describe("SettingsDialog", () => {
         if (path === "/llm/selection/generation") {
           return Response.json({
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             name: "qwen3:1.7b",
             updated_at: "2026-09-09T00:00:00Z",
           })
