@@ -44,6 +44,7 @@ def test_every_documented_spelling_turns_the_flag_on(client, monkeypatch, value)
     Both have to work. The cost of a spelling that silently reads as false is
     a sunset day where nothing happens and nothing says why.
     """
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.setenv("SUNSET_MODE", value)
 
     assert _health(client)["sunset"] is True
@@ -51,13 +52,23 @@ def test_every_documented_spelling_turns_the_flag_on(client, monkeypatch, value)
 
 @pytest.mark.parametrize("value", ["", "0", "false", "no", "off", "  "])
 def test_anything_else_leaves_the_flag_off(client, monkeypatch, value):
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.setenv("SUNSET_MODE", value)
+
+    assert _health(client)["sunset"] is False
+
+
+def test_self_hosted_stays_off_even_if_sunset_mode_is_set(client, monkeypatch):
+    """A stray ``SUNSET_MODE=1`` in a self-hosted ``.env`` must be a no-op."""
+    monkeypatch.delenv("DEPLOYMENT_MODE", raising=False)
+    monkeypatch.setenv("SUNSET_MODE", "1")
 
     assert _health(client)["sunset"] is False
 
 
 def test_the_flag_is_read_per_request(client, monkeypatch):
     """No restart beyond the flag change, so it cannot be cached at import."""
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.delenv("SUNSET_MODE", raising=False)
     assert _health(client)["sunset"] is False
 
@@ -71,6 +82,7 @@ def test_sunset_is_a_json_boolean_not_a_string(client, monkeypatch):
     ``is True`` rather than ``== True`` on purpose: ``1 == True`` in Python, so
     equality would pass on the raw environment value this once returned.
     """
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.setenv("SUNSET_MODE", "1")
 
     assert isinstance(_health(client)["sunset"], bool)
