@@ -1,6 +1,7 @@
 import enum
 from datetime import datetime
 
+from cryptography.fernet import InvalidToken
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -92,7 +93,14 @@ class ProviderConnection(Base):
     def api_key(self) -> str | None:
         if self.api_key_ciphertext is None:
             return None
-        return decrypt(self.api_key_ciphertext)
+        try:
+            return decrypt(self.api_key_ciphertext)
+        except InvalidToken:
+            # ponytail: SURFSENSE_LOCAL_SECRET rotated (secret.bin reminted).
+            # Drop the unreadable blob so the UI asks for a new key; a 500
+            # here takes down model discovery for an otherwise healthy API.
+            self.api_key_ciphertext = None
+            return None
 
     @api_key.setter
     def api_key(self, value: str | None) -> None:
