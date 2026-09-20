@@ -1,6 +1,6 @@
 /**
  * stable-diffusion.cpp's sd-server: local image generation. Packaged only, like
- * Ollama, and unlike Ollama it holds exactly one model, named by -m at startup
+ * llama-server, and unlike it this holds exactly one model, named by -m at startup
  * and never switchable at runtime. So the process follows the chosen model: the
  * API says which weights and which flags, and index.ts restarts it on a change.
  *

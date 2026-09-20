@@ -1,7 +1,7 @@
 /**
  * The Python sidecars: the API, and the worker once per queue. Same shape: a
  * frozen onedir binary when packaged, `uv run` in dev, same SURFSENSE_LOCAL_*
- * env. Both reach Ollama, so both need the bundled address.
+ * env. Both reach llama-server, so both need the bundled address.
  */
 import { join } from "node:path"
 
@@ -17,9 +17,15 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     SURFSENSE_LOCAL_SECRET: ctx.secret,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
     ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
-    ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
-    ...(ctx.ollamaModelsDir && {
-      SURFSENSE_LOCAL_OLLAMA_MODELS_DIR: ctx.ollamaModelsDir,
+    ...(ctx.llamacppUrl && { SURFSENSE_LOCAL_LLAMACPP_BASE_URL: ctx.llamacppUrl }),
+    ...(ctx.llamacppModelsDir && {
+      SURFSENSE_LOCAL_LLAMACPP_MODELS_DIR: ctx.llamacppModelsDir,
+    }),
+    // The API probes hardware by loading ggml from here. Without it the probe
+    // runs from the wrong directory, finds no backends, and reports a CPU-only
+    // machine with no error at all.
+    ...(ctx.llamacppBinariesDir && {
+      SURFSENSE_LOCAL_LLAMACPP_LIBRARY_DIR: ctx.llamacppBinariesDir,
     }),
     ...(ctx.imageUrl && { SURFSENSE_LOCAL_IMAGE_BASE_URL: ctx.imageUrl }),
     ...(ctx.imageModelsDir && {
@@ -45,8 +51,7 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
     ...pythonCmd(ctx, "api", "main.py"),
     env: {
       ...pythonEnv(ctx),
-      ...(ctx.llmfitPath && { SURFSENSE_LOCAL_LLMFIT_PATH: ctx.llmfitPath }),
-    },
+      },
   }
 }
 
