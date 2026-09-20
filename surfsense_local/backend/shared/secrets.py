@@ -4,11 +4,29 @@ import logging
 import os
 from functools import lru_cache
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 
 from shared.config import get_storage_settings
 
 log = logging.getLogger(__name__)
+
+
+class UnreadableSecretError(Exception):
+    """Stored ciphertext this install's secret cannot open.
+
+    Not a corruption bug. The secret lives in the OS keychain, so a keychain
+    reset or a backup restored onto another machine leaves every stored key
+    undecryptable while the rows themselves are intact. The key is gone either
+    way, and the only recovery is entering it again, so this is raised as its
+    own condition rather than leaking `InvalidToken` to a caller that can only
+    treat it as a crash.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(
+            "the stored key could not be read on this machine, so it has to be "
+            "entered again"
+        )
 
 
 @lru_cache
@@ -37,4 +55,7 @@ def encrypt(value: str) -> bytes:
 
 def decrypt(token: bytes) -> str:
     """Recover a provider API key stored by ``encrypt``."""
-    return _fernet().decrypt(token).decode()
+    try:
+        return _fernet().decrypt(token).decode()
+    except InvalidToken as error:
+        raise UnreadableSecretError from error

@@ -1,8 +1,7 @@
 import pytest
-from cryptography.fernet import InvalidToken
 
 from modules.llm.models import ProviderConnection
-from shared.secrets import decrypt, encrypt
+from shared.secrets import UnreadableSecretError, decrypt, encrypt
 
 
 def test_api_key_round_trips_and_is_not_stored_in_clear() -> None:
@@ -19,9 +18,16 @@ def test_api_key_round_trips_and_is_not_stored_in_clear() -> None:
     assert connection.api_key is None
 
 
-def test_tampered_ciphertext_is_rejected() -> None:
-    """A flipped byte fails closed instead of yielding a wrong key."""
+def test_unreadable_ciphertext_fails_closed_as_a_named_condition() -> None:
+    """A flipped byte yields no key, and says which condition it hit.
+
+    Named rather than left as the library's `InvalidToken`, because this is
+    reachable without any tampering: the per install secret lives in the OS
+    keychain, and a keychain reset or a backup restored onto another machine
+    leaves every stored key undecryptable. Callers have to tell that apart from
+    a bug to say anything useful about it.
+    """
     token = bytearray(encrypt("sk-1"))
     token[-1] ^= 0xFF
-    with pytest.raises(InvalidToken):
+    with pytest.raises(UnreadableSecretError):
         decrypt(bytes(token))
