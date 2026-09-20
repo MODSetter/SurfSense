@@ -36,19 +36,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          # Pinned: `ubuntu-latest` migrates to 26.04 and would silently raise
+          # the AppImage's glibc floor. llama.cpp's Vulkan build needs 2.34.
+          - os: ubuntu-22.04
             platform: --linux
             electron_cache: ~/.cache/electron
-            llmfit_resource: release/linux-unpacked/resources/llmfit/llmfit
           # Apple Silicon only: torch (2.3+) and onnxruntime (1.24+) no longer ship Intel Mac wheels.
           - os: macos-15
             platform: --mac
             electron_cache: ~/Library/Caches/electron
-            llmfit_resource: release/mac-arm64/SurfSense.app/Contents/Resources/llmfit/llmfit
           - os: windows-latest
             platform: --win
             electron_cache: ~\AppData\Local\electron\Cache
-            llmfit_resource: release/win-unpacked/resources/llmfit/llmfit.exe
 
     defaults:
       run:
@@ -193,15 +192,9 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Stage Ollama
+      - name: Stage llama.cpp
         working-directory: surfsense_local/electron
-        run: node scripts/fetch-ollama.mjs
-
-      - name: Stage and smoke llmfit
-        working-directory: surfsense_local/electron
-        run: |
-          node scripts/fetch-llmfit.mjs
-          node scripts/check-llmfit.mjs
+        run: node scripts/fetch-llamacpp.mjs
 
       - name: Package installer
         working-directory: surfsense_local/electron
@@ -238,12 +231,8 @@ jobs:
 
           "${CMD[@]}"
 
-      - name: Smoke llmfit from final resources
-        working-directory: surfsense_local/electron
-        run: node scripts/check-llmfit.mjs "${{ matrix.llmfit_resource }}"
-
       - name: Smoke the frozen API (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           set -e
           export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-smoke"
@@ -258,20 +247,19 @@ jobs:
           done
           echo "::error::packaged API never became healthy"; kill $API; exit 1
 
-      - name: Smoke the bundled Ollama (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Smoke the bundled llama.cpp (Linux)
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           set -e
-          export OLLAMA_HOST=127.0.0.1:11565
-          ./surfsense_local/electron/release/linux-unpacked/resources/ollama/bin/ollama serve &
-          OLL=$!
-          for i in $(seq 1 30); do
-            if curl -fsS "http://127.0.0.1:11565/" >/dev/null; then
-              echo "ollama OK"; kill $OLL; exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::bundled ollama never responded"; kill $OLL; exit 1
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/llamacpp
+          # Run from the library directory: ggml scans the running executable's
+          # own directory for backends and silently reports none anywhere else,
+          # which is indistinguishable from a machine with no GPU.
+          OUT=$(cd "$DIR" && ./llama-server --list-devices 2>&1)
+          echo "$OUT"
+          if ! grep -qiE "Available devices|no devices found" <<<"$OUT"; then
+            echo "::error::packaged llama-server could not list devices"; exit 1
+          fi
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
