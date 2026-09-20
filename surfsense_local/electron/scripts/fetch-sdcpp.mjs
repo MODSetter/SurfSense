@@ -5,7 +5,7 @@
 //
 // Only the Vulkan and Metal builds are staged. The CUDA and ROCm archives are
 // 182-537 MB and Vulkan already reaches NVIDIA, AMD, and Intel through the host
-// driver -- the same trade the bundled Ollama makes.
+// driver -- the same trade the bundled llama.cpp build makes.
 //
 // Upstream publishes rolling master builds with no semver and no checksums, so
 // the tag and a locally computed SHA-256 are both pinned here. Bump deliberately.
