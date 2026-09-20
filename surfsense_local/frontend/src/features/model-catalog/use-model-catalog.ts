@@ -8,6 +8,7 @@ import {
   installCatalogModel,
   type CatalogRow,
   type InstallEvent,
+  type RepoBuild,
 } from "./api"
 import {
   setGenerationSelection,
@@ -44,31 +45,30 @@ export function useModelCatalog(
     status: "idle",
   })
 
+  // No refresh parameter and no rescan mutation: the catalog is the manifest
+  // plus a directory listing, priced locally, so there is nothing to re-probe.
   const catalog = useQuery({
     queryKey: catalogQueryKey,
-    queryFn: ({ signal }) => getModelCatalog(false, signal),
+    queryFn: ({ signal }) => getModelCatalog(signal),
   })
 
-  const rescan = useMutation({
-    mutationFn: () => getModelCatalog(true),
-    onSuccess: (data) => queryClient.setQueryData(catalogQueryKey, data),
-  })
-
+  // Curated rows and searched builds install through one path, because the id
+  // is opaque either way and the server cannot tell them apart.
   const install = useMutation({
-    mutationFn: async (row: CatalogRow) => {
+    mutationFn: async (target: CatalogRow | RepoBuild) => {
       const nextController = new AbortController()
       controller.current = nextController
       setInstallState({
         status: "installing",
-        catalogId: row.catalog_id,
+        catalogId: target.catalog_id,
         event: { type: "starting", message: "Preparing download" },
       })
       return installCatalogModel(
-        row.catalog_id,
+        target.catalog_id,
         (event) =>
           setInstallState({
             status: "installing",
-            catalogId: row.catalog_id,
+            catalogId: target.catalog_id,
             event,
           }),
         nextController.signal
@@ -100,9 +100,9 @@ export function useModelCatalog(
   const selectInstalled = useMutation({
     mutationFn: (row: CatalogRow) =>
       setGenerationSelection({
-        provider: row.runtime,
+        provider: "llamacpp",
         connection_id: null,
-        name: row.runtime_model,
+        name: row.variant_model_id,
       }),
     onSuccess: async (selection) => {
       await Promise.all([
@@ -114,8 +114,8 @@ export function useModelCatalog(
   })
 
   const deleteModel = useMutation({
-    mutationFn: (row: CatalogRow) =>
-      deleteLocalModel(row.runtime, row.runtime_model),
+    mutationFn: (target: { variant_model_id: string }) =>
+      deleteLocalModel(target.variant_model_id),
     onSuccess: async (result) => {
       if (result.selection_cleared) {
         onModelUnavailable?.()
@@ -135,7 +135,6 @@ export function useModelCatalog(
 
   return {
     catalog,
-    rescan,
     install,
     installState,
     cancelInstall: () => controller.current?.abort(),

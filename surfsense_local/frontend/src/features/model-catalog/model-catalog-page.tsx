@@ -1,10 +1,5 @@
 import { Fragment, useId, useState, type ReactNode } from "react"
-import {
-  CircleAlertIcon,
-  DotIcon,
-  RefreshCwIcon,
-  SearchIcon,
-} from "@/components/ui/icons"
+import { CircleAlertIcon, DotIcon, Trash2Icon } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import {
@@ -18,71 +13,43 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import type {
-  CatalogRow,
-  HardwareProfile,
-  ModelCatalog,
-  RuntimeStatus,
-} from "./api"
+import type { Budget, CatalogRow, RepoBuild } from "./api"
 import { LocalImageModel } from "./local-image-model"
 import { ModelCard } from "./model-card"
 import { ModelFamilyGroup } from "./model-family-group"
+import { ModelSearch } from "./model-search"
 import { useModelCatalog } from "./use-model-catalog"
 import type { ModelSelection } from "@/features/model-selection/api"
-
-// Reserved while "More models" is being searched, so narrowing to a handful
-// of matches (or none) leaves blank space below them instead of shrinking
-// the page's scrollable area — that shrink is what clamps scrollTop and
-// yanks the whole page upward. Fixed rather than measured: it doesn't chase
-// this catalog's actual row count, so there's no DOM measurement, no ref,
-// and no effect that has to race the catalog finishing its own load.
-const EXPLORE_SEARCH_RESERVED_HEIGHT = 540
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
 
-function runtimeAvailable(status: RuntimeStatus | undefined) {
-  if (status === undefined) {
-    return true
+/**
+ * What this machine has, in one line. No scan and no button: the figure comes
+ * from the runtime's own allocator in about 180ms, so there is nothing to wait
+ * for and nothing to trigger.
+ */
+function hardwareSummary(budget: Budget | undefined) {
+  const gb = (bytes: number) =>
+    `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
+  if (!budget) {
+    return ["Checking this computer"]
   }
-  if (typeof status === "boolean") {
-    return status
+  if (!budget.has_gpu) {
+    return [
+      "Runs on your processor",
+      `${gb(budget.ram_available_bytes)} memory`,
+    ]
   }
-  if (typeof status === "string") {
-    return !["offline", "unavailable", "error", "stopped"].includes(
-      status.toLowerCase()
-    )
-  }
-  if (status.available !== undefined) {
-    return status.available
-  }
-  if (status.healthy !== undefined) {
-    return status.healthy
-  }
-  return !["offline", "unavailable", "error", "stopped"].includes(
-    status.status?.toLowerCase() ?? ""
-  )
-}
-
-function hardwareSummary(hardware: HardwareProfile | null, scanned: boolean) {
-  if (!hardware) {
-    // Never scanned (the common first-launch case, since nothing probes
-    // hardware until the user asks) reads differently from a scan that was
-    // attempted and failed — the latter also surfaces a warning banner.
-    return [scanned ? "Hardware profile unavailable" : "Not detected yet"]
-  }
-  const name = hardware.gpu_name ?? hardware.cpu_name
-  const memory = hardware.total_ram_gb
-  const parts = [name, memory !== null ? `${memory} GB memory` : null].filter(
-    (part): part is string => part !== null
-  )
-  return parts.length > 0 ? parts : ["Hardware profile analyzed"]
+  return [
+    budget.uma ? "Apple Silicon GPU" : "Graphics card",
+    `${gb(budget.device_total_bytes)} memory`,
+  ]
 }
 
 function grouped(rows: CatalogRow[]) {
@@ -98,7 +65,6 @@ function CatalogSection({
   title,
   description,
   rows,
-  catalog,
   headerAction,
   children,
   emptyMessage,
@@ -107,9 +73,8 @@ function CatalogSection({
   title: string
   description: string
   rows: CatalogRow[]
-  catalog: ModelCatalog
   headerAction?: ReactNode
-  children: (row: CatalogRow, available: boolean) => ReactNode
+  children: (row: CatalogRow) => ReactNode
   // Shown instead of the row list when `rows` is empty but the section
   // should still render (e.g. a search with no matches) — omit this prop to
   // keep the earlier behavior of hiding the section entirely when empty.
@@ -145,60 +110,14 @@ function CatalogSection({
         {[...grouped(rows)].map(([family, familyRows]) => (
           <ModelFamilyGroup key={family} family={family}>
             {familyRows.map((row) => (
-              // canonical_id, not catalog_id: the latter is an opaque,
-              // refresh-sensitive install-plan token (it deliberately goes
-              // stale on every rescan, so a stale install can't slip through)
-              // — using it as a React key would remount every row on every
-              // scan. canonical_id is stable across scan states for the same
-              // model, so the row updates in place instead.
-              <li key={row.canonical_id}>
-                {children(
-                  row,
-                  runtimeAvailable(catalog.runtime_status[row.runtime])
-                )}
-              </li>
+              // model_id, not catalog_id: the latter is an opaque install
+              // token that the server may reissue, and using it as a key would
+              // remount the row each time. model_id is stable, so it updates
+              // in place instead.
+              <li key={row.model_id}>{children(row)}</li>
             ))}
           </ModelFamilyGroup>
         ))}
-      </div>
-    </section>
-  )
-}
-
-function ScanHardwareCta({
-  onScan,
-  pending,
-  search,
-}: {
-  onScan: () => void
-  pending: boolean
-  search: ReactNode
-}) {
-  return (
-    <section className="flex flex-col gap-2.5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-heading text-sm font-medium">More models</h2>
-          <p className="text-xs text-muted-foreground">
-            Other compatible models, ranked for your machine.
-          </p>
-        </div>
-        {search}
-      </div>
-      <div className="flex flex-col items-start gap-3 rounded-xl border border-dashed p-4">
-        <p className="text-sm text-muted-foreground">
-          Find every model that fits your machine, ranked best-first.
-        </p>
-        <Button
-          type="button"
-          size="sm"
-          variant="default"
-          disabled={pending}
-          onClick={onScan}
-        >
-          {pending ? <Spinner data-icon="inline-start" /> : null}
-          {pending ? "Scanning..." : "Scan hardware"}
-        </Button>
       </div>
     </section>
   )
@@ -223,22 +142,23 @@ export function ModelCatalogPage({
 }) {
   const {
     catalog,
-    rescan,
     install,
     installState,
     cancelInstall,
     deleteModel,
     selectInstalled,
   } = useModelCatalog(onSelected, onModelUnavailable, onModelsChanged)
-  const [exploreQuery, setExploreQuery] = useState("")
-  const exploreQueryActive = exploreQuery.trim() !== ""
-  const [pendingConfirmation, setPendingConfirmation] =
-    useState<CatalogRow | null>(null)
-  const [pendingDelete, setPendingDelete] = useState<CatalogRow | null>(null)
+  // Either list can offer deletion, and both need the same confirmation, so
+  // this holds the minimum both rows share rather than a whole catalog row.
+  const [pendingDelete, setPendingDelete] = useState<{
+    label: string
+    variant_model_id: string
+    selected: boolean
+  } | null>(null)
 
-  // No skeleton: the catalog GET no longer probes hardware on an unrefreshed
-  // load (see `LlmfitAdvisor.scan`), so it resolves as fast as any other
-  // page fetch and a loading state would only ever flash.
+  // No skeleton: the catalog is the manifest plus a directory listing, priced
+  // locally, so it resolves as fast as any other page fetch and a loading state
+  // would only ever flash.
   if (catalog.isPending) {
     return null
   }
@@ -254,79 +174,31 @@ export function ModelCatalogPage({
   }
 
   const data = catalog.data
-  const seen = new Set<string>()
-  const unique = (rows: CatalogRow[]) =>
-    rows.filter((row) => {
-      if (seen.has(row.catalog_id)) {
-        return false
-      }
-      seen.add(row.catalog_id)
-      return true
-    })
-  // Curated is always populated — the manifest's own 8 models, scan-free —
-  // and never merges into "More models": scanning only ever adds a fit
-  // badge to a row already here, never moves it elsewhere. "More models" is
-  // fundamentally scan-derived, so it only exists once `data.scanned` is
-  // true; until then a "Scan hardware" prompt takes its place.
-  const curated = unique(data.curated)
-  const explore = unique(data.explore)
-  const installed = unique(data.installed)
   const curatedSection = {
-    title: "Curated models",
-    description: "Staff picks. Scan machine to see how well each one runs on your machine.",
-    rows: curated,
+    title: "Tested by SurfSense",
+    description: "Models we have run, priced against this computer.",
+    rows: data.curated ?? [],
   }
-  const exploreQueryNormalized = exploreQuery.trim().toLowerCase()
-  const filteredExplore =
-    exploreQueryNormalized === ""
-      ? explore
-      : explore.filter((row) =>
-          row.label.toLowerCase().includes(exploreQueryNormalized)
-        )
-  // Disabled (not hidden) until the first scan exists — there's nothing to
-  // search yet, and a persistent, disabled control previews the feature
-  // instead of the layout shifting once scanning finishes.
-  const exploreSearchInput = (
-    <div className="relative w-full max-w-[14rem] sm:w-auto">
-      <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        type="search"
-        value={exploreQuery}
-        placeholder="Search more models"
-        aria-label="Search more models"
-        disabled={!data.scanned}
-        className="h-8 border-0 bg-secondary pl-8 text-sm focus-visible:border-0"
-        onChange={(event) => setExploreQuery(event.target.value)}
-      />
-    </div>
-  )
-  const exploreSection = {
-    title: "More models",
-    description: "Other compatible models, best fit first.",
-    rows: filteredExplore,
-    emptyMessage: `No models match "${exploreQuery.trim()}".`,
-    headerAction: exploreSearchInput,
-  }
-  const installedSection = {
-    title: "Installed",
-    description: "Local models already available on this machine.",
-    rows: installed,
-  }
-  // Estimates reserve resources for SurfSense and may vary by workload.
   const busy =
     disabled ||
     install.isPending ||
     selectInstalled.isPending ||
     deleteModel.isPending
 
+  // A searched build and a curated row install through the same call, because
+  // the id is opaque either way and the server cannot tell them apart.
+  const installBuild = (build: RepoBuild) => {
+    if (!busy) {
+      install.mutate(build)
+    }
+  }
+
   const act = (row: CatalogRow) => {
     if (busy) {
       return
     }
-    if (row.fit === "marginal") {
-      setPendingConfirmation(row)
-      return
-    }
+    // No confirmation for a partial fit. It runs, slower, and llama.cpp places
+    // the layers; only physics blocks, and that is already `can_install`.
     if (row.installed) {
       selectInstalled.mutate(row)
     } else {
@@ -334,29 +206,22 @@ export function ModelCatalogPage({
     }
   }
 
-  const confirm = () => {
-    const row = pendingConfirmation
-    setPendingConfirmation(null)
-    if (!row || busy) {
-      return
-    }
-    if (row.installed) {
-      selectInstalled.mutate(row)
-    } else {
-      install.mutate(row)
-    }
-  }
+  const onDeleteRow = (row: CatalogRow) =>
+    setPendingDelete({
+      label: row.label,
+      variant_model_id: row.variant_model_id,
+      selected: row.selected,
+    })
 
-  const card = (row: CatalogRow, available: boolean) => (
+  const card = (row: CatalogRow) => (
     <ModelCard
       row={row}
       installState={installState}
       actionsDisabled={busy}
-      runtimeAvailable={available}
-      scanned={data.scanned}
+      runtimeAvailable
       onAction={act}
       onCancel={cancelInstall}
-      onDelete={allowDelete ? setPendingDelete : undefined}
+      onDelete={allowDelete ? onDeleteRow : undefined}
     />
   )
 
@@ -374,112 +239,102 @@ export function ModelCatalogPage({
 
   return (
     <div className={cn("flex flex-col gap-5", scrollable && "h-full min-h-0")}>
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 p-3">
-        <div>
-          <p className="flex items-center text-sm font-medium">
-            {hardwareSummary(data.hardware, data.scanned).map((part, index) => (
-              <Fragment key={part}>
-                {index > 0 ? (
-                  <DotIcon
-                    aria-hidden="true"
-                    className="size-3 shrink-0 text-muted-foreground"
-                  />
-                ) : null}
-                <span>{part}</span>
-              </Fragment>
-            ))}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {data.scanned
-              ? "Only models compatible with this machine are shown."
-              : "Scan to filter by what fits your machine."}
-          </p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          disabled={rescan.isPending || busy}
-          onClick={() => rescan.mutate()}
-        >
-          {rescan.isPending ? (
-            <Spinner data-icon="inline-start" />
-          ) : data.scanned ? (
-            <RefreshCwIcon data-icon="inline-start" />
-          ) : null}
-          {rescan.isPending
-            ? "Scanning..."
-            : data.scanned
-              ? "Rescan hardware"
-              : "Scan hardware"}
-        </Button>
+      <div className="rounded-lg bg-muted/50 p-3">
+        <p className="flex items-center text-sm font-medium">
+          {hardwareSummary(data.budget).map((part, index) => (
+            <Fragment key={part}>
+              {index > 0 ? (
+                <DotIcon
+                  aria-hidden="true"
+                  className="size-3 shrink-0 text-muted-foreground"
+                />
+              ) : null}
+              <span>{part}</span>
+            </Fragment>
+          ))}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Every model below is priced against this computer.
+        </p>
       </div>
 
       <ScrollShadow className="flex-1" scroll={scrollable}>
         <div className="flex flex-col gap-5 pb-3">
-          {data.warnings.map((warning) => (
-            <Alert key={warning.code}>
-              <CircleAlertIcon />
-              <AlertTitle>Recommendations are degraded</AlertTitle>
-              <AlertDescription>{warning.message}</AlertDescription>
-            </Alert>
-          ))}
-          {rescan.isError ? (
-            <p className="text-sm text-destructive">
-              {messageFrom(rescan.error)}
-            </p>
-          ) : null}
-
-          {installedSection ? (
-            <CatalogSection {...installedSection} catalog={data}>
-              {card}
-            </CatalogSection>
+          {(data.installed ?? []).length > 0 ? (
+            <section className="flex flex-col gap-2.5">
+              <div>
+                <h2 className="font-heading text-sm font-medium">Installed</h2>
+                <p className="text-xs text-muted-foreground">
+                  Already on this machine.
+                </p>
+              </div>
+              <ul className="divide-y overflow-hidden rounded-xl border bg-card">
+                {(data.installed ?? []).map((row) => (
+                  <li
+                    key={row.model_id}
+                    className="flex items-center justify-between gap-3 px-3 py-2"
+                  >
+                    <span className="truncate text-sm font-medium">
+                      {row.model_id}
+                    </span>
+                    <div className="flex shrink-0 items-center gap-1">
+                      {row.selected ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled
+                        >
+                          In use
+                        </Button>
+                      ) : null}
+                      {allowDelete ? (
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="destructive"
+                          disabled={busy}
+                          aria-label={`Delete ${row.model_id}`}
+                          onClick={() =>
+                            setPendingDelete({
+                              label: row.model_id,
+                              variant_model_id: row.model_id,
+                              selected: row.selected,
+                            })
+                          }
+                        >
+                          <Trash2Icon />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
           ) : null}
 
           <LocalImageModel disabled={busy} />
 
-          {curated.length > 0 ? (
-            <CatalogSection {...curatedSection} catalog={data}>
-              {card}
-            </CatalogSection>
+          {(data.curated ?? []).length > 0 ? (
+            <CatalogSection {...curatedSection}>{card}</CatalogSection>
           ) : null}
 
-          {curated.length > 0 && (explore.length > 0 || !data.scanned) ? (
-            <Separator className="my-4" />
-          ) : null}
+          <Separator className="my-4" />
 
-          {data.scanned ? (
-            explore.length > 0 ? (
-              <CatalogSection
-                {...exploreSection}
-                catalog={data}
-                listMinHeight={
-                  exploreQueryActive
-                    ? EXPLORE_SEARCH_RESERVED_HEIGHT
-                    : undefined
-                }
-              >
-                {card}
-              </CatalogSection>
-            ) : null
-          ) : (
-            <ScanHardwareCta
-              onScan={() => rescan.mutate()}
-              pending={rescan.isPending}
-              search={exploreSearchInput}
-            />
-          )}
+          <ModelSearch onInstall={installBuild} disabled={busy} />
 
-          {curated.length + explore.length + installed.length === 0 ? (
+          {(data.curated ?? []).length + (data.installed ?? []).length === 0 ? (
             <Alert>
               <CircleAlertIcon />
               <AlertTitle>No local models are available</AlertTitle>
               <AlertDescription>
-                This machine has no compatible local configuration right now.
-                You can still use an OpenAI-compatible connection.
+                Nothing is installed and no tested model could be read. You can
+                search for one above, add a .gguf file from disk, or use an
+                OpenAI compatible connection.
               </AlertDescription>
             </Alert>
           ) : null}
+
           {selectInstalled.isError ? (
             <p className="text-sm text-destructive">
               {messageFrom(selectInstalled.error)}
@@ -492,31 +347,6 @@ export function ModelCatalogPage({
           ) : null}
         </div>
       </ScrollShadow>
-
-      <AlertDialog
-        open={pendingConfirmation !== null}
-        onOpenChange={(open) => {
-          if (!open) {
-            setPendingConfirmation(null)
-          }
-        }}
-      >
-        <AlertDialogContent className="select-none">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Use a marginal-fit model?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This model may respond slowly or fail with long conversations. You
-              can cancel and choose a better-fitting model.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirm}>
-              Continue anyway
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
 
       <AlertDialog
         open={pendingDelete !== null}

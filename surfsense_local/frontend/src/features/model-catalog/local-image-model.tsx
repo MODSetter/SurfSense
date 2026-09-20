@@ -138,7 +138,9 @@ export function LocalImageModel({ disabled = false }: { disabled?: boolean }) {
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {model.detail}{" "}
-                    {model.installed ? null : `${gigabytes(model.size_bytes)} download.`}
+                    {model.installed
+                      ? null
+                      : `${gigabytes(model.size_bytes)} download.`}
                   </p>
                 </div>
                 {model.installed ? (

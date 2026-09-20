@@ -1,83 +1,123 @@
 import { request, requestJson, requestVoid } from "@/lib/api"
 import type { ModelSelection } from "@/features/model-selection/api"
 
-export type Fit = "perfect" | "good" | "marginal" | "too_tight" | "unknown"
+/**
+ * Where a model's weights will live. Three states, and no `unknown`: every row
+ * has a file size, so every row can be priced.
+ */
+export type FitState = "fits" | "partial" | "too_big"
+
+export type Fit = {
+  state: FitState
+  need_bytes: number
+  budget_bytes: number
+  /**
+   * 0 fully resident, 1 entirely on the processor. The reason line is graded by
+   * this, and it is never recomputed here: the same number drives the badge and
+   * the recommendation, so they cannot disagree.
+   */
+  offload_fraction: number
+  /** Priced from file size alone, before the header was read. */
+  approximate: boolean
+}
+
+/** A verdict plus one plain line of why. The API owns this copy. */
+export type Badge = {
+  verdict: string
+  reason: string
+}
 
 export type CatalogRow = {
+  /** Opaque install token. The renderer never assembles one. */
   catalog_id: string
-  canonical_id: string
-  family: string
+  /** Stable identity of the model, used as a React key. */
+  model_id: string
+  /** What the runtime calls the installed file, for selection and deletion. */
+  variant_model_id: string
   label: string
-  publisher: string | null
-  parameter_count: string | number | null
+  family: string
+  parameter_count: string
+  quantization: string
+  size_bytes: number
+  context_length: number
   fit: Fit
-  score: number | null
-  memory_required_gb: number | null
-  disk_size_gb: number | null
-  estimated_tps: number | null
-  prefill_tps: number | null
-  ttft_ms: number | null
-  effective_context_length: number | null
-  estimate_confidence: string | null
-  license: string | null
-  runtime: string
-  runtime_model: string
-  quantization: string | null
+  badge: Badge
+  capabilities: string[]
   installed: boolean
   selected: boolean
   can_install: boolean
-  can_delete: boolean
-  warnings: string[]
+  recommended: boolean
 }
 
-export type RuntimeStatus =
-  | string
-  | boolean
-  | {
-      healthy?: boolean
-      available?: boolean
-      status?: string
-      message?: string
-    }
-
-export type RecommendationWarning = {
-  code: string
-  message: string
+export type InstalledRow = {
+  model_id: string
+  file: string
+  size_bytes: number
+  selected: boolean
 }
 
-export type HardwareProfile = {
-  cpu_name: string | null
-  cpu_cores: number | null
-  total_ram_gb: number | null
-  available_ram_gb: number | null
+/** One device, never a sum across devices. */
+export type Budget = {
+  device_total_bytes: number
+  device_free_bytes: number
+  usable_vram_bytes: number
+  fit_reserve_bytes: number
+  ram_available_bytes: number
+  /** Unified memory: selects badge copy, since there is nothing to spill into. */
+  uma: boolean
   has_gpu: boolean
-  gpu_name: string | null
-  gpu_vram_gb: number | null
-  gpu_count: number
-  backend: string | null
-  unified_memory: boolean
 }
 
+/**
+ * Curated plus installed. No `scanned` flag, because there is no scan: the
+ * budget comes from the runtime's own allocator in about 180ms.
+ */
 export type ModelCatalog = {
-  hardware: HardwareProfile | null
-  llmfit_version: string | null
-  // Always populated, scan-free — SurfSense's curated picks, shown with a
-  // fit badge once scanned and without one before. Never contains a row
-  // also present in `explore`.
+  budget: Budget
   curated: CatalogRow[]
-  explore: CatalogRow[]
-  installed: CatalogRow[]
-  // False when served without running the hardware scan (no cache existed
-  // yet and none was requested this session) — `curated`/`installed` are
-  // still fully populated either way, only `explore` and curated fit badges
-  // are scan-derived.
-  scanned: boolean
-  warnings: RecommendationWarning[]
-  runtime_status: Record<string, RuntimeStatus>
+  installed: InstalledRow[]
+  recommended_model_id: string | null
+}
+
+/** A repo, described. Search rows carry no rank and no quality claim. */
+export type SearchRow = {
+  repo: string
+  downloads: number
+  likes: number
+  license: string | null
+  gated: boolean
+  /** "quantized from Qwen/Qwen3-8B", which is provenance and not a grade. */
+  quantized_from: string | null
+  last_modified: string | null
+}
+
+export type RepoBuild = {
+  catalog_id: string
+  file: string
+  quantization: string
+  size_bytes: number
+  fit: Fit
+  badge: Badge
+  can_install: boolean
+}
+
+export type RepoDetail = {
+  repo: string
+  architecture: string
+  context_length: number
+  supported: boolean
+  builds: RepoBuild[]
+  /** Eligibility is not fit: a model can fit and still be refused here. */
+  ineligible_reason: string | null
 }
 
 export type InstallEvent =
-  | { type: "starting" | "verifying" | "selecting"; message?: string }
+  | {
+      // `preparing` is the wait for the runtime to restart and pick the model
+      // up; the router learns about a new file only at startup.
+      type: "starting" | "verifying" | "preparing" | "selecting"
+      message?: string
+    }
   | {
       type: "downloading"
       message?: string
@@ -178,14 +218,33 @@ export async function installLocalImageModel(
   }
 }
 
-export function getModelCatalog(
-  refresh = false,
+export function getModelCatalog(signal?: AbortSignal): Promise<ModelCatalog> {
+  return requestJson<ModelCatalog>("/llm/catalog", { signal })
+}
+
+export function getSystem(signal?: AbortSignal): Promise<{ budget: Budget }> {
+  return requestJson<{ budget: Budget }>("/llm/system", { signal })
+}
+
+export function searchModels(
+  query: string,
   signal?: AbortSignal
-): Promise<ModelCatalog> {
-  return requestJson<ModelCatalog>(
-    refresh ? "/llm/catalog?refresh=true" : "/llm/catalog",
+): Promise<{ results: SearchRow[] }> {
+  return requestJson<{ results: SearchRow[] }>(
+    `/llm/search?q=${encodeURIComponent(query)}`,
     { signal }
   )
+}
+
+/**
+ * Reads 2 to 4 MB of the model's header, so the trigger is opening a result
+ * rather than hovering or typing. The list badge stays approximate until then.
+ */
+export function getRepoDetail(
+  repo: string,
+  signal?: AbortSignal
+): Promise<RepoDetail> {
+  return requestJson<RepoDetail>(`/llm/search/${repo}`, { signal })
 }
 
 export async function installCatalogModel(
@@ -215,12 +274,9 @@ export async function installCatalogModel(
   throw new Error("The install stream ended before completion")
 }
 
-export function deleteLocalModel(
-  provider: string,
-  modelName: string
-): Promise<DeleteModelResult> {
+export function deleteLocalModel(modelId: string): Promise<DeleteModelResult> {
   return requestJson<DeleteModelResult>(
-    `/llm/providers/${encodeURIComponent(provider)}/models/${encodeURIComponent(modelName)}`,
+    `/llm/models/${encodeURIComponent(modelId)}`,
     { method: "DELETE" }
   )
 }

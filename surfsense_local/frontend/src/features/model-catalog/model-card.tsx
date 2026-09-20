@@ -1,34 +1,20 @@
-import { DownloadIcon, Trash2Icon } from "@/components/ui/icons"
+import { DownloadIcon, SparklesIcon, Trash2Icon } from "@/components/ui/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { CatalogRow } from "./api"
+import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
 import type { InstallState } from "./use-model-catalog"
 
-const formatSize = (sizeGb: number) =>
-  `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(sizeGb)} GB`
-
-const fitLabel: Record<CatalogRow["fit"], string> = {
-  perfect: "Great fit",
-  good: "Good fit",
-  marginal: "May be slow",
-  too_tight: "Doesn't fit",
-  unknown: "Fit unknown",
-}
+const formatSize = (bytes: number) =>
+  `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
 
 export function ModelCard({
   row,
   installState,
   actionsDisabled,
   runtimeAvailable,
-  // Whether a hardware scan has ever run this session. An "unknown" fit
-  // before any scan is every row, all the time — repeating a badge that
-  // says nothing here 8+ times is noise, so it's suppressed. An "unknown"
-  // fit *after* a scan (a model llmfit just had no estimate for, despite a
-  // real scan having run) is the rare, actually-notable case and keeps its
-  // badge.
-  scanned,
   onAction,
   onCancel,
   onDelete,
@@ -37,7 +23,6 @@ export function ModelCard({
   installState: InstallState
   actionsDisabled: boolean
   runtimeAvailable: boolean
-  scanned: boolean
   onAction: (row: CatalogRow) => void
   onCancel: () => void
   onDelete?: (row: CatalogRow) => void
@@ -45,25 +30,31 @@ export function ModelCard({
   const isInstalling =
     installState.status === "installing" &&
     installState.catalogId === row.catalog_id
+  // Only physics refuses. Reduced speed installs exactly like full speed.
   const cannotInstall =
-    !row.installed &&
-    (!row.can_install || row.fit === "too_tight" || !runtimeAvailable)
+    !row.installed && (!row.can_install || !runtimeAvailable)
 
   return (
     <article className="px-3 py-2 transition-colors hover:bg-muted/20">
       <div className="flex min-h-9 items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <p className="truncate text-sm font-medium">{row.label}</p>
-          {row.fit !== "unknown" || scanned ? (
-            <Badge variant={row.fit === "too_tight" ? "destructive" : "secondary"}>
-              {fitLabel[row.fit]}
-            </Badge>
-          ) : null}
-          {row.disk_size_gb !== null ? (
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-2">
+            {row.recommended ? (
+              <SparklesIcon
+                aria-label="Recommended for this computer"
+                className="size-3.5 shrink-0 text-notice"
+              />
+            ) : null}
+            <p className="truncate text-sm font-medium">{row.label}</p>
+            <FitBadge fit={row.fit} copy={row.badge} />
+            {row.capabilities.includes("vision") ? (
+              <Badge variant="outline">Reads images</Badge>
+            ) : null}
             <span className="shrink-0 text-xs text-muted-foreground">
-              {formatSize(row.disk_size_gb)}
+              {formatSize(row.size_bytes)}
             </span>
-          ) : null}
+          </div>
+          <FitReason copy={row.badge} />
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {row.selected ? (
@@ -84,7 +75,7 @@ export function ModelCard({
               {row.installed ? "Use" : "Download"}
             </Button>
           )}
-          {row.can_delete && onDelete ? (
+          {row.installed && onDelete ? (
             <Button
               type="button"
               size="icon-sm"
@@ -106,7 +97,7 @@ export function ModelCard({
           ) : null}
           {!runtimeAvailable ? (
             <p className="text-xs text-destructive">
-              The {row.runtime} runtime is unavailable.
+              The local runtime is unavailable.
             </p>
           ) : null}
         </div>
