@@ -32,11 +32,20 @@ export function describeDestination(destination: string, host: string) {
       body: `Checking asks ${host} for the latest release. SurfSense sends your IP address and the version you are running, nothing else. Allowing also turns on the check at launch, which you can switch off in Settings › Network.`,
     }
   }
-  if (destination === "ollama_pull") {
+  if (destination === "model_download") {
     return {
       label: "Model downloads",
       title: "Allow model downloads?",
-      body: `Downloading models contacts ${host}. SurfSense sends the model name and your IP address, nothing else.`,
+      body: `Downloading a model contacts ${host}. SurfSense sends the name of the model you chose and your IP address, nothing else.`,
+    }
+  }
+  // Same host as downloads, and a separate consent on purpose: this one sends
+  // what you type as you type it, rather than the name of a model you picked.
+  if (destination === "model_search") {
+    return {
+      label: "Model search",
+      title: "Allow searching for models?",
+      body: `Searching sends what you type to ${host}, along with your IP address. Without it you can still install the models SurfSense ships with, and any .gguf file already on this machine.`,
     }
   }
   if (destination === "image_model_pull") {

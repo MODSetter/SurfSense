@@ -7,8 +7,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
+from modules.llm.catalog.dependencies import get_catalog_service
 from modules.llm.models import ProviderConnection
-from modules.llm.recommendations.dependencies import get_catalog_service
 from shared.config import get_llm_settings
 from shared.db import create_session_factory
 
@@ -25,36 +25,6 @@ async def _destinations(client: AsyncClient) -> dict[str, dict]:
     reply = await client.get("/egress")
     assert reply.status_code == 200
     return {row["destination"]: row for row in reply.json()}
-
-
-async def test_pull_is_refused_until_allowed_then_recorded(
-    client: AsyncClient, ollama_server: str
-) -> None:
-    """Refused is a 403 the UI can act on; allowed runs and stamps the last call."""
-    refused = await client.post(
-        "/llm/providers/ollama/pull", json={"name": "qwen3:1.7b"}
-    )
-    assert refused.status_code == 403
-    assert refused.json()["detail"] == {
-        "code": "egress_disabled",
-        "message": "sending data to registry.ollama.ai is off in Settings > Network",
-        "destination": "ollama_pull",
-        "host": "registry.ollama.ai",
-    }
-    assert (await _destinations(client))["ollama_pull"]["last_call_at"] is None
-
-    assert (
-        await client.put("/egress/ollama_pull", json={"enabled": True})
-    ).status_code == 200
-    async with client.stream(
-        "POST", "/llm/providers/ollama/pull", json={"name": "qwen3:1.7b"}
-    ) as reply:
-        assert reply.status_code == 200
-        await reply.aread()
-
-    row = (await _destinations(client))["ollama_pull"]
-    assert row["enabled"] is True
-    assert row["last_call_at"] is not None
 
 
 async def test_remote_connection_is_refused_before_it_is_probed(
@@ -93,7 +63,12 @@ async def test_loopback_connections_are_not_egress(
     )
     assert created.status_code == 201, created.text
     # The two weight downloads are always listed; the connection adds no third.
-    assert set(await _destinations(client)) == {"ollama_pull", "image_model_pull"}
+    assert set(await _destinations(client)) == {
+        "image_model_pull",
+        # One host, two consents: a repo the user named, and text they typed.
+        "model_download",
+        "model_search",
+    }
 
 
 async def test_unknown_destination_is_rejected(client: AsyncClient) -> None:
@@ -121,7 +96,7 @@ def _configure_llmfit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
                 "disk_size_gb": 5.2,
                 "effective_context_length": 8192,
                 "capability_ids": ["tool_use"],
-                "ollama_name": "qwen3:8b",
+                "file": "Qwen3-8B-Q4_K_M.gguf",
                 "gguf_sources": [],
             }
         ]
@@ -139,32 +114,3 @@ def _configure_llmfit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(get_llm_settings(), "llmfit_path", executable)
     get_catalog_service.cache_clear()
 
-
-async def test_catalog_install_is_refused_until_allowed(
-    client: AsyncClient,
-    ollama_server: str,
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """The catalog's own install route is gated the same as a manual pull."""
-    _configure_llmfit(tmp_path, monkeypatch)
-    catalog = (await client.get("/llm/catalog?refresh=true")).json()
-    catalog_id = next(
-        row["catalog_id"] for row in catalog["curated"] if row["fit"] != "unknown"
-    )
-
-    refused = await client.post(
-        "/llm/install", json={"catalog_id": catalog_id, "select": False}
-    )
-    assert refused.status_code == 403
-    assert refused.json()["detail"]["destination"] == "ollama_pull"
-    assert (await _destinations(client))["ollama_pull"]["last_call_at"] is None
-
-    await client.put("/egress/ollama_pull", json={"enabled": True})
-    async with client.stream(
-        "POST", "/llm/install", json={"catalog_id": catalog_id, "select": False}
-    ) as reply:
-        assert reply.status_code == 200
-        await reply.aread()
-    assert (await _destinations(client))["ollama_pull"]["last_call_at"] is not None
-    get_catalog_service.cache_clear()
