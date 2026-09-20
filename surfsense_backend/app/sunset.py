@@ -6,9 +6,10 @@ flag that says so and the middleware that enforces it.
 
 Two properties matter more than anything else here:
 
-* **Self-hosters run this same code forever with the flag unset.** Every path
-  through this module has to be a no-op in that case, which is why the flag is
-  checked before anything else and defaults to off.
+* **Self-hosters can never hit this, even by accident.** ``SUNSET_MODE`` alone
+  is not enough -- the flag only takes effect when ``DEPLOYMENT_MODE=cloud``,
+  so a stray ``SUNSET_MODE=1`` in a self-hosted ``.env`` (copied from a hosted
+  template, say) is a no-op rather than an outage.
 * **Signing in has to keep working.** Export is behind a session, so blocking
   authentication would lock people out of the one action still available and
   make the 30-day window meaningless.
@@ -38,10 +39,16 @@ _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 # signing in, and the legacy desktop client authenticates through
 # ``/auth/desktop/*``. Registration is the one exception -- the service is
 # winding down, so there is nobody new to sign up.
+#
+# PATs keep working unchanged through the tail (00d-pivot-plan.md, "Existing
+# MCP users"): they die at the T+30 purge, not at T-0, so create/revoke has to
+# stay open here or every PAT-holding client -- MCP included -- loses the only
+# credential it has before the purge actually happens.
 _ALLOWED_PREFIXES = (
     "/auth/",
     "/api/v1/license/",
     "/api/v1/stripe/webhook",
+    "/api/v1/pats",
 )
 _BLOCKED_PATHS = frozenset({"/auth/register"})
 
@@ -58,10 +65,14 @@ _DETAIL = (
 def is_sunset_mode() -> bool:
     """Whether the hosted service is winding down.
 
-    Read from the environment on every call rather than through ``config``,
-    which resolves at import: contract 4 requires that flipping the flag take
-    effect without a deploy.
+    Only ever true for a cloud deployment. ``SUNSET_MODE`` is read from the
+    environment on every call rather than cached, so flipping it takes effect
+    without a deploy; ``DEPLOYMENT_MODE`` is the safety net that keeps a
+    self-hosted instance immune to that flag regardless of what its own
+    ``.env`` sets.
     """
+    if os.getenv("DEPLOYMENT_MODE", "self-hosted") != "cloud":
+        return False
     return os.getenv("SUNSET_MODE", "").strip().lower() in _TRUTHY
 
 
