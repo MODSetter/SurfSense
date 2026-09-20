@@ -26,7 +26,7 @@ def choose_model(engine: Engine) -> None:
     """A generation model must be selected before a job can run."""
     with create_session_factory(engine)() as session:
         session.add(
-            SelectedModel(role=ModelRole.GENERATION, provider="ollama", name="qwen3:4b")
+            SelectedModel(role=ModelRole.GENERATION, provider="llamacpp", name="Qwen3-4B-Q4_K_M")
         )
         session.commit()
 
@@ -76,7 +76,7 @@ async def test_infographic_needs_the_image_model_and_the_chat_model(
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                role=ModelRole.IMAGE_GENERATION, provider="ollama", name="x/flux2-klein"
+                role=ModelRole.IMAGE_GENERATION, provider="llamacpp", name="x/flux2-klein"
             )
         )
         session.commit()

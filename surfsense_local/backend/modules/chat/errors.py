@@ -2,6 +2,8 @@ import enum
 
 import httpx
 
+from shared.secrets import UnreadableSecretError
+
 
 class ChatErrorKind(enum.StrEnum):
     """Buckets a failed generation call so the UI can offer the right fix.
@@ -36,9 +38,9 @@ _MESSAGES: dict[ChatErrorKind, str] = {
 }
 
 # `network` is the one kind whose fix depends on the provider: a bad base URL
-# is a Model setup problem, an unreachable local Ollama is not.
+# is a Model setup problem, an unreachable local runtime is not.
 _NETWORK_MESSAGES: dict[str, str] = {
-    "ollama": "Couldn't reach Ollama — make sure it's running locally.",
+    "llamacpp": "Couldn't reach the local model runtime. Restart SurfSense to start it again.",
 }
 _DEFAULT_NETWORK_MESSAGE = (
     "Couldn't reach the model provider — "
@@ -55,6 +57,11 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
     the exception's text, so this holds for any provider that raises through
     httpx (every provider in modules/llm/providers does).
     """
+    if isinstance(exc, UnreadableSecretError):
+        # Not `unknown`: the fix is specific and the user can do it. The stored
+        # key is unrecoverable once this install's secret changes, so the only
+        # useful answer names the key rather than reporting a fault.
+        return ChatErrorKind.PROVIDER_AUTH, _MESSAGES[ChatErrorKind.PROVIDER_AUTH]
     if isinstance(exc, httpx.HTTPStatusError):
         status_code = exc.response.status_code
         if status_code in _AUTH_STATUS_CODES:
