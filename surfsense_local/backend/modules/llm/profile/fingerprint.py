@@ -20,45 +20,24 @@ _FLAGSHIP_LINE = re.compile(
 
 # Bytes one weight occupies on disk at each quantization, so a blob size divided
 # by it is a parameter count.
-_BYTES_PER_WEIGHT = (("q4", 0.6), ("q5", 0.7), ("q6", 0.82), ("q8", 1.06), ("f16", 2.0))
 
 
-def from_ollama(name: str, tag: dict, show: dict) -> Fingerprint:
-    """What Ollama knows about an installed model, from /api/tags and /api/show."""
-    exact = (show.get("model_info") or {}).get("general.parameter_count")
-    stated = (tag.get("details") or {}).get("parameter_size") or ""
+def from_llamacpp(name: str, props: dict) -> Fingerprint:
+    """What the local runtime knows about a loaded model, from `GET /props`.
+
+    The previous runtime divided a blob of quantized weights by a bytes-per-weight
+    guess, which read `gemma3:4b` as 5.5B because embedding tables inflate it.
+    llama.cpp states the count, so the guess is gone. Where it does not, the
+    filename usually carries the size and that still beats measuring.
+    """
+    stated = (props.get("model_info") or {}).get("general.parameter_count")
     return Fingerprint(
-        provider="ollama",
+        provider="llamacpp",
         name=name,
         params_b=(
-            round(exact / 1e9, 1)
-            if exact
-            # The tag itself usually states the size, and beats measuring the blob.
-            else _largest_size_b(stated) or _largest_size_b(name) or _estimated_b(tag)
+            round(stated / 1e9, 1) if stated else _largest_size_b(name)
         ),
     )
-
-
-def _estimated_b(tag: dict) -> float | None:
-    """The parameter count a blob of quantized weights implies.
-
-    ponytail: it measures weights only, so large embedding tables inflate it
-    (gemma3:4b reads 5.5B) and a model within ~20% of a threshold can land in the
-    wrong tier. Upgrade path: read the count from the GGUF header.
-    """
-    size = tag.get("size")
-    quantization = ((tag.get("details") or {}).get("quantization_level") or "").lower()
-    per_weight = next(
-        (
-            bytes_
-            for prefix, bytes_ in _BYTES_PER_WEIGHT
-            if quantization.startswith(prefix)
-        ),
-        None,
-    )
-    if not size or per_weight is None:
-        return None
-    return round(size / per_weight / 1e9, 1)
 
 
 def from_remote(name: str, rows: list[dict]) -> Fingerprint:

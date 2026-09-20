@@ -15,8 +15,11 @@ def classify(fingerprint: Fingerprint) -> Tier:
         return Tier.FRONTIER
     if fingerprint.line is not None:
         return Tier.FRONTIER if fingerprint.line is Line.FLAGSHIP else Tier.CAPABLE
-    # A hosted endpoint runs models too large for a laptop; Ollama runs the laptop.
-    return Tier.COMPACT if fingerprint.provider == "ollama" else Tier.CAPABLE
+    # A hosted endpoint runs models too large for a laptop; a local one runs the
+    # laptop. Keyed on where the endpoint is, not on which provider name it
+    # carries: keying on the bundled runtime's name broke the moment someone ran
+    # a 4B through LM Studio and got capable prompts for a compact model.
+    return Tier.COMPACT if fingerprint.local else Tier.CAPABLE
 
 
 def _by_size(params_b: float) -> Tier:

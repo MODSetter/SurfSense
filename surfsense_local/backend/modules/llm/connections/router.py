@@ -32,8 +32,12 @@ router = APIRouter(prefix="/connections")
 
 DEFAULT_IMAGE_TEST_PROMPT = "A simple blue circle centered on a plain white background."
 DEFAULT_CHAT_TEST_PROMPT = "Reply with one short sentence confirming you can answer."
-# Enough to show the model answers, little enough that testing cannot run a bill up.
-CHAT_TEST_MAX_TOKENS = 64
+# Enough that a thinking model reaches its answer, and still little enough that
+# testing cannot run a bill up. A plain answer never approaches this, because the
+# reply is cut at its character limit as soon as text arrives; only a model
+# spending the budget on a reasoning trace gets near it. At 64 such a model
+# returned nothing at all, and was reported as broken.
+CHAT_TEST_MAX_TOKENS = 1024
 CHAT_TEST_MAX_CHARS = 600
 
 
@@ -239,7 +243,9 @@ async def test_connection_chat(
     reply = reply.strip()
     if not reply:
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "the model answered with no text"
+            status.HTTP_502_BAD_GATEWAY,
+            "the model returned no text, which a reasoning model does when it "
+            "spends the whole reply thinking",
         )
     return ChatTestRead(reply=reply[:CHAT_TEST_MAX_CHARS])
 

@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -16,6 +17,7 @@ from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
+from modules.llm.catalog.dependencies import get_catalog_service
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
 from modules.workspaces.router import router as workspaces_router
@@ -28,6 +30,7 @@ from shared.db import (
     serving_request,
 )
 from shared.migrations import upgrade_to_head
+from shared.secrets import UnreadableSecretError
 
 
 class MarkRequest:
@@ -46,6 +49,9 @@ class MarkRequest:
             serving_request.reset(token)
 
 
+logger = logging.getLogger(__name__)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """The API owns migrations; the worker only ever reads and writes rows."""
@@ -57,9 +63,23 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ensure_default_workspace(session)
             session.commit()
         app.state.session_factory = session_factory
+        # The preset is derived from what is on disk, so rebuild it at boot
+        # rather than only after an install. Without this a model imported from
+        # disk, or installed before this existed, loads at llama.cpp's own
+        # default window instead of the one the fit calculation chose, and a
+        # stale section keeps advertising a model whose file is gone.
+        _rewrite_generation_preset()
         yield
     finally:
         engine.dispose()
+
+
+def _rewrite_generation_preset() -> None:
+    """Best effort: a preset that cannot be written must not stop the API."""
+    try:
+        get_catalog_service().reprice()
+    except Exception:
+        logger.exception("could not rewrite the generation preset at startup")
 
 
 def create_app() -> FastAPI:
@@ -89,7 +109,21 @@ def create_app() -> FastAPI:
     app.include_router(license_router)
     app.include_router(egress_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
+    app.add_exception_handler(UnreadableSecretError, unreadable_secret)
     return app
+
+
+def unreadable_secret(_request: Request, error: UnreadableSecretError) -> JSONResponse:
+    """Handled once, here, because any route touching a stored key can hit it.
+
+    409 rather than 500: the request is well formed and the server is healthy.
+    What is wrong is a stored value, and the client is the one that can replace
+    it.
+    """
+    return JSONResponse(
+        {"detail": {"code": "unreadable_secret", "message": str(error)}},
+        status.HTTP_409_CONFLICT,
+    )
 
 
 def egress_denied(_request: Request, error: EgressDeniedError) -> JSONResponse:

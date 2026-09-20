@@ -28,8 +28,9 @@ class SelectedModel(Base):
     __table_args__ = (
         CheckConstraint(
             # A connection is required exactly when the runtime is remote;
-            # Ollama and the bundled sd-server both answer on this machine.
-            "(provider IN ('ollama', 'sdcpp') AND connection_id IS NULL) OR "
+            # The local text runtime and the bundled sd-server both answer
+            # on this machine, so neither carries a connection.
+            "(provider IN ('llamacpp', 'sdcpp') AND connection_id IS NULL) OR "
             "(provider = 'openai_compatible' AND connection_id IS NOT NULL)",
             name="provider_connection",
         ),

@@ -5,11 +5,13 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
+from modules.llm.connections.router import CHAT_TEST_MAX_TOKENS
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.types import Message
 from shared.config import get_llm_settings
 
+from . import conftest
 from .conftest import REMOTE_REQUESTS
 
 pytestmark = pytest.mark.integration
@@ -179,10 +181,34 @@ async def test_chat_test_answers_without_selecting_or_running_up_a_bill(
 
     path, body = REMOTE_REQUESTS[-1]
     assert path == "/chat/completions"
-    assert json.loads(body)["max_tokens"] == 64
+    # Only a model that spends the budget thinking ever reaches this cap: the
+    # reply is cut at its character limit as soon as text arrives, so a plain
+    # answer costs the same handful of tokens it always did.
+    assert json.loads(body)["max_tokens"] == CHAT_TEST_MAX_TOKENS
 
     # Trying a model is not choosing it.
     assert (await client.get("/llm/selection/generation")).status_code == 404
+
+
+async def test_a_thinking_model_on_a_connection_is_not_called_broken(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """It answers, after a trace longer than the old 64 token cap allowed.
+
+    A remote endpoint cannot be told to stop thinking, so the budget is what
+    decides whether the user is shown the answer or told their working model
+    replied with nothing.
+    """
+    monkeypatch.setattr(conftest, "REMOTE_THINKS", True)
+    connection = await _connect(client, openai_server)
+
+    tested = await client.post(
+        f"/llm/connections/{connection['id']}/chat-test",
+        json={"model": "anthropic/claude-3.5-sonnet"},
+    )
+
+    assert tested.status_code == 200
+    assert tested.json() == {"reply": "Hello"}
 
 
 def _stage(
@@ -279,7 +305,7 @@ async def test_local_image_model_is_silent_on_a_host_without_sd_server(
     assert refused.status_code == 409
 
 
-async def test_image_model_downloads_are_listed_and_refusable_like_ollama(
+async def test_image_model_downloads_are_listed_and_refusable_too(
     client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Weights come from huggingface.co, so Network must name it and hold it off."""
@@ -377,3 +403,40 @@ async def test_unverified_and_unlisted_paths_require_explicit_confirmation(
         },
     )
     assert confirmed.status_code == 200
+
+
+async def test_a_key_the_app_can_no_longer_read_is_explained_not_a_crash(
+    client: AsyncClient, openai_server: str, engine
+) -> None:
+    """Reachable without tampering, so it cannot answer with a stack trace.
+
+    The per install secret lives in the OS keychain. A keychain reset, or a
+    backup restored onto another machine, leaves every stored key
+    undecryptable. The key is gone either way; the only thing left to decide is
+    whether the app says so or returns an Internal Server Error and leaves the
+    connection list broken with no route to recovery.
+    """
+    connection = await _connect(client, openai_server)
+    row = await client.get("/llm/connections")
+    assert row.status_code == 200
+
+    # Damage the stored ciphertext exactly as a changed secret would.
+    from sqlalchemy import update
+
+    from modules.llm.models import ProviderConnection
+    from shared.db import create_session_factory
+
+    with create_session_factory(engine)() as session:
+        session.execute(
+            update(ProviderConnection)
+            .where(ProviderConnection.id == connection["id"])
+            .values(api_key_ciphertext=b"not-a-token-this-key-changed")
+        )
+        session.commit()
+
+    listed = await client.get(f"/llm/connections/{connection['id']}/models")
+
+    assert listed.status_code != 500
+    detail = listed.json()["detail"]
+    assert detail["code"] == "unreadable_secret"
+    assert "key" in detail["message"].casefold()

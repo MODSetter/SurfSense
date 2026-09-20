@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from modules.egress import service as egress
 from modules.llm.models import ModelRole, ProviderConnection, SelectedModel
 from modules.llm.profile import Tier
-from modules.llm.providers import get_provider
+from modules.llm.providers import get_provider, llamacpp
 from modules.llm.providers.kokoro import provider as kokoro
 from modules.llm.providers.openai_compatible import (
     OpenAICompatibleChatProvider,
@@ -40,10 +40,10 @@ def resolve_generation(session: Session) -> ResolvedGeneration:
     selected = session.get(SelectedModel, ModelRole.GENERATION)
     if selected is None:
         raise ModelResolutionError("no chat model selected")
-    if selected.provider == "ollama":
-        provider = get_provider("ollama")
+    if selected.provider == llamacpp.PROVIDER:
+        provider = get_provider(llamacpp.PROVIDER)
         if provider is None:  # pragma: no cover - fixed registry invariant
-            raise ModelResolutionError("Ollama provider is unavailable")
+            raise ModelResolutionError("the local runtime is unavailable")
         return ResolvedGeneration(selected, provider)
     connection = _connection(session, selected)
     return ResolvedGeneration(

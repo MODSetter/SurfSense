@@ -11,17 +11,14 @@ from api.dependencies import SessionDep, transact
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.egress import service as egress
 from modules.llm.activity import ModelBusyError, model_activity, model_key
+from modules.llm.catalog.dependencies import CatalogServiceDep
+from modules.llm.catalog.router import router as catalog_router
 from modules.llm.connections.router import router as connections_router
-from modules.llm.dependencies import ProviderDep, StoreDep
+from modules.llm.dependencies import LocalRuntimeDep, ProviderDep
 from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
-from modules.llm.providers import get_provider, provider_names
-from modules.llm.providers.protocols import ModelStore
+from modules.llm.providers import get_provider, llamacpp, provider_names
 from modules.llm.providers.sdcpp import provider as sdcpp
-from modules.llm.recommendations.catalog import clean_runtime_name
-from modules.llm.recommendations.dependencies import CatalogServiceDep
-from modules.llm.recommendations.router import router as recommendations_router
 from modules.llm.schemas import (
-    CatalogEntryRead,
     LocalImageCatalogRead,
     LocalImageModelRead,
     LocalImageRuntimeRead,
@@ -29,14 +26,13 @@ from modules.llm.schemas import (
     ModelRead,
     OnboardingStatusRead,
     ProviderRead,
-    PullRequest,
     SelectionRead,
     SelectionWrite,
 )
 from modules.llm.selection import choose_model, complete_onboarding
 
 router = APIRouter(prefix="/llm", tags=["llm"])
-router.include_router(recommendations_router)
+router.include_router(catalog_router)
 router.include_router(connections_router)
 
 
@@ -68,7 +64,10 @@ async def list_providers() -> list[ProviderRead]:
         ProviderRead(
             name=provider.name,
             healthy=await provider.health(),
-            can_download=isinstance(provider, ModelStore),
+            # Downloading is a catalog capability now, not a runtime one: the
+            # local runtime's models install through POST /llm/install, and a
+            # remote endpoint's cannot be installed at all.
+            can_download=provider.name == llamacpp.PROVIDER,
             requires_key=getattr(provider, "requires_key", False),
             configured=True,
         )
@@ -82,62 +81,50 @@ async def list_providers() -> list[ProviderRead]:
     response_model=list[ModelRead],
     summary="List installed models",
 )
-async def list_models(
-    provider: ProviderDep, catalog_service: CatalogServiceDep
-) -> list[ModelRead]:
-    scan = await catalog_service.advisor_catalog()
-    display_names = {
-        model.ollama_name: model.display_name
-        for model in scan.models
-        if model.ollama_name
-    }
+async def list_models(provider: ProviderDep) -> list[ModelRead]:
+    """The runtime reports files by their real names, so there is nothing to
+    clean up: the previous runtime's registry tags needed tidying, these do not."""
     return [
         ModelRead(
             name=model.name,
             installed=model.installed,
             capabilities=list(model.capabilities),
-            display_name=(
-                model.display_name
-                or display_names.get(model.name)
-                or clean_runtime_name(model.name)
-            ),
+            display_name=model.display_name or model.name,
         )
         for model in await provider.models()
     ]
 
 
 @router.delete(
-    "/providers/{provider}/models/{model_name:path}",
+    "/models/{model_name:path}",
     response_model=ModelDeleteRead,
     summary="Delete an installed local generation model",
 )
 async def delete_model(
     model_name: str,
-    store: StoreDep,
+    store: LocalRuntimeDep,
     service: CatalogServiceDep,
     session: SessionDep,
 ) -> ModelDeleteRead:
+    # Inventory from disk, not from the runtime. Asking the router first meant a
+    # dead router made models undeletable, which is backwards: one reason to
+    # delete a model is that things are broken, and removing a file needs
+    # nothing running.
     installed = next(
-        (model for model in await store.models() if model.name == model_name),
-        None,
+        (row for row in service.installed() if row.model_id == model_name), None
     )
     if installed is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"model not found: {model_name}")
-    if "completion" not in installed.capabilities:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"model does not support generation: {model_name}",
-        )
     if await transact(session, _studio_running):
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             "a model cannot be deleted while Studio is generating",
         )
-    install_lock = service.install_lock(store.name)
+    install_lock = service.install_lock()
     if install_lock.locked():
         raise HTTPException(
             status.HTTP_409_CONFLICT,
-            f"{store.name} is currently installing a model",
+            "a model is already being installed",
         )
     await install_lock.acquire()
 
@@ -147,6 +134,14 @@ async def delete_model(
                 await store.delete(model_name)
         except ModelBusyError as error:
             raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
+        except FileNotFoundError as error:
+            raise HTTPException(
+                status.HTTP_404_NOT_FOUND, f"model not found: {model_name}"
+            ) from error
+        # Rewrite the preset so the router drops it on the next restart, and so
+        # it never advertises a model whose file is gone: a stale section is
+        # served as a real entry, `source: preset`, and fails when chosen.
+        service.reprice()
     finally:
         install_lock.release()
 
@@ -183,29 +178,6 @@ def _clear_selection(session: Session, provider: str, model_name: str) -> bool:
     if cleared:
         session.delete(selected)
     return cleared
-
-
-@router.get(
-    "/providers/{provider}/catalog",
-    response_model=list[CatalogEntryRead],
-    summary="List models on offer to download",
-)
-async def list_catalog(provider: ProviderDep) -> list[CatalogEntryRead]:
-    if not isinstance(provider, ModelStore):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"{provider.name} has no catalog to download"
-        )
-
-    installed = {model.name for model in await provider.models()}
-    return [
-        CatalogEntryRead(
-            name=entry.name,
-            label=entry.label,
-            size_gb=entry.size_gb,
-            installed=entry.name in installed,
-        )
-        for entry in provider.catalog()
-    ]
 
 
 @router.get(
@@ -316,45 +288,6 @@ async def _image_server_healthy() -> bool:
             return reply.status_code == 200
     except httpx.HTTPError:
         return False
-
-
-@router.post(
-    "/providers/{provider}/pull",
-    summary="Download a model, streaming progress",
-)
-async def pull_model(
-    store: StoreDep,
-    payload: PullRequest,
-    service: CatalogServiceDep,
-    session: SessionDep,
-) -> StreamingResponse:
-    await transact(
-        session,
-        egress.require,
-        egress.OLLAMA_PULL,
-        egress.ollama_pull_host(payload.name),
-    )
-    lock = service.install_lock(store.name)
-    if lock.locked():
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"{store.name} is already installing a model",
-        )
-    await lock.acquire()
-
-    async def progress() -> AsyncIterator[bytes]:
-        try:
-            async for step in store.pull(payload.name):
-                line = {
-                    "status": step.status,
-                    "completed": step.completed,
-                    "total": step.total,
-                }
-                yield (json.dumps(line) + "\n").encode()
-        finally:
-            lock.release()
-
-    return StreamingResponse(progress(), media_type="application/x-ndjson")
 
 
 @router.get(

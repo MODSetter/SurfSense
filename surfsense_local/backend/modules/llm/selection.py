@@ -9,7 +9,7 @@ from modules.llm.connections import discover_models
 from modules.llm.connections.router import allowed_connection
 from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.profile import Fingerprint, from_name
-from modules.llm.providers import get_provider
+from modules.llm.providers import get_provider, llamacpp
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.sdcpp import provider as sdcpp
 
@@ -32,7 +32,7 @@ async def choose_model(
             "model name must not be empty",
         )
 
-    if provider_name == "ollama":
+    if provider_name == llamacpp.PROVIDER:
         await _validate_local(role, model_name, connection_id)
     elif provider_name == sdcpp.PROVIDER:
         _validate_local_image(role, model_name, connection_id)
@@ -69,8 +69,8 @@ async def _collect(
 ) -> Fingerprint:
     """Ask the provider what it knows, once, so generation never has to."""
     try:
-        if provider_name == "ollama":
-            provider = get_provider("ollama")
+        if provider_name == llamacpp.PROVIDER:
+            provider = get_provider(llamacpp.PROVIDER)
             return await provider.inspect(model_name)
         if provider_name == "openai_compatible":
             connection = await transact(session, allowed_connection, connection_id)
@@ -154,16 +154,18 @@ async def _validate_local(
     if role is not ModelRole.GENERATION:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Ollama does not provide image generation",
+            "the local text runtime does not generate images",
         )
     if connection_id is not None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Ollama selections must not include a connection",
+            "a local selection must not name a connection",
         )
-    provider = get_provider("ollama")
+    provider = get_provider(llamacpp.PROVIDER)
     if provider is None:  # pragma: no cover - fixed registry invariant
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Ollama unavailable")
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "the local runtime is unavailable"
+        )
     model = next(
         (entry for entry in await provider.models() if entry.name == model_name),
         None,
