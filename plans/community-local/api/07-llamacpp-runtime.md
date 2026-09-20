@@ -428,23 +428,24 @@ is derived from the codebase rather than chosen.
 | Constant | Kind | Basis |
 |---|---|---|
 | **Context floor, 16K** | **runtime** | `HISTORY_BUDGET_TOKENS = 3000` plus ~8,000 tokens of grounding (~24k characters from `build_context`) plus a reply. Grounded, not chosen. |
-| **Fit reserve** | prediction | **Measured: 1,028 MiB** on a Windows / Vulkan / discrete 6 GB card. A per-platform bootstrap, replaced by the machine's own figure after its first load. Two rows still blank. See **7.2**. |
+| **Fit reserve** | **runtime** | **1024 MiB, and not ours.** It is llama.cpp's `fit_params_target` default, one GiB per device on every backend, read from source and observed on both Vulkan and Metal. Pass it as `-fitt` rather than predicting it. See **7.2**. |
 | **Compute buffers** | prediction | **Measured: ~170 MiB** for a 4B at 16K. Part of `need`, scales with context and batch. |
 
-> **No longer a ponytail, with one caveat.** The reserve was an unmeasured
-> placeholder at ~1,024 MiB. Measured on an RTX 3050, `--fit` holds back
-> **1,028.34 MiB** of 5,234 free — the guess was within 4.3 MiB. Hermes'
-> equivalent is `max(2 GiB, 9% of total)` (`_MARGIN_FLOOR = 2 << 30`,
-> `_MARGIN_FRACTION = 0.09` in `local_runtime/hardware.py`), roughly twice as
-> conservative.
+> **No longer a ponytail, and no longer a prediction.** The reserve began as an
+> unmeasured placeholder at ~1,024 MiB. On an RTX 3050 `--fit` held back
+> **1,028.34 MiB** of 5,234 free, which read as a lucky guess. It was not a guess
+> and it was not lucky: `fit_params_target` defaults to `1024 * 1024*1024` per
+> device in `common/common.h`, so the true figure is **exactly 1024 MiB** and the
+> Windows excess was allocator rounding. Confirmed independently on Metal, where
+> the fitter prints `cannot meet free memory target of 1024 MiB`.
 >
-> **The caveat is generality, not accuracy.** 1,028 MiB is 17% of a 6 GB card, so
-> that single point cannot distinguish a constant reserve from a proportional
-> one, and the two diverge badly at 24 GB. Metal and Linux are unmeasured and the
-> numbers certainly do not carry — Metal has no separate VRAM at all. This is why
-> 7.2 stores the reserve as a `(platform, backend)` table with blanks rather than
-> a scalar, and why an unmeasured row rounds **up**: over-estimating costs a
-> pessimistic badge on one screen, under-estimating ships the llmfit failure.
+> **So the generality worry was unfounded and the table it motivated is gone.**
+> One point could not distinguish a constant from a proportion, which was a fair
+> objection; the answer is that the source says constant. Hermes' equivalent is
+> `max(2 GiB, 9% of total)` (`_MARGIN_FLOOR = 2 << 30`, `_MARGIN_FRACTION = 0.09`
+> in `local_runtime/hardware.py`), roughly twice as conservative, and it is
+> *their* number rather than the runtime's, which is the difference that matters:
+> ours is the one the allocator will actually apply, and `-fitt` lets us set it.
 
 #### Not in v1, and why
 
@@ -550,10 +551,18 @@ header and a truncated-response retry.
 
 `modules/llm/hardware/` — `ctypes` into `libggml`, then `--list-devices`, then
 OS APIs. First hit wins, cached; warm the probe in the background at first
-launch, not on the path of the first render (a cold `ggml_backend_load_all()` on
-macOS compiles 20 Metal shader libraries, measured at ~20 s once, 180 ms after).
-That cold penalty is **Metal-only**: measured off Apple Silicon the same call is
-77 ms with one backend and 205 ms with two.
+launch, not on the path of the first render: on macOS, 20 Metal shader libraries
+are compiled on the first call, measured at **19.0 s once** and ~45 ms after.
+That cold penalty is **Metal-only**: measured off Apple Silicon the equivalent
+call is 77 ms with one backend and 205 ms with two.
+
+> **Warm the right call.** Earlier drafts attributed the cold cost to
+> `ggml_backend_load_all()`. Measured on an M2, `load_all()` is **2.3 ms** and the
+> compile happens inside the first **`ggml_backend_dev_count()`**, which is 19 s
+> cold and 43 to 49 ms warm. A background warm that calls `load_all()` and stops
+> therefore warms nothing, and the 19 s lands on whoever asks for the device list
+> first, which is the first render. Enumerate the devices in the warm, not just
+> load the backends.
 
 > **Folders, not two files.** Earlier drafts named `hardware.py` and `fit.py`.
 > Between them they carry library loading, the working-directory dance, device
@@ -632,8 +641,33 @@ def select_device(devices):
   the 6 GB discrete card and places every layer on the slower device.
 - **Never aggregate.** No `sum()` across devices. One device becomes
   `HardwareBudget.usable_vram_bytes`.
-- **`ACCEL` is not a GPU** for budgeting — an integrated part carving from system
-  RAM has no memory of its own to place layers in.
+- **An integrated GPU is not a GPU** for budgeting — a part carving from system
+  RAM has no memory of its own to place layers in. It types as `IGPU`, not
+  `ACCEL`; see below.
+
+> **The device type enum has five members, not three, and getting that wrong is
+> a crash rather than a wrong answer.** Read from `ggml-backend.h` at `b11050`:
+>
+> ```c
+> GGML_BACKEND_DEVICE_TYPE_CPU   = 0   // system memory
+> GGML_BACKEND_DEVICE_TYPE_GPU   = 1   // dedicated memory
+> GGML_BACKEND_DEVICE_TYPE_IGPU  = 2   // integrated, host memory
+> GGML_BACKEND_DEVICE_TYPE_ACCEL = 3   // BLAS, AMX
+> GGML_BACKEND_DEVICE_TYPE_META  = 4   // wraps several devices for tensor parallelism
+> ```
+>
+> Earlier drafts of this document, and the listing in
+> [`08-cuda-backend.md`](08-cuda-backend.md), label the integrated Radeon on the
+> Windows machine `ACCEL`. Its raw type is `2`, so it is **`IGPU`**. The selection
+> *behaviour* is unaffected, since both are skipped by `type == GPU`, and the
+> reasoning was right about the hardware. Only the name was wrong.
+>
+> **A three-member Python enum crashes on macOS.** Every Mac lists an Accelerate
+> `BLAS` device, measured at raw type `3`, so `DeviceType(3)` raises `ValueError`
+> on a machine that is otherwise perfectly healthy. This is the probe running at
+> first paint, so it is a startup failure, not a degraded badge. Model all five,
+> and treat an unknown integer as "not a GPU" rather than as an error, because
+> ggml has added a member twice and will again.
 
 This rule is required here, under Vulkan alone. It becomes load-bearing if
 [`08-cuda-backend.md`](08-cuda-backend.md) ever ships, because two loaded
@@ -643,10 +677,18 @@ not deduplicate them.
 #### `ram_available_bytes` does not come from ggml reliably
 
 ggml's CPU device reports real available memory on native Windows (31884.6 MiB
-total against 22750.2 MiB free, measured) but **`total == free` under WSL2**,
-where the figure is virtualised. Keep the OS API in the chain for the RAM half
-rather than trusting the CPU device, since `ram_available_bytes` is what
-separates `PARTIAL` from `TOO_BIG`.
+total against 22750.2 MiB free, measured) and **nowhere else that has been
+tried**. Under WSL2 the figure is virtualised and `total == free`. On macOS it is
+worse: measured on an M2 with roughly 2 GB genuinely free, the CPU device reports
+**8192.0 MiB total against 8192.0 MiB free** — physical RAM restated twice, with
+no live component at all. The Metal device is barely better, at 5461.3 total
+against 5461.0 free.
+
+So **native Windows is the exception, not the rule**. Keep the OS API in the
+chain for the RAM half rather than trusting the CPU device, since
+`ram_available_bytes` is what separates `PARTIAL` from `TOO_BIG`, and treat a
+`free == total` reading as "this device does not report live memory" rather than
+as an idle machine.
 
 Two budget modes. **Capacity** (total − margin) for catalog pricing; **live**
 (free now) for launch decisions. Pricing against live-free while a model is
@@ -686,38 +728,79 @@ not a rounding error on a 6 GB card.
 This replaces today's single `recommendation_reserve_gb: 2.0`, which was flagged
 `ponytail` as uncalibrated.
 
-#### The fit reserve is a table, not a number
+#### The fit reserve is not a measurement. It is a flag we can set
 
-Keyed by `(platform, backend, memory model)`, because none of it transfers: Metal
-has no separate VRAM at all, and a CUDA context alone costs ~541 MiB against
-Vulkan's much lighter footprint.
+**Corrected by reading the source and the log, on an M2 / 8 GB at `b11050`.**
+Earlier drafts of this section carried a `(platform, backend, memory model)`
+table with one measured row and two blanks, on the reasoning that Metal, Vulkan
+and CUDA reserve different amounts and none of it transfers. **That reasoning was
+wrong.** The reserve is a single hardcoded default in llama.cpp's own fitter,
+identical on every backend:
+
+```cpp
+// common/common.h — margin per device in bytes for fitting parameters to free memory
+std::vector<size_t> fit_params_target =
+    std::vector<size_t>(llama_max_devices(), 1024 * 1024*1024);
+```
+
+**1 GiB per device, platform independent.** The Windows figure of 1,028.34 MiB
+was that 1024 MiB plus 4.34 MiB of allocator rounding, so the spec's original
+"~1,024 MiB" guess was not lucky to within 4.3 MiB, it was **exactly the
+constant**. Metal names it out loud under `-v`:
+
+```text
+common_params_fit_impl: projected to use 5752 MiB of device memory vs. 5460 MiB of free
+common_params_fit_impl: cannot meet free memory target of 1024 MiB,
+                        need to reduce device memory by 1315 MiB
+```
+
+`5752 − (5460 − 1024) = 1316`. The comparison `need > free − 1024` is exact, on a
+second backend, with no fitting.
+
+**It is also a CLI flag: `-fitt` / `--fit-target`, in MiB, per device.** So the
+reserve stops being a number to predict and becomes an input we control. Pass it
+explicitly and `usable = device_free − fit_reserve` is true **by construction**
+rather than by estimate, on every platform, including ones nobody has run.
 
 | platform / backend | reserve | basis |
 |---|---|---|
-| windows / vulkan / discrete | **1028 MiB** | measured, `b11050`, RTX 3050 6 GB |
-| linux / vulkan / discrete | — | unmeasured |
-| macos / metal / uma | — | unmeasured |
+| any backend, any platform | **1024 MiB** | llama.cpp default, read from source at `b11050`; observed on Vulkan and Metal |
+| whatever we pass to `-fitt` | that value | the flag exists; prefer pinning it to inheriting it |
 | no GPU device | n/a | `PARTIAL` is unreachable; see **Fit states** |
 
-> **6 GB cannot distinguish a constant from a proportion.** 1,028 MiB is 17% of
-> that card; Hermes uses `max(2 GiB, 9%)`. One measurement cannot tell the two
-> models apart, and they diverge badly on a 24 GB card. Record the figure with
-> its device, and do not generalise from it.
+**Three consequences.** The blank rows do not need measuring, and the plan to
+measure them was work that could not have produced new information. The
+self-calibration below is **no longer about the reserve**, only about the
+compute-buffer half of the prediction. And pinning `-fitt` removes a class of
+error rather than shrinking it, which is worth more than a better guess.
 
-**Why shipping with two blank rows is safe.** An unmeasured row falls back to a
-deliberately generous default, because the errors are asymmetric:
+> **Errors here are still asymmetric, and the direction still matters** for the
+> compute-buffer term that remains predicted. Too large predicts `PARTIAL` where
+> reality is `FITS`: the user sees *Reduced speed*, installs anyway (`PARTIAL`
+> installs exactly like `FITS`), and is not harmed. Too small predicts `FITS`
+> where reality is `PARTIAL`, which is precisely the llmfit failure this phase
+> exists to delete. *Unknown shapes round up; never underestimate memory.*
 
-- **reserve too large** → predicts `PARTIAL` where reality is `FITS`. The user
-  sees *Reduced speed*, installs anyway (`PARTIAL` installs exactly like
-  `FITS`), and the self-calibration below replaces the guess after the first
-  load. Under-promise, self-correcting.
-- **reserve too small** → predicts `FITS` where reality is `PARTIAL`. That is
-  precisely the llmfit failure this phase exists to delete: a confident badge
-  about a model that spills.
+#### What `--fit` actually does when it cannot fit
 
-So the bootstrap does not have to be right. It has to **not under-estimate** —
-the same rule as **Boundaries**: *unknown shapes round up; never underestimate
-memory*.
+Measured, same session, Qwen3 1.7B at `-c 40960` against a 5,460 MiB working set.
+It does **not** solve for a placement, it **searches** for one, reloading at each
+step:
+
+```text
+29/29 layers → 0/29 → 29/29 → 22/29 → 23/29   (settles at 23/29, f ≈ 0.21)
+```
+
+Two behaviours that matter to us fall out of that log:
+
+- **It never touched the context.** KV stayed at 4,480 MiB / 40,960 cells through
+  every step. Because `-c` was set explicitly, the fitter treats it as fixed and
+  spills layers instead, which is the same "explicitly set means hands off" rule
+  that `-ngl` follows. Good: our context floor survives contact with the fitter.
+- **If we do not set `-c`, it will reduce context on its own, as far as
+  `fit_params_min_ctx = 4096`.** That is well below our 16K floor and it happens
+  silently. So `-c` is not optional for us, and not only because we want a
+  particular window: leaving it unset hands the floor to llama.cpp.
 
 Per-layer KV comes from the header; the formula is validated exactly in the
 **Appendix**.
@@ -794,16 +877,43 @@ streaming. Install fetches the GGUF into `--models-dir` with real filenames, not
 llama.cpp's content-addressed HF cache layout (`LLAMA_CACHE` points at the app
 data dir so nothing writes to `~/.cache`).
 
-> **ponytail: the mechanism below is unverified.** `POST /models/load` with
-> `{"model": …, "args": ["-c", "16384"]}` was sent at `b11050` and the router
-> **ignored the args** — the worker came up at the model's own default
-> (`n_ctx_slot` 34304 / 28160 / 12288 for the 0.6B / 1.7B / 4B, not 16384). The
-> same `-c 16384` passed directly to `llama-server` on the command line **is**
-> honoured, so the flag works and the router's plumbing for it does not, at least
-> not in this shape. Fixed-context-at-load is a Decisions-table entry and the
-> reason the 16K floor exists, so **resolve this first in 7.3**: either the field
-> name differs, the args need another shape, or context must be set per model at
-> router startup. Do not build the context ladder on top of an unconfirmed call.
+> **Resolved: `POST /models/load` cannot set per-model args. `--models-preset`
+> can.** Measured on macOS at `b11050`. Every payload shape is accepted and none
+> of them does anything: `{"args": ["-c","4096"]}`, `{"args":
+> ["--ctx-size","4096","-fa","on"]}` and `{"preset": "..."}` all return
+> `200 {"success":true}` while the worker's argv stays **byte identical**. The
+> router reports that argv under `GET /models` as `status.args`, which is the
+> only reliable way to see what it actually did.
+>
+> The mechanism is a separate flag, `--models-preset PATH`, pointing at an INI
+> file with one section per model:
+>
+> ```ini
+> [Qwen3-8B-Q4_K_M]
+> model = /path/to/Qwen3-8B-Q4_K_M.gguf
+> ctx-size = 16384
+> flash-attn = on
+> cache-type-k = q8_0
+> cache-type-v = q8_0
+> parallel = 1
+> ```
+>
+> Verified: the worker then launches with `--ctx-size 16384 --cache-type-k q8_0
+> --cache-type-v q8_0 --flash-attn on --parallel 1`, and reports the requested
+> `n_ctx_slot` rather than its own default. **So every per-model decision in this
+> phase is implementable**, including the KV precision row in **Decisions**,
+> which rides the same mechanism as the context window.
+>
+> **The INI is read once at router startup.** Appending a section while the
+> router runs does not surface the model, so installing a model or changing its
+> load plan means rewriting the file and restarting the sidecar. That is the
+> lifecycle `watchImageModel()` already implements for sd-server in
+> `electron/src/main/index.ts`: poll a small endpoint, compare the arg set, then
+> `stopNamed` plus `startOne` on a change. Reuse it rather than inventing a
+> second supervisor pattern.
+>
+> Also measured and worth passing: llama-server defaults to `--parallel 4`, so
+> the KV cache is sized for four concurrent slots this app never uses.
 
 **Context is fixed at load, not grown.** `POST /models/load {"args": ["-c", N]}`
 with `N` the largest window that keeps the verdict at **`FITS`** — not the
@@ -1458,15 +1568,30 @@ pick = max(candidates, key=lambda ev: (ev[1].rank, -ev[1].size_bytes),
            default=None)
 ```
 
-> **`MAX_OFFLOAD` is provisional, and may not be needed at all.** On the one
-> machine measured, *every* offload fraction stayed usable: even fully on the CPU
-> this model decoded at 13 t/s, above reading pace, and prefill held at half
-> device speed. No sensible threshold would have fired anywhere in the curated
-> range. Before shipping a constant, check whether the gate ever triggers — a
-> mechanism that never fires is worse than no mechanism, because it reads as
-> protection that was never tested. The reason the `FITS`-only rule had to go is
-> unchanged and does not depend on this number: it refused configurations that
-> demonstrably work.
+> **`MAX_OFFLOAD` fires, and it is load bearing.** An earlier draft suspected it
+> might never trigger and should perhaps not ship. Run against the six profiles
+> with the implemented estimator, the opposite holds: **without a ceiling, five
+> of six machines star Qwen3 32B**, including a 6 GB RTX 3050 at `f = 0.82`.
+>
+> | machine | no ceiling | ceiling at 0.75 | `f` of the unceilinged pick |
+> |---|---|---|---|
+> | M2 8 GB | Qwen3 8B | Qwen3 8B | 0.38 |
+> | RTX 3050 6 GB | **Qwen3 32B** | Qwen3 8B | **0.82** |
+> | M4 16 GB | Qwen3 32B | Qwen3 32B | 0.57 |
+> | RTX 4070 12 GB | Qwen3 32B | Qwen3 32B | 0.57 |
+> | RTX 4090 24 GB | Qwen3 32B | Qwen3 32B | 0.05 |
+> | M4 Max 64 GB | Qwen3 32B | Qwen3 32B | 0.00 |
+>
+> The earlier suspicion came from sweeping **one** model and finding every
+> offload fraction usable. That is true, and it is the wrong population: the gate
+> exists to stop the *largest* build being starred on a small card, and only the
+> ladder exposes that.
+>
+> **0.75 is still too loose and should not ship as it stands.** It leaves the
+> 4070 and the 16 GB Mac on a 32B at `f = 0.57`, which the roofline puts at about
+> 37% of resident decode speed. Set the number from the roofline against a stated
+> speed floor rather than picking a round one. The point here is only that the
+> ceiling must exist.
 
 `MAX_OFFLOAD` is a v1 placeholder for the speed gate below, not a latency
 judgement. Set it generously: the failure it exists to prevent is starring a
@@ -2170,6 +2295,57 @@ with 5,234 MiB free, from llama.cpp's own allocation log:
 `1984 + 320` measured. Qwen3 0.6B independently: predicted `378 + 1792 + ~60` =
 2,234 MiB, measured VRAM delta **2,234 MiB**. That is the evidence that a curated
 row can be priced offline from committed `shape` fields alone.
+
+**Apple Silicon, measured on an M2 / 8 GB at `b11050`.** The platform the
+reserve table listed as unmeasured. Qwen3 1.7B Q4_K_M, `llama-server -v`.
+
+| Measurement | Value |
+|---|---|
+| `ggml_backend_load_all()` | **2.3 ms** |
+| first `ggml_backend_dev_count()` (compiles 20 Metal libraries) | **19.0 s** cold, 43 to 49 ms warm |
+| `ggml_backend_dev_memory()` | 0.02 ms |
+| devices listed | `MTL0` (GPU), `BLAS` (ACCEL, raw type 3), `CPU` |
+| `recommendedMaxWorkingSetSize` | 5726.63 MB = **5461.3 MiB**, which is what ggml reports as MTL0 total |
+| MTL0 total / free | 5461.3 / 5461.0 MiB — **not a live figure** |
+| CPU device total / free | 8192.0 / 8192.0 MiB — physical RAM, twice, on a machine with ~2 GB free |
+| fit margin the fitter names | **1024 MiB** |
+
+At `-c 16384`, `--parallel 1` would have been the right flag and was not passed;
+llama-server defaults to **4 slots**, so pass `--parallel 1` or the KV cache is
+sized for concurrency this app does not use.
+
+| buffer, `-c 16384` | MiB |
+|---|---|
+| `MTL0_Mapped` model | 1050.43 |
+| `CPU_Mapped` model | 243.43 |
+| `MTL0` KV | 1792.00 |
+| `MTL0` compute | 102.24 |
+| `CPU` compute | 24.01 |
+| `CPU` output | 2.32 |
+| **fitter's own projection** | **2944** |
+
+`1050 + 1792 + 102 = 2944`, against the fitter's `projected to use 2944 MiB`.
+**The three-term `need` is exact on Metal**, as it was on Vulkan.
+
+**The KV formula is exact on Metal too.** `2 × 28 layers × 8 kv_heads × 128 ×
+2 bytes × 16384` = **1792 MiB**, reported as `1792.00`. At 40,960 cells it is
+`4480.00`, again exact. Compute buffers scale with context as stated: 102.24 MiB
+at 16K, 222.24 MiB at 40K.
+
+**243.43 MiB stayed on the CPU at "offloaded 29/29 layers to GPU".** The
+non-repeating tensors are host-side even at full offload, so *29/29 offloaded*
+does not mean *all weights on the device*, and an `offload_fraction` derived from
+the layer count alone will read 0.00 when 19% of the file is elsewhere.
+
+**Metal reports `0.00 MiB` buffer sizes during the fitter's probe pass**, before
+the real load. Anything scraping buffer sizes must ignore the first pass, and
+`use shared buffers = true` means Metal allocations are not the separate arenas
+Vulkan and CUDA report.
+
+**`--fit` searches rather than solves.** At `-c 40960`, needing 5752 MiB against
+5460 free with a 1024 margin: `29/29 → 0/29 → 29/29 → 22/29 → 23/29`, reloading
+at each step, settling at 23/29 (`f ≈ 0.21`). It never reduced the context,
+because `-c` was explicit.
 
 **Router lifecycle.** Router up with three models discovered: VRAM unchanged from
 idle. Worker spawn: `--port 0 --model <path>`. Idle eviction ~30 s without
