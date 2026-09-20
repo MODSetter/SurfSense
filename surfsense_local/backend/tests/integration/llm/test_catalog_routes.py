@@ -1,0 +1,106 @@
+"""The model screen's routes.
+
+These replace `GET /llm/system`, `GET /llm/catalog` and `POST /llm/install` at
+the same paths, so this file is also the check that the reshape landed.
+"""
+
+import pytest
+from httpx import AsyncClient
+
+pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
+
+
+async def test_the_catalog_renders_with_no_network_and_no_scan(client: AsyncClient) -> None:
+    """A clean machine sees a hardware line and badged rows on first paint."""
+    reply = await client.get("/llm/catalog")
+
+    assert reply.status_code == 200
+    body = reply.json()
+    assert body["curated"]
+    assert all(row["badge"]["verdict"] for row in body["curated"])
+
+
+async def test_no_row_carries_a_rank_on_the_wire(client: AsyncClient) -> None:
+    """Asserted on the serialized response, so it cannot be reintroduced by an
+    accidental `from_attributes` widening."""
+    body = (await client.get("/llm/catalog")).json()
+
+    for row in body["curated"]:
+        assert "rank" not in row
+        assert "score" not in row
+
+
+async def test_the_response_carries_no_scanned_flag(client: AsyncClient) -> None:
+    """There is no scan. The flag is what the frontend hung a button on."""
+    body = (await client.get("/llm/catalog")).json()
+
+    assert "scanned" not in body
+
+
+async def test_the_offload_fraction_survives_to_the_renderer(client: AsyncClient) -> None:
+    """The graded reason line is selected from it, and the renderer must not
+    recompute what the estimator already knows."""
+    body = (await client.get("/llm/catalog")).json()
+
+    assert all("offload_fraction" in row["fit"] for row in body["curated"])
+
+
+async def test_the_system_route_describes_one_device_never_a_sum(client: AsyncClient) -> None:
+    """Summing backends reports 12 GB on a 6 GB card, wrong in the dangerous
+    direction: it tells a user a model fits when it cannot."""
+    body = (await client.get("/llm/system")).json()
+
+    budget = body["budget"]
+    assert budget["usable_vram_bytes"] <= budget["device_free_bytes"]
+    for device in body["devices"]:
+        assert budget["device_total_bytes"] <= max(
+            device["total_bytes"] for device in body["devices"]
+        )
+
+
+async def test_search_is_refused_until_its_destination_is_allowed(
+    client: AsyncClient,
+) -> None:
+    """Typing into a search box sends that text to huggingface.co, which is a
+    consent of its own and separate from allowing a download."""
+    reply = await client.get("/llm/search", params={"q": "qwen"})
+
+    assert reply.status_code == 403
+
+
+async def test_installing_an_unknown_id_says_the_catalog_is_stale(
+    client: AsyncClient,
+) -> None:
+    """One staleness failure, not two: a searched build's ticket expires on the
+    same clock as the row it was minted for."""
+    reply = await client.post("/llm/install", json={"catalog_id": "never-minted"})
+
+    assert reply.status_code == 422
+    assert "stale" in reply.json()["detail"]
+
+
+async def test_installing_is_refused_until_its_destination_is_allowed(
+    client: AsyncClient,
+) -> None:
+    """Downloading a model reaches huggingface.co, and that is a consent the
+    user gives explicitly. Separate from search: this is a repo they named.
+    """
+    body = (await client.get("/llm/catalog")).json()
+    catalog_id = body["curated"][0]["catalog_id"]
+
+    reply = await client.post("/llm/install", json={"catalog_id": catalog_id})
+
+    assert reply.status_code == 403
+
+
+async def test_a_curated_row_can_be_installed_by_its_opaque_id(
+    client: AsyncClient,
+) -> None:
+    """The renderer sends only that id: no repo, file, URL or path. A valid id
+    gets past resolution and fails on egress, not on being unrecognised."""
+    body = (await client.get("/llm/catalog")).json()
+    catalog_id = body["curated"][0]["catalog_id"]
+
+    reply = await client.post("/llm/install", json={"catalog_id": catalog_id})
+
+    assert reply.status_code != 422

@@ -1,0 +1,191 @@
+{
+  "schema_version": 3,
+  "models": [
+    {
+      "model_id": "Qwen/Qwen3-0.6B",
+      "family": "Qwen3",
+      "label": "Qwen3 0.6B",
+      "parameter_count": "0.6B",
+      "shape": {
+        "architecture": "qwen3",
+        "block_count": 28,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "context_length": 40960,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0
+      },
+      "capabilities": [],
+      "decode_fraction": 1.0,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3-0.6B-GGUF",
+          "file": "Qwen3-0.6B-Q4_K_M.gguf",
+          "quantization": "Q4_K_M",
+          "size_bytes": 396705472,
+          "mmproj": null,
+          "rank": 33,
+          "rank_basis": "llmfit-1.1.11",
+          "validated": false
+        }
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3-1.7B",
+      "family": "Qwen3",
+      "label": "Qwen3 1.7B",
+      "parameter_count": "1.7B",
+      "shape": {
+        "architecture": "qwen3",
+        "block_count": 28,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "context_length": 40960,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0
+      },
+      "capabilities": [],
+      "decode_fraction": 1.0,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3-1.7B-GGUF",
+          "file": "Qwen3-1.7B-Q4_K_M.gguf",
+          "quantization": "Q4_K_M",
+          "size_bytes": 1107409472,
+          "mmproj": null,
+          "rank": 48,
+          "rank_basis": "llmfit-1.1.11",
+          "validated": false
+        }
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3-4B",
+      "family": "Qwen3",
+      "label": "Qwen3 4B",
+      "parameter_count": "4B",
+      "shape": {
+        "architecture": "qwen3",
+        "block_count": 36,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "context_length": 40960,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0
+      },
+      "capabilities": [],
+      "decode_fraction": 1.0,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3-4B-GGUF",
+          "file": "Qwen3-4B-Q4_K_M.gguf",
+          "quantization": "Q4_K_M",
+          "size_bytes": 2497281312,
+          "mmproj": null,
+          "rank": 63,
+          "rank_basis": "llmfit-1.1.11",
+          "validated": false
+        }
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3-8B",
+      "family": "Qwen3",
+      "label": "Qwen3 8B",
+      "parameter_count": "8B",
+      "shape": {
+        "architecture": "qwen3",
+        "block_count": 36,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "context_length": 40960,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0
+      },
+      "capabilities": [],
+      "decode_fraction": 1.0,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3-8B-GGUF",
+          "file": "Qwen3-8B-Q4_K_M.gguf",
+          "quantization": "Q4_K_M",
+          "size_bytes": 5027784512,
+          "mmproj": null,
+          "rank": 78,
+          "rank_basis": "llmfit-1.1.11",
+          "validated": false
+        }
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3-14B",
+      "family": "Qwen3",
+      "label": "Qwen3 14B",
+      "parameter_count": "14B",
+      "shape": {
+        "architecture": "qwen3",
+        "block_count": 40,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "context_length": 40960,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0
+      },
+      "capabilities": [],
+      "decode_fraction": 1.0,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3-14B-GGUF",
+          "file": "Qwen3-14B-Q4_K_M.gguf",
+          "quantization": "Q4_K_M",
+          "size_bytes": 9001753984,
+          "mmproj": null,
+          "rank": 85,
+          "rank_basis": "llmfit-1.1.11",
+          "validated": false
+        }
+      ]
+    },
+    {
+      "model_id": "Qwen/Qwen3-32B",
+      "family": "Qwen3",
+      "label": "Qwen3 32B",
+      "parameter_count": "32B",
+      "shape": {
+        "architecture": "qwen3",
+        "block_count": 64,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "context_length": 40960,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0
+      },
+      "capabilities": [],
+      "decode_fraction": 1.0,
+      "variants": [
+        {
+          "repo": "unsloth/Qwen3-32B-GGUF",
+          "file": "Qwen3-32B-Q4_K_M.gguf",
+          "quantization": "Q4_K_M",
+          "size_bytes": 19762150048,
+          "mmproj": null,
+          "rank": 92,
+          "rank_basis": "llmfit-1.1.11",
+          "validated": false
+        }
+      ]
+    }
+  ]
+}
