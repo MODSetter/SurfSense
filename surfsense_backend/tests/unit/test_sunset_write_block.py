@@ -40,6 +40,8 @@ _PATHS = (
     "/api/v1/export",
     "/api/v1/workspaces/7/scrapers/reddit/search",
     "/api/v1/workspaces/7/scrapers/capabilities",
+    "/api/v1/pats",
+    "/api/v1/pats/42",
 )
 
 
@@ -188,6 +190,18 @@ def test_the_scraper_api_keeps_running(client, sunset_on):
     410 every paying caller the moment the flag is thrown.
     """
     assert client.post("/api/v1/workspaces/7/scrapers/reddit/search").status_code == 200
+
+
+@pytest.mark.parametrize("method", ["post", "delete"])
+def test_pats_keep_working_through_the_tail(client, sunset_on, method):
+    """PATs die at the T+30 purge, not at T-0 (00d-pivot-plan.md, "Existing MCP users").
+
+    Losing create/revoke at T-0 would strand every PAT-holding client -- MCP
+    included -- long before the purge that is actually supposed to end it.
+    """
+    path = "/api/v1/pats" if method == "post" else "/api/v1/pats/42"
+
+    assert getattr(client, method)(path).status_code == 200
 
 
 # --------------------------------------------------------------------------

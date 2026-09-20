@@ -39,10 +39,16 @@ _UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 # signing in, and the legacy desktop client authenticates through
 # ``/auth/desktop/*``. Registration is the one exception -- the service is
 # winding down, so there is nobody new to sign up.
+#
+# PATs keep working unchanged through the tail (00d-pivot-plan.md, "Existing
+# MCP users"): they die at the T+30 purge, not at T-0, so create/revoke has to
+# stay open here or every PAT-holding client -- MCP included -- loses the only
+# credential it has before the purge actually happens.
 _ALLOWED_PREFIXES = (
     "/auth/",
     "/api/v1/license/",
     "/api/v1/stripe/webhook",
+    "/api/v1/pats",
 )
 _BLOCKED_PATHS = frozenset({"/auth/register"})
 
