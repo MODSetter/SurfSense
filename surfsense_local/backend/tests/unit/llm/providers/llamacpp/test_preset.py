@@ -21,6 +21,7 @@ def a_preset(**overrides) -> ModelPreset:
         "path": "/models/Qwen3-8B-Q4_K_M.gguf",
         "n_ctx": 16384,
         "precision": KvPrecision.F16,
+        "fit_target_mib": 1024,
     }
     return ModelPreset(**{**fields, **overrides})
 
@@ -83,3 +84,39 @@ def test_no_explicit_layer_count_is_ever_written() -> None:
 
     assert "n-gpu-layers" not in ini
     assert "ngl" not in ini
+
+
+def test_the_fitter_is_told_the_margin_we_priced_against() -> None:
+    """The badge subtracted llama.cpp's own default margin. Pinning it makes that
+    true by construction rather than by assuming a default we read once."""
+    ini = render_presets([a_preset()])
+
+    assert "fit-target = 1024" in ini
+
+
+def test_a_projector_raises_the_target_by_its_own_size() -> None:
+    """`--fit` does not count mmproj memory, so a vision model the fitter calls
+    resident can still fail to allocate. Ollama compensates the same way: the
+    projector's bytes are added to the margin the fitter must leave."""
+    ini = render_presets(
+        [a_preset(fit_target_mib=1624, mmproj_path="/models/mmproj-F16.gguf")]
+    )
+
+    assert "fit-target = 1624" in ini
+    assert "mmproj = /models/mmproj-F16.gguf" in ini
+
+
+def test_a_text_model_names_no_projector() -> None:
+    """Most models have none, and an empty value is not the same as absence."""
+    assert "mmproj" not in render_presets([a_preset()])
+
+
+def test_the_context_floor_is_stated_for_the_fitter_too() -> None:
+    """Inert while `ctx-size` is set, because llama.cpp only reduces a context it
+    chose itself. Written anyway: it says what the floor is at the place the
+    fitter would read one, so a future change to how we set the window cannot
+    silently hand the floor back to llama.cpp's own 4096.
+    """
+    ini = render_presets([a_preset(n_ctx=16384)])
+
+    assert "fit-ctx = 16384" in ini

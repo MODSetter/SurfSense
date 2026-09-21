@@ -30,6 +30,10 @@ class ModelPreset:
     path: str
     n_ctx: int
     precision: KvPrecision
+    # The margin the fitter must leave, in MiB. No default: the badge was drawn
+    # against a specific number and the caller always knows which.
+    fit_target_mib: int
+    mmproj_path: str | None = None
 
 
 def render_presets(presets: list[ModelPreset]) -> str:
@@ -50,7 +54,21 @@ def _section(preset: ModelPreset) -> str:
         # One user, one question. The default of four sizes the KV cache for
         # concurrency this app never uses.
         "parallel = 1",
+        # Pinned rather than inherited. The badge subtracted this margin, so
+        # passing it makes the two agree by construction instead of by assuming
+        # a default read from the source once.
+        f"fit-target = {preset.fit_target_mib}",
+        # Inert while `ctx-size` is set: llama.cpp only shrinks a context it
+        # chose itself. Written anyway, because it states the floor at the place
+        # the fitter would look for one, so a later change to how the window is
+        # set cannot quietly hand that floor back to llama.cpp's own 4096.
+        f"fit-ctx = {preset.n_ctx}",
     ]
+    if preset.mmproj_path is not None:
+        # `--fit` does not count the projector, so a vision model the fitter
+        # calls resident can still fail to allocate. The margin above carries
+        # its bytes; this is what tells the worker to load it at all.
+        lines.append(f"mmproj = {preset.mmproj_path}")
     if preset.precision is KvPrecision.Q8_0:
         # Both halves together, or the fused flash-attention kernel is skipped
         # and attention silently falls back to the CPU.
