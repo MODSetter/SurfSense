@@ -7,11 +7,11 @@ Chat is **composed, not reimplemented**. llama-server speaks OpenAI on
 `/v1/chat/completions`, so the streaming, error handling and message shaping in
 `OpenAICompatibleChatProvider` already work against it.
 
-Deliberately **not** a `ModelStore`. That protocol requires `pull()`, which made
-sense when the runtime fetched its own weights from a name. Here SurfSense fetches the
-GGUF itself, because that is the only place `egress.require()` can hold, and
-because it buys resume, checksums and the header as the file lands. Downloading
-is a catalog concern; this adapter answers questions and reports what is on disk.
+Deliberately **no** `pull()`. Fetching its own weights from a name made sense
+when the runtime owned the download. Here SurfSense fetches the GGUF itself,
+because that is the only place `egress.require()` can hold, and because it buys
+resume, checksums and the header as the file lands. Downloading is a catalog
+concern; this adapter answers questions and reports what is on disk.
 """
 
 import logging

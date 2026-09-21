@@ -12,16 +12,6 @@ class Model:
 
 
 @dataclass(frozen=True)
-class CatalogEntry:
-    """A model a provider offers to download, and its size."""
-
-    name: str
-    label: str
-    size_gb: float
-    installed: bool = False
-
-
-@dataclass(frozen=True)
 class Message:
     """One turn of a conversation handed to a generator."""
 

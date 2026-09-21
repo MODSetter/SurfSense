@@ -1,8 +1,8 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Protocol
 
-from modules.llm.providers.types import CatalogEntry, DownloadProgress, Message, Model
+from modules.llm.providers.types import Message, Model
 
 
 class Generator(Protocol):
@@ -62,22 +62,3 @@ class TextToSpeech(Protocol):
     def voices(self) -> list[Voice]: ...
 
     async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio: ...
-
-
-@runtime_checkable
-class ModelStore(Protocol):
-    """Only runtimes that keep models on disk can fetch them.
-
-    Checked with isinstance, so a remote API that cannot download simply does
-    not satisfy it and the download UI is hidden without naming a provider.
-    """
-
-    name: str
-
-    async def models(self) -> list[Model]: ...
-
-    def catalog(self) -> list[CatalogEntry]: ...
-
-    def pull(self, name: str) -> AsyncIterator[DownloadProgress]: ...
-
-    async def delete(self, name: str) -> None: ...

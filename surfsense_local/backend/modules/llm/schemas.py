@@ -33,21 +33,6 @@ class ModelDeleteRead(BaseModel):
     selection_cleared: bool
 
 
-class CatalogEntryRead(BaseModel):
-    """A model on offer to download, with its size."""
-
-    name: str
-    label: str
-    size_gb: float
-    installed: bool
-
-
-class PullRequest(BaseModel):
-    """The one model to fetch, by its provider name."""
-
-    name: str
-
-
 class ConnectionWrite(BaseModel):
     label: str = Field(min_length=1, max_length=100)
     provider: str = "openai_compatible"

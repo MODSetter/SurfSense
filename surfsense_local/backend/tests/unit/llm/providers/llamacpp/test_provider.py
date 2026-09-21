@@ -7,7 +7,6 @@ the runtime changed.
 import pytest
 
 from modules.llm.providers.llamacpp import LlamaCppProvider
-from modules.llm.providers.protocols import ModelStore
 from modules.llm.providers.types import Message
 from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
@@ -24,18 +23,18 @@ def test_it_is_the_registry_entry_the_selection_column_will_hold() -> None:
     assert LlamaCppProvider("http://x").name == "llamacpp"
 
 
-def test_it_answers_and_keeps_inventory_without_being_a_model_store() -> None:
-    """`ModelStore` requires `pull()`, and this runtime deliberately has none.
+def test_it_answers_and_keeps_inventory_without_pulling_its_own_weights() -> None:
+    """This runtime deliberately has no `pull()`.
 
     The previous runtime pulled its own weights, so a name was enough. Here SurfSense fetches
     the GGUF in process, which is the only place `egress.require()` actually
     holds, and it also buys resume, checksums and the header as the file lands.
-    Downloads are a catalog concern, not a runtime one, so claiming ModelStore
-    would advertise a capability that belongs somewhere else.
+    Downloads are a catalog concern, not a runtime one, so a `pull` here would
+    advertise a capability that belongs somewhere else.
     """
     provider = LlamaCppProvider("http://x")
 
-    assert not isinstance(provider, ModelStore)
+    assert not hasattr(provider, "pull")
     assert callable(provider.health)
     assert callable(provider.models)
     assert callable(provider.chat)
