@@ -48,6 +48,12 @@ class LlamaCppProvider:
         self._base_url = base_url.rstrip("/")
         self._models_dir = models_dir
         self._router = RouterClient(self._base_url, transport=transport)
+        # `/props` describes a resident model and nothing about it changes
+        # between turns, so it is read once per load rather than once per
+        # message. `_ensure_loaded` is the only place that clears an entry,
+        # because a fresh load is the only event that can make the old answer
+        # wrong (the idle timer evicted it, or a reprice changed the preset).
+        self._capabilities_cache: dict[str, Capabilities] = {}
         self._chat = OpenAICompatibleChatProvider(
             f"{self._base_url}/v1", transport=transport, thinking_off=THINKING_OFF
         )
@@ -58,18 +64,40 @@ class LlamaCppProvider:
     async def capabilities(self, model: str) -> Capabilities:
         """What this model accepts and what its template can express.
 
-        Read per model rather than cached across them: two files in the same
-        directory can carry entirely different templates.
+        Cached per model rather than fetched per message: two files in the
+        same directory can carry entirely different templates, so the cache
+        is keyed by model id, never assumed to hold across them. What it does
+        hold across is repeated calls for the *same* resident model within one
+        turn, or between turns, since nothing about a loaded model's template
+        or window changes on its own. `_ensure_loaded` clears an entry the one
+        time that stops being true: a fresh load.
         """
-        return read_capabilities(
+        cached = self._capabilities_cache.get(model)
+        if cached is not None:
+            return cached
+        caps = read_capabilities(
             model, await self._router.raw_models(), await self._router.props(model)
         )
+        self._capabilities_cache[model] = caps
+        return caps
 
     async def context_tokens(self, model: str) -> int | None:
         """The window this model is loaded with, from the same `/props` read
         capabilities already makes. Not the window we requested: what the
         fitter actually allocated, in case it differs."""
         return (await self.capabilities(model)).context_tokens
+
+    async def token_count(self, model: str, text: str) -> int | None:
+        """The exact cost of this text, by the router's own tokenizer.
+
+        None on anything short of a clean count, same as `context_tokens`: a
+        caller pricing history from this must fall back to an estimate rather
+        than trust a failure as a token count.
+        """
+        try:
+            return await self._router.tokenize(model, text)
+        except httpx.HTTPError:
+            return None
 
     async def models(self) -> list[Model]:
         """Everything in the models directory, resident or not.
@@ -153,4 +181,5 @@ class LlamaCppProvider:
         """
         resident = {m.id for m in await self._router.models() if m.loaded}
         if model not in resident:
+            self._capabilities_cache.pop(model, None)
             await self._router.load(model)

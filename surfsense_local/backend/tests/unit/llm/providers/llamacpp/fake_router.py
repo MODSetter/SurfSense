@@ -29,6 +29,13 @@ class FakeRouter:
         # `reasoning_content`, and a short `max_tokens` is spent before a
         # single `content` token exists.
         self.thinks = False
+        # What `/tokenize` reports for one content-encoded token, so a test
+        # can make the fake count deterministically instead of running a
+        # real tokenizer.
+        self.tokens_per_word = 1
+        # How many times `/props` was actually asked, so a test can tell a
+        # cached read apart from a fresh round trip.
+        self.props_calls = 0
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
@@ -38,6 +45,7 @@ class FakeRouter:
         if path == "/health":
             return httpx.Response(200, json={"status": "ok"})
         if path == "/props":
+            self.props_calls += 1
             return httpx.Response(
                 200,
                 json={
@@ -80,6 +88,12 @@ class FakeRouter:
         if path == "/models/unload":
             self.loaded.discard(json.loads(request.content)["model"])
             return httpx.Response(200, json={"success": True})
+        if path == "/tokenize":
+            body = json.loads(request.content)
+            words = body.get("content", "").split()
+            return httpx.Response(
+                200, json={"tokens": list(range(len(words) * self.tokens_per_word))}
+            )
         if path == "/v1/chat/completions":
             body = json.loads(request.content)
             self.chat_bodies.append(body)

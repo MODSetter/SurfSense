@@ -86,3 +86,28 @@ async def test_an_unreachable_router_is_unhealthy_rather_than_an_exception() -> 
     client = RouterClient("http://127.0.0.1:1", transport=httpx.MockTransport(refuse))
 
     assert await client.health() is False
+
+
+@pytest.mark.asyncio
+async def test_tokenize_counts_against_the_models_own_tokenizer() -> None:
+    """The exact count the router's tokenizer gives, not a heuristic."""
+    fake = FakeRouter(["qwen3"])
+    fake.tokens_per_word = 3
+
+    count = await client_for(fake).tokenize("qwen3", "three little words")
+
+    assert count == 9
+
+
+@pytest.mark.asyncio
+async def test_tokenize_raises_on_a_router_that_does_not_answer() -> None:
+    """An older build, or a transient failure: the caller decides the fallback,
+    this does not silently return zero."""
+
+    def _404(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"error": "not found"})
+
+    client = RouterClient("http://127.0.0.1:1234", transport=httpx.MockTransport(_404))
+
+    with pytest.raises(httpx.HTTPError):
+        await client.tokenize("qwen3", "hi")

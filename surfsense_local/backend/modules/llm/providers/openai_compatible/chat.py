@@ -85,6 +85,12 @@ class OpenAICompatibleChatProvider:
         figure rather than assume this endpoint's real window is small."""
         return None
 
+    async def token_count(self, model: str, text: str) -> int | None:
+        """Unknown, for the same reason as `context_tokens`: the OpenAI shape
+        this class speaks has no tokenize endpoint, and every backend behind
+        it uses its own encoding, so a caller here must keep its estimate."""
+        return None
+
     async def inspect(self, name: str) -> Fingerprint:
         """What this endpoint's listing reveals about one model, for prompt tiering."""
         async with self._client() as client:

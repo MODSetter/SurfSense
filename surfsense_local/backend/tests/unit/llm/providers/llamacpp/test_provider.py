@@ -154,3 +154,42 @@ async def test_deleting_something_absent_says_so(tmp_path) -> None:
 
     with pytest.raises(FileNotFoundError):
         await provider.delete("never-installed")
+
+
+@pytest.mark.asyncio
+async def test_capabilities_are_cached_for_a_resident_model() -> None:
+    """`/props` describes a resident model, and nothing about it changes
+    between turns: asking twice should cost one round trip, not two.
+
+    Measured live: `context_tokens()` and `chat()`'s own template shaping each
+    read `/props` independently on every single message, which is two calls
+    where one answer would do, and which showed up as real, avoidable latency
+    on an already slow load.
+    """
+    fake = FakeRouter(["qwen3"])
+    fake.loaded.add("qwen3")
+    provider = provider_for(fake)
+
+    await provider.capabilities("qwen3")
+    await provider.capabilities("qwen3")
+
+    assert fake.props_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_a_fresh_load_invalidates_the_cached_capabilities() -> None:
+    """The one event that can actually change what `/props` would say: the
+    idle timeout evicts a model, and the next turn reloads it, possibly with
+    a rewritten preset. The cache must not go on quoting the old answer."""
+    fake = FakeRouter(["qwen3"])
+    provider = provider_for(fake)
+
+    async for _ in provider.chat("qwen3", [Message("user", "hi")]):
+        pass
+    assert fake.props_calls == 1
+
+    fake.loaded.discard("qwen3")  # the router's own idle timer evicted it
+
+    async for _ in provider.chat("qwen3", [Message("user", "hi")]):
+        pass
+    assert fake.props_calls == 2

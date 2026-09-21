@@ -11,7 +11,7 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
-from tests.integration.chat.conftest import set_props_n_ctx
+from tests.integration.chat.conftest import set_props_n_ctx, set_tokens_per_word
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
@@ -365,3 +365,24 @@ async def test_the_answer_reserves_room_instead_of_taking_the_whole_window(
     answer_requests = [r for r in llamacpp_server if r.get("max_tokens") != 12]
     assert answer_requests
     assert answer_requests[-1]["max_tokens"] == ANSWER_RESERVE_TOKENS
+
+
+async def test_history_is_trimmed_by_the_models_own_tokenizer_when_it_answers(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The exact count reaches the wire, not just the unit tests: an early
+    turn a permissive heuristic would have kept is dropped once the stub's
+    `/tokenize` prices it heavily, and the turn nearer the question survives."""
+    set_tokens_per_word(1000)  # any one turn alone blows the whole history budget
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "first turn establishing some history")
+    await _send(client, thread_id, "what happened to revenue?")
+
+    answer_requests = [r for r in llamacpp_server if r.get("max_tokens") != 12]
+    assert answer_requests
+    roles = [m["role"] for m in answer_requests[-1]["messages"]]
+    # System and the new question always survive; the expensive first turn
+    # does not, because the exact count priced it out of the budget.
+    assert roles == ["system", "user"]

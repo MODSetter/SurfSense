@@ -18,6 +18,10 @@ _REQUESTS: list[dict] = []
 # starts the server.
 _PROPS_N_CTX: int | None = None
 
+# Tokens per word /tokenize reports, or None to answer 404 (an older build).
+# Set per test before the fixture starts the server.
+_TOKENS_PER_WORD: int | None = None
+
 
 class StubRouterChat(BaseHTTPRequestHandler):
     """The router's OpenAI chat endpoint, streaming its reply as SSE.
@@ -50,11 +54,20 @@ class StubRouterChat(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:
         raw = self.rfile.read(int(self.headers["Content-Length"]))
-        if self.path not in ("/v1/chat/completions", "/models/load"):
+        if self.path not in ("/v1/chat/completions", "/models/load", "/tokenize"):
             self.send_error(404)
             return
         if self.path == "/models/load":
             self._send(b'{"success": true}')
+            return
+        if self.path == "/tokenize":
+            if _TOKENS_PER_WORD is None:
+                self.send_error(404)
+                return
+            words = json.loads(raw).get("content", "").split()
+            self._send(
+                json.dumps({"tokens": list(range(len(words) * _TOKENS_PER_WORD))}).encode()
+            )
             return
 
         request = json.loads(raw)
@@ -83,9 +96,10 @@ class StubRouterChat(BaseHTTPRequestHandler):
 @pytest.fixture
 def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     """A real llama-server stand-in on a real port; yields the requests it sees."""
-    global _PROPS_N_CTX
+    global _PROPS_N_CTX, _TOKENS_PER_WORD
     _REQUESTS.clear()
     _PROPS_N_CTX = None
+    _TOKENS_PER_WORD = None
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubRouterChat)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
@@ -128,6 +142,13 @@ def set_props_n_ctx(n_ctx: int) -> None:
     """Make the next `llamacpp_server` request report this context window."""
     global _PROPS_N_CTX
     _PROPS_N_CTX = n_ctx
+
+
+def set_tokens_per_word(tokens_per_word: int) -> None:
+    """Make the next `llamacpp_server` request answer `/tokenize` exactly,
+    at this many tokens per word, instead of 404ing like an older build."""
+    global _TOKENS_PER_WORD
+    _TOKENS_PER_WORD = tokens_per_word
 
 
 @pytest.fixture

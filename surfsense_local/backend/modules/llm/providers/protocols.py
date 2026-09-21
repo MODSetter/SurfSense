@@ -23,6 +23,16 @@ class Generator(Protocol):
         """
         ...
 
+    async def token_count(self, model: str, text: str) -> int | None:
+        """This text's exact cost by the model's own tokenizer, or None.
+
+        None on anything short of a clean count: no such endpoint, a transient
+        failure, or a model this generator does not run. A caller pricing a
+        prompt from this must fall back to an estimate rather than treat None
+        as zero tokens.
+        """
+        ...
+
     def chat(
         self,
         model: str,

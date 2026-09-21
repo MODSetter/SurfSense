@@ -92,6 +92,22 @@ class RouterClient:
             # generously from an empty payload rather than failing the turn.
             return {}
 
+    async def tokenize(self, model_id: str, text: str) -> int:
+        """How many tokens this text costs, by the model's own tokenizer.
+
+        Proxied to the loaded worker the same way `/props` is (`model` in the
+        body), so it autoloads the model like any other request the router
+        forwards. Raises rather than returning 0 on failure: a caller pricing a
+        prompt from this must know the count did not come back, not mistake an
+        error for an empty turn.
+        """
+        async with self._client() as client:
+            reply = await client.post(
+                "/tokenize", json={"model": model_id, "content": text, "add_special": False}
+            )
+            reply.raise_for_status()
+            return len(reply.json().get("tokens", []))
+
     async def load(self, model_id: str) -> None:
         """Bring a model into memory.
 

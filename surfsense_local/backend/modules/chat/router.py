@@ -13,7 +13,7 @@ from api.dependencies import SessionDep, transact
 from modules.chat.budget import answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error
-from modules.chat.history import build_messages
+from modules.chat.history import TokenCounter, build_messages
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
 from modules.chat.schemas import (
@@ -122,8 +122,12 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
-    messages = build_messages(
-        context, history, payload.text, history_budget=history_budget(n_ctx)
+    messages = await build_messages(
+        context,
+        history,
+        payload.text,
+        history_budget=history_budget(n_ctx),
+        token_count=_token_counter(generator, selected.name),
     )
 
     activity_key = model_key(selected.provider, selected.name, selected.connection_id)
@@ -340,6 +344,21 @@ async def _context_tokens_or_none(generator: Generator, model: str) -> int | Non
     except Exception:
         logger.warning("Could not read the context window for %s", model, exc_info=True)
         return None
+
+
+def _token_counter(generator: Generator, model: str) -> TokenCounter:
+    """A per-turn counter bound to this turn's model, defensive the same way
+    `_context_tokens_or_none` is: a failure here only widens the heuristic
+    `build_messages` already falls back to for that one turn, never the turn."""
+
+    async def count(text: str) -> int | None:
+        try:
+            return await generator.token_count(model, text)
+        except Exception:
+            logger.warning("Could not count tokens for %s", model, exc_info=True)
+            return None
+
+    return count
 
 
 def _frame(payload: dict) -> bytes:
