@@ -15,6 +15,7 @@ from dataclasses import dataclass
 
 from modules.llm.fit.budget import HardwareBudget
 from modules.llm.fit.estimate import CONTEXT_FLOOR_TOKENS, FitVerdict, estimate
+from modules.llm.fit.precision import FALLBACK, resident_precision
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
 
@@ -31,6 +32,8 @@ def plan_load(
     weights_bytes: int,
     budget: HardwareBudget,
     live: HardwareBudget | None = None,
+    *,
+    mmproj_bytes: int = 0,
 ) -> LoadPlan:
     """Choose the widest window that stays resident, at the cheapest precision.
 
@@ -47,33 +50,69 @@ def plan_load(
 
     Without that split, a 1.7B took a 28,672 token window on an 8 GB Mac with
     2.3 GB reclaimable, the load paged, and it took 43 seconds.
+
+    A cap in both directions. `live` can be the more generous of the two on an
+    idle machine, and widening to fit a moment of free memory commits a window
+    that only fits while nothing else is running, because the cache is allocated
+    once at load and never shrinks. So widening stays inside whichever budget is
+    tighter, which is also what keeps the verdict equal to the badge.
     """
     ceiling = shape.context_length or CONTEXT_FLOOR_TOKENS
     floor = min(CONTEXT_FLOOR_TOKENS, ceiling)
 
-    for precision in (KvPrecision.F16, KvPrecision.Q8_0):
-        at_floor = estimate(
-            shape, weights_bytes, budget, n_ctx=floor, precision=precision
-        )
-        if at_floor.state is not FitState.FITS:
-            continue
-        n_ctx = _widest_resident(
-            shape, weights_bytes, live or budget, precision, ceiling, floor
-        )
+    # The same rule the badge is drawn from, so the screen and the load cannot
+    # describe different configurations of the same model.
+    precision = resident_precision(
+        shape, weights_bytes, budget, n_ctx=floor, mmproj_bytes=mmproj_bytes
+    )
+
+    if precision is None:
+        # Nothing keeps it resident, so hold the floor and let --fit place the
+        # layers. A cheaper cache buys nothing once layers are spilling anyway.
         return LoadPlan(
-            n_ctx=n_ctx,
-            precision=precision,
+            n_ctx=floor,
+            precision=FALLBACK,
             verdict=estimate(
-                shape, weights_bytes, budget, n_ctx=n_ctx, precision=precision
+                shape,
+                weights_bytes,
+                budget,
+                n_ctx=floor,
+                precision=FALLBACK,
+                mmproj_bytes=mmproj_bytes,
             ),
         )
 
-    # Nothing keeps it resident, so hold the floor and let --fit place the layers.
-    return LoadPlan(
-        n_ctx=floor,
-        precision=KvPrecision.F16,
-        verdict=estimate(shape, weights_bytes, budget, n_ctx=floor),
+    # Widened against whichever budget is tighter, because `live` is a cap and a
+    # cap must not raise a ceiling. On a busy machine that is `live`, which is
+    # what stops a window being sized against memory the OS is already using. On
+    # an idle one it is `budget`: widening to fit this moment's free memory
+    # would commit a window that only fits while nothing else is running, and
+    # the cache is allocated once at load and never shrinks.
+    #
+    # It also keeps the verdict below honest. Widening against a more generous
+    # `live` and then reporting against `budget` produced a plan that said
+    # PARTIAL for a row the catalog had badged FITS.
+    widening = budget if live is None else min(budget, live, key=_headroom)
+    n_ctx = _widest_resident(
+        shape, weights_bytes, widening, precision, ceiling, floor, mmproj_bytes
     )
+    return LoadPlan(
+        n_ctx=n_ctx,
+        precision=precision,
+        verdict=estimate(
+            shape,
+            weights_bytes,
+            budget,
+            n_ctx=n_ctx,
+            precision=precision,
+            mmproj_bytes=mmproj_bytes,
+        ),
+    )
+
+
+def _headroom(budget: HardwareBudget) -> int:
+    """What a widening search has to stay inside: the resident ceiling."""
+    return budget.resident_bytes
 
 
 def _widest_resident(
@@ -83,6 +122,7 @@ def _widest_resident(
     precision: KvPrecision,
     ceiling: int,
     floor: int,
+    mmproj_bytes: int = 0,
 ) -> int:
     """Binary search the window, in whole thousands of tokens."""
     low, high = floor, ceiling
@@ -92,7 +132,14 @@ def _widest_resident(
         if mid <= low:
             break
         fits = (
-            estimate(shape, weights_bytes, budget, n_ctx=mid, precision=precision).state
+            estimate(
+                shape,
+                weights_bytes,
+                budget,
+                n_ctx=mid,
+                precision=precision,
+                mmproj_bytes=mmproj_bytes,
+            ).state
             is FitState.FITS
         )
         if fits:

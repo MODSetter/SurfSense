@@ -22,8 +22,15 @@ QWEN3_1_7B = ModelShape("qwen3", 28, 8, 128, 128, 40960, 151936)
 
 
 def budget(free_mib: int) -> HardwareBudget:
-    """A unified-memory device with llama.cpp's own one GiB margin."""
-    return HardwareBudget(free_mib * MIB, free_mib * MIB, 1024 * MIB, 2000 * MIB, True, True)
+    """A unified-memory device with llama.cpp's own one GiB margin.
+
+    The host reading equals the device reading because on unified memory they
+    name the same chips, which is what `build_budget` guarantees. Pairing them
+    with different numbers here would test a budget the app cannot produce.
+    """
+    return HardwareBudget(
+        free_mib * MIB, free_mib * MIB, 1024 * MIB, free_mib * MIB, True, True
+    )
 
 
 def test_a_roomy_machine_keeps_the_lossless_cache() -> None:
@@ -52,7 +59,9 @@ def test_the_window_never_drops_below_the_floor() -> None:
     llama.cpp would reduce context to 4096 on its own if we left it unset, well
     under what a grounded turn needs, so the floor is ours to hold.
     """
-    plan = plan_load(QWEN3_1_7B, 4200 * MIB, budget(5460))
+    # Too large to stay resident at either precision, small enough that physics
+    # does not refuse it, so the floor is what holds the window up.
+    plan = plan_load(QWEN3_1_7B, 3500 * MIB, budget(5460))
 
     assert plan.n_ctx == CONTEXT_FLOOR_TOKENS
     assert plan.verdict.state is FitState.PARTIAL
