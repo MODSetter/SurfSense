@@ -1,33 +1,64 @@
-"""The conversation cache's memory cost, which is architecture-derived and
-independent of how the weights were quantized."""
+"""The conversation cache's memory cost.
 
-from modules.llm.fit.sliding_window import global_layer_count
+Architecture-derived and independent of how the weights were quantized, which is
+what lets one header read price every build of a model.
+
+Three things decide it, and each has its own module: how wide one layer's entry
+is (here, or `mla_cache` for a latent model), how many cells a layer allocates
+(`kv_cells`), and which layers hold the whole window rather than a slice
+(`sliding_window`).
+"""
+
+from modules.llm.fit.kv_cells import global_cells, local_cells
+from modules.llm.fit.mla_cache import is_latent, latent_bytes_per_layer_token
+from modules.llm.fit.sliding_window import sliding_layers
 from modules.llm.fit.types import KvPrecision, ModelShape
 
 
 def kv_cache_bytes(shape: ModelShape, n_ctx: int, precision: KvPrecision) -> int:
     """Bytes the KV cache occupies for a window of `n_ctx` tokens.
 
-    One key and one value per attention head per layer per token. Verified exact
-    against llama.cpp's own allocation on two backends.
-
-    A model with sliding-window attention holds the full context on only some of
-    its layers, but the header does not say which, so an architecture we cannot
-    name is priced as though every layer were global. That over-states memory,
-    which is the only direction it is safe to be wrong in.
+    Verified exact against llama.cpp's own allocation on two backends.
     """
-    bytes_per_layer_token = int(
+    per_layer_token = _bytes_per_layer_token(shape, precision)
+    caching = _caching_layers(shape)
+    if caching <= 0 or per_layer_token <= 0:
+        return 0
+
+    window = shape.sliding_window
+    if window <= 0:
+        return per_layer_token * caching * global_cells(n_ctx)
+
+    sliding = sliding_layers(shape)
+    if sliding is None:
+        # No pattern to be had, so every layer is priced at full width.
+        return per_layer_token * caching * global_cells(n_ctx)
+
+    # The header's pattern describes the model's layers; the ones that cache are
+    # a prefix of those, since shared layers reuse an earlier layer's cache.
+    local = sum(1 for slides in sliding[:caching] if slides)
+    full = caching - local
+    return per_layer_token * (
+        full * global_cells(n_ctx) + local * local_cells(window, n_ctx)
+    )
+
+
+def _bytes_per_layer_token(shape: ModelShape, precision: KvPrecision) -> int:
+    """One layer's cache entry for one token."""
+    if is_latent(shape):
+        return latent_bytes_per_layer_token(shape, precision)
+    return int(
         shape.head_count_kv
         * (shape.key_length + shape.value_length)
         * precision.bytes_per_element
     )
 
-    if shape.sliding_window <= 0 or shape.sliding_window >= n_ctx:
-        return bytes_per_layer_token * shape.block_count * n_ctx
 
-    globals_ = global_layer_count(shape.architecture, shape.block_count)
-    if globals_ is None:
-        return bytes_per_layer_token * shape.block_count * n_ctx
+def _caching_layers(shape: ModelShape) -> int:
+    """Layers that allocate a cache of their own.
 
-    locals_ = shape.block_count - globals_
-    return bytes_per_layer_token * (globals_ * n_ctx + locals_ * shape.sliding_window)
+    Gemma 3n and Gemma 4 reuse an earlier layer's cache on their last blocks, so
+    charging those layers a cache each over-states the window's cost on exactly
+    the models chosen to be cheap on a small machine.
+    """
+    return max(0, shape.block_count - shape.shared_kv_layers)

@@ -42,3 +42,39 @@ def test_quantizing_the_cache_roughly_halves_it() -> None:
     is why precision is an output of the fit calculation rather than a default.
     """
     assert kv_cache_bytes(QWEN3_1_7B, 16384, KvPrecision.Q8_0) == 952 * MIB
+
+
+def test_cells_are_padded_the_way_the_allocator_pads_them() -> None:
+    """llama.cpp aligns the cache to 256 cells, so a window one token past a
+    boundary costs a whole block more. Pricing the raw token count under-states
+    every window that is not already aligned."""
+    aligned = kv_cache_bytes(QWEN3_1_7B, 16384, KvPrecision.F16)
+    one_past = kv_cache_bytes(QWEN3_1_7B, 16385, KvPrecision.F16)
+
+    assert one_past == kv_cache_bytes(QWEN3_1_7B, 16640, KvPrecision.F16)
+    assert one_past > aligned
+
+
+def test_a_latent_attention_model_caches_one_compressed_entry_per_token() -> None:
+    """DeepSeek-class models cache a latent, not a key and a value per head, and
+    such a header reports one KV head while the model runs many.
+
+    Priced by the ordinary formula this reads far too small, because it would
+    take that single head at face value. The latent's own width is what governs.
+    """
+    deepseek_like = ModelShape(
+        architecture="deepseek2",
+        block_count=28,
+        head_count_kv=1,
+        key_length=192,
+        value_length=128,
+        context_length=163840,
+        n_vocab=129280,
+        kv_lora_rank=512,
+        key_length_mla=64,
+    )
+
+    per_layer_token = (512 + 64) * 2
+    expected = per_layer_token * 28 * 16384
+
+    assert kv_cache_bytes(deepseek_like, 16384, KvPrecision.F16) == expected
