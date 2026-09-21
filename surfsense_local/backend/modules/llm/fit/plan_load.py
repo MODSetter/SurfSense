@@ -14,7 +14,12 @@ mid-conversation. Two rules shape it:
 from dataclasses import dataclass
 
 from modules.llm.fit.budget import HardwareBudget
-from modules.llm.fit.estimate import CONTEXT_FLOOR_TOKENS, FitVerdict, estimate
+from modules.llm.fit.estimate import (
+    CONTEXT_FLOOR_TOKENS,
+    CONTEXT_RUNGS,
+    FitVerdict,
+    estimate,
+)
 from modules.llm.fit.precision import FALLBACK, resident_precision
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
@@ -37,8 +42,8 @@ def plan_load(
 ) -> LoadPlan:
     """Choose the widest window that stays resident, at the cheapest precision.
 
-    The cap beats the floor. A model trained to 8192 tokens cannot be asked for
-    16384 just because a grounded turn would like one: the floor describes what
+    The cap beats the floor. A model trained to 4096 tokens cannot be asked for
+    8192 just because a grounded turn would like one: the floor describes what
     this app needs, not what a model can do.
 
     Two budgets, answering two questions. `budget` is capacity, and it decides
@@ -124,26 +129,31 @@ def _widest_resident(
     floor: int,
     mmproj_bytes: int = 0,
 ) -> int:
-    """Binary search the window, in whole thousands of tokens."""
-    low, high = floor, ceiling
-    while low < high:
-        mid = min(ceiling, (low + high + 1024) // 2)
-        mid -= mid % 1024
-        if mid <= low:
-            break
+    """Largest rung that stays resident, never a number between two rungs.
+
+    A fixed, small set of candidates instead of a continuous search: the
+    catalog badge, the preset and this plan can only ever quote one of
+    `CONTEXT_RUNGS`, so the whole surface of windows a person can see is
+    something a test can enumerate. `ceiling` (the model's own trained
+    length, or a caller's cap) is tried too when it falls between two rungs,
+    so a model is not held below what it was actually trained for; `floor`
+    is always a candidate so the search never returns nothing.
+    """
+    candidates = {n for n in CONTEXT_RUNGS if floor <= n <= ceiling}
+    candidates.add(floor)
+    candidates.add(ceiling)
+    for n_ctx in sorted(candidates, reverse=True):
         fits = (
             estimate(
                 shape,
                 weights_bytes,
                 budget,
-                n_ctx=mid,
+                n_ctx=n_ctx,
                 precision=precision,
                 mmproj_bytes=mmproj_bytes,
             ).state
             is FitState.FITS
         )
         if fits:
-            low = mid
-        else:
-            high = mid - 1024
-    return max(floor, min(low, ceiling))
+            return n_ctx
+    return floor

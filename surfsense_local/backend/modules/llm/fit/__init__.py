@@ -1,7 +1,12 @@
 from modules.llm.fit.budget import HardwareBudget
 from modules.llm.fit.compute_buffers import compute_buffer_bytes
 from modules.llm.fit.copy import Badge, badge
-from modules.llm.fit.estimate import CONTEXT_FLOOR_TOKENS, FitVerdict, estimate
+from modules.llm.fit.estimate import (
+    CONTEXT_FLOOR_TOKENS,
+    CONTEXT_RUNGS,
+    FitVerdict,
+    estimate,
+)
 from modules.llm.fit.itemisation import NeedItems, itemise
 from modules.llm.fit.kv_cache import kv_cache_bytes
 from modules.llm.fit.offload import offload_fraction
@@ -12,6 +17,7 @@ from modules.llm.fit.types import KvPrecision, ModelShape
 
 __all__ = [
     "CONTEXT_FLOOR_TOKENS",
+    "CONTEXT_RUNGS",
     "Badge",
     "FitState",
     "FitVerdict",

@@ -8,6 +8,7 @@ import pytest
 
 from modules.llm.fit import (
     CONTEXT_FLOOR_TOKENS,
+    CONTEXT_RUNGS,
     FitState,
     HardwareBudget,
     KvPrecision,
@@ -47,7 +48,7 @@ def test_precision_drops_only_when_it_buys_residency() -> None:
     Quality is lossless either way, so the cost is a flash-attention dependency
     we take on only where it converts a spill into residency.
     """
-    plan = plan_load(QWEN3_1_7B, 2600 * MIB, budget(5460))
+    plan = plan_load(QWEN3_1_7B, 3500 * MIB, budget(5460))
 
     assert plan.precision is KvPrecision.Q8_0
     assert plan.verdict.state is FitState.FITS
@@ -61,7 +62,7 @@ def test_the_window_never_drops_below_the_floor() -> None:
     """
     # Too large to stay resident at either precision, small enough that physics
     # does not refuse it, so the floor is what holds the window up.
-    plan = plan_load(QWEN3_1_7B, 3500 * MIB, budget(5460))
+    plan = plan_load(QWEN3_1_7B, 4000 * MIB, budget(5460))
 
     assert plan.n_ctx == CONTEXT_FLOOR_TOKENS
     assert plan.verdict.state is FitState.PARTIAL
@@ -124,3 +125,35 @@ def test_widening_past_the_floor_respects_what_is_actually_free() -> None:
 
     assert roomy.n_ctx > constrained.n_ctx
     assert constrained.n_ctx == CONTEXT_FLOOR_TOKENS
+
+
+def test_the_window_widens_to_a_fixed_rung_not_an_arbitrary_number() -> None:
+    """A bounded, testable set of windows instead of a different number on
+    every machine: enough room for the next rung and not the one above it
+    lands exactly on that rung, never a value in between."""
+    plan = plan_load(QWEN3_1_7B, 1050 * MIB, budget(5800))
+
+    assert plan.n_ctx == 16384
+    assert plan.n_ctx in CONTEXT_RUNGS
+
+
+def test_a_machine_roomy_enough_for_the_top_rung_can_still_take_the_full_window() -> None:
+    """The rungs bound the search, not the answer: a machine with room for
+    everything up to the top rung but not the model's own trained length still
+    gets the top rung rather than being pushed up to a window that would spill."""
+    plan = plan_load(QWEN3_1_7B, 1050 * MIB, budget(6500))
+
+    assert plan.n_ctx == 32768
+    assert plan.n_ctx < QWEN3_1_7B.context_length
+
+
+def test_a_machine_too_tight_for_the_next_rung_stays_on_the_floor_rung() -> None:
+    """Between two rungs, the search does not settle for a number in between:
+    it takes the lower rung whole, leaving the memory the finer-grained search
+    used to spend on a window that fit nowhere else."""
+    # Enough for 8192 (the floor rung) at either precision, not enough for the
+    # next rung up (16384) at either: the old continuous search would have
+    # settled on some number strictly between the two.
+    plan = plan_load(QWEN3_1_7B, 2900 * MIB, budget(5460))
+
+    assert plan.n_ctx == CONTEXT_FLOOR_TOKENS

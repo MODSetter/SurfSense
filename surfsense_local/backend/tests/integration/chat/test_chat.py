@@ -6,10 +6,12 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
+from modules.chat.budget import ANSWER_RESERVE_TOKENS
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.models import ModelRole, SelectedModel
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
+from tests.integration.chat.conftest import set_props_n_ctx
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
@@ -346,3 +348,20 @@ async def test_missing_embedding_assets_are_an_actionable_503(
         "local embedding model is not installed; "
         "run `uv run scripts/fetch_embedding_model.py`"
     )
+
+
+async def test_the_answer_reserves_room_instead_of_taking_the_whole_window(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """A model whose window is known gets a capped answer request, so a long
+    reply stops cleanly instead of being cut off mid-sentence by the window
+    running out with no `max_tokens` set at all."""
+    set_props_n_ctx(16384)
+    workspace_id, _ = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "what happened to revenue?")
+
+    answer_requests = [r for r in llamacpp_server if r.get("max_tokens") != 12]
+    assert answer_requests
+    assert answer_requests[-1]["max_tokens"] == ANSWER_RESERVE_TOKENS

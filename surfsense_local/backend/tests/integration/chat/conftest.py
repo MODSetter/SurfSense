@@ -13,6 +13,11 @@ REPLY_DELTAS = ["Revenue ", "climbed after the launch [1]."]
 # Each chat request the stub received, so a test can assert what the route sent.
 _REQUESTS: list[dict] = []
 
+# The context window /props reports, or None to omit it (an older build /
+# a model report a test does not care about). Set per test before the fixture
+# starts the server.
+_PROPS_N_CTX: int | None = None
+
 
 class StubRouterChat(BaseHTTPRequestHandler):
     """The router's OpenAI chat endpoint, streaming its reply as SSE.
@@ -32,6 +37,13 @@ class StubRouterChat(BaseHTTPRequestHandler):
                         ],
                     }
                 ).encode()
+            )
+        elif self.path.startswith("/props"):
+            settings = (
+                {"n_ctx": _PROPS_N_CTX} if _PROPS_N_CTX is not None else {}
+            )
+            self._send(
+                json.dumps({"default_generation_settings": settings}).encode()
             )
         else:
             self.send_error(404)
@@ -71,7 +83,9 @@ class StubRouterChat(BaseHTTPRequestHandler):
 @pytest.fixture
 def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     """A real llama-server stand-in on a real port; yields the requests it sees."""
+    global _PROPS_N_CTX
     _REQUESTS.clear()
+    _PROPS_N_CTX = None
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubRouterChat)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
@@ -108,6 +122,12 @@ class StubRouterUnauthorized(BaseHTTPRequestHandler):
 
     def log_message(self, *args: object) -> None:
         """Keep the request log out of the test output."""
+
+
+def set_props_n_ctx(n_ctx: int) -> None:
+    """Make the next `llamacpp_server` request report this context window."""
+    global _PROPS_N_CTX
+    _PROPS_N_CTX = n_ctx
 
 
 @pytest.fixture

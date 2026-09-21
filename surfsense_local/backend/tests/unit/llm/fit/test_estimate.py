@@ -191,7 +191,7 @@ def test_unified_memory_refuses_past_the_pool_not_past_the_pool_twice_over() -> 
     set and the host reading, which describe the same chips, were added. A model
     between the pool and that sum was offered to a machine that cannot hold it.
     """
-    need = estimate(QWEN3_1_7B, 5000 * MIB, M2).need_bytes
+    need = estimate(QWEN3_1_7B, 5200 * MIB, M2).need_bytes
 
     assert need > M2.device_free_bytes
-    assert estimate(QWEN3_1_7B, 5000 * MIB, M2).state is FitState.TOO_BIG
+    assert estimate(QWEN3_1_7B, 5200 * MIB, M2).state is FitState.TOO_BIG

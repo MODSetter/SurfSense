@@ -23,7 +23,23 @@ from modules.llm.fit.offload import offload_fraction
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
 
-CONTEXT_FLOOR_TOKENS = 16384
+# The window this app guarantees a grounded turn, and the one `TOO_BIG` is
+# judged at: a model that will not fit here cannot be rescued by a smaller
+# context, so the remedy to offer is a smaller build, not a narrower window.
+#
+# 8192, not llama.cpp's own 4096 reduction floor (`fit_params_min_ctx`,
+# common/common.h): 4096 is too short once a system prompt, retrieved excerpts
+# and a reply share the window, so the fit search would settle there rather
+# than spill weights it could spill instead. Matches Unsloth Studio's own
+# floor (`_FIT_MIN_CTX`), reasoned the same way. `modules.chat.budget` is what
+# makes 8192 safe: the parts of a prompt are sized from `n_ctx` rather than
+# a fixed history figure that assumed a wider window.
+CONTEXT_FLOOR_TOKENS = 8192
+
+# The fixed windows `plan_load` widens between. A bounded, testable set
+# instead of a continuous search landing on a different number on every
+# machine: the catalog and the preset only ever quote one of these three.
+CONTEXT_RUNGS = (8192, 16384, 32768)
 
 
 @dataclass(frozen=True)
@@ -51,9 +67,9 @@ def estimate(
 ) -> FitVerdict:
     """Price one build against one device.
 
-    `TOO_BIG` is evaluated at the context floor rather than the requested window:
-    a model that will not fit at 16K cannot be rescued by a smaller context, and
-    the remedy to offer is a smaller build.
+    `TOO_BIG` is evaluated at `CONTEXT_FLOOR_TOKENS` rather than the requested
+    window: a model that will not fit at the floor cannot be rescued by a
+    smaller context, and the remedy to offer is a smaller build.
     """
     items = itemise(shape, weights_bytes, n_ctx, precision, mmproj_bytes)
     need = items.total

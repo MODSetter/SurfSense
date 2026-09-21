@@ -78,6 +78,13 @@ class OpenAICompatibleChatProvider:
             for model in discovered
         ]
 
+    async def context_tokens(self, model: str) -> int | None:
+        """Unknown. The `/models` listing this class speaks does not carry a
+        window (that is llama.cpp's `/props`, not the OpenAI shape), so a
+        caller that budgets a prompt from this must fall back to a fixed
+        figure rather than assume this endpoint's real window is small."""
+        return None
+
     async def inspect(self, name: str) -> Fingerprint:
         """What this endpoint's listing reveals about one model, for prompt tiering."""
         async with self._client() as client:

@@ -65,6 +65,12 @@ class LlamaCppProvider:
             model, await self._router.raw_models(), await self._router.props(model)
         )
 
+    async def context_tokens(self, model: str) -> int | None:
+        """The window this model is loaded with, from the same `/props` read
+        capabilities already makes. Not the window we requested: what the
+        fitter actually allocated, in case it differs."""
+        return (await self.capabilities(model)).context_tokens
+
     async def models(self) -> list[Model]:
         """Everything in the models directory, resident or not.
 

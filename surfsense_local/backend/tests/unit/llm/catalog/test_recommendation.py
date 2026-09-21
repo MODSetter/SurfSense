@@ -140,10 +140,10 @@ def test_a_machine_with_no_gpu_still_gets_a_recommendation() -> None:
 def test_a_machine_with_no_gpu_is_still_refused_what_it_cannot_hold() -> None:
     """The star moves down the ladder rather than off it.
 
-    2000 MiB holds the 0.6B, which needs 1436 with a quantized cache, and not
-    the 1.7B, which needs 2113 even with one.
+    1500 MiB holds the 0.6B, which needs 1013 with a quantized cache, and not
+    the 1.7B, which needs 1690 even with one.
     """
-    tiny = HardwareBudget(0, 0, 1024 * MIB, 2000 * MIB, False, False)
+    tiny = HardwareBudget(0, 0, 1024 * MIB, 1500 * MIB, False, False)
 
     pick = recommend(CURATED, tiny)
 

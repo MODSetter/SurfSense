@@ -1,19 +1,25 @@
 from collections.abc import Sequence
 
+from modules.chat.budget import DEFAULT_HISTORY_TOKENS
 from modules.chat.models import ChatMessage
 from modules.llm.providers.types import Message
 
-# Prior turns are trimmed to fit this budget; the system message and the new user
-# turn are pinned on top of it. A fraction of a small model's context window.
-HISTORY_BUDGET_TOKENS = 3000
-
 
 def build_messages(
-    system: str, history: Sequence[ChatMessage], user_text: str
+    system: str,
+    history: Sequence[ChatMessage],
+    user_text: str,
+    *,
+    history_budget: int = DEFAULT_HISTORY_TOKENS,
 ) -> list[Message]:
-    """Assemble `[system, *recent history within budget, user]` for the generator."""
+    """Assemble `[system, *recent history within budget, user]` for the generator.
+
+    `history_budget` defaults to today's fixed figure; a caller that knows the
+    model's real window computes a tighter one with `modules.chat.budget` so
+    the assembled prompt cannot outgrow it (see that module for why).
+    """
     turns = [Message(role=str(row.role.value), content=message_text(row)) for row in history]
-    return [Message("system", system), *_within_budget(turns), Message("user", user_text)]
+    return [Message("system", system), *_within_budget(turns, history_budget), Message("user", user_text)]
 
 
 def message_text(row: ChatMessage) -> str:
@@ -21,12 +27,12 @@ def message_text(row: ChatMessage) -> str:
     return row.content.get("text", "")
 
 
-def _within_budget(turns: list[Message]) -> list[Message]:
+def _within_budget(turns: list[Message], budget: int) -> list[Message]:
     kept: list[Message] = []
     spent = 0
     for turn in reversed(turns):
         spent += _tokens(turn.content)
-        if spent > HISTORY_BUDGET_TOKENS:
+        if spent > budget:
             break
         kept.append(turn)
     kept.reverse()

@@ -14,6 +14,15 @@ class Generator(Protocol):
 
     async def models(self) -> list[Model]: ...
 
+    async def context_tokens(self, model: str) -> int | None:
+        """The window this model was loaded with, or None when it is not known.
+
+        None is a fact, not a zero: a remote endpoint this app does not run
+        rarely states its window at all, and callers that budget a prompt from
+        this must treat that as "unknown" rather than "narrow".
+        """
+        ...
+
     def chat(
         self,
         model: str,
