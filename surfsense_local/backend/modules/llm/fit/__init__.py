@@ -12,12 +12,14 @@ from modules.llm.fit.kv_cache import kv_cache_bytes
 from modules.llm.fit.offload import offload_fraction
 from modules.llm.fit.plan_load import LoadPlan, plan_load
 from modules.llm.fit.precision import planned_precision, resident_precision
+from modules.llm.fit.speed import RECOMMENDABLE_TIERS, SpeedTier, speed_tier
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
 
 __all__ = [
     "CONTEXT_FLOOR_TOKENS",
     "CONTEXT_RUNGS",
+    "RECOMMENDABLE_TIERS",
     "Badge",
     "FitState",
     "FitVerdict",
@@ -26,6 +28,7 @@ __all__ = [
     "LoadPlan",
     "ModelShape",
     "NeedItems",
+    "SpeedTier",
     "badge",
     "compute_buffer_bytes",
     "estimate",
@@ -35,4 +38,5 @@ __all__ = [
     "plan_load",
     "planned_precision",
     "resident_precision",
+    "speed_tier",
 ]

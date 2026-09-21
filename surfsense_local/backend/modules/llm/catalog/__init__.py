@@ -6,12 +6,11 @@ from modules.llm.catalog.manifest import (
     Variant,
     load_curated_models,
 )
-from modules.llm.catalog.recommendation import MAX_OFFLOAD, Recommendation, recommend
+from modules.llm.catalog.recommendation import Recommendation, recommend
 from modules.llm.catalog.rows import CatalogRow, curated_rows
 from modules.llm.catalog.service import Catalog, CatalogService, InstalledRow
 
 __all__ = [
-    "MAX_OFFLOAD",
     "SCHEMA_VERSION",
     "Catalog",
     "CatalogRow",

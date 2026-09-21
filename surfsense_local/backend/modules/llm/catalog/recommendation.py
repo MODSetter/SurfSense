@@ -6,6 +6,13 @@ roughly a fifth and runs without noticeable lag, while a residency-only rule
 stars a 1.7B on the same machine. That rule is not conservative, it is wrong,
 because it bans a configuration that demonstrably works.
 
+Eligibility is `speed.RECOMMENDABLE_TIERS`, not a threshold owned here. This
+module used to draw its own line on `offload_fraction` (0.75) while `copy.py`
+drew a different one (0.25, 0.5) to choose its wording, and nothing kept the
+two in step: a build could be starred while its own badge said "expect it to
+be slow". Reading the same tier both modules now share is what makes that
+combination unrepresentable rather than merely untested.
+
 The policy ranges over builds rather than models, because a build is what the
 user installs and what `rank` describes. With one variant per entry the
 cross-product is the entry list and the behaviour is identical, but writing it
@@ -17,16 +24,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from modules.llm.catalog.manifest import CuratedModel, Variant
-from modules.llm.fit import FitState, HardwareBudget, estimate, planned_precision
+from modules.llm.fit import HardwareBudget, estimate, planned_precision
 from modules.llm.fit.estimate import FitVerdict
-
-# > ponytail: provisional, and possibly unnecessary. On the one machine measured
-# > every offload fraction stayed usable: fully on the CPU the model still
-# > decoded at 13 t/s, above reading pace, and prefill held at half device speed.
-# > No threshold would have fired anywhere in the curated range. Check whether
-# > this gate ever triggers before treating the number as load bearing; a
-# > mechanism that never fires reads as protection that was never tested.
-MAX_OFFLOAD = 0.75
+from modules.llm.fit.speed import RECOMMENDABLE_TIERS, speed_tier
 
 
 @dataclass(frozen=True)
@@ -55,9 +55,10 @@ def recommend(
             verdict = estimate(
                 entry.model_shape, variant.size_bytes, budget, precision=precision
             )
-            if verdict.state is FitState.TOO_BIG:
-                continue
-            if verdict.offload_fraction > MAX_OFFLOAD:
+            # TOO_BIG's own tier is never in RECOMMENDABLE_TIERS, so this is
+            # the one check: physics and speed are both judged by the same
+            # classification, not a state check plus a separate threshold.
+            if speed_tier(verdict) not in RECOMMENDABLE_TIERS:
                 continue
             candidates.append(Recommendation(entry, variant, verdict))
 

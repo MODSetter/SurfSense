@@ -70,20 +70,24 @@ RTX_3050 = HardwareBudget(5234 * MIB, 6002 * MIB, 1024 * MIB, 22750 * MIB, False
 
 
 def test_a_spilling_model_can_be_recommended_over_a_resident_one() -> None:
-    """The measured contradiction. A FITS-only rule fails this, which is the point.
+    """A FITS-only rule fails this, which is the point.
 
-    On this card the 8B spills about a fifth and runs without noticeable lag,
-    while a residency-only rule stars the 1.7B.
+    A small discrete card, mostly free: the 4B spills a fifth of a layer or so
+    (0.22) rather than fitting whole, and still outranks the fully resident
+    1.7B and 0.6B by build rank. A residency-only rule would star the 1.7B
+    instead, which is not conservative, it is wrong: the 4B demonstrably runs.
     """
-    pick = recommend(CURATED, RTX_3050)
+    small_discrete = HardwareBudget(4000 * MIB, 4300 * MIB, 1024 * MIB, 16000 * MIB, False, True)
+
+    pick = recommend(CURATED, small_discrete)
 
     assert pick is not None
-    assert pick.entry.label == "Qwen3 8B"
+    assert pick.entry.label == "Qwen3 4B"
 
 
 def test_physics_still_refuses_whatever_the_rank() -> None:
     """The ceiling relaxes residency, never physics."""
-    tiny = HardwareBudget(2000 * MIB, 2000 * MIB, 1024 * MIB, 3000 * MIB, False, True)
+    tiny = HardwareBudget(2200 * MIB, 2200 * MIB, 1024 * MIB, 3200 * MIB, False, True)
 
     pick = recommend(CURATED, tiny)
 
@@ -115,8 +119,12 @@ def test_the_policy_ranges_over_builds_so_a_smaller_one_can_rescue_an_entry() ->
             build("u/q", "8b-q4.gguf", "Q4_K_M", int(5.03 * GB), 78),
         ])
     ]
+    # A roomier discrete card than RTX_3050: the Q4 build spills lightly
+    # (0.19) here rather than the third RTX_3050 would cost it, which is
+    # enough to demonstrate the point without also needing full residency.
+    roomier_discrete = HardwareBudget(6000 * MIB, 6800 * MIB, 1024 * MIB, 22750 * MIB, False, True)
 
-    pick = recommend(two_builds, RTX_3050)
+    pick = recommend(two_builds, roomier_discrete)
 
     assert pick is not None
     assert pick.variant.quantization == "Q4_K_M"

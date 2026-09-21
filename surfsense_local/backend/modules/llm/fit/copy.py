@@ -8,6 +8,11 @@ Wording branches on two facts the budget already carries, `uma` and `has_gpu`,
 and never on the runtime's name. One label set is wrong on two of the three
 targets.
 
+Which band a verdict falls in is `speed.speed_tier`'s job, not this module's:
+that is the one place `offload_fraction` becomes a decision, so a recommended
+build and its badge read off the same classification rather than two
+independently thresholded ones.
+
 **No em dashes and no hyphens in anything here.** Commas, full stops or
 parentheses. That is a standing rule for every user facing string in this phase.
 """
@@ -16,13 +21,8 @@ from dataclasses import dataclass
 
 from modules.llm.fit.budget import HardwareBudget
 from modules.llm.fit.estimate import FitVerdict
+from modules.llm.fit.speed import SpeedTier, speed_tier
 from modules.llm.fit.states import FitState
-
-# Three bands, because the middle state spans barely noticeable to unusable and
-# one sentence is wrong at both ends. Below the first, most of the model is still
-# resident; above the second, most of it is not.
-_SLIGHT_SPILL = 0.25
-_HEAVY_SPILL = 0.5
 
 
 @dataclass(frozen=True)
@@ -47,9 +47,10 @@ def badge(fit: FitVerdict, budget: HardwareBudget) -> Badge:
 def _spill(fit: FitVerdict, budget: HardwareBudget) -> str:
     where = "the GPU" if budget.uma else "the graphics card"
     elsewhere = "the CPU" if budget.uma else "the processor"
-    if fit.offload_fraction <= _SLIGHT_SPILL:
+    tier = speed_tier(fit)
+    if tier is SpeedTier.LIGHT_SPILL:
         return f"A little too big for {where}. Most of it still fits."
-    if fit.offload_fraction < _HEAVY_SPILL:
+    if tier is SpeedTier.MODERATE_SPILL:
         return f"Too big for {where}, so part runs on {elsewhere}."
     return f"Well over {where}'s memory. Expect it to be slow."
 

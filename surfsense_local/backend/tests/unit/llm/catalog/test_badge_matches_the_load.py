@@ -111,3 +111,23 @@ def test_a_machine_with_no_gpu_is_never_told_about_a_graphics_card() -> None:
         for row in curated_rows(CURATED, BUDGETS[name]):
             assert "graphics card" not in row.badge.reason
             assert row.badge.verdict in {"Works here", "Won't fit"}
+
+
+@pytest.mark.parametrize("budget_name", BUDGETS)
+def test_a_recommended_row_never_carries_spill_wording(budget_name) -> None:
+    """The invariant the badge and the star share now: a starred build's own
+    badge can never be the wording that tells someone to expect it to be slow.
+
+    Swept over every curated model and every budget shape rather than one
+    fixture, because this has to hold for whichever build ends up starred on
+    whichever machine, not just the one screenshot that found the gap.
+    """
+    budget = BUDGETS[budget_name]
+    rows = {row.model_id: row for row in curated_rows(CURATED, budget)}
+    pick = recommend(CURATED, budget)
+    if pick is None:
+        return
+
+    starred = rows[pick.entry.model_id]
+
+    assert starred.badge.verdict in {"Full speed", "Works here"}
