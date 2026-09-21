@@ -1,4 +1,9 @@
-"""Ask ggml what this machine has.
+"""Ask ggml what this machine has, inside this process.
+
+The fallback path. `probe_subprocess` is what the app calls: loading a GPU
+driver into the API process means a driver crash takes the API with it, and on
+Metal it means a 19 second shader compile inside the server. This module stays
+because a child that cannot be spawned is still better answered than not.
 
 **The scan runs from the directory of the running executable, not the directory
 the libraries were loaded from.** Verified on a machine with a working RTX 3050,
@@ -35,7 +40,7 @@ def _working_directory(directory: Path):
             os.chdir(previous)
 
 
-def probe_devices(library_dir: Path) -> list[Device]:
+def probe_devices_in_process(library_dir: Path) -> list[Device]:
     """Every device ggml can see, in ggml's own preference order.
 
     An empty list means ggml found nothing, which is not the same as the machine
