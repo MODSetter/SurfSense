@@ -21,8 +21,8 @@ from common import BACKEND, database_inputs
 datas, binaries, hiddenimports = database_inputs()
 datas.append(
     (
-            str(BACKEND / "modules" / "llm" / "recommendations" / "curated-models.json"),
-        "modules/llm/recommendations",
+        str(BACKEND / "modules" / "llm" / "catalog" / "curated-models.json"),
+        "modules/llm/catalog",
     )
 )
 # Read by path, so the analyser cannot see it. Without this every remote model
