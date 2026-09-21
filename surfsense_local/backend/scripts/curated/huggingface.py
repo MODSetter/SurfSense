@@ -5,8 +5,7 @@ Authoring time only. The app never calls this: it reads the committed JSON.
 
 import httpx
 
-from modules.llm.fit import ModelShape
-from modules.llm.gguf import shape_from_url
+from modules.llm.gguf import GgufHeader, header_from_url
 
 API = "https://huggingface.co/api/models"
 FILES = "https://huggingface.co/{repo}/resolve/main/{file}"
@@ -38,7 +37,11 @@ def find_variant(client: httpx.Client, repo: str, quantization: str) -> tuple[st
     return chosen["path"], chosen["size"]
 
 
-async def read_shape(repo: str, file: str) -> ModelShape:
-    """The architecture fields, over an HTTP range. No weights are downloaded."""
+async def read_header(repo: str, file: str) -> GgufHeader:
+    """The header, over an HTTP range. No weights are downloaded.
+
+    The whole header rather than the shape: the tensor table is what says how
+    much of a mixture of experts is read per token.
+    """
     async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
-        return await shape_from_url(client, FILES.format(repo=repo, file=file))
+        return await header_from_url(client, FILES.format(repo=repo, file=file))

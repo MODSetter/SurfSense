@@ -26,12 +26,17 @@ Everything mechanical is derived here. The three judgement fields stay in
 
 import asyncio
 import json
+from dataclasses import asdict
 from pathlib import Path
 
 import httpx
-from curated.huggingface import find_variant, read_shape
+from curated.huggingface import find_variant, read_header
+from curated.projector import find_projector
+from curated.tensor_bytes import decode_fraction
 
 from modules.llm.catalog import SCHEMA_VERSION, CuratedModelsManifest
+from modules.llm.fit import ModelShape
+from modules.llm.gguf import to_shape
 
 OUT = Path(__file__).resolve().parents[1] / "modules/llm/catalog/curated-models.json"
 RANK_BASIS = "llmfit-1.1.11"
@@ -57,16 +62,32 @@ ENTRIES = [
 VALIDATED: set[str] = set()
 
 
+def _shape_fields(shape: ModelShape) -> dict:
+    """Every field the estimator reads, taken from the dataclass itself.
+
+    Listing them by hand here is what dropped two of them last time, and a
+    dropped width prices the compute buffer as though the model had no layers.
+    """
+    fields = asdict(shape)
+    # JSON has no tuples.
+    fields["sliding_window_layers"] = list(fields["sliding_window_layers"])
+    return fields
+
+
 async def build() -> dict:
     models = []
     with httpx.Client(follow_redirects=True) as client:
         for model_id, family, label, params, repo, quant, rank in ENTRIES:
             file, size = find_variant(client, repo, quant)
-            shape = await read_shape(repo, file)
+            header = await read_header(repo, file)
+            shape = to_shape(header)
+            projector = find_projector(client, repo)
+            fraction = decode_fraction(header, shape.expert_used_count, shape.expert_count)
             print(
                 f"  {label:12s} {file:34s} {size / 1e9:5.2f} GB  "
                 f"{shape.block_count} blocks, {shape.head_count_kv} kv-heads, "
-                f"ctx {shape.context_length}"
+                f"ctx {shape.context_length}, reads {fraction:.2f} per token"
+                + (f", projector {projector[0]}" if projector else "")
             )
             models.append(
                 {
@@ -74,26 +95,16 @@ async def build() -> dict:
                     "family": family,
                     "label": label,
                     "parameter_count": params,
-                    "shape": {
-                        "architecture": shape.architecture,
-                        "block_count": shape.block_count,
-                        "head_count_kv": shape.head_count_kv,
-                        "key_length": shape.key_length,
-                        "value_length": shape.value_length,
-                        "context_length": shape.context_length,
-                        "n_vocab": shape.n_vocab,
-                        "sliding_window": shape.sliding_window,
-                        "expert_count": shape.expert_count,
-                    },
-                    "capabilities": [],
-                    "decode_fraction": 1.0,
+                    "shape": _shape_fields(shape),
+                    "capabilities": ["vision"] if projector else [],
+                    "decode_fraction": fraction,
                     "variants": [
                         {
                             "repo": repo,
                             "file": file,
                             "quantization": quant,
                             "size_bytes": size,
-                            "mmproj": None,
+                            "mmproj": projector[0] if projector else None,
                             "rank": rank,
                             "rank_basis": RANK_BASIS,
                             "validated": file in VALIDATED,
