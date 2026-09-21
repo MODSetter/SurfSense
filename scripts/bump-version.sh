@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+# Version line for the hosted / Docker stack: root VERSION, `v0.*` tags,
+# docker-build.yml. The desktop app is a separate line on its own number --
+# surfsense_local/VERSION and surfsense_local/scripts/bump-version.sh.
+#
+# Keep in step with bump-version.ps1 next to it; the two bump the same files.
+
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -16,7 +22,7 @@ if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; the
   exit 1
 fi
 
-echo "Bumping all packages to $VERSION"
+echo "Bumping the hosted stack to $VERSION"
 echo "---------------------------------"
 
 bump_json() {
@@ -64,4 +70,4 @@ else
 fi
 
 echo "---------------------------------"
-echo "Done. All packages set to $VERSION"
+echo "Done. Hosted stack set to $VERSION"
