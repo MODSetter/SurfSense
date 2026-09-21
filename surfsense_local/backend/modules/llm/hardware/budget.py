@@ -14,12 +14,27 @@ from enum import StrEnum
 from modules.llm.fit import HardwareBudget
 from modules.llm.hardware.devices import Device, DeviceType
 from modules.llm.hardware.selection import select_device
+from modules.llm.hardware.unified_pool import unified_pool_bytes
 
 # llama.cpp's own `fit_params_target`, one GiB per device, read from
 # common/common.h at b11050 and observed on both Vulkan and Metal. Not an
 # estimate of the margin: the value the fitter will actually apply, and one we
 # can pin through --fit-target rather than predict.
 LLAMA_CPP_FIT_MARGIN_BYTES = 1024 * 1024 * 1024
+
+_MIB = 1024 * 1024
+
+
+def fit_target_mib(mmproj_bytes: int = 0) -> int:
+    """The margin to pass the fitter, in the MiB `--fit-target` expects.
+
+    A vision projector is added to it rather than subtracted from the budget,
+    because `--fit` allocates the projector after it has finished placing layers
+    and does not count it while deciding. Asking the fitter to leave room for it
+    is what stops a model it called resident from failing to allocate. Ollama
+    compensates the same way, through `LLAMA_ARG_FIT_TARGET`.
+    """
+    return (LLAMA_CPP_FIT_MARGIN_BYTES + max(0, mmproj_bytes) + _MIB - 1) // _MIB
 
 
 class BudgetMode(StrEnum):
@@ -56,12 +71,28 @@ def build_budget(
             has_gpu=False,
         )
 
+    if uma:
+        # One memory with two ceilings on it, which is not the same as two
+        # pools. The device figure bounds what Metal will allocate, and so what
+        # can stay resident. The host figure bounds what the machine can hold at
+        # all, because the CPU backend reads the same chips without Metal's
+        # working set ceiling. `refusal_bytes` takes the host one and never a
+        # sum of both, which is where the double count used to be.
+        return HardwareBudget(
+            device_free_bytes=unified_pool_bytes(device.free_bytes, ram),
+            device_total_bytes=device.total_bytes,
+            fit_reserve_bytes=LLAMA_CPP_FIT_MARGIN_BYTES,
+            ram_available_bytes=ram,
+            uma=True,
+            has_gpu=True,
+        )
+
     return HardwareBudget(
-        device_free_bytes=_device_free(device, uma, ram),
+        device_free_bytes=device.free_bytes,
         device_total_bytes=device.total_bytes,
         fit_reserve_bytes=LLAMA_CPP_FIT_MARGIN_BYTES,
         ram_available_bytes=ram,
-        uma=uma,
+        uma=False,
         has_gpu=True,
     )
 
@@ -70,33 +101,12 @@ def _is_unified(gpu: Device, devices: Sequence[Device]) -> bool:
     """A GPU sharing the CPU's description is sharing its memory.
 
     Apple Silicon reports the same part name for both, which is the cheap and
-    reliable signal. It decides badge copy, not arithmetic.
+    reliable signal. It decides badge copy and, since the two readings name one
+    memory, whether the budget is a pool or a pair.
     """
     return any(
         d.type is DeviceType.CPU and d.description == gpu.description for d in devices
     )
-
-
-def _device_free(device: Device, uma: bool, host_memory: int) -> int:
-    """How much the device can actually be given.
-
-    On a discrete card this is the card's own figure: dedicated VRAM is a
-    separate pool and its `free` really is live.
-
-    On unified memory it is neither. Metal reports
-    `recommendedMaxWorkingSetSize` as both total and free, a static number that
-    does not move however busy the machine is, and the memory it describes is
-    the same memory the OS and every other app are using. So **both** limits
-    apply and the smaller governs: the working set is a ceiling Metal will not
-    allocate past, and host memory is what is actually there to give.
-
-    Spending the working set as though it were live is what sized a 28,672 token
-    window on an 8 GB Mac with 2.3 GB reclaimable. The load paged and took 43
-    seconds, which is long enough for title generation to time out at 30.
-    """
-    if not uma:
-        return device.free_bytes
-    return min(device.free_bytes, host_memory)
 
 
 def _host_memory(

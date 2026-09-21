@@ -46,7 +46,11 @@ def test_a_machine_with_no_gpu_still_produces_a_budget() -> None:
 
 def test_the_ram_half_comes_from_the_caller_not_from_ggml() -> None:
     """ggml's CPU device restates the total on macOS and under WSL2, and that
-    number is what separates PARTIAL from TOO_BIG."""
+    number is what separates PARTIAL from TOO_BIG.
+
+    Here the CPU device claims 8192 MiB and the caller knows only 1500 MiB is
+    reclaimable. The caller wins.
+    """
     budget = build_budget([METAL, CPU_RESTATED], ram_available_bytes=1500 * MIB)
 
     assert budget.ram_available_bytes == 1500 * MIB
@@ -159,3 +163,56 @@ def test_a_discrete_card_is_untouched_by_the_mode() -> None:
 
     assert live.device_free_bytes == DISCRETE.free_bytes
     assert capacity.device_free_bytes == DISCRETE.free_bytes
+
+
+def test_unified_memory_is_one_pool_never_a_sum() -> None:
+    """The measured bug: the same physical memory was counted twice.
+
+    Metal reports `recommendedMaxWorkingSetSize` as both total and free, and the
+    host reports the same chips again. Adding them gave an 8 GB Mac a refusal
+    threshold of 10.3 GB, so a model that could not possibly load was offered.
+    """
+    budget = build_budget(
+        [METAL, CPU_RESTATED], ram_available_bytes=2300 * MIB, mode=BudgetMode.CAPACITY
+    )
+
+    assert budget.uma
+    # The sum is what was wrong. Either ceiling alone is a real limit; added
+    # together they describe memory the machine does not have twice over.
+    assert budget.refusal_bytes < budget.usable_vram_bytes + budget.ram_available_bytes
+    assert budget.refusal_bytes == budget.ram_available_bytes
+
+
+def test_the_unified_pool_keeps_a_margin_against_the_host_but_not_the_working_set() -> None:
+    """Two limits, one pool, and the fraction sits on the leg that lies.
+
+    The working set is Apple's own ceiling and is exactly what llama.cpp
+    subtracts its margin from, so discounting it again would refuse a model the
+    fitter really does place. Host memory is a snapshot and a load takes
+    seconds, so that leg is discounted.
+    """
+    budget = build_budget(
+        [METAL, CPU_RESTATED], ram_available_bytes=2300 * MIB, mode=BudgetMode.CAPACITY
+    )
+
+    # Residency is bounded by whichever ceiling is lower, with the margin on the
+    # host leg because that is the reading that moves while a load is running.
+    assert budget.device_free_bytes == min(5461 * MIB, int(0.85 * 6144 * MIB))
+    assert budget.usable_vram_bytes == budget.device_free_bytes - 1024 * MIB
+
+
+def test_a_machine_with_no_gpu_refuses_only_past_its_own_memory() -> None:
+    """There is nothing to spill from, so residency and physics are one number."""
+    budget = build_budget([CPU_LIVE], ram_available_bytes=22750 * MIB)
+
+    assert not budget.has_gpu
+    assert budget.resident_bytes == budget.ram_available_bytes
+    assert budget.refusal_bytes == budget.ram_available_bytes
+
+
+def test_a_discrete_card_still_spills_into_host_memory() -> None:
+    """The one case where the two subtractions really are different pools."""
+    budget = build_budget([DISCRETE, CPU_LIVE], ram_available_bytes=22750 * MIB)
+
+    assert budget.resident_bytes == budget.usable_vram_bytes
+    assert budget.refusal_bytes == budget.usable_vram_bytes + budget.ram_available_bytes
