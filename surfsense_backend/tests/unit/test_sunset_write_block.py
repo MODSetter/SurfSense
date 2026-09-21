@@ -40,6 +40,8 @@ _PATHS = (
     "/api/v1/export",
     "/api/v1/workspaces/7/scrapers/reddit/search",
     "/api/v1/workspaces/7/scrapers/capabilities",
+    "/api/v1/pats",
+    "/api/v1/pats/42",
 )
 
 
@@ -66,6 +68,7 @@ def client() -> TestClient:
 
 @pytest.fixture
 def sunset_on(monkeypatch):
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.setenv("SUNSET_MODE", "1")
 
 
@@ -92,13 +95,27 @@ def test_nothing_is_blocked_while_the_flag_is_unset(client, sunset_off, path, me
 @pytest.mark.parametrize("value", ["", "0", "false", "no", "off", "  "])
 def test_a_flag_that_does_not_mean_yes_blocks_nothing(client, monkeypatch, value):
     """Anything short of an explicit yes leaves the service fully writable."""
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.setenv("SUNSET_MODE", value)
+
+    assert client.post("/api/v1/documents").status_code == 200
+
+
+def test_self_hosted_ignores_a_stray_sunset_flag(client, monkeypatch):
+    """``DEPLOYMENT_MODE`` defaults to self-hosted, which must win over SUNSET_MODE.
+
+    A ``.env`` copied from a hosted template can carry ``SUNSET_MODE=1`` by
+    accident; a self-hosted instance must stay fully writable regardless.
+    """
+    monkeypatch.delenv("DEPLOYMENT_MODE", raising=False)
+    monkeypatch.setenv("SUNSET_MODE", "1")
 
     assert client.post("/api/v1/documents").status_code == 200
 
 
 def test_the_flag_is_read_per_request(client, monkeypatch):
     """Sunset is thrown by changing the environment, not by redeploying."""
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.delenv("SUNSET_MODE", raising=False)
     assert client.post("/api/v1/documents").status_code == 200
 
@@ -175,6 +192,18 @@ def test_the_scraper_api_keeps_running(client, sunset_on):
     assert client.post("/api/v1/workspaces/7/scrapers/reddit/search").status_code == 200
 
 
+@pytest.mark.parametrize("method", ["post", "delete"])
+def test_pats_keep_working_through_the_tail(client, sunset_on, method):
+    """PATs die at the T+30 purge, not at T-0 (00d-pivot-plan.md, "Existing MCP users").
+
+    Losing create/revoke at T-0 would strand every PAT-holding client -- MCP
+    included -- long before the purge that is actually supposed to end it.
+    """
+    path = "/api/v1/pats" if method == "post" else "/api/v1/pats/42"
+
+    assert getattr(client, method)(path).status_code == 200
+
+
 # --------------------------------------------------------------------------
 # The flag itself
 # --------------------------------------------------------------------------
@@ -182,6 +211,7 @@ def test_the_scraper_api_keeps_running(client, sunset_on):
 
 @pytest.mark.parametrize("value", ["1", "true", "TRUE", "True", "yes", "on"])
 def test_every_documented_spelling_means_yes(monkeypatch, value):
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.setenv("SUNSET_MODE", value)
 
     assert is_sunset_mode() is True
@@ -189,6 +219,14 @@ def test_every_documented_spelling_means_yes(monkeypatch, value):
 
 @pytest.mark.parametrize("value", ["", "0", "false", "no", "off", "  ", "1 "])
 def test_anything_else_means_no(monkeypatch, value):
+    monkeypatch.setenv("DEPLOYMENT_MODE", "cloud")
     monkeypatch.setenv("SUNSET_MODE", value)
 
     assert is_sunset_mode() is (value.strip() == "1")
+
+
+def test_self_hosted_means_no_regardless_of_sunset_mode(monkeypatch):
+    monkeypatch.delenv("DEPLOYMENT_MODE", raising=False)
+    monkeypatch.setenv("SUNSET_MODE", "1")
+
+    assert is_sunset_mode() is False
