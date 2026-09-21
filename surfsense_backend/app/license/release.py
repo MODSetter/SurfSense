@@ -1,9 +1,9 @@
 """The desktop release license mail links to.
 
 Kept in lockstep with ``surfsense_web/lib/app-release.ts``: both name the same
-tag, and ``surfsense_local/scripts/bump-version.sh`` writes both. The site and
-the email must never fall back to ``/releases/latest`` -- that pin is the
-legacy 0.0.x app for good.
+tag, and ``surfsense_local/scripts/bump-version.sh`` writes both. Resolving by
+tag rather than ``/releases/latest`` keeps a mail that has already been sent
+pointing at the build it was sent for.
 """
 
 from __future__ import annotations

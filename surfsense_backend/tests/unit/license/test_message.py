@@ -88,19 +88,19 @@ def test_installer_assets_are_the_github_tag_download_urls():
 
     exe = (
         "https://github.com/MODSetter/SurfSense/releases/download/"
-        "v2.0.0/SurfSense-Setup-2.0.0.exe"
+        "v2.0.0/SurfSense-Setup.exe"
     )
     dmg = (
         "https://github.com/MODSetter/SurfSense/releases/download/"
-        "v2.0.0/SurfSense-2.0.0-arm64.dmg"
+        "v2.0.0/SurfSense-arm64.dmg"
     )
     message = build_license_email(
         "trial",
         to="a@b.test",
         certificates=("CERT",),
         installers=(
-            ReleaseAsset(name="SurfSense-Setup-2.0.0.exe", url=exe),
-            ReleaseAsset(name="SurfSense-2.0.0-arm64.dmg", url=dmg),
+            ReleaseAsset(name="SurfSense-Setup.exe", url=exe),
+            ReleaseAsset(name="SurfSense-arm64.dmg", url=dmg),
         ),
     )
 

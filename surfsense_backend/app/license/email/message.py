@@ -37,7 +37,7 @@ def _install_steps(installers: tuple[ReleaseAsset, ...] = ()) -> str:
     The download comes first because the recipient may not have the app yet:
     a trial is handed out to an address, not to an installation. Links are the
     GitHub tag-release assets the site uses, never /downloads and never
-    /releases/latest (that pin is the legacy 0.0.x app).
+    /releases/latest, so an old mail keeps naming the build it was sent for.
     """
     if installers:
         links = "\n".join(

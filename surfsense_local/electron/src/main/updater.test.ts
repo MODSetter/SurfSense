@@ -38,7 +38,7 @@ test("a found update is downloaded and offered, never installed on its own", asy
   const updates = attachUpdater(fake.updater, (state) => states.push(state))
 
   assert.equal(fake.updater.autoDownload, false)
-  // GitHub's "latest" pin is legacy 0.0.40; this flag walks the feed instead.
+  // Walks the releases feed rather than /releases/latest; see updater.ts.
   assert.equal(fake.updater.allowPrerelease, true)
   await updates.check()
   fake.emit("update-available", { version: "1.0.1" })

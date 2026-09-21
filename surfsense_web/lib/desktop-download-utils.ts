@@ -49,8 +49,8 @@ export function useUserOS(): OSInfo {
 }
 
 /**
- * Resolved by tag: `/releases/latest` is pinned to the legacy 0.0.x app for
- * good, so it will never name a 2.x build. Server-rendered pages should use
+ * Resolved by tag, so a deployed page offers the build it was built against
+ * rather than whatever shipped since. Server-rendered pages should use
  * `getReleaseAssets()` in `lib/release-assets.ts` instead of this hook.
  */
 export function useLatestRelease() {

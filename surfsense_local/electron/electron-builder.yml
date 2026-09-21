@@ -38,15 +38,28 @@ extraResources:
     to: sdcpp
 
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
-# latest*.yml; this app publishes stable*.yml so the two feeds never cross.
+# latest*.yml; this app publishes stable*.yml. Both manifests now sit on the
+# same release (see legacy-update-bridge in release-local.yml), so the channel
+# is the only thing keeping either app from parsing the other's.
 publish:
   provider: github
   owner: MODSetter
   repo: SurfSense
   channel: stable
 
+# Artifact names carry no version, so `/releases/latest/download/<name>` is a
+# permalink the README and the site can hardcode. electron-updater is fine with
+# it: the manifests name the file, and a cached download is validated by sha512
+# before it is ever installed.
+#
+# ponytail: the arch stays on the Mac names because the /downloads grid and the
+# license mail label assets by suffix (`-arm64.dmg`); dropping it there would
+# fall through to the raw filename. Windows and Linux ship one arch each, so
+# they leave it out — add `${arch}` back on the day a second one appears, or the
+# two builds overwrite each other.
 linux:
   target: [AppImage, deb]
+  artifactName: "${productName}.${ext}"
   category: Office
   icon: build/icon.png
   executableName: surfsense-local
@@ -59,6 +72,7 @@ linux:
 
 win:
   target: [nsis]
+  artifactName: "${productName}-Setup.${ext}"
   icon: build/icon.ico
 
 
@@ -66,7 +80,7 @@ mac:
   target: [dmg, zip]
   category: public.app-category.productivity
   icon: build/icon.icns
-  artifactName: "${productName}-${version}-${arch}.${ext}"
+  artifactName: "${productName}-${arch}.${ext}"
   hardenedRuntime: true
   gatekeeperAssess: false
   entitlements: build/entitlements.mac.plist

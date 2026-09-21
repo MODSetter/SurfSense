@@ -12,7 +12,7 @@ export const APP_RELEASE_VERSION = "2.0.1";
 
 export const APP_RELEASE_TAG = `v${APP_RELEASE_VERSION}`;
 
-/** The list, not `/releases/latest`, which is pinned to the legacy 0.0.x app. */
+/** The full list, for readers who want an older release or the changelog. */
 export const GITHUB_RELEASES_URL = "https://github.com/MODSetter/SurfSense/releases";
 
 export interface ReleaseAsset {
