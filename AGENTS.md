@@ -111,7 +111,7 @@ its lock entry is valid.
 
 - Do not carve hosted code out of backend/web until after launch.
 - Do not drop SearxNG, sandbox, OpenSandbox, or zero-cache from compose until a new compose is defined after launch.
-- Do not edit the root `README.md`. WIP replacement: `plans/community-local/seo/drafts/README.md`.
+- Edit the root `README.md` directly. The draft at `plans/community-local/seo/drafts/README.md` shipped on 18 Sep 2026 and is kept only for history. Anything added to the README replaces something — its length was measured against the eight biggest repos in this category.
 - Do not commit unless asked.
 
 ## Security

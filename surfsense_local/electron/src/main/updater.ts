@@ -65,8 +65,9 @@ export function attachUpdater(
   // Downloading is still the user's call in spirit: it only starts after a
   // check they enabled or clicked. Installing always waits for them.
   updater.autoDownload = false
-  // GitHub's /releases/latest is pinned to legacy 0.0.40. This flag makes
-  // electron-updater walk the releases feed for stable-*.yml instead.
+  // Takes the newest entry of the releases feed rather than /releases/latest.
+  // That pointer names a 2.x release again, so this is no longer required;
+  // dropping it changes behaviour for shipped clients, so it ships on its own.
   updater.allowPrerelease = true
   updater.on("update-available", (info: { version: string }) => {
     set({ status: "downloading", version: info.version })

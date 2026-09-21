@@ -1,290 +1,166 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense, ओपन वेब रिसर्च के लिए ओपन सोर्स NotebookLM विकल्प" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
-
-
-
-<div align="center">
-<a href="https://discord.gg/ejRNvftDp9">
-<img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
-</a>
-<a href="https://www.reddit.com/r/SurfSense/">
-<img src="https://img.shields.io/reddit/subreddit-subscribers/SurfSense?style=social" alt="Reddit">
-</a>
-</div>
+<!--
+  सनसेट कॉलआउट समय-सीमित है। 18 अक्टूबर 2026 को, जब एक्सपोर्ट विंडो बंद हो जाएगी,
+  इसे और नीचे दिए गए "होस्टेड ऐप से इम्पोर्ट करना" लिंक को हटा दें।
+  यह फ़ाइल README.md को सेक्शन-दर-सेक्शन फ़ॉलो करती है।
+  इस पेज का तर्क: plans/community-local/seo/06-repo-readme.md
+-->
 
 <div align="center">
 
-[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [हिन्दी](README.hi.md) | [简体中文](README.zh-CN.md)
+[![Stars](https://img.shields.io/github/stars/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/stargazers)
+[![Forks](https://img.shields.io/github/forks/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/network/members)
+[![Latest release](https://img.shields.io/github/v/release/MODSetter/SurfSense?sort=semver)](https://github.com/MODSetter/SurfSense/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
+  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प" src="surfsense_web/public/homepage/icon.png" /></a>
+
+  <h1>SurfSense</h1>
+
+  <p>
+    <b>एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प।</b>
+    <br />
+    जो दस्तावेज़ आप अपलोड नहीं कर सकते, उन्हें ब्रीफ़िंग, स्लाइड डेक, रिपोर्ट, स्टडी गाइड और पॉडकास्ट में बदलें — पूरी तरह अपनी ही मशीन पर।
+  </p>
+
+  <p>
+    <a href="https://www.surfsense.com/downloads"><b>डाउनलोड</b></a> ·
+    <a href="https://www.surfsense.com/docs">डॉक्स</a> ·
+    <a href="#surfsense-क्या-बनाता-है">यह क्या बनाता है</a> ·
+    <a href="#surfsense-की-तुलना-दूसरों-से">तुलना</a> ·
+    <a href="https://www.surfsense.com/pricing">प्राइसिंग</a> ·
+    <a href="https://discord.gg/ejRNvftDp9">Discord</a>
+  </p>
+
+  <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
+
+  <p>
+    <a href="README.md">English</a> | <a href="README.es.md">Español</a> | <a href="README.pt-BR.md">Português</a> | हिन्दी | <a href="README.zh-CN.md">简体中文</a>
+  </p>
 </div>
-<div align="center">
-<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</div>
 
-# SurfSense: ओपन वेब रिसर्च के लिए ओपन सोर्स NotebookLM विकल्प
+<p align="center">
+  <img src="surfsense_web/public/homepage/offline-studio.png" alt="SurfSense डेस्कटॉप ऐप, जिसमें Studio खुला है और Qwen चुना गया है, लोकल स्रोतों को आर्टिफैक्ट में बदलते हुए" />
+</p>
 
-SurfSense **AI एजेंट्स के लिए ओपन सोर्स NotebookLM विकल्प** है, लाइव डेटा कनेक्टर्स के साथ एक ओपन वेब रिसर्च प्लेटफ़ॉर्म। आपके एजेंट **Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, Indeed और ओपन वेब के किसी भी पेज** से स्ट्रक्चर्ड डेटा के साथ लाइव वेब पर रिसर्च करते हैं, वह भी एक ही **REST API** या **MCP सर्वर** के ज़रिए। शेड्यूल्ड और इवेंट-ट्रिगर्ड एजेंट अपनी खोजों को ब्रीफ़ और अलर्ट में बदलते हैं, और एक बिल्ट-इन नॉलेज बेस हर खोज को साइटेशन के साथ खोजने योग्य बनाए रखता है।
+SurfSense एक मुफ़्त, ओपन-सोर्स डेस्कटॉप ऐप है, उन दस्तावेज़ों के लिए जो पहले से आपके पास हैं। उन्हें ऐप में डालें, सवाल पूछें और ऐसे जवाब पाएँ जो अपने स्रोत का हवाला देते हैं; फिर उन्हीं दस्तावेज़ों को ब्रीफ़िंग, स्लाइड डेक, रिपोर्ट, स्टडी गाइड या पॉडकास्ट में बदल दें। यह सब आपकी अपनी मशीन पर चलता है: इंडेक्स आपकी डिस्क पर रहता है, मॉडल आप चुनते हैं, और ऐप कुछ भी अपलोड नहीं करता। कोई अकाउंट बनाने की ज़रूरत नहीं।
+
+**शुरुआत करें।** अपनी मशीन के लिए इंस्टॉलर डाउनलोड करें, फिर अपनी खुद की मॉडल API key लगाएँ या ऐप को अपने लिए एक लोकल मॉडल डाउनलोड करने दें।
+
+| प्लैटफ़ॉर्म | डाउनलोड |
+|---|---|
+| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
+| **Linux** x64 (AppImage) | [SurfSense.AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) |
+| **Linux** x64 (deb) | [SurfSense.deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+
+हर लिंक सबसे नए रिलीज़ का परमालिंक है। आप [surfsense.com/downloads](https://www.surfsense.com/downloads) से भी चुन सकते हैं या [सभी रिलीज़](https://github.com/MODSetter/SurfSense/releases) देख सकते हैं। AppImage अपने आप अपडेट हो जाता है; deb नहीं होता।
 
 > [!NOTE]
-> **📢 हमारे NotebookLM-विकल्प उपयोगकर्ताओं के लिए एक सूचना**
->
-> पिछले कुछ महीनों में हमने SurfSense को आपके अपने ज्ञान के लिए सबसे बेहतरीन जनरल रिसर्च एजेंट के रूप में बनाया, और उस अध्याय ने हमें एक ऐसा समुदाय दिया जिस पर हमें सचमुच गर्व है। Claude, OpenCode, Hermes और OpenClaw जैसे एजेंटिक टूल्स ने अब साबित कर दिया है कि एजेंट ही भविष्य हैं, और स्टैटिक इंडेक्स पर रीज़निंग अब कुछ ऐसी चीज़ बनती जा रही है जो हर सक्षम एजेंट पहले से ही कर लेता है। एजेंट्स के पास अब भी जिस चीज़ की कमी है वह है **उन जगहों का लाइव डेटा जहां जवाब वास्तव में मौजूद हैं, और उसके इर्द-गिर्द के वर्कफ़्लो**। हम अपनी पूरी ऊर्जा वहीं लगा रहे हैं: एजेंट्स को ओपन वेब पर रिसर्च करने के प्रिमिटिव देना।
->
-> **आप जिस भी चीज़ पर निर्भर हैं, वह कहीं नहीं जा रही।** आपका नॉलेज बेस, साइटेशन वाली चैट, रिपोर्ट, पॉडकास्ट, प्रेज़ेंटेशन, ऑटोमेशन और सहयोगी चैट, सब पहले की तरह काम करते रहेंगे, और सेल्फ-होस्टिंग मुफ़्त और ओपन सोर्स बनी रहेगी। पूरी घोषणा [हमारे changelog](https://www.surfsense.com/changelog) पर पढ़ें।
+> **होस्टेड वेब ऐप इस्तेमाल करते थे?** उसे बंद किया जा रहा है। एक बार उसे खोलकर अपने वर्कस्पेस एक्सपोर्ट करें, फिर वह बंडल डेस्कटॉप ऐप में इम्पोर्ट कर लें; दस्तावेज़, फ़ोल्डर, टाइटल और चैट थ्रेड — सब साथ आ जाते हैं। एक्सपोर्ट विंडो 18 अक्टूबर 2026 को बंद हो जाएगी। पूरी जानकारी [सनसेट पेज](https://www.surfsense.com/sunset) पर है।
 
-## विषय-सूची
+## SurfSense क्या बनाता है
 
-- [एजेंट्स को SurfSense की ज़रूरत क्यों है](#एजेंट्स-को-surfsense-की-ज़रूरत-क्यों-है)
-- [लाइव डेटा कनेक्टर](#लाइव-डेटा-कनेक्टर)
-- [क्विक स्टार्ट](#क्विक-स्टार्ट)
-- [बॉक्स में बाकी सब कुछ](#बॉक्स-में-बाकी-सब-कुछ)
-- [SurfSense की तुलना कैसी है](#surfsense-की-तुलना-कैसी-है)
-- [रोडमैप](#रोडमैप)
-- [योगदान करें](#योगदान-करें)
+कुछ दस्तावेज़ चुनें और एक फ़ॉर्मैट चुनें। ऐप उसे आपके चुने हुए स्रोतों से, आपकी ही मशीन पर तैयार करता है।
 
-## एजेंट्स को SurfSense की ज़रूरत क्यों है
-
-किसी भी सक्षम एजेंट से पूछिए "लॉन्च के बाद से Reddit पर इस प्रोडक्ट के बारे में क्या कहा जा रहा है?" या "इन दस जगहों की रिव्यू में असल में किस बात की शिकायत है?" और उसके पास देखने के लिए कोई भरोसेमंद जगह नहीं होती। आधिकारिक प्लेटफ़ॉर्म API या तो रेट-लिमिटेड हैं, एंटरप्राइज़ के हिसाब से महंगे हैं, या हैं ही नहीं; स्क्रैपिंग का ढांचा नाज़ुक होता है; और LLM से ब्राउज़र चलाना हर पेज पर मिनट और टोकन खर्च करा देता है। इसके बजाय SurfSense एजेंट्स को प्रिमिटिव देता है:
-
-- **डेटा जहां भी हो, उसके लिए एक ही टाइप्ड सरफ़ेस।** हर कनेक्टर एक REST एंडपॉइंट है जो स्ट्रक्चर्ड JSON लौटाता है — पोस्ट, कमेंट, ट्रांसक्रिप्ट, रिव्यू, SERP, पेज। न रेट-लिमिट का जुआ, न HTML पार्सिंग, न ब्राउज़र लूप।
-- **एक MCP सर्वर** जो हर कनेक्टर को नेटिव टूल के रूप में (`surfsense_reddit_scrape`, `surfsense_google_search` और अन्य) Claude, Cursor या किसी भी एजेंट फ़्रेमवर्क को उपलब्ध कराता है।
-- **एक एजेंट हार्नेस**, सिर्फ़ कच्चा डेटा नहीं: रीट्राई, स्ट्रक्चर्ड आउटपुट और क्रेडिट मीटरिंग बिल्ट-इन हैं, ताकि एजेंट सवाल से सीधे साइटेशन वाले ब्रीफ़ तक पहुंच सकें और आपको ढांचा खुद न बनाना पड़े।
-- **ओपन सोर्स और सेल्फ-होस्ट करने योग्य**, ताकि आपकी रिसर्च आपके अपने इन्फ्रास्ट्रक्चर पर ही रहे।
-
-## लाइव डेटा कनेक्टर
-
-| कनेक्टर | आपके एजेंट्स को क्या मिलता है | और जानें |
+| फ़ॉर्मैट | क्या मिलता है | क्या चाहिए |
 |---|---|---|
-| **Reddit** | आधिकारिक API की रेट लिमिट के बिना पोस्ट, कमेंट और सबरेडिट स्ट्रीम | [Reddit Scraper API](https://www.surfsense.com/reddit) |
-| **YouTube** | बड़े पैमाने पर वीडियो, ट्रांसक्रिप्ट और कमेंट थ्रेड | [YouTube Scraper API](https://www.surfsense.com/youtube) |
-| **Instagram** | Graph API के बिना सार्वजनिक प्रोफ़ाइल, पोस्ट और रील्स | [Instagram Scraper API](https://www.surfsense.com/instagram) |
-| **TikTok** | Research API अप्रूवल के बिना वीडियो, कमेंट, हैशटैग और प्रोफ़ाइल | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
-| **Google Maps** | स्थानीय बिज़नेस रिसर्च के लिए स्थान, रेटिंग और रिव्यू | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
-| **Google Search** | सर्च रिसर्च और मॉनिटरिंग के लिए लाइव SERP | [Google Search API](https://www.surfsense.com/google-search) |
-| **Indeed** | सार्वजनिक नौकरी लिस्टिंग, सैलरी और पूरे विवरण के साथ, सर्च या कंपनी के अनुसार | [Indeed Scraper API](https://www.surfsense.com/indeed) |
-| **Amazon** | सार्वजनिक प्रोडक्ट डेटा: कीमतें, रेटिंग, ऑफ़र, विक्रेता और बेस्ट-सेलर रैंक | [Amazon Product API](https://www.surfsense.com/amazon) |
-| **Walmart** | सार्वजनिक प्रोडक्ट डेटा और पूरा रिव्यू इतिहास: कीमतें, रेटिंग, विक्रेता और वेरिएंट | [Walmart Product & Review API](https://www.surfsense.com/walmart) |
-| **Web Crawl** | ओपन वेब का कोई भी पेज साफ़-सुथरे, स्ट्रक्चर्ड कंटेंट के रूप में | [Web Crawling API](https://www.surfsense.com/web-crawl) |
-| **External MCP Connectors** | कोई भी MCP सर्वर अपने एजेंट्स से जोड़ें, Notion, Slack, Jira और अन्य के लिए वन-क्लिक OAuth के साथ | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
+| **सारांश** | चुने हुए स्रोतों का एक व्यवस्थित ब्रीफ़ | जनरेशन मॉडल |
+| **फ़्लैशकार्ड** | एक इंटरैक्टिव डेक, एक बार में एक कार्ड | जनरेशन मॉडल |
+| **क्विज़** | जवाबों के साथ बहुविकल्पीय सवाल | जनरेशन मॉडल |
+| **माइंड मैप** | ज़ूम और कोलैप्स होने वाला Markmap | जनरेशन मॉडल |
+| **स्लाइड्स** | एडिट होने लायक `.pptx`, डेक की तस्वीर भर नहीं | जनरेशन मॉडल |
+| **दस्तावेज़** | एडिट होने लायक `.docx` रिपोर्ट | जनरेशन मॉडल |
+| **स्प्रेडशीट** | स्रोतों से निकाली गई टेबल्स का `.xlsx` | जनरेशन मॉडल |
+| **वेब पेज** | अपने आप में पूरा एक HTML पेज | जनरेशन मॉडल |
+| **PDF** | टाइपसेट किया हुआ PDF | जनरेशन मॉडल |
+| **पॉडकास्ट** | दो होस्ट की ऑडियो बातचीत, जिसे Kokoro-82M ऑफ़लाइन आवाज़ देता है | जनरेशन मॉडल + साथ आने वाली आवाज़ |
+| **इमेज** | सामग्री के लिए एक इलस्ट्रेशन | इमेज मॉडल + जनरेशन मॉडल |
+| **इन्फ़ोग्राफ़िक** | एक ही पैनल में विज़ुअल सारांश | इमेज मॉडल + जनरेशन मॉडल |
 
-कनेक्टर कैटलॉग सोशल प्लेटफ़ॉर्म और सर्च से आगे बढ़ रहा है; हर नया स्रोत उसी API और MCP सर्वर पर एक टाइप्ड एंडपॉइंट के रूप में आता है।
+कुछ काम एक से ज़्यादा फ़ॉर्मैट माँगते हैं। स्टडी गाइड यानी एक ही स्रोत-सेट पर सारांश, फ़्लैशकार्ड डेक और क्विज़; और क्लाइंट ब्रीफ़िंग आम तौर पर वह डेक होती है जिससे आप प्रेज़ेंट करते हैं, साथ में वह सारांश जो आप बाद में भेजते हैं। वीडियो ओवरव्यू अभी नहीं बने हैं।
 
-बिलिंग पे-एज़-यू-गो है: कनेक्टर सिर्फ़ वास्तव में लौटाए गए हर आइटम पर बिल करते हैं, क्रॉल सफलतापूर्वक फ़ेच किए गए हर पेज पर, और असफल कॉल कभी बिल नहीं होतीं। सेल्फ-होस्टेड इंस्टॉल बिलिंग बंद रखकर चलते हैं। देखें [pricing](https://www.surfsense.com/pricing)।
+## सब कुछ आपकी मशीन पर ही रहता है
 
-## क्विक स्टार्ट
+लोग इसे केस पेपर, क्लाइंट वर्किंग पेपर, इंटरव्यू ट्रांसक्रिप्ट, अंदरूनी स्पेसिफ़िकेशन, अप्रकाशित रिसर्च और एक पूरे सेमेस्टर के लेक्चर नोट्स पर लगाते हैं। आप इन सब पर एक साथ सवाल पूछ सकते हैं, और हर जवाब उस स्रोत का हवाला देता है जहाँ से वह आया है। ऐप इनमें से कुछ भी अपलोड नहीं करता।
 
-### कोड से कनेक्टर कॉल करें
+- **इंडेक्स लोकल है।** पार्सिंग, चंकिंग और एम्बेडिंग आपके कंप्यूटर पर ही होती है, और `~/.surfsense` के अंदर SQLite में जाती है। SurfSense न उसकी कोई कॉपी रखता है, न इसका कोई लॉग कि आपने क्या पूछा।
+- **हर हिस्सा लोकल चल सकता है।** डॉक्यूमेंट पार्सर, रिट्रीवल मॉडल और पॉडकास्ट की आवाज़ इंस्टॉलर के अंदर ही आते हैं। चैट और इमेज जनरेशन लोकल सर्वर के रूप में आते हैं, जिनके वेट आप एक बार डाउनलोड करते हैं — यानी बिना किसी अकाउंट या API key के आप टेक्स्ट, ऑडियो और तस्वीरें बना सकते हैं। हम इसकी जाँच नेटवर्क बंद करके एक PDF इनजेस्ट करके करते हैं।
+- **बाहर जाने वाले कनेक्शन डिफ़ॉल्ट रूप से बंद हैं।** एक एग्रेस पैनल उन सभी जगहों की सूची देता है जहाँ तक ऐप पहुँच सकता है, और जिन्हें आप चाहें सिर्फ़ उन्हें चालू करते हैं।
+- **न टेलीमेट्री, न क्रैश रिपोर्टिंग।** कुछ भी पीछे से हमें रिपोर्ट नहीं भेजता, इसलिए ऑप्ट-आउट ढूँढने की नौबत ही नहीं आती।
 
-हर कनेक्टर एक REST एंडपॉइंट है जिसे आप अपनी SurfSense API कुंजी के साथ किसी भी भाषा से कॉल कर सकते हैं:
+SurfSense यह नहीं बता सकता कि इससे कोई खास नियम-कायदा पूरा होता है या नहीं। वह आपके अपने कंट्रोल्स और आपके रेगुलेटर पर निर्भर करता है। ऐप बस इतना बता सकता है कि आपके दस्तावेज़ किस मशीन पर हैं।
 
-```bash
-curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape" \
-  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "search_queries": ["your brand"],
-    "community": "SaaS",
-    "sort": "top",
-    "time_filter": "week"
-  }'
-```
+## SurfSense की तुलना दूसरों से
 
-हर [कनेक्टर पेज](https://www.surfsense.com/connectors) पर Python, JavaScript, Go, PHP, Ruby, Java और C# में कॉपी-पेस्ट उदाहरण मौजूद हैं।
+तीन तरह के प्रोडक्ट को “लोकल NotebookLM” कहा जाता है, और तीनों अलग-अलग सवालों के जवाब देते हैं। इनमें कोई भी खराब टूल नहीं है; बस आखिर में आपके हाथ अलग-अलग चीज़ें लगती हैं।
 
-### MCP के ज़रिए ये टूल्स अपने एजेंट्स को दें
+**बनाम Jan, AnythingLLM, Open WebUI, LM Studio।** ये मॉडल को लोकल चलाते हैं और उससे चैट करने की जगह देते हैं। SurfSense अगला सवाल हल करता है: उससे एक तैयार दस्तावेज़ कैसे निकालें? चाहें तो दोनों साथ इस्तेमाल करें — SurfSense को किसी भी OpenAI-कम्पैटिबल एंडपॉइंट पर लगा दें, इनमें से किसी एक पर भी।
 
-SurfSense MCP सर्वर को Claude, Cursor या अपने एजेंट फ़्रेमवर्क में जोड़ें:
+**बनाम RemNote, Quizlet, NoteGPT, StudyFetch, Gamma।** ये आर्टिफ़ैक्ट बनाते ज़रूर हैं, और कुछ तो हमारे से बेहतर दिखते भी हैं। सौदा यह है कि आपकी सामग्री कहाँ जाती है: आप उसे अपलोड करते हैं, हर महीने पैसे देते हैं, और आपकी फ़ाइलें किसी और के अकाउंट में रहती हैं।
 
-```json
-{
-  "mcpServers": {
-    "surfsense": {
-      "url": "https://mcp.surfsense.com/mcp",
-      "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
-    }
-  }
-}
-```
+**बनाम Google NotebookLM।** उसमें फ़्लैशकार्ड, क्विज़, माइंड मैप और ऑडियो ओवरव्यू पहले से हैं, तो दोनों लगभग एक जैसी चीज़ें बनाते हैं। फ़र्क़ इतना है कि काम किसकी मशीन पर होता है और आप उस पर कौन-सा मॉडल लगा सकते हैं।
 
-अब आपका एजेंट हर कनेक्टर को नेटिव टूल के रूप में कॉल कर सकता है। टूल्स की पूरी सूची के लिए [SurfSense MCP सर्वर](https://www.surfsense.com/mcp-server) पेज देखें, या [`surfsense_mcp`](./surfsense_mcp) से सर्वर को लोकली चलाएँ।
+| | Google NotebookLM | SurfSense |
+|---|---|---|
+| ऑफ़लाइन / एयर-गैप्ड चलता है | नहीं | **हाँ** |
+| आपके दस्तावेज़ आपकी मशीन से बाहर जाते हैं | हाँ | **नहीं** |
+| अकाउंट ज़रूरी है | Google अकाउंट | **कोई नहीं** |
+| ओपन सोर्स | नहीं | **Apache-2.0** |
+| कीमत | फ़्री टियर; Pro $19.99 प्रति माह; Ultra $249.99 प्रति माह | **ऐप मुफ़्त है** |
+| मॉडल | सिर्फ़ Gemini | कोई भी OpenAI-कम्पैटिबल API, या कोई लोकल मॉडल |
+| स्रोतों की सीमा | 50 से 600 स्रोत, हर एक में 500,000 शब्द | जितना आपकी डिस्क में समाए |
+| ऑडियो और वीडियो ओवरव्यू | हाँ, और बेहतर | ऑडियो हाँ, वह भी ऑफ़लाइन; वीडियो अभी नहीं |
 
-### क्लाउड इस्तेमाल करें
+ऑडियो क्वालिटी में NotebookLM आगे है, और उसके पास वीडियो भी है। अगर आपको अपने स्रोतों का Google के सर्वर पर पड़े रहना ठीक लगता है, तो उसे इस्तेमाल करें। अगर नहीं, तो यह उसी तरह का टूल है, बस अपलोड किए बिना।
 
-[surfsense.com](https://www.surfsense.com) पर जाएं, लॉग इन करें, और एजेंट से सीधी-सादी भाषा में लाइव वेब डेटा मांगें। नए अकाउंट $5 के मुफ़्त क्रेडिट के साथ शुरू होते हैं, बिना किसी सब्सक्रिप्शन के।
+## झटपट शुरुआत
 
-### मुफ़्त में सेल्फ-होस्ट करें
+आपको न Docker चाहिए, न टर्मिनल, न GPU और न कोई compose फ़ाइल।
 
-पूरा प्लेटफ़ॉर्म, कनेक्टर, एजेंट, ऑटोमेशन और MCP सर्वर अपने इन्फ्रास्ट्रक्चर पर चलाएं। सेल्फ-होस्टेड इंस्टॉल बिलिंग बंद के साथ आते हैं, इसलिए स्क्रैपिंग, क्रॉलिंग और एजेंट रन की सीमा सिर्फ़ आपके हार्डवेयर और आपके द्वारा लाई गई मॉडल कुंजियों पर निर्भर करती है।
+1. **इंस्टॉलर डाउनलोड करें** ऊपर दी गई टेबल से। वह साइन किया हुआ है, इसलिए आपका OS अड़ंगा नहीं लगाएगा।
+2. **मॉडल चुनें।** ऐप से कोई लोकल मॉडल डाउनलोड करवा लें (Qwen3, छह साइज़ में, 0.5 GB से शुरू) या किसी भी OpenAI-कम्पैटिबल API का बेस URL और key पेस्ट कर दें। पिकर कोई मॉडल सुझाने से पहले जाँच लेता है कि आपकी मशीन उसे चला पाएगी या नहीं, और आप जो भी key देते हैं वह एन्क्रिप्टेड रूप में सेव होती है, जिसका सीक्रेट आपके OS कीचेन में रहता है।
+3. **दस्तावेज़ डालें।** ऐप PDF, Office फ़ाइलें और इमेज आपकी ही मशीन पर पार्स करता है।
+4. **सवाल पूछें।** हर जवाब उस स्रोत का हवाला देता है जहाँ से वह आया है।
+5. **Studio खोलें,** फ़ॉर्मैट चुनें, फ़ाइल ले लें।
 
-**आवश्यकताएं:** [Docker Desktop](https://www.docker.com/products/docker-desktop/) इंस्टॉल होना और चल रहा होना चाहिए।
+धीमा हिस्सा सिर्फ़ डाउनलोड है, क्योंकि इंस्टॉलर के साथ पार्सर, रिट्रीवल मॉडल, पॉडकास्ट की आवाज़ और लोकल मॉडल सर्वर भी आते हैं, ताकि नेटवर्क बंद होने पर भी ऐप काम करे।
 
-Linux/macOS के लिए:
+## डॉक्स, रोडमैप और कम्युनिटी
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
+ऐप और उसके अपडेट मुफ़्त हैं। लाइसेंस से प्लगइन और प्रायॉरिटी सपोर्ट मिलते हैं, इसके अलावा वह कुछ नहीं रोकता — यानी लाइसेंस खत्म हो जाने पर भी ऐप और आने वाला हर अपडेट आपके पास बना रहता है। देखें [प्राइसिंग](https://www.surfsense.com/pricing)।
 
-Windows के लिए:
+इस रिपो का Docker स्टैक (`surfsense_backend`, `surfsense_web`, compose फ़ाइलें) ओपन सोर्स और इंस्टॉल करने लायक बना रहेगा, और वह **कम्युनिटी-सपोर्टेड है: न कोई SLA, न पीछे कोई होस्टेड सर्विस।** नए यूज़र्स के लिए सपोर्टेड रास्ता डेस्कटॉप ऐप है।
 
-```bash
-irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
-```
+- इंस्टॉल, मॉडल, Studio फ़ॉर्मैट और सेल्फ़-होस्टिंग के लिए [डॉक्युमेंटेशन](https://www.surfsense.com/docs)
+- [होस्टेड ऐप से इम्पोर्ट करना](https://www.surfsense.com/sunset)
+- होस्टेड स्क्रेपर API के लिए [MCP सर्वर](./surfsense_mcp)
+- [रोडमैप चर्चा](https://github.com/MODSetter/SurfSense/discussions/565) और [प्रोजेक्ट बोर्ड](https://github.com/users/MODSetter/projects/3)
+- मदद और आइडिया के लिए [Discord](https://discord.gg/ejRNvftDp9), दिशा तय करने के लिए [Discussions](https://github.com/MODSetter/SurfSense/discussions), और दोबारा दोहराए जा सकने वाले बग के लिए [Issues](https://github.com/MODSetter/SurfSense/issues)
+- आगे यह कहाँ जाता है, इस पर नज़र रखनी हो तो **रिपो को स्टार करें**
 
-इंस्टॉल स्क्रिप्ट दैनिक ऑटो-अपडेट के लिए [Watchtower](https://github.com/nicholas-fedor/watchtower) अपने आप सेट कर देती है। इसे छोड़ने के लिए `--no-watchtower` फ़्लैग जोड़ें। Docker Compose, मैनुअल इंस्टॉलेशन और अन्य डिप्लॉयमेंट विकल्पों के लिए [docs](https://www.surfsense.com/docs/legacy/) देखें।
+पुल रिक्वेस्ट का स्वागत है। शुरुआत [CONTRIBUTING.md](CONTRIBUTING.md) से करें; डेस्कटॉप ऐप [`surfsense_local/`](./surfsense_local) में है और उसका README डेवलपमेंट लूप समझाता है।
 
-## बॉक्स में बाकी सब कुछ
+हमारे सभी Surfers का शुक्रिया:
 
-जिस रिसर्च वर्कस्पेस ने SurfSense को अग्रणी ओपन सोर्स NotebookLM विकल्प बनाया, वह अब भी यहीं है, और आपके एजेंट जो कुछ भी इकट्ठा करते हैं वह सब इसी में पहुंचता है।
-
-**नॉलेज बेस**
-
-- PDF, Office दस्तावेज़, इमेज और ऑडियो अपलोड करें, या **Google Drive, OneDrive और Dropbox** सिंक करें। 50+ फ़ाइल फ़ॉर्मैट समर्थित हैं।
-- हाइब्रिड सिमेंटिक और फ़ुल-टेक्स्ट सर्च, Perplexity-शैली के साइटेड जवाबों के साथ।
-- AI फ़ाइल सॉर्टिंग दस्तावेज़ों को स्रोत, तारीख़ और विषय के अनुसार अपने आप व्यवस्थित करती है।
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="अपनी PDF और दस्तावेज़ों से चैट करें" /></p>
-
-**डिलीवरेबल स्टूडियो**
-
-- रिपोर्ट, रिज़्यूमे, दस्तावेज़, स्प्रेडशीट और प्रस्तुतियों के लिए डाउनलोड करने योग्य AI आर्टिफ़ैक्ट।
-- किसी भी दस्तावेज़ या फ़ोल्डर से 20 सेकंड से कम में दो-होस्ट वाले AI पॉडकास्ट।
-- संपादन योग्य स्लाइड डेक, नैरेटेड वीडियो ओवरव्यू और AI इमेज जनरेशन।
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI रिपोर्ट जनरेटर" /></p>
-
-**ऑटोमेशन**
-
-- शेड्यूल पर या इवेंट के जवाब में पूरे एजेंट टर्न चलाएं, सीधी-सादी भाषा में बताकर, और नतीजे Notion, Slack, Linear और Jira में वापस लिखे जाते हैं।
-
-**टीम सहयोग**
-
-- कमेंट और मेंशन के साथ रीयल-टाइम सहयोगी AI चैट।
-- Owner, Admin, Editor और Viewer भूमिकाओं के साथ RBAC।
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="सहयोगी AI चैट" /></p>
-
-**डेस्कटॉप ऐप**
-
-आपके कंप्यूटर के हर एप्लिकेशन में नेटिव AI सहायता। [latest release](https://github.com/MODSetter/SurfSense/releases/latest) से डाउनलोड करें।
-
-- **General Assist**: ग्लोबल शॉर्टकट से किसी भी ऐप से SurfSense लॉन्च करें।
-- **Quick Assist**: कहीं भी टेक्स्ट चुनें, फिर AI से उसे समझाने, फिर से लिखने या उस पर कार्रवाई करने को कहें।
-- **Screenshot Assist**: अपनी स्क्रीन का कोई भी हिस्सा कैप्चर करें और AI से उसके बारे में पूछें।
-- **Watch Local Folder**: किसी लोकल फ़ोल्डर को अपने नॉलेज बेस से ऑटो-सिंक करें। इसे अपने Obsidian वॉल्ट पर पॉइंट करें ताकि आपके नोट्स खोजने योग्य बने रहें।
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
-
-**कोई वेंडर लॉक-इन नहीं**
-
-- OpenAI स्पेक और LiteLLM के ज़रिए 100+ LLM, जिनमें GPT-5.5, Claude Sonnet 5 और Gemini 3.1 Pro शामिल हैं।
-- 6,000+ एम्बेडिंग मॉडल और सभी प्रमुख रीरैंकर।
-- पूर्ण लोकल और प्राइवेट LLM समर्थन (vLLM, Ollama), ताकि आपका डेटा आपका ही रहे।
-
-## वीडियो एजेंट नमूना
-
-https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
-
-## पॉडकास्ट एजेंट नमूना
-
-https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
-
-## रीयल टाइम में सहयोग कैसे करें (बीटा)
-
-1. Manage Members पेज पर जाएं और एक इनवाइट बनाएं।
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="सदस्यों को आमंत्रित करें" /></p>
-
-2. कोई साथी जुड़ता है और वह वर्कस्पेस साझा हो जाता है।
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="इनवाइट जॉइन फ़्लो" /></p>
-
-3. किसी चैट को साझा करें और उसमें रीयल टाइम में साथ काम करें, साथियों को टैग करने के लिए कमेंट के साथ।
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="रीयलटाइम कमेंट" /></p>
-
-## SurfSense की तुलना कैसी है
-
-SurfSense एकमात्र ओपन सोर्स प्रोडक्ट है जो लोगों के लिए NotebookLM-शैली का रिसर्च वर्कस्पेस और एजेंट्स के लिए लाइव-डेटा प्रिमिटिव, दोनों को एक साथ जोड़ता है। हर श्रेणी के टूल के मुक़ाबले यह तुलना कुछ ऐसी दिखती है।
-
-**बनाम ब्राउज़र एजेंट (Browserbase, Browser Use)।** ब्राउज़र एजेंट LLM को लूप में रखकर असली ब्राउज़र चलाते हैं — जब किसी काम में क्लिक करना, लॉग इन करना या फ़ॉर्म भरना ज़रूरी हो, तब यही सही टूल है। लेकिन ज़्यादातर रिसर्च रीड-ओनली रिट्रीवल होती है, और रिट्रीवल के लिए ब्राउज़र-में-LLM वाला लूप हर पेज पर मिनट और हज़ारों टोकन खर्च करा देता है। SurfSense कनेक्टर कॉल एक ही HTTP रिक्वेस्ट है: सेकंडों में, डिटर्मिनिस्टिक, और कहां क्लिक करना है यह तय करने पर शून्य टोकन खर्च।
-
-**बनाम स्क्रैपिंग API (Firecrawl)।** स्क्रैपिंग API किसी सामान्य पेज को markdown में बदलने में बेहतरीन हैं, लेकिन markdown का ब्लॉब मिलने पर भी आपके एजेंट को गद्य में से स्ट्रक्चर खुद निकालना पड़ता है, और Reddit, TikTok और Instagram जैसे बॉट-प्रोटेक्टेड प्लेटफ़ॉर्म पर उनका प्रदर्शन गिर जाता है। SurfSense कनेक्टर प्लेटफ़ॉर्म-नेटिव स्ट्रक्चर्ड आइटम लौटाते हैं — पोस्ट, कमेंट, ट्रांसक्रिप्ट, रिव्यू — और सिर्फ़ वास्तव में लौटाए गए आइटम पर ही बिल करते हैं; असफल कॉल कभी बिल नहीं होतीं।
-
-**बनाम सर्च API (Exa, Tavily, Parallel)।** सर्च API वेब इंडेक्स से जवाब देते हैं, जो "X के बारे में पेज ढूंढो" जैसे कामों के लिए सही टूल है। वे किसी Reddit थ्रेड के कमेंट, TikTok की प्रतिक्रियाएं, YouTube ट्रांसक्रिप्ट या Google Maps की रिव्यू नहीं खींच सकते — यानी वे जगहें जहां जवाब अक्सर वास्तव में मौजूद होता है।
-
-**बनाम स्क्रैपर मार्केटप्लेस (Apify)।** मार्केटप्लेस आपको हज़ारों कम्युनिटी ऐक्टर देते हैं, हर एक की अपनी स्कीमा, गुणवत्ता और कीमत। SurfSense एक ही टाइप्ड API और एक ही MCP सर्वर है, जिसके पीछे एजेंट हार्नेस और रिसर्च वर्कस्पेस मौजूद है, और यह ओपन सोर्स है।
-
-### SurfSense बनाम Google NotebookLM
-
-अब भी हमें NotebookLM विकल्प के तौर पर तौल रहे हैं? यह रहा ईमानदार तुलनात्मक ब्यौरा।
-
-| फ़ीचर | Google NotebookLM | SurfSense |
-|---------|-------------------|-----------|
-| **एजेंट्स के लिए लाइव वेब डेटा** | नहीं | REST API और MCP के ज़रिए Reddit, YouTube, Instagram, TikTok, Amazon, Walmart, Google Maps, Google Search, Indeed और वेब क्रॉल कनेक्टर |
-| **MCP सर्वर** | नहीं | हर कनेक्टर नेटिव एजेंट टूल के रूप में उपलब्ध, साथ ही वन-क्लिक OAuth ऐप्स के साथ अपने MCP सर्वर लाने की सुविधा |
-| **प्रति नोटबुक स्रोत** | 50 (Free) से 600 (Ultra, $249.99/माह) | असीमित |
-| **नोटबुक की संख्या** | 100 (Free) से 500 (सशुल्क टियर) | असीमित |
-| **स्रोत आकार सीमा** | 500,000 शब्द / 200MB प्रति स्रोत | कोई सीमा नहीं |
-| **मूल्य निर्धारण** | Free टियर; Pro $19.99/माह, Ultra $249.99/माह | सेल्फ-होस्ट के लिए मुफ़्त और ओपन सोर्स; क्लाउड पे-एज़-यू-गो है, $5 मुफ़्त क्रेडिट के साथ |
-| **LLM समर्थन** | केवल Google Gemini | OpenAI स्पेक और LiteLLM के ज़रिए 100+ LLM |
-| **एम्बेडिंग मॉडल** | केवल Google | 6,000+ एम्बेडिंग मॉडल, सभी प्रमुख रीरैंकर |
-| **लोकल / प्राइवेट LLM** | उपलब्ध नहीं | पूर्ण समर्थन (vLLM, Ollama), आपका डेटा आपका ही रहता है |
-| **सेल्फ-होस्ट करने योग्य** | नहीं | हां, Docker वन-लाइनर या पूर्ण Docker Compose |
-| **ओपन सोर्स** | नहीं | हां |
-| **नॉलेज बेस स्रोत** | Google Drive, YouTube, वेबसाइट | फ़ाइल अपलोड, Google Drive, OneDrive, Dropbox, लोकल फ़ोल्डर सिंक और क्रॉल किए गए पेज |
-| **फ़ाइल फ़ॉर्मैट समर्थन** | PDF, Docs, Slides, Sheets, CSV, Word, EPUB, इमेज, वेब URL, YouTube | 50+ फ़ॉर्मैट: LlamaCloud, Unstructured या Docling (लोकल) के ज़रिए दस्तावेज़, इमेज, वीडियो |
-| **सर्च** | सिमेंटिक सर्च | हाइरार्किकल इंडेक्स और रेसिप्रोकल रैंक फ़्यूज़न के साथ हाइब्रिड सिमेंटिक + फ़ुल-टेक्स्ट |
-| **साइटेड जवाब** | हां | हां, Perplexity-शैली के साइटेड जवाब |
-| **एजेंटिक आर्किटेक्चर** | नहीं | हां, [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) द्वारा संचालित, प्लानिंग, सबएजेंट और फ़ाइल सिस्टम एक्सेस के साथ |
-| **AI ऑटोमेशन और एजेंट** | नहीं | शेड्यूल्ड वर्कफ़्लो, इवेंट ट्रिगर और चैट से बने नो-कोड ऑटोमेशन, Notion, Slack, Linear और Jira में राइट-बैक के साथ |
-| **रीयल-टाइम मल्टीप्लेयर** | Viewer/Editor भूमिकाओं के साथ साझा नोटबुक (रीयल-टाइम चैट नहीं) | Owner / Admin / Editor / Viewer भूमिकाओं के साथ RBAC, रीयल-टाइम चैट और कमेंट थ्रेड |
-| **वीडियो जनरेशन** | Veo 3 के ज़रिए सिनेमैटिक वीडियो ओवरव्यू (केवल Ultra) | उपलब्ध (यहां NotebookLM बेहतर है, सक्रिय रूप से सुधार जारी) |
-| **प्रेज़ेंटेशन जनरेशन** | दिखने में बेहतर स्लाइड, लेकिन संपादन योग्य नहीं | संपादन योग्य, स्लाइड-आधारित प्रेज़ेंटेशन |
-| **पॉडकास्ट जनरेशन** | कस्टमाइज़ करने योग्य होस्ट और भाषाओं के साथ ऑडियो ओवरव्यू | कई TTS प्रोवाइडर के साथ उपलब्ध (यहां NotebookLM बेहतर है, सक्रिय रूप से सुधार जारी) |
-| **डेस्कटॉप ऐप** | नहीं | General Assist, Quick Assist, Screenshot Assist और लोकल फ़ोल्डर सिंक के साथ नेटिव ऐप |
-
-## फ़ीचर अनुरोध और भविष्य
-
-**SurfSense सक्रिय रूप से विकसित किया जा रहा है।** हालांकि यह अभी प्रोडक्शन-रेडी नहीं है, आप इस प्रक्रिया को तेज़ करने में हमारी मदद कर सकते हैं।
-
-[SurfSense Discord](https://discord.gg/ejRNvftDp9) से जुड़ें और SurfSense का भविष्य गढ़ने में मदद करें!
-
-## रोडमैप
-
-हमारी विकास प्रगति और आने वाले फ़ीचर्स से अपडेट रहें। हमारा सार्वजनिक रोडमैप देखें और अपने विचार या फ़ीडबैक साझा करें:
-
-**रोडमैप चर्चा:** [SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
-
-**कानबान बोर्ड:** [SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
-
-## योगदान करें
-
-हर तरह का योगदान स्वागत योग्य है, स्टार और बग रिपोर्ट से लेकर बैकएंड सुधार तक। शुरू करने के लिए [CONTRIBUTING.md](CONTRIBUTING.md) देखें।
-
-हमारे सभी Surfers का धन्यवाद:
-
-<a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
-</a>
+<p align="center">
+  <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="SurfSense में योगदान देने वाले लोग" />
+  </a>
+</p>
 
 ## स्टार हिस्ट्री
 
-<a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
- </picture>
-</a>
-
----
----
 <p align="center">
-    <img 
-      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
-      alt="Catalyst Project" 
-      width="200"
-    />
+  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+    </picture>
+  </a>
 </p>
 
----
----
+## लाइसेंस
+
+Apache-2.0। देखें [LICENSE](LICENSE)।

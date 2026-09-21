@@ -1,3 +1,9 @@
+# Version line for the hosted / Docker stack: root VERSION, `v0.*` tags,
+# docker-build.yml. The desktop app is a separate line on its own number --
+# surfsense_local/VERSION and surfsense_local/scripts/bump-version.sh.
+#
+# Keep in step with bump-version.sh next to it; the two bump the same files.
+
 $ErrorActionPreference = "Stop"
 
 $RepoRoot = (Resolve-Path "$PSScriptRoot\..").Path
@@ -15,7 +21,7 @@ if ($Version -notmatch '^\d+\.\d+\.\d+(-[a-zA-Z0-9.]+)?$') {
     exit 1
 }
 
-Write-Host "Bumping all packages to $Version"
+Write-Host "Bumping the hosted stack to $Version"
 Write-Host "---------------------------------"
 
 function Bump-Json {
@@ -63,8 +69,6 @@ function Bump-Toml {
 }
 
 Bump-Json (Join-Path $RepoRoot "surfsense_web\package.json")
-Bump-Json (Join-Path $RepoRoot "surfsense_browser_extension\package.json")
-Bump-Json (Join-Path $RepoRoot "surfsense_desktop\package.json")
 Bump-Toml (Join-Path $RepoRoot "surfsense_backend\pyproject.toml")
 
 Write-Host ""
@@ -79,4 +83,4 @@ if (Get-Command uv -ErrorAction SilentlyContinue) {
 }
 
 Write-Host "---------------------------------"
-Write-Host "Done. All packages set to $Version"
+Write-Host "Done. Hosted stack set to $Version"

@@ -5,17 +5,22 @@ from __future__ import annotations
 import httpx
 import pytest
 
-from app.license.release import APP_RELEASE_TAG, get_release_assets, parse_assets
+from app.license.release import (
+    APP_RELEASE_TAG,
+    asset_label,
+    get_release_assets,
+    parse_assets,
+)
 
 pytestmark = pytest.mark.unit
 
 _EXE = (
     "https://github.com/MODSetter/SurfSense/releases/download/"
-    f"{APP_RELEASE_TAG}/SurfSense-Setup-2.0.0.exe"
+    f"{APP_RELEASE_TAG}/SurfSense-Setup.exe"
 )
 _DMG = (
     "https://github.com/MODSetter/SurfSense/releases/download/"
-    f"{APP_RELEASE_TAG}/SurfSense-2.0.0-arm64.dmg"
+    f"{APP_RELEASE_TAG}/SurfSense-arm64.dmg"
 )
 _YML = (
     "https://github.com/MODSetter/SurfSense/releases/download/"
@@ -24,16 +29,17 @@ _YML = (
 
 
 def test_parse_assets_keeps_installers_in_grid_order_and_drops_updater_files():
+    """Asset names carry no version, so the labels key off the suffix alone."""
     assets = parse_assets(
         {
             "assets": [
                 {"name": "latest.yml", "browser_download_url": _YML},
                 {
-                    "name": "SurfSense-2.0.0-arm64.dmg",
+                    "name": "SurfSense-arm64.dmg",
                     "browser_download_url": _DMG,
                 },
                 {
-                    "name": "SurfSense-Setup-2.0.0.exe",
+                    "name": "SurfSense-Setup.exe",
                     "browser_download_url": _EXE,
                 },
             ]
@@ -41,8 +47,12 @@ def test_parse_assets_keeps_installers_in_grid_order_and_drops_updater_files():
     )
 
     assert [(a.name, a.url) for a in assets] == [
-        ("SurfSense-Setup-2.0.0.exe", _EXE),
-        ("SurfSense-2.0.0-arm64.dmg", _DMG),
+        ("SurfSense-Setup.exe", _EXE),
+        ("SurfSense-arm64.dmg", _DMG),
+    ]
+    assert [asset_label(a.name) for a in assets] == [
+        "Windows (exe)",
+        "macOS Apple Silicon (dmg)",
     ]
 
 
@@ -61,7 +71,7 @@ async def test_get_release_assets_reads_the_tagged_release_not_latest():
             json={
                 "assets": [
                     {
-                        "name": "SurfSense-Setup-2.0.0.exe",
+                        "name": "SurfSense-Setup.exe",
                         "browser_download_url": _EXE,
                     }
                 ]

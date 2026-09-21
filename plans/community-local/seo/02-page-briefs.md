@@ -125,10 +125,9 @@ engineer far more often than a student, by about 1.8 to 1.
   *Can I run NotebookLM locally?* · *Is there an open-source alternative to
   NotebookLM?* · *Is there a free version of NotebookLM?* Each answered in one
   plain paragraph that could be quoted verbatim.
-- **Above the fold:** a download button that resolves a **pinned tag**, never
-  `/releases/latest`. This is currently broken — `hero-section.tsx` pulls
-  `desktop-download-utils`, which resolves `/releases/latest` and therefore
-  serves legacy v0.0.40. Fixing it is a prerequisite, not a nice-to-have.
+- **Above the fold:** a download button that resolves a **pinned tag**, so the
+  page offers the build it was deployed against. Done — `desktop-download-utils`
+  fetches `releases/tags/${APP_RELEASE_TAG}`, which `bump-version.sh` writes.
 - **Must not survive:** `AuthRedirect` (redirects to a dashboard that will not
   exist) and the `Get Started → /login` CTA. Component-by-component notes are in
   `../portal/02-pages.md`.
@@ -177,8 +176,10 @@ page is a ranking page in this niche, not a utility.
   targets, not five. Hardware: any laptop, no GPU, because inference is
   bring-your-own-key; the `offline ai` AI Overview quotes RAM minimums, so
   state ours.
-- **Never link `/releases/latest`.** It is pinned to legacy v0.0.40 so that
-  0.0.39 clients do not auto-update onto 2.x. Link the specific tag.
+- **The site links a tag, not `/releases/latest`**, so a deployed page and the
+  license mail it sent agree on a version. The badge moved to 2.x on 21 Sep, so
+  `/releases/latest` is safe again and the repo README does use it — asset names
+  carry no version, which makes `/releases/latest/download/<name>` a permalink.
 - **International** (`03-international.md`; hreflang table above): this page
   carries one of the two brand intents with demand in all 26 markets (the
   other is the free question, on `/pricing`): `notebooklm app` in

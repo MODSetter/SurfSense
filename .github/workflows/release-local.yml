@@ -2,7 +2,8 @@ name: Desktop Release
 
 # Builds the desktop app (surfsense_local) into per-OS installers and attaches
 # them to a GitHub Release on the `stable` channel. The legacy 0.0.x desktop
-# reads `latest*.yml`, which no release publishes anymore, so it never updates.
+# reads `latest*.yml`; the `legacy-update-bridge` job below puts those back on
+# every release so it keeps landing on v0.0.40 and its sunset redirect.
 #
 # Trigger: push a tag like `v2.0.0`, matching surfsense_local/VERSION. Or run
 # manually for a dry run.
@@ -286,3 +287,38 @@ jobs:
             surfsense_local/electron/release/*.blockmap
             surfsense_local/electron/release/*.yml
           if-no-files-found: ignore
+
+  # GitHub's Latest badge is on 2.x, but the legacy 0.0.x desktop resolves
+  # updates through /releases/latest and reads latest*.yml from whatever that
+  # names. Copying v0.0.40's manifests onto this release answers those clients
+  # with 0.0.40, which is the build that redirects them to /sunset. A `tag` key
+  # makes the installers resolve against v0.0.40, so nothing is duplicated.
+  #
+  # ponytail: `tag` is an electron-updater implementation detail — the parsed
+  # manifest is spread over `{ tag }` and resolveFiles() uses updateInfo.tag.
+  # Verified in 6.8.3, which every legacy release from v0.0.30 on pins and
+  # which is frozen because that app is no longer built. Upgrade path: delete
+  # this job and the manifests once the 0.0.x install base is gone.
+  legacy-update-bridge:
+    if: github.event_name == 'push'
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Point legacy 0.0.x updaters at v0.0.40
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          for f in latest.yml latest-mac.yml latest-linux.yml; do
+            curl -fsSL -o "orig-$f" \
+              "https://github.com/${GITHUB_REPOSITORY}/releases/download/v0.0.40/$f"
+            printf 'tag: v0.0.40\n' | cat - "orig-$f" > "$f"
+            # A silent no-op here would 404 every legacy update check.
+            grep -qx 'tag: v0.0.40' "$f"
+            grep -qx 'version: 0.0.40' "$f"
+          done
+          # --repo because this job skips actions/checkout; gh would otherwise
+          # look for a git remote to infer it from and find no repository.
+          gh release upload "${GITHUB_REF#refs/tags/}" \
+            latest.yml latest-mac.yml latest-linux.yml \
+            --repo "${GITHUB_REPOSITORY}" --clobber
