@@ -3,7 +3,7 @@
 import pytest
 
 from modules.llm.gguf import TruncatedHeaderError, read_header
-from tests.unit.llm.gguf.build import FLOAT32, STRING, UINT32, array, gguf, kv
+from tests.unit.llm.gguf.build import BOOL, FLOAT32, STRING, UINT32, array, gguf, kv
 
 pytestmark = pytest.mark.unit
 
@@ -71,6 +71,83 @@ def test_a_mixture_of_experts_reports_its_expert_counts() -> None:
     shape = read_header(gguf(entries))
 
     assert shape.expert_count == 128
+
+
+def test_the_widths_a_compute_buffer_is_sized_from_are_read() -> None:
+    """Graph scratch scales with the widest thing a layer computes. Without
+    these the estimate is one constant for every model, which under-states a
+    large one by enough to flip a badge on a tight card."""
+    entries = [
+        *qwen3_entries(),
+        kv("qwen3.embedding_length", UINT32, 2048),
+        kv("qwen3.feed_forward_length", UINT32, 6144),
+    ]
+    shape = read_header(gguf(entries))
+
+    assert shape.embedding_length == 2048
+    assert shape.feed_forward_length == 6144
+
+
+def test_a_window_pattern_stated_as_a_period_is_read() -> None:
+    """llama.cpp reads this key before falling back to its own table, so a file
+    that states its pattern is the authority on that model."""
+    entries = [
+        *qwen3_entries(),
+        kv("qwen3.attention.sliding_window", UINT32, 1024),
+        kv("qwen3.attention.sliding_window_pattern", UINT32, 6),
+    ]
+    shape = read_header(gguf(entries))
+
+    assert shape.sliding_window_pattern == 6
+    assert shape.sliding_window_layers == ()
+
+
+def test_a_window_pattern_stated_per_layer_is_read_as_flags() -> None:
+    """The same key carries either form. An array is the exact answer and needs
+    no period arithmetic at all."""
+    entries = [
+        *qwen3_entries(),
+        kv("qwen3.attention.sliding_window", UINT32, 1024),
+        array("qwen3.attention.sliding_window_pattern", BOOL, [True, True, False]),
+    ]
+    shape = read_header(gguf(entries))
+
+    assert shape.sliding_window_layers == (True, True, False)
+    assert shape.sliding_window_pattern == 0
+
+
+def test_layers_that_share_a_cache_are_counted() -> None:
+    """Gemma 3n reuses an earlier layer's cache on its last blocks, so charging
+    those layers a cache of their own over-states the window's cost."""
+    entries = [*qwen3_entries(), kv("qwen3.attention.shared_kv_layers", UINT32, 10)]
+
+    assert read_header(gguf(entries)).shared_kv_layers == 10
+
+
+def test_a_latent_attention_model_reports_its_compressed_widths() -> None:
+    """DeepSeek-class models cache one compressed entry per token per layer, not
+    a key and a value per head. Priced by the usual formula they read far too
+    large."""
+    entries = [
+        *qwen3_entries(),
+        kv("qwen3.attention.kv_lora_rank", UINT32, 512),
+        kv("qwen3.attention.key_length_mla", UINT32, 64),
+    ]
+    shape = read_header(gguf(entries))
+
+    assert shape.kv_lora_rank == 512
+    assert shape.key_length_mla == 64
+
+
+def test_an_older_header_without_the_new_fields_still_reads() -> None:
+    """Every field added for a sharper estimate is optional, and its absence
+    prices the conservative way rather than zero."""
+    shape = read_header(gguf(qwen3_entries()))
+
+    assert shape.embedding_length == 0
+    assert shape.feed_forward_length == 0
+    assert shape.kv_lora_rank == 0
+    assert shape.block_count == 28
 
 
 def test_unknown_value_types_do_not_stop_the_parse() -> None:
