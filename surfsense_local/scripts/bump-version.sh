@@ -21,12 +21,19 @@ TOML_FIELD='^version[[:space:]]*=[[:space:]]*"[^"]*"'
 TS_FIELD='^export const APP_RELEASE_VERSION = "[^"]*"'
 PY_FIELD='^APP_RELEASE_VERSION = "[^"]*"'
 
-if command -v python3 >/dev/null 2>&1; then
-  PYTHON=python3
-elif command -v python >/dev/null 2>&1; then
-  PYTHON=python
-else
-  echo "ERROR: python3 is required to rewrite version fields" >&2
+# Resolving the name is not enough on Windows: `python3` is an App Execution
+# Alias that prints a Microsoft Store advert and exits non-zero, so probe that
+# the interpreter actually runs.
+PYTHON=""
+for candidate in python3 python; do
+  if "$candidate" -c "" >/dev/null 2>&1; then
+    PYTHON="$candidate"
+    break
+  fi
+done
+
+if [ -z "$PYTHON" ]; then
+  echo "ERROR: a working python3 is required to rewrite version fields" >&2
   exit 1
 fi
 
