@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from modules.llm.fit import ModelShape
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 
 class ModelShapeSpec(BaseModel):
@@ -37,8 +37,25 @@ class ModelShapeSpec(BaseModel):
     value_length: int = Field(gt=0)
     context_length: int = Field(gt=0)
     n_vocab: int = Field(gt=0)
+
+    # Required, unlike the optional fields on `ModelShape`. A committed entry is
+    # authored by a script that read a real header, so a missing width here is a
+    # manifest written by hand or by an older script, and the compute buffer
+    # would quietly price it as though the model had no layers to compute. The
+    # app refuses to start on that rather than shipping a confident wrong badge.
+    embedding_length: int = Field(gt=0)
+    feed_forward_length: int = Field(gt=0)
+
     sliding_window: int = Field(default=0, ge=0)
     expert_count: int = Field(default=0, ge=0)
+    expert_feed_forward_length: int = Field(default=0, ge=0)
+    expert_shared_feed_forward_length: int = Field(default=0, ge=0)
+    expert_used_count: int = Field(default=0, ge=0)
+    sliding_window_pattern: int = Field(default=0, ge=0)
+    sliding_window_layers: list[bool] = Field(default_factory=list)
+    shared_kv_layers: int = Field(default=0, ge=0)
+    kv_lora_rank: int = Field(default=0, ge=0)
+    key_length_mla: int = Field(default=0, ge=0)
 
 
 class Variant(BaseModel):
@@ -82,7 +99,7 @@ class CuratedModel(BaseModel):
 
     # A list from the start, with one thing in it. Costs nothing now and is the
     # only part of this schema that is expensive to add later, because changing
-    # it means schema_version 4 and re-authoring every entry.
+    # it means a schema version bump and re-authoring every entry.
     variants: list[Variant] = Field(min_length=1)
 
     @property
@@ -92,7 +109,11 @@ class CuratedModel(BaseModel):
         This is what lets a curated row be priced on first paint with no network
         and nothing downloaded.
         """
-        return ModelShape(**self.shape.model_dump())
+        fields = self.shape.model_dump()
+        # JSON has no tuples and the shape is frozen, so the one list field is
+        # converted here rather than leaving a mutable member on a frozen value.
+        fields["sliding_window_layers"] = tuple(fields["sliding_window_layers"])
+        return ModelShape(**fields)
 
 
 class CuratedModelsManifest(BaseModel):

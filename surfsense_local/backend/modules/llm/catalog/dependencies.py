@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import Depends
 
 from modules.llm.catalog.manifest import (
+    SCHEMA_VERSION,
     CuratedModelsManifest,
     load_curated_models,
 )
@@ -22,7 +23,7 @@ def get_catalog_service() -> CatalogService:
     except (OSError, ValueError):
         # A broken manifest must not take the screen down: installed models and
         # a local .gguf import still work without it.
-        manifest = CuratedModelsManifest(schema_version=3, models=[])
+        manifest = CuratedModelsManifest(schema_version=SCHEMA_VERSION, models=[])
     models_dir = settings.llamacpp_models_dir or Path("models")
     return CatalogService(
         manifest,

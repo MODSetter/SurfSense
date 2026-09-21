@@ -1,4 +1,4 @@
-"""The curated manifest, schema 3.
+"""The curated manifest, schema 4.
 
 Source, not build output: a person commits these numbers, so the schema is what
 catches a mistake before review does.
@@ -31,6 +31,8 @@ def entry(**overrides) -> dict:
             "value_length": 128,
             "context_length": 40960,
             "n_vocab": 151936,
+            "embedding_length": 4096,
+            "feed_forward_length": 12288,
         },
         "capabilities": [],
         "decode_fraction": 1.0,
@@ -51,7 +53,7 @@ def entry(**overrides) -> dict:
 
 def manifest(models: list[dict] | None = None, **overrides) -> dict:
     """A whole manifest around one or more entries."""
-    return {"schema_version": 3, "models": models or [entry()], **overrides}
+    return {"schema_version": SCHEMA_VERSION, "models": models or [entry()], **overrides}
 
 
 def test_a_well_formed_manifest_loads() -> None:
@@ -62,10 +64,22 @@ def test_a_well_formed_manifest_loads() -> None:
     assert parsed.models[0].shape.block_count == 36
 
 
-def test_schema_two_is_refused_rather_than_read_as_three() -> None:
-    """Silently reading a v2 entry would drop every shape and price nothing."""
+def test_an_older_schema_is_refused_rather_than_read_as_this_one() -> None:
+    """Silently reading a v3 entry would leave the compute widths unset, and the
+    scratch term would price every model as though it had nothing to compute."""
     with pytest.raises(ValidationError, match="unsupported curated-model schema"):
-        CuratedModelsManifest.model_validate(manifest() | {"schema_version": 2})
+        CuratedModelsManifest.model_validate(manifest() | {"schema_version": 3})
+
+
+def test_a_shape_without_the_widths_a_compute_buffer_needs_is_refused() -> None:
+    """Optional on `ModelShape`, required here. A committed entry was authored
+    by a script that read a real header, so a missing width is a manifest edited
+    by hand, and the badge it produces would be confident and wrong."""
+    shape = entry()["shape"]
+    del shape["embedding_length"]
+
+    with pytest.raises(ValidationError, match="embedding_length"):
+        CuratedModelsManifest.model_validate(manifest(models=[entry(shape=shape)]))
 
 
 def test_an_entry_without_a_shape_is_refused() -> None:
@@ -148,7 +162,21 @@ def test_the_shipped_manifest_is_valid_and_prices_offline() -> None:
     assert parsed.models
     for model in parsed.models:
         assert model.shape.block_count > 0
+        # The widths the scratch estimate is sized from. A regenerated manifest
+        # that dropped them would price every row against one constant again.
+        assert model.shape.embedding_length > 0
+        assert model.shape.feed_forward_length > 0
         assert model.variants
         for variant in model.variants:
             assert variant.rank > 0
             assert variant.quantization
+
+
+def test_every_shipped_entry_reaches_the_estimator_as_a_shape() -> None:
+    """The property the catalog calls on first paint. A list field arriving from
+    JSON has to become a tuple, because the shape it feeds is frozen."""
+    for model in load_curated_models().models:
+        shape = model.model_shape
+
+        assert isinstance(shape.sliding_window_layers, tuple)
+        assert shape.embedding_length == model.shape.embedding_length
