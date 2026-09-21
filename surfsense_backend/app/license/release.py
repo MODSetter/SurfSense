@@ -19,7 +19,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 # Written by bump-version.sh. Do not edit by hand.
-APP_RELEASE_VERSION = "2.0.1"
+APP_RELEASE_VERSION = "2.0.2"
 APP_RELEASE_TAG = f"v{APP_RELEASE_VERSION}"
 
 _REPO = "MODSetter/SurfSense"
