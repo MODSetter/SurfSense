@@ -317,5 +317,8 @@ jobs:
             grep -qx 'tag: v0.0.40' "$f"
             grep -qx 'version: 0.0.40' "$f"
           done
+          # --repo because this job skips actions/checkout; gh would otherwise
+          # look for a git remote to infer it from and find no repository.
           gh release upload "${GITHUB_REF#refs/tags/}" \
-            latest.yml latest-mac.yml latest-linux.yml --clobber
+            latest.yml latest-mac.yml latest-linux.yml \
+            --repo "${GITHUB_REPOSITORY}" --clobber
