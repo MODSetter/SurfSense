@@ -17,7 +17,7 @@ import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import type { Budget, CatalogRow, RepoBuild } from "./api"
+import type { Budget, CatalogRow, GpuStatus, RepoBuild } from "./api"
 import { LocalImageModel } from "./local-image-model"
 import { ModelCard } from "./model-card"
 import { ModelFamilyGroup } from "./model-family-group"
@@ -33,12 +33,23 @@ function messageFrom(error: unknown) {
  * What this machine has, in one line. No scan and no button: the figure comes
  * from the runtime's own allocator in about 180ms, so there is nothing to wait
  * for and nothing to trigger.
+ *
+ * The status is read before the budget, because a machine whose graphics card
+ * the runtime cannot reach is priced against its processor and would otherwise
+ * be described as a machine that has no card at all. That is a sentence about
+ * the user's hardware, and it would be wrong.
  */
-function hardwareSummary(budget: Budget | undefined) {
+function hardwareSummary(budget: Budget | undefined, gpuStatus?: GpuStatus) {
   const gb = (bytes: number) =>
     `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
   if (!budget) {
     return ["Checking this computer"]
+  }
+  if (gpuStatus === "broken_install") {
+    return [
+      "Graphics card not detected by the runtime. Reinstall to fix",
+      `${gb(budget.ram_available_bytes)} memory`,
+    ]
   }
   if (!budget.has_gpu) {
     return [
@@ -241,7 +252,7 @@ export function ModelCatalogPage({
     <div className={cn("flex flex-col gap-5", scrollable && "h-full min-h-0")}>
       <div className="rounded-lg bg-muted/50 p-3">
         <p className="flex items-center text-sm font-medium">
-          {hardwareSummary(data.budget).map((part, index) => (
+          {hardwareSummary(data.budget, data.gpu_status).map((part, index) => (
             <Fragment key={part}>
               {index > 0 ? (
                 <DotIcon

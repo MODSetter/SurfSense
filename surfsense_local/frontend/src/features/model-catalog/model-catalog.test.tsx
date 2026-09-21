@@ -55,6 +55,7 @@ const catalog = (overrides: Partial<ModelCatalog> = {}): ModelCatalog => ({
     uma: true,
     has_gpu: true,
   },
+  gpu_status: "present",
   curated: [row()],
   installed: [],
   recommended_model_id: null,
@@ -113,6 +114,29 @@ describe("model catalog", () => {
     expect(await screen.findByText("Full speed")).toBeTruthy()
     expect(screen.getByText("Runs entirely on the GPU")).toBeTruthy()
     expect(screen.queryByRole("button", { name: /scan/i })).toBeNull()
+  })
+
+  it("says the card was not detected rather than calling the machine CPU only", async () => {
+    // A missing backend library makes the runtime report no devices, silently,
+    // with exit 0, on a machine with a working card. Priced against the
+    // processor it would otherwise read as a machine that has no card, which is
+    // a sentence about the user's hardware and it would be wrong.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          gpu_status: "broken_install",
+          budget: { ...catalog().budget, has_gpu: false },
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    expect(
+      await screen.findByText(/Graphics card not detected by the runtime/)
+    ).toBeTruthy()
+    expect(screen.queryByText("Runs on your processor")).toBeNull()
   })
 
   it("installs with only the opaque id", async () => {
@@ -293,6 +317,7 @@ describe("model catalog", () => {
             architecture: "qwen3",
             context_length: 40960,
             supported: true,
+            chat_template: true,
             ineligible_reason: null,
             builds: [
               {

@@ -69,11 +69,22 @@ export type Budget = {
 }
 
 /**
+ * Whether the runtime can reach this machine's graphics hardware.
+ *
+ * Kept apart from the budget on purpose. An empty device list means nothing on
+ * its own: a laptop with no card and a workstation whose backend library did
+ * not ship both report one, and calling the second a machine without a GPU
+ * tells a user their card is broken when a file is missing from ours.
+ */
+export type GpuStatus = "present" | "absent" | "broken_install" | "unknown"
+
+/**
  * Curated plus installed. No `scanned` flag, because there is no scan: the
  * budget comes from the runtime's own allocator in about 180ms.
  */
 export type ModelCatalog = {
   budget: Budget
+  gpu_status: GpuStatus
   curated: CatalogRow[]
   installed: InstalledRow[]
   recommended_model_id: string | null
@@ -106,6 +117,11 @@ export type RepoDetail = {
   architecture: string
   context_length: number
   supported: boolean
+  /**
+   * Installable without one, but it will answer badly in a chat, so this warns
+   * rather than blocks. A warning is not a fit state and must not render as one.
+   */
+  chat_template: boolean
   builds: RepoBuild[]
   /** Eligibility is not fit: a model can fit and still be refused here. */
   ineligible_reason: string | null
@@ -222,8 +238,12 @@ export function getModelCatalog(signal?: AbortSignal): Promise<ModelCatalog> {
   return requestJson<ModelCatalog>("/llm/catalog", { signal })
 }
 
-export function getSystem(signal?: AbortSignal): Promise<{ budget: Budget }> {
-  return requestJson<{ budget: Budget }>("/llm/system", { signal })
+export function getSystem(
+  signal?: AbortSignal
+): Promise<{ budget: Budget; gpu_status: GpuStatus }> {
+  return requestJson<{ budget: Budget; gpu_status: GpuStatus }>("/llm/system", {
+    signal,
+  })
 }
 
 export function searchModels(

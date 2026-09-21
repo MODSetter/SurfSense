@@ -63,33 +63,40 @@ function RepoBuilds({
   }
 
   return (
-    <ul className="flex flex-col divide-y" aria-label={`Builds in ${repo}`}>
-      {detail.data.builds.map((build) => (
-        <li
-          key={build.catalog_id}
-          className="flex items-center justify-between gap-3 px-3 py-2"
-        >
-          <div className="flex min-w-0 flex-col gap-0.5">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium">{build.quantization}</span>
-              <FitBadge fit={build.fit} copy={build.badge} />
-              <span className="text-xs text-muted-foreground">
-                {formatSize(build.size_bytes)}
-              </span>
-            </div>
-            <FitReason copy={build.badge} />
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            disabled={disabled || !build.can_install}
-            onClick={() => onInstall(build)}
+    <>
+      {!detail.data.chat_template && (
+        <p className="px-3 pt-2 text-xs text-muted-foreground">
+          No chat template. It may answer badly in a chat.
+        </p>
+      )}
+      <ul className="flex flex-col divide-y" aria-label={`Builds in ${repo}`}>
+        {detail.data.builds.map((build) => (
+          <li
+            key={build.catalog_id}
+            className="flex items-center justify-between gap-3 px-3 py-2"
           >
-            Download
-          </Button>
-        </li>
-      ))}
-    </ul>
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium">{build.quantization}</span>
+                <FitBadge fit={build.fit} copy={build.badge} />
+                <span className="text-xs text-muted-foreground">
+                  {formatSize(build.size_bytes)}
+                </span>
+              </div>
+              <FitReason copy={build.badge} />
+            </div>
+            <Button
+              type="button"
+              size="sm"
+              disabled={disabled || !build.can_install}
+              onClick={() => onInstall(build)}
+            >
+              Download
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 
