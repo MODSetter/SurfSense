@@ -2384,6 +2384,65 @@ Device query versus advisor, same machine:
 | Context priced | 8,192 | 16,384 (our real turn) |
 | Qwen3 8B verdict | **Perfect** | **uses system RAM** |
 
+## Follow-on work, with the measurement each one waits on
+
+The estimator's terms are implemented and its two verdict bugs are fixed. Three
+things are deliberately left, each because it needs a number nobody has taken
+rather than code nobody has written.
+
+### Measurement: a quantized cache against a small spill
+
+`plan_load` drops to `q8_0` whenever that turns a spill into residency. The
+assumption underneath is that a resident model at `q8_0` beats a partly spilled
+one at `f16`, and it has never been measured. Unsloth measured `q8_0` generation
+at **35 % slower** and ships it off by default, which is evidence the assumption
+can be wrong.
+
+One model, one window, three configurations, on the two machines already used
+for the rest of this phase (RTX 3050 under Vulkan, M2 8 GB under Metal):
+
+| | cache | context | expected placement |
+|---|---|---|---|
+| A | `f16` | 16384 | spills; record `offloaded N/36` from the server log |
+| B | `q8_0` with `flash-attn on` | 16384 | fully resident, 36/36 |
+| C | `f16` | 8192 | fully resident, the control |
+
+Qwen3 4B Q4_K_M, `parallel 1`, `fit-target 1024`. Three prompts of roughly 2K,
+8K and 14K grounding tokens, three runs each, median of
+`prompt_tokens_seconds` and `predicted_tokens_seconds` from `/metrics`.
+
+**The rule, fixed before the run so the result cannot be argued with.** If B
+decodes at 0.9x of A or better at the 8K prompt, the current preference stands.
+If A matches or beats B, `plan_load` prefers a small `f16` spill over `q8_0`
+below some layer count, and only then does the policy change.
+
+Note the app is prefill dominated, roughly 8,000 prompt tokens against 300
+decoded, so the prompt rate is the one that decides this and the decode rate is
+the one every published `q8_0` benchmark reports.
+
+### Deferred: memory mapping policy
+
+Ollama disables mmap on Metal whenever a load is predicted to spill, and on
+Windows with CUDA by default. We pass neither, and have measured neither. The
+43 second paged load on an 8 GB Mac that motivated the unified pool rule is the
+shape of failure this would address, so it is worth a measurement, but the pool
+rule removed the case that produced it.
+
+### Deferred: a speed gate for the recommendation
+
+`MAX_OFFLOAD = 0.75` is a placeholder and its own comment says so. The offload
+fraction is now counted in whole layers, which changes what the gate fires on,
+so the first step is to sweep the curated ladder across the fixture budgets in
+`test_properties.py` and record whether it ever fires at all. A gate that never
+fires is not protection, it is untested code.
+
+The replacement is the roofline this document already describes, seeded from
+Unsloth's measured constants: 5.5 ms per spilled GiB per decoded token on their
+reference host, a cache spill 20x worse than a weight spill, prefill streamed at
+55 GiB/s, and no penalty at all on unified memory. `decode_fraction` is now
+computed from the tensor table by the authoring script, so the MoE half of that
+model has its input.
+
 ## References
 
 - [llama.cpp server README](https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md) — router mode, `/models`, `/models/sse`, `/props`
