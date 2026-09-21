@@ -1,18 +1,25 @@
 """Does this model fit in this machine, and if not, how much spills.
 
-    need   = weights + KV(window) + compute_buffers      what the model allocates
-    usable = device_free - fit_reserve                   what --fit will use
+    need     = weights + KV(window) + compute_buffers    what the model allocates
+    resident = what it must fit inside to run at full speed
+    refusal  = what physics allows at all
 
 The two subtractions sit on opposite sides of the comparison. Collapsing them
 into one `overhead` term predicts residency for a configuration that measurably
 spills, which is the specific failure this estimator exists to avoid.
+
+`resident` and `refusal` come from the budget rather than being assembled here,
+because what they mean depends on the machine: they are two pools on a discrete
+card, one pool on unified memory, and the same number on a machine with no GPU
+at all. Assembling them here is what badged every model on a CPU only laptop as
+spilling from a graphics card it does not have.
 """
 
 from dataclasses import dataclass
 
 from modules.llm.fit.budget import HardwareBudget
-from modules.llm.fit.compute_buffers import compute_buffer_bytes
-from modules.llm.fit.kv_cache import kv_cache_bytes
+from modules.llm.fit.itemisation import itemise
+from modules.llm.fit.offload import offload_fraction
 from modules.llm.fit.states import FitState
 from modules.llm.fit.types import KvPrecision, ModelShape
 
@@ -48,50 +55,53 @@ def estimate(
     a model that will not fit at 16K cannot be rescued by a smaller context, and
     the remedy to offer is a smaller build.
     """
-    # The projector is counted here because `--fit` does not count it:
-    # llama.cpp issue #19980. Left out, a vision model our sum calls resident
-    # can still fail to allocate on a tight machine.
-    need = (
-        weights_bytes
-        + mmproj_bytes
-        + kv_cache_bytes(shape, n_ctx, precision)
-        + compute_buffer_bytes(n_ctx)
-    )
-    usable = budget.usable_vram_bytes
+    items = itemise(shape, weights_bytes, n_ctx, precision, mmproj_bytes)
+    need = items.total
+    # Two questions, two numbers, and the budget owns the difference between
+    # them. On a discrete card residency is the card and physics is the card plus
+    # the host; on unified memory both are the one pool; without a GPU both are
+    # the processor's own memory, which is what makes the middle state
+    # unreachable there rather than something the states have to special case.
+    resident = budget.resident_bytes
+    refusal = budget.refusal_bytes
 
-    floor_need = (
-        weights_bytes
-        + mmproj_bytes
-        + kv_cache_bytes(shape, CONTEXT_FLOOR_TOKENS, precision)
-        + compute_buffer_bytes(CONTEXT_FLOOR_TOKENS)
-    )
-    if floor_need > usable + budget.ram_available_bytes:
+    floor = itemise(shape, weights_bytes, CONTEXT_FLOOR_TOKENS, precision, mmproj_bytes)
+    if floor.total > refusal:
         return FitVerdict(
             state=FitState.TOO_BIG,
             need_bytes=need,
-            budget_bytes=usable + budget.ram_available_bytes,
+            budget_bytes=refusal,
             offload_fraction=1.0,
         )
 
-    if need <= usable:
+    if need <= resident:
         return FitVerdict(
             state=FitState.FITS,
             need_bytes=need,
-            budget_bytes=usable,
+            budget_bytes=resident,
             offload_fraction=0.0,
         )
 
-    # > ponytail: this is the theoretical minimum spill, and llama.cpp spills in
-    # > whole layers, so reality rounds up. Measured on an RTX 3050, Qwen3 4B
-    # > spilled 602 MiB of weights plus 320 MiB of cache, f = 0.19, where this
-    # > arithmetic gives 0.12. The states agree and the ordering agrees; the
-    # > fraction does not. It matters because the badge copy is graded on it at
-    # > 0.25 and 0.5, so calibrate against layer-granular placement before those
-    # > thresholds are trusted.
-    spilled = need - usable
+    if need > refusal:
+        # Past the floor check, which asked whether a smaller window would
+        # rescue this model. It would not rescue this *window*, and there is no
+        # third place to put the excess, so the requested window is refused
+        # rather than described as a partial offload.
+        #
+        # Reachable only where residency and physics are the same number, which
+        # means a machine with no GPU: the model is already entirely on the
+        # processor, so calling it partly offloaded names a device that is not
+        # there. Found by the property sweep, not by a fixture.
+        return FitVerdict(
+            state=FitState.TOO_BIG,
+            need_bytes=need,
+            budget_bytes=refusal,
+            offload_fraction=1.0,
+        )
+
     return FitVerdict(
         state=FitState.PARTIAL,
         need_bytes=need,
-        budget_bytes=usable,
-        offload_fraction=min(1.0, spilled / need),
+        budget_bytes=resident,
+        offload_fraction=offload_fraction(shape, items, resident),
     )

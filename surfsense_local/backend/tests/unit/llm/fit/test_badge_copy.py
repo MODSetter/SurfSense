@@ -28,6 +28,10 @@ def test_no_user_facing_string_uses_an_em_dash_or_a_hyphen() -> None:
         for state in FitState:
             if state is FitState.PARTIAL and not budget.has_gpu:
                 continue
+            for fraction in (0.1, 0.35, 0.7):
+                text = badge(verdict(state, fraction), budget)
+                assert "—" not in text.verdict + text.reason
+                assert "-" not in text.verdict + text.reason
             text = badge(verdict(state), budget)
             assert "—" not in text.verdict + text.reason
             assert "-" not in text.verdict + text.reason
@@ -50,20 +54,34 @@ def test_apple_silicon_is_never_told_about_system_ram() -> None:
     """There is no separate pool to spill into. Some layers run on the CPU
     backend against the same physical memory, so "uses system RAM" would
     describe a transfer that does not happen."""
-    text = badge(verdict(FitState.PARTIAL, 0.3), APPLE)
+    for fraction in (0.1, 0.35, 0.7):
+        text = badge(verdict(FitState.PARTIAL, fraction), APPLE)
 
-    assert "system RAM" not in text.reason
-    assert "graphics card" not in text.reason
+        assert "system RAM" not in text.reason
+        assert "graphics card" not in text.reason
+        assert "processor" not in text.reason
 
 
-def test_a_small_spill_and_a_large_one_do_not_get_the_same_sentence() -> None:
+def test_the_three_bands_each_get_their_own_sentence() -> None:
     """PARTIAL spans barely noticeable to unusable, and the fraction is already
-    on the verdict. One sentence is wrong at both ends."""
+    on the verdict. One sentence is wrong at both ends, and two leave the middle
+    of the range described as though it were one extreme or the other."""
     slight = badge(verdict(FitState.PARTIAL, 0.1), DISCRETE)
+    middling = badge(verdict(FitState.PARTIAL, 0.35), DISCRETE)
     severe = badge(verdict(FitState.PARTIAL, 0.7), DISCRETE)
 
-    assert slight.verdict == severe.verdict == "Reduced speed"
-    assert slight.reason != severe.reason
+    assert slight.verdict == middling.verdict == severe.verdict == "Reduced speed"
+    assert len({slight.reason, middling.reason, severe.reason}) == 3
+
+
+def test_the_bands_sit_where_the_spec_put_them() -> None:
+    """A quarter and a half, not a single threshold between them."""
+    assert badge(verdict(FitState.PARTIAL, 0.25), DISCRETE).reason == badge(
+        verdict(FitState.PARTIAL, 0.1), DISCRETE
+    ).reason
+    assert badge(verdict(FitState.PARTIAL, 0.5), DISCRETE).reason == badge(
+        verdict(FitState.PARTIAL, 0.9), DISCRETE
+    ).reason
 
 
 def test_a_refusal_states_both_numbers() -> None:

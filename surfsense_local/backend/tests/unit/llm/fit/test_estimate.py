@@ -29,14 +29,28 @@ QWEN3_1_7B = ModelShape(
 )
 WEIGHTS = 1050 * MIB  # MTL0_Mapped model buffer, measured
 
-# MTL0: 5461.3 MiB total, 5460 MiB free as the fitter saw it.
+# MTL0: 5461.3 MiB total, 5460 MiB free as the fitter saw it, on an 8 GiB
+# machine. Two ceilings on one memory, not two pools: Metal will not allocate
+# past its working set, and the CPU backend reads the same chips without that
+# limit, which is why a projection above 5460 still loaded with layers spilled.
 M2 = HardwareBudget(
     device_free_bytes=5460 * MIB,
     device_total_bytes=5461 * MIB,
     fit_reserve_bytes=1024 * MIB,
-    ram_available_bytes=2000 * MIB,
+    ram_available_bytes=6144 * MIB,
     uma=True,
     has_gpu=True,
+)
+
+# An older laptop with no card ggml can use. Nothing to spill from, so the
+# processor's memory is both where the model runs and all there is.
+NO_GPU = HardwareBudget(
+    device_free_bytes=0,
+    device_total_bytes=0,
+    fit_reserve_bytes=1024 * MIB,
+    ram_available_bytes=14 * 1024 * MIB,
+    uma=False,
+    has_gpu=False,
 )
 
 
@@ -137,3 +151,47 @@ def test_a_projector_can_be_what_tips_a_model_over() -> None:
 
     assert resident.state is FitState.FITS
     assert with_projector.state is FitState.PARTIAL
+
+
+def test_without_a_gpu_a_model_inside_memory_simply_fits() -> None:
+    """The measured bug: every row on a CPU only machine read `Reduced speed`.
+
+    There is no graphics card to be too big for, so a model that fits in memory
+    runs, at the only speed this machine has. Calling that a partial offload
+    described a spill from a device the machine does not have, and the badge
+    named hardware the user could see they did not own.
+    """
+    verdict = estimate(QWEN3_1_7B, WEIGHTS, NO_GPU, n_ctx=16384)
+
+    assert verdict.state is FitState.FITS
+    assert verdict.offload_fraction == 0.0
+
+
+def test_without_a_gpu_the_middle_state_is_unreachable() -> None:
+    """Swept rather than sampled: partial means some layers moved to the CPU,
+    and on this machine every layer was already there."""
+    for gib in range(1, 40):
+        state = estimate(QWEN3_1_7B, gib * 1024 * MIB, NO_GPU).state
+
+        assert state in {FitState.FITS, FitState.TOO_BIG}
+
+
+def test_without_a_gpu_physics_still_refuses_what_memory_cannot_hold() -> None:
+    """The one refusal that survives: a model larger than the machine."""
+    verdict = estimate(QWEN3_1_7B, 20 * 1024 * MIB, NO_GPU)
+
+    assert verdict.state is FitState.TOO_BIG
+    assert verdict.budget_bytes == NO_GPU.ram_available_bytes
+
+
+def test_unified_memory_refuses_past_the_pool_not_past_the_pool_twice_over() -> None:
+    """The measured bug: one memory counted as two.
+
+    An 8 GB Mac was priced with a 10.3 GB refusal threshold, because the working
+    set and the host reading, which describe the same chips, were added. A model
+    between the pool and that sum was offered to a machine that cannot hold it.
+    """
+    need = estimate(QWEN3_1_7B, 5000 * MIB, M2).need_bytes
+
+    assert need > M2.device_free_bytes
+    assert estimate(QWEN3_1_7B, 5000 * MIB, M2).state is FitState.TOO_BIG
