@@ -1,290 +1,166 @@
-﻿<a href="https://www.surfsense.com/"><img width="1584" height="396" alt="SurfSense，面向 AI 智能体的开源 NotebookLM 替代品" src="https://github.com/user-attachments/assets/9361ef58-1753-4b6e-b275-5020d8847261" /></a>
-
-
-
-<div align="center">
-<a href="https://discord.gg/ejRNvftDp9">
-<img src="https://img.shields.io/discord/1359368468260192417" alt="Discord">
-</a>
-<a href="https://www.reddit.com/r/SurfSense/">
-<img src="https://img.shields.io/reddit/subreddit-subscribers/SurfSense?style=social" alt="Reddit">
-</a>
-</div>
+<!--
+  下线提示有时效。请在 2026 年 10 月 18 日导出窗口关闭时删除它，
+  以及下文中“从托管版应用导入”那条链接。
+  本文件与 README.md 逐节对应，改动请同步。
+  本页文案依据：plans/community-local/seo/06-repo-readme.md
+-->
 
 <div align="center">
 
-[English](README.md) | [Español](README.es.md) | [Português](README.pt-BR.md) | [हिन्दी](README.hi.md) | [简体中文](README.zh-CN.md)
+[![Stars](https://img.shields.io/github/stars/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/stargazers)
+[![Forks](https://img.shields.io/github/forks/MODSetter/SurfSense?style=social)](https://github.com/MODSetter/SurfSense/network/members)
+[![Latest release](https://img.shields.io/github/v/release/MODSetter/SurfSense?sort=semver)](https://github.com/MODSetter/SurfSense/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
+[![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
+  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense，可物理隔离运行的开源 NotebookLM 替代品" src="surfsense_web/public/homepage/icon.png" /></a>
+
+  <h1>SurfSense</h1>
+
+  <p>
+    <b>可物理隔离运行的开源 NotebookLM 替代品。</b>
+    <br />
+    把那些不能上传的文档，在你自己的电脑上变成简报、幻灯片、报告、学习指南和播客。
+  </p>
+
+  <p>
+    <a href="https://www.surfsense.com/downloads"><b>下载</b></a> ·
+    <a href="https://www.surfsense.com/docs">文档</a> ·
+    <a href="#surfsense-能生成什么">它能生成什么</a> ·
+    <a href="#surfsense-与同类工具对比">对比</a> ·
+    <a href="https://www.surfsense.com/pricing">定价</a> ·
+    <a href="https://discord.gg/ejRNvftDp9">Discord</a>
+  </p>
+
+  <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
+
+  <p>
+    <a href="README.md">English</a> | <a href="README.es.md">Español</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.hi.md">हिन्दी</a> | 简体中文
+  </p>
 </div>
-<div align="center">
-<a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter%2FSurfSense | Trendshift" style="width: 250px; height: 55px;" width="250" height="55"/></a>
-</div>
 
-# SurfSense：面向开放网络研究的开源 NotebookLM 替代品
+<p align="center">
+  <img src="surfsense_web/public/homepage/offline-studio.png" alt="SurfSense 桌面应用，已打开 Studio 并选中 Qwen，正在把本地来源变成成品" />
+</p>
 
-SurfSense 是**面向 AI 智能体的开源 NotebookLM 替代品**，一个配备实时数据连接器的开放网络研究平台。你的智能体可以通过一个 **REST API** 或 **MCP 服务器**，利用来自 **Reddit、YouTube、Instagram、TikTok、Amazon、Walmart、Google Maps、Google Search、Indeed 以及开放网络上任意页面**的结构化数据研究实时网络。定时和事件触发的智能体会把发现的内容转化为简报和预警，内置的知识库则让每一条发现都可搜索、可引用。
+SurfSense 是一款免费开源的桌面应用，专为你手头已有的文档而做。把文档拖进来提问，得到的答案都会标注出处；同一批文档还能直接变成简报、幻灯片、报告、学习指南或播客。这一切都在你自己的电脑上完成：索引存在你的硬盘里，模型由你来选，应用不上传任何东西。也不需要注册账号。
+
+**开始使用。**下载适合你系统的安装程序，然后自带模型密钥，或者让应用替你下载一个本地模型。
+
+| 平台 | 下载 |
+|---|---|
+| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
+| **Linux** x64 (AppImage) | [SurfSense.AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) |
+| **Linux** x64 (deb) | [SurfSense.deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+
+每个链接都是指向最新版本的永久链接。你也可以到 [surfsense.com/downloads](https://www.surfsense.com/downloads) 挑选，或浏览[全部版本](https://github.com/MODSetter/SurfSense/releases)。AppImage 会自动更新，deb 不会。
 
 > [!NOTE]
-> **📢 致我们的 NotebookLM 替代品用户**
->
-> 在过去几个月里，我们把 SurfSense 打造成了针对个人知识的最佳通用研究智能体，这段旅程为我们赢得了一个令我们由衷自豪的社区。如今，Claude、OpenCode、Hermes、OpenClaw 等智能体工具已经证明智能体就是未来，在静态索引上进行推理正在成为每个有能力的智能体开箱即用的功能。而智能体仍然缺少的是**来自答案真正所在之处的实时数据，以及围绕它的工作流**。这正是我们全力投入的方向：为智能体提供研究开放网络的基础原语。
->
-> **你所依赖的一切功能都不会消失。**你的知识库、带引用的对话、报告、播客、演示文稿、自动化以及协作聊天都会继续可用，自托管也依然免费且开源。完整公告请阅读[我们的更新日志](https://www.surfsense.com/changelog)。
+> **用过托管版 Web 应用？**它即将下线。打开它一次，导出你的工作区，再把导出包导入桌面应用；文档、文件夹、标题和对话记录都会一并迁移过来。导出窗口将于 2026 年 10 月 18 日关闭。详见[下线说明页](https://www.surfsense.com/sunset)。
 
-## 目录
+## SurfSense 能生成什么
 
-- [为什么智能体需要 SurfSense](#为什么智能体需要-surfsense)
-- [实时数据连接器](#实时数据连接器)
-- [快速开始](#快速开始)
-- [开箱即用的其他能力](#开箱即用的其他能力)
-- [SurfSense 与同类工具的对比](#surfsense-与同类工具的对比)
-- [路线图](#路线图)
-- [参与贡献](#参与贡献)
+选几份文档，再选一种格式。应用就会在你的电脑上，用你挑的来源把它写出来。
 
-## 为什么智能体需要 SurfSense
-
-问任何一个有能力的智能体“自发布以来 Reddit 上对这款产品的评价如何？”或者“这十个地点的评论到底在抱怨什么？”，它都找不到可信赖的数据来源。官方平台 API 要么有速率限制、要么按企业级定价、要么根本不存在；自建抓取管线非常脆弱；而用 LLM 驱动浏览器，每个页面都要消耗数分钟和大量 token。SurfSense 转而为智能体提供这些基础原语：
-
-- **一个覆盖所有数据来源的强类型接口。**每个连接器都是返回结构化 JSON 的 REST 端点——帖子、评论、字幕转录、点评、搜索结果页、网页。不用赌速率限制，不用解析 HTML，也没有浏览器循环。
-- **一个 MCP 服务器**，把每个连接器都作为原生工具（`surfsense_reddit_scrape`、`surfsense_google_search` 等）暴露给 Claude、Cursor 或任何智能体框架。
-- **一套智能体运行框架**，而不只是原始数据：重试、结构化输出和额度计量都已内置，智能体可以从一个问题直达一份带引用的简报，无需你自己搭建管线。
-- **开源且可自托管**，你的研究数据始终留在你自己的基础设施上。
-
-## 实时数据连接器
-
-| 连接器 | 你的智能体能获得什么 | 了解更多 |
+| 格式 | 你会得到什么 | 需要 |
 |---|---|---|
-| **Reddit** | 帖子、评论和子版块信息流，不受官方 API 速率限制 | [Reddit Scraper API](https://www.surfsense.com/reddit) |
-| **YouTube** | 大规模获取视频、字幕转录和评论串 | [YouTube Scraper API](https://www.surfsense.com/youtube) |
-| **Instagram** | 公开主页、帖子和 Reels，无需 Graph API | [Instagram Scraper API](https://www.surfsense.com/instagram) |
-| **TikTok** | 视频、评论、话题标签和主页，无需 Research API 审批 | [TikTok Scraper API](https://www.surfsense.com/tiktok) |
-| **Google Maps** | 地点、评分和评论，用于本地商户研究 | [Google Maps Scraper API](https://www.surfsense.com/google-maps) |
-| **Google Search** | 实时搜索结果页，用于搜索研究和监控 | [Google Search API](https://www.surfsense.com/google-search) |
-| **Indeed** | 公开职位信息，含薪资与完整职位描述，按搜索或公司抓取 | [Indeed Scraper API](https://www.surfsense.com/indeed) |
-| **Amazon** | 公开商品数据：价格、评分、报价、卖家和畅销榜排名 | [Amazon Product API](https://www.surfsense.com/amazon) |
-| **Walmart** | 公开商品数据及完整评论历史：价格、评分、卖家和商品变体 | [Walmart Product & Review API](https://www.surfsense.com/walmart) |
-| **Web Crawl** | 把开放网络上的任意页面转为干净、结构化的内容 | [Web Crawling API](https://www.surfsense.com/web-crawl) |
-| **外部 MCP 连接器** | 将任意 MCP 服务器接入你的智能体，Notion、Slack、Jira 等支持一键 OAuth | [External MCP Connectors](https://www.surfsense.com/external-mcp-connectors) |
+| **摘要** | 针对所选来源的结构化简报 | 生成模型 |
+| **闪卡** | 一套可交互的卡片，一次一张 | 生成模型 |
+| **测验** | 带答案的选择题 | 生成模型 |
+| **思维导图** | 可缩放、可折叠的 Markmap | 生成模型 |
+| **幻灯片** | 可编辑的 `.pptx`，不是一张幻灯片截图 | 生成模型 |
+| **文档** | 可编辑的 `.docx` 报告 | 生成模型 |
+| **电子表格** | 由来源中的表格汇成的 `.xlsx` | 生成模型 |
+| **网页** | 一个自包含的 HTML 页面 | 生成模型 |
+| **PDF** | 一份排好版的 PDF | 生成模型 |
+| **播客** | 双主持人对谈音频，由 Kokoro-82M 离线配音 | 生成模型 + 内置语音 |
+| **图片** | 为材料配的插图 | 图像模型 + 生成模型 |
+| **信息图** | 单张图的可视化摘要 | 图像模型 + 生成模型 |
 
-连接器目录正在向社交平台和搜索之外扩展；每个新数据源都会作为强类型端点落在同一套 API 和 MCP 服务器上。
+有些活儿不止用一种格式。一份学习指南，就是对同一批来源做的摘要、闪卡和测验；一份客户简报，通常是你上台讲的幻灯片，加上会后发过去的摘要。视频概览还没做。
 
-计费采用按量付费：连接器按实际返回的条目计费，爬取按成功抓取的页面计费，失败的调用永不计费。自托管部署默认关闭计费。详见[定价](https://www.surfsense.com/pricing)。
+## 一切都留在你的电脑上
+
+大家会用它来处理案卷、客户工作底稿、访谈记录、内部规格文档、未发表的研究，以及一整个学期的课堂笔记。你可以对这些材料统一提问，每个答案都会标注它出自哪份来源。应用不会把其中任何内容上传出去。
+
+- **索引在本地。**解析、切分和向量化都在你的电脑上完成，写入 `~/.surfsense` 下的 SQLite。SurfSense 不留副本，也不记录你问过什么。
+- **每个环节都能本地运行。**文档解析器、检索模型和播客语音都随安装程序一起分发。对话和图像生成以本地服务的形式提供，权重只需下载一次，所以不用账号、不用 API 密钥也能产出文字、音频和图片。我们的验证方式是：断网导入一份 PDF。
+- **对外连接默认关闭。**出站面板会列出应用可以访问的每一个目标地址，你想开哪个就开哪个。
+- **没有遥测，没有崩溃上报。**没有任何东西回传，所以也不用去找哪里能关掉。
+
+SurfSense 无法告诉你这是否满足某项具体的合规要求，那取决于你自己的管控措施和你的监管方。应用唯一能告诉你的，是你的文档在哪台机器上。
+
+## SurfSense 与同类工具对比
+
+有三类产品都被称作“本地版 NotebookLM”，但它们回答的是不同的问题。它们都不是坏工具，只是最后留给你的东西不一样。
+
+**对比 Jan、AnythingLLM、Open WebUI、LM Studio。**它们在本地跑起一个模型，给你一个和它对话的地方。SurfSense 回答的是下一个问题：怎么从模型里拿到一份成品文档？你也可以两者搭配使用——把 SurfSense 指向任意兼容 OpenAI 的接口，包括它们提供的接口。
+
+**对比 RemNote、Quizlet、NoteGPT、StudyFetch、Gamma。**它们确实能产出成品，有些还比我们做得好看。代价在于你的材料去了哪里：你得上传，按月付费，文件存放在别人的账号里。
+
+**对比 Google NotebookLM。**它已经有闪卡、测验、思维导图和音频概览，两者产出的东西其实相当接近。区别在于活儿是在谁的机器上干的，以及你能给它接什么模型。
+
+| | Google NotebookLM | SurfSense |
+|---|---|---|
+| 可离线 / 物理隔离运行 | 否 | **是** |
+| 文档会离开你的电脑 | 会 | **不会** |
+| 需要账号 | Google 账号 | **不需要** |
+| 开源 | 否 | **Apache-2.0** |
+| 价格 | 免费档；Pro 每月 $19.99；Ultra 每月 $249.99 | **应用免费** |
+| 模型 | 只能用 Gemini | 任意兼容 OpenAI 的 API，或本地模型 |
+| 来源数量上限 | 50 到 600 个来源，每个 50 万字 | 硬盘装得下就行 |
+| 音频和视频概览 | 都有，而且更好 | 音频有，可离线；视频暂无 |
+
+音频质量上 NotebookLM 更胜一筹，而且它有视频。如果你不介意自己的来源放在 Google 的服务器上，那就用它。如果你介意，SurfSense 就是同一类工具，只是不用上传。
 
 ## 快速开始
 
-### 在代码中调用连接器
+不需要 Docker，不需要命令行，不需要 GPU，也不需要 compose 文件。
 
-每个连接器都是一个 REST 端点，你可以用任何语言、凭借你的 SurfSense API 密钥来调用：
+1. **下载安装程序**，就在上面的表格里。安装包已签名，系统不会拦你。
+2. **选一个模型。**可以让应用替你下载本地模型（Qwen3 共六种尺寸，最小 0.5 GB），也可以粘贴任意兼容 OpenAI 的 API 的 base URL 和密钥。模型选择器会先确认你的机器跑得动，再把模型列出来；你填的密钥都会加密保存，密钥本身存放在系统钥匙串里。
+3. **把文档拖进来。**应用会在你的电脑上解析 PDF、Office 文件和图片。
+4. **提问。**每个答案都会标注它出自哪份来源。
+5. **打开 Studio，**选一种格式，取走文件。
 
-```bash
-curl -X POST "$SURFSENSE_API_URL/workspaces/$WORKSPACE_ID/scrapers/reddit/scrape" \
-  -H "Authorization: Bearer $SURFSENSE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "search_queries": ["your brand"],
-    "community": "SaaS",
-    "sort": "top",
-    "time_filter": "week"
-  }'
-```
+慢的是下载这一步，因为安装程序里装着解析器、检索模型、播客语音和本地模型服务，这样应用在断网状态下也能用。
 
-每个[连接器页面](https://www.surfsense.com/connectors)都提供 Python、JavaScript、Go、PHP、Ruby、Java 和 C# 的可直接复制粘贴的示例。
+## 文档、路线图与社区
 
-### 通过 MCP 把工具交给你的智能体
+应用及其更新都是免费的。许可证增加的是插件和优先支持，除此之外不锁任何功能，所以许可证到期后，应用和今后的每一次更新依然归你。详见[定价](https://www.surfsense.com/pricing)。
 
-把 SurfSense MCP 服务器添加到 Claude、Cursor 或你自己的智能体框架：
+本仓库里的 Docker 技术栈（`surfsense_backend`、`surfsense_web` 以及 compose 文件）继续开源、继续可安装，并且**由社区维护：没有 SLA，背后也没有托管服务。**新用户请走桌面应用这条受支持的路径。
 
-```json
-{
-  "mcpServers": {
-    "surfsense": {
-      "url": "https://mcp.surfsense.com/mcp",
-      "headers": { "Authorization": "Bearer ${SURFSENSE_API_KEY}" }
-    }
-  }
-}
-```
+- [文档](https://www.surfsense.com/docs)：安装、模型、Studio 格式与自托管
+- [从托管版应用导入](https://www.surfsense.com/sunset)
+- [MCP 服务器](./surfsense_mcp)：对接托管版抓取 API
+- [路线图讨论](https://github.com/MODSetter/SurfSense/discussions/565)与[项目看板](https://github.com/users/MODSetter/projects/3)
+- [Discord](https://discord.gg/ejRNvftDp9) 用来求助和交流想法，[Discussions](https://github.com/MODSetter/SurfSense/discussions) 用来讨论方向，[Issues](https://github.com/MODSetter/SurfSense/issues) 用来提可复现的缺陷
+- **给仓库点个 Star**，就能跟进它之后的走向
 
-现在，你的智能体就可以把每个连接器当作原生工具来调用。完整工具列表请查看 [SurfSense MCP 服务器](https://www.surfsense.com/mcp-server) 页面，也可以通过 [`surfsense_mcp`](./surfsense_mcp) 在本地运行该服务器。
-
-### 使用云端服务
-
-访问 [surfsense.com](https://www.surfsense.com)，登录后用自然语言向智能体索取实时网络数据。新账户自带 5 美元免费额度，无需订阅。
-
-### 免费自托管
-
-在你自己的基础设施上运行整个平台，包括连接器、智能体、自动化和 MCP 服务器。自托管部署默认关闭计费，抓取、爬取和智能体运行只受你的硬件和你自带的模型密钥限制。
-
-**前置条件：**必须已安装并运行 [Docker Desktop](https://www.docker.com/products/docker-desktop/)。
-
-Linux/macOS：
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.sh | bash
-```
-
-Windows：
-
-```bash
-irm https://raw.githubusercontent.com/MODSetter/SurfSense/main/docker/scripts/install.ps1 | iex
-```
-
-安装脚本会自动配置 [Watchtower](https://github.com/nicholas-fedor/watchtower) 以实现每日自动更新。如需跳过，请加上 `--no-watchtower` 参数。关于 Docker Compose、手动安装及其他部署方式，请参阅[文档](https://www.surfsense.com/docs/legacy/)。
-
-## 开箱即用的其他能力
-
-让 SurfSense 成为领先的开源 NotebookLM 替代品的那套研究工作区依然都在，而且你的智能体收集到的一切都会汇入其中。
-
-**知识库**
-
-- 上传 PDF、Office 文档、图片和音频，或同步 **Google Drive、OneDrive 和 Dropbox**。支持 50 多种文件格式。
-- 混合语义与全文搜索，提供 Perplexity 风格的带引用回答。
-- AI 文件整理功能按来源、日期和主题自动归类文档。
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/BQnaGif_compressed.gif" alt="与你的 PDF 和文档对话" /></p>
-
-**成果工作室**
-
-- 可下载的 AI 成果，涵盖报告、简历、文档、电子表格和演示文稿。
-- 20 秒内基于任意文档或文件夹生成双主持人 AI 播客。
-- 可编辑的幻灯片、带旁白的视频概览以及 AI 图像生成。
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/ReportGenGif_compressed.gif" alt="AI 报告生成器" /></p>
-
-**自动化**
-
-- 按计划或响应事件运行完整的智能体回合，用自然语言描述即可，结果自动写回 Notion、Slack、Linear 和 Jira。
-
-**团队协作**
-
-- 支持评论和提及的实时协作 AI 聊天。
-- 基于角色的访问控制（RBAC），提供所有者、管理员、编辑者和查看者角色。
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeChatGif.gif" alt="协作 AI 聊天" /></p>
-
-**桌面应用**
-
-在电脑上的每个应用中获得原生 AI 辅助。从[最新版本](https://github.com/MODSetter/SurfSense/releases/latest)下载。
-
-- **General Assist**：通过全局快捷键在任意应用中唤起 SurfSense。
-- **Quick Assist**：在任意位置选中文本，让 AI 解释、改写或据此执行操作。
-- **Screenshot Assist**：截取屏幕上任意区域，向 AI 提问。
-- **Watch Local Folder**：把本地文件夹自动同步到知识库。将它指向你的 Obsidian 仓库，让笔记随时可搜索。
-
-<p align="center"><img src="surfsense_web/public/homepage/hero_tutorial/quick_assist.gif" alt="Quick Assist" /></p>
-
-**无供应商锁定**
-
-- 通过 OpenAI 规范和 LiteLLM 支持 100 多种 LLM，包括 GPT-5.5、Claude Sonnet 5 和 Gemini 3.1 Pro。
-- 支持 6,000 多种嵌入模型和所有主流重排序器。
-- 完整支持本地和私有 LLM（vLLM、Ollama），你的数据始终属于你。
-
-## 视频智能体示例
-
-https://github.com/user-attachments/assets/012a7ffa-6f76-4f06-9dda-7632b470057a
-
-## 播客智能体示例
-
-https://github.com/user-attachments/assets/a0a16566-6967-4374-ac51-9b3e07fbecd7
-
-## 如何进行实时协作（Beta）
-
-1. 进入成员管理页面并创建邀请。
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/40ed7683-5aa6-48a0-a3df-00575528c392" alt="邀请成员" /></p>
-
-2. 队友加入后，该工作区即变为共享。
-
-   <p align="center"><img src="https://github.com/user-attachments/assets/ea4e1057-4d2b-4fd2-9ca0-cd19286a285e" alt="邀请加入流程" /></p>
-
-3. 将聊天设为共享，即可与团队实时协作，并通过评论标记队友。
-
-   <p align="center"><img src="surfsense_web/public/homepage/hero_realtime/RealTimeCommentsFlow.gif" alt="实时评论" /></p>
-
-## SurfSense 与同类工具的对比
-
-SurfSense 是唯一一款把面向人的 NotebookLM 式研究工作区与面向智能体的实时数据原语结合在一起的开源产品。下面是它与每一类工具的对比。
-
-**对比浏览器智能体（Browserbase、Browser Use）。**浏览器智能体让 LLM 在循环中驱动一个真实浏览器——当任务需要点击、登录或填写表单时，这是正确的工具。但大多数研究都是只读的检索，而对于检索来说，“LLM 驱动浏览器”的循环每个页面都要花费数分钟和数千 token。一次 SurfSense 连接器调用只是一个 HTTP 请求：几秒完成、结果确定，而且不用花一个 token 去决定该点哪里。
-
-**对比抓取 API（Firecrawl）。**抓取 API 很擅长把通用网页转成 markdown，但一团 markdown 仍然需要你的智能体从行文中解析结构，而且它们在 Reddit、TikTok、Instagram 这类有反爬保护的平台上会明显退化。SurfSense 连接器返回平台原生的结构化条目——帖子、评论、字幕转录、点评——并且只按实际返回的条目计费；失败的调用永不计费。
-
-**对比搜索 API（Exa、Tavily、Parallel）。**搜索 API 基于网络索引作答，对于“帮我找关于 X 的页面”来说是正确的工具。但它们拉不到 Reddit 帖子串的评论、TikTok 的用户反应、YouTube 的字幕转录或 Google Maps 的点评——而答案往往就藏在这些地方。
-
-**对比爬虫市场（Apify）。**市场提供成千上万个社区 actor，每个都有自己的 schema、质量和定价。SurfSense 是一个强类型 API 加一个 MCP 服务器，背后还有智能体运行框架和研究工作区，而且它是开源的。
-
-### SurfSense 对比 Google NotebookLM
-
-还在把我们当作 NotebookLM 替代品来比较？这里是坦诚的对比。
-
-| 功能 | Google NotebookLM | SurfSense |
-|---------|-------------------|-----------|
-| **面向智能体的实时网络数据** | 无 | 通过 REST API 和 MCP 提供 Reddit、YouTube、Instagram、TikTok、Amazon、Walmart、Google Maps、Google Search、Indeed 和网页爬取连接器 |
-| **MCP 服务器** | 无 | 每个连接器都作为原生智能体工具暴露，还可自带 MCP 服务器并使用一键 OAuth 应用 |
-| **每个笔记本的来源数** | 50 个（免费版）至 600 个（Ultra 版，249.99 美元/月） | 无限制 |
-| **笔记本数量** | 100 个（免费版）至 500 个（付费档位） | 无限制 |
-| **来源大小限制** | 每个来源 50 万字 / 200MB | 无限制 |
-| **定价** | 免费档；Pro 19.99 美元/月，Ultra 249.99 美元/月 | 自托管免费且开源；云端按量付费，附赠 5 美元免费额度 |
-| **LLM 支持** | 仅 Google Gemini | 通过 OpenAI 规范和 LiteLLM 支持 100 多种 LLM |
-| **嵌入模型** | 仅 Google | 6,000 多种嵌入模型，所有主流重排序器 |
-| **本地 / 私有 LLM** | 不支持 | 完整支持（vLLM、Ollama），你的数据始终属于你 |
-| **可自托管** | 否 | 是，Docker 一行命令或完整 Docker Compose |
-| **开源** | 否 | 是 |
-| **知识库来源** | Google Drive、YouTube、网站 | 文件上传、Google Drive、OneDrive、Dropbox、本地文件夹同步以及爬取的网页 |
-| **文件格式支持** | PDF、Docs、Slides、Sheets、CSV、Word、EPUB、图片、网页 URL、YouTube | 50 多种格式：文档、图片、视频，通过 LlamaCloud、Unstructured 或 Docling（本地）解析 |
-| **搜索** | 语义搜索 | 混合语义 + 全文搜索，带分层索引和倒数排名融合 |
-| **带引用的回答** | 有 | 有，Perplexity 风格的引用回答 |
-| **智能体架构** | 无 | 有，由 [LangChain Deep Agents](https://docs.langchain.com/oss/python/deepagents/overview) 驱动，具备规划、子智能体和文件系统访问能力 |
-| **AI 自动化与智能体** | 无 | 定时工作流、事件触发以及通过聊天构建的无代码自动化，可写回 Notion、Slack、Linear 和 Jira |
-| **实时多人协作** | 共享笔记本，仅有查看者/编辑者角色（无实时聊天） | RBAC 提供所有者 / 管理员 / 编辑者 / 查看者角色，支持实时聊天和评论串 |
-| **视频生成** | 通过 Veo 3 生成电影级视频概览（仅 Ultra 版） | 已提供（此项 NotebookLM 更强，我们正在积极改进） |
-| **演示文稿生成** | 幻灯片更美观但不可编辑 | 可编辑的幻灯片式演示文稿 |
-| **播客生成** | 音频概览，支持自定义主持人和语言 | 已提供，支持多种 TTS 服务商（此项 NotebookLM 更强，我们正在积极改进） |
-| **桌面应用** | 无 | 原生应用，包含 General Assist、Quick Assist、Screenshot Assist 和本地文件夹同步 |
-
-## 功能请求与未来规划
-
-**SurfSense 正在积极开发中。**虽然它尚未达到生产就绪状态，但你可以帮助我们加快进度。
-
-加入 [SurfSense Discord](https://discord.gg/ejRNvftDp9)，一起塑造 SurfSense 的未来！
-
-## 路线图
-
-随时了解我们的开发进度和即将推出的功能。查看我们的公开路线图，贡献你的想法或反馈：
-
-**路线图讨论：**[SurfSense 2026 Roadmap](https://github.com/MODSetter/SurfSense/discussions/565)
-
-**看板：**[SurfSense Project Board](https://github.com/users/MODSetter/projects/3)
-
-## 参与贡献
-
-欢迎一切形式的贡献，从点星标、报告缺陷到后端改进。请参阅 [CONTRIBUTING.md](CONTRIBUTING.md) 开始参与。
+欢迎提交 Pull Request。先从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始；桌面应用在 [`surfsense_local/`](./surfsense_local)，它的 README 讲了开发流程。
 
 感谢所有 Surfer：
 
-<a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
-  <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" />
-</a>
+<p align="center">
+  <a href="https://github.com/MODSetter/SurfSense/graphs/contributors">
+    <img src="https://contrib.rocks/image?repo=MODSetter/SurfSense" alt="为 SurfSense 做出贡献的人" />
+  </a>
+</p>
 
 ## Star 历史
 
-<a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
- </picture>
-</a>
-
----
----
 <p align="center">
-    <img 
-      src="https://github.com/user-attachments/assets/329c9bc2-6005-4aed-a629-700b5ae296b4" 
-      alt="Catalyst Project" 
-      width="200"
-    />
+  <a href="https://www.star-history.com/#MODSetter/SurfSense&Date">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date&theme=dark" />
+      <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+      <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=MODSetter/SurfSense&type=Date" />
+    </picture>
+  </a>
 </p>
 
----
----
+## 许可证
+
+Apache-2.0。详见 [LICENSE](LICENSE)。

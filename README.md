@@ -1,7 +1,9 @@
 <!--
   The sunset callout is time-boxed. Delete it on 18 October 2026 when the
   export window closes, along with the "Importing from the hosted app" link
-  further down. Rationale for this page: plans/community-local/seo/06-repo-readme.md
+  further down. Do the same in README.es.md, README.pt-BR.md, README.hi.md and
+  README.zh-CN.md, which track this file section for section.
+  Rationale for this page: plans/community-local/seo/06-repo-readme.md
 -->
 
 <div align="center">
@@ -33,13 +35,9 @@
 
   <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
 
-  <!--
-    Language switcher removed on purpose. README.es.md, README.pt-BR.md,
-    README.hi.md and README.zh-CN.md all describe the hosted product and
-    should be rewritten for 2.0.0 before this row comes back:
-
+  <p>
     English | <a href="README.es.md">Español</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.zh-CN.md">简体中文</a>
-  -->
+  </p>
 </div>
 
 <p align="center">
@@ -48,7 +46,16 @@
 
 SurfSense is a free, open-source desktop app for the documents you already have. Drop them in, ask questions and get answers that cite their sources, then turn the same documents into a briefing, a slide deck, a report, a study guide or a podcast. All of it runs on your own machine: the index sits on your disk, you pick the model, and the app uploads nothing. There is no account to create.
 
-**[Download for Windows, macOS or Linux](https://www.surfsense.com/downloads)**, then bring your own model key or let the app pull a local model for you.
+**Get started.** Download the installer for your machine, then bring your own model key or let the app pull a local model for you.
+
+| Platform | Download |
+|---|---|
+| **Windows** x64 | [SurfSense-Setup.exe](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-Setup.exe) |
+| **macOS** Apple Silicon | [SurfSense-arm64.dmg](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense-arm64.dmg) |
+| **Linux** x64 (AppImage) | [SurfSense.AppImage](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.AppImage) |
+| **Linux** x64 (deb) | [SurfSense.deb](https://github.com/MODSetter/SurfSense/releases/latest/download/SurfSense.deb) |
+
+Every link is a permalink to the newest release. You can also pick from [surfsense.com/downloads](https://www.surfsense.com/downloads) or browse [all releases](https://github.com/MODSetter/SurfSense/releases). The AppImage auto-updates; the deb does not.
 
 > [!NOTE]
 > **Used the hosted web app?** It is being retired. Open it once to export your workspaces, then import the bundle into the desktop app; documents, folders, titles and chat threads all come across. The export window closes on 18 October 2026. Details on [the sunset page](https://www.surfsense.com/sunset).
@@ -112,7 +119,7 @@ NotebookLM wins on audio quality and it has video. If you are content with your 
 
 You do not need Docker, a terminal, a GPU or a compose file.
 
-1. **Download the installer** for [Windows, macOS or Linux](https://www.surfsense.com/downloads). It is signed, so your OS will not fight you.
+1. **Download the installer** from the table above. It is signed, so your OS will not fight you.
 2. **Pick a model.** Let the app pull a local one (Qwen3 in six sizes, from 0.5 GB) or paste a base URL and key for any OpenAI-compatible API. The picker checks your machine can run a model before offering it, and any key you give it is stored encrypted, with the secret held in your OS keychain.
 3. **Drop in documents.** The app parses PDFs, Office files and images on your machine.
 4. **Ask questions.** Every answer cites the source it came from.
