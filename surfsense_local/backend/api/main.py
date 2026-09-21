@@ -1,4 +1,5 @@
 import logging
+import threading
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -63,23 +64,34 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             ensure_default_workspace(session)
             session.commit()
         app.state.session_factory = session_factory
-        # The preset is derived from what is on disk, so rebuild it at boot
-        # rather than only after an install. Without this a model imported from
-        # disk, or installed before this existed, loads at llama.cpp's own
-        # default window instead of the one the fit calculation chose, and a
-        # stale section keeps advertising a model whose file is gone.
-        _rewrite_generation_preset()
+        # Off the startup path, on a thread. Both halves are slow for the same
+        # reason: the preset is priced against the devices, and taking the
+        # device probe costs about 19 seconds on a Mac the first time, while
+        # Metal compiles its shader libraries. Done here, /health would not
+        # answer until it finished.
+        #
+        # The preset itself is rebuilt at boot rather than only after an
+        # install, because without it a model imported from disk loads at
+        # llama.cpp's own default window instead of the one the fit calculation
+        # chose, and a stale section keeps advertising a model whose file is
+        # gone.
+        threading.Thread(target=_warm_catalog, name="catalog-warm", daemon=True).start()
         yield
     finally:
         engine.dispose()
 
 
-def _rewrite_generation_preset() -> None:
-    """Best effort: a preset that cannot be written must not stop the API."""
+def _warm_catalog() -> None:
+    """Best effort: neither the probe nor the preset may stop the API.
+
+    A daemon thread, so a probe wedged on a driver call cannot hold shutdown
+    open. A request arriving meanwhile waits on the service's own lock rather
+    than starting a second probe.
+    """
     try:
-        get_catalog_service().reprice()
+        get_catalog_service().warm()
     except Exception:
-        logger.exception("could not rewrite the generation preset at startup")
+        logger.exception("could not warm the model catalog at startup")
 
 
 def create_app() -> FastAPI:

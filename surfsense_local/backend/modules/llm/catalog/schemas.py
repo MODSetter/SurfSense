@@ -32,6 +32,10 @@ class BudgetRead(BaseModel):
 class SystemRead(BaseModel):
     budget: BudgetRead
     devices: list[DeviceRead]
+    # Beside the budget rather than in it. The budget is memory; this says
+    # whether the runtime can reach the hardware at all, and a machine whose
+    # card the runtime cannot see must never read as a machine without one.
+    gpu_status: str
 
 
 class BadgeRead(BaseModel):
@@ -85,6 +89,7 @@ class InstalledRowRead(BaseModel):
 
 class CatalogRead(BaseModel):
     budget: BudgetRead
+    gpu_status: str
     curated: list[CatalogRowRead]
     installed: list[InstalledRowRead]
     recommended_model_id: str | None
@@ -123,6 +128,9 @@ class RepoRead(BaseModel):
     architecture: str
     context_length: int
     supported: bool
+    # Installable without one, but it will answer badly in a chat, so this warns
+    # rather than blocks. Eligibility is not fit and neither is a warning.
+    chat_template: bool = True
     builds: list[BuildRead]
     # Eligibility is not fit: a model can be FITS and still refused here, and the
     # two must never render as one thing.

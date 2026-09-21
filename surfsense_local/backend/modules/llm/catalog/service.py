@@ -12,6 +12,7 @@ both local, so this answers with **no network** and nothing to wait for.
 import asyncio
 import logging
 import secrets
+import threading
 import time
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
@@ -29,25 +30,55 @@ from modules.llm.catalog.search import (
     list_builds,
     search_models,
 )
-from modules.llm.fit import HardwareBudget, badge, estimate, plan_load
+from modules.llm.catalog.search.eligibility import RepoFacts, read_repo_facts
+from modules.llm.fit import (
+    FitState,
+    HardwareBudget,
+    ModelShape,
+    badge,
+    estimate,
+    plan_load,
+    planned_precision,
+)
 from modules.llm.gguf import shape_from_file, shape_from_url
 from modules.llm.hardware import (
     BudgetMode,
     Device,
+    GpuStatus,
+    SystemInventory,
     available_bytes,
     build_budget,
+    fit_target_mib,
+    os_reports_gpu,
     probe_devices,
+    system_inventory,
 )
+from modules.llm.hardware.inventory import OsGpu, Probe
 from modules.llm.providers.llamacpp import (
     PRESET_FILE,
     PROVIDER,
     ModelPreset,
     RouterClient,
     download_gguf,
+    is_projector,
+    projector_for,
     write_presets,
 )
 
 logger = logging.getLogger(__name__)
+
+# Priced from the listing alone when a header cannot be read. Every
+# architecture-derived term is zero, so `need` is the file size and nothing
+# else, and the row is marked approximate so the screen can say so.
+_SIZE_ONLY_SHAPE = ModelShape(
+    architecture="",
+    block_count=0,
+    head_count_kv=0,
+    key_length=0,
+    value_length=0,
+    context_length=0,
+    n_vocab=0,
+)
 
 
 @dataclass(frozen=True)
@@ -73,6 +104,10 @@ class InstallPlan:
 class Catalog:
     budget: HardwareBudget
     devices: tuple[Device, ...]
+    # Whether the runtime can reach this machine's graphics hardware. Beside the
+    # budget rather than inside it: the budget is memory, this is a diagnosis,
+    # and a broken install must not read as a machine that has no card.
+    gpu_status: GpuStatus
     curated: tuple[CatalogRow, ...]
     installed: tuple[InstalledRow, ...]
     recommended_model_id: str | None
@@ -87,12 +122,19 @@ class CatalogService:
         models_dir: Path,
         library_dir: Path,
         runtime_url: str = "http://127.0.0.1:8080",
+        *,
+        probe: Probe = probe_devices,
+        os_gpu: OsGpu = os_reports_gpu,
     ) -> None:
         self._runtime_url = runtime_url
         self._manifest = manifest
         self._models_dir = models_dir
         self._library_dir = library_dir
-        self._devices: tuple[Device, ...] | None = None
+        self._probe = probe
+        self._os_gpu = os_gpu
+        self._inventory: SystemInventory | None = None
+        # The startup warm and the first request race for this.
+        self._inventory_lock = threading.Lock()
         self._tickets = TicketStore()
         self._catalog_ids: dict[str, tuple[str, str]] = {}
         # One pull at a time: two concurrent downloads compete for the same disk
@@ -138,6 +180,11 @@ class CatalogService:
         live = self.budget(BudgetMode.LIVE)
         presets = []
         for path in sorted(self._models_dir.glob("*.gguf")):
+            # A projector is half of a vision model, not a model. It has a
+            # header and a size like any other file here, so without this it
+            # would be offered as something to chat with.
+            if is_projector(path):
+                continue
             try:
                 shape = shape_from_file(path)
             except (OSError, ValueError):
@@ -146,11 +193,32 @@ class CatalogService:
                 # over a file nobody asked it to load.
                 logger.warning("skipping unreadable model %s", path.name)
                 continue
-            plan = plan_load(shape, path.stat().st_size, budget, live=live)
+
+            projector = projector_for(path, self._projector_names(path))
+            mmproj_bytes = projector.stat().st_size if projector else 0
+            plan = plan_load(
+                shape, path.stat().st_size, budget, live=live, mmproj_bytes=mmproj_bytes
+            )
             presets.append(
-                ModelPreset(path.stem, str(path), plan.n_ctx, plan.precision)
+                ModelPreset(
+                    model_id=path.stem,
+                    path=str(path),
+                    n_ctx=plan.n_ctx,
+                    precision=plan.precision,
+                    fit_target_mib=fit_target_mib(mmproj_bytes),
+                    mmproj_path=str(projector) if projector else None,
+                )
             )
         write_presets(self._models_dir / PRESET_FILE, presets)
+
+    def _projector_names(self, model_path: Path) -> list[str]:
+        """What the manifest calls this model's projector, if it is a curated one."""
+        return [
+            variant.mmproj
+            for model in self._manifest.models
+            for variant in model.variants
+            if variant.mmproj and variant.file == model_path.name
+        ]
 
     def resolve_install(self, catalog_id: str) -> InstallPlan | None:
         """Turn an id from either tier into a build, or None if it has gone stale."""
@@ -218,6 +286,8 @@ class CatalogService:
         listing.
         """
         budget = self.budget()
+        approximate = False
+        chat_template = True
         async with httpx.AsyncClient(follow_redirects=True) as client:
             builds = await list_builds(client, repo)
             if not builds:
@@ -226,16 +296,43 @@ class CatalogService:
                     "architecture": "",
                     "context_length": 0,
                     "supported": False,
+                    "chat_template": True,
                     "builds": [],
                     "ineligible_reason": "no single file build in this repo",
                 }
-            url = f"https://huggingface.co/{repo}/resolve/main/{builds[0].file}"
-            shape = await shape_from_url(client, url)
 
-        supported = is_supported(shape.architecture)
+            # Hugging Face has already parsed the first GGUF's header, so the
+            # architecture is free. Reading it first means an architecture
+            # llama.cpp cannot run costs no range request against a file we were
+            # never going to install.
+            facts = await read_repo_facts(client, repo)
+            if facts is not None:
+                chat_template = facts.has_chat_template
+            if facts is not None and not is_supported(facts.architecture):
+                return self._ineligible(repo, facts, builds)
+
+            try:
+                url = f"https://huggingface.co/{repo}/resolve/main/{builds[0].file}"
+                shape = await shape_from_url(client, url)
+            except (httpx.HTTPError, ValueError):
+                # The listing is enough to say how large each build is, and a
+                # size alone still orders the ladder. Refusing the whole repo
+                # over one unreadable header would hide builds the user can run.
+                logger.warning("could not read the header for %s", repo)
+                shape = _SIZE_ONLY_SHAPE
+                approximate = True
+
+        supported = is_supported(shape.architecture) if not approximate else True
         rows = []
         for build in builds:
-            fit = estimate(shape, build.size_bytes, budget)
+            # The same precision rule the curated rows and the loader use, so
+            # a searched build is described the way it will be loaded.
+            fit = estimate(
+                shape,
+                build.size_bytes,
+                budget,
+                precision=planned_precision(shape, build.size_bytes, budget),
+            )
             text = badge(fit, budget)
             rows.append(
                 {
@@ -250,7 +347,7 @@ class CatalogService:
                         "need_bytes": fit.need_bytes,
                         "budget_bytes": fit.budget_bytes,
                         "offload_fraction": fit.offload_fraction,
-                        "approximate": False,
+                        "approximate": approximate,
                     },
                     "badge": {"verdict": text.verdict, "reason": text.reason},
                     "can_install": fit.can_install and supported,
@@ -261,27 +358,79 @@ class CatalogService:
             "architecture": shape.architecture,
             "context_length": shape.context_length,
             "supported": supported,
+            "chat_template": chat_template,
             "builds": rows,
             "ineligible_reason": None
             if supported
             else f"llama.cpp cannot run the {shape.architecture} architecture",
         }
 
-    def devices(self) -> tuple[Device, ...]:
-        """Probe once and remember.
+    def _ineligible(self, repo: str, facts: RepoFacts, builds: list) -> dict:
+        """A repo llama.cpp cannot run, described from the listing alone.
+
+        The builds are still listed, at their real sizes, because the screen is
+        answering "what is in here" as well as "can I run it", and an empty repo
+        reads as a broken page rather than an unsupported model.
+        """
+        return {
+            "repo": repo,
+            "architecture": facts.architecture,
+            "context_length": facts.context_length,
+            "supported": False,
+            "chat_template": facts.has_chat_template,
+            "builds": [
+                {
+                    "catalog_id": "",
+                    "file": build.file,
+                    "quantization": build.quantization,
+                    "size_bytes": build.size_bytes,
+                    "fit": {
+                        "state": FitState.TOO_BIG.value,
+                        "need_bytes": 0,
+                        "budget_bytes": 0,
+                        "offload_fraction": 0.0,
+                        "approximate": True,
+                    },
+                    "badge": {
+                        "verdict": "Cannot run",
+                        "reason": f"llama.cpp has no support for {facts.architecture}",
+                    },
+                    "can_install": False,
+                }
+                for build in builds
+            ],
+            "ineligible_reason": (
+                f"llama.cpp cannot run the {facts.architecture} architecture"
+            ),
+        }
+
+    def inventory(self) -> SystemInventory:
+        """Probe once and remember, across every thread that asks.
 
         The first call compiles Metal shaders and costs about 19 seconds on a
-        Mac; every call after is tens of milliseconds. Warm this in the
-        background at launch rather than on the path of the first render.
+        Mac; every call after is tens of milliseconds. The lock is what makes
+        the startup warm worth having: a request arriving during it waits for
+        that one probe instead of starting a second.
         """
-        if self._devices is None:
-            try:
-                self._devices = tuple(probe_devices(self._library_dir))
-            except OSError:
-                # No staged runtime. The catalog still renders, priced against
-                # the host, and installs are disabled higher up.
-                self._devices = ()
-        return self._devices
+        with self._inventory_lock:
+            if self._inventory is None:
+                self._inventory = system_inventory(
+                    self._library_dir, probe=self._probe, os_gpu=self._os_gpu
+                )
+            return self._inventory
+
+    def devices(self) -> tuple[Device, ...]:
+        """What ggml can see. Empty is a real answer; `gpu_status` says which."""
+        return self.inventory().devices
+
+    def warm(self) -> None:
+        """Take the probe and write the preset, off the path of the first render.
+
+        Ordered: the preset is priced against the devices, so probing second
+        would mean probing twice.
+        """
+        self.inventory()
+        self.reprice()
 
     def budget(self, mode: BudgetMode = BudgetMode.CAPACITY) -> HardwareBudget:
         """Capacity by default: a catalog is a shelf, not a launch decision.
@@ -292,12 +441,14 @@ class CatalogService:
         return build_budget(self.devices(), available_bytes(), mode=mode)
 
     def catalog(self) -> Catalog:
+        inventory = self.inventory()
         budget = self.budget()
         rows = curated_rows(self._manifest.models, budget)
         pick = recommend(self._manifest.models, budget)
         return Catalog(
             budget=budget,
-            devices=self.devices(),
+            devices=inventory.devices,
+            gpu_status=inventory.gpu_status,
             curated=tuple(rows),
             installed=tuple(self._installed()),
             recommended_model_id=pick.entry.model_id if pick else None,

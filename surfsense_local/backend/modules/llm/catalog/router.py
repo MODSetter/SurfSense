@@ -40,8 +40,10 @@ STALE_ID = "catalog id is stale or unknown; refresh the catalog"
 @router.get("/system", response_model=SystemRead, summary="This machine's memory")
 def read_system(service: CatalogServiceDep) -> dict:
     """No scan, no button, no network. The allocator's own view."""
+    inventory = service.inventory()
     return {
         "budget": _budget(service.budget()),
+        "gpu_status": inventory.gpu_status.value,
         "devices": [
             {
                 "name": device.name,
@@ -50,7 +52,7 @@ def read_system(service: CatalogServiceDep) -> dict:
                 "total_bytes": device.total_bytes,
                 "free_bytes": device.free_bytes,
             }
-            for device in service.devices()
+            for device in inventory.devices
         ],
     }
 
@@ -62,6 +64,7 @@ def read_catalog(service: CatalogServiceDep, session: SessionDep) -> dict:
     catalog = service.catalog()
     return {
         "budget": _budget(catalog.budget),
+        "gpu_status": catalog.gpu_status.value,
         "curated": [
             _row(row, catalog, selected, service) for row in catalog.curated
         ],

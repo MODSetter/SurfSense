@@ -104,3 +104,29 @@ async def test_a_curated_row_can_be_installed_by_its_opaque_id(
     reply = await client.post("/llm/install", json={"catalog_id": catalog_id})
 
     assert reply.status_code != 422
+
+
+async def test_the_system_route_says_whether_the_runtime_sees_the_hardware(
+    client: AsyncClient,
+) -> None:
+    """An empty device list means nothing on its own: a machine with no card and
+    a machine whose card the runtime cannot reach both report one."""
+    body = (await client.get("/llm/system")).json()
+
+    assert body["gpu_status"] in {"present", "absent", "broken_install", "unknown"}
+
+
+async def test_the_catalog_carries_the_same_diagnosis(client: AsyncClient) -> None:
+    """The screen that renders the badges is the one that has to explain them."""
+    body = (await client.get("/llm/catalog")).json()
+
+    assert body["gpu_status"] in {"present", "absent", "broken_install", "unknown"}
+
+
+async def test_the_budget_never_reports_a_gpu_diagnosis(client: AsyncClient) -> None:
+    """The budget is memory. Phase 8.3 asks for a distinct state, not a flag
+    folded into the numbers, so a reader of one cannot mistake it for the other.
+    """
+    body = (await client.get("/llm/system")).json()
+
+    assert "gpu_status" not in body["budget"]

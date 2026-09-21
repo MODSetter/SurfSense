@@ -149,3 +149,49 @@ async def test_waiting_for_the_runtime_gives_up_rather_than_hanging(
     reachable = await service.wait_until_servable("m", timeout=0.3, interval=0.05)
 
     assert reachable is False
+
+
+def test_a_projector_is_never_offered_as_a_model(tmp_path: Path) -> None:
+    """Half of a vision model, not a model. It has a header and a size like any
+    other file here, so without a rule it gets its own section and the user is
+    offered something that cannot answer a question."""
+    a_model(tmp_path / "Qwen3-VL-Q4_K_M.gguf")
+    a_model(tmp_path / "mmproj-F16.gguf")
+    service = CatalogService(load_curated_models(), tmp_path, tmp_path)
+
+    service.reprice()
+    ini = (tmp_path / PRESET_FILE).read_text()
+
+    assert "[Qwen3-VL-Q4_K_M]" in ini
+    assert "[mmproj-F16]" not in ini
+
+
+def test_a_vision_model_names_its_projector_and_reserves_room_for_it(
+    tmp_path: Path,
+) -> None:
+    """`--fit` allocates the projector after it has finished placing layers and
+    does not count it while deciding, so the margin has to carry its bytes."""
+    a_model(tmp_path / "Qwen3-VL-Q4_K_M.gguf")
+    projector = tmp_path / "mmproj-F16.gguf"
+    a_model(projector)
+    padding = 600 * 1024**2 - projector.stat().st_size
+    projector.write_bytes(projector.read_bytes() + b"\0" * padding)
+    service = CatalogService(load_curated_models(), tmp_path, tmp_path)
+
+    service.reprice()
+    ini = (tmp_path / PRESET_FILE).read_text()
+
+    assert f"mmproj = {projector}" in ini
+    assert "fit-target = 1624" in ini
+
+
+def test_a_text_model_leaves_the_margin_at_llama_cpps_own_default(
+    tmp_path: Path,
+) -> None:
+    """One GiB, which is exactly what the badge subtracted."""
+    a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
+    service = CatalogService(load_curated_models(), tmp_path, tmp_path)
+
+    service.reprice()
+
+    assert "fit-target = 1024" in (tmp_path / PRESET_FILE).read_text()
