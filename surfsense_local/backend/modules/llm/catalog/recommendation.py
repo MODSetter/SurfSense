@@ -17,7 +17,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from modules.llm.catalog.manifest import CuratedModel, Variant
-from modules.llm.fit import FitState, HardwareBudget, estimate
+from modules.llm.fit import FitState, HardwareBudget, estimate, planned_precision
 from modules.llm.fit.estimate import FitVerdict
 
 # > ponytail: provisional, and possibly unnecessary. On the one machine measured
@@ -47,7 +47,14 @@ def recommend(
     candidates: list[Recommendation] = []
     for entry in curated:
         for variant in entry.variants:
-            verdict = estimate(entry.model_shape, variant.size_bytes, budget)
+            # At the cache the loader would choose, so the gate judges the
+            # configuration that will actually run rather than a slower one.
+            precision = planned_precision(
+                entry.model_shape, variant.size_bytes, budget
+            )
+            verdict = estimate(
+                entry.model_shape, variant.size_bytes, budget, precision=precision
+            )
             if verdict.state is FitState.TOO_BIG:
                 continue
             if verdict.offload_fraction > MAX_OFFLOAD:

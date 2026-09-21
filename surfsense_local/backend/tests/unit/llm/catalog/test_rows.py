@@ -22,6 +22,7 @@ def model(label: str, blocks: int, variants: list[dict]) -> CuratedModel:
             "architecture": "qwen3", "block_count": blocks, "head_count_kv": 8,
             "key_length": 128, "value_length": 128, "context_length": 40960,
             "n_vocab": 151936,
+            "embedding_length": 4096, "feed_forward_length": 12288,
         },
         "variants": variants,
     })

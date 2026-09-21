@@ -9,7 +9,16 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from modules.llm.catalog.manifest import CuratedModel, Variant
-from modules.llm.fit import Badge, FitState, FitVerdict, HardwareBudget, badge, estimate
+from modules.llm.fit import (
+    Badge,
+    FitState,
+    FitVerdict,
+    HardwareBudget,
+    ModelShape,
+    badge,
+    estimate,
+    planned_precision,
+)
 
 _FIT_ORDER = {FitState.FITS: 0, FitState.PARTIAL: 1, FitState.TOO_BIG: 2}
 
@@ -53,6 +62,12 @@ def curated_rows(
     )
 
 
+def _fit(shape: ModelShape, weights_bytes: int, budget: HardwareBudget) -> FitVerdict:
+    """One build's verdict, at the cache the loader would give it."""
+    precision = planned_precision(shape, weights_bytes, budget)
+    return estimate(shape, weights_bytes, budget, precision=precision)
+
+
 def _row(model: CuratedModel, budget: HardwareBudget) -> CatalogRow:
     """The best build of one model: a row is a model, not a file.
 
@@ -60,8 +75,11 @@ def _row(model: CuratedModel, budget: HardwareBudget) -> CatalogRow:
     choosing a model. It takes the best state among its builds, and the install
     action uses the build that produced it.
     """
+    # Priced at the precision the loader will actually choose, not at the
+    # default. Pricing f16 here while `plan_load` picks q8_0 badged a model
+    # `Reduced speed` that the runtime then placed entirely on the device.
     priced = [
-        (variant, estimate(model.model_shape, variant.size_bytes, budget))
+        (variant, _fit(model.model_shape, variant.size_bytes, budget))
         for variant in model.variants
     ]
     variant, fit = min(

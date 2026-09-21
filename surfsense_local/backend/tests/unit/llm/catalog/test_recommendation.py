@@ -26,6 +26,8 @@ def qwen(block_count: int) -> dict:
         "value_length": 128,
         "context_length": 40960,
         "n_vocab": 151936,
+        "embedding_length": 4096,
+        "feed_forward_length": 12288,
     }
 
 
@@ -118,3 +120,49 @@ def test_the_policy_ranges_over_builds_so_a_smaller_one_can_rescue_an_entry() ->
 
     assert pick is not None
     assert pick.variant.quantization == "Q4_K_M"
+
+
+def test_a_machine_with_no_gpu_still_gets_a_recommendation() -> None:
+    """The measured bug: nothing was ever starred on a CPU only machine.
+
+    Every row came back as a full spill, which the speed gate then refused, so
+    the one screen whose job is to choose a model chose nothing on the hardware
+    that most needs the help.
+    """
+    no_gpu = HardwareBudget(0, 0, 1024 * MIB, 14 * 1024 * MIB, False, False)
+
+    pick = recommend(CURATED, no_gpu)
+
+    assert pick is not None
+    assert pick.entry.label == "Qwen3 8B"
+
+
+def test_a_machine_with_no_gpu_is_still_refused_what_it_cannot_hold() -> None:
+    """The star moves down the ladder rather than off it.
+
+    2000 MiB holds the 0.6B, which needs 1436 with a quantized cache, and not
+    the 1.7B, which needs 2113 even with one.
+    """
+    tiny = HardwareBudget(0, 0, 1024 * MIB, 2000 * MIB, False, False)
+
+    pick = recommend(CURATED, tiny)
+
+    assert pick is not None
+    assert pick.entry.label == "Qwen3 0.6B"
+
+
+def test_a_quantized_cache_is_allowed_to_rescue_a_larger_model() -> None:
+    """The star has to name the model the loader will actually run.
+
+    2600 MiB does not hold the 1.7B with a full cache, at 2953 MiB, and does
+    hold it with a quantized one, at 2113. `plan_load` already chose the
+    quantized cache here, so pricing the star against the full one pointed at
+    the 0.6B while the app was perfectly able to run the rung above it. That
+    mattered most on the machines with the least to choose from.
+    """
+    small = HardwareBudget(0, 0, 1024 * MIB, 2600 * MIB, False, False)
+
+    pick = recommend(CURATED, small)
+
+    assert pick is not None
+    assert pick.entry.label == "Qwen3 1.7B"
