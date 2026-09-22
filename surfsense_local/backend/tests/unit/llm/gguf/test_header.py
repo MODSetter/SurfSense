@@ -46,6 +46,35 @@ def test_per_layer_kv_heads_are_read_as_the_widest_layer() -> None:
     assert read_header(gguf(entries)).head_count_kv == 8
 
 
+def test_per_layer_kv_heads_are_also_kept_layer_by_layer() -> None:
+    """The widest answers "how wide can one layer be"; the cache asks what each
+    layer costs and sums them, so the list has to survive the read."""
+    entries = [e for e in qwen3_entries() if b"head_count_kv" not in e]
+    entries.append(array("qwen3.attention.head_count_kv", UINT32, [2, 8, 8, 2]))
+
+    assert read_header(gguf(entries)).head_count_kv_layers == (2, 8, 8, 2)
+
+
+def test_a_scalar_head_count_leaves_the_per_layer_list_empty() -> None:
+    """Nothing varies, so there is nothing to carry: the empty list is what
+    tells the estimator to use the single number."""
+    assert read_header(gguf(qwen3_entries())).head_count_kv_layers == ()
+
+
+def test_a_narrower_sliding_entry_is_read_where_the_model_states_one() -> None:
+    """A model may cache its window at a different width from the whole
+    context, and llama.cpp charges each layer at its own."""
+    entries = [
+        *qwen3_entries(),
+        kv("qwen3.attention.key_length_swa", UINT32, 256),
+        kv("qwen3.attention.value_length_swa", UINT32, 256),
+    ]
+    shape = read_header(gguf(entries))
+
+    assert shape.key_length_swa == 256
+    assert shape.value_length_swa == 256
+
+
 def test_a_truncated_header_says_so_rather_than_guessing() -> None:
     """The caller retries with a wider range; a partial parse would ship a
     confident number derived from half a file."""

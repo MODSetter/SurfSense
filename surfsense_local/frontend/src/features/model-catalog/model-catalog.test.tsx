@@ -3,6 +3,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
+import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { render } from "@/test-utils"
 import { ModelCatalogPage } from "./model-catalog-page"
 import {
@@ -273,6 +274,122 @@ describe("model catalog", () => {
     expect(screen.queryByText(/rank/i)).toBeNull()
   })
 
+  it("asks to allow huggingface.co the moment the search box is clicked", async () => {
+    // Nothing can be searched until that question is answered, so it is asked
+    // when the user reaches for the box rather than after a silent refusal.
+    const calls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path, init) => {
+        calls.push(`${init?.method ?? "GET"} ${path}`)
+        if (path === "/egress") {
+          return Response.json([
+            {
+              destination: "host:huggingface.co",
+              host: "huggingface.co",
+              enabled: false,
+              last_call_at: null,
+            },
+          ])
+        }
+        if (path.startsWith("/egress/")) return Response.json({})
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <>
+        <EgressPrompt />
+        <ModelCatalogPage />
+      </>
+    )
+    await user.click(
+      await screen.findByRole("searchbox", { name: "Search all models" })
+    )
+
+    await screen.findByRole("alertdialog")
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await waitFor(() =>
+      expect(calls).toContain("PUT /egress/host:huggingface.co")
+    )
+  })
+
+  it("still asks when the box is reached before the answer has loaded", async () => {
+    // The panel of destinations is a fetch like any other. Losing that race
+    // must not cost the user the question, or they are back to a silent 403.
+    let release = () => {}
+    const loaded = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path === "/egress") return null
+        if (path.startsWith("/egress/")) return Response.json({})
+        return null
+      })
+    )
+    const served = vi.mocked(globalThis.fetch)
+    const base = served.getMockImplementation()!
+    served.mockImplementation(async (input, init) => {
+      if (String(input) === "/egress") {
+        await loaded
+        return Response.json([
+          {
+            destination: "host:huggingface.co",
+            host: "huggingface.co",
+            enabled: false,
+            last_call_at: null,
+          },
+        ])
+      }
+      return base(input, init)
+    })
+    const user = userEvent.setup()
+
+    render(
+      <>
+        <EgressPrompt />
+        <ModelCatalogPage />
+      </>
+    )
+    await user.click(
+      await screen.findByRole("searchbox", { name: "Search all models" })
+    )
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+
+    release()
+
+    expect(await screen.findByRole("alertdialog")).toBeTruthy()
+  })
+
+  it("holds the same height whether or not anything has been searched", async () => {
+    // The search section is the last thing in the scroll region, so a region
+    // that grows and collapses with the result count drags the page under the
+    // user. The space is reserved once and every state renders into it.
+    vi.stubGlobal("fetch", serving(catalog()))
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+
+    await screen.findByText(/Type to search every model/)
+    const idle = document.querySelector("[data-slot=search-results]")
+    const reserved = idle?.className ?? ""
+    expect(reserved).toMatch(/min-h-/)
+
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "qwen"
+    )
+    await screen.findByText(/needs access to huggingface\.co/i)
+
+    expect(
+      document.querySelector("[data-slot=search-results]")?.className
+    ).toBe(reserved)
+  })
+
   it("explains that search is unavailable rather than erroring", async () => {
     // With egress off, curated and installed still work. That is the airgapped
     // product, not a degraded one.
@@ -374,6 +491,43 @@ describe("model catalog", () => {
         id: "model-install-error",
       })
     )
+  })
+
+  it("can use a model on disk that no curated row covers", async () => {
+    // A model installed from search is in the directory and not in the
+    // manifest, so the curated list has no row to select it from. Without a
+    // button here it downloads, lists, deletes — and can never be chosen.
+    const fetchMock = serving(
+      catalog({
+        curated: [],
+        installed: [
+          {
+            model_id: "some-searched-model",
+            file: "some-searched-model.gguf",
+            size_bytes: 1_000_000_000,
+            selected: false,
+          },
+        ],
+      })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(
+      await screen.findByRole("button", { name: "Use some-searched-model" })
+    )
+
+    await waitFor(() => {
+      const selection = fetchMock.mock.calls.find(
+        ([path, init]) =>
+          String(path).includes("/llm/selection/") && init?.method === "PUT"
+      )
+      expect(selection).toBeTruthy()
+      expect(JSON.parse(String(selection?.[1]?.body)).name).toBe(
+        "some-searched-model"
+      )
+    })
   })
 
   it("confirms deletion of an installed model", async () => {

@@ -63,6 +63,27 @@ async def test_formats_lists_summary_as_available(
     assert image["requires_roles"] == ["image_generation", "generation"]
 
 
+async def test_a_format_missing_both_models_says_so(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """No `choose_model` fixture: nothing is selected at all.
+
+    Image and Infographic need two roles, and reporting only whichever was
+    checked first names the chat model on the two tiles where the image model
+    is the distinguishing requirement. The user then selects a chat model and
+    the reason changes under them, which reads as the gate moving rather than
+    as one of two being satisfied.
+    """
+    response = await client.get(f"/workspaces/{workspace_id}/studio/formats")
+
+    image = next(f for f in response.json() if f["key"] == "image")
+    assert image["available"] is False
+    assert image["unavailable_reason"] == "Needs a chat model and an image model"
+
+    summary = next(f for f in response.json() if f["key"] == "summary")
+    assert summary["unavailable_reason"] == "Needs a chat model"
+
+
 async def test_infographic_needs_the_image_model_and_the_chat_model(
     client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
 ) -> None:
@@ -71,7 +92,7 @@ async def test_infographic_needs_the_image_model_and_the_chat_model(
     infographic = next(f for f in listed.json() if f["key"] == "infographic")
     assert infographic["requires_roles"] == ["image_generation", "generation"]
     assert infographic["available"] is False
-    assert infographic["unavailable_reason"] == "Image model required"
+    assert infographic["unavailable_reason"] == "Needs an image model"
 
     with create_session_factory(engine)() as session:
         session.add(
@@ -93,7 +114,7 @@ async def test_podcast_is_gated_on_the_voice_engine(
     url = f"/workspaces/{workspace_id}/studio/formats"
     podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
     assert podcast["available"] is False
-    assert podcast["unavailable_reason"] == "Voice model required"
+    assert podcast["unavailable_reason"] == "Needs a voice model"
 
     weights = data_dir / "models" / kokoro.MODEL_DIR_NAME
     weights.mkdir(parents=True)
@@ -193,7 +214,7 @@ async def test_the_brief_needs_the_voice_engine(
     """No weights, no voices to choose from: the same reason the format shows."""
     opened = await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
     assert opened.status_code == 409
-    assert opened.json()["detail"] == "Voice model required"
+    assert opened.json()["detail"] == "Needs a voice model"
 
 
 async def test_a_job_creates_a_pending_artifact(

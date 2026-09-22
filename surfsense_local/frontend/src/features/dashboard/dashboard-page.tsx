@@ -30,6 +30,7 @@ import {
   getConnectionModels,
   getProviders,
   type ModelSelection,
+  modelKey,
 } from "@/features/model-selection/api"
 import {
   SettingsDialog,
@@ -70,6 +71,7 @@ function WorkspaceDashboard({
   onModelRequired,
   onModelSelected,
   onOpenLicense,
+  modelsVisited,
 }: {
   workspace: Workspace
   selection: ModelSelection | null
@@ -77,11 +79,19 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
+  modelsVisited: number
 }) {
   const [inspect, setInspect] = useState<Inspect>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
   const sources = useSources(workspace.id)
-  const studio = useStudio(workspace.id)
+  // Which formats Studio offers is the server's answer to what is selected,
+  // so it has to be asked again when that changes. The chat model is named
+  // here directly; the image model is chosen inside the settings dialog and
+  // reported only by `modelsVisited`, which counts closing it.
+  const studio = useStudio(
+    workspace.id,
+    `${selection ? modelKey(selection) : "none"}:${modelsVisited}`
+  )
   const chat = useChatRuntime({
     workspaceId: workspace.id,
     canSend: providerAvailable,
@@ -342,6 +352,10 @@ export function DashboardPage({
     initialProviderAvailable ? "available" : "checking"
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
+  // Bumped when the settings dialog closes, because a model can be chosen in
+  // there without anything on this screen hearing about it: the image model is
+  // selected inside the catalog and never reaches `onModelSelected`.
+  const [modelsVisited, setModelsVisited] = useState(0)
   const [settingsSection, setSettingsSection] =
     useState<SettingsSectionId>("general")
 
@@ -417,11 +431,17 @@ export function DashboardPage({
         onModelRequired={() => openSettings("models")}
         onModelSelected={onModelSelected}
         onOpenLicense={() => openSettings("license")}
+        modelsVisited={modelsVisited}
       />
       <SettingsDialog
         open={settingsOpen}
         section={settingsSection}
-        onOpenChange={setSettingsOpen}
+        onOpenChange={(open) => {
+          setSettingsOpen(open)
+          if (!open) {
+            setModelsVisited((seen) => seen + 1)
+          }
+        }}
         onSectionChange={setSettingsSection}
         onModelUnavailable={onModelUnavailable}
         onModelSelected={onModelSelected}

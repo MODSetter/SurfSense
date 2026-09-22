@@ -840,7 +840,6 @@ describe("dashboard chat", () => {
         if (path === "/llm/catalog") {
           return Response.json({
             hardware: null,
-            llmfit_version: "1.1.11",
             curated: [],
             explore: [],
             installed: [],

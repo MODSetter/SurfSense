@@ -6,22 +6,36 @@ commits. Four or five times a year.
 
     uv run scripts/refresh_curated_models.py
 
-Everything mechanical is derived here. The three judgement fields stay in
-`ENTRIES` below, where a person edits them:
+`ENTRIES` below is the only hand-authored part: six short fields per model,
+none of them requiring a download. Everything else in the written manifest is
+read from the real GGUF file over an HTTP range request, never typed:
 
-  rank        preference order for *this app's job*, answering from the user's
-              documents with citations that resolve. Not general capability.
-              llmfit proposes it; a person decides. It is an int, and nothing
-              requires llmfit to have produced it.
-  rank_basis  what produced the number, so a manifest part way through a
-              migration is detectable and two scales are never mixed.
-  validated   somebody ran this exact file.
+  shape             every field on `ModelShape` — block_count, head_count_kv,
+                    key_length, embedding_length, feed_forward_length, sliding
+                    window, expert counts, and the rest — comes straight off
+                    the GGUF header via `read_header` + `to_shape`. This is
+                    the whole reason the script exists rather than a person
+                    hand-writing JSON: an app that ships this manifest and
+                    prices every user's machine against it offline has no way
+                    to correct a mistyped width except a new release.
+  file, size_bytes  the exact pinned filename and its real byte count, read
+                    from the repo listing by `find_variant`, not guessed from
+                    a model card.
+  capabilities      `["vision"]` only when `find_projector` finds the repo
+                    actually ships an `mmproj` file.
+  decode_fraction   the active/total byte ratio for mixture-of-experts models,
+                    computed from the header's own expert counts.
 
-> ponytail: llmfit has no flag to score at a named quantization, so proposing a
-> rank means sweeping the device budget across the model's whole ladder and
-> indexing the pinned rung out of it. `scripts/curated/ladder.py` is where that
-> goes when llmfit is available; the ranks below were taken that way and are
-> recorded with the quantization they were read at.
+Two judgements stay in `ENTRIES` regardless, where a person edits them by
+hand, and neither is a quality score:
+
+  position   preference order for *this app's job* — answering from the
+             user's documents with citations that resolve, not general
+             capability. `ENTRIES`' own list order is the only preference
+             signal in the whole catalog: smallest first, most preferred
+             last. Reordering the ladder is reordering this list, nothing
+             else, and there is no score to keep in step with it.
+  validated  somebody ran this exact file.
 """
 
 import asyncio
@@ -39,9 +53,11 @@ from modules.llm.fit import ModelShape
 from modules.llm.gguf import to_shape
 
 OUT = Path(__file__).resolve().parents[1] / "modules/llm/catalog/curated-models.json"
-RANK_BASIS = "llmfit-1.1.11"
 
 # The shipped ladder. Six rungs, one family, every machine gets a pick.
+# Position in this list IS the preference order — smallest first, most
+# preferred last — read by `curated_rows` and `recommend`. Moving a model up
+# or down the ladder means moving its line, nothing else.
 #
 # The two Qwen2.5-Coder entries that were here are gone: SurfSense has no coding
 # job. Chat is document Q&A with citations and the Studio formats are summary,
@@ -49,13 +65,13 @@ RANK_BASIS = "llmfit-1.1.11"
 # taking two of eight slots in a list whose real gaps are a rung for 48 to 64 GB
 # machines and a vision entry. Anyone who wants one searches for it.
 ENTRIES = [
-    # model_id, family, label, params, repo, quantization, rank
-    ("Qwen/Qwen3-0.6B", "Qwen3", "Qwen3 0.6B", "0.6B", "unsloth/Qwen3-0.6B-GGUF", "Q4_K_M", 33),
-    ("Qwen/Qwen3-1.7B", "Qwen3", "Qwen3 1.7B", "1.7B", "unsloth/Qwen3-1.7B-GGUF", "Q4_K_M", 48),
-    ("Qwen/Qwen3-4B", "Qwen3", "Qwen3 4B", "4B", "unsloth/Qwen3-4B-GGUF", "Q4_K_M", 63),
-    ("Qwen/Qwen3-8B", "Qwen3", "Qwen3 8B", "8B", "unsloth/Qwen3-8B-GGUF", "Q4_K_M", 78),
-    ("Qwen/Qwen3-14B", "Qwen3", "Qwen3 14B", "14B", "unsloth/Qwen3-14B-GGUF", "Q4_K_M", 85),
-    ("Qwen/Qwen3-32B", "Qwen3", "Qwen3 32B", "32B", "unsloth/Qwen3-32B-GGUF", "Q4_K_M", 92),
+    # model_id, family, label, params, repo, quantization
+    ("Qwen/Qwen3-0.6B", "Qwen3", "Qwen3 0.6B", "0.6B", "unsloth/Qwen3-0.6B-GGUF", "Q4_K_M"),
+    ("Qwen/Qwen3-1.7B", "Qwen3", "Qwen3 1.7B", "1.7B", "unsloth/Qwen3-1.7B-GGUF", "Q4_K_M"),
+    ("Qwen/Qwen3-4B", "Qwen3", "Qwen3 4B", "4B", "unsloth/Qwen3-4B-GGUF", "Q4_K_M"),
+    ("Qwen/Qwen3-8B", "Qwen3", "Qwen3 8B", "8B", "unsloth/Qwen3-8B-GGUF", "Q4_K_M"),
+    ("Qwen/Qwen3-14B", "Qwen3", "Qwen3 14B", "14B", "unsloth/Qwen3-14B-GGUF", "Q4_K_M"),
+    ("Qwen/Qwen3-32B", "Qwen3", "Qwen3 32B", "32B", "unsloth/Qwen3-32B-GGUF", "Q4_K_M"),
 ]
 
 # Files somebody has downloaded, run, and confirmed citations resolve on.
@@ -77,7 +93,7 @@ def _shape_fields(shape: ModelShape) -> dict:
 async def build() -> dict:
     models = []
     with httpx.Client(follow_redirects=True) as client:
-        for model_id, family, label, params, repo, quant, rank in ENTRIES:
+        for model_id, family, label, params, repo, quant in ENTRIES:
             file, size = find_variant(client, repo, quant)
             header = await read_header(repo, file)
             shape = to_shape(header)
@@ -105,8 +121,6 @@ async def build() -> dict:
                             "quantization": quant,
                             "size_bytes": size,
                             "mmproj": projector[0] if projector else None,
-                            "rank": rank,
-                            "rank_basis": RANK_BASIS,
                             "validated": file in VALIDATED,
                         }
                     ],

@@ -3,46 +3,7 @@ import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import type { InstallEvent } from "./api"
-
-const bytes = (value: number) =>
-  new Intl.NumberFormat(undefined, {
-    style: "unit",
-    unit: "gigabyte",
-    maximumFractionDigits: 1,
-  }).format(value / 1e9)
-
-function eventLabel(event: InstallEvent) {
-  if (event.type === "downloading") {
-    const percent =
-      event.total > 0
-        ? Math.min(100, Math.round((event.completed / event.total) * 100))
-        : null
-    return {
-      label: event.message || "Downloading",
-      detail:
-        event.total > 0
-          ? `${bytes(event.completed)} of ${bytes(event.total)}`
-          : null,
-      percent,
-    }
-  }
-  const message = "message" in event ? event.message : undefined
-  return {
-    label:
-      message ||
-      (event.type === "starting"
-        ? "Starting"
-        : event.type === "verifying"
-          ? "Verifying"
-          : event.type === "selecting"
-            ? "Selecting"
-            : event.type === "complete"
-              ? "Complete"
-              : "Install failed"),
-    detail: null,
-    percent: event.type === "complete" ? 100 : null,
-  }
-}
+import { installView } from "./install-view"
 
 export function InstallProgress({
   event,
@@ -51,7 +12,7 @@ export function InstallProgress({
   event: InstallEvent
   onCancel: () => void
 }) {
-  const view = eventLabel(event)
+  const view = installView(event)
   const [announcement, setAnnouncement] = useState(view.label)
   const announcementText = `${view.label}${
     view.percent === null ? "" : ` ${view.percent}%`
@@ -75,9 +36,9 @@ export function InstallProgress({
         {view.detail ? (
           <span className="text-muted-foreground">{view.detail}</span>
         ) : null}
-        {view.percent !== null ? (
+        {view.percent === null ? null : (
           <span className="ml-auto tabular-nums">{view.percent}%</span>
-        ) : null}
+        )}
       </div>
       <div
         className="h-1.5 overflow-hidden rounded-full bg-muted"
@@ -87,10 +48,21 @@ export function InstallProgress({
         aria-valuemax={100}
         aria-valuenow={view.percent ?? undefined}
       >
-        <div
-          className="h-full rounded-full bg-primary transition-[width]"
-          style={{ width: `${view.percent ?? 8}%` }}
-        />
+        {/* Keyed by phase so a new one starts its own bar rather than animating
+            down from where the last ended. A full bar sliding back to empty is
+            what read as the install failing and starting over. */}
+        {view.percent === null ? (
+          // Held, not animated. A phase with no figure is still a phase that is
+          // going somewhere, and the line above it already says which; a bar
+          // that moves without the work moving is the part that reads as noise.
+          <div key={event.type} className="h-full rounded-full" />
+        ) : (
+          <div
+            key={event.type}
+            className="h-full rounded-full bg-primary transition-[width]"
+            style={{ width: `${view.percent}%` }}
+          />
+        )}
       </div>
       <Button
         type="button"

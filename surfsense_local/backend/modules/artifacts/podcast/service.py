@@ -22,7 +22,7 @@ def open_brief(
     try:
         voices = resolve_text_to_speech().voices()
     except ModelResolutionError as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Voice model required") from error
+        raise HTTPException(status.HTTP_409_CONFLICT, "Needs a voice model") from error
 
     last = session.scalars(
         select(Artifact)

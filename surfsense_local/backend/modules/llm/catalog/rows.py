@@ -27,9 +27,10 @@ _FIT_ORDER = {FitState.FITS: 0, FitState.PARTIAL: 1, FitState.TOO_BIG: 2}
 class CatalogRow:
     """One model on the screen.
 
-    Deliberately carries no `rank`. Rank orders this list and selects the star,
-    and it is never displayed; the surest way to keep that true is for the
-    renderer never to receive it.
+    Deliberately carries no preference signal of its own. The manifest's own
+    list order is what orders this list and selects the star, and it is never
+    displayed; the surest way to keep that true is for the renderer never to
+    receive it.
     """
 
     model_id: str
@@ -50,16 +51,26 @@ class CatalogRow:
 def curated_rows(
     models: Sequence[CuratedModel], budget: HardwareBudget
 ) -> list[CatalogRow]:
-    """One row per model, best build first, ordered fit coarsely then rank finely.
+    """One row per model, best build first, ordered fit coarsely then manifest
+    position finely.
 
-    Sorting by rank alone would put a refused 32B at the top of a small machine's
-    screen, which is the one thing a model chooser must not do.
+    Position, not fit alone: sorting only by fit state would still leave two
+    FITS rows in whatever order dict iteration happened to give them. A later
+    position in `models` is preferred, matching the ladder's own order
+    (smallest first, most capable last) — see `manifest.py`.
     """
-    rows = [_row(model, budget) for model in models]
-    return sorted(
-        rows,
-        key=lambda row: (_FIT_ORDER[row.fit.state], -row.variant.rank, row.model_id),
-    )
+    rows = [(index, _row(model, budget)) for index, model in enumerate(models)]
+    return [
+        row
+        for _, row in sorted(
+            rows,
+            key=lambda pair: (
+                _FIT_ORDER[pair[1].fit.state],
+                -pair[0],
+                pair[1].model_id,
+            ),
+        )
+    ]
 
 
 def _fit(shape: ModelShape, weights_bytes: int, budget: HardwareBudget) -> FitVerdict:
@@ -73,17 +84,20 @@ def _row(model: CuratedModel, budget: HardwareBudget) -> CatalogRow:
 
     A model with two builds is still one row, because the screen's job is
     choosing a model. It takes the best state among its builds, and the install
-    action uses the build that produced it.
+    action uses the build that produced it. A tie between two builds in the
+    same fit state favours the one listed first in `variants` — the manifest's
+    own order is the only preference signal, here as everywhere else in this
+    module.
     """
     # Priced at the precision the loader will actually choose, not at the
     # default. Pricing f16 here while `plan_load` picks q8_0 badged a model
     # `Reduced speed` that the runtime then placed entirely on the device.
     priced = [
-        (variant, _fit(model.model_shape, variant.size_bytes, budget))
-        for variant in model.variants
+        (index, variant, _fit(model.model_shape, variant.size_bytes, budget))
+        for index, variant in enumerate(model.variants)
     ]
-    variant, fit = min(
-        priced, key=lambda pair: (_FIT_ORDER[pair[1].state], -pair[0].rank)
+    _, variant, fit = min(
+        priced, key=lambda triple: (_FIT_ORDER[triple[2].state], triple[0])
     )
     return CatalogRow(
         model_id=model.model_id,

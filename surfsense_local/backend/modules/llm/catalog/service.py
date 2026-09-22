@@ -59,10 +59,12 @@ from modules.llm.hardware.inventory import OsGpu, Probe
 from modules.llm.providers.llamacpp import (
     PRESET_FILE,
     PROVIDER,
+    LoadProgress,
     ModelPreset,
     RouterClient,
     download_gguf,
     projector_for,
+    warm_model,
     write_presets,
 )
 
@@ -250,7 +252,10 @@ class CatalogService:
         if ticket is None:
             return None
         return InstallPlan(
-            ticket.file.removesuffix(".gguf"), ticket.repo, ticket.file, ticket.size_bytes
+            ticket.file.removesuffix(".gguf"),
+            ticket.repo,
+            ticket.file,
+            ticket.size_bytes,
         )
 
     async def install(self, plan: InstallPlan) -> AsyncIterator:
@@ -283,6 +288,16 @@ class CatalogService:
                 pass  # restarting, which is exactly what we are waiting for
             await asyncio.sleep(interval)
         return False
+
+    def warm_model(self, model_id: str) -> AsyncIterator[LoadProgress]:
+        """Load a model now, reporting how far along it is.
+
+        Separate from `wait_until_servable`, which answers a different
+        question: that one waits for the restarted router to *know* about the
+        file, and this one waits for the weights to be in memory. A model the
+        router lists still costs a cold load on the first question asked of it.
+        """
+        return warm_model(self._runtime_url, model_id)
 
     async def search(self, query: str, *, limit: int = 30) -> list[SearchHit]:
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -339,7 +354,9 @@ class CatalogService:
         # so its architecture says nothing about the repo and only the tag
         # stands. Every path here fails open: the runtime holds the real file
         # and refuses with the same sentence if this was wrong.
-        judged = shape.architecture if candidate and candidate.kind is FileKind.MODEL else ""
+        judged = (
+            shape.architecture if candidate and candidate.kind is FileKind.MODEL else ""
+        )
         reason = refusal(judged, tag)
         if reason:
             return self._ineligible(

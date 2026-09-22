@@ -313,7 +313,7 @@ describe("studio panel", () => {
               label: "Image",
               requires_roles: ["image_generation", "generation"],
               available: false,
-              unavailable_reason: "Image model required",
+              unavailable_reason: "Needs an image model",
             },
           ])
         }
@@ -330,7 +330,7 @@ describe("studio panel", () => {
     await user.hover(image)
     expect(
       await screen.findByRole("tooltip", {
-        name: "Image model required",
+        name: "Needs an image model",
       })
     ).toBeTruthy()
   })

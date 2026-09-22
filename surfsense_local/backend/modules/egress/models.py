@@ -8,7 +8,7 @@ from shared.db import Base
 class EgressDestination(Base):
     __tablename__ = "egress_destinations"
 
-    # "model_download", or "host:<hostname>" for a BYO provider.
+    # "host:<hostname>": one row per host, built in or discovered from a provider.
     destination: Mapped[str] = mapped_column(primary_key=True)
     enabled: Mapped[bool] = mapped_column(default=False)
     last_call_at: Mapped[datetime | None]

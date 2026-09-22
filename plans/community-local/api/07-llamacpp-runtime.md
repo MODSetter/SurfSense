@@ -46,7 +46,7 @@ native API did not.
 | **Layer placement** | `--fit` owns it. We never set `n-gpu-layers` | Setting it by hand aborts the fitter, after which the model loads entirely on the CPU with exit 0 and no error. |
 | **GPU backend** | Vulkan on every platform off Apple Silicon. No CUDA payload | Measured on an RTX 3050 at `b11050`: CUDA leads Vulkan 9.1% on `pp512`, 10.2% on `pp8192`, 2.1% on decode. That is 0.66 s on an 11 s turn, for 685 MB. Vulkan covers NVIDIA, AMD and Intel from one 31 MB archive and its loader ships with Windows. CUDA is specified as an optional later addition in [`08-cuda-backend.md`](08-cuda-backend.md) and needs no code change, because ggml selects a backend by the files present. |
 | **MLX** | Not shipped. Revisit after launch | MLX's format covers 23,985 HF repos against GGUF's 204,797. One format and the full catalog wins. Mac users who want MLX point a connection at LM Studio; see **The Mac path**. |
-| **llmfit** | Authoring-time only. Not shipped, not in CI, not in any request path | A person runs `scripts/refresh_curated_models.py` when adding or changing a curated entry, a few times a year, and commits the numbers. |
+| **Authoring** | `scripts/refresh_curated_models.py`, run by hand. Not shipped, not in CI, not in any request path | A person edits `ENTRIES`, reads the real GGUF header and Hugging Face listing the script fetches, and commits the result, a few times a year. |
 | **Install gate** | One denylist, keyed by both the GGUF architecture and the repo's pipeline tag | A denylist ages the right way: llama.cpp gains architectures every few weeks, so an unknown name is usually a chat model released last week. The allowlist this replaces was generated from the pinned `libllama` and was correct, but it cost a script run per pin bump and a data file that had to ship because the symbol it reads is not exported on Windows. Measured over the 1000 most downloaded GGUF repos, dropping it lets 18 of 979 install and then fail, all of them architectures released in the last few weeks. Accepted: curated is the default path, search is opt in, and `MODEL_CANNOT_RUN` now says the model will not run rather than asking the reader to retry. |
 | **GGUF parser** | llama.cpp's own `gguf` package, pinned at `0.19.0` | The search tier parses bytes from arbitrary repositories, and upstream's parser is the one that receives hardening. A 150-line adapter handles the one thing it cannot do, which is read a header out of a byte prefix. |
 | **Hardware budget** | `ggml_backend_dev_memory()` through `ctypes`, in a child process | The allocator's own view. The child exists because the backend scan keys on the running executable's directory, because a driver fault would otherwise take the API with it, and because the first Metal device query compiles 20 shader libraries in 19 seconds. |
@@ -58,8 +58,8 @@ native API did not.
 | **KV precision** | `f16` when it fits, `q8_0` only when it converts a spill into residency | Measured: `f16` KV at a 16K window cannot allocate on a 6 GB card (`ErrorOutOfDeviceMemory`) while `q8_0` at the same depth runs. Quality is identical either way, but a quantized cache needs a working flash-attention kernel and `f16` does not, so the dependency is taken only where it pays. One rule, in `fit/precision.py`, read by the badge and by the loader. |
 | **Catalog** | Two tiers: a curated manifest and Hugging Face search | Curated is the offline product and ships frozen. Search is a network feature and is simply absent airgapped. |
 | **Fit badge** | Every row, both tiers | Fit is subtraction, not judgement. Exact from committed `shape` for curated, exact from the header for an opened search result, approximate from file size when a header cannot be read. |
-| **`rank`** | Curated entries only, inside the variant, never on the wire | A preference order over models we tested for this app's job, answering from documents with citations that resolve. It is only ever a sort key, so it must not imply a measurement we do not have. A searched model never carries one. |
-| **Recommendation** | Highest `rank` among builds whose speed tier is recommendable | Residency is a mechanism and speed is the goal, and on small cards they disagree. Both the badge's wording and the star's eligibility read one classification, so they cannot contradict each other. |
+| **Ordering** | Curated manifest list position, never on the wire | A preference order over models we tested for this app's job, answering from documents with citations that resolve. There is no score, so there is nothing to imply we measured. A searched model has no position to read. |
+| **Recommendation** | Latest-in-list-order build whose speed tier is recommendable | Residency is a mechanism and speed is the goal, and on small cards they disagree. Both the badge's wording and the star's eligibility read one classification, so they cannot contradict each other. |
 | **Downloads** | SurfSense fetches the GGUF, not `POST /models` | `llama-server` is a second process we do not proxy, so an in-process fetch is the only place `egress.require()` can hold. It also buys resume, checksums, and the header as the file lands. |
 | **Install ids** | Opaque, server-minted, for both tiers | The renderer sends a `catalog_id` and nothing else. Letting it post a repo and file would hand the frontend the ability to name an arbitrary download. |
 | **Egress** | `model_download` and `model_search`, both `huggingface.co` | Same host, different consent. A user who allowed model downloads allowed fetching a file they named; search sends text they are typing. |
@@ -155,7 +155,6 @@ From `electron/src/main/sidecars/llamacpp.ts`:
 --models-dir <dataDir>/models
 --host 127.0.0.1  --port <free>
 --models-max 1
---sleep-idle-seconds 300
 --models-autoload
 --no-ui
 --jinja
@@ -168,9 +167,23 @@ directory.
 
 - `--models-max 1` because this app asks one question at a time, and a second
   resident model is memory taken from the one being used.
-- `--sleep-idle-seconds 300` is not optional. Measured at `b11050`, a model
-  without it self-evicted after roughly 30 s idle, which turns the second
-  question of a conversation into a reload.
+- **No `--sleep-idle-seconds`.** It defaults to `-1`, meaning a loaded model is
+  never unloaded on a timer, and the router's only other eviction is LRU under
+  capacity pressure, which `tick()` skips outright while its queue is empty:
+  one model and `--models-max 1` cannot produce it. Re-measured at `b11050` on
+  Metal and on Vulkan, a model left idle for over a minute reports `loaded`
+  throughout.
+
+  So passing the flag is what unloads a model mid-conversation, and the reload
+  costs the full 10 to 26 s: `handle_sleeping_state` calls `destroy()`, which
+  frees the model and its context rather than parking them. An earlier note
+  here recorded the opposite, that a model self-evicted after roughly 30 s
+  without the flag; that does not reproduce on either backend and has been
+  withdrawn.
+
+  The cost of leaving it off is that a local model stays resident for as long
+  as the app runs. A user answering through a remote connection spends none of
+  it, because the router holds no device memory until something loads.
 - `--models-autoload` is the upstream default, stated because the chat path
   depends on it. The router's proxy calls `ensure_model_ready` before
   forwarding, so a cold model loads on the request that needs it, and **nothing
@@ -285,6 +298,33 @@ and reporting the install complete before then tells the user a model is ready
 while a chat returns `model '<id>' not found`, measured as a 400. A timeout
 returns `False` rather than raising. The download did succeed and the file is on
 disk, so reporting a failed install would be the wrong thing to say.
+
+### Warming: listed is not loaded
+
+`wait_until_servable()` answers "the router knows about this file", which is not
+"the weights are in memory". A model that is merely listed still costs a full
+load on the first question asked of it, and that load lands on the one moment
+somebody is watching.
+
+Three places warm it instead, all reading the same selection and all gated on
+`provider == "llamacpp"`, so a user answering through a remote connection never
+loads anything:
+
+- **After an install**, inside the stream, with the router's own progress
+  forwarded as `preparing` events. `GET /models/sse` reports a stage by name
+  and a 0 to 1 through it, so a vision model says *Loading image support* for
+  its second half rather than appearing stuck at 100%.
+- **On selection**, as a FastAPI background task. `POST /models/load` blocks
+  until the model is resident, so it must run after the response; choosing a
+  model is the moment the user has said they are about to use it, and
+  `--models-max 1` means the load is happening either way.
+- **At startup**, on the existing catalog-warm thread and after `reprice()`,
+  because the preset decides the window the load will use. Nothing is resident
+  after a restart whatever the idle policy is.
+
+`residency.warm_selected()` is the one gate, and it never raises: a warm that
+fails costs the wait it was trying to avoid, which is where the caller already
+was.
 
 ### Turning thinking off
 
@@ -1006,7 +1046,7 @@ badged `FITS`.
 | Source | `curated-models.json`, shipped frozen | `huggingface.co` |
 | Network | none, ever | required, egress gated |
 | Priced from | committed `shape`, on first paint | file size, then the header on open |
-| Carries a `rank` | yes, never displayed | no |
+| Ordered by | manifest list position, never displayed | no order |
 | Can be recommended | yes | no |
 
 Two endpoints, deliberately. Curated plus installed renders offline and
@@ -1017,10 +1057,10 @@ that flag is the `scanned` flag this phase deleted.
 ### The manifest, schema 4
 
 `curated-models.json` is **source, not build output.** A person runs the
-authoring script, reads what it proposes, and commits the result. A rank moving
-78 to 94 shows up in a pull request where someone notices; a tag rebuilds to the
-same manifest forever; and the cadence is honest, since these change when someone
-adds a model rather than when someone cuts a release.
+authoring script, reads what it proposes, and commits the result. Reordering
+the ladder shows up in a pull request where someone notices; a tag rebuilds to
+the same manifest forever; and the cadence is honest, since these change when
+someone adds a model rather than when someone cuts a release.
 
 ```jsonc
 {
@@ -1053,9 +1093,7 @@ adds a model rather than when someone cuts a release.
       "size_bytes": 5027784512,
       "mmproj": null,
 
-      // JUDGEMENT. Three fields, typed by a person, beside the build they judge.
-      "rank": 78,
-      "rank_basis": "llmfit-1.1.11",
+      // JUDGEMENT. Typed by a person, beside the build they judge.
       "validated": false
     }
   ]
@@ -1063,8 +1101,9 @@ adds a model rather than when someone cuts a release.
 ```
 
 **The split is the point.** Everything marked DERIVED comes free from the GGUF
-header and the Hugging Face listing; everything marked JUDGEMENT is three small
-decisions a person makes in a minute. That is what keeps the manifest
+header and the Hugging Face listing; JUDGEMENT is the one decision a person
+makes for the build (`validated`), plus the model's own position in the list
+(preference order, described below). That is what keeps the manifest
 maintainable at twenty entries instead of six.
 
 **`shape` is what makes the curated tier work offline.** Pricing a model means
@@ -1079,33 +1118,31 @@ or by an older script, and the compute buffer would quietly price it as though
 the model had no layers to compute. The app refuses to start on that rather than
 shipping a confident wrong badge.
 
-**`rank` lives inside the variant** because quality is a function of (model,
-quantization), not of the model alone: llmfit returns 75, 78, 81, 82, 83 for
-Qwen3 8B at Q3_K_M through Q8_0. A rank at the top level describes a build
-without naming it, and that is not hypothetical, since an earlier draft carried
-five ranks taken at Q8_0 while the manifest pinned Q4_K_M. Nested, the mismatch
-is impossible to express.
+**There is no quality score anywhere in this file.** `models` is a plain list,
+and its position is the only preference signal there is — see "Ranking"
+below. Moving a model up or down the ladder is a one-line reorder, with no
+second field to keep in step with it.
 
-`validate_manifest` rejects a wrong `schema_version`, a duplicate `model_id`, a
-duplicate `(repo, file)` pin, and **more than one distinct `rank_basis`**, so
-ranks from two scales are never silently sorted together.
+`validate_manifest` rejects a wrong `schema_version`, a duplicate `model_id`,
+and a duplicate `(repo, file)` pin.
 
-The shipped six, all Qwen3, all `Q4_K_M`, `rank_basis` `llmfit-1.1.11`:
+The shipped six, all Qwen3, all `Q4_K_M`, listed smallest to largest:
 
-| model | file | rank |
-|---|---|---|
-| Qwen3 0.6B | 396,705,472 B | 33 |
-| Qwen3 1.7B | 1,107,409,472 B | 48 |
-| Qwen3 4B | 2,497,281,312 B | 63 |
-| Qwen3 8B | 5,027,784,512 B | 78 |
-| Qwen3 14B | 9,001,753,984 B | 85 |
-| Qwen3 32B | 19,762,150,048 B | 92 |
+| model | file |
+|---|---|
+| Qwen3 0.6B | 396,705,472 B |
+| Qwen3 1.7B | 1,107,409,472 B |
+| Qwen3 4B | 2,497,281,312 B |
+| Qwen3 8B | 5,027,784,512 B |
+| Qwen3 14B | 9,001,753,984 B |
+| Qwen3 32B | 19,762,150,048 B |
 
 ### Authoring
 
-`scripts/refresh_curated_models.py`, run by hand, **never in CI**. The three
-judgement fields live in an `ENTRIES` table in the script where a person edits
-them; everything else is derived from the live listing and a real header read.
+`scripts/refresh_curated_models.py`, run by hand, **never in CI**. `ENTRIES` in
+the script is the only hand-authored part — six short fields per model, plus
+its position in the table, the only preference signal in the catalog.
+Everything else is derived from the live listing and a real header read.
 
 `scripts/curated/` holds the derivation: `huggingface.py` resolves a repo and
 file and reads the header, `projector.py` finds an `mmproj-*.gguf` sibling and
@@ -1141,57 +1178,26 @@ recommendation.
 
 ### Ranking
 
-`rank` does two things and nothing else: it orders the curated rows, and it
-selects the star. It is never displayed, never compared outside the app, and
-never applied to a searched model. Because it is only ever a sort key it does not
-need to be a measurement, it needs to be an **order**. Hence `rank`, not
-`quality`: calling it quality would imply we measured something we did not.
+There is no score. `ENTRIES`' own list position does two things and nothing
+else: it orders the curated rows, and it selects the star. It is never
+displayed, never compared outside the app, and never applied to a searched
+model.
 
-**It means "good at this app's job"**, answering from the user's documents with
-citations that resolve, not general capability. That distinction does real work:
-llmfit rates Qwen2.5-Coder 7B at 89 against Qwen3 8B's 83, because it is
-measuring coding ability, and for document Q&A the coder is the weaker model.
+**It means "good at this app's job"**, answering from the user's documents
+with citations that resolve, not general capability — which is why position is
+authored by hand rather than taken from a general-capability benchmark. The
+shipped six are ordered 0.6B through 32B, smallest to largest.
 
-**llmfit proposes; a person decides.** It carries real model-specific signal:
-grouping about 4,000 scored models by (parameter count, quantization), 224 of 230
-groups show quality varying between models of identical size and quant, so it is
-not parameter count in disguise. But it is unreliable on models it does not know
-well, returning a perfect 100 for community fine-tunes with names like
-`Qwen3.5-27B-Claude-4.6-Opus-Reasoning-Distilled-NV`, above published models.
-That number is closer to the name than to measured behaviour. The shipped six
-come back 33, 48, 63, 78, 85, 92: monotonic and sanely spread, which is the
-population the curated tier draws from.
-
-Four checks before committing a rank: within a family it should rise with
-parameter count; anything at or near 100 is suspect; across families cross-check
-a public leaderboard, which is the comparison llmfit is least reliable at; and a
-specialist is ranked for *this* task, not the one it was tuned on. If llmfit has
-no entry or proposes something absurd, type the integer by hand. The field is an
-`int` and nothing requires llmfit to have produced it.
-
-**If llmfit disappears tomorrow**, committed ranks are unaffected, the schema is
-unaffected, the refresh script loses its proposer, and the app never knew about
-it. That is the test a long-term dependency should pass, and the reason to keep
-it outside the product.
-
-**Vision is a capability, not a rank position.** Nobody chooses a vision model
-instead of a general one; they need one when the documents are images. So the
-star stays "the best-ranked build that runs well", and a vision entry surfaces
-when it is relevant, never as a competitor in the ordering.
+**Vision is a capability, not a ladder position.** Nobody chooses a vision
+model instead of a general one; they need one when the documents are images.
+So the star stays "the most preferred build that runs well", and a vision
+entry surfaces when it is relevant, never as a competitor in the ordering.
 
 **Staleness is acceptable by design.** Airgapped means no refresh path, so a
 shipped list ages. That would be fatal if curated were the only way to get a
-model, and it is not: 204,797 models are one search away, badged and installable.
-Curated ages into "a starting point we tested a while ago" rather than a
-boundary.
-
-> **Long-term destination, not this phase.** llmfit grades general capability.
-> SurfSense needs something narrower: does this model answer from the user's
-> documents, and cite the right chunks? No external leaderboard measures that.
-> The honest end state is a small internal eval, 20 to 40 fixed questions over a
-> fixed document set, run through the real chat path and scored on whether the
-> answer came from the sources and whether `[n]` citations resolved, with `rank`
-> set from that.
+model, and it is not: 204,797 models are one search away, badged and
+installable. Curated ages into "a starting point we tested a while ago" rather
+than a boundary.
 
 ### Search
 
@@ -1359,30 +1365,32 @@ the same failure and already has copy.
 
 ### List order and the recommendation policy
 
-Curated sorts by `(fit state, -rank, model_id)`: fit coarsely, rank finely.
-Sorting by rank alone would put a refused 32B at the top of a small machine's
-screen, which is the one thing a model chooser must not do.
+Curated sorts by `(fit state, -manifest position, model_id)`: fit coarsely,
+manifest position finely. Sorting by position alone would put a refused 32B
+at the top of a small machine's screen, which is the one thing a model chooser
+must not do.
 
-**One row per model, not per variant.** A model with two builds is one row, which
-takes the best state and rank among them and installs the build that produced
-them. Listing builds separately would show the same model twice on a screen whose
-job is choosing a model.
+**One row per model, not per variant.** A model with two builds is one row,
+which takes the best state among them and installs the build that produced
+it. Listing builds separately would show the same model twice on a screen
+whose job is choosing a model.
 
-**Neither list displays a rank.** `CatalogRow` does not carry one, `schemas.py`
-does not declare one, and `router._row()` does not serialise one. The surest way
-to keep "never displayed" true is for the renderer never to receive it.
+**Neither list displays a score.** `CatalogRow` does not carry one,
+`schemas.py` does not declare one, and `router._row()` does not serialise one.
+The surest way to keep "never displayed" true is for the renderer never to
+receive it.
 
 ```python
 def recommend(curated, budget) -> Recommendation | None:
     candidates = [
-        (entry, variant, verdict)
-        for entry in curated
+        (index, entry, variant, verdict)
+        for index, entry in enumerate(curated)
         for variant in entry.variants
         # at the cache the loader would actually choose
         for verdict in [estimate(..., precision=planned_precision(...))]
         if speed_tier(verdict) in RECOMMENDABLE_TIERS
     ]
-    return max(candidates, key=lambda c: (c.variant.rank, -c.variant.size_bytes),
+    return max(candidates, key=lambda c: (c[0], -c[2].size_bytes),
                default=None)
 ```
 
@@ -1397,11 +1405,11 @@ a full spill, which the gate then refused, so the one screen whose job is
 choosing a model chose nothing on the hardware that most needs the help. Splitting
 residency from refusal made `PARTIAL` unreachable there, and the star came back.
 
-**The policy ranges over builds, not models**, because a build is what the user
-installs and what `rank` describes. With one variant per entry the cross-product
-is the entry list and the behaviour is identical, but writing it this way is the
-difference between adding a second build later as a manifest edit and rewriting
-the module, its tests and every fixture.
+**The policy ranges over builds, not models**, because a build is what the
+user installs. With one variant per entry the cross-product is the entry list
+and the behaviour is identical, but writing it this way is the difference
+between adding a second build later as a manifest edit and rewriting the
+module, its tests and every fixture.
 
 **Why the gate is on speed rather than on residency.** Residency is a mechanism
 and speed is the goal, and they coincide on a large card and diverge on a small
@@ -1475,8 +1483,8 @@ approximate), `badge` (verdict, reason), `capabilities`, `installed`, `selected`
 `can_install`, `recommended`, and an opaque `catalog_id`. `RepoRead` carries
 `architecture`, `context_length`, `supported`, `chat_template`, an optional
 `ineligible_reason`, and a list of `BuildRead`. **No row of any kind carries a
-`rank`, and no response carries a `scanned` flag**, because there is no scan: the
-budget comes from the allocator in milliseconds.
+quality score, and no response carries a `scanned` flag**, because there is no
+scan: the budget comes from the allocator in milliseconds.
 
 ### The install stream
 
@@ -1744,9 +1752,9 @@ worth knowing about, because each encodes a failure that actually happened:
 - `test_badge_matches_the_load.py` sweeps every curated model against every
   budget shape and asserts a starred row's badge is never spill wording.
 - A `PARTIAL` build below the light-spill ceiling is starrable, and a
-  higher-ranked spilling build beats a fully resident lower-ranked one.
-- `TOO_BIG` is refused regardless of rank: the tier relaxes residency, never
-  physics.
+  later-in-the-list spilling build beats an earlier fully resident one.
+- `TOO_BIG` is refused regardless of list position: the tier relaxes
+  residency, never physics.
 - A CPU-only machine still gets a star.
 - A quantized cache is allowed to rescue a larger model, because the star has to
   name the model the loader will actually run.
@@ -1762,8 +1770,8 @@ worth knowing about, because each encodes a failure that actually happened:
 **Catalog and runtime**
 
 - Curated renders with no network at all; search is `403` with egress off.
-- A search row carries no `rank` field, asserted on the serialized response so it
-  cannot be reintroduced silently.
+- A search row carries no quality-score field, asserted on the serialized
+  response so one cannot be reintroduced silently.
 - The committed architecture list equals what the staged `libllama` reports,
   skipped when no runtime is staged, so a pin bump that forgets the generator
   fails there rather than in a user's search results weeks later. A second check
@@ -1786,9 +1794,9 @@ worth knowing about, because each encodes a failure that actually happened:
 - A fake router covers health, models, props, load, tokenize, chat stream and
   delete; router mode against an empty models directory asserts
   `/props` reports `role: router`.
-- Manifest: schema 3 is refused, a shape without `embedding_length` is refused,
-  two `rank_basis` values are refused, and every shipped entry has positive
-  widths.
+- Manifest: schema 3 is refused, a shape without `embedding_length` is
+  refused, `Variant` has no `rank` or `rank_basis` field, and every shipped
+  entry has positive widths.
 
 **Migration**: a database seeded with an Ollama selection and an `ollama_pull`
 egress row upgrades so the grant lands on `model_download` and `model_search` is
@@ -2013,37 +2021,17 @@ Qwen3 4B Q4_K_M, `-ngl 99`, same card:
 0.66 s on an 11 s turn, for 685 MB of payload. Full working in
 [`08-cuda-backend.md`](08-cuda-backend.md).
 
-### Why `rank` can be authored at all
+### Why no per-device model scan is needed
 
-This is the load-bearing fact under the whole authoring design. Qwen3 8B,
-`--ram 64G` held fixed, sweeping the device budget:
-
-| `--memory` | `best_quant` | `quality` | `estimated_tps` | `score` |
-|---|---|---|---|---|
-| 6G | Q3_K_M | 75 | 17.9 | 65.1 |
-| 7G | Q4_K_M | 78 | 13.4 | 63.8 |
-| 8G | Q5_K_M | 81 | 10.7 | 63.6 |
-| 10G | Q6_K | 82 | 9.0 | 66.2 |
-| 12G | Q8_0 | **83** | 6.7 | 63.6 |
-| 16G | Q8_0 | **83** | 6.7 | 67.4 |
-| 24G | Q8_0 | **83** | 6.7 | 67.4 |
-| 48G | Q8_0 | **83** | 6.7 | 67.4 |
-
-Read the last four rows: four times the memory, and quality does not move. **It
-stops moving the instant the quantization stops moving.** Hardware reaches
-quality through exactly one channel, `best_quant`, and pinning the file closes
-it. Confirmed across the population too: holding the quantization fixed over
-2,424 models, quality differs in 0 of 2,424 and memory in 0 of 2,424.
-
-Three consequences. `rank` is authored once and shipped frozen, because a number
-that does not vary with the machine is data and a scan on the user's device has
-nothing to discover. Only `score_components.quality` is read and `score` is
-discarded, because `score` runs 65.1, 63.8, 63.6, 66.2, 63.6, 67.4 in the same
-sweep, non-monotonic and moving with hardware since it blends fit and speed into
-the quality term: the composite is a statement about a laptop, the component is a
-statement about a file. And the declared budget must land llmfit on the pinned
-quantization, which is why the authoring script sweeps the ladder and indexes it
-rather than taking one reading.
+Once tried, held for the record: sweeping a general-capability scorer's device
+budget for Qwen3 8B, `--ram 64G` held fixed, its quality figure moved only with
+`best_quant`, never with memory once the quantization stopped moving — 0 of
+2,424 models showed quality or memory varying at a fixed quantization across
+the population. A number that does not vary with the machine is authoring-time
+data, not something a scan on the user's device could discover. That is the
+fact this phase's authoring design rests on: preference order for the curated
+ladder is set once, by a person, and shipped frozen — never scanned, never
+recomputed per device.
 
 ### Router lifecycle
 
@@ -2051,7 +2039,7 @@ rather than taking one reading.
 |---|---|
 | Router up, three models discovered | VRAM unchanged from idle |
 | Worker spawn argv | `--port 0 --model <path>` |
-| Idle eviction without `--sleep-idle-seconds` | about 30 s |
+| Idle eviction without `--sleep-idle-seconds` | none; `loaded` after 60 s idle on Metal and Vulkan |
 | Model dropped into a running router's directory | still invisible after 26 s |
 | Sidecar restart to pick up a preset change | 0.15 s |
 | Grandchild reaping, `taskkill /T /F` | four processes, depth first, no survivors |

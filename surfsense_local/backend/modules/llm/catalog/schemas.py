@@ -1,9 +1,10 @@
 """What the model screen receives.
 
-Two things are deliberately absent from every row: a `rank`, and any hint of a
-scan. Rank orders the curated list and selects the star and is never displayed,
-so the renderer does not receive it. There is no `scanned` flag because there is
-no scan: the budget comes from the runtime's own allocator in milliseconds.
+Two things are deliberately absent from every row: a quality score, and any
+hint of a scan. The curated list's order (never sent) and the physics-only fit
+verdict select the star; there is nothing else to send. There is no `scanned`
+flag because there is no scan: the budget comes from the runtime's own
+allocator in milliseconds.
 """
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -96,7 +97,7 @@ class CatalogRead(BaseModel):
 
 
 class SearchRowRead(BaseModel):
-    """A repo, described. No rank and no quality claim, ever."""
+    """A repo, described. No quality claim, ever."""
 
     repo: str
     downloads: int

@@ -143,15 +143,48 @@ def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:
         ) from error
 
 
+# What a role is called in a sentence, carrying its own article so the line
+# reads whichever roles it names. A format states the roles it needs and this
+# turns them into the one line the screen shows, so the wording cannot drift
+# between formats that need the same thing.
+_ROLE_PHRASES: dict[ModelRole, str] = {
+    ModelRole.GENERATION: "a chat model",
+    ModelRole.IMAGE_GENERATION: "an image model",
+}
+
+# Sentence order, which is not the order a format lists its roles in: the
+# pipeline takes them in the order it runs them, and a reader wants the same
+# phrasing whichever format they are looking at.
+_ROLE_ORDER: tuple[ModelRole, ...] = (
+    ModelRole.GENERATION,
+    ModelRole.IMAGE_GENERATION,
+)
+
+
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    for role in map(ModelRole, fmt.requires_roles):
-        if session.get(SelectedModel, role) is None:
-            if role is ModelRole.IMAGE_GENERATION:
-                return False, "Image model required"
-            return False, "Chat model required"
+    """Whether this format can run, and the one line saying why not.
+
+    Every missing role is named, not the first one noticed. A format needing
+    two of them reported only whichever `requires_roles` happened to list
+    first, so selecting that one moved the reason to the other and read as the
+    gate shifting rather than as half of it being met.
+    """
+    missing = [
+        role
+        for role in map(ModelRole, fmt.requires_roles)
+        if session.get(SelectedModel, role) is None
+    ]
+    if missing:
+        return False, _required(missing)
     if fmt.requires_voice:
         try:
             resolve_text_to_speech()
         except ModelResolutionError:
-            return False, "Voice model required"
+            return False, "Needs a voice model"
     return True, None
+
+
+def _required(missing: list[ModelRole]) -> str:
+    """"Needs a chat model and an image model", in a fixed reading order."""
+    phrases = [_ROLE_PHRASES[role] for role in _ROLE_ORDER if role in missing]
+    return f"Needs {' and '.join(phrases)}"

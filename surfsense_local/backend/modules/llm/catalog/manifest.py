@@ -1,14 +1,17 @@
 """The curated manifest: models SurfSense has tested, priced offline.
 
 **Source, not build output.** A person runs the authoring script, reads what it
-proposes, and commits the result. That is deliberate: a rank moving 78 to 94
+proposes, and commits the result. That is deliberate: reordering the ladder
 shows up in a pull request where someone notices, a tag rebuilds to the same
 manifest forever, and the cadence is honest, since these change when someone
 adds a model rather than when someone cuts a release.
 
-The schema enforces one thing no reviewer reliably catches: a `rank` sits inside
-the variant it was measured on, so it cannot describe a build the manifest does
-not ship.
+There is no quality score anywhere in this file. `models` is a plain list, and
+its order is the only preference signal there is: `curated_rows` and
+`recommend` both read a model's position in this list rather than a field
+beside it — see `modules/llm/catalog/rows.py` and `recommendation.py`. Moving a
+model up or down the ladder is a one-line reorder, reviewable the same way any
+other list edit is, with nothing to keep in sync beside it.
 """
 
 from pathlib import Path
@@ -59,12 +62,12 @@ class ModelShapeSpec(BaseModel):
 
 
 class Variant(BaseModel):
-    """One downloadable build, plus the three fields a person decides.
+    """One downloadable build, plus the one field a person decides.
 
-    Everything above `rank` is derived from the Hugging Face listing and the
-    GGUF header. Everything from `rank` down is judgement, and it lives here
-    rather than on the entry because quality is a function of (model,
-    quantization), not of the model alone.
+    Everything above `validated` is derived from the Hugging Face listing and
+    the GGUF header. `validated` lives on the variant rather than the entry
+    because it is a fact about one exact file, not about the model in
+    general — a person ran this build, not some other quantization of it.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -75,8 +78,6 @@ class Variant(BaseModel):
     size_bytes: int = Field(gt=0)
     mmproj: str | None = None
 
-    rank: int = Field(gt=0)
-    rank_basis: str = Field(min_length=1)
     validated: bool = False
 
 
@@ -139,16 +140,6 @@ class CuratedModelsManifest(BaseModel):
         if len(files) != len(set(files)):
             raise ValueError("duplicate pinned file in curated-model manifest")
 
-        bases = {
-            variant.rank_basis
-            for model in self.models
-            for variant in model.variants
-        }
-        if len(bases) > 1:
-            raise ValueError(
-                "ranks from different rank_basis values cannot be compared: "
-                f"{sorted(bases)}"
-            )
         return self
 
 
