@@ -40,10 +40,9 @@ from modules.llm.fit import (
     plan_load,
     planned_precision,
 )
-from modules.llm.gguf import shape_from_file
-from modules.llm.gguf.file_kind import FileKind, kind_of
+from modules.llm.gguf.file_kind import FileKind, GgufFile, kind_of
 from modules.llm.gguf.shape import to_shape
-from modules.llm.gguf.source import header_from_url
+from modules.llm.gguf.source import header_from_file, header_from_url
 from modules.llm.hardware import (
     BudgetMode,
     Device,
@@ -63,7 +62,6 @@ from modules.llm.providers.llamacpp import (
     ModelPreset,
     RouterClient,
     download_gguf,
-    is_projector,
     projector_for,
     write_presets,
 )
@@ -73,6 +71,12 @@ logger = logging.getLogger(__name__)
 # Priced from the listing alone when a header cannot be read. Every
 # architecture-derived term is zero, so `need` is the file size and nothing
 # else, and the row is marked approximate so the screen can say so.
+# How many builds the candidate walk will read before giving up. A repo
+# needs more than a handful of companions sorting ahead of its model for
+# this to matter, and each read is a probe, so the cap is about bounding a
+# pathological repo rather than a cost anyone pays.
+_CANDIDATES = 4
+
 _SIZE_ONLY_SHAPE = ModelShape(
     architecture="",
     block_count=0,
@@ -183,13 +187,16 @@ class CatalogService:
         live = self.budget(BudgetMode.LIVE)
         presets = []
         for path in sorted(self._models_dir.glob("*.gguf")):
-            # A projector is half of a vision model, not a model. It has a
-            # header and a size like any other file here, so without this it
-            # would be offered as something to chat with.
-            if is_projector(path):
-                continue
             try:
-                shape = shape_from_file(path)
+                header = header_from_file(path)
+                # A projector is half of a vision model, not a model. It has a
+                # header and a size like any other file here, so without this it
+                # would be offered as something to chat with. Asked of the file
+                # rather than of its name: this loop reads the header anyway, so
+                # the name only ever saved a read it was about to do.
+                if kind_of(header).kind is not FileKind.MODEL:
+                    continue
+                shape = to_shape(header)
             except (OSError, ValueError):
                 # A truncated or foreign file in the directory. Skipping it
                 # costs that one model; failing would leave the runtime dead
@@ -316,13 +323,8 @@ class CatalogService:
             if facts is not None:
                 chat_template = facts.has_chat_template
 
-            candidate = None
-            try:
-                url = f"https://huggingface.co/{repo}/resolve/main/{builds[0].file}"
-                header = await header_from_url(client, url)
-                shape = to_shape(header)
-                candidate = kind_of(header)
-            except (httpx.HTTPError, ValueError):
+            candidate, shape = await self._candidate(client, repo, builds)
+            if shape is None:
                 # The listing is enough to say how large each build is, and a
                 # size alone still orders the ladder. Refusing the whole repo
                 # over one unreadable header would hide builds the user can run.
@@ -388,6 +390,45 @@ class CatalogService:
             "builds": rows,
             "ineligible_reason": None,
         }
+
+    async def _candidate(
+        self, client: httpx.AsyncClient, repo: str, builds: list
+    ) -> tuple[GgufFile | None, ModelShape | None]:
+        """The first build whose own header says it is a model.
+
+        `list_builds` orders by size and a draft head is always smaller than the
+        model it accelerates, so in a repo shipping both, the smallest file is a
+        companion. Judging it would refuse every build of a working model, which
+        is the failure Hugging Face's repo summary used to cause, reproduced
+        from our own ordering.
+
+        So the order is a suggestion and the header is the answer. A companion
+        costs one probe to rule out, because it carries no tokenizer and its
+        metadata ends inside it, while a chat model truncates there and widens
+        exactly as it did before.
+
+        The question is "does this repo hold anything runnable", so a build that
+        is a model but a denied one keeps the walk going. A draft head declares
+        `general.type = model` and is one, structurally; only the denylist knows
+        it answers nothing. Refusing on the first denied build would turn away
+        a working model shipped beside its own accelerator.
+
+        Stops after `_CANDIDATES` reads, and then reports the last thing it saw
+        so the refusal names something real. That is the right answer for a repo
+        of nothing but sidecars, which is what a drafter-only repo is.
+        """
+        last: tuple[GgufFile | None, ModelShape | None] = (None, None)
+        for build in builds[:_CANDIDATES]:
+            url = f"https://huggingface.co/{repo}/resolve/main/{build.file}"
+            try:
+                header = await header_from_url(client, url)
+            except (httpx.HTTPError, ValueError):
+                return last
+            found = kind_of(header)
+            last = (found, to_shape(header))
+            if found.kind is FileKind.MODEL and not refusal(found.architecture):
+                return last
+        return last
 
     def _ineligible(
         self,

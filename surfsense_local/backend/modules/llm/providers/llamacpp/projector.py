@@ -5,9 +5,10 @@ turns an image into something the weights can read, and llama.cpp loads the
 second only when told to. The fitter does not count its memory either, so the
 margin has to carry it.
 
-Both files sit in the models directory, so this is also what stops a projector
-being offered as a model in its own right: it has a GGUF header and a size, and
-nothing else about it says it cannot answer a question.
+Pairing only. What a file *is* comes from its header, in `gguf/file_kind.py`,
+and `reprice` asks there before offering anything as a model. The name is still
+how the pair is found, because that search globs a whole directory and a header
+read per file is the cost this was always avoiding.
 """
 
 from collections.abc import Iterable
@@ -16,12 +17,11 @@ from pathlib import Path
 _MARKER = "mmproj"
 
 
-def is_projector(path: Path) -> bool:
-    """Whether this file is a projector rather than a model.
+def _named_as_projector(path: Path) -> bool:
+    """Whether the name says projector, which is how the pair is found.
 
-    Named by convention rather than read from the header: every publisher marks
-    them this way, and the alternative is a header read per file on a path that
-    runs at startup.
+    Not a verdict on what the file is. `file_kind` answers that from the header,
+    and `reprice` asks it before anything is offered as a model.
     """
     return _MARKER in path.stem.lower()
 
@@ -41,5 +41,5 @@ def projector_for(model_path: Path, named: Iterable[str] = ()) -> Path | None:
         if candidate.exists():
             return candidate
 
-    beside = [path for path in sorted(directory.glob("*.gguf")) if is_projector(path)]
+    beside = [path for path in sorted(directory.glob("*.gguf")) if _named_as_projector(path)]
     return beside[0] if len(beside) == 1 else None

@@ -48,6 +48,7 @@ class FileKind(StrEnum):
     ADAPTER = "adapter"
     IMATRIX = "imatrix"
     SHARD = "shard"
+    NOT_LOADABLE = "not_loadable"
 
 
 @dataclass(frozen=True)
@@ -59,11 +60,13 @@ class GgufFile:
     architecture: str = ""
 
 
-_BY_TYPE = {
+# Only the companion types. `GGUFType.MODEL` is deliberately absent: a file
+# claiming to be a model still has to name an architecture, and the check below
+# is what catches one that does not.
+_COMPANION_TYPES = {
     GGUFType.MMPROJ: FileKind.PROJECTOR,
     GGUFType.ADAPTER: FileKind.ADAPTER,
     GGUFType.IMATRIX: FileKind.IMATRIX,
-    GGUFType.MODEL: FileKind.MODEL,
 }
 
 # Written by older writers that predate `general.type`, and by the patched
@@ -93,9 +96,18 @@ def kind_of(header: GgufHeader) -> GgufFile:
         return GgufFile(FileKind.SHARD, architecture)
 
     declared = meta.get(Keys.General.TYPE)
-    if isinstance(declared, str) and declared in _BY_TYPE:
-        return GgufFile(_BY_TYPE[declared], architecture)
+    if isinstance(declared, str) and declared in _COMPANION_TYPES:
+        return GgufFile(_COMPANION_TYPES[declared], architecture)
 
     if architecture.lower() in _PROJECTOR_ARCHITECTURES:
         return GgufFile(FileKind.PROJECTOR, architecture)
+
+    # Silence as an answer, rather than a missing answer. `general.architecture`
+    # is what llama.cpp's loader dispatches on, so a file that declares none
+    # fails every time. Measured: MiniMax-H3's video GGUFs carry a bare tensor
+    # header with zero metadata and are among the repos that install and then
+    # fail. Reachable only after a successful parse, which is what keeps it off
+    # the truncated path where silence means nothing at all.
+    if not architecture:
+        return GgufFile(FileKind.NOT_LOADABLE)
     return GgufFile(FileKind.MODEL, architecture)

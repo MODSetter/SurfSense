@@ -103,3 +103,37 @@ def test_the_probe_is_small_enough_that_a_refusal_is_cheaper_than_a_pricing_read
     nothing and is wrong 1.7% of the time; this makes it cost a quarter of a
     megabyte and be right."""
     assert PROBE_BYTES <= 512 * 1024
+
+
+def test_a_header_that_parsed_and_named_no_architecture_cannot_be_loaded() -> None:
+    """The one case where silence is an answer rather than a missing answer.
+
+    `general.architecture` is mandatory for anything llama.cpp can load: it is
+    what the loader dispatches on. A file that declares none will fail every
+    time. Measured on the hub: MiniMax-H3's video GGUFs carry a bare tensor
+    header with zero metadata, and they are among the repos that install and
+    then fail today.
+
+    Safe only because the parse succeeded. A short read raises before reaching
+    this, which is what separates "I read it and there was nothing" from "I
+    could not finish reading", and the second must always admit.
+    """
+    raw = gguf([kv("general.type", STRING, "model")])
+
+    assert file_kind(raw).kind is FileKind.NOT_LOADABLE
+
+
+def test_a_bare_tensor_header_with_no_metadata_cannot_be_loaded() -> None:
+    """The measured shape: a valid GGUF container holding nothing that says
+    what it is."""
+    assert file_kind(gguf([])).kind is FileKind.NOT_LOADABLE
+
+
+def test_a_truncated_read_still_admits() -> None:
+    """The line this must never cross. A chat model's word list pushes its
+    header past any prefix worth fetching, so truncation is the common case and
+    refusing on it would refuse almost everything."""
+    raw = gguf([kv("general.type", STRING, "model"),
+                kv("general.architecture", STRING, "qwen3")])
+
+    assert file_kind(raw[:20]).kind is FileKind.MODEL

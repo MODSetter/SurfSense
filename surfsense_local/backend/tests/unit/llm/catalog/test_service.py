@@ -368,3 +368,92 @@ async def test_a_repo_whose_model_really_cannot_chat_is_still_refused(
 
     assert body["supported"] is False
     assert "search" in body["ineligible_reason"].lower()
+
+
+async def test_a_sidecar_sorting_first_does_not_refuse_the_whole_repo(
+    tmp_path, monkeypatch
+) -> None:
+    """The last place a filename still decided something.
+
+    `list_builds` orders by size and a draft head is always smaller than the
+    model it accelerates, so in a repo shipping both, the head is `builds[0]`.
+    Judging it would refuse every build of a working model, which is the same
+    failure Hugging Face's repo summary used to cause, from our own ordering
+    instead.
+
+    The file says what it is, so the walk moves on rather than believing the
+    order it was handed.
+    """
+    served = {
+        "Qwen3-Q8_0-MTP.gguf": gguf_bytes(architecture="eagle3"),
+        "model-Q4_K_M.gguf": gguf_bytes(architecture="qwen3"),
+    }
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if "/tree/main" in request.url.path:
+            return httpx.Response(
+                200,
+                json=[
+                    {"path": "MTP/Qwen3-Q8_0-MTP.gguf", "size": 1_000_000_000},
+                    {"path": "model-Q4_K_M.gguf", "size": 5_000_000_000},
+                ],
+            )
+        if "/resolve/main/" in request.url.path:
+            name = request.url.path.rsplit("/", 1)[-1]
+            return httpx.Response(206, content=served[name])
+        return httpx.Response(200, json={"gguf": {"architecture": "qwen3"}})
+
+    _serve_repo(monkeypatch, httpx.MockTransport(handle))
+    service = CatalogService(load_curated_models(), tmp_path, tmp_path, probe=lambda _: [])
+
+    body = await service.repo("some/qwen3-with-a-drafter")
+
+    assert body["supported"] is True
+    assert body["architecture"] == "qwen3"
+
+
+async def test_a_repo_of_nothing_but_sidecars_is_still_refused(
+    tmp_path, monkeypatch
+) -> None:
+    """The walk admits nothing on its own. A repo that never yields a model is
+    described by the last thing it did yield, not quietly let through."""
+    def handle(request: httpx.Request) -> httpx.Response:
+        if "/tree/main" in request.url.path:
+            return httpx.Response(
+                200, json=[{"path": "MTP/Qwen3-Q8_0-MTP.gguf", "size": 1_000_000_000}]
+            )
+        if "/resolve/main/" in request.url.path:
+            return httpx.Response(206, content=gguf_bytes(architecture="eagle3"))
+        return httpx.Response(200, json={})
+
+    _serve_repo(monkeypatch, httpx.MockTransport(handle))
+    service = CatalogService(load_curated_models(), tmp_path, tmp_path, probe=lambda _: [])
+
+    body = await service.repo("some/drafters-only")
+
+    assert body["supported"] is False
+
+
+def test_a_projector_named_anything_is_not_offered_as_a_model(tmp_path) -> None:
+    """The last filename guess on the local side.
+
+    `reprice` reads every header anyway, to price the model, so checking the
+    name first only saved a read it was about to do. Reading first and asking
+    the file makes it right for a publisher who did not follow the convention,
+    and `general.type = mmproj` is what every projector measured on the hub
+    actually carries.
+    """
+    models = tmp_path / "models"
+    models.mkdir()
+    (models / "vision-half-BF16.gguf").write_bytes(
+        gguf([kv("general.type", STRING, "mmproj"),
+              kv("general.architecture", STRING, "clip")])
+    )
+    (models / "Qwen3-8B-Q4_K_M.gguf").write_bytes(gguf_bytes())
+    service = CatalogService(load_curated_models(), models, tmp_path, probe=lambda _: [])
+
+    service.reprice()
+
+    written = (models / "models.ini").read_text()
+    assert "vision-half-BF16" not in written
+    assert "Qwen3-8B-Q4_K_M" in written

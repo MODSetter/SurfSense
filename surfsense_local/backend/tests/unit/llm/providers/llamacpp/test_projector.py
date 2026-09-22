@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from modules.llm.providers.llamacpp import is_projector, projector_for
+from modules.llm.providers.llamacpp import projector_for
 
 pytestmark = pytest.mark.unit
 
@@ -15,12 +15,17 @@ def touch(path: Path) -> Path:
     return path
 
 
-def test_a_projector_is_recognised_however_it_is_named() -> None:
-    """Every publisher marks them the same way, which is why the name is enough
-    and a header read per file at startup is not needed."""
-    assert is_projector(Path("mmproj-F16.gguf"))
-    assert is_projector(Path("Qwen3-VL-mmproj-BF16.gguf"))
-    assert not is_projector(Path("Qwen3-8B-Q4_K_M.gguf"))
+def test_the_pair_is_found_by_name_whichever_way_it_is_written() -> None:
+    """Finding the pair is a directory search, so it stays a name match: a
+    header read per file is the cost this avoids. What a file *is* is decided
+    from its header in `gguf/file_kind.py`, and `reprice` asks there before
+    offering anything as a model, so a badly named projector is caught even
+    though this never sees it."""
+    from modules.llm.providers.llamacpp.projector import _named_as_projector
+
+    assert _named_as_projector(Path("mmproj-F16.gguf"))
+    assert _named_as_projector(Path("Qwen3-VL-mmproj-BF16.gguf"))
+    assert not _named_as_projector(Path("Qwen3-8B-Q4_K_M.gguf"))
 
 
 def test_the_manifest_name_wins_when_there_is_one(tmp_path: Path) -> None:
