@@ -12,6 +12,7 @@ from modules.llm.catalog import (
     CuratedModelsManifest,
     load_curated_models,
 )
+from modules.llm.catalog.manifest import Variant
 
 pytestmark = pytest.mark.unit
 
@@ -42,8 +43,6 @@ def entry(**overrides) -> dict:
                 "file": "Qwen3-8B-Q4_K_M.gguf",
                 "quantization": "Q4_K_M",
                 "size_bytes": 5027784512,
-                "rank": 78,
-                "rank_basis": "surfsense-curated-1",
                 "validated": True,
             }
         ],
@@ -60,7 +59,7 @@ def test_a_well_formed_manifest_loads() -> None:
     """The baseline, so the rejection tests cannot pass by rejecting everything."""
     parsed = CuratedModelsManifest.model_validate(manifest())
 
-    assert parsed.models[0].variants[0].rank == 78
+    assert parsed.models[0].variants[0].quantization == "Q4_K_M"
     assert parsed.models[0].shape.block_count == 36
 
 
@@ -98,39 +97,14 @@ def test_an_entry_must_ship_at_least_one_build() -> None:
         CuratedModelsManifest.model_validate(manifest([entry(variants=[])]))
 
 
-def test_a_rank_must_name_the_quantization_it_was_taken_at() -> None:
-    """Quality is a function of (model, quantization): the same model reads
-    75 / 78 / 81 / 82 / 83 across its ladder. A rank beside its own build cannot
-    drift from the file it describes, which a top level field could not prevent.
-    """
+def test_a_build_without_its_quantization_is_refused() -> None:
+    """A build with no named quantization cannot be told apart from another
+    build of the same model, and the install button needs the name to show."""
     variant = dict(entry()["variants"][0])
     del variant["quantization"]
 
     with pytest.raises(ValidationError):
         CuratedModelsManifest.model_validate(manifest([entry(variants=[variant])]))
-
-
-def test_ranks_are_never_compared_across_different_bases() -> None:
-    """Two rank scales are not on one scale, and sorting them together
-    would silently reorder the list."""
-    mixed = [
-        entry(),
-        entry(
-            model_id="Qwen/Qwen3-4B",
-            label="Qwen3 4B",
-            variants=[
-                {
-                    **entry()["variants"][0],
-                    "file": "Qwen3-4B-Q4_K_M.gguf",
-                    "rank": 63,
-                    "rank_basis": "surfsense-eval-1",
-                }
-            ],
-        ),
-    ]
-
-    with pytest.raises(ValidationError, match="rank_basis"):
-        CuratedModelsManifest.model_validate(manifest(mixed))
 
 
 def test_duplicate_model_ids_are_refused() -> None:
@@ -168,8 +142,15 @@ def test_the_shipped_manifest_is_valid_and_prices_offline() -> None:
         assert model.shape.feed_forward_length > 0
         assert model.variants
         for variant in model.variants:
-            assert variant.rank > 0
             assert variant.quantization
+
+
+def test_a_variant_carries_no_quality_score() -> None:
+    """The manifest's own list order is the only preference signal there is —
+    see `rows.py` and `recommendation.py`. A score field here would be a
+    second place order could drift from, silently."""
+    assert "rank" not in Variant.model_fields
+    assert "rank_basis" not in Variant.model_fields
 
 
 def test_every_shipped_entry_reaches_the_estimator_as_a_shape() -> None:

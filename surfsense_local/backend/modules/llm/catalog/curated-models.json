@@ -36,8 +36,6 @@
           "quantization": "Q4_K_M",
           "size_bytes": 396705472,
           "mmproj": null,
-          "rank": 33,
-          "rank_basis": "surfsense-curated-1",
           "validated": false
         }
       ]
@@ -77,8 +75,6 @@
           "quantization": "Q4_K_M",
           "size_bytes": 1107409472,
           "mmproj": null,
-          "rank": 48,
-          "rank_basis": "surfsense-curated-1",
           "validated": false
         }
       ]
@@ -118,8 +114,6 @@
           "quantization": "Q4_K_M",
           "size_bytes": 2497281312,
           "mmproj": null,
-          "rank": 63,
-          "rank_basis": "surfsense-curated-1",
           "validated": false
         }
       ]
@@ -159,8 +153,6 @@
           "quantization": "Q4_K_M",
           "size_bytes": 5027784512,
           "mmproj": null,
-          "rank": 78,
-          "rank_basis": "surfsense-curated-1",
           "validated": false
         }
       ]
@@ -200,8 +192,6 @@
           "quantization": "Q4_K_M",
           "size_bytes": 9001753984,
           "mmproj": null,
-          "rank": 85,
-          "rank_basis": "surfsense-curated-1",
           "validated": false
         }
       ]
@@ -241,8 +231,6 @@
           "quantization": "Q4_K_M",
           "size_bytes": 19762150048,
           "mmproj": null,
-          "rank": 92,
-          "rank_basis": "surfsense-curated-1",
           "validated": false
         }
       ]

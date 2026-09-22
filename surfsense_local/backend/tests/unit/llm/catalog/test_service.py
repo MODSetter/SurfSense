@@ -52,8 +52,8 @@ def test_installed_models_are_read_from_disk(tmp_path: Path) -> None:
 
 
 def test_the_recommendation_names_a_curated_model_or_nothing(service) -> None:
-    """Never a searched model: recommending requires a rank, and only the
-    manifest carries one."""
+    """Never a searched model: recommending reads a position in the curated
+    manifest, and a searched model has none."""
     catalog = service.catalog()
     ids = {row.model_id for row in catalog.curated}
 

@@ -226,8 +226,9 @@ def _fit(fit) -> dict:
 
 
 def _row(row, catalog, selected: str | None, service) -> dict:
-    """One curated row. Note the absent `rank`: it orders this list and selects
-    the star, and the renderer never needs to know the number."""
+    """One curated row. Note the absent quality score: the manifest's own list
+    order and the fit verdict select the star, and the renderer never needs a
+    number to do it."""
     installed = {entry.model_id for entry in catalog.installed}
     model_id = row.variant.file.removesuffix(".gguf")
     return {
