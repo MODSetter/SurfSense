@@ -63,10 +63,21 @@ export function llamacppSpec(ctx: SidecarContext): SidecarSpec | null {
     // a second resident model is memory taken from the one being used.
     "--models-max",
     "1",
-    // Without this a model self-evicted after roughly 30s idle, measured, which
-    // turns the second question of a conversation into a reload.
-    "--sleep-idle-seconds",
-    "300",
+    // Deliberately no `--sleep-idle-seconds`. It defaults to -1, meaning a
+    // loaded model is never unloaded on a timer, and the router's only other
+    // eviction is LRU under capacity pressure, which one model and
+    // `--models-max 1` cannot produce. Measured at b11050 on both Metal and
+    // Vulkan: a model left idle for over a minute reports `loaded` throughout.
+    //
+    // Passing it is therefore what makes a model unload mid-conversation, and
+    // the load it costs is the whole 10 to 26 seconds, because sleeping frees
+    // the model and its context rather than parking them. The API warms the
+    // selected model at startup and on selection; both are wasted the moment
+    // this comes back.
+    //
+    // The cost is that a local model stays resident while the app runs. That
+    // is memory a user of a remote connection never spends, since the router
+    // holds none until something loads.
     // The chat path never asks the router to load anything: the proxy calls
     // ensure_model_ready before forwarding, so a cold model loads on the request
     // that needs it. Asking as well was a check-then-act across a socket, and it

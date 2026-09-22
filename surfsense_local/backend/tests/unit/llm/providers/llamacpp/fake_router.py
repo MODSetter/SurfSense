@@ -111,6 +111,21 @@ class FakeRouter:
         if path == "/models/load":
             name = json.loads(request.content)["model"]
             self.load_calls.append(name)
+            if self.models and name not in self.models:
+                # The real router refuses a name it never discovered, with the
+                # same 400 it uses for a model already running. A fake that
+                # loaded anything asked of it would let a caller that warms the
+                # wrong model look like one that warms the right one.
+                return httpx.Response(
+                    400,
+                    json={
+                        "error": {
+                            "code": 400,
+                            "type": "invalid_request_error",
+                            "message": f"model name={name} is not found",
+                        }
+                    },
+                )
             if name in self.already_running:
                 return httpx.Response(
                     400,

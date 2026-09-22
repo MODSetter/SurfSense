@@ -211,7 +211,7 @@ export function ModelCatalogPage({
     // No confirmation for a partial fit. It runs, slower, and llama.cpp places
     // the layers; only physics blocks, and that is already `can_install`.
     if (row.installed) {
-      selectInstalled.mutate(row)
+      selectInstalled.mutate(row.variant_model_id)
     } else {
       install.mutate(row)
     }
@@ -298,7 +298,21 @@ export function ModelCatalogPage({
                         >
                           In use
                         </Button>
-                      ) : null}
+                      ) : (
+                        // Every model on disk is selectable from here, because
+                        // for one installed from search this list is the only
+                        // place it appears: the curated rows are the manifest,
+                        // and it is not in it.
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={busy}
+                          aria-label={`Use ${row.model_id}`}
+                          onClick={() => selectInstalled.mutate(row.model_id)}
+                        >
+                          Use
+                        </Button>
+                      )}
                       {allowDelete ? (
                         <Button
                           type="button"

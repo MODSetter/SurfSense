@@ -155,7 +155,6 @@ From `electron/src/main/sidecars/llamacpp.ts`:
 --models-dir <dataDir>/models
 --host 127.0.0.1  --port <free>
 --models-max 1
---sleep-idle-seconds 300
 --models-autoload
 --no-ui
 --jinja
@@ -168,9 +167,23 @@ directory.
 
 - `--models-max 1` because this app asks one question at a time, and a second
   resident model is memory taken from the one being used.
-- `--sleep-idle-seconds 300` is not optional. Measured at `b11050`, a model
-  without it self-evicted after roughly 30 s idle, which turns the second
-  question of a conversation into a reload.
+- **No `--sleep-idle-seconds`.** It defaults to `-1`, meaning a loaded model is
+  never unloaded on a timer, and the router's only other eviction is LRU under
+  capacity pressure, which `tick()` skips outright while its queue is empty:
+  one model and `--models-max 1` cannot produce it. Re-measured at `b11050` on
+  Metal and on Vulkan, a model left idle for over a minute reports `loaded`
+  throughout.
+
+  So passing the flag is what unloads a model mid-conversation, and the reload
+  costs the full 10 to 26 s: `handle_sleeping_state` calls `destroy()`, which
+  frees the model and its context rather than parking them. An earlier note
+  here recorded the opposite, that a model self-evicted after roughly 30 s
+  without the flag; that does not reproduce on either backend and has been
+  withdrawn.
+
+  The cost of leaving it off is that a local model stays resident for as long
+  as the app runs. A user answering through a remote connection spends none of
+  it, because the router holds no device memory until something loads.
 - `--models-autoload` is the upstream default, stated because the chat path
   depends on it. The router's proxy calls `ensure_model_ready` before
   forwarding, so a cold model loads on the request that needs it, and **nothing
@@ -285,6 +298,33 @@ and reporting the install complete before then tells the user a model is ready
 while a chat returns `model '<id>' not found`, measured as a 400. A timeout
 returns `False` rather than raising. The download did succeed and the file is on
 disk, so reporting a failed install would be the wrong thing to say.
+
+### Warming: listed is not loaded
+
+`wait_until_servable()` answers "the router knows about this file", which is not
+"the weights are in memory". A model that is merely listed still costs a full
+load on the first question asked of it, and that load lands on the one moment
+somebody is watching.
+
+Three places warm it instead, all reading the same selection and all gated on
+`provider == "llamacpp"`, so a user answering through a remote connection never
+loads anything:
+
+- **After an install**, inside the stream, with the router's own progress
+  forwarded as `preparing` events. `GET /models/sse` reports a stage by name
+  and a 0 to 1 through it, so a vision model says *Loading image support* for
+  its second half rather than appearing stuck at 100%.
+- **On selection**, as a FastAPI background task. `POST /models/load` blocks
+  until the model is resident, so it must run after the response; choosing a
+  model is the moment the user has said they are about to use it, and
+  `--models-max 1` means the load is happening either way.
+- **At startup**, on the existing catalog-warm thread and after `reprice()`,
+  because the preset decides the window the load will use. Nothing is resident
+  after a restart whatever the idle policy is.
+
+`residency.warm_selected()` is the one gate, and it never raises: a warm that
+fails costs the wait it was trying to avoid, which is where the caller already
+was.
 
 ### Turning thinking off
 
@@ -2051,7 +2091,7 @@ rather than taking one reading.
 |---|---|
 | Router up, three models discovered | VRAM unchanged from idle |
 | Worker spawn argv | `--port 0 --model <path>` |
-| Idle eviction without `--sleep-idle-seconds` | about 30 s |
+| Idle eviction without `--sleep-idle-seconds` | none; `loaded` after 60 s idle on Metal and Vulkan |
 | Model dropped into a running router's directory | still invisible after 26 s |
 | Sidecar restart to pick up a preset change | 0.15 s |
 | Grandchild reaping, `taskkill /T /F` | four processes, depth first, no survivors |

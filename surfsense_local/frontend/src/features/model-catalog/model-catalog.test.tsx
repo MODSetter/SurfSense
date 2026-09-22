@@ -376,6 +376,43 @@ describe("model catalog", () => {
     )
   })
 
+  it("can use a model on disk that no curated row covers", async () => {
+    // A model installed from search is in the directory and not in the
+    // manifest, so the curated list has no row to select it from. Without a
+    // button here it downloads, lists, deletes — and can never be chosen.
+    const fetchMock = serving(
+      catalog({
+        curated: [],
+        installed: [
+          {
+            model_id: "some-searched-model",
+            file: "some-searched-model.gguf",
+            size_bytes: 1_000_000_000,
+            selected: false,
+          },
+        ],
+      })
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(
+      await screen.findByRole("button", { name: "Use some-searched-model" })
+    )
+
+    await waitFor(() => {
+      const selection = fetchMock.mock.calls.find(
+        ([path, init]) =>
+          String(path).includes("/llm/selection/") && init?.method === "PUT"
+      )
+      expect(selection).toBeTruthy()
+      expect(JSON.parse(String(selection?.[1]?.body)).name).toBe(
+        "some-searched-model"
+      )
+    })
+  })
+
   it("confirms deletion of an installed model", async () => {
     vi.stubGlobal(
       "fetch",
