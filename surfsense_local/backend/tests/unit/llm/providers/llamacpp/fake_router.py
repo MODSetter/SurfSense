@@ -41,6 +41,10 @@ class FakeRouter:
         # check-then-act across this socket races into.
         self.already_running: set[str] = set()
         self.load_calls: list[str] = []
+        # What `/models/sse` streams, in the shape the real router sends. Set by
+        # a test that cares; the default is an immediately finished stream, so a
+        # caller that subscribes without one is not left hanging.
+        self.sse_events: list[dict] = []
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
@@ -60,16 +64,24 @@ class FakeRouter:
                 },
             )
         if path == "/models" and request.method == "GET":
-            return httpx.Response(200, json={"object": "list", "data": [
-                {
-                    "id": name,
-                    "status": {
-                        "value": "loaded" if name in self.loaded else "unloaded",
-                        "args": ["llama-server", "--alias", name],
-                    },
-                }
-                for name in self.models
-            ]})
+            return httpx.Response(
+                200,
+                json={
+                    "object": "list",
+                    "data": [
+                        {
+                            "id": name,
+                            "status": {
+                                "value": "loaded"
+                                if name in self.loaded
+                                else "unloaded",
+                                "args": ["llama-server", "--alias", name],
+                            },
+                        }
+                        for name in self.models
+                    ],
+                },
+            )
         if path == "/models" and request.method == "DELETE":
             # The real router refuses anything it did not download into its own
             # cache. Measured: `model name=... is not removable (not from
@@ -86,6 +98,15 @@ class FakeRouter:
                         "type": "server_error",
                     }
                 },
+            )
+        if path == "/models/sse":
+            # One `data:` frame per event, blank line separated, exactly as
+            # measured against the real router at b11050.
+            body = "".join(
+                f"data: {json.dumps(event)}\n\n" for event in self.sse_events
+            )
+            return httpx.Response(
+                200, text=body, headers={"content-type": "text/event-stream"}
             )
         if path == "/models/load":
             name = json.loads(request.content)["model"]
@@ -137,9 +158,10 @@ def _thinking_off(body: dict) -> bool:
     the other is its own end of thinking injection.
     """
     kwargs = body.get("chat_template_kwargs") or {}
-    return body.get("thinking_budget_tokens") == 0 or kwargs.get(
-        "enable_thinking"
-    ) is False
+    return (
+        body.get("thinking_budget_tokens") == 0
+        or kwargs.get("enable_thinking") is False
+    )
 
 
 def _stream(thinking: bool) -> list[str]:

@@ -2,9 +2,11 @@ import { DownloadIcon, SparklesIcon, Trash2Icon } from "@/components/ui/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Spinner } from "@/components/ui/spinner"
 import type { CatalogRow } from "./api"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
+import { installView } from "./install-view"
 import type { InstallState } from "./use-model-catalog"
 
 const formatSize = (bytes: number) =>
@@ -69,10 +71,26 @@ export function ModelCard({
               disabled={actionsDisabled || cannotInstall}
               onClick={() => onAction(row)}
             >
-              {!row.installed ? (
-                <DownloadIcon data-icon="inline-start" />
-              ) : null}
-              {row.installed ? "Use" : "Download"}
+              {/* A disabled button still reading "Download" while its own
+                  progress bar fills reads as unavailable rather than busy, so
+                  it says what is happening instead. The figure stays in the
+                  bar: a changing percentage here would resize the button, and
+                  the row with it, on every frame. */}
+              {isInstalling ? (
+                <>
+                  <span className="animate-spin" data-icon="inline-start">
+                    <Spinner className="size-3.5" />
+                  </span>
+                  {installView(installState.event).short}
+                </>
+              ) : (
+                <>
+                  {!row.installed ? (
+                    <DownloadIcon data-icon="inline-start" />
+                  ) : null}
+                  {row.installed ? "Use" : "Download"}
+                </>
+              )}
             </Button>
           )}
           {row.installed && onDelete ? (

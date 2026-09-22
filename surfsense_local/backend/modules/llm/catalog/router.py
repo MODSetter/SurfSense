@@ -57,7 +57,9 @@ def read_system(service: CatalogServiceDep) -> dict:
     }
 
 
-@router.get("/catalog", response_model=CatalogRead, summary="Tested and installed models")
+@router.get(
+    "/catalog", response_model=CatalogRead, summary="Tested and installed models"
+)
 def read_catalog(service: CatalogServiceDep, session: SessionDep) -> dict:
     """Renders on first paint with no network call of any kind."""
     selected = _selected_local(session)
@@ -65,9 +67,7 @@ def read_catalog(service: CatalogServiceDep, session: SessionDep) -> dict:
     return {
         "budget": _budget(catalog.budget),
         "gpu_status": catalog.gpu_status.value,
-        "curated": [
-            _row(row, catalog, selected, service) for row in catalog.curated
-        ],
+        "curated": [_row(row, catalog, selected, service) for row in catalog.curated],
         "installed": [
             {
                 "model_id": row.model_id,
@@ -149,12 +149,28 @@ async def install(
             yield _event("preparing", message="Preparing the model runtime")
             servable = await service.wait_until_servable(plan.model_id)
 
+            # Listed is not loaded. Without this the install reports success and
+            # the first question pays a cold load, tens of seconds with nothing
+            # on screen to say why. Warming here spends that while the user is
+            # still looking at the install, and the router's own progress is
+            # what the bar reads.
+            if servable:
+                async for step in service.warm_model(plan.model_id):
+                    yield _event(
+                        "preparing",
+                        message=_loading_message(step.stage),
+                        progress=step.value,
+                    )
+
             selection = None
             if payload.select:
                 yield _event("selecting", message="Selecting model")
                 with request.app.state.session_factory() as fresh:
                     chosen = await choose_model(
-                        fresh, ModelRole.GENERATION, service.provider_name, plan.model_id
+                        fresh,
+                        ModelRole.GENERATION,
+                        service.provider_name,
+                        plan.model_id,
                     )
                     selection = SelectionRead.model_validate(chosen).model_dump(
                         mode="json"
@@ -248,3 +264,18 @@ def _hit(hit) -> dict:
 
 def _event(kind: str, **payload: object) -> bytes:
     return (json.dumps({"type": kind, **payload}) + "\n").encode()
+
+
+# The runtime names its load stages; these are what a person reads. A model
+# with a projector loads it after its weights, and saying so is what stops a
+# bar that reached the end of the first stage from looking stuck.
+_LOADING_MESSAGES = {
+    "text_model": "Loading the model",
+    "mmproj_model": "Loading image support",
+    "spec_model": "Loading the draft model",
+}
+
+
+def _loading_message(stage: str | None) -> str:
+    """What to call the stage being loaded, including one we have not met."""
+    return _LOADING_MESSAGES.get(stage or "", "Loading the model")
