@@ -89,6 +89,15 @@ REGISTRY: dict[str, ProviderSpec] = {
         "bearer",
         "Requesty",
     ),
+    "opper": ProviderSpec(
+        Transport.OPENAI_COMPATIBLE,
+        "openai",
+        "openai_models",
+        "https://api.opper.ai/v3/compat",
+        False,
+        "bearer",
+        "Opper",
+    ),
     "openai_compatible": ProviderSpec(
         Transport.OPENAI_COMPATIBLE,
         "openai",

@@ -15,7 +15,8 @@ function baseUrlHint(provider: string) {
 		provider === "openai" ||
 		provider === "anthropic" ||
 		provider === "openrouter" ||
-		provider === "requesty"
+		provider === "requesty" ||
+		provider === "opper"
 	) {
 		return "Override only if you route through a proxy or gateway.";
 	}

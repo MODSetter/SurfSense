@@ -24,6 +24,7 @@ export { default as OllamaIcon } from "./ollama.svg";
 export { default as OpenaiIcon } from "./openai.svg";
 export { default as OpenRouterIcon } from "./openrouter.svg";
 export { default as PerplexityIcon } from "./perplexity.svg";
+export { default as OpperIcon } from "./opper.svg";
 export { default as QwenIcon } from "./qwen.svg";
 export { default as RecraftIcon } from "./recraft.svg";
 export { default as ReplicateIcon } from "./replicate.svg";
