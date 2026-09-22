@@ -86,8 +86,7 @@ rmSync(archive, { force: true })
 if (!existsSync(join(OUT, binary))) {
   throw new Error(`${target.asset} did not contain ${binary}`)
 }
-// The zips do carry the mode bit today; set it anyway rather than depend on it,
-// the way fetch-llmfit.mjs does.
+// The zips do carry the mode bit today; set it anyway rather than depend on it.
 if (process.platform !== "win32") chmodSync(join(OUT, binary), 0o755)
 // MIT, and the archive does not carry it.
 writeFileSync(

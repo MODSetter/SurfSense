@@ -11,17 +11,10 @@ Everything mechanical is derived here. The three judgement fields stay in
 
   rank        preference order for *this app's job*, answering from the user's
               documents with citations that resolve. Not general capability.
-              llmfit proposes it; a person decides. It is an int, and nothing
-              requires llmfit to have produced it.
+              A person sets it by hand; nothing derives it.
   rank_basis  what produced the number, so a manifest part way through a
               migration is detectable and two scales are never mixed.
   validated   somebody ran this exact file.
-
-> ponytail: llmfit has no flag to score at a named quantization, so proposing a
-> rank means sweeping the device budget across the model's whole ladder and
-> indexing the pinned rung out of it. `scripts/curated/ladder.py` is where that
-> goes when llmfit is available; the ranks below were taken that way and are
-> recorded with the quantization they were read at.
 """
 
 import asyncio
