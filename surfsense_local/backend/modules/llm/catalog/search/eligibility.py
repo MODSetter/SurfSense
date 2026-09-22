@@ -1,9 +1,9 @@
 """What Hugging Face already knows about a repo's GGUF files.
 
 The listing API parses the header of the first GGUF in a repo and serves the
-result, which covers both eligibility questions without reading a byte of the
-file: whether llama.cpp can run the architecture at all, and whether the model
-carries a chat template.
+result, which covers three eligibility questions without reading a byte of the
+file: whether llama.cpp can run the architecture at all, whether the model
+carries a chat template, and what the repo says the model is for.
 
 Worth asking first because the alternative is a range request against a
 multi-gigabyte file, and for an architecture llama.cpp cannot run that read
@@ -28,6 +28,7 @@ class RepoFacts:
     architecture: str
     context_length: int
     has_chat_template: bool
+    pipeline_tag: str | None = None
 
 
 async def read_repo_facts(client: httpx.AsyncClient, repo: str) -> RepoFacts | None:
@@ -38,7 +39,9 @@ async def read_repo_facts(client: httpx.AsyncClient, repo: str) -> RepoFacts | N
     """
     try:
         reply = await client.get(
-            f"{API}/{repo}", params={"expand[]": "gguf"}, timeout=TIMEOUT
+            f"{API}/{repo}",
+            params={"expand[]": ["gguf", "pipeline_tag"]},
+            timeout=TIMEOUT,
         )
         reply.raise_for_status()
         payload = reply.json()
@@ -58,4 +61,5 @@ async def read_repo_facts(client: httpx.AsyncClient, repo: str) -> RepoFacts | N
         architecture=architecture,
         context_length=int(context) if isinstance(context, int) else 0,
         has_chat_template=bool(gguf.get("chat_template")),
+        pipeline_tag=tag if isinstance(tag := payload.get("pipeline_tag"), str) else None,
     )

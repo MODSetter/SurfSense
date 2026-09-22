@@ -78,3 +78,43 @@ def test_an_ordinary_400_is_still_provider_unavailable() -> None:
     exc = httpx.HTTPStatusError("400", request=request, response=response)
 
     assert classify_chat_error(exc, "llamacpp")[0] is ChatErrorKind.PROVIDER_UNAVAILABLE
+
+
+def test_a_model_the_local_runtime_cannot_load_says_so() -> None:
+    """The failure the search gate used to prevent before the download.
+
+    llama-server answers 500 when a model fails to load: an architecture this
+    build has no builder for, or one it builds and then aborts on. Bucketed
+    under PROVIDER_UNAVAILABLE that reads "try again shortly", which sends
+    someone into a retry loop over something that can never work. There is no
+    remote provider here either. It is our own subprocess.
+    """
+    request = httpx.Request("POST", "http://x/v1/chat/completions")
+    response = _response_with_body(
+        500,
+        {
+            "error": {
+                "code": 500,
+                "type": "server_error",
+                "message": "model name=GLM-5.3-Flash-Q4_K_M failed to load",
+            }
+        },
+    )
+    exc = httpx.HTTPStatusError("500", request=request, response=response)
+
+    kind, message = classify_chat_error(exc, "llamacpp")
+
+    assert kind is ChatErrorKind.MODEL_CANNOT_RUN
+    assert "try again" not in message.casefold()
+    assert "—" not in message
+    assert "-" not in message
+
+
+def test_a_remote_provider_500_is_still_temporary() -> None:
+    """A hosted endpoint answering 500 really can recover on a retry. Only the
+    local runtime is making a statement about the file on disk."""
+    request = httpx.Request("POST", "http://x/v1/chat/completions")
+    response = httpx.Response(500, request=request, content=b"")
+    exc = httpx.HTTPStatusError("500", request=request, response=response)
+
+    assert classify_chat_error(exc, "openai")[0] is ChatErrorKind.PROVIDER_UNAVAILABLE

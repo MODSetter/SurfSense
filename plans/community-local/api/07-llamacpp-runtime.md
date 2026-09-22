@@ -47,6 +47,7 @@ native API did not.
 | **GPU backend** | Vulkan on every platform off Apple Silicon. No CUDA payload | Measured on an RTX 3050 at `b11050`: CUDA leads Vulkan 9.1% on `pp512`, 10.2% on `pp8192`, 2.1% on decode. That is 0.66 s on an 11 s turn, for 685 MB. Vulkan covers NVIDIA, AMD and Intel from one 31 MB archive and its loader ships with Windows. CUDA is specified as an optional later addition in [`08-cuda-backend.md`](08-cuda-backend.md) and needs no code change, because ggml selects a backend by the files present. |
 | **MLX** | Not shipped. Revisit after launch | MLX's format covers 23,985 HF repos against GGUF's 204,797. One format and the full catalog wins. Mac users who want MLX point a connection at LM Studio; see **The Mac path**. |
 | **llmfit** | Authoring-time only. Not shipped, not in CI, not in any request path | A person runs `scripts/refresh_curated_models.py` when adding or changing a curated entry, a few times a year, and commits the numbers. |
+| **Install gate** | One denylist, keyed by both the GGUF architecture and the repo's pipeline tag | A denylist ages the right way: llama.cpp gains architectures every few weeks, so an unknown name is usually a chat model released last week. The allowlist this replaces was generated from the pinned `libllama` and was correct, but it cost a script run per pin bump and a data file that had to ship because the symbol it reads is not exported on Windows. Measured over the 1000 most downloaded GGUF repos, dropping it lets 18 of 979 install and then fail, all of them architectures released in the last few weeks. Accepted: curated is the default path, search is opt in, and `MODEL_CANNOT_RUN` now says the model will not run rather than asking the reader to retry. |
 | **GGUF parser** | llama.cpp's own `gguf` package, pinned at `0.19.0` | The search tier parses bytes from arbitrary repositories, and upstream's parser is the one that receives hardening. A 150-line adapter handles the one thing it cannot do, which is read a header out of a byte prefix. |
 | **Hardware budget** | `ggml_backend_dev_memory()` through `ctypes`, in a child process | The allocator's own view. The child exists because the backend scan keys on the running executable's directory, because a driver fault would otherwise take the API with it, and because the first Metal device query compiles 20 shader libraries in 19 seconds. |
 | **Device selection** | First device typed `GPU`. Never a sum | The same physical card appears once per loaded backend, and an integrated GPU can advertise more memory than a discrete one, 16198 MiB against 6002 MiB measured. ggml already orders backends by preference, so taking the first is also backend selection. |
@@ -1194,24 +1195,78 @@ half-finished uploads. Every order surfaces abliterated fine-tunes somewhere nea
 the top, which is what an open catalog means and is not a reason to reintroduce
 grading. The count is presented as popularity, never as endorsement.
 
-**The gate is the header, not Hugging Face's tags.** Counted on `library=gguf`,
-the pipeline tags cover roughly 43,500 of 204,797 repos, so about 80% of GGUF
-repos carry no useful tag at all, including working chat models whose uploader
-left the field blank. Two header facts do the job structurally instead: a
-supported architecture excludes Whisper-shaped models, and a present chat
-template excludes embedding models. `SUPPORTED` holds 113 `LLM_ARCH_*` names as
-data rather than fetching them, because the app is airgapped and the list changes
-only when the pinned build does.
+**One denylist, fed by two facts.** The install gate lives in
+`modules/llm/catalog/search/not_chat.py`: a single table of 88 names, grouped by
+what a model *is* rather than by which fact named it, so a GGUF architecture and
+a Hugging Face pipeline tag share it. `refusal(architecture, pipeline_tag)` looks
+both up and returns the sentence a person reads, or nothing.
 
-**Eligibility is read before the header.** Hugging Face has already parsed the
-first GGUF's header and serves the result under `expand[]=gguf`, giving the
-architecture, the context length and whether a chat template exists. Asking that
-first means an architecture llama.cpp cannot run costs no range request against a
-file we were never going to install. It does not carry the KV shape, so it
-replaces nothing for a model we *can* run: the header read still happens, it just
-no longer happens for models we cannot.
+**Why a denylist rather than an allowlist.** The two age in opposite directions.
+An incomplete allowlist refuses a model that works and nobody finds out, because
+the user is told no and believes it. An incomplete denylist admits a model that
+does not work, which announces itself. llama.cpp adds architectures faster than
+any list is updated, so the default has to be yes.
 
-A repo llama.cpp cannot run still lists its builds at their real sizes, badged
+> **This was learned the expensive way.** The gate began as one hand written set
+> and had drifted in both directions at once. It refused 43 architectures the
+> runtime supports, including Gemma 4, Qwen 3.5 and Mistral 3, telling the user
+> llama.cpp could not run a model it demonstrably runs. It admitted `bert`,
+> `nomic-bert`, `t5encoder` and five more that abort the worker on the first
+> message. Three entries were misspelled, `granite-moe` for `granitemoe` among
+> them, so they had never matched anything and nothing could say so.
+
+**The tag is there because a header can be honest and still mislead.** Measured
+across the 1000 most downloaded GGUF repos, an embedding model declares
+`mistral3`, a voice model and a reranker both declare `qwen3`, and a video
+encoder declares `qwen35`. Structurally those *are* those architectures, so
+refusing them would refuse Mistral and Qwen. Only the repo's own tag separates
+them, and it rides along on the listing call already being made as one more
+`expand[]` parameter, costing no extra request.
+
+**A denylist, not a tag requirement.** Counted on `library=gguf`, the pipeline
+tags cover roughly 43,500 of 204,797 repos, so about 80% carry none. Requiring a
+tag would hide four fifths of the catalog. An absent tag is an absent answer, and
+only the tags named in the table refuse.
+
+The tags that mean chat are held out by a test and must never be added:
+`text-generation`, `image-text-to-text`, `video-text-to-text`,
+`audio-text-to-text` and `any-to-any`. `image-text-to-text` alone is 28% of
+admitted repos, every Qwen 3.5 and every Gemma 4, so denying it would empty the
+search screen.
+
+**What it costs.** Measured over the same 1000 repos: 18 of 979 install and then
+fail, all brand new chat architectures that no denylist can name in advance,
+because by the time the name is known llama.cpp has usually merged support and
+the entry would have to be removed again. `MODEL_CANNOT_RUN` covers that case
+with "SurfSense cannot run this model. Pick another model.", which is a statement
+rather than the retry advice a 500 used to produce.
+
+**`scripts/audit_gate.py` is what keeps the list honest.** The generated table
+used to allow a test that held every denylist key against the names llama.cpp
+defines, which is how the three misspellings were found. With no table, the audit
+replaces it: it runs the gate over the top N repos, prints every refusal for
+review, and prints entries that matched nothing, which is what a typo looks like.
+It needs the network, so it is never part of the test suite.
+
+**Eligibility is read before the header.** Hugging Face has already parsed a
+GGUF's header and serves the result under `expand[]=gguf&expand[]=pipeline_tag`,
+giving the architecture, the context length, whether a chat template exists and
+what the repo says the model is for. Asking that first means a model that cannot
+chat costs no range request against a file we were never going to install. It
+does not carry the KV shape, so it replaces nothing for a model we *can* run: the
+header read still happens, it just no longer happens for models we cannot.
+
+> **Known defect, measured.** Hugging Face parses **one** file per repo and
+> serves that as the repo's answer. A repo shipping a chat model beside an
+> `mmproj` sidecar can report `clip`, and the whole repo is then refused although
+> `list_builds()` already excluded the sidecar and the real candidate reads
+> `qwen35`. 17 of 979 top repos are refused this way, verified against their own
+> headers. It is the worst shape of failure this tier has, because the user is
+> told no and has no way to learn otherwise. The fix is to read the candidate
+> build's header before refusing and to keep the listing only for the tag, which
+> is genuinely a repo level fact.
+
+A repo that cannot chat here still lists its builds at their real sizes, badged
 `Cannot run` and not installable, because the screen is answering "what is in
 here" as well as "can I run it", and an empty repo reads as a broken page rather
 than an unsupported model.
@@ -1610,6 +1665,19 @@ worth knowing about, because each encodes a failure that actually happened:
 - Curated renders with no network at all; search is `403` with egress off.
 - A search row carries no `rank` field, asserted on the serialized response so it
   cannot be reintroduced silently.
+- The committed architecture list equals what the staged `libllama` reports,
+  skipped when no runtime is staged, so a pin bump that forgets the generator
+  fails there rather than in a user's search results weeks later. A second check
+  compares the recorded build against the pin in `fetch-llamacpp.mjs`, which
+  needs no staged runtime and so covers the case where the first one skips.
+- Every refusal reads as what the model is rather than naming its architecture,
+  each kind of refusal reads differently, and an architecture llama.cpp has not
+  merged yet blames the build rather than the file.
+- A short read is refused rather than written: an empty gate would refuse every
+  model on earth while looking like a considered answer.
+- Every excluded architecture is one the runtime actually defines, which is what
+  `granite-moe` failed for years without anyone being able to tell.
+- Every key in the sliding-window table is a real architecture.
 - A repo whose architecture is unsupported short-circuits with no `Range` request
   reaching the mock transport.
 - A 500 on the resolve URL yields `approximate` builds rather than a failed repo.
@@ -1691,7 +1759,9 @@ Taken against llama.cpp `b11050` (some earlier figures at `b11043`) and llmfit
 | GGUF repos on Hugging Face | 204,797 |
 | Ollama library | 240 models |
 | llmfit rows with an `ollama_name` | 138 of 9,590, 1.4% |
-| llama.cpp `LLM_ARCH_*` names | 152 upstream; 113 in our shipped gate |
+| llama.cpp `LLM_ARCH_*` names in the pinned build | 152, read from `libllama` itself |
+| Of those, excluded as unable to chat | 21 |
+| Architectures the install gate admits | 131 |
 | GGUF repos with a useful pipeline tag | about 43,500, so roughly 80% have none |
 | Top 40 GGUF repos carrying `base_model:quantized:` | 32 |
 | GGUF header over HTTP Range | 1.79 MB, 2.5 s, for a 135M model |

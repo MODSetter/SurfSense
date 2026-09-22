@@ -1,4 +1,3 @@
-from modules.llm.catalog.search.architectures import SUPPORTED, is_supported
 from modules.llm.catalog.search.client import (
     CACHE_SECONDS,
     RepoFile,
@@ -7,11 +6,12 @@ from modules.llm.catalog.search.client import (
     search_models,
 )
 from modules.llm.catalog.search.eligibility import RepoFacts, read_repo_facts
+from modules.llm.catalog.search.not_chat import NOT_CHAT, is_supported, refusal
 from modules.llm.catalog.search.tickets import InstallTicket, TicketStore
 
 __all__ = [
     "CACHE_SECONDS",
-    "SUPPORTED",
+    "NOT_CHAT",
     "InstallTicket",
     "RepoFacts",
     "RepoFile",
@@ -20,5 +20,6 @@ __all__ = [
     "is_supported",
     "list_builds",
     "read_repo_facts",
+    "refusal",
     "search_models",
 ]

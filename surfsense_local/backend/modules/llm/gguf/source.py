@@ -24,8 +24,14 @@ from modules.llm.gguf.shape import to_shape
 # A 135M model's metadata ends at 1.77 MB, but Qwen3-Coder-30B-A3B's runs to
 # 5.94 MB with 579 tensor entries after it. Header size scales with vocabulary,
 # not with model size, so start wide and widen once more before giving up.
+# The first step is deliberately far too small for a chat model. Everything
+# that is not one (projectors, imatrices, diffusion GGUFs) carries no tokenizer
+# and ends within a few kilobytes, so refusing costs this much and pricing costs
+# the same as it always did. See `file_kind`.
+PROBE_BYTES = 256 * 1024
 INITIAL_BYTES = 8 * 1024 * 1024
 WIDENED_BYTES = 24 * 1024 * 1024
+_STEPS = (PROBE_BYTES, INITIAL_BYTES, WIDENED_BYTES)
 
 
 def header_from_file(path: Path) -> GgufHeader:
@@ -55,10 +61,12 @@ async def header_from_url(client: httpx.AsyncClient, url: str) -> GgufHeader:
         reply.raise_for_status()
         return reply.content
 
-    try:
-        return read_header_prefix(await fetch(INITIAL_BYTES))
-    except TruncatedHeaderError:
-        return read_header_prefix(await fetch(WIDENED_BYTES))
+    for size in _STEPS[:-1]:
+        try:
+            return read_header_prefix(await fetch(size))
+        except TruncatedHeaderError:
+            continue
+    return read_header_prefix(await fetch(_STEPS[-1]))
 
 
 async def shape_from_url(client: httpx.AsyncClient, url: str) -> ModelShape:
@@ -66,7 +74,9 @@ async def shape_from_url(client: httpx.AsyncClient, url: str) -> ModelShape:
 
 
 def _widening(fetch) -> GgufHeader:
-    try:
-        return read_header_prefix(fetch(INITIAL_BYTES))
-    except TruncatedHeaderError:
-        return read_header_prefix(fetch(WIDENED_BYTES))
+    for size in _STEPS[:-1]:
+        try:
+            return read_header_prefix(fetch(size))
+        except TruncatedHeaderError:
+            continue
+    return read_header_prefix(fetch(_STEPS[-1]))

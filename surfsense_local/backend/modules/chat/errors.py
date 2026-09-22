@@ -16,6 +16,7 @@ class ChatErrorKind(enum.StrEnum):
     PROVIDER_NOT_FOUND = "provider_not_found"
     PROVIDER_RATE_LIMITED = "provider_rate_limited"
     PROVIDER_UNAVAILABLE = "provider_unavailable"
+    MODEL_CANNOT_RUN = "model_cannot_run"
     CONTEXT_TOO_LONG = "context_too_long"
     NETWORK = "network"
     TIMEOUT = "timeout"
@@ -33,6 +34,9 @@ _MESSAGES: dict[ChatErrorKind, str] = {
     ),
     ChatErrorKind.PROVIDER_UNAVAILABLE: (
         "The model provider is temporarily unavailable. Try again shortly."
+    ),
+    ChatErrorKind.MODEL_CANNOT_RUN: (
+        "SurfSense cannot run this model. Pick another model."
     ),
     ChatErrorKind.CONTEXT_TOO_LONG: (
         "This conversation is too long for the model's context window. "
@@ -59,6 +63,13 @@ _AUTH_STATUS_CODES = {401, 403}
 # PROVIDER_UNAVAILABLE bucket, because only this one shape names a fix.
 _CONTEXT_TOO_LONG_ERROR_TYPE = "exceed_context_size_error"
 
+# The local runtime is our own subprocess, not somebody's API, so a 500 from it
+# is not a service having a bad minute. It is llama-server saying it could not
+# load the file: an architecture this build has no builder for, or one it builds
+# and then aborts on. "Try again shortly" sends the reader into a retry loop
+# over something that can never work.
+_LOCAL_RUNTIME = "llamacpp"
+
 
 def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, str]:
     """Sort a generation failure into a kind, with the plain-language text to show.
@@ -82,6 +93,8 @@ def classify_chat_error(exc: Exception, provider: str) -> tuple[ChatErrorKind, s
             kind = ChatErrorKind.PROVIDER_RATE_LIMITED
         elif status_code == 400 and _is_context_too_long(exc.response):
             kind = ChatErrorKind.CONTEXT_TOO_LONG
+        elif status_code == 500 and provider == _LOCAL_RUNTIME:
+            kind = ChatErrorKind.MODEL_CANNOT_RUN
         else:
             kind = ChatErrorKind.PROVIDER_UNAVAILABLE
         return kind, _MESSAGES[kind]

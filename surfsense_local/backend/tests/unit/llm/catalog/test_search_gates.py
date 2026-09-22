@@ -11,16 +11,21 @@ from modules.llm.catalog.search import TicketStore, is_supported
 pytestmark = pytest.mark.unit
 
 
-def test_a_supported_architecture_passes() -> None:
-    """The 152 name list, matched without caring about case."""
+def test_an_ordinary_chat_model_passes() -> None:
+    """Matched without caring about case: publishers disagree on it."""
     assert is_supported("qwen3")
     assert is_supported("GEMMA3")
 
 
-def test_an_architecture_llama_cpp_cannot_run_is_refused() -> None:
-    """No amount of memory helps, so this blocks rather than badges."""
-    assert not is_supported("whisper")
-    assert not is_supported("something-invented")
+def test_a_model_that_cannot_chat_is_refused() -> None:
+    """Eligibility blocks rather than badges: no amount of memory helps.
+
+    A denylist, so an unknown name passes. `modules/llm/catalog/search/
+    not_chat.py` explains why that direction is the one that ages well.
+    """
+    assert not is_supported("nomic-bert")
+    assert not is_supported("flux")
+    assert is_supported("something-invented")
 
 
 def test_a_ticket_resolves_to_the_build_the_server_priced() -> None:

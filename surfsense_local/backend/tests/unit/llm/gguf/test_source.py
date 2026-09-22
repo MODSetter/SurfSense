@@ -4,7 +4,7 @@ import httpx
 import pytest
 
 from modules.llm.gguf import shape_from_file, shape_from_url
-from modules.llm.gguf.source import INITIAL_BYTES
+from modules.llm.gguf.source import INITIAL_BYTES, PROBE_BYTES
 from tests.unit.llm.gguf.build import STRING, UINT32, array, gguf, kv
 
 pytestmark = pytest.mark.unit
@@ -27,7 +27,13 @@ def a_gguf(vocab: int = 3) -> bytes:
 
 @pytest.mark.asyncio
 async def test_only_the_front_of_the_file_is_requested() -> None:
-    """The point of the whole exercise: price a 40 GB model without fetching it."""
+    """The point of the whole exercise: price a 40 GB model without fetching it.
+
+    The first ask is the probe rather than the pricing read. A file that is not
+    a chat model answers there and costs a quarter of a megabyte, which is what
+    makes reading the real file affordable on the refusal path. A chat model
+    truncates and widens, so it pays exactly what it paid before.
+    """
     seen: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -38,7 +44,7 @@ async def test_only_the_front_of_the_file_is_requested() -> None:
     async with httpx.AsyncClient(transport=transport) as client:
         shape = await shape_from_url(client, "https://example.invalid/m.gguf")
 
-    assert seen == [f"bytes=0-{INITIAL_BYTES - 1}"]
+    assert seen == [f"bytes=0-{PROBE_BYTES - 1}"]
     assert shape.block_count == 28
 
 

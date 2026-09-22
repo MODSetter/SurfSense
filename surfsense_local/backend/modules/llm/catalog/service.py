@@ -26,11 +26,11 @@ from modules.llm.catalog.rows import CatalogRow, curated_rows
 from modules.llm.catalog.search import (
     SearchHit,
     TicketStore,
-    is_supported,
     list_builds,
+    refusal,
     search_models,
 )
-from modules.llm.catalog.search.eligibility import RepoFacts, read_repo_facts
+from modules.llm.catalog.search.eligibility import read_repo_facts
 from modules.llm.fit import (
     FitState,
     HardwareBudget,
@@ -40,7 +40,10 @@ from modules.llm.fit import (
     plan_load,
     planned_precision,
 )
-from modules.llm.gguf import shape_from_file, shape_from_url
+from modules.llm.gguf import shape_from_file
+from modules.llm.gguf.file_kind import FileKind, kind_of
+from modules.llm.gguf.shape import to_shape
+from modules.llm.gguf.source import header_from_url
 from modules.llm.hardware import (
     BudgetMode,
     Device,
@@ -301,19 +304,24 @@ class CatalogService:
                     "ineligible_reason": "no single file build in this repo",
                 }
 
-            # Hugging Face has already parsed the first GGUF's header, so the
-            # architecture is free. Reading it first means an architecture
-            # llama.cpp cannot run costs no range request against a file we were
-            # never going to install.
+            # The listing is asked for the pipeline tag and the chat template,
+            # which are facts about the repo. It is never asked what the model
+            # is: it parses one GGUF per repo and publishes that as the repo's
+            # answer, so a chat model shipped beside a vision sidecar comes back
+            # as `clip`. Measured, that refused 17 of the 1000 most downloaded
+            # repos, 13 of them vision models, each told to install the model it
+            # belongs to when the model it belongs to was that repo.
             facts = await read_repo_facts(client, repo)
+            tag = facts.pipeline_tag if facts else None
             if facts is not None:
                 chat_template = facts.has_chat_template
-            if facts is not None and not is_supported(facts.architecture):
-                return self._ineligible(repo, facts, builds)
 
+            candidate = None
             try:
                 url = f"https://huggingface.co/{repo}/resolve/main/{builds[0].file}"
-                shape = await shape_from_url(client, url)
+                header = await header_from_url(client, url)
+                shape = to_shape(header)
+                candidate = kind_of(header)
             except (httpx.HTTPError, ValueError):
                 # The listing is enough to say how large each build is, and a
                 # size alone still orders the ladder. Refusing the whole repo
@@ -322,7 +330,25 @@ class CatalogService:
                 shape = _SIZE_ONLY_SHAPE
                 approximate = True
 
-        supported = is_supported(shape.architecture) if not approximate else True
+        # The file is the authority on what it is; the tag is the authority on
+        # what the repo says it is for, and only the tag can catch a model built
+        # on a chat architecture and then trained to do something else.
+        # A candidate that is not a model means `list_builds` kept a companion,
+        # so its architecture says nothing about the repo and only the tag
+        # stands. Every path here fails open: the runtime holds the real file
+        # and refuses with the same sentence if this was wrong.
+        judged = shape.architecture if candidate and candidate.kind is FileKind.MODEL else ""
+        reason = refusal(judged, tag)
+        if reason:
+            return self._ineligible(
+                repo,
+                builds,
+                architecture=judged or (facts.architecture if facts else ""),
+                context_length=shape.context_length,
+                chat_template=chat_template,
+                reason=reason,
+            )
+
         rows = []
         for build in builds:
             # The same precision rule the curated rows and the loader use, so
@@ -350,23 +376,33 @@ class CatalogService:
                         "approximate": approximate,
                     },
                     "badge": {"verdict": text.verdict, "reason": text.reason},
-                    "can_install": fit.can_install and supported,
+                    "can_install": fit.can_install,
                 }
             )
         return {
             "repo": repo,
             "architecture": shape.architecture,
             "context_length": shape.context_length,
-            "supported": supported,
+            "supported": True,
             "chat_template": chat_template,
             "builds": rows,
-            "ineligible_reason": None
-            if supported
-            else f"llama.cpp cannot run the {shape.architecture} architecture",
+            "ineligible_reason": None,
         }
 
-    def _ineligible(self, repo: str, facts: RepoFacts, builds: list) -> dict:
-        """A repo llama.cpp cannot run, described from the listing alone.
+    def _ineligible(
+        self,
+        repo: str,
+        builds: list,
+        *,
+        architecture: str,
+        context_length: int,
+        chat_template: bool,
+        reason: str,
+    ) -> dict:
+        """A repo that cannot chat here, described without a further read.
+
+        The reason is passed in rather than recomputed, because two different
+        facts produce it and only the caller knows which one fired.
 
         The builds are still listed, at their real sizes, because the screen is
         answering "what is in here" as well as "can I run it", and an empty repo
@@ -374,10 +410,10 @@ class CatalogService:
         """
         return {
             "repo": repo,
-            "architecture": facts.architecture,
-            "context_length": facts.context_length,
+            "architecture": architecture,
+            "context_length": context_length,
             "supported": False,
-            "chat_template": facts.has_chat_template,
+            "chat_template": chat_template,
             "builds": [
                 {
                     "catalog_id": "",
@@ -391,17 +427,12 @@ class CatalogService:
                         "offload_fraction": 0.0,
                         "approximate": True,
                     },
-                    "badge": {
-                        "verdict": "Cannot run",
-                        "reason": f"llama.cpp has no support for {facts.architecture}",
-                    },
+                    "badge": {"verdict": "Cannot run", "reason": reason},
                     "can_install": False,
                 }
                 for build in builds
             ],
-            "ineligible_reason": (
-                f"llama.cpp cannot run the {facts.architecture} architecture"
-            ),
+            "ineligible_reason": reason,
         }
 
     def inventory(self) -> SystemInventory:
