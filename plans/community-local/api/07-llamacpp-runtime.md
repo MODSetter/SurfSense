@@ -156,6 +156,7 @@ From `electron/src/main/sidecars/llamacpp.ts`:
 --host 127.0.0.1  --port <free>
 --models-max 1
 --sleep-idle-seconds 300
+--models-autoload
 --no-ui
 --jinja
 --reasoning-format deepseek
@@ -170,6 +171,17 @@ directory.
 - `--sleep-idle-seconds 300` is not optional. Measured at `b11050`, a model
   without it self-evicted after roughly 30 s idle, which turns the second
   question of a conversation into a reload.
+- `--models-autoload` is the upstream default, stated because the chat path
+  depends on it. The router's proxy calls `ensure_model_ready` before
+  forwarding, so a cold model loads on the request that needs it, and **nothing
+  in SurfSense ever calls `POST /models/load` on the chat path**. Asking as well
+  was a check-then-act across a socket: read `/models`, see `loaded: false`,
+  post a load, and lose the race to the request already loading the model. The
+  router answers 400 `model is already running`, which took out title generation
+  on every new thread. `RouterClient.load()` survives for a caller that means
+  "load now", such as a warm up after an install, and treats that 400 as
+  success. An Electron test holds this flag so an upstream change to the default
+  fails there rather than in a chat.
 - `--no-ui` because llama-server ships its own web UI, which we neither need nor
   want exposed.
 - `--reasoning-format deepseek` routes `<think>` blocks to
@@ -340,11 +352,15 @@ measured, `model name=… is not removable (not from cache)`, a 500, with the fi
 left on disk. Everything SurfSense installs lands in `--models-dir`, so that call
 can never succeed for us.
 
-`/props` is read once per load rather than once per message, cached by model id
-and cleared only by `_ensure_loaded()` issuing a fresh load, which is the one
-event that can make the old answer wrong. Before that cache, `context_tokens()`
-and `chat()`'s own template shaping each issued an independent round trip on
-every turn.
+`/props` is read once rather than once per message, cached by model id. Before
+that cache, `context_tokens()` and `chat()`'s own template shaping each issued
+an independent round trip on every turn.
+
+Nothing invalidates the cache, and nothing needs to. The answer is a property of
+the file and the preset, and a preset rewrite restarts the sidecar, but
+`get_provider()` builds a fresh adapter per call, so an entry cannot outlive the
+resolution that created it. Within one adapter the answer cannot change; across
+adapters there is no cache to be stale.
 
 ## Reading a model
 
