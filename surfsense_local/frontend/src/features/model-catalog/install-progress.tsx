@@ -52,10 +52,10 @@ export function InstallProgress({
             down from where the last ended. A full bar sliding back to empty is
             what read as the install failing and starting over. */}
         {view.percent === null ? (
-          <div
-            key={event.type}
-            className="h-full animate-pulse rounded-full bg-primary/60"
-          />
+          // Held, not animated. A phase with no figure is still a phase that is
+          // going somewhere, and the line above it already says which; a bar
+          // that moves without the work moving is the part that reads as noise.
+          <div key={event.type} className="h-full rounded-full" />
         ) : (
           <div
             key={event.type}
