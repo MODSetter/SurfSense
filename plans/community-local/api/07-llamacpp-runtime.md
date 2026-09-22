@@ -1256,15 +1256,34 @@ chat costs no range request against a file we were never going to install. It
 does not carry the KV shape, so it replaces nothing for a model we *can* run: the
 header read still happens, it just no longer happens for models we cannot.
 
-> **Known defect, measured.** Hugging Face parses **one** file per repo and
-> serves that as the repo's answer. A repo shipping a chat model beside an
-> `mmproj` sidecar can report `clip`, and the whole repo is then refused although
-> `list_builds()` already excluded the sidecar and the real candidate reads
-> `qwen35`. 17 of 979 top repos are refused this way, verified against their own
-> headers. It is the worst shape of failure this tier has, because the user is
-> told no and has no way to learn otherwise. The fix is to read the candidate
-> build's header before refusing and to keep the listing only for the tag, which
-> is genuinely a repo level fact.
+**The file is asked, not the repo.** Hugging Face parses **one** file per repo
+and serves that as the repo's answer, so a chat model shipped beside an `mmproj`
+sidecar came back as `clip` and the whole repo was refused, 17 of 979 top repos
+among them and 13 of those vision models. Each was told to install the model it
+belonged to, which was that repo. Nobody could learn otherwise, because being
+told no is indistinguishable from a considered answer.
+
+So `service.repo()` reads the candidate build's own header and gates on that.
+`_candidate()` walks the builds until one is both a model and one the denylist
+allows, because `list_builds` orders by size and a draft head is always smaller
+than the model it accelerates: judging the first file would reproduce the same
+failure from our own ordering. Normally one read; two or three in a repo whose
+sidecars sort first.
+
+**Refusing became the cheap path.** `source.py` widens from `PROBE_BYTES`
+(256 KiB) to 8 MiB to 24 MiB. A projector, an imatrix or a diffusion GGUF has no
+tokenizer, so its metadata ends inside the probe and `general.type` names it
+outright. A chat model's `tokenizer.ggml.tokens` runs to megabytes, measured at
+5.93 MB for Qwen3 0.6B and 7.82 MB for Llama 3.2 1B, so it truncates there and
+widens to exactly what it read before. The truncation is the verdict: a header
+that does not fit belongs to a real model.
+
+`modules/llm/gguf/file_kind.py` reads only official keys, `general.type` against
+`gguf.constants.GGUFType`, plus `split.count`. A header that parses and names no
+architecture at all is `NOT_LOADABLE`, because that key is what llama.cpp
+dispatches on. Everything else fails open: a short read, a failed request, an
+unparseable file all admit, since a refusal made from a failure to read is the
+one mistake this tier cannot afford.
 
 A repo that cannot chat here still lists its builds at their real sizes, badged
 `Cannot run` and not installable, because the screen is answering "what is in
@@ -1289,7 +1308,10 @@ what a quality score was doing for a reader. The 8 of 40 without one are
 informative by their absence.
 
 `list_builds()` excludes split sets (`-of-`), projectors (`mmproj`) and draft
-models (`draft`): none of them is a thing a user installs on its own. The
+models (`draft`): none of them is a thing a user installs on its own. It is a
+**display filter and decides nothing**. Eligibility comes from the candidate's
+header, and the walk moves on when this filter kept something it should not
+have, so a name being wrong costs a row on a page rather than a refusal. The
 quantization comes out of the filename with a regex tight enough to require a
 real quant token, because matching loosely reads `Qwen3` out of
 `Qwen3-Coder-30B-A3B-Instruct-UD-TQ1_0.gguf`, seen live. The last match wins,
@@ -1533,6 +1555,67 @@ can accept images architecturally while its template takes only string content,
 which leaves no way to send it one. It is the only capability that reaches the
 UI; `system_role`, `typed_content` and `tools` are constraints that change how a
 request is built and mean nothing to a person.
+
+### Vision: what is built, and what is missing
+
+**A vision model is two files.** The weights answer questions and the projector
+turns a picture into something the weights can read. Every vision repo ships
+both, and `list_builds` offers only the first, because a projector is not a
+thing anyone installs on its own.
+
+**Today a vision model installs and gives a text chat.** `install()` fetches one
+file, the build the user chose, so the projector stays on Hugging Face.
+`projector_for` finds nothing beside the model, `mmproj_bytes` is 0, the preset
+carries no `mmproj` line, and `llama-server` loads the weights alone. Search
+prices it the same way, so the badge, the preset and the load all agree: this is
+a text model.
+
+That is deliberate rather than unfinished. Nothing can send an image, so
+fetching the projector would cost roughly a gigabyte of disk and its bytes of
+device memory for a file that would be loaded and never touched. Consistency is
+worth more than readiness here: a projector on disk with no way to use it would
+make every memory estimate wrong by its size.
+
+**What is already built and dormant**, each tested, waiting only for a second
+file to exist on disk:
+
+| | |
+|---|---|
+| `providers/llamacpp/projector.py` | finds the projector paired with a model |
+| `providers/llamacpp/preset.py` | emits `mmproj = <path>` |
+| `fit_target_mib()` | raises the fitter's margin by the projector's bytes, because `--fit` allocates it after placing layers and does not count it while deciding. Measured: a 600 MiB projector gives `fit-target = 1624` |
+| `fit/itemisation.py` | prices `mmproj_bytes` as its own term |
+| `capabilities.py` | `can_see`, gated on both halves |
+
+**What has to be added**, in order:
+
+1. **`InstallPlan` gains the projector.** It is `model_id, repo, file, size_bytes`
+   today. The repo listing already names the file, and
+   `scripts/curated/projector.py` already encodes the preference order, F16 over
+   BF16 over Q8_0.
+2. **`install()` fetches both files.** One extra `download_gguf` into the same
+   directory. From that point everything above starts firing on its own.
+3. **Search pricing passes `mmproj_bytes`.** `service.repo()` calls `estimate()`
+   without it, so a vision build is currently priced as though the projector
+   were free. `reprice()` already passes it. Both must agree or the badge
+   promises a fit the load does not deliver.
+4. **The chat request carries an image.** This is the real work and the only
+   part with nothing behind it: no `image_url` anywhere in the request path and
+   no attach control in the UI. `typed_content` from `chat_template_caps` is
+   what says whether a given model's template can accept one.
+
+**Check before starting.** A vision model should not show a `vision` badge
+today, because `read_capabilities` derives it from what the loaded server reports
+it accepts, and with no projector loaded that should be text only. This has not
+been verified against a running server. If the badge does appear, that is the
+worst intermediate state available: the catalog promising picture support while
+the chat screen offers no way to send one. Fix that before anything else here.
+
+**Audio is one step further back.** llama.cpp supports audio input through the
+same mechanism, `clip.has_audio_encoder` and the whole `Keys.ClipAudio` group,
+but `Modality` carries only `TEXT` and `IMAGE`, so an audio capable model is not
+even detected as one. Out of scope, recorded so it is not mistaken for an
+oversight.
 
 ### Constrained decoding
 
