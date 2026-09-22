@@ -67,6 +67,21 @@ class ModelShape:
     # before falling back to a per architecture default.
     sliding_window_pattern: int = 0
     sliding_window_layers: tuple[bool, ...] = ()
+
+    # What a sliding layer caches, where that is narrower than what a full
+    # attention layer caches. llama.cpp selects between the two per layer, so a
+    # model stating both is charged each layer at its own width. Zero means the
+    # header states no separate width and every layer is priced at
+    # `key_length` / `value_length`.
+    key_length_swa: int = 0
+    value_length_swa: int = 0
+
+    # Heads per layer, where a model does not carry the same number on each.
+    # `head_count_kv` is the widest of them, kept for callers that want one
+    # number; the cache is a sum over layers and reads this instead. Pricing
+    # every layer at the widest over-states a model whose layers differ by
+    # however far apart they are.
+    head_count_kv_layers: tuple[int, ...] = ()
     # Layers that reuse an earlier layer's cache and so allocate none of their own.
     shared_kv_layers: int = 0
 
