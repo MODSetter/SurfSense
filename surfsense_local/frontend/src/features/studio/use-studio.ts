@@ -39,7 +39,14 @@ function wait(ms: number, signal: AbortSignal) {
   })
 }
 
-export function useStudio(workspaceId: number) {
+/**
+ * @param selectionToken Anything that changes when the models a format needs
+ * change. The server decides which formats are available from what is
+ * selected, and this hook holds that answer; without a dependency naming what
+ * it was derived from, choosing a model leaves every tile disabled until the
+ * page is reloaded. The value is never read, only compared.
+ */
+export function useStudio(workspaceId: number, selectionToken = "") {
   const [formats, setFormats] = useState<StudioFormat[]>([])
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -76,7 +83,7 @@ export function useStudio(workspaceId: number) {
         }
       })
     return () => controller.abort()
-  }, [workspaceId])
+  }, [workspaceId, selectionToken])
 
   // While a job runs, poll the list until it settles — the same freshness path
   // the sources panel uses.
