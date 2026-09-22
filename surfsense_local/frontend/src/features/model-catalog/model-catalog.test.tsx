@@ -3,6 +3,7 @@ import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
+import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { render } from "@/test-utils"
 import { ModelCatalogPage } from "./model-catalog-page"
 import {
@@ -271,6 +272,97 @@ describe("model catalog", () => {
       await screen.findByLabelText("Recommended for this computer")
     ).toBeTruthy()
     expect(screen.queryByText(/rank/i)).toBeNull()
+  })
+
+  it("asks to allow huggingface.co the moment the search box is clicked", async () => {
+    // Nothing can be searched until that question is answered, so it is asked
+    // when the user reaches for the box rather than after a silent refusal.
+    const calls: string[] = []
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path, init) => {
+        calls.push(`${init?.method ?? "GET"} ${path}`)
+        if (path === "/egress") {
+          return Response.json([
+            {
+              destination: "host:huggingface.co",
+              host: "huggingface.co",
+              enabled: false,
+              last_call_at: null,
+            },
+          ])
+        }
+        if (path.startsWith("/egress/")) return Response.json({})
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(
+      <>
+        <EgressPrompt />
+        <ModelCatalogPage />
+      </>
+    )
+    await user.click(
+      await screen.findByRole("searchbox", { name: "Search all models" })
+    )
+
+    await screen.findByRole("alertdialog")
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await waitFor(() =>
+      expect(calls).toContain("PUT /egress/host:huggingface.co")
+    )
+  })
+
+  it("still asks when the box is reached before the answer has loaded", async () => {
+    // The panel of destinations is a fetch like any other. Losing that race
+    // must not cost the user the question, or they are back to a silent 403.
+    let release = () => {}
+    const loaded = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path === "/egress") return null
+        if (path.startsWith("/egress/")) return Response.json({})
+        return null
+      })
+    )
+    const served = vi.mocked(globalThis.fetch)
+    const base = served.getMockImplementation()!
+    served.mockImplementation(async (input, init) => {
+      if (String(input) === "/egress") {
+        await loaded
+        return Response.json([
+          {
+            destination: "host:huggingface.co",
+            host: "huggingface.co",
+            enabled: false,
+            last_call_at: null,
+          },
+        ])
+      }
+      return base(input, init)
+    })
+    const user = userEvent.setup()
+
+    render(
+      <>
+        <EgressPrompt />
+        <ModelCatalogPage />
+      </>
+    )
+    await user.click(
+      await screen.findByRole("searchbox", { name: "Search all models" })
+    )
+    expect(screen.queryByRole("alertdialog")).toBeNull()
+
+    release()
+
+    expect(await screen.findByRole("alertdialog")).toBeTruthy()
   })
 
   it("explains that search is unavailable rather than erroring", async () => {

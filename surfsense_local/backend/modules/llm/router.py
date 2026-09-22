@@ -261,7 +261,7 @@ async def install_local_image_model(
     model = sdcpp.find(name)
     if model is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown image model: {name}")
-    await transact(session, egress.require, egress.IMAGE_MODEL_PULL)
+    await transact(session, egress.require, egress.HUGGINGFACE)
 
     async def progress() -> AsyncIterator[bytes]:
         async for step in sdcpp.install(model):

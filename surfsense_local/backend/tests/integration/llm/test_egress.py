@@ -1,10 +1,14 @@
 """Nothing leaves the machine until the user allows that destination."""
 
+from pathlib import Path
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
 from modules.llm.models import ProviderConnection
+from modules.llm.providers.sdcpp import provider as sdcpp
+from shared.config import get_llm_settings
 from shared.db import create_session_factory
 
 pytestmark = pytest.mark.integration
@@ -57,16 +61,34 @@ async def test_loopback_connections_are_not_egress(
         json={**REMOTE, "label": "Local", "base_url": openai_server},
     )
     assert created.status_code == 201, created.text
-    # The two weight downloads are always listed; the connection adds no third.
-    assert set(await _destinations(client)) == {
-        "image_model_pull",
-        # One host, two consents: a repo the user named, and text they typed.
-        "model_download",
-        "model_search",
-    }
+    # huggingface.co is always listed; the connection adds no second row.
+    assert set(await _destinations(client)) == {"host:huggingface.co"}
 
 
 async def test_unknown_destination_is_rejected(client: AsyncClient) -> None:
     """Only destinations the app contacts can be toggled."""
     reply = await client.put("/egress/keygen", json={"enabled": True})
     assert reply.status_code == 422
+
+
+async def test_one_grant_covers_everything_sent_to_huggingface(
+    client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Three calls, one host, one row in the panel. Searching, downloading
+    weights and downloading an image model all reach huggingface.co, so the
+    question the user is asked is about the host and is asked once.
+    """
+    monkeypatch.setattr(get_llm_settings(), "image_models_dir", tmp_path)
+    catalog_id = (await client.get("/llm/catalog")).json()["curated"][0]["catalog_id"]
+    image_model = sdcpp.CATALOG[0].name
+
+    refusals = [
+        await client.get("/llm/search", params={"q": "qwen"}),
+        await client.post("/llm/install", json={"catalog_id": catalog_id}),
+        await client.post(f"/llm/image/local/{image_model}/install"),
+    ]
+
+    assert [refused.status_code for refused in refusals] == [403, 403, 403]
+    assert {refused.json()["detail"]["destination"] for refused in refusals} == {
+        "host:huggingface.co"
+    }

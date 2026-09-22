@@ -62,6 +62,35 @@ describe("egress prompt", () => {
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
   })
 
+  it("tells the truth about huggingface.co: typing and names, not documents", async () => {
+    // One host for three errands, so one question has to cover all of them
+    // without borrowing the copy written for a chat endpoint.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            detail: {
+              code: "egress_disabled",
+              message: "off",
+              destination: "host:huggingface.co",
+              host: "huggingface.co",
+            },
+          },
+          { status: 403 }
+        )
+      )
+    )
+    render(<EgressPrompt />)
+
+    void requestVoid("/llm/install", { method: "POST" }).catch(() => {})
+
+    const dialog = await screen.findByRole("alertdialog")
+    expect(dialog.textContent).toContain("what you type")
+    expect(dialog.textContent).toContain("the model you chose")
+    expect(dialog.textContent).not.toContain("excerpts of your documents")
+  })
+
   it("cancelling leaves the call refused", async () => {
     const calls = stubApi()
     const user = userEvent.setup()

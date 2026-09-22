@@ -87,7 +87,7 @@ async def search(
 ) -> dict:
     """Absent rather than degraded when egress is off. That is the airgapped
     product: curated, installed and a local .gguf import all still work."""
-    await transact(session, egress.require, egress.MODEL_SEARCH)
+    await transact(session, egress.require, egress.HUGGINGFACE)
     try:
         hits = await service.search(q, limit=limit)
     except httpx.HTTPError as error:
@@ -101,7 +101,7 @@ async def search(
 async def read_repo(repo: str, service: CatalogServiceDep, session: SessionDep) -> dict:
     """Where the header read happens, so the trigger is opening a result rather
     than hovering or typing. The list level badge stays approximate until here."""
-    await transact(session, egress.require, egress.MODEL_SEARCH)
+    await transact(session, egress.require, egress.HUGGINGFACE)
     try:
         return await service.repo(repo)
     except httpx.HTTPError as error:
@@ -121,7 +121,7 @@ async def install(
     if plan is None:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, STALE_ID)
 
-    await transact(session, egress.require, egress.MODEL_DOWNLOAD)
+    await transact(session, egress.require, egress.HUGGINGFACE)
 
     lock = service.install_lock()
     if lock.locked():

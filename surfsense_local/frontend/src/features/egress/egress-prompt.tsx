@@ -19,15 +19,7 @@ import {
   destinationsQueryKey,
   setDestinationEnabled,
 } from "./api"
-
-type Pending = {
-  destination: string
-  host: string
-  // What Allow does. A refused request enables the destination and is retried;
-  // the updater talks to GitHub from Electron, so its consent is a pref there.
-  allow: () => Promise<unknown>
-  resolve: (allowed: boolean) => void
-}
+import { setAskHandler, type Pending } from "./ask-egress"
 
 function pendingFrom(error: ApiError, resolve: Pending["resolve"]): Pending {
   const { destination, host } = error.detail
@@ -38,18 +30,6 @@ function pendingFrom(error: ApiError, resolve: Pending["resolve"]): Pending {
     allow: () => setDestinationEnabled(key, true),
     resolve,
   }
-}
-
-// Set while the dialog is mounted, for callers the API layer cannot speak for.
-let ask: ((request: Omit<Pending, "resolve">) => Promise<boolean>) | null = null
-
-/**
- * Ask about a destination no failed request can raise, because the call is not
- * the backend's to make. Resolves false when the prompt is not mounted, so a
- * caller outside the app shell simply gets no consent rather than an error.
- */
-export function askEgress(request: Omit<Pending, "resolve">): Promise<boolean> {
-  return ask ? ask(request) : Promise.resolve(false)
 }
 
 export function EgressPrompt() {
@@ -64,11 +44,12 @@ export function EgressPrompt() {
     setEgressPrompt(
       (error) => new Promise((resolve) => enqueue(pendingFrom(error, resolve)))
     )
-    ask = (request) =>
-      new Promise((resolve) => enqueue({ ...request, resolve }))
+    setAskHandler(
+      (request) => new Promise((resolve) => enqueue({ ...request, resolve }))
+    )
     return () => {
       setEgressPrompt(null)
-      ask = null
+      setAskHandler(null)
     }
   }, [])
 

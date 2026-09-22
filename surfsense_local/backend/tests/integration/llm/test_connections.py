@@ -312,7 +312,7 @@ async def test_image_model_downloads_are_listed_and_refusable_too(
     monkeypatch.setattr(get_llm_settings(), "image_models_dir", tmp_path)
 
     listed = (await client.get("/egress")).json()
-    row = next(d for d in listed if d["destination"] == "image_model_pull")
+    row = next(d for d in listed if d["destination"] == "host:huggingface.co")
     assert row["host"] == "huggingface.co"
     assert row["enabled"] is False
 
@@ -320,7 +320,7 @@ async def test_image_model_downloads_are_listed_and_refusable_too(
         f"/llm/image/local/{sdcpp.CATALOG[0].name}/install"
     )
     assert denied.status_code == 403
-    assert denied.json()["detail"]["destination"] == "image_model_pull"
+    assert denied.json()["detail"]["destination"] == "host:huggingface.co"
 
 
 async def test_image_selection_alone_does_not_complete_onboarding(

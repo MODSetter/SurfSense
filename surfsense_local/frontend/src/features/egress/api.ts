@@ -7,6 +7,9 @@ export type Destination = {
   last_call_at: string | null
 }
 
+/** Search, model weights and image weights all reach this one host. */
+export const HUGGINGFACE = "host:huggingface.co"
+
 export const destinationsQueryKey = ["egress"] as const
 
 export function listDestinations(signal?: AbortSignal): Promise<Destination[]> {
@@ -32,27 +35,14 @@ export function describeDestination(destination: string, host: string) {
       body: `Checking asks ${host} for the latest release. SurfSense sends your IP address and the version you are running, nothing else. Allowing also turns on the check at launch, which you can switch off in Settings › Network.`,
     }
   }
-  if (destination === "model_download") {
+  // Searching, model weights and image weights are three errands to one host,
+  // so this asks about the host once and names every errand. Search is the
+  // widest of them and is stated first: it sends text as it is typed.
+  if (destination === HUGGINGFACE) {
     return {
-      label: "Model downloads",
-      title: "Allow model downloads?",
-      body: `Downloading a model contacts ${host}. SurfSense sends the name of the model you chose and your IP address, nothing else.`,
-    }
-  }
-  // Same host as downloads, and a separate consent on purpose: this one sends
-  // what you type as you type it, rather than the name of a model you picked.
-  if (destination === "model_search") {
-    return {
-      label: "Model search",
-      title: "Allow searching for models?",
-      body: `Searching sends what you type to ${host}, along with your IP address. Without it you can still install the models SurfSense ships with, and any .gguf file already on this machine.`,
-    }
-  }
-  if (destination === "image_model_pull") {
-    return {
-      label: "Image model downloads",
-      title: "Allow image model downloads?",
-      body: `Downloading an image model contacts ${host}. SurfSense sends the model name and your IP address, nothing else. The model then generates on this computer.`,
+      label: "Model search and downloads",
+      title: "Allow searching and downloading models?",
+      body: `Searching sends what you type to ${host} as you type it. Downloading sends the name of the model you chose. Both send your IP address, and neither sends your chats or your documents.`,
     }
   }
   return {

@@ -1,4 +1,4 @@
-import { useId, useState } from "react"
+import { useEffect, useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
@@ -6,6 +6,13 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { SearchIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import {
+  HUGGINGFACE,
+  destinationsQueryKey,
+  listDestinations,
+  setDestinationEnabled,
+} from "@/features/egress/api"
+import { askEgress } from "@/features/egress/ask-egress"
 import { getRepoDetail, searchModels, type RepoBuild } from "./api"
 import { FitBadge, FitReason } from "./fit-badge"
 
@@ -77,7 +84,9 @@ function RepoBuilds({
           >
             <div className="flex min-w-0 flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{build.quantization}</span>
+                <span className="text-sm font-medium">
+                  {build.quantization}
+                </span>
                 <FitBadge fit={build.fit} copy={build.badge} />
                 <span className="text-xs text-muted-foreground">
                   {formatSize(build.size_bytes)}
@@ -112,6 +121,32 @@ export function ModelSearch({
   const [openRepo, setOpenRepo] = useState<string | null>(null)
   const trimmed = query.trim()
 
+  const destinations = useQuery({
+    queryKey: destinationsQueryKey,
+    queryFn: ({ signal }) => listDestinations(signal),
+  })
+  const huggingface = destinations.data?.find(
+    (row) => row.destination === HUGGINGFACE
+  )
+  // Reaching for the box is what raises the question, and it is raised as soon
+  // as both are true: the user wants to search, and the answer is known to be
+  // no. Either can arrive first, so neither is the trigger on its own.
+  const [reached, setReached] = useState(false)
+  // Once per visit. Asking again on every click is nagging, and a refusal
+  // still leaves the box usable enough to read why nothing comes back.
+  const asked = useRef(false)
+
+  useEffect(() => {
+    if (!reached || asked.current || huggingface === undefined) return
+    if (huggingface.enabled) return
+    asked.current = true
+    void askEgress({
+      destination: huggingface.destination,
+      host: huggingface.host,
+      allow: () => setDestinationEnabled(huggingface.destination, true),
+    })
+  }, [reached, huggingface])
+
   const results = useQuery({
     queryKey: ["llm", "search", "list", trimmed],
     queryFn: ({ signal }) => searchModels(trimmed, signal),
@@ -139,6 +174,7 @@ export function ModelSearch({
             placeholder="Search all models"
             aria-label="Search all models"
             className="h-8 border-0 bg-secondary pl-8 text-sm focus-visible:border-0"
+            onFocus={() => setReached(true)}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
