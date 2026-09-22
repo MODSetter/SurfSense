@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
-import { CircleAlertIcon } from "@/components/ui/icons"
+import { CircleAlertIcon, DotIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
@@ -112,7 +112,7 @@ function LicenseFormDialog({
 
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md select-none">
+      <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
             {replacing ? "Replace license" : "Add license"}
@@ -252,10 +252,17 @@ export function LicenseSettings() {
               {status.email}
             </p>
             {status.expiry ? (
-              <p className="text-sm text-pretty text-muted-foreground tabular-nums">
-                {status.state === "active" ? "Expires" : "Ended"}{" "}
-                {dateLabel(status.expiry)}
-                {status.max_users ? ` · ${status.max_users} seats` : ""}
+              <p className="flex flex-wrap items-center text-sm text-muted-foreground tabular-nums">
+                <span>
+                  {status.state === "active" ? "Expires" : "Ended"}{" "}
+                  {dateLabel(status.expiry)}
+                </span>
+                {status.max_users ? (
+                  <>
+                    <DotIcon aria-hidden="true" className="size-3 shrink-0" />
+                    <span>{status.max_users} seats</span>
+                  </>
+                ) : null}
               </p>
             ) : null}
           </div>

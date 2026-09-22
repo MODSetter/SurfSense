@@ -365,6 +365,31 @@ describe("model catalog", () => {
     expect(await screen.findByRole("alertdialog")).toBeTruthy()
   })
 
+  it("holds the same height whether or not anything has been searched", async () => {
+    // The search section is the last thing in the scroll region, so a region
+    // that grows and collapses with the result count drags the page under the
+    // user. The space is reserved once and every state renders into it.
+    vi.stubGlobal("fetch", serving(catalog()))
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+
+    await screen.findByText(/Type to search every model/)
+    const idle = document.querySelector("[data-slot=search-results]")
+    const reserved = idle?.className ?? ""
+    expect(reserved).toMatch(/min-h-/)
+
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "qwen"
+    )
+    await screen.findByText(/needs access to huggingface\.co/i)
+
+    expect(
+      document.querySelector("[data-slot=search-results]")?.className
+    ).toBe(reserved)
+  })
+
   it("explains that search is unavailable rather than erroring", async () => {
     // With egress off, curated and installed still work. That is the airgapped
     // product, not a degraded one.

@@ -76,48 +76,26 @@ function CatalogSection({
   title,
   description,
   rows,
-  headerAction,
   children,
-  emptyMessage,
-  listMinHeight,
 }: {
   title: string
   description: string
   rows: CatalogRow[]
-  headerAction?: ReactNode
   children: (row: CatalogRow) => ReactNode
-  // Shown instead of the row list when `rows` is empty but the section
-  // should still render (e.g. a search with no matches) — omit this prop to
-  // keep the earlier behavior of hiding the section entirely when empty.
-  emptyMessage?: string
-  // Reserves this much height regardless of how few rows are showing, so a
-  // filter that removes rows leaves blank space below instead of shrinking
-  // the page's scrollable area (which is what causes a scroll-position jump).
-  listMinHeight?: number
 }) {
   const headingId = useId()
-  if (rows.length === 0 && emptyMessage === undefined) {
+  if (rows.length === 0) {
     return null
   }
   return (
     <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 id={headingId} className="font-heading text-sm font-medium">
-            {title}
-          </h2>
-          <p className="text-xs text-muted-foreground">{description}</p>
-        </div>
-        {headerAction}
+      <div>
+        <h2 id={headingId} className="font-heading text-sm font-medium">
+          {title}
+        </h2>
+        <p className="text-xs text-muted-foreground">{description}</p>
       </div>
-      <div
-        data-slot="catalog-section-list"
-        className="flex flex-col gap-2.5"
-        style={listMinHeight ? { minHeight: listMinHeight } : undefined}
-      >
-        {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">{emptyMessage}</p>
-        ) : null}
+      <div className="flex flex-col gap-2.5">
         {[...grouped(rows)].map(([family, familyRows]) => (
           <ModelFamilyGroup key={family} family={family}>
             {familyRows.map((row) => (
