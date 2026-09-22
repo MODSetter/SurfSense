@@ -39,7 +39,7 @@ def build(repo: str, file: str, quant: str, size: int, rank: int) -> dict:
         "quantization": quant,
         "size_bytes": size,
         "rank": rank,
-        "rank_basis": "llmfit-1.1.11",
+        "rank_basis": "surfsense-curated-1",
     }
 
 

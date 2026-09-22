@@ -43,7 +43,7 @@ def entry(**overrides) -> dict:
                 "quantization": "Q4_K_M",
                 "size_bytes": 5027784512,
                 "rank": 78,
-                "rank_basis": "llmfit-1.1.11",
+                "rank_basis": "surfsense-curated-1",
                 "validated": True,
             }
         ],
@@ -111,8 +111,8 @@ def test_a_rank_must_name_the_quantization_it_was_taken_at() -> None:
 
 
 def test_ranks_are_never_compared_across_different_bases() -> None:
-    """An llmfit number and an eval derived number are not on one scale, and
-    sorting them together would silently reorder the list."""
+    """Two rank scales are not on one scale, and sorting them together
+    would silently reorder the list."""
     mixed = [
         entry(),
         entry(

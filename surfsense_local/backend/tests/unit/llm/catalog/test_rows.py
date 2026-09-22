@@ -32,7 +32,7 @@ def build(file: str, quant: str, gb: float, rank: int) -> dict:
     """One downloadable build plus the judgement fields beside it."""
     return {
         "repo": "unsloth/q", "file": file, "quantization": quant,
-        "size_bytes": int(gb * GB), "rank": rank, "rank_basis": "llmfit-1.1.11",
+        "size_bytes": int(gb * GB), "rank": rank, "rank_basis": "surfsense-curated-1",
     }
 
 

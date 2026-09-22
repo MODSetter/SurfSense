@@ -15,6 +15,21 @@ Everything mechanical is derived here. The three judgement fields stay in
   rank_basis  what produced the number, so a manifest part way through a
               migration is detectable and two scales are never mixed.
   validated   somebody ran this exact file.
+
+A fourth judgement is not a field at all: which quantization of a chosen model
+to pin in `ENTRIES`. Before changing one, run llama.cpp's own `llama-perplexity`
+(same release archive as `llama-server`, official, no scan) against the
+candidate and the f16 original, and only pin the smaller one if the divergence
+is negligible:
+
+    ./llama-perplexity -m <model>-f16.gguf --kl-divergence-base base.kld -f wikitext-2-raw/wiki.test.raw
+    ./llama-perplexity -m <model>-Q4_K_M.gguf --kl-divergence-base base.kld --kl-divergence
+
+The second command's printed KL-divergence is the evidence; only the resulting
+`quant` string in `ENTRIES` is committed, the same way `validated` commits a
+person's outcome and not their chat transcript. There is nothing to parse here
+in code: it is read once by a person, same cadence as everything else in this
+file.
 """
 
 import asyncio
@@ -32,7 +47,7 @@ from modules.llm.fit import ModelShape
 from modules.llm.gguf import to_shape
 
 OUT = Path(__file__).resolve().parents[1] / "modules/llm/catalog/curated-models.json"
-RANK_BASIS = "llmfit-1.1.11"
+RANK_BASIS = "surfsense-curated-1"
 
 # The shipped ladder. Six rungs, one family, every machine gets a pick.
 #
