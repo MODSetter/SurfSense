@@ -8,7 +8,11 @@ pytestmark = pytest.mark.unit
 
 
 def _entry(inputs: list[str], outputs: list[str], **rest: object) -> dict:
-    return {"modalities": {"input": inputs, "output": outputs}, **rest}
+    return {
+        "modalities": {"input": inputs, "output": outputs},
+        "limit": {"context": 128000},
+        **rest,
+    }
 
 
 def test_text_on_both_sides_is_the_chat_case() -> None:
@@ -22,6 +26,18 @@ def test_an_image_model_given_an_image_both_generates_and_edits() -> None:
     """Reading image input as edit *instead of* generate empties the image tab
     at all twelve connectable providers, `gpt-image-1` included."""
     assert classify("gpt-image-1", _entry(["text", "image"], ["image"])) == {
+        ModelType.IMAGE_GEN,
+        ModelType.IMAGE_EDIT,
+    }
+
+
+def test_an_image_model_that_also_emits_text_is_not_a_chat_model() -> None:
+    """The GPT image models declare text output, so modalities alone put them
+    in the chat tab, where they answer with a picture. They report no context
+    window, which a model you can converse with always has."""
+    gpt_image = _entry(["text", "image"], ["text", "image"], limit={"context": 0})
+
+    assert classify("gpt-image-1.5", gpt_image) == {
         ModelType.IMAGE_GEN,
         ModelType.IMAGE_EDIT,
     }
