@@ -10,7 +10,7 @@ Maya installs a plugin from a list, then uses it where she already works. An ent
 ## Work
 
 - Installed entries are `SidebarNavAction` rows on the existing left sidebar, below Chats. The label is the entry title. Click opens a dialog built from the app's own inputs: text, number, checkbox. Submit starts the run in the current workspace. The dialog shows running, then succeeded, failed, or cancelled, with the error and the log tail, and a cancel button.
-- A `document` result is not drawn in that dialog. It arrives in the sources list, which already lists notes. Other kinds are listed in the dialog as the kind and the JSON.
+- The dialog does not draw what the run produced. A plugin writes through the app's own API, so a note it added appears in the sources list the way any other note does, while the run is still going. The dialog shows status, error, and the log tail.
 - Settings holds the catalog, not the run. Each row: name, author, version, the `hosts` list or the word "none", `free` or `paid`, and installed version when present.
 - A `paid` row that is locked explains that a SurfSense license is required and links to the existing license settings. The install button is disabled.
 - Install calls `POST /plugins/{id}/install`. Egress 403 shows the same Settings → Network explanation the other destinations use, naming `plugin_install`.
