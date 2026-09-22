@@ -1,6 +1,6 @@
 import pytest
 
-from modules.llm.profile import Line, from_name, from_ollama, from_remote
+from modules.llm.profile import Line, from_llamacpp, from_name, from_remote
 
 pytestmark = pytest.mark.unit
 
@@ -105,55 +105,29 @@ def test_a_name_from_an_endpoint_that_describes_nothing_reveals_nothing() -> Non
     assert fingerprint.line is None
 
 
-def test_ollama_states_the_count_and_it_is_taken_as_stated() -> None:
-    """Any registry model carries an exact count, so nothing needs estimating."""
-    fingerprint = from_ollama(
-        "qwen3:8b",
-        tag={"details": {"parameter_size": "8.0B", "quantization_level": "Q4_K_M"}},
-        show={"model_info": {"general.parameter_count": 8030261248}},
+def test_a_stated_parameter_count_is_used_exactly() -> None:
+    """`GET /props` carries the real count, so nothing has to be inferred."""
+    fingerprint = from_llamacpp(
+        "Qwen3-8B-Q4_K_M",
+        {"model_info": {"general.parameter_count": 8030261248}},
     )
 
     assert fingerprint.params_b == 8.0
 
 
-def test_an_ollama_tag_states_the_size_in_the_tag_itself() -> None:
-    """The tag is where a pulled model states its size, and it cannot be stale."""
-    fingerprint = from_ollama("qwen3:1.7b", tag={}, show={})
+def test_a_filename_states_the_size_when_the_runtime_does_not() -> None:
+    """Quantizers put the size in the name, and it beats guessing from bytes."""
+    fingerprint = from_llamacpp("Qwen3-1.7B-Q4_K_M", {})
 
     assert fingerprint.params_b == 1.7
 
 
-def test_a_local_build_that_states_nothing_is_estimated_from_its_weights() -> None:
-    """A Modelfile build can strip every field, but the blob on disk cannot lie."""
-    fingerprint = from_ollama(
-        "custom:latest",
-        tag={"size": 4_661_211_808, "details": {"quantization_level": "Q4_0"}},
-        show={},
-    )
-
-    assert fingerprint.params_b == 7.8
-
-
-def test_the_tag_row_still_states_a_size_when_show_fails() -> None:
-    """Stating beats estimating, so the blob is only the last resort."""
-    fingerprint = from_ollama(
-        "qwen3:1.7b",
-        tag={
-            "size": 1_400_000_000,
-            "details": {"parameter_size": "1.7B", "quantization_level": "Q4_K_M"},
-        },
-        show={},
-    )
-
-    assert fingerprint.params_b == 1.7
-
-
-def test_a_size_in_the_name_outranks_the_vendor_prefix() -> None:
-    """gpt-oss is open weights OpenAI hosts, so 120B decides, not the prefix."""
-    fingerprint = from_name("openai_compatible", "openai/gpt-oss-120b")
-
-    assert fingerprint.params_b == 120.0
-    assert fingerprint.vendor is None
+def test_a_model_that_states_nothing_anywhere_stays_unknown() -> None:
+    """Unknown is honest. The old blob-size division read `gemma3:4b` as 5.5B,
+    because embedding tables inflate a count taken from weights alone, and a
+    wrong number is worse than none: it picks the wrong prompt with confidence.
+    """
+    assert from_llamacpp("custom-model", {}).params_b is None
 
 
 def test_total_parameters_win_over_active_ones() -> None:

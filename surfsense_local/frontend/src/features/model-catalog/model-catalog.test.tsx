@@ -5,63 +5,60 @@ import { toast } from "sonner"
 
 import { render } from "@/test-utils"
 import { ModelCatalogPage } from "./model-catalog-page"
-import { parseNdjson, type CatalogRow, type ModelCatalog } from "./api"
+import {
+  parseNdjson,
+  type CatalogRow,
+  type Fit,
+  type ModelCatalog,
+} from "./api"
 
 vi.mock("sonner", () => ({
-  toast: {
-    error: vi.fn(),
-    info: vi.fn(),
-  },
+  toast: { error: vi.fn(), info: vi.fn() },
 }))
+
+const fit = (overrides: Partial<Fit> = {}): Fit => ({
+  state: "fits",
+  need_bytes: 7_000_000_000,
+  budget_bytes: 16_000_000_000,
+  offload_fraction: 0,
+  approximate: false,
+  ...overrides,
+})
 
 const row = (overrides: Partial<CatalogRow> = {}): CatalogRow => ({
   catalog_id: "opaque-qwen",
-  canonical_id: "Qwen/Qwen3-8B",
-  family: "Qwen",
-  label: "Qwen 3 8B",
-  publisher: "Qwen",
-  parameter_count: 8_000_000_000,
-  fit: "good",
-  score: 92,
-  memory_required_gb: 6.2,
-  disk_size_gb: 5.1,
-  estimated_tps: 24,
-  prefill_tps: 100,
-  ttft_ms: 240,
-  effective_context_length: 8192,
-  estimate_confidence: "high",
-  license: "Apache-2.0",
-  runtime: "ollama",
-  runtime_model: "qwen3:8b",
+  model_id: "Qwen/Qwen3-8B",
+  variant_model_id: "Qwen3-8B-Q4_K_M",
+  label: "Qwen3 8B",
+  family: "Qwen3",
+  parameter_count: "8B",
   quantization: "Q4_K_M",
+  size_bytes: 5_027_784_512,
+  context_length: 40960,
+  fit: fit(),
+  badge: { verdict: "Full speed", reason: "Runs entirely on the GPU" },
+  capabilities: [],
   installed: false,
   selected: false,
   can_install: true,
-  can_delete: false,
-  warnings: [],
+  recommended: false,
   ...overrides,
 })
 
 const catalog = (overrides: Partial<ModelCatalog> = {}): ModelCatalog => ({
-  hardware: {
-    cpu_name: "Apple M3",
-    cpu_cores: 8,
-    total_ram_gb: 16,
-    available_ram_gb: 12,
+  budget: {
+    device_total_bytes: 16_000_000_000,
+    device_free_bytes: 14_000_000_000,
+    usable_vram_bytes: 12_900_000_000,
+    fit_reserve_bytes: 1_073_741_824,
+    ram_available_bytes: 16_000_000_000,
+    uma: true,
     has_gpu: true,
-    gpu_name: "Apple M3",
-    gpu_vram_gb: 16,
-    gpu_count: 1,
-    backend: "Metal",
-    unified_memory: true,
   },
-  llmfit_version: "1.1.11",
+  gpu_status: "present",
   curated: [row()],
-  explore: [],
   installed: [],
-  scanned: true,
-  warnings: [],
-  runtime_status: { ollama: { available: true } },
+  recommended_model_id: null,
   ...overrides,
 })
 
@@ -69,11 +66,24 @@ function stream(chunks: string[]) {
   const encoder = new TextEncoder()
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      for (const chunk of chunks) {
-        controller.enqueue(encoder.encode(chunk))
-      }
+      for (const chunk of chunks) controller.enqueue(encoder.encode(chunk))
       controller.close()
     },
+  })
+}
+
+/** Routes the catalog GET and leaves everything else a 404. */
+function serving(
+  data: ModelCatalog,
+  extra: (path: string, init?: RequestInit) => Response | null = () => null
+) {
+  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const path = String(input)
+    if (path === "/llm/catalog") return Response.json(data)
+    return (
+      extra(path, init) ??
+      Response.json({ detail: "not found" }, { status: 404 })
+    )
   })
 }
 
@@ -83,7 +93,7 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("normalized model catalog", () => {
+describe("model catalog", () => {
   it("parses NDJSON split across arbitrary chunks", async () => {
     const values = []
     for await (const value of parseNdjson<{ type: string }>(
@@ -94,461 +104,291 @@ describe("normalized model catalog", () => {
     expect(values).toEqual([{ type: "starting" }, { type: "complete" }])
   })
 
-  it("installs with only the opaque id and advances on complete", async () => {
+  it("renders a hardware line and badged rows with no scan button", async () => {
+    // There is no scan: the budget comes from the runtime's own allocator, so
+    // there is nothing to wait for and nothing for the user to press.
+    vi.stubGlobal("fetch", serving(catalog()))
+
+    render(<ModelCatalogPage />)
+
+    expect(await screen.findByText("Full speed")).toBeTruthy()
+    expect(screen.getByText("Runs entirely on the GPU")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /scan/i })).toBeNull()
+  })
+
+  it("says the card was not detected rather than calling the machine CPU only", async () => {
+    // A missing backend library makes the runtime report no devices, silently,
+    // with exit 0, on a machine with a working card. Priced against the
+    // processor it would otherwise read as a machine that has no card, which is
+    // a sentence about the user's hardware and it would be wrong.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          gpu_status: "broken_install",
+          budget: { ...catalog().budget, has_gpu: false },
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    expect(
+      await screen.findByText(/Graphics card not detected by the runtime/)
+    ).toBeTruthy()
+    expect(screen.queryByText("Runs on your processor")).toBeNull()
+  })
+
+  it("installs with only the opaque id", async () => {
+    // The renderer never sends a repo, file, URL, path or quantization.
     const onSelected = vi.fn()
-    const fetchMock = vi.fn(
-      async (input: RequestInfo | URL, init?: RequestInit) => {
-        void init
-        const path = String(input)
-        if (path === "/llm/catalog") {
-          return Response.json(catalog())
-        }
-        if (path === "/llm/install") {
-          return new Response(
+    const fetchMock = serving(catalog(), (path) =>
+      path === "/llm/install"
+        ? new Response(
             stream([
-              '{"type":"downloading","message":"Downloading","completed":5,',
-              '"total":10}\n',
-              '{"type":"complete","selection":{"role":"generation","provider":"ollama","name":"qwen3:8b","updated_at":"2026-09-07T00:00:00Z"}}\n',
+              '{"type":"downloading","completed":5,"total":10}\n',
+              '{"type":"complete","selection":{"role":"generation","provider":"llamacpp","name":"Qwen3-8B-Q4_K_M","updated_at":"2026-09-07T00:00:00Z"}}\n',
             ])
           )
-        }
-        return Response.json({ detail: "not found" }, { status: 404 })
-      }
+        : null
     )
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
 
     render(<ModelCatalogPage onSelected={onSelected} />)
-    const action = await screen.findByRole("button", {
-      name: "Download",
-    })
-    expect(screen.getByText("Curated models")).toBeTruthy()
-    expect(
-      screen.getByText("Only models compatible with this machine are shown.")
-    ).toBeTruthy()
-    expect(
-      screen.queryByText(
-        "Estimates reserve resources for SurfSense and may vary by workload."
-      )
-    ).toBeNull()
-    expect(
-      screen.getByText("Apple M3").parentElement?.querySelector("svg")
-    ).toBeTruthy()
-    expect(screen.getByText("Good fit")).toBeTruthy()
-    expect(screen.getByRole("list", { name: "Qwen models" })).toBeTruthy()
-    expect(screen.getByRole("listitem")).toBeTruthy()
-    expect(screen.getByText("5.1 GB")).toBeTruthy()
-    await user.click(action)
+    await user.click(await screen.findByRole("button", { name: "Download" }))
 
     await waitFor(() => expect(onSelected).toHaveBeenCalledOnce())
-    const installCall = fetchMock.mock.calls.find(
-      ([path]) => path === "/llm/install"
-    )
-    expect(JSON.parse(String(installCall?.[1]?.body))).toEqual({
+    const call = fetchMock.mock.calls.find(([path]) => path === "/llm/install")
+    expect(JSON.parse(String(call?.[1]?.body))).toEqual({
       catalog_id: "opaque-qwen",
       select: true,
     })
   })
 
-  it("confirms marginal models and disables too-tight installs", async () => {
+  it("installs a reduced speed model with no confirmation step", async () => {
+    // It runs, slower, and llama.cpp places the layers. Measured: an RTX 3050
+    // runs an 8B at roughly 28% on the processor without noticeable lag, so
+    // asking the user to confirm would discourage a setup that works.
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json(
-          catalog({
-            curated: [],
-            explore: [
-              row({
-                catalog_id: "marginal",
-                label: "Marginal model",
-                fit: "marginal",
-                memory_required_gb: null,
-              }),
-              row({
-                catalog_id: "tight",
-                label: "Too tight model",
-                fit: "too_tight",
-              }),
-            ],
-          })
-        )
-      )
-    )
-    const user = userEvent.setup()
-    render(<ModelCatalogPage />)
-
-    const actions = await screen.findAllByRole("button", {
-      name: "Download",
-    })
-    expect(screen.getByText("More models")).toBeTruthy()
-    expect(screen.getByText("May be slow")).toBeTruthy()
-    expect(screen.getByText("Doesn't fit")).toBeTruthy()
-    expect(screen.queryByText("Parameters")).toBeNull()
-    expect((actions[1] as HTMLButtonElement).disabled).toBe(true)
-    await user.click(actions[0])
-    const dialog = screen.getByRole("alertdialog", {
-      name: "Use a marginal-fit model?",
-    })
-    expect(dialog).toBeTruthy()
-    expect(dialog.className).toContain("select-none")
-  })
-
-  it("uses content-width separators between populated catalog sections", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json(
-          catalog({
-            explore: [row({ catalog_id: "explore", label: "Explore model" })],
-            installed: [
-              row({
-                catalog_id: "installed",
-                label: "Installed model",
-                installed: true,
-              }),
-            ],
-          })
-        )
+      serving(
+        catalog({
+          curated: [
+            row({
+              fit: fit({ state: "partial", offload_fraction: 0.28 }),
+              badge: {
+                verdict: "Reduced speed",
+                reason: "A little too big for the GPU. Most of it still fits.",
+              },
+            }),
+          ],
+        })
       )
     )
 
     render(<ModelCatalogPage />)
 
-    await screen.findByText("Installed model")
-    // Installed leads on its own, ahead of the image-model block, so it no
-    // longer takes a separator against the curated sections that follow —
-    // only "Curated models" and "More models" get one between them.
-    const separators = document.querySelectorAll('[data-slot="separator"]')
-    expect(separators).toHaveLength(1)
-    for (const separator of separators) {
-      expect(separator.className).toContain("data-horizontal:w-full")
-      expect(separator.className).toContain("my-4")
-      expect(separator.className).not.toContain("mx-3")
-    }
+    const action = await screen.findByRole("button", { name: "Download" })
+    expect(action.hasAttribute("disabled")).toBe(false)
+    expect(screen.getByText("Reduced speed")).toBeTruthy()
+    expect(screen.queryByRole("alertdialog")).toBeNull()
   })
 
-  it("filters More models by search without affecting other sections", async () => {
+  it("grades the reason line by how much spills", async () => {
+    // One sentence is wrong at both ends of a range that runs from barely
+    // noticeable to unusable, and the API already knows the fraction.
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json(
-          catalog({
-            explore: [
-              row({
-                catalog_id: "explore-a",
-                canonical_id: "a",
-                label: "Llama Explorer",
-              }),
-              row({
-                catalog_id: "explore-b",
-                canonical_id: "b",
-                label: "Mistral Ranger",
-              }),
-            ],
-          })
-        )
+      serving(
+        catalog({
+          curated: [
+            row({
+              fit: fit({ state: "partial", offload_fraction: 0.7 }),
+              badge: {
+                verdict: "Reduced speed",
+                reason: "Well over the GPU's memory. Expect it to be slow.",
+              },
+            }),
+          ],
+        })
       )
     )
-    const user = userEvent.setup()
 
     render(<ModelCatalogPage />)
 
-    await screen.findByText("Llama Explorer")
-    expect(screen.getByText("Mistral Ranger")).toBeTruthy()
-    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
-
-    const search = screen.getByRole("searchbox", { name: "Search more models" })
-    await user.type(search, "llama")
-
-    expect(screen.getByText("Llama Explorer")).toBeTruthy()
-    expect(screen.queryByText("Mistral Ranger")).toBeNull()
-    // Curated is unaffected by the "More models" search.
-    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
-
-    await user.clear(search)
-    await user.type(search, "nothing matches this")
-
-    expect(screen.getByText('No models match "nothing matches this".')).toBeTruthy()
+    expect(
+      await screen.findByText(
+        "Well over the GPU's memory. Expect it to be slow."
+      )
+    ).toBeTruthy()
   })
 
-  it("reserves a fixed height for More models while searching, so a search doesn't shrink the page", async () => {
+  it("blocks install only when physics refuses", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        Response.json(
-          catalog({
-            explore: [
-              row({ catalog_id: "explore-a", canonical_id: "a", label: "Llama Explorer" }),
-              row({ catalog_id: "explore-b", canonical_id: "b", label: "Mistral Ranger" }),
-            ],
-          })
-        )
+      serving(
+        catalog({
+          curated: [
+            row({
+              fit: fit({ state: "too_big", offload_fraction: 1 }),
+              badge: {
+                verdict: "Won't fit",
+                reason: "Needs about 21 GB. This Mac has 13.6 GB",
+              },
+              can_install: false,
+            }),
+          ],
+        })
       )
     )
+
+    render(<ModelCatalogPage />)
+
+    const action = await screen.findByRole("button", { name: "Download" })
+    expect(action.hasAttribute("disabled")).toBe(true)
+    expect(
+      screen.getByText("Needs about 21 GB. This Mac has 13.6 GB")
+    ).toBeTruthy()
+  })
+
+  it("marks the recommendation without displaying any rank", async () => {
+    // Rank orders the list and selects the star. It is never shown, and the
+    // surest way to keep that true is for the row never to carry it.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          curated: [row({ recommended: true })],
+          recommended_model_id: "Qwen/Qwen3-8B",
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    expect(
+      await screen.findByLabelText("Recommended for this computer")
+    ).toBeTruthy()
+    expect(screen.queryByText(/rank/i)).toBeNull()
+  })
+
+  it("explains that search is unavailable rather than erroring", async () => {
+    // With egress off, curated and installed still work. That is the airgapped
+    // product, not a degraded one.
+    vi.stubGlobal("fetch", serving(catalog()))
     const user = userEvent.setup()
 
     render(<ModelCatalogPage />)
-    await screen.findByText("Llama Explorer")
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "qwen"
+    )
 
-    const listElement = () =>
-      screen
-        .getByText("More models")
-        .closest("section")
-        ?.querySelector('[data-slot="catalog-section-list"]') as HTMLElement
+    expect(
+      await screen.findByText(/needs access to huggingface\.co/i)
+    ).toBeTruthy()
+  })
 
-    // No reservation while unfiltered — the natural row list is what shows.
-    expect(listElement().style.minHeight).toBe("")
+  it("lists search results and prices a repo's builds when it is opened", async () => {
+    // The header read costs a few megabytes, so it happens on opening a row
+    // rather than for every result in a list.
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/search?")) {
+          return Response.json({
+            results: [
+              {
+                repo: "unsloth/Qwen3-8B-GGUF",
+                downloads: 412000,
+                likes: 91,
+                license: "apache-2.0",
+                gated: false,
+                quantized_from: "Qwen/Qwen3-8B",
+                last_modified: null,
+              },
+            ],
+          })
+        }
+        if (path.startsWith("/llm/search/")) {
+          return Response.json({
+            repo: "unsloth/Qwen3-8B-GGUF",
+            architecture: "qwen3",
+            context_length: 40960,
+            supported: true,
+            chat_template: true,
+            ineligible_reason: null,
+            builds: [
+              {
+                catalog_id: "ticket-1",
+                file: "Qwen3-8B-Q4_K_M.gguf",
+                quantization: "Q4_K_M",
+                size_bytes: 5_027_784_512,
+                fit: fit(),
+                badge: {
+                  verdict: "Full speed",
+                  reason: "Runs entirely on the GPU",
+                },
+                can_install: true,
+              },
+            ],
+          })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
 
-    const search = screen.getByRole("searchbox", { name: "Search more models" })
-    await user.type(search, "llama")
+    render(<ModelCatalogPage />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "qwen"
+    )
 
-    expect(listElement().style.minHeight).toBe("320px")
+    const hit = await screen.findByText("unsloth/Qwen3-8B-GGUF")
+    expect(screen.getByText(/quantized from Qwen\/Qwen3-8B/)).toBeTruthy()
+    await user.click(hit)
 
-    await user.clear(search)
-    expect(listElement().style.minHeight).toBe("")
+    expect(await screen.findByText("Q4_K_M")).toBeTruthy()
   })
 
   it("shows install failures as a toast instead of inside the model row", async () => {
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
-        if (String(input) === "/llm/catalog") {
-          return Response.json(catalog())
-        }
-        return Response.json(
-          { detail: "The model could not be installed. Retry the download." },
-          { status: 500 }
-        )
-      })
-    )
-    const user = userEvent.setup()
-
-    render(<ModelCatalogPage />)
-    await user.click(await screen.findByRole("button", { name: "Download" }))
-
-    await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        "The model could not be installed. Retry the download.",
-        { id: "model-install-error" }
-      )
-    )
-    expect(
-      screen.queryByText("The model could not be installed. Retry the download.")
-    ).toBeNull()
-  })
-
-  it("shows a scan CTA instead of More models until scanned, and curated stays visible", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const path = String(input)
-      if (path === "/llm/catalog") {
-        return Response.json(
-          catalog({
-            scanned: false,
-            curated: [row({ fit: "unknown", score: null })],
-            explore: [],
-          })
-        )
-      }
-      if (path === "/llm/catalog?refresh=true") {
-        return Response.json(
-          catalog({ scanned: true, explore: [row({ catalog_id: "explore" })] })
-        )
-      }
-      return Response.json({ detail: "not found" }, { status: 404 })
-    })
-    vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
-
-    render(<ModelCatalogPage />)
-
-    // Curated shows immediately, scan-free — with no fit badge at all rather
-    // than a claim we can't back up yet.
-    expect(await screen.findByText("Curated models")).toBeTruthy()
-    expect(screen.getByText("Qwen 3 8B")).toBeTruthy()
-    expect(screen.queryByText("Fit unknown")).toBeNull()
-    expect(screen.queryByText("Good fit")).toBeNull()
-    // "More models" keeps its heading, but its content is the scan prompt,
-    // not a row list, until scanned.
-    expect(screen.getByText("More models")).toBeTruthy()
-    expect(
-      screen.getByText(/Find every model that fits your machine/)
-    ).toBeTruthy()
-    // Two "Scan hardware" buttons exist pre-scan (the persistent header
-    // control and the "More models" CTA) — both trigger the same rescan.
-    const scanButtons = screen.getAllByRole("button", { name: "Scan hardware" })
-    expect(scanButtons).toHaveLength(2)
-
-    // The search box is present but disabled before the first scan — there's
-    // nothing to search yet, but the control doesn't pop in/out of the
-    // layout once scanning finishes.
-    const search = screen.getByRole("searchbox", {
-      name: "Search more models",
-    }) as HTMLInputElement
-    expect(search.disabled).toBe(true)
-
-    await user.click(scanButtons[0])
-
-    await waitFor(() =>
-      expect(
-        fetchMock.mock.calls.some(
-          ([path]) => path === "/llm/catalog?refresh=true"
-        )
-      ).toBe(true)
-    )
-    // The scan-free "More models" CTA is replaced by the real row list once
-    // scanned, so re-query rather than reuse the pre-scan input reference.
-    await waitFor(() => {
-      const rescanned = screen.getByRole("searchbox", {
-        name: "Search more models",
-      }) as HTMLInputElement
-      expect(rescanned.disabled).toBe(false)
-    })
-  })
-
-  it("rescans through the explicit refresh endpoint", async () => {
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      void input
-      return Response.json(catalog())
-    })
-    vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
-    render(<ModelCatalogPage />)
-
-    await user.click(
-      await screen.findByRole("button", { name: "Rescan hardware" })
-    )
-    await waitFor(() =>
-      expect(
-        fetchMock.mock.calls.some(
-          ([path]) => path === "/llm/catalog?refresh=true"
-        )
-      ).toBe(true)
-    )
-  })
-
-  it("keeps installed controls when recommendations are degraded", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () =>
-        Response.json(
-          catalog({
-            hardware: null,
-            curated: [],
-            installed: [
-              row({
-                catalog_id: "installed",
-                installed: true,
-                can_install: false,
-              }),
-            ],
-            warnings: [
-              {
-                code: "missing",
-                message: "Hardware recommendations are unavailable.",
-              },
-            ],
-          })
-        )
-      )
-    )
-
-    render(<ModelCatalogPage />)
-
-    expect(
-      await screen.findByText("Hardware recommendations are unavailable.")
-    ).toBeTruthy()
-    expect(screen.getByRole("button", { name: "Use" })).toBeTruthy()
-  })
-
-  it("confirms deletion and reports when the selected model was removed", async () => {
-    const onModelUnavailable = vi.fn()
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      const path = String(input)
-      if (path === "/llm/catalog") {
-        return Response.json(
-          catalog({
-            curated: [],
-            installed: [
-              row({
-                installed: true,
-                selected: true,
-                can_delete: true,
-                label: "Qwen 3 8B",
-              }),
-            ],
-          })
-        )
-      }
-      if (path === "/llm/providers/ollama/models/qwen3%3A8b") {
-        return Response.json({
-          name: "qwen3:8b",
-          selection_cleared: true,
-        })
-      }
-      return Response.json({ detail: "not found" }, { status: 404 })
-    })
-    vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
-
-    render(
-      <ModelCatalogPage
-        allowDelete
-        onModelUnavailable={onModelUnavailable}
-      />
-    )
-    const deleteButton = await screen.findByRole("button", {
-      name: "Delete Qwen 3 8B",
-    })
-    expect(deleteButton.getAttribute("data-variant")).toBe("destructive")
-    await user.click(deleteButton)
-    expect(
-      screen.getByText(
-        "This is your current model. Deleting it will require you to choose another model."
-      )
-    ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Delete model" }))
-
-    await waitFor(() => expect(onModelUnavailable).toHaveBeenCalledOnce())
-  })
-
-  it("cancels an in-flight install without selecting it", async () => {
-    const onSelected = vi.fn()
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (String(input) === "/llm/catalog") {
-          return Response.json(catalog())
-        }
-        const body = new ReadableStream<Uint8Array>({
-          start(controller) {
-            init?.signal?.addEventListener(
-              "abort",
-              () =>
-                controller.error(
-                  new DOMException("Installation cancelled", "AbortError")
-                ),
-              { once: true }
+      serving(catalog(), (path) =>
+        path === "/llm/install"
+          ? new Response(
+              stream(['{"type":"error","message":"Download interrupted"}\n'])
             )
-          },
-        })
-        return new Response(body)
-      })
-    )
-    const user = userEvent.setup()
-    render(<ModelCatalogPage onSelected={onSelected} />)
-
-    await user.click(await screen.findByRole("button", { name: "Download" }))
-    await user.click(await screen.findByRole("button", { name: "Cancel" }))
-
-    await waitFor(() =>
-      expect(toast.info).toHaveBeenCalledWith(
-        "Installation cancelled. You can retry.",
-        { id: "model-install-cancelled" }
+          : null
       )
     )
-    expect(
-      screen.queryByText("Installation cancelled. You can retry.")
-    ).toBeNull()
-    expect(onSelected).not.toHaveBeenCalled()
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(await screen.findByRole("button", { name: "Download" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Download interrupted", {
+        id: "model-install-error",
+      })
+    )
+  })
+
+  it("confirms deletion of an installed model", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog({ curated: [row({ installed: true })] }))
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage allowDelete />)
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Qwen3 8B" })
+    )
+
+    expect(await screen.findByRole("alertdialog")).toBeTruthy()
+    expect(screen.getByText("Delete Qwen3 8B?")).toBeTruthy()
   })
 })

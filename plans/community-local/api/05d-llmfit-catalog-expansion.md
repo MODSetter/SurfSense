@@ -4,6 +4,13 @@
 > Owns the `hf.co/<repo>` fallback `ollama_name` synthesis in
 > `backend/modules/llm/recommendations/llmfit.py`'s `_parse_model()`.
 
+> **Superseded by [`07-llamacpp-runtime.md`](07-llamacpp-runtime.md).** The
+> `hf.co/<repo>` synthesis this document specifies exists only to push GGUF
+> models through Ollama; with llama.cpp as the runtime it is deleted, along with
+> `trusted_quant` and the Marginal hedge. The Windows GPU measurements below
+> stay — they are the evidence that llmfit reports `llama.cpp` with GGUF-shaped
+> quants on real hardware, which is what the replacement relies on.
+
 ## Background
 
 `surfsense_local`'s "Local" model tab shows far fewer models than the hardware

@@ -1,3 +1,4 @@
+import { mkdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -17,8 +18,11 @@ import { autoUpdater } from "electron-updater"
 import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
-import { ollamaSpec } from "./sidecars/ollama.ts"
-import { exe } from "./sidecars/platform.ts"
+import {
+  llamacppSpec,
+  LLAMACPP_SIDECAR,
+  PRESET_FILE,
+} from "./sidecars/llamacpp.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import {
   sdcppSpec,
@@ -127,6 +131,46 @@ function watchImageModel(ctx: SidecarContext): void {
   timer.unref()
 }
 
+// llama-server reads its per-model arguments from a preset INI **once, at
+// startup**: appending a section while it runs does not surface the model,
+// measured. The API rewrites that file whenever it installs a model or reprices
+// one, so the router has to be restarted to see it. Same shape as
+// watchImageModel, and for the same reason: the API is the authority, and a
+// change is user-initiated and rare.
+function watchGenerationPreset(ctx: SidecarContext): void {
+  if (ctx.llamacppModelsDir == null) return
+  const preset = join(ctx.llamacppModelsDir, PRESET_FILE)
+  let current = presetStamp(preset)
+
+  const reconcile = async () => {
+    if (!sidecars || shuttingDown) return
+    const stamp = presetStamp(preset)
+    if (stamp === current) return
+    current = stamp
+
+    if (sidecars.has(LLAMACPP_SIDECAR)) await stopNamed(sidecars, LLAMACPP_SIDECAR)
+    const spec = llamacppSpec(ctx)
+    if (spec) startOne(sidecars, spec, onSidecarCrash)
+  }
+
+  const timer = setInterval(() => {
+    void reconcile().catch(() => {
+      // Mid-write or mid-restart; the next tick tries again.
+    })
+  }, 5000)
+  timer.unref()
+}
+
+/** Size and mtime, which is enough to notice a rewrite and costs no read. */
+function presetStamp(path: string): string {
+  try {
+    const stats = statSync(path)
+    return `${stats.size}:${stats.mtimeMs}`
+  } catch {
+    return "absent"
+  }
+}
+
 async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
@@ -149,34 +193,45 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     modelsDir: packaged
       ? join(process.resourcesPath, "models")
       : join(app.getAppPath(), "..", "backend", "models"),
-    llmfitPath: packaged
-      ? join(process.resourcesPath, "llmfit", exe("llmfit"))
-      : join(app.getAppPath(), "llmfit", exe("llmfit")),
+    // The staged llama.cpp build, same bytes either way: `fetch-llamacpp.mjs`
+    // writes electron/llamacpp/ and packaging copies that folder verbatim.
+    llamacppBinariesDir: packaged
+      ? join(process.resourcesPath, "llamacpp")
+      : join(app.getAppPath(), "llamacpp"),
   }
+  // Unconditional, because dev needs a runtime too and DATA_DIR already keeps
+  // dev models out of the real install (~/.surfsense-dev).
+  ctx.llamacppPort = await getFreePort(host)
+  ctx.llamacppModelsDir = join(dataDir, "models")
+  ctx.llamacppUrl = `http://${host}:${ctx.llamacppPort}`
+  // llama-server exits 1 when --models-dir does not exist, and on a clean
+  // install nothing has created it yet: only a download would, and a download
+  // needs the runtime. Measured: "failed to initialize router models: error:
+  // '<path>' does not exist or is not a directory".
+  mkdirSync(ctx.llamacppModelsDir, { recursive: true })
+
   if (packaged) {
-    ctx.ollamaPort = await getFreePort(host)
-    ctx.ollamaModelsDir = join(dataDir, "ollama")
-    ctx.ollamaUrl = `http://${host}:${ctx.ollamaPort}`
     ctx.imagePort = await getFreePort(host)
     ctx.imageModelsDir = join(dataDir, "images")
     ctx.imageUrl = `http://${host}:${ctx.imagePort}`
   }
 
-  // ollamaSpec is null in dev (the developer runs their own `ollama serve`).
-  // sd-server is absent here on purpose: watchImageModel owns it, because only
-  // the API knows which model was chosen.
+  // llamacppSpec is null in dev, where no binary is staged. sd-server is absent
+  // here on purpose: watchImageModel owns it, because only the API knows which
+  // model was chosen.
   const specs = [
     apiSpec(ctx),
     workerSpec(ctx, "ingest"),
     workerSpec(ctx, "studio"),
-    ollamaSpec(ctx),
+    llamacppSpec(ctx),
   ].filter(
     (s): s is SidecarSpec => s !== null
   )
   sidecars = startAll(specs, onSidecarCrash)
   watchImageModel(ctx)
+  watchGenerationPreset(ctx)
 
-  // gate on the API only; fail fast if it dies during startup. Ollama is
+  // gate on the API only; fail fast if it dies during startup. llama-server is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
   await waitForHealth(host, apiPort, { child: sidecars.get("api") })
   return { apiUrl: `http://${host}:${apiPort}`, dataDir }

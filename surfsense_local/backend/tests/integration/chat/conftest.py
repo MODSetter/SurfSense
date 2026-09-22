@@ -13,26 +13,77 @@ REPLY_DELTAS = ["Revenue ", "climbed after the launch [1]."]
 # Each chat request the stub received, so a test can assert what the route sent.
 _REQUESTS: list[dict] = []
 
+# The context window /props reports, or None to omit it (an older build /
+# a model report a test does not care about). Set per test before the fixture
+# starts the server.
+_PROPS_N_CTX: int | None = None
 
-class StubOllamaChat(BaseHTTPRequestHandler):
-    """Just the chat endpoint of Ollama's native API, streaming its reply."""
+# Tokens per word /tokenize reports, or None to answer 404 (an older build).
+# Set per test before the fixture starts the server.
+_TOKENS_PER_WORD: int | None = None
+
+
+class StubRouterChat(BaseHTTPRequestHandler):
+    """The router's OpenAI chat endpoint, streaming its reply as SSE.
+
+    The local runtime speaks OpenAI now, so the adapter composes the same
+    provider a remote endpoint uses and this stub is shaped accordingly.
+    """
+
+    def do_GET(self) -> None:
+        if self.path == "/models":
+            self._send(
+                json.dumps(
+                    {
+                        "object": "list",
+                        "data": [
+                            {"id": "Qwen3-4B-Q4_K_M", "status": {"value": "loaded"}}
+                        ],
+                    }
+                ).encode()
+            )
+        elif self.path.startswith("/props"):
+            settings = (
+                {"n_ctx": _PROPS_N_CTX} if _PROPS_N_CTX is not None else {}
+            )
+            self._send(
+                json.dumps({"default_generation_settings": settings}).encode()
+            )
+        else:
+            self.send_error(404)
 
     def do_POST(self) -> None:
         raw = self.rfile.read(int(self.headers["Content-Length"]))
-        if self.path != "/api/chat":
+        if self.path not in ("/v1/chat/completions", "/models/load", "/tokenize"):
             self.send_error(404)
+            return
+        if self.path == "/models/load":
+            self._send(b'{"success": true}')
+            return
+        if self.path == "/tokenize":
+            if _TOKENS_PER_WORD is None:
+                self.send_error(404)
+                return
+            words = json.loads(raw).get("content", "").split()
+            self._send(
+                json.dumps({"tokens": list(range(len(words) * _TOKENS_PER_WORD))}).encode()
+            )
             return
 
         request = json.loads(raw)
         _REQUESTS.append(request)
         deltas = (
             ["Revenue ", "Growth"]
-            if request.get("options", {}).get("num_predict") == 12
+            if request.get("max_tokens") == 12
             else REPLY_DELTAS
         )
-        body = "".join(
-            json.dumps({"message": {"content": delta}}) + "\n" for delta in deltas
-        ).encode()
+        chunks = [
+            "data: " + json.dumps({"choices": [{"delta": {"content": delta}}]})
+            for delta in deltas
+        ] + ["data: [DONE]"]
+        self._send(("\n\n".join(chunks) + "\n\n").encode())
+
+    def _send(self, body: bytes) -> None:
         self.send_response(200)
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
@@ -43,13 +94,16 @@ class StubOllamaChat(BaseHTTPRequestHandler):
 
 
 @pytest.fixture
-def ollama_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
-    """A real Ollama chat stand-in on a real port; yields the requests it sees."""
+def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
+    """A real llama-server stand-in on a real port; yields the requests it sees."""
+    global _PROPS_N_CTX, _TOKENS_PER_WORD
     _REQUESTS.clear()
-    server = ThreadingHTTPServer(("127.0.0.1", 0), StubOllamaChat)
+    _PROPS_N_CTX = None
+    _TOKENS_PER_WORD = None
+    server = ThreadingHTTPServer(("127.0.0.1", 0), StubRouterChat)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
-    monkeypatch.setattr(get_llm_settings(), "ollama_base_url", url)
+    monkeypatch.setattr(get_llm_settings(), "llamacpp_base_url", url)
 
     yield _REQUESTS
 
@@ -57,8 +111,20 @@ def ollama_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     server.server_close()
 
 
-class StubOllamaUnauthorized(BaseHTTPRequestHandler):
-    """A chat endpoint that always answers 401, as if the connection were bad."""
+class StubRouterUnauthorized(BaseHTTPRequestHandler):
+    """A router that always answers 401, as if the connection were bad.
+
+    It still answers `GET /models`, because the adapter checks residency before
+    it asks a question and a 501 there would fail the request for the wrong
+    reason entirely.
+    """
+
+    def do_GET(self) -> None:
+        body = b'{"object": "list", "data": []}'
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
 
     def do_POST(self) -> None:
         self.rfile.read(int(self.headers["Content-Length"]))
@@ -72,13 +138,26 @@ class StubOllamaUnauthorized(BaseHTTPRequestHandler):
         """Keep the request log out of the test output."""
 
 
+def set_props_n_ctx(n_ctx: int) -> None:
+    """Make the next `llamacpp_server` request report this context window."""
+    global _PROPS_N_CTX
+    _PROPS_N_CTX = n_ctx
+
+
+def set_tokens_per_word(tokens_per_word: int) -> None:
+    """Make the next `llamacpp_server` request answer `/tokenize` exactly,
+    at this many tokens per word, instead of 404ing like an older build."""
+    global _TOKENS_PER_WORD
+    _TOKENS_PER_WORD = tokens_per_word
+
+
 @pytest.fixture
-def ollama_server_unauthorized(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+def llamacpp_server_unauthorized(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
     """A chat stand-in that fails every request, for exercising error handling."""
-    server = ThreadingHTTPServer(("127.0.0.1", 0), StubOllamaUnauthorized)
+    server = ThreadingHTTPServer(("127.0.0.1", 0), StubRouterUnauthorized)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
-    monkeypatch.setattr(get_llm_settings(), "ollama_base_url", url)
+    monkeypatch.setattr(get_llm_settings(), "llamacpp_base_url", url)
 
     yield
 

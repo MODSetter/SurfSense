@@ -8,13 +8,22 @@ from sqlalchemy.orm import Session
 from modules.egress.models import EgressDestination
 from modules.llm.models import ProviderConnection
 
-OLLAMA_PULL = "ollama_pull"
 IMAGE_MODEL_PULL = "image_model_pull"
+# Two destinations on one host, because they are two different consents.
+# `model_download` is a repo the user named and asked for. `model_search` is
+# text they are typing, sent as they type it. Collapsing them into one would
+# make allowing a download also allow everything typed into a search box.
+MODEL_DOWNLOAD = "model_download"
+MODEL_SEARCH = "model_search"
 HOST_PREFIX = "host:"
 # Named, not host:-prefixed, so downloading weights is listed and revocable in
 # Settings > Network like any other call, and reads as a download rather than as
 # a connection that would carry prompts and documents.
-HOSTS = {OLLAMA_PULL: "registry.ollama.ai", IMAGE_MODEL_PULL: "huggingface.co"}
+HOSTS = {
+    IMAGE_MODEL_PULL: "huggingface.co",
+    MODEL_DOWNLOAD: "huggingface.co",
+    MODEL_SEARCH: "huggingface.co",
+}
 
 
 class EgressDeniedError(Exception):
@@ -26,13 +35,6 @@ class EgressDeniedError(Exception):
 
 def host_of(destination: str) -> str:
     return HOSTS.get(destination) or destination.removeprefix(HOST_PREFIX)
-
-
-def ollama_pull_host(model_name: str) -> str:
-    """Ollama fetches an `hf.co/<repo>` pull straight from Hugging Face, not its own registry."""
-    if model_name.startswith("hf.co/"):
-        return "huggingface.co"
-    return HOSTS[OLLAMA_PULL]
 
 
 def is_destination(value: str) -> bool:
@@ -88,5 +90,10 @@ def list_destinations(session: Session) -> list[EgressDestination]:
     return [
         rows.get(destination)
         or EgressDestination(destination=destination, enabled=False)
-        for destination in [OLLAMA_PULL, IMAGE_MODEL_PULL, *sorted(hosts)]
+        for destination in [
+            IMAGE_MODEL_PULL,
+            MODEL_DOWNLOAD,
+            MODEL_SEARCH,
+            *sorted(hosts),
+        ]
     ]

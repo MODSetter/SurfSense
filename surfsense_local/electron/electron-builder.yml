@@ -5,7 +5,7 @@ directories:
   buildResources: build
 
 # The asar carries only the main + preload bundles. The renderer SPA, the two
-# frozen Python binaries, and the Ollama server ride alongside in resources/,
+# frozen Python binaries, and llama-server ride alongside in resources/,
 # where the main process spawns them by path (sidecars/) and loads the SPA from
 # disk (index.ts).
 files:
@@ -25,13 +25,12 @@ extraResources:
   # build:parser). First PDF stays offline; the worker is not blocked on Hub.
   - from: ../backend/models
     to: models
-  # The Ollama server (fetch-ollama.mjs stages it here). Models are pulled by the
-  # user post-install into the writable data dir, not shipped.
-  - from: ollama
-    to: ollama
-  # Pinned hardware advisor (fetch-llmfit.mjs verifies and stages it atomically).
-  - from: llmfit
-    to: llmfit
+  # llama-server in router mode (fetch-llamacpp.mjs verifies a pinned build and
+  # SHA-256, then prunes 24 executables to one plus its libraries). The GPU
+  # backend is Vulkan everywhere off Apple Silicon; no CUDA payload ships.
+  # Weights are downloaded post-install into the writable data dir, never bundled.
+  - from: llamacpp
+    to: llamacpp
   # stable-diffusion.cpp's sd-server for local image generation (fetch-sdcpp.mjs).
   # Empty on hosts with no prebuilt binary; the sidecar then simply does not start.
   - from: sdcpp

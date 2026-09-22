@@ -37,7 +37,7 @@ The durable state stays minimal:
 ## Terms and boundaries
 
 ```text
-provider             protocol implementation, e.g. ollama or openai_compatible
+provider             protocol implementation, e.g. llamacpp or openai_compatible
 provider connection  one named remote endpoint and its optional bearer secret
 model                 an id returned live by that endpoint, or entered manually
 role                  the one active model for generation or image_generation
@@ -103,7 +103,7 @@ Keep one table and one row per role:
 | Column | Contract |
 |---|---|
 | `role` | primary key: `generation` or `image_generation` |
-| `provider` | `ollama`, `openai_compatible`, or **`sdcpp`** — the bundled local image runtime, added in revision `0009` |
+| `provider` | `llamacpp`, `openai_compatible`, or **`sdcpp`** — the bundled local image runtime, added in revision `0009`. Was `ollama` until revision `0012` ([`07-llamacpp-runtime.md`](07-llamacpp-runtime.md)) |
 | `connection_id` | nullable FK to `provider_connections.id`, `ON DELETE CASCADE` |
 | `name` | exact provider model id |
 | `params_b`, `vendor`, `line` | nullable model fingerprint, added in revision `0010`; feeds the prompt tier ([`05a`](05a-model-recommendations.md)) |
@@ -111,9 +111,9 @@ Keep one table and one row per role:
 
 Invariants:
 
-- `ollama` **and `sdcpp`** selections have `connection_id = NULL`; revision
+- `llamacpp` **and `sdcpp`** selections have `connection_id = NULL`; revision
   `0009`'s check constraint reads
-  `(provider IN ('ollama','sdcpp') AND connection_id IS NULL) OR (provider = 'openai_compatible' AND connection_id IS NOT NULL)`;
+  `(provider IN ('llamacpp','sdcpp') AND connection_id IS NULL) OR (provider = 'openai_compatible' AND connection_id IS NOT NULL)`; **`text_enum` renders this as a CHECK constraint, which SQLite cannot alter in place — revision `0012` rebuilds the table**;
 - `sdcpp` is valid for `image_generation` only, never for chat;
 - `openai_compatible` selections require a connection id;
 - deleting a connection removes every role selection that uses it;
@@ -179,7 +179,7 @@ Centralize selection resolution:
 
 ```text
 resolve generation selection
-  ├── ollama + no connection_id → supervised Ollama provider
+  ├── llamacpp + no connection_id → supervised llama-server provider
   └── openai_compatible + connection_id → load connection → chat provider
 
 resolve image_generation selection
@@ -414,7 +414,7 @@ Hand-written Alembic revision `0004`:
 1. create `provider_connections`;
 2. rebuild `selected_models` with `connection_id`, the new role value, and the
    foreign key;
-3. preserve valid Ollama generation selections;
+3. preserve valid local generation selections;
 4. remove stale rows whose provider is `openrouter`;
 5. drop `provider_credentials`, which also removes residual OpenRouter keys;
 6. keep `onboarding_completion`.
@@ -448,7 +448,7 @@ Delete:
 
 ## Tests
 
-- Migration: OpenRouter credential/selection removed, Ollama selection and
+- Migration: OpenRouter credential/selection removed, local selection and
   onboarding completion preserved, foreign-key cascade works.
 - Connections: multiple rows of the same provider, duplicate-label rejection,
   optional key, key redaction, candidate-before-replace update, URL validation,

@@ -9,6 +9,10 @@ dependencies = [
     "cryptography>=43",
     "docling>=2.125.0",
     "fastapi>=0.115.8",
+    # llama.cpp's own GGUF parser. Pinned exactly, not ranged: the prefix reader
+    # in modules/llm/gguf/header_prefix.py overrides two private methods, so a
+    # version bump is a deliberate act with a test that re-checks them.
+    "gguf==0.19.0",
     "httpx>=0.28.1",
     "huey>=3.3.4",
     # The offline podcast voice (Studio). Rides the bundled onnxruntime; its ~340MB

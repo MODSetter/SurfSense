@@ -21,7 +21,7 @@ dashboard are specified in [`01-dashboard.md`](01-dashboard.md).
     not a broken API.
   - For each healthy provider, load
     `GET /llm/providers/{provider}/models` and show only installed models with
-    the `completion` capability. Do not hardcode Ollama or model names.
+    the `completion` capability. Do not hardcode a runtime or model name.
   - A manual Refresh checks provider health and reloads installed models, so a
     model pulled outside SurfSense appears without restarting the app.
   - Refresh preserves the draft choice while it remains available. If the
@@ -95,8 +95,8 @@ installed-state and validated-selection path.
 - Pull a compatible model outside the app, press Refresh, and the new model
   appears without restart.
 - An embedding-only model is not offered for generation.
-- Stop Ollama: the screen reports the provider unavailable and Retry/Refresh
-  recovers after Ollama starts.
+- Stop `llama-server`: the screen reports the runtime unavailable and
+  Retry/Refresh recovers once it is back.
 - Remove the current model: Refresh reports the stale selection and requires an
   explicit replacement.
 - Keyboard-only selection and save work in light and dark themes and at a
@@ -111,5 +111,5 @@ installed-state and validated-selection path.
 
 Workspace routes — [`../api/01-skeleton.md`](../api/01-skeleton.md). Model
 provider inventory and validated generation selection —
-[`../api/03-chat.md`](../api/03-chat.md). Ranked catalog and installation —
-[`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
+[`../api/03-chat.md`](../api/03-chat.md). Catalog and installation —
+[`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md).

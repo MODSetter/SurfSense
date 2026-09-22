@@ -84,7 +84,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -123,7 +123,7 @@ describe("dashboard chat", () => {
             initialProviderAvailable={true}
             selection={{
               role: "generation",
-              provider: "ollama",
+              provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
@@ -176,7 +176,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -204,7 +204,7 @@ describe("dashboard chat", () => {
             initialProviderAvailable={true}
             selection={{
               role: "generation",
-              provider: "ollama",
+              provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
@@ -259,7 +259,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -310,7 +310,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -432,7 +432,7 @@ describe("dashboard chat", () => {
       const path = String(input)
       if (path === "/llm/providers") {
         return Response.json([
-          { name: "ollama", healthy: true, can_download: true },
+          { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
       if (
@@ -453,7 +453,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -515,7 +515,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -538,7 +538,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -582,7 +582,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (path === "/workspaces/1/chat/threads" && !init?.method) {
@@ -690,7 +690,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -771,7 +771,7 @@ describe("dashboard chat", () => {
       const path = String(input)
       if (path === "/llm/providers") {
         return Response.json([
-          { name: "ollama", healthy: true, can_download: true },
+          { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
       if (path.includes("/chat/threads")) {
@@ -792,7 +792,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -825,13 +825,13 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (path === "/llm/selection/generation") {
           return Response.json({
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -882,7 +882,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -913,7 +913,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
@@ -961,7 +961,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -995,7 +995,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -1025,7 +1025,7 @@ describe("dashboard chat", () => {
             initialProviderAvailable={true}
             selection={{
               role: "generation",
-              provider: "ollama",
+              provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
@@ -1065,7 +1065,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -1116,7 +1116,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -1152,7 +1152,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -1216,7 +1216,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -1277,7 +1277,7 @@ describe("dashboard chat", () => {
       const path = String(input)
       if (path === "/llm/providers") {
         return Response.json([
-          { name: "ollama", healthy: true, can_download: true },
+          { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
       if (
@@ -1298,7 +1298,7 @@ describe("dashboard chat", () => {
           initialProviderAvailable={true}
           selection={{
             role: "generation",
-            provider: "ollama",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",

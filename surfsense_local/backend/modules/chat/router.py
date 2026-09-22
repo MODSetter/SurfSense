@@ -10,9 +10,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
+from modules.chat.budget import answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error
-from modules.chat.history import build_messages
+from modules.chat.history import TokenCounter, build_messages
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
 from modules.chat.schemas import (
@@ -25,6 +26,7 @@ from modules.chat.schemas import (
 from modules.chat.title import generate_title
 from modules.documents.sources import load_selected_sources
 from modules.llm.activity import ModelBusyError, model_activity, model_key
+from modules.llm.providers.protocols import Generator
 from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
@@ -119,7 +121,14 @@ async def send_message(
         resolved.tier,
         len(citations),
     )
-    messages = build_messages(context, history, payload.text)
+    n_ctx = await _context_tokens_or_none(generator, selected.name)
+    messages = await build_messages(
+        context,
+        history,
+        payload.text,
+        history_budget=history_budget(n_ctx),
+        token_count=_token_counter(generator, selected.name),
+    )
 
     activity_key = model_key(selected.provider, selected.name, selected.connection_id)
     try:
@@ -174,7 +183,9 @@ async def send_message(
         assistant_completed_at: str | None = None
         try:
             try:
-                async for delta in generator.chat(selected.name, messages):
+                async for delta in generator.chat(
+                    selected.name, messages, max_tokens=answer_max_tokens(n_ctx)
+                ):
                     parts.append(delta)
                     yield _frame({"type": "delta", "text": delta})
             except Exception as exc:
@@ -319,6 +330,35 @@ def _complete(
 def _iso(instant: datetime) -> str:
     """Spelled as Pydantic spells the REST timestamps: UTC as Z."""
     return instant.isoformat().replace("+00:00", "Z")
+
+
+async def _context_tokens_or_none(generator: Generator, model: str) -> int | None:
+    """The model's window, or None on anything short of a clean answer.
+
+    A transient failure to read it must not fail the turn: it only narrows how
+    the prompt is budgeted, and the unknown-window fallback in
+    `modules.chat.budget` is exactly today's behavior.
+    """
+    try:
+        return await generator.context_tokens(model)
+    except Exception:
+        logger.warning("Could not read the context window for %s", model, exc_info=True)
+        return None
+
+
+def _token_counter(generator: Generator, model: str) -> TokenCounter:
+    """A per-turn counter bound to this turn's model, defensive the same way
+    `_context_tokens_or_none` is: a failure here only widens the heuristic
+    `build_messages` already falls back to for that one turn, never the turn."""
+
+    async def count(text: str) -> int | None:
+        try:
+            return await generator.token_count(model, text)
+        except Exception:
+            logger.warning("Could not count tokens for %s", model, exc_info=True)
+            return None
+
+    return count
 
 
 def _frame(payload: dict) -> bytes:

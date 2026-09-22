@@ -66,8 +66,8 @@ describe("egress prompt", () => {
         detail: {
           code: "egress_disabled",
           message: "off",
-          destination: "ollama_pull",
-          host: "registry.ollama.ai",
+          destination: "model_download",
+          host: "huggingface.co",
         },
       },
       { status: 403 }
@@ -91,7 +91,7 @@ describe("egress prompt", () => {
     )
     setEgressPrompt(prompt)
 
-    const response = await request("/llm/providers/ollama/pull", {
+    const response = await request("/llm/install", {
       method: "POST",
     })
 
@@ -99,7 +99,7 @@ describe("egress prompt", () => {
     expect(prompt).toHaveBeenCalledTimes(1)
     expect(prompt.mock.calls[0]?.[0]).toMatchObject({
       code: "egress_disabled",
-      detail: { destination: "ollama_pull", host: "registry.ollama.ai" },
+      detail: { destination: "model_download", host: "huggingface.co" },
     })
     expect(fetchMock).toHaveBeenCalledTimes(2)
   })
@@ -110,7 +110,7 @@ describe("egress prompt", () => {
     setEgressPrompt(async () => false)
 
     await expect(
-      request("/llm/providers/ollama/pull", { method: "POST" })
+      request("/llm/install", { method: "POST" })
     ).rejects.toMatchObject({ code: "egress_disabled" })
     expect(fetch).toHaveBeenCalledTimes(1)
   })

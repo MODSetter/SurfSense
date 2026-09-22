@@ -1,25 +1,38 @@
 # Frontend — Phase 5: Install UX
 
-> Owns: the hardware-ranked generation catalog and one-click install flow.
+> Owns: the generation catalog and one-click install flow.
 > API contract:
-> [`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
+> [`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md).
+>
+> **Phase 7 supersedes the catalog half of this document** —
+> [`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md) replaces
+> Ollama with llama.cpp, deletes the hardware-scan gate, and changes the fit
+> vocabulary. The sections below are updated to match it; anything describing
+> `Scan hardware`, a `scanned` flag, five-level fit badges, `ollama_name`, or an
+> llmfit-derived Explore list was true of phase 5 and is not true now. The
+> OpenAI-compatible connection sections are unaffected.
 
 ## Goal
 
 Make choosing a local generation model understandable without asking the user
-to know RAM budgets, quantization, Ollama tags, or GGUF files. Show exact
-SurfSense-tested configurations first, then other installable catalog entries,
-both ranked for the current computer.
+to know RAM budgets, quantization, or GGUF files. Show the configurations
+SurfSense has tested first, then a search over every GGUF model llama.cpp can
+run, with an honest fit badge on every row.
 
 ## Onboarding
 
 The **Choose your AI model** page loads `GET /llm/catalog` and renders:
 
-1. **Best for this computer** — exact configurations from the curated-model manifest
-   that fit this computer.
-2. **More models** — remaining installable llmfit catalog entries.
-3. **Installed** — already available local models, including models that are no
-   longer a good fit under the current policy.
+1. **Recommended for this computer** — one entry, the highest-ranked curated
+   model whose fit state is `FITS`.
+2. **Tested by SurfSense** — the curated manifest, every row badged.
+3. **All models** — a live Hugging Face search over 204,797 GGUF repos, ordered
+   by downloads, via the separate search route. Absent when egress for
+   `model_search` is off.
+4. **Installed** — already available local models, plus **Add a .gguf file**.
+
+`GET /llm/catalog` needs no network and returns rows 1, 2 and 4. Search is its
+own request so the page never waits on `huggingface.co`.
 
 This full-page flow appears only until durable model onboarding is complete.
 Later model changes and recovery from a missing selection happen in
@@ -56,44 +69,53 @@ installed models. Users can search that list and switch models directly. A
 separate **Manage models** action opens Settings → Models for downloads,
 provider configuration, and hardware rescans.
 
-**The section is called Curated, not Recommended** — the bucket was renamed in
-both the API response and the UI. Curated entries are grouped visually by family
-(for example Qwen or Gemma), but each card remains an exact
-parameter/quantization/runtime configuration. Do not render every parameter size
-merely because its family is curated. An entry appears once only: curated models
-are removed from Explore.
+**There is no hardware scan and no scan button.** The hardware line is present
+on first paint: the budget comes from the runtime's own allocator in about
+180 ms, so there is nothing to wait for and nothing to trigger. `Scan hardware`,
+`Rescan hardware` and the `scanned` flag are all deleted.
 
-**The page no longer waits for a hardware scan.** As built, the order is
-Installed, then local image models, then Curated, and then either Explore or —
-when `scanned` is false — a "Scan hardware" call to action in its place. Curated
-and Installed come from the packaged manifest and the runtime's own inventory, so
-they render on a fresh install with no probe, and a curated card is installable
-straight from that state because the manifest already pins its `ollama_name`.
-Opening the page does not trigger a scan; only the explicit button does.
+**Every row carries a fit badge, in both lists**, because fit is arithmetic
+rather than a judgement. Three states only, with no `Unknown`: every row has a
+file size, so every row can be priced. Wording is per platform — see **Fit
+states** in [`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md),
+which owns the copy.
+
+```text
+●  Full speed        Runs entirely on the GPU
+◐  Reduced speed     A little too big for the GPU. Most of it still fits.
+◐  Reduced speed     Well over the GPU's memory. Expect it to be slow.
+○  Won't fit         Needs about 21 GB. This Mac has 13.6 GB
+```
+
+**Reduced speed has two reason lines, chosen by `offload_fraction`**, which the
+verdict carries. The verdict word does not change; only the explanation
+sharpens, because one sentence is wrong at both ends of a range running from
+barely noticeable to unusable.
+
+A search row is badged from its file size alone and rendered as approximate
+until its header is read, which happens when the row is opened.
 
 Each card shows:
 
 - model and family;
-- parameter size and quantization when known;
-- fit badge (`Perfect`, `Good`, `Marginal`, or `Too tight`);
-- estimated memory, disk size, tokens/second, and usable context when present;
-- runtime that will install it;
+- parameter size and quantization;
+- fit badge, plus one plain line of why;
+- download size, context length, architecture;
 - installed and selected state;
-- license and estimate-confidence details in disclosure text.
+- `vision` when the model can read images. No other capability surfaces.
 
-Missing estimates display `Unknown`; they are never rendered as zero — **except
-before any scan has run**, where the fit badge is hidden entirely rather than
-showing "Unknown" to someone who was never offered an estimate. The badge
-appears once a real scan stands behind the row. Use plain-language fit labels,
-not raw llmfit scores, as the primary signal. A short
-explanation says that estimates leave room for SurfSense itself and may differ
-from real workloads.
+Search rows additionally show provenance (*quantized from `Qwen/Qwen3-8B`*),
+download count, licence, and an **other quantizations** disclosure. They carry
+**no rank and no quality claim** — we describe them, we do not judge them.
+
+**Rank is never displayed.** It orders the curated rows within a fit state and
+selects the ★; no number, score or star rating appears anywhere else.
 
 ## Interaction
 
 - **Download & Use** sends only
   `POST /llm/install {"catalog_id": "...", "select": true}`. The renderer does
-  not send an Ollama tag, artifact URL, local path, or quantization.
+  not send a repo, file, artifact URL, local path, or quantization.
 - Show bytes, percent, current phase, and cancellation while installing. Ignore
   duplicate clicks and keep other model actions disabled for a runtime that
   supports one pull at a time.
@@ -101,26 +123,37 @@ from real workloads.
   available only after the API reports installed and selected state.
 - **Use** on an already installed compatible model calls the existing validated
   `PUT /llm/selection/generation` route.
-- Manual **Rescan hardware** loads `GET /llm/catalog?refresh=true`. Ordinary
-  navigation uses the cached scan.
-- `Marginal` requires a confirmation that responses may be slow or fail at long
-  context. `Too tight` cannot be newly installed but remains visible when
-  already installed.
+- There is no rescan. `GET /llm/catalog` is cheap and needs no network; the
+  hardware budget is re-read on each load.
+- **Reduced speed installs like Full speed** — no confirmation dialog. It runs,
+  slower, and llama.cpp places the layers. Only **Won't fit** blocks install,
+  and it states required and available bytes and names a smaller model rather
+  than greying out a control.
+- **A Reduced speed model can carry the ★.** The recommendation gates on
+  predicted speed, not on full residency — on a 6 GB card the best model to use
+  is routinely one that spills a little. Measured: an RTX 3050 runs Qwen3 8B at
+  roughly 28% on the CPU without noticeable lag, while a residency-only rule
+  would have starred a 1.7B. Do not assume the ★ is always a **Full speed** row,
+  and do not style it as though it were.
+- Search shows a progress indicator while a row's header is fetched (2 to 3
+  seconds) and resolves the approximate badge to a firm one.
 - A failed or cancelled install remains retryable and is never shown as
   selected.
-- **Delete** calls the backend's provider model endpoint. The renderer never
-  edits Ollama storage. Deletion is unavailable during installs or active
+- **Delete** calls the backend's model endpoint. The renderer never edits the
+  models directory. Deletion is unavailable during installs or active
   generation, and deleting the selected model never silently chooses another.
 
 ## States and degradation
 
-- Skeleton only the catalog region during a scan; retain the page heading and
-  hardware explanation. There is no "first scan" to wait on any more: the page
-  renders Curated and Installed before one has ever run.
-- If llmfit is unavailable or malformed, show a recommendation warning and the
-  installed-model controls returned by the API. Do not label unscored models as
-  curated on the strength of a score they do not have — curation comes from the
-  manifest, which needs no scan, so the two are independent.
+- Nothing to skeleton on load: the hardware line, the curated rows and their
+  badges all render without a network call or a probe the user has to start.
+- llmfit is not shipped and cannot fail at runtime. Its numbers were baked into
+  the manifest before release.
+- If `model_search` egress is off or `huggingface.co` is unreachable, the search
+  section reports the destination unavailable. Recommended, Tested and Installed
+  are unaffected — that is the airgapped product.
+- If a curated download 404s because the upstream repo moved, say the model is
+  no longer available from this source and fall through to the next-best entry.
 - If a runtime is unavailable, show its status and disable its install actions;
   other runtimes remain usable.
 - If no model fits, explain the limitation and keep remote providers such as
@@ -182,11 +215,13 @@ confirmation names any generation or image roles that will be cleared.
 
 ## Airgap
 
-Keep **Import local model** as an advanced secondary action. Electron supplies
-the selected file/folder through a typed preload method; the renderer never
-receives arbitrary filesystem powers. The API/runtime adapter validates the
-artifact and imports atomically. Importing parser packs remains a separate
-packaging flow and does not pass through llmfit.
+**Add a .gguf file** sits beside Installed, not buried as an advanced action —
+with search unavailable offline, it is one of only two ways an airgapped user
+gets a model. Electron supplies the selected file through a typed preload
+method; the renderer never receives arbitrary filesystem powers. The adapter
+validates the header, rejects an unsupported architecture, and links the file
+into the models directory. Importing parser packs remains a separate packaging
+flow.
 
 ## Frontend structure
 
@@ -215,19 +250,23 @@ src/features/onboarding/
 ```
 
 TanStack Query owns catalog, installed inventory, and selection invalidation.
-The response shape is runtime-neutral; do not branch rendering on `ollama`
-except for runtime-specific explanatory copy.
+Search is a separate query with its own cache key and a 300 s stale time,
+matching the API-side cache. The response shape is runtime-neutral; do not
+branch rendering on a provider name. Fit-badge copy branches on the budget's
+`uma` and `has_gpu` flags, not on the runtime.
 
 ## Acceptance
 
-- A clean supported machine sees Curated models above Explore, and sees them
-  before it has scanned anything.
-- Gemma/Qwen family grouping does not create unsupported parameter-size cards.
-- Download & Use is one user action and ends with the exact installed runtime
-  model selected.
-- Unknown estimates, llmfit failure, runtime failure, insufficient disk,
-  cancellation, and interrupted streams are represented without false success.
-- Installed models remain selectable when recommendation scanning is down.
+- A clean machine sees a hardware line, one ★ recommendation and every curated
+  row badged, on first paint, with no button and no network.
+- No screen anywhere displays a rank, score or star rating.
+- Search returns results ordered by downloads, each badged, none ranked.
+- Download & Use is one user action and ends with the exact installed model
+  selected.
+- Runtime failure, insufficient disk, a dead upstream pin, cancellation, and
+  interrupted streams are represented without false success.
+- With `model_search` egress off, Recommended, Tested and Installed still work
+  and a `.gguf` can still be added from disk.
 - Keyboard-only operation, visible focus, live progress, light/dark themes, and
   a narrow desktop window all work.
 - Path B: install → model download → chat works after completion.
@@ -242,7 +281,7 @@ except for runtime-specific explanatory copy.
 
 ## Needs from API
 
-Normalized catalog and install stream —
-[`../api/05a-model-recommendations.md`](../api/05a-model-recommendations.md).
+Catalog, search and install stream —
+[`../api/07-llamacpp-runtime.md`](../api/07-llamacpp-runtime.md).
 Binary/model packaging and airgap imports —
 [`../api/05c-packaging.md`](../api/05c-packaging.md).

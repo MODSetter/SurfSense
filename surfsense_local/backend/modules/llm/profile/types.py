@@ -26,3 +26,13 @@ class Fingerprint:
     params_b: float | None = None
     vendor: str | None = None
     line: Line | None = None
+
+    @property
+    def local(self) -> bool:
+        """Whether this model runs on this machine.
+
+        The fallback tier keys on this rather than on the provider's name: a
+        hosted endpoint runs models too big for a laptop, a local one runs the
+        laptop, and that is a fact about where the endpoint is.
+        """
+        return self.provider == "llamacpp"

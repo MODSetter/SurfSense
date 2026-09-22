@@ -12,9 +12,9 @@ function actionFor(error: ChatTurnError): Action {
     case "provider_not_found":
       return "model-setup"
     case "network":
-      // A bad base URL is a Model setup fix; a local Ollama that isn't
+      // A bad base URL is a Model setup fix; a local runtime that isn't
       // running isn't — there's no settings action that starts it.
-      return error.provider === "ollama" ? "none" : "model-setup"
+      return error.provider === "llamacpp" ? "none" : "model-setup"
     default:
       return "retry"
   }
