@@ -4,7 +4,7 @@ Nearest `AGENTS.md` wins. Edit this file, not `CLAUDE.md` (`CLAUDE.md` is a syml
 
 ## Overview
 
-Desktop app plus scraper API. Four trees:
+Desktop app plus scraper API. Five trees:
 
 | Tree | Role |
 |------|------|
@@ -12,6 +12,7 @@ Desktop app plus scraper API. Four trees:
 | `surfsense_web` | Next.js hosted UI |
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
+| `plugins` | The plugin SDK, and every plugin — ours and contributed |
 
 Hosted Azure still ships until after launch. Product direction is local + API.
 
@@ -57,6 +58,10 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
+# plugin SDK
+cd plugins/sdk && uv sync
+cd plugins/sdk && uv run ruff check .
+
 # compose (hosted still uses this until after launch)
 docker compose -f docker/docker-compose.yml
 
@@ -74,6 +79,7 @@ pre-commit run --all-files
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
+| Plugin SDK | `cd plugins/sdk && uv run pytest` |
 
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 
