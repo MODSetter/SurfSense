@@ -26,9 +26,11 @@ Applies to **every new file**. Existing code is not a template and not a cleanup
 - If a responsibility grows sub-responsibilities, promote it to a folder. Each sub-responsibility is its own file.
 - Names state what and why, not how.
 - Comments and docstrings state intent only. Do not restate the code.
+- Keep them short. A line or two. Write only what the code cannot say: a constraint, a rejected alternative, a number that justifies a threshold.
 
 **Must not**
 
+- Do not write essays in docstrings. If it explains how you arrived at the code rather than what the code must honour, delete it.
 - Do not put new work in a nearby file because it is convenient. New responsibility, new file.
 - Do not add catch-all folders (`utils`, `helpers`, `common`, `misc`, `shared`) unless that name is the product concept.
 - Do not layer-split new work (`controllers/`, `services/`, `models/` as the primary tree).
