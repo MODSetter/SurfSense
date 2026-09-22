@@ -113,3 +113,19 @@ test("never sets a router wide reasoning budget", () => {
   assert.ok(spec)
   assert.ok(!spec.args.some((arg) => arg.startsWith("--reasoning-budget")))
 })
+
+test("the router is told to load models on demand, rather than relying on its default", () => {
+  // The chat path no longer asks the router to load anything: the proxy calls
+  // ensure_model_ready before forwarding, so a cold model loads on the request
+  // that needs it. Asking as well was a check-then-act across a socket and lost
+  // the race to the request already loading the model, which took out title
+  // generation with a 400 `model is already running`.
+  //
+  // That correctness now rests on an upstream default. Stating it means the day
+  // it flips we get a clear failure here rather than a silent one in a chat.
+  const { ctx } = staged()
+  const spec = llamacppSpec(ctx)
+
+  assert.ok(spec)
+  assert.ok(spec.args.includes("--models-autoload"))
+})

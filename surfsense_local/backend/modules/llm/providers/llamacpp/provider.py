@@ -7,6 +7,14 @@ Chat is **composed, not reimplemented**. llama-server speaks OpenAI on
 `/v1/chat/completions`, so the streaming, error handling and message shaping in
 `OpenAICompatibleChatProvider` already work against it.
 
+Deliberately **no** load either. `--models-autoload` is on by default and the
+router's proxy calls `ensure_model_ready` before forwarding, so a cold model
+loads on the request that needs it. Asking as well was a check-then-act across a
+socket, and it lost the race to the request already loading the model: the
+router answers 400 `model is already running`, which took out title generation
+on every new thread. The router owns model lifecycle; we hold no opinion about
+it.
+
 Deliberately **no** `pull()`. Fetching its own weights from a name made sense
 when the runtime owned the download. Here SurfSense fetches the GGUF itself,
 because that is the only place `egress.require()` can hold, and because it buys
@@ -67,10 +75,11 @@ class LlamaCppProvider:
         Cached per model rather than fetched per message: two files in the
         same directory can carry entirely different templates, so the cache
         is keyed by model id, never assumed to hold across them. What it does
-        hold across is repeated calls for the *same* resident model within one
-        turn, or between turns, since nothing about a loaded model's template
-        or window changes on its own. `_ensure_loaded` clears an entry the one
-        time that stops being true: a fresh load.
+        hold across is repeated calls for the *same* resident model, since
+        nothing about a loaded model's template or window changes on its own.
+        Nothing invalidates it, and nothing needs to: `get_provider()` builds a
+        fresh adapter per call, so the cache cannot outlive the resolution that
+        created it, let alone the sidecar restart a preset rewrite triggers.
         """
         cached = self._capabilities_cache.get(model)
         if cached is not None:
@@ -140,7 +149,6 @@ class LlamaCppProvider:
         reasoning: bool | None = None,
         json_schema: dict | None = None,
     ) -> AsyncIterator[str]:
-        await self._ensure_loaded(model)
         # Downgrade at the seam: `modules/chat` assembles one conversation and
         # never learns that templates differ.
         shaped = for_template(messages, await self.capabilities(model))
@@ -172,14 +180,3 @@ class LlamaCppProvider:
                 reasoning=reasoning,
             ):
                 yield chunk
-
-    async def _ensure_loaded(self, model: str) -> None:
-        """Models are discovered `unloaded`, so the first turn has to ask.
-
-        Reloading a resident model would evict and re-read gigabytes between two
-        turns, so this checks before it acts.
-        """
-        resident = {m.id for m in await self._router.models() if m.loaded}
-        if model not in resident:
-            self._capabilities_cache.pop(model, None)
-            await self._router.load(model)

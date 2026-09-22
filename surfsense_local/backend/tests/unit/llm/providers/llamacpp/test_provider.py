@@ -51,15 +51,17 @@ async def test_installed_models_come_from_the_router() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_model_is_brought_into_memory_before_it_is_asked_anything() -> None:
-    """The router discovers models as `unloaded`, so the first turn would
-    otherwise go to a model that is not resident."""
+async def test_a_cold_model_answers_without_us_loading_it() -> None:
+    """The router discovers models as `unloaded`, and loads one on the request
+    that needs it: `--models-autoload` is on by default and the proxy calls
+    `ensure_model_ready` before forwarding. So the first turn works against a
+    model nobody has asked for yet, and asking as well only created a race."""
     fake = FakeRouter(["m"])
 
     chunks = [c async for c in provider_for(fake).chat("m", [Message("user", "hi")])]
 
-    assert "m" in fake.loaded
     assert "".join(chunks) == "Hello"
+    assert fake.load_calls == []
 
 
 @pytest.mark.asyncio
@@ -177,19 +179,56 @@ async def test_capabilities_are_cached_for_a_resident_model() -> None:
 
 
 @pytest.mark.asyncio
-async def test_a_fresh_load_invalidates_the_cached_capabilities() -> None:
-    """The one event that can actually change what `/props` would say: the
-    idle timeout evicts a model, and the next turn reloads it, possibly with
-    a rewritten preset. The cache must not go on quoting the old answer."""
+async def test_the_capability_cache_cannot_outlive_its_adapter() -> None:
+    """Why nothing invalidates it any more.
+
+    The answer `/props` gives is a property of the file and the preset, and a
+    preset rewrite restarts the sidecar. But `get_provider()` builds a fresh
+    adapter per call, so a cache entry cannot survive even one resolution, let
+    alone a restart. Within one adapter the answer cannot change, and across
+    adapters there is no cache to be stale.
+    """
     fake = FakeRouter(["qwen3"])
     provider = provider_for(fake)
 
     async for _ in provider.chat("qwen3", [Message("user", "hi")]):
         pass
-    assert fake.props_calls == 1
-
-    fake.loaded.discard("qwen3")  # the router's own idle timer evicted it
-
     async for _ in provider.chat("qwen3", [Message("user", "hi")]):
         pass
-    assert fake.props_calls == 2
+    assert fake.props_calls == 1, "a resident model's template does not change"
+
+    async for _ in provider_for(fake).chat("qwen3", [Message("user", "hi")]):
+        pass
+    assert fake.props_calls == 2, "a new adapter carries nothing over"
+
+
+async def test_a_turn_never_asks_the_router_to_load(anyio_backend) -> None:
+    """The router loads on demand and we stop having an opinion about it.
+
+    `--models-autoload` is enabled by default and the proxy calls
+    `ensure_model_ready` before forwarding, so a chat request loads a cold model
+    on its own. Asking as well was a check-then-act across a socket: read
+    `/models`, see `loaded: false`, post `/models/load`, and lose the race to
+    the request that was already loading it. The router answers 400 `model is
+    already running`, which took out title generation on every new thread.
+    """
+    fake = FakeRouter(["Qwen3-1.7B-Q4_K_M"])
+    provider = provider_for(fake)
+
+    async for _ in provider.chat("Qwen3-1.7B-Q4_K_M", [Message("user", "hi")]):
+        pass
+
+    assert fake.load_calls == []
+
+
+async def test_a_load_that_lost_the_race_is_not_an_error(anyio_backend) -> None:
+    """For the callers that do mean "load now", such as a warm up after an
+    install. `model is already running` is the state they wanted, and anything
+    crossing this socket can be beaten to it."""
+    fake = FakeRouter(["Qwen3-1.7B-Q4_K_M"])
+    fake.already_running.add("Qwen3-1.7B-Q4_K_M")
+    provider = provider_for(fake)
+
+    await provider._router.load("Qwen3-1.7B-Q4_K_M")
+
+    assert fake.load_calls == ["Qwen3-1.7B-Q4_K_M"]

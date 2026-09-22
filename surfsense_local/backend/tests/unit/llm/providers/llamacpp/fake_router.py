@@ -36,6 +36,11 @@ class FakeRouter:
         # How many times `/props` was actually asked, so a test can tell a
         # cached read apart from a fresh round trip.
         self.props_calls = 0
+        # Whether the router already holds this model. The real one answers 400
+        # `model is already running` to a load in that state, which is what a
+        # check-then-act across this socket races into.
+        self.already_running: set[str] = set()
+        self.load_calls: list[str] = []
 
     def transport(self) -> httpx.MockTransport:
         return httpx.MockTransport(self._handle)
@@ -83,7 +88,20 @@ class FakeRouter:
                 },
             )
         if path == "/models/load":
-            self.loaded.add(json.loads(request.content)["model"])
+            name = json.loads(request.content)["model"]
+            self.load_calls.append(name)
+            if name in self.already_running:
+                return httpx.Response(
+                    400,
+                    json={
+                        "error": {
+                            "code": 400,
+                            "type": "invalid_request_error",
+                            "message": "model is already running",
+                        }
+                    },
+                )
+            self.loaded.add(name)
             return httpx.Response(200, json={"success": True})
         if path == "/models/unload":
             self.loaded.discard(json.loads(request.content)["model"])

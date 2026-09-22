@@ -109,13 +109,23 @@ class RouterClient:
             return len(reply.json().get("tokens", []))
 
     async def load(self, model_id: str) -> None:
-        """Bring a model into memory.
+        """Bring a model into memory, for a caller that means "load now".
+
+        The chat path does not use this: the router loads on demand. This is for
+        a deliberate warm up, such as after an install.
 
         Deliberately sends no arguments. The router accepts an `args` field and
         ignores it, measured; per-model flags come from the preset INI instead.
+
+        A model that is already running is the state the caller wanted, so the
+        400 llama.cpp answers in that case is not an error. Anything crossing
+        this socket can be beaten to it by a request that loaded the model
+        first, and that race is not worth reporting as a failure.
         """
         async with self._client() as client:
             reply = await client.post("/models/load", json={"model": model_id})
+            if reply.status_code == 400 and _already_running(reply):
+                return
             reply.raise_for_status()
 
     async def unload(self, model_id: str) -> None:
@@ -129,3 +139,19 @@ class RouterClient:
                 "DELETE", "/models", params={"model": model_id}
             )
             reply.raise_for_status()
+
+
+def _already_running(reply: httpx.Response) -> bool:
+    """Whether a 400 is llama.cpp's `model is already running`.
+
+    Read from the body it sent rather than from the status alone, because every
+    other 400 on this route (`model is not found`, a missing name) really is a
+    caller mistake.
+    """
+    try:
+        payload = reply.json()
+    except (httpx.HTTPError, ValueError):
+        return False
+    error = payload.get("error") if isinstance(payload, dict) else None
+    message = error.get("message") if isinstance(error, dict) else None
+    return isinstance(message, str) and "already running" in message

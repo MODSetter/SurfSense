@@ -67,6 +67,12 @@ export function llamacppSpec(ctx: SidecarContext): SidecarSpec | null {
     // turns the second question of a conversation into a reload.
     "--sleep-idle-seconds",
     "300",
+    // The chat path never asks the router to load anything: the proxy calls
+    // ensure_model_ready before forwarding, so a cold model loads on the request
+    // that needs it. Asking as well was a check-then-act across a socket, and it
+    // lost the race to the request already loading the model. This is the
+    // upstream default; stated because chat is now correct only while it holds.
+    "--models-autoload",
     // llama-server ships its own web UI, which we neither need nor want exposed.
     "--no-ui",
     "--jinja",
