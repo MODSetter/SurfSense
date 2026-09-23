@@ -83,7 +83,7 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
     binary = _freeze("api.spec", tmp_path)
     _assert_capability_catalogue_shipped(binary)
 
-    # /health and /llm/catalog never touch retrieval, so an over-broad exclude in
+    # /health and /llm/catalog/local never touch retrieval, so an over-broad exclude in
     # api.spec would pass the checks below and only break on a user's first chat.
     retrieval = subprocess.run(
         [str(binary), "--check-retrieval-runtime"],
@@ -112,12 +112,11 @@ def test_api_binary_answers_health(tmp_path: Path) -> None:
                 ) as reply:
                     assert reply.status == 200
                 with urllib.request.urlopen(
-                    f"http://127.0.0.1:{port}/llm/catalog", timeout=10
+                    f"http://127.0.0.1:{port}/llm/catalog/local", timeout=10
                 ) as reply:
                     catalog = json.load(reply)
-                warning_codes = {warning["code"] for warning in catalog["warnings"]}
-                assert "missing" in warning_codes
-                assert "invalid_curated_models" not in warning_codes
+                # The frozen build found and read its packaged manifest.
+                assert any(row["origin"] == "curated" for row in catalog["rows"])
                 return
             except (urllib.error.URLError, ConnectionError):
                 time.sleep(0.5)

@@ -64,4 +64,4 @@ def test_the_curated_manifest_is_one_of_them() -> None:
     and the model screen is empty on the machine that most needs it."""
     bundled = {rel for spec in SPECS for rel in literal_data_paths(spec)}
 
-    assert "modules/llm/catalog/curated-models.json" in bundled
+    assert "modules/llm/catalog/local/manifest/models.json" in bundled
