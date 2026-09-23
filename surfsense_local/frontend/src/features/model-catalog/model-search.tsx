@@ -196,8 +196,8 @@ export function ModelSearch({
             All models
           </h2>
           <p className="text-xs text-muted-foreground">
-            Every model llama.cpp can run. Ordered by how often each one is
-            downloaded, which is popularity and not a recommendation.
+            The wider Hugging Face catalog, not reviewed by us. Ordered by
+            downloads.
           </p>
         </div>
         <div className="relative w-full max-w-[14rem] sm:w-auto">
@@ -220,7 +220,7 @@ export function ModelSearch({
       <div data-slot="search-results" className={RESERVED}>
         {trimmed.length <= 1 ? (
           <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            Type to search every model llama.cpp can run.
+            Type to find a model on Hugging Face.
           </p>
         ) : results.isPending ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
