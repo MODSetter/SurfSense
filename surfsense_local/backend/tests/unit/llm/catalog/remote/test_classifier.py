@@ -31,6 +31,7 @@ def _entry(
         reasoning_options=None,
         structured_output=None,
         temperature=None,
+        call=None,
     )
 
 

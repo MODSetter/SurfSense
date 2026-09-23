@@ -511,6 +511,382 @@
             "cache_read": 1
           }
         }
+      },
+      "gpt-5-6-terra": {
+        "id": "gpt-5-6-terra",
+        "name": "GPT-5.6 Terra",
+        "description": "Balanced GPT-5.6 model for capable, cost-efficient everyday work",
+        "family": "gpt-terra",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": [
+              "none",
+              "low",
+              "medium",
+              "high",
+              "xhigh",
+              "max"
+            ]
+          }
+        ],
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": false,
+        "knowledge": "2026-02-16",
+        "release_date": "2026-07-09",
+        "last_updated": "2026-07-09",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text",
+            "image"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1050000,
+          "input": 922000,
+          "output": 128000
+        },
+        "provider": {
+          "npm": "@ai-sdk/openai",
+          "api": "${NEON_AI_GATEWAY_BASE_URL}/openai/v1",
+          "shape": "responses"
+        },
+        "cost": {
+          "input": 2,
+          "output": 12,
+          "cache_read": 0.2,
+          "cache_write": 2.5,
+          "tiers": [
+            {
+              "input": 4,
+              "output": 18,
+              "cache_read": 0.4,
+              "cache_write": 5,
+              "tier": {
+                "type": "context",
+                "size": 272000
+              }
+            }
+          ],
+          "context_over_200k": {
+            "input": 4,
+            "output": 18,
+            "cache_read": 0.4,
+            "cache_write": 5
+          }
+        }
+      }
+    }
+  },
+  "minimax": {
+    "id": "minimax",
+    "env": [
+      "MINIMAX_API_KEY"
+    ],
+    "npm": "@ai-sdk/anthropic",
+    "api": "https://api.minimax.io/anthropic/v1",
+    "name": "MiniMax (minimax.io)",
+    "doc": "https://platform.minimax.io/docs/guides/quickstart",
+    "models": {
+      "MiniMax-M2": {
+        "id": "MiniMax-M2",
+        "name": "MiniMax-M2",
+        "description": "Efficient open MiniMax model built for coding agents and tool-heavy workflows",
+        "family": "minimax",
+        "attachment": false,
+        "reasoning": true,
+        "reasoning_options": [],
+        "tool_call": true,
+        "temperature": true,
+        "release_date": "2025-10-27",
+        "last_updated": "2025-10-27",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 204800,
+          "output": 131072
+        },
+        "cost": {
+          "input": 0.3,
+          "output": 1.2
+        }
+      }
+    }
+  },
+  "databricks": {
+    "id": "databricks",
+    "env": [
+      "DATABRICKS_HOST",
+      "DATABRICKS_TOKEN"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://${DATABRICKS_HOST}/ai-gateway/mlflow/v1",
+    "name": "Databricks",
+    "doc": "https://docs.databricks.com/aws/en/machine-learning/foundation-models/",
+    "models": {
+      "databricks-claude-opus-4-5": {
+        "id": "databricks-claude-opus-4-5",
+        "name": "Claude Opus 4.5 (latest)",
+        "description": "Flagship Claude model for deep reasoning, coding, and long-horizon agents",
+        "family": "claude-opus",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "budget_tokens",
+            "min": 1024
+          }
+        ],
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-05",
+        "release_date": "2025-11-24",
+        "last_updated": "2025-11-24",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 200000,
+          "output": 64000
+        },
+        "cost": {
+          "input": 5,
+          "output": 25,
+          "cache_read": 0.5,
+          "cache_write": 6.25
+        }
+      }
+    }
+  },
+  "amazon-bedrock": {
+    "id": "amazon-bedrock",
+    "env": [
+      "AWS_ACCESS_KEY_ID",
+      "AWS_SECRET_ACCESS_KEY",
+      "AWS_REGION",
+      "AWS_BEARER_TOKEN_BEDROCK"
+    ],
+    "npm": "@ai-sdk/amazon-bedrock",
+    "name": "Amazon Bedrock",
+    "doc": "https://docs.aws.amazon.com/bedrock/latest/userguide/models-supported.html",
+    "models": {
+      "moonshotai.kimi-k2.5": {
+        "id": "moonshotai.kimi-k2.5",
+        "name": "Kimi K2.5",
+        "description": "Earlier Kimi frontier model for long-context agents, coding, and multimodal work",
+        "family": "kimi-k2",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "toggle"
+          }
+        ],
+        "tool_call": true,
+        "interleaved": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-01",
+        "release_date": "2026-01-27",
+        "last_updated": "2026-02-06",
+        "modalities": {
+          "input": [
+            "text",
+            "image"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 262143,
+          "output": 16384
+        },
+        "cost": {
+          "input": 0.6,
+          "output": 3
+        }
+      }
+    }
+  },
+  "azure": {
+    "id": "azure",
+    "env": [
+      "AZURE_RESOURCE_NAME",
+      "AZURE_API_KEY"
+    ],
+    "npm": "@ai-sdk/azure",
+    "name": "Azure",
+    "doc": "https://learn.microsoft.com/en-us/azure/ai-services/openai/concepts/models",
+    "models": {
+      "claude-sonnet-4-6": {
+        "id": "claude-sonnet-4-6",
+        "name": "Claude Sonnet 4.6",
+        "description": "Claude workhorse for coding agents, careful analysis, and production cost control",
+        "family": "claude-sonnet",
+        "attachment": true,
+        "reasoning": true,
+        "reasoning_options": [
+          {
+            "type": "effort",
+            "values": [
+              "low",
+              "medium",
+              "high",
+              "max"
+            ]
+          },
+          {
+            "type": "budget_tokens",
+            "min": 1024
+          }
+        ],
+        "tool_call": true,
+        "structured_output": true,
+        "temperature": true,
+        "knowledge": "2025-08-31",
+        "release_date": "2026-02-17",
+        "last_updated": "2026-03-13",
+        "modalities": {
+          "input": [
+            "text",
+            "image",
+            "pdf"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 1000000,
+          "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://${AZURE_RESOURCE_NAME}.services.ai.azure.com/anthropic/v1"
+        },
+        "cost": {
+          "input": 3,
+          "output": 15,
+          "cache_read": 0.3,
+          "cache_write": 3.75
+        }
+      }
+    }
+  },
+  "lmstudio": {
+    "id": "lmstudio",
+    "env": [
+      "LMSTUDIO_API_KEY"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "http://127.0.0.1:1234/v1",
+    "name": "LMStudio",
+    "doc": "https://lmstudio.ai/models",
+    "models": {
+      "qwen/qwen3-coder-30b": {
+        "id": "qwen/qwen3-coder-30b",
+        "name": "Qwen3 Coder 30B",
+        "description": "Qwen coding model for software agents, repository edits, and code reasoning",
+        "family": "qwen",
+        "attachment": false,
+        "reasoning": false,
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-04",
+        "release_date": "2025-07-23",
+        "last_updated": "2025-07-23",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": true,
+        "limit": {
+          "context": 262144,
+          "output": 65536
+        },
+        "cost": {
+          "input": 0,
+          "output": 0
+        }
+      }
+    }
+  },
+  "zenmux": {
+    "id": "zenmux",
+    "env": [
+      "ZENMUX_API_KEY"
+    ],
+    "npm": "@ai-sdk/openai-compatible",
+    "api": "https://zenmux.ai/api/v1",
+    "name": "ZenMux",
+    "doc": "https://docs.zenmux.ai",
+    "models": {
+      "minimax/minimax-m2.1": {
+        "id": "minimax/minimax-m2.1",
+        "name": "MiniMax M2.1",
+        "description": "MiniMax model for chat, coding, office work, and agentic tasks",
+        "attachment": false,
+        "reasoning": true,
+        "reasoning_options": [],
+        "tool_call": true,
+        "temperature": true,
+        "knowledge": "2025-01-01",
+        "release_date": "2025-12-22",
+        "last_updated": "2025-12-22",
+        "modalities": {
+          "input": [
+            "text"
+          ],
+          "output": [
+            "text"
+          ]
+        },
+        "open_weights": false,
+        "limit": {
+          "context": 204000,
+          "output": 64000
+        },
+        "provider": {
+          "npm": "@ai-sdk/anthropic",
+          "api": "https://zenmux.ai/api/anthropic/v1"
+        },
+        "cost": {
+          "input": 0.3,
+          "output": 1.2,
+          "cache_read": 0.03,
+          "cache_write": 0.38
+        }
       }
     }
   }

@@ -13,6 +13,17 @@ PAINTER = ({"input": ["text", "image"], "output": ["text", "image"]}, 400000)
 EMBEDDER = ({"input": ["text"], "output": ["text"]}, 8191)
 
 
+READY = {
+    "status": "ready",
+    "base_url": "https://api.example.com/v1",
+    "base_url_origin": "models.dev",
+    "account_fields": [],
+    "key": "required",
+    "local": False,
+    "reason": None,
+}
+
+
 def _model(shape: tuple[dict, int]) -> dict:
     modalities, context = shape
     return {
@@ -29,6 +40,7 @@ def _model(shape: tuple[dict, int]) -> dict:
         "reasoning_options": None,
         "structured_output": None,
         "temperature": None,
+        "call": None,
     }
 
 
@@ -43,6 +55,7 @@ def _lookup(providers: dict[str, dict[str, tuple[dict, int]]]) -> RemoteLookup:
                     provider: {
                         "name": provider,
                         "doc": None,
+                        "connect": READY,
                         "models": {mid: _model(shape) for mid, shape in models.items()},
                     }
                     for provider, models in providers.items()

@@ -8,6 +8,7 @@ import json
 from pathlib import Path
 
 import pytest
+from remote_manifest.endpoints import ENDPOINTS, Fixed, stale_endpoints
 from remote_manifest.guard import shrinkage
 from remote_manifest.render import render
 from remote_manifest.translate import translate
@@ -56,6 +57,7 @@ def test_a_model_keeps_its_evidence_and_display_fields_and_nothing_else(
         ],
         "structured_output": True,
         "temperature": False,
+        "call": None,
     }
 
 
@@ -130,3 +132,114 @@ def test_each_model_is_one_line_so_a_refresh_diff_names_what_changed(
     nano = [line for line in text.splitlines() if line.strip().startswith('"gpt-5-nano"')]
     assert len(nano) == 1
     assert '"context": 400000' in nano[0]
+
+
+def _connect(api: dict, provider: str) -> dict:
+    return translate(api)["providers"][provider]["connect"]
+
+
+def test_a_hosted_provider_models_dev_gives_no_url_takes_the_reviewed_one(
+    api: dict,
+) -> None:
+    """OpenAI's SDK has its URL built in, so models.dev never states it."""
+    assert _connect(api, "openai") == {
+        "status": "ready",
+        "base_url": "https://api.openai.com/v1",
+        "base_url_origin": "reviewed",
+        "account_fields": [],
+        "key": "required",
+        "local": False,
+        "reason": None,
+    }
+
+
+def test_a_url_models_dev_states_with_the_openai_protocol_is_used_as_is(
+    api: dict,
+) -> None:
+    """The reviewed table fills gaps; it never overrides models.dev."""
+    openrouter = _connect(api, "openrouter")
+
+    assert (openrouter["status"], openrouter["base_url"], openrouter["base_url_origin"]) == (
+        "ready",
+        "https://openrouter.ai/api/v1",
+        "models.dev",
+    )
+
+
+def test_a_url_that_speaks_another_protocol_is_unreachable_and_says_why(
+    api: dict,
+) -> None:
+    """MiniMax states a URL, but it answers Anthropic's API, not OpenAI's."""
+    minimax = _connect(api, "minimax")
+
+    assert minimax["status"] == "unreachable"
+    assert "Anthropic" in minimax["reason"]
+
+
+def test_a_url_template_asks_for_its_variables(api: dict) -> None:
+    """Databricks' URL is the user's own workspace host."""
+    databricks = _connect(api, "databricks")
+
+    assert databricks["status"] == "needs_account_details"
+    assert databricks["base_url"] == "https://${DATABRICKS_HOST}/ai-gateway/mlflow/v1"
+    assert databricks["account_fields"] == [
+        {"name": "DATABRICKS_HOST", "label": "Databricks host"}
+    ]
+
+
+def test_a_provider_that_needs_more_than_a_key_is_unreachable_with_the_reviewed_reason(
+    api: dict,
+) -> None:
+    """Bedrock signs requests with AWS credentials; a key cannot."""
+    bedrock = _connect(api, "amazon-bedrock")
+
+    assert (bedrock["status"], bedrock["reason"]) == (
+        "unreachable",
+        ENDPOINTS["amazon-bedrock"].reason,
+    )
+
+
+def test_a_provider_with_no_known_url_asks_the_user_for_one(api: dict) -> None:
+    """Nothing is guessed: Azure's URL is not in models.dev or the table."""
+    azure = _connect(api, "azure")
+
+    assert (azure["status"], azure["base_url"]) == ("needs_url", None)
+
+
+def test_a_loopback_server_needs_no_key_and_is_local(api: dict) -> None:
+    """LM Studio on this machine: no key, and no egress question."""
+    lmstudio = _connect(api, "lmstudio")
+
+    assert (lmstudio["status"], lmstudio["key"], lmstudio["local"]) == (
+        "ready",
+        "none",
+        True,
+    )
+
+
+def test_a_model_served_only_on_responses_says_so(api: dict) -> None:
+    """The client speaks /chat/completions, so this one would fail on first use."""
+    model = translate(api)["providers"]["neon"]["models"]["gpt-5-6-terra"]
+
+    assert model["call"] == {"route": "responses"}
+
+
+def test_a_model_served_through_another_protocol_says_which(api: dict) -> None:
+    """A gateway can serve one model through Anthropic's API under an OpenAI URL."""
+    model = translate(api)["providers"]["zenmux"]["models"]["minimax/minimax-m2.1"]
+
+    assert model["call"] == {"protocol": "anthropic"}
+
+
+def test_every_reviewed_url_is_https() -> None:
+    """A reviewed URL is a hosted provider's; a local server is never in the table."""
+    for provider, entry in ENDPOINTS.items():
+        if isinstance(entry, Fixed):
+            assert entry.base_url.startswith("https://"), provider
+
+
+def test_a_reviewed_entry_whose_provider_left_models_dev_is_flagged(api: dict) -> None:
+    """Dead entries would otherwise pile up unread."""
+    del api["openai"]
+
+    assert "openai" in stale_endpoints(api)

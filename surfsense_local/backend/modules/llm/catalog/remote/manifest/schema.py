@@ -1,6 +1,6 @@
 """The shape of the committed remote manifest, checked when it is written and loaded."""
 
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -12,6 +12,39 @@ class Modalities(BaseModel):
 
     input: list[str]
     output: list[str]
+
+
+class Call(BaseModel):
+    """How a model is called, when it differs from its provider."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    # Only /responses is recorded; the client speaks /chat/completions.
+    route: Literal["responses"] | None = None
+    # Another wire format entirely, such as "anthropic".
+    protocol: str | None = None
+
+
+class AccountField(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    label: str
+
+
+class Connect(BaseModel):
+    """How a connection reaches a provider."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    status: Literal["ready", "needs_account_details", "needs_url", "unreachable"]
+    base_url: str | None
+    base_url_origin: Literal["models.dev", "reviewed"] | None
+    account_fields: list[AccountField]
+    key: Literal["required", "none"]
+    # A loopback server: no key, and no egress decision.
+    local: bool
+    reason: str | None
 
 
 class RemoteModel(BaseModel):
@@ -34,6 +67,7 @@ class RemoteModel(BaseModel):
     reasoning_options: list[dict[str, Any]] | None
     structured_output: bool | None
     temperature: bool | None
+    call: Call | None
 
 
 class RemoteProvider(BaseModel):
@@ -41,6 +75,7 @@ class RemoteProvider(BaseModel):
 
     name: str
     doc: str | None
+    connect: Connect
     models: dict[str, RemoteModel]
 
 

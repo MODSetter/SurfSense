@@ -23,6 +23,7 @@ def _entry(**fields: object) -> RemoteModel:
         "reasoning_options": None,
         "structured_output": None,
         "temperature": None,
+        "call": None,
     }
     return RemoteModel.model_validate({**base, **fields})
 

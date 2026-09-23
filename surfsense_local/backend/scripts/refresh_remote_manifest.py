@@ -20,6 +20,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
+from remote_manifest.endpoints import stale_endpoints
 from remote_manifest.guard import shrinkage
 from remote_manifest.render import render
 from remote_manifest.translate import translate
@@ -60,6 +61,9 @@ def main() -> int:
     except (httpx.HTTPError, ValueError) as error:
         print(f"error: could not read models.dev: {error}", file=sys.stderr)
         return 1
+
+    for provider in stale_endpoints(api):
+        print(f"warning: reviewed endpoint for {provider} has no provider in models.dev")
 
     proposed = _sorted(translate(api))
     if TARGET.exists():
