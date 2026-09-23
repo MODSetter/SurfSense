@@ -12,12 +12,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import type { Budget, CatalogRow, GpuStatus, RepoBuild } from "./api"
+import type { Budget, GpuStatus, LocalBuild, LocalRow } from "./api"
 import { LocalImageModel } from "./local-image-model"
 import { ModelCard } from "./model-card"
 import { ModelFamilyGroup } from "./model-family-group"
@@ -63,8 +64,8 @@ function hardwareSummary(budget: Budget | undefined, gpuStatus?: GpuStatus) {
   ]
 }
 
-function grouped(rows: CatalogRow[]) {
-  const result = new Map<string, CatalogRow[]>()
+function grouped(rows: LocalRow[]) {
+  const result = new Map<string, LocalRow[]>()
   for (const row of rows) {
     const family = row.family || "Other"
     result.set(family, [...(result.get(family) ?? []), row])
@@ -80,8 +81,8 @@ function CatalogSection({
 }: {
   title: string
   description: string
-  rows: CatalogRow[]
-  children: (row: CatalogRow) => ReactNode
+  rows: LocalRow[]
+  children: (row: LocalRow) => ReactNode
 }) {
   const headingId = useId()
   if (rows.length === 0) {
@@ -99,11 +100,9 @@ function CatalogSection({
         {[...grouped(rows)].map(([family, familyRows]) => (
           <ModelFamilyGroup key={family} family={family}>
             {familyRows.map((row) => (
-              // model_id, not catalog_id: the latter is an opaque install
-              // token that the server may reissue, and using it as a key would
-              // remount the row each time. model_id is stable, so it updates
-              // in place instead.
-              <li key={row.model_id}>{children(row)}</li>
+              // The row's id, not an install token: a token may be reissued,
+              // and keying on it would remount the row each time.
+              <li key={row.id}>{children(row)}</li>
             ))}
           </ModelFamilyGroup>
         ))}
@@ -141,7 +140,7 @@ export function ModelCatalogPage({
   // this holds the minimum both rows share rather than a whole catalog row.
   const [pendingDelete, setPendingDelete] = useState<{
     label: string
-    variant_model_id: string
+    installed_as: string
     selected: boolean
   } | null>(null)
 
@@ -163,10 +162,27 @@ export function ModelCatalogPage({
   }
 
   const data = catalog.data
+  const rows = data.rows ?? []
+  const curated = rows.filter((row) => row.origin === "curated")
+  // Everything on disk, curated or not: for a model installed from search this
+  // list is the only place it appears.
+  const installed = rows.flatMap((row) =>
+    row.builds
+      .filter((build) => build.installed_as !== null)
+      .map((build) => ({
+        row,
+        build,
+        installedAs: build.installed_as as string,
+        label:
+          row.origin === "curated"
+            ? `${row.name} ${build.quantization}`
+            : row.name,
+      }))
+  )
   const curatedSection = {
     title: "Tested by SurfSense",
     description: "Models we have run, priced against this computer.",
-    rows: data.curated ?? [],
+    rows: curated,
   }
   const busy =
     disabled ||
@@ -174,35 +190,32 @@ export function ModelCatalogPage({
     selectInstalled.isPending ||
     deleteModel.isPending
 
-  // A searched build and a curated row install through the same call, because
+  // A searched build and a curated one install through the same call, because
   // the id is opaque either way and the server cannot tell them apart.
-  const installBuild = (build: RepoBuild) => {
-    if (!busy) {
-      install.mutate(build)
-    }
-  }
-
-  const act = (row: CatalogRow) => {
+  const act = (build: LocalBuild) => {
     if (busy) {
       return
     }
     // No confirmation for a partial fit. It runs, slower, and llama.cpp places
     // the layers; only physics blocks, and that is already `can_install`.
-    if (row.installed) {
-      selectInstalled.mutate(row.variant_model_id)
+    if (build.installed_as) {
+      selectInstalled.mutate(build.installed_as)
     } else {
-      install.mutate(row)
+      install.mutate(build)
     }
   }
 
-  const onDeleteRow = (row: CatalogRow) =>
-    setPendingDelete({
-      label: row.label,
-      variant_model_id: row.variant_model_id,
-      selected: row.selected,
-    })
+  const deleteBuild = (label: string, build: LocalBuild) => {
+    if (build.installed_as) {
+      setPendingDelete({
+        label,
+        installed_as: build.installed_as,
+        selected: build.selected,
+      })
+    }
+  }
 
-  const card = (row: CatalogRow) => (
+  const card = (row: LocalRow) => (
     <ModelCard
       row={row}
       installState={installState}
@@ -210,7 +223,9 @@ export function ModelCatalogPage({
       runtimeAvailable
       onAction={act}
       onCancel={cancelInstall}
-      onDelete={allowDelete ? onDeleteRow : undefined}
+      onDelete={
+        allowDelete ? (build) => deleteBuild(row.name, build) : undefined
+      }
     />
   )
 
@@ -249,7 +264,7 @@ export function ModelCatalogPage({
 
       <ScrollShadow className="flex-1" scroll={scrollable}>
         <div className="flex flex-col gap-5 pb-3">
-          {(data.installed ?? []).length > 0 ? (
+          {installed.length > 0 ? (
             <section className="flex flex-col gap-2.5">
               <div>
                 <h2 className="font-heading text-sm font-medium">Installed</h2>
@@ -258,16 +273,28 @@ export function ModelCatalogPage({
                 </p>
               </div>
               <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-                {(data.installed ?? []).map((row) => (
+                {installed.map(({ row, build, installedAs, label }) => (
                   <li
-                    key={row.model_id}
+                    key={installedAs}
                     className="flex items-center justify-between gap-3 px-3 py-2"
                   >
-                    <span className="truncate text-sm font-medium">
-                      {row.model_id}
-                    </span>
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-medium">
+                          {label}
+                        </span>
+                        {build.reads_images ? (
+                          <Badge variant="outline">Reads images</Badge>
+                        ) : null}
+                      </div>
+                      {!row.runnable ? (
+                        <p className="text-xs text-muted-foreground">
+                          {row.not_runnable_reason}
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="flex shrink-0 items-center gap-1">
-                      {row.selected ? (
+                      {build.selected ? (
                         <Button
                           type="button"
                           size="sm"
@@ -276,35 +303,25 @@ export function ModelCatalogPage({
                         >
                           In use
                         </Button>
-                      ) : (
-                        // Every model on disk is selectable from here, because
-                        // for one installed from search this list is the only
-                        // place it appears: the curated rows are the manifest,
-                        // and it is not in it.
+                      ) : row.selectable_for.includes("text_gen") ? (
                         <Button
                           type="button"
                           size="sm"
                           disabled={busy}
-                          aria-label={`Use ${row.model_id}`}
-                          onClick={() => selectInstalled.mutate(row.model_id)}
+                          aria-label={`Use ${label}`}
+                          onClick={() => selectInstalled.mutate(installedAs)}
                         >
                           Use
                         </Button>
-                      )}
+                      ) : null}
                       {allowDelete ? (
                         <Button
                           type="button"
                           size="icon-sm"
                           variant="destructive"
                           disabled={busy}
-                          aria-label={`Delete ${row.model_id}`}
-                          onClick={() =>
-                            setPendingDelete({
-                              label: row.model_id,
-                              variant_model_id: row.model_id,
-                              selected: row.selected,
-                            })
-                          }
+                          aria-label={`Delete ${label}`}
+                          onClick={() => deleteBuild(label, build)}
                         >
                           <Trash2Icon />
                         </Button>
@@ -318,15 +335,15 @@ export function ModelCatalogPage({
 
           <LocalImageModel disabled={busy} />
 
-          {(data.curated ?? []).length > 0 ? (
+          {curated.length > 0 ? (
             <CatalogSection {...curatedSection}>{card}</CatalogSection>
           ) : null}
 
           <Separator className="my-4" />
 
-          <ModelSearch onInstall={installBuild} disabled={busy} />
+          <ModelSearch onInstall={act} disabled={busy} />
 
-          {(data.curated ?? []).length + (data.installed ?? []).length === 0 ? (
+          {curated.length + installed.length === 0 ? (
             <Alert>
               <CircleAlertIcon />
               <AlertTitle>No local models are available</AlertTitle>

@@ -27,33 +27,63 @@ export type Badge = {
   reason: string
 }
 
-export type CatalogRow = {
-  /** Opaque install token. The renderer never assembles one. */
-  catalog_id: string
-  /** Stable identity of the model, used as a React key. */
-  model_id: string
-  /** What the runtime calls the installed file, for selection and deletion. */
-  variant_model_id: string
-  label: string
-  family: string
-  parameter_count: string
-  quantization: string
+export type BuildFile = {
+  role: "weights" | "projector"
+  path: string
   size_bytes: number
-  context_length: number
-  fit: Fit
-  badge: Badge
-  capabilities: string[]
-  installed: boolean
-  selected: boolean
-  can_install: boolean
-  recommended: boolean
 }
 
-export type InstalledRow = {
-  model_id: string
-  file: string
-  size_bytes: number
+/**
+ * One build of a model: a set of files that runs as one. The same shape for a
+ * curated, downloaded or searched model, so nothing here asks where it came
+ * from. Every field is the server's answer; none is computed in the renderer.
+ */
+export type LocalBuild = {
+  /** Opaque install token; empty for a build that cannot be installed. */
+  catalog_id: string
+  quantization: string
+  /** Everything that lands on disk and loads together, projector included. */
+  footprint_bytes: number
+  files: BuildFile[]
+  fit: Fit
+  badge: Badge
+  can_install: boolean
+  /** What the runtime calls this build on disk, which Use and Delete act on. */
+  installed_as: string | null
   selected: boolean
+  /** The build to install on this machine. Curated models only. */
+  recommended: boolean
+  reads_images: boolean
+  /** The projector's header was read. Until then a searched build's image
+   *  support is what its listing names, not what its header says. */
+  projector_checked: boolean
+}
+
+export type LocalSupport = {
+  context: number | null
+  reads_images: boolean
+  tools: boolean | null
+  reasoning: boolean | null
+}
+
+export type LocalRow = {
+  id: string
+  source: "local"
+  origin: "curated" | "downloaded" | "search"
+  name: string
+  family: string
+  types: string[]
+  known: boolean
+  approximate: boolean
+  selectable_for: string[]
+  support: LocalSupport
+  runnable: boolean
+  not_runnable_reason: string | null
+  builds: LocalBuild[]
+  /** Curated models only. */
+  default_quantization: string | null
+  /** The one model starred for this computer. Curated models only. */
+  recommended: boolean
 }
 
 /** One device, never a sum across devices. */
@@ -85,9 +115,8 @@ export type GpuStatus = "present" | "absent" | "broken_install" | "unknown"
 export type ModelCatalog = {
   budget: Budget
   gpu_status: GpuStatus
-  curated: CatalogRow[]
-  installed: InstalledRow[]
-  recommended_model_id: string | null
+  rows: LocalRow[]
+  recommended_id: string | null
 }
 
 /** A repo, described. Search rows carry no rank and no quality claim. */
@@ -102,29 +131,11 @@ export type SearchRow = {
   last_modified: string | null
 }
 
-export type RepoBuild = {
-  catalog_id: string
-  file: string
-  quantization: string
-  size_bytes: number
-  fit: Fit
-  badge: Badge
-  can_install: boolean
-}
-
+/** A repo's builds from its listing alone: no file is read to draw it. */
 export type RepoDetail = {
   repo: string
-  architecture: string
-  context_length: number
-  supported: boolean
-  /**
-   * Installable without one, but it will answer badly in a chat, so this warns
-   * rather than blocks. A warning is not a fit state and must not render as one.
-   */
-  chat_template: boolean
-  builds: RepoBuild[]
-  /** Eligibility is not fit: a model can fit and still be refused here. */
-  ineligible_reason: string | null
+  gated: boolean
+  row: LocalRow
 }
 
 export type InstallEvent =
@@ -242,7 +253,7 @@ export async function installLocalImageModel(
 }
 
 export function getModelCatalog(signal?: AbortSignal): Promise<ModelCatalog> {
-  return requestJson<ModelCatalog>("/llm/catalog", { signal })
+  return requestJson<ModelCatalog>("/llm/catalog/local", { signal })
 }
 
 export function getSystem(
@@ -258,20 +269,22 @@ export function searchModels(
   signal?: AbortSignal
 ): Promise<{ results: SearchRow[] }> {
   return requestJson<{ results: SearchRow[] }>(
-    `/llm/search?q=${encodeURIComponent(query)}`,
+    `/llm/catalog/local/search?q=${encodeURIComponent(query)}`,
     { signal }
   )
 }
 
 /**
- * Reads 2 to 4 MB of the model's header, so the trigger is opening a result
- * rather than hovering or typing. The list badge stays approximate until then.
+ * One listing, no header read: every build's size is exact and its fit an
+ * estimate. The one header read happens when a build is installed.
  */
 export function getRepoDetail(
   repo: string,
   signal?: AbortSignal
 ): Promise<RepoDetail> {
-  return requestJson<RepoDetail>(`/llm/search/${repo}`, { signal })
+  return requestJson<RepoDetail>(`/llm/catalog/local/search/${repo}`, {
+    signal,
+  })
 }
 
 export async function installCatalogModel(

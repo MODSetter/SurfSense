@@ -16,7 +16,7 @@ import { askEgress } from "@/features/egress/ask-egress"
 import {
   getRepoDetail,
   searchModels,
-  type RepoBuild,
+  type LocalBuild,
   type SearchRow,
 } from "./api"
 import { FitBadge, FitReason } from "./fit-badge"
@@ -44,9 +44,9 @@ const describe = (hit: SearchRow) => [
 ]
 
 /**
- * One repo's builds, fetched when the row is opened rather than when it is
- * listed: pricing a build exactly means reading two to four megabytes of its
- * header, which is not something to do for every result in a list.
+ * One repo's builds, fetched when the row is opened. The listing alone: each
+ * size is exact and each fit an estimate, and the one header read happens when
+ * a build is installed. Search describes and never recommends.
  */
 function RepoBuilds({
   repo,
@@ -54,7 +54,7 @@ function RepoBuilds({
   disabled,
 }: {
   repo: string
-  onInstall: (build: RepoBuild) => void
+  onInstall: (build: LocalBuild) => void
   disabled: boolean
 }) {
   const detail = useQuery({
@@ -67,36 +67,41 @@ function RepoBuilds({
     return (
       <p className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
         <Spinner className="size-3" />
-        Reading this model's details
+        Listing this model's builds
       </p>
     )
   }
   if (detail.isError || !detail.data) {
     return (
       <p className="px-3 py-2 text-xs text-destructive">
-        Could not read this model's details.
+        Could not list this model's builds.
       </p>
     )
   }
-  if (!detail.data.supported) {
+
+  const { row } = detail.data
+  if (row.builds.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-muted-foreground">
-        {detail.data.ineligible_reason ?? "This model cannot run here."}
+        This repo has no build SurfSense can run.
       </p>
     )
   }
 
   return (
     <>
-      {!detail.data.chat_template && (
-        <p className="px-3 pt-2 text-xs text-muted-foreground">
-          No chat template. It may answer badly in a chat.
-        </p>
-      )}
+      <p className="flex flex-wrap items-center gap-2 px-3 pt-2 text-xs text-muted-foreground">
+        {row.support.reads_images ? (
+          <Badge variant="outline">Reads images</Badge>
+        ) : null}
+        {row.runnable
+          ? "Sizes are exact. Fit is estimated and checked before download."
+          : row.not_runnable_reason}
+      </p>
       <ul className="flex flex-col divide-y" aria-label={`Builds in ${repo}`}>
-        {detail.data.builds.map((build) => (
+        {row.builds.map((build) => (
           <li
-            key={build.catalog_id}
+            key={build.catalog_id || build.quantization}
             className="flex items-center justify-between gap-3 px-3 py-2"
           >
             <div className="flex min-w-0 flex-col gap-0.5">
@@ -105,8 +110,8 @@ function RepoBuilds({
                   {build.quantization}
                 </span>
                 <FitBadge fit={build.fit} copy={build.badge} />
-                <span className="text-xs text-muted-foreground">
-                  {formatSize(build.size_bytes)}
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {formatSize(build.footprint_bytes)}
                 </span>
               </div>
               <FitReason copy={build.badge} />
@@ -115,6 +120,7 @@ function RepoBuilds({
               type="button"
               size="sm"
               disabled={disabled || !build.can_install}
+              aria-label={`Download ${repo} ${build.quantization}`}
               onClick={() => onInstall(build)}
             >
               Download
@@ -130,7 +136,7 @@ export function ModelSearch({
   onInstall,
   disabled,
 }: {
-  onInstall: (build: RepoBuild) => void
+  onInstall: (build: LocalBuild) => void
   disabled: boolean
 }) {
   const headingId = useId()

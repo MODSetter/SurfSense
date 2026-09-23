@@ -61,7 +61,7 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
       currentSelection = models.some(
         (model) =>
           model.installed &&
-          model.capabilities.includes("completion") &&
+          model.selectable_for.includes("text_gen") &&
           model.name === selection.name
       )
         ? selection

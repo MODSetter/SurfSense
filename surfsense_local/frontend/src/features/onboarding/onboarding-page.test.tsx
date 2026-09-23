@@ -24,7 +24,9 @@ function installApi() {
         {
           name: "llama3.2:1b",
           installed: true,
-          capabilities: ["completion"],
+          capabilities: ["text_gen"],
+          types: ["text_gen"],
+          selectable_for: ["text_gen"],
         },
       ])
     }
@@ -45,7 +47,7 @@ function installApi() {
     if (path === "/llm/onboarding" && init?.method === "POST") {
       return Response.json({ completed: true })
     }
-    if (path === "/llm/catalog") {
+    if (path === "/llm/catalog/local") {
       return Response.json({
         budget: {
           device_total_bytes: 16_000_000_000,
@@ -56,16 +58,53 @@ function installApi() {
           uma: true,
           has_gpu: true,
         },
-        curated: [],
-        installed: [
+        gpu_status: "present",
+        rows: [
           {
-            model_id: "Llama 3.2 1B",
-            file: "Llama-3.2-1B-Q4_K_M.gguf",
-            size_bytes: 1_200_000_000,
-            selected: true,
+            id: "Llama 3.2 1B",
+            source: "local",
+            origin: "downloaded",
+            name: "Llama 3.2 1B",
+            family: "",
+            types: ["text_gen"],
+            known: true,
+            approximate: false,
+            selectable_for: ["text_gen"],
+            support: {
+              context: null,
+              reads_images: false,
+              tools: null,
+              reasoning: null,
+            },
+            runnable: true,
+            not_runnable_reason: null,
+            default_quantization: null,
+            recommended: false,
+            builds: [
+              {
+                catalog_id: "",
+                quantization: "Q4_K_M",
+                footprint_bytes: 1_200_000_000,
+                files: [],
+                fit: {
+                  state: "fits",
+                  need_bytes: 0,
+                  budget_bytes: 0,
+                  offload_fraction: 0,
+                  approximate: false,
+                },
+                badge: { verdict: "Full speed", reason: "" },
+                can_install: false,
+                installed_as: "Llama 3.2 1B",
+                selected: true,
+                recommended: false,
+                reads_images: false,
+                projector_checked: false,
+              },
+            ],
           },
         ],
-        recommended_model_id: null,
+        recommended_id: null,
       })
     }
     if (init?.method === "PUT") {
@@ -216,15 +255,10 @@ describe("model onboarding", () => {
         ])
       }
       if (path === "/llm/providers/llamacpp/models") return Response.json([])
-      if (path === "/llm/catalog") {
+      if (path === "/llm/catalog/local") {
         return Response.json({
-          hardware: {},
-          curated: [],
-          explore: [],
-          installed: [],
-          scanned: true,
-          warnings: [],
-          runtime_status: {},
+          rows: [],
+          recommended_id: null,
         })
       }
       return Response.json({ detail: "not found" }, { status: 404 })

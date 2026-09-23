@@ -837,15 +837,10 @@ describe("dashboard chat", () => {
             updated_at: "2026-09-05T00:00:00Z",
           })
         }
-        if (path === "/llm/catalog") {
+        if (path === "/llm/catalog/local") {
           return Response.json({
-            hardware: null,
-            curated: [],
-            explore: [],
-            installed: [],
-            scanned: true,
-            warnings: [],
-            runtime_status: {},
+            rows: [],
+            recommended_id: null,
           })
         }
         if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
