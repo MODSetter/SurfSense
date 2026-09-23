@@ -219,7 +219,6 @@ describe("model onboarding", () => {
       if (path === "/llm/catalog") {
         return Response.json({
           hardware: {},
-          llmfit_version: "1.0",
           curated: [],
           explore: [],
           installed: [],

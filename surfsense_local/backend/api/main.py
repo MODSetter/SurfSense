@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import threading
 from collections.abc import AsyncIterator
@@ -6,6 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.orm import Session, sessionmaker
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from modules.artifacts.podcast.router import router as podcast_router
@@ -19,11 +21,13 @@ from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
 from modules.llm.catalog.dependencies import get_catalog_service
+from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
-from shared.config import get_storage_settings
+from shared.config import get_llm_settings, get_storage_settings
 from shared.db import (
     create_db_engine,
     create_session_factory,
@@ -75,13 +79,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # llama.cpp's own default window instead of the one the fit calculation
         # chose, and a stale section keeps advertising a model whose file is
         # gone.
-        threading.Thread(target=_warm_catalog, name="catalog-warm", daemon=True).start()
+        threading.Thread(
+            target=_warm_catalog,
+            args=(session_factory,),
+            name="catalog-warm",
+            daemon=True,
+        ).start()
         yield
     finally:
         engine.dispose()
 
 
-def _warm_catalog() -> None:
+def _warm_catalog(session_factory: sessionmaker[Session]) -> None:
     """Best effort: neither the probe nor the preset may stop the API.
 
     A daemon thread, so a probe wedged on a driver call cannot hold shutdown
@@ -92,6 +101,21 @@ def _warm_catalog() -> None:
         get_catalog_service().warm()
     except Exception:
         logger.exception("could not warm the model catalog at startup")
+        return
+
+    # Then the model itself, in that order: pricing the preset first is what
+    # decides the window the load will use, and a load started before it would
+    # take llama.cpp's own default and have to be redone.
+    #
+    # Nothing is resident after a restart whatever the idle policy is, so
+    # without this the first question of every session pays a cold load with
+    # nothing on screen to say why.
+    try:
+        with session_factory() as session:
+            selected = session.get(SelectedModel, ModelRole.GENERATION)
+        asyncio.run(warm_selected(selected, get_llm_settings().llamacpp_base_url))
+    except Exception:
+        logger.exception("could not warm the selected model at startup")
 
 
 def create_app() -> FastAPI:

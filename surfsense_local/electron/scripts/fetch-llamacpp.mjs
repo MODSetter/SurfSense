@@ -11,7 +11,7 @@
 // stripped at build time for exactly the same reason.
 // Measured at b11050 on an RTX 3050, CUDA leads Vulkan 9.1% on prefill and 2.1%
 // on decode, which is 0.66 s of an 11 s turn for 685 MB. See
-// plans/community-local/api/08-cuda-backend.md.
+// docs/proposals/cuda-backend.md.
 import { execFileSync } from "node:child_process"
 import { createHash } from "node:crypto"
 import {
@@ -41,15 +41,15 @@ const OUT = join(HERE, "..", "llamacpp")
 export const TARGETS = {
   "darwin-arm64": {
     asset: `llama-${BUILD}-bin-macos-arm64.tar.gz`,
-    sha256: "e64c549a443d1353f440f436039d449a431fbcc1528b03838dda3d9a26530062",
+    sha256: "e64c549a443d1353f440f436039d449a431fbcc1528b03838dda3d9a26530062", // pragma: allowlist secret
   },
   "win32-x64": {
     asset: `llama-${BUILD}-bin-win-vulkan-x64.zip`,
-    sha256: "f1844840ad85b54405b6d5d0d9e8130a6d89c7094186b520fe4c1d9143290e7f",
+    sha256: "f1844840ad85b54405b6d5d0d9e8130a6d89c7094186b520fe4c1d9143290e7f", // pragma: allowlist secret
   },
   "linux-x64": {
     asset: `llama-${BUILD}-bin-ubuntu-vulkan-x64.tar.gz`,
-    sha256: "eba230a6c76dee7422d1851651d7c4634fb6a39aed57e524a3612e9ed2bd1d89",
+    sha256: "eba230a6c76dee7422d1851651d7c4634fb6a39aed57e524a3612e9ed2bd1d89", // pragma: allowlist secret
   },
 }
 

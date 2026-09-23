@@ -98,11 +98,14 @@ export function useModelCatalog(
   })
 
   const selectInstalled = useMutation({
-    mutationFn: (row: CatalogRow) =>
+    // The runtime's own name for the file, not a row. A model installed from
+    // search has no curated row to carry it, and that list is the only place
+    // it appears.
+    mutationFn: (modelId: string) =>
       setGenerationSelection({
         provider: "llamacpp",
         connection_id: null,
-        name: row.variant_model_id,
+        name: modelId,
       }),
     onSuccess: async (selection) => {
       await Promise.all([

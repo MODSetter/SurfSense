@@ -80,7 +80,7 @@ Vite SPA  ───> FastAPI                       llama.cpp
 | `backend/worker/` | Huey consumer, ingest and Studio pipelines |
 | `backend/shared/` | Engine, session, Alembic entrypoint |
 | `backend/alembic/` | Migration history; the only thing that creates schema |
-| `packaging/` | PyInstaller + electron-builder specs |
+| `backend/bundling/` | PyInstaller specs for the API and worker binaries; electron-builder's config is `electron/electron-builder.yml` |
 
 ## Data directory
 

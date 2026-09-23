@@ -5,7 +5,7 @@ the system of record, the license is tied to the buyer email in Keygen
 metadata, and re-download is a resend to that address. Nothing here takes a
 session, reads the user table, or touches Postgres.
 
-Spec: ``plans/community-local/portal/01-license-routes.md``.
+Spec: ``docs/architecture/license/portal.md``.
 """
 
 from __future__ import annotations

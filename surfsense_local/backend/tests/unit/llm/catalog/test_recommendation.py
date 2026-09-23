@@ -31,15 +31,13 @@ def qwen(block_count: int) -> dict:
     }
 
 
-def build(repo: str, file: str, quant: str, size: int, rank: int) -> dict:
-    """One downloadable build plus the judgement fields beside it."""
+def build(repo: str, file: str, quant: str, size: int) -> dict:
+    """One downloadable build."""
     return {
         "repo": repo,
         "file": file,
         "quantization": quant,
         "size_bytes": size,
-        "rank": rank,
-        "rank_basis": "llmfit-1.1.11",
     }
 
 
@@ -57,12 +55,13 @@ def model(model_id: str, label: str, blocks: int, variants: list[dict]) -> Curat
     )
 
 
+# List order is the preference signal: smallest first, most preferred last.
 CURATED = [
-    model("Qwen/Qwen3-0.6B", "Qwen3 0.6B", 28, [build("u/q", "0.6b.gguf", "Q4_K_M", int(0.40 * GB), 33)]),
-    model("Qwen/Qwen3-1.7B", "Qwen3 1.7B", 28, [build("u/q", "1.7b.gguf", "Q4_K_M", int(1.11 * GB), 48)]),
-    model("Qwen/Qwen3-4B", "Qwen3 4B", 36, [build("u/q", "4b.gguf", "Q4_K_M", int(2.50 * GB), 63)]),
-    model("Qwen/Qwen3-8B", "Qwen3 8B", 36, [build("u/q", "8b.gguf", "Q4_K_M", int(5.03 * GB), 78)]),
-    model("Qwen/Qwen3-32B", "Qwen3 32B", 64, [build("u/q", "32b.gguf", "Q4_K_M", int(19.76 * GB), 92)]),
+    model("Qwen/Qwen3-0.6B", "Qwen3 0.6B", 28, [build("u/q", "0.6b.gguf", "Q4_K_M", int(0.40 * GB))]),
+    model("Qwen/Qwen3-1.7B", "Qwen3 1.7B", 28, [build("u/q", "1.7b.gguf", "Q4_K_M", int(1.11 * GB))]),
+    model("Qwen/Qwen3-4B", "Qwen3 4B", 36, [build("u/q", "4b.gguf", "Q4_K_M", int(2.50 * GB))]),
+    model("Qwen/Qwen3-8B", "Qwen3 8B", 36, [build("u/q", "8b.gguf", "Q4_K_M", int(5.03 * GB))]),
+    model("Qwen/Qwen3-32B", "Qwen3 32B", 64, [build("u/q", "32b.gguf", "Q4_K_M", int(19.76 * GB))]),
 ]
 
 # The measured machine: RTX 3050, 5234 MiB free, llama.cpp's own 1024 MiB margin.
@@ -74,8 +73,9 @@ def test_a_spilling_model_can_be_recommended_over_a_resident_one() -> None:
 
     A small discrete card, mostly free: the 4B spills a fifth of a layer or so
     (0.22) rather than fitting whole, and still outranks the fully resident
-    1.7B and 0.6B by build rank. A residency-only rule would star the 1.7B
-    instead, which is not conservative, it is wrong: the 4B demonstrably runs.
+    1.7B and 0.6B, since it sits later in the manifest. A residency-only rule
+    would star the 1.7B instead, which is not conservative, it is wrong: the 4B
+    demonstrably runs.
     """
     small_discrete = HardwareBudget(4000 * MIB, 4300 * MIB, 1024 * MIB, 16000 * MIB, False, True)
 
@@ -85,7 +85,7 @@ def test_a_spilling_model_can_be_recommended_over_a_resident_one() -> None:
     assert pick.entry.label == "Qwen3 4B"
 
 
-def test_physics_still_refuses_whatever_the_rank() -> None:
+def test_physics_still_refuses_whatever_the_manifest_prefers() -> None:
     """The ceiling relaxes residency, never physics."""
     tiny = HardwareBudget(2200 * MIB, 2200 * MIB, 1024 * MIB, 3200 * MIB, False, True)
 
@@ -95,8 +95,8 @@ def test_physics_still_refuses_whatever_the_rank() -> None:
     assert pick.entry.label in {"Qwen3 0.6B", "Qwen3 1.7B"}
 
 
-def test_a_roomy_machine_takes_the_best_ranked_build() -> None:
-    """Where residency and speed agree, rank decides."""
+def test_a_roomy_machine_takes_the_most_preferred_build() -> None:
+    """Where residency and speed agree, manifest position decides."""
     workstation = HardwareBudget(
         24000 * MIB, 24576 * MIB, 1024 * MIB, 64000 * MIB, False, True
     )
@@ -115,8 +115,8 @@ def test_the_policy_ranges_over_builds_so_a_smaller_one_can_rescue_an_entry() ->
     """A model whose big build is refused is still recommendable on its small one."""
     two_builds = [
         model("Qwen/Qwen3-8B", "Qwen3 8B", 36, [
-            build("u/q", "8b-q8.gguf", "Q8_0", int(60.0 * GB), 83),
-            build("u/q", "8b-q4.gguf", "Q4_K_M", int(5.03 * GB), 78),
+            build("u/q", "8b-q8.gguf", "Q8_0", int(60.0 * GB)),
+            build("u/q", "8b-q4.gguf", "Q4_K_M", int(5.03 * GB)),
         ])
     ]
     # A roomier discrete card than RTX_3050: the Q4 build spills lightly

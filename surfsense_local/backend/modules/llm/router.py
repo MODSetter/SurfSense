@@ -2,7 +2,7 @@ import json
 from collections.abc import AsyncIterator
 
 import httpx
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -18,6 +18,7 @@ from modules.llm.dependencies import LocalRuntimeDep, ProviderDep
 from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, llamacpp, provider_names
 from modules.llm.providers.sdcpp import provider as sdcpp
+from modules.llm.residency import warm_selected
 from modules.llm.schemas import (
     LocalImageCatalogRead,
     LocalImageModelRead,
@@ -30,6 +31,7 @@ from modules.llm.schemas import (
     SelectionWrite,
 )
 from modules.llm.selection import choose_model, complete_onboarding
+from shared.config import get_llm_settings
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(catalog_router)
@@ -233,9 +235,7 @@ def read_local_image_runtime(session: SessionDep) -> LocalImageRuntimeRead:
 async def delete_local_image_model(name: str, session: SessionDep) -> Response:
     model = sdcpp.find(name)
     if model is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"unknown image model: {name}"
-        )
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown image model: {name}")
     chosen = await transact(session, _chosen_image_model)
     if chosen is not None and chosen.provider == sdcpp.PROVIDER and chosen.name == name:
         raise HTTPException(
@@ -260,10 +260,8 @@ async def install_local_image_model(
         )
     model = sdcpp.find(name)
     if model is None:
-        raise HTTPException(
-            status.HTTP_404_NOT_FOUND, f"unknown image model: {name}"
-        )
-    await transact(session, egress.require, egress.IMAGE_MODEL_PULL)
+        raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown image model: {name}")
+    await transact(session, egress.require, egress.HUGGINGFACE)
 
     async def progress() -> AsyncIterator[bytes]:
         async for step in sdcpp.install(model):
@@ -309,9 +307,12 @@ def read_selection(role: ModelRole, session: SessionDep) -> SelectedModel:
     summary="Choose the model for a role",
 )
 async def set_selection(
-    role: ModelRole, payload: SelectionWrite, session: SessionDep
+    role: ModelRole,
+    payload: SelectionWrite,
+    session: SessionDep,
+    background: BackgroundTasks,
 ) -> SelectedModel:
-    return await choose_model(
+    chosen = await choose_model(
         session,
         role,
         payload.provider,
@@ -319,3 +320,11 @@ async def set_selection(
         connection_id=payload.connection_id,
         allow_unlisted=payload.allow_unlisted,
     )
+    # After the response, never during it: the load blocks until the model is
+    # resident, which is the tens of seconds this exists to move somewhere the
+    # user is not waiting. Choosing a model is the moment they have said they
+    # are about to use it, and `--models-max 1` means the load is happening
+    # either way — the only question is whether it happens now or on their
+    # first question.
+    background.add_task(warm_selected, chosen, get_llm_settings().llamacpp_base_url)
+    return chosen

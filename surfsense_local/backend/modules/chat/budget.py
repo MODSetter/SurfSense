@@ -6,8 +6,8 @@ anything else claims it, because llama.cpp stops a reply wherever the window
 runs out; spending the reserve on history is how a good answer gets cut off
 mid-sentence with no error at all. What is left after the fixed parts and the
 reserve is what history gets, so a narrower window means a shorter history
-rather than a turn that silently exceeds the window (fix from
-07-llamacpp-runtime.md's context-floor research: `HISTORY_BUDGET_TOKENS` used
+rather than a turn that silently exceeds the window (fix from the context-floor
+research in docs/architecture/local-models/fit.md: `HISTORY_BUDGET_TOKENS` used
 to be a constant with no relationship to `n_ctx`, which was safe only because
 the window was always the same 16384 number).
 

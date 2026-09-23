@@ -36,7 +36,7 @@
   <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
 
   <p>
-    <a href="README.md">English</a> | Español | <a href="README.pt-BR.md">Português</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.zh-CN.md">简体中文</a>
+    <a href="README.md">English</a> | <a href="README.ar.md">العربية</a> | <a href="README.de.md">Deutsch</a> | Español | <a href="README.fr.md">Français</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.ja.md">日本語</a> | <a href="README.ko.md">한국어</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.ru.md">Русский</a> | <a href="README.zh-CN.md">简体中文</a>
   </p>
 </div>
 
@@ -127,7 +127,7 @@ No necesitas Docker, ni una terminal, ni una GPU, ni un archivo de compose.
 
 La descarga es la parte lenta, porque el instalador lleva el analizador, el modelo de recuperación, la voz del pódcast y los servidores de modelos locales, para que la aplicación funcione con la red apagada.
 
-## Documentación, hoja de ruta y comunidad
+## Documentación y comunidad
 
 La aplicación y sus actualizaciones son gratuitas. Una licencia añade complementos y soporte prioritario, y no restringe nada más: una licencia caducada te deja igualmente la aplicación y todas las actualizaciones futuras. Consulta los [precios](https://www.surfsense.com/pricing).
 
@@ -136,11 +136,16 @@ El stack de Docker de este repositorio (`surfsense_backend`, `surfsense_web`, ar
 - [Documentación](https://www.surfsense.com/docs) sobre instalación, modelos, formatos de Studio y autoalojamiento
 - [Importar desde la aplicación alojada](https://www.surfsense.com/sunset)
 - [Servidor MCP](./surfsense_mcp) para la API de scraping alojada
-- [Discusión de la hoja de ruta](https://github.com/MODSetter/SurfSense/discussions/565) y el [tablero del proyecto](https://github.com/users/MODSetter/projects/3)
 - [Discord](https://discord.gg/ejRNvftDp9) para ayuda e ideas, [Discussions](https://github.com/MODSetter/SurfSense/discussions) para el rumbo del proyecto, [Issues](https://github.com/MODSetter/SurfSense/issues) para errores reproducibles
 - **Dale una estrella al repositorio** si quieres seguir de cerca a dónde va esto
 
-Los pull requests son bienvenidos. Empieza por [CONTRIBUTING.md](CONTRIBUTING.md); la aplicación de escritorio vive en [`surfsense_local/`](./surfsense_local) y su README explica el ciclo de desarrollo.
+## Contribuir
+
+Los pull requests son bienvenidos, y [CONTRIBUTING.md](CONTRIBUTING.md) explica todo el proceso. En resumen:
+
+- **Encuentra algo en lo que trabajar:** un issue con la etiqueta [`good first issue`](https://github.com/MODSetter/SurfSense/labels/good%20first%20issue) o [`help wanted`](https://github.com/MODSetter/SurfSense/labels/help%20wanted), o una línea de la lista Known gaps (problemas conocidos) al final de cada documento de [`docs/architecture/`](docs/architecture/overview.md).
+- **Lee primero cómo funciona:** [`docs/`](docs/README.md) explica cada funcionalidad y por qué está construida así, y [`docs/ROADMAP.md`](docs/ROADMAP.md) muestra en qué trabajan los mantenedores.
+- **Abre un PR contra `dev`.** Las correcciones de errores y la documentación no necesitan discusión previa; una funcionalidad nueva empieza con una breve propuesta de diseño. La aplicación de escritorio vive en [`surfsense_local/`](./surfsense_local) y su README explica el ciclo de desarrollo.
 
 Gracias a todos nuestros Surfers:
 

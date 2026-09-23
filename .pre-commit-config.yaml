@@ -74,6 +74,18 @@ repos:
         always_run: true
         stages: [pre-commit]
 
+  # Links, tables and proposal status across docs/ and plans/. Every file, every
+  # run: a deleted or renamed file breaks links in docs nobody touched.
+  - repo: local
+    hooks:
+      - id: check-docs
+        name: check-docs
+        entry: python scripts/check_docs.py
+        language: python
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]
+
   # Commit message linting
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.8.3

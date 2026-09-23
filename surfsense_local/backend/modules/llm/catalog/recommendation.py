@@ -14,10 +14,15 @@ be slow". Reading the same tier both modules now share is what makes that
 combination unrepresentable rather than merely untested.
 
 The policy ranges over builds rather than models, because a build is what the
-user installs and what `rank` describes. With one variant per entry the
-cross-product is the entry list and the behaviour is identical, but writing it
-this way is the difference between adding a second build later as a manifest
-edit and rewriting this module, its tests and every fixture.
+user installs. With one variant per entry the cross-product is the entry list
+and the behaviour is identical, but writing it this way is the difference
+between adding a second build later as a manifest edit and rewriting this
+module, its tests and every fixture.
+
+There is no quality score here either: preference is a candidate's position in
+`curated`, the same list `rows.py` reads. The ladder is authored smallest to
+largest, so "prefers a later entry" reads as "prefers the bigger model", with
+nothing to keep in sync against a separate field.
 """
 
 from collections.abc import Sequence
@@ -39,13 +44,14 @@ class Recommendation:
 def recommend(
     curated: Sequence[CuratedModel], budget: HardwareBudget
 ) -> Recommendation | None:
-    """The highest-ranked build predicted fast enough, or None.
+    """The build predicted fast enough that sits furthest down the ladder, or
+    None.
 
     None is an honest answer rather than a failure: every build that physics does
     not refuse stays installable, it simply goes unstarred.
     """
-    candidates: list[Recommendation] = []
-    for entry in curated:
+    candidates: list[tuple[int, Recommendation]] = []
+    for index, entry in enumerate(curated):
         for variant in entry.variants:
             # At the cache the loader would choose, so the gate judges the
             # configuration that will actually run rather than a slower one.
@@ -60,8 +66,11 @@ def recommend(
             # classification, not a state check plus a separate threshold.
             if speed_tier(verdict) not in RECOMMENDABLE_TIERS:
                 continue
-            candidates.append(Recommendation(entry, variant, verdict))
+            candidates.append((index, Recommendation(entry, variant, verdict)))
 
     if not candidates:
         return None
-    return max(candidates, key=lambda c: (c.variant.rank, -c.variant.size_bytes))
+    _, best = max(
+        candidates, key=lambda pair: (pair[0], -pair[1].variant.size_bytes)
+    )
+    return best

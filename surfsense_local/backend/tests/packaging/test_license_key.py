@@ -10,7 +10,7 @@ pytestmark = pytest.mark.packaging
 
 FIXTURE_KEY = (
     Path(__file__).resolve().parents[4]
-    / "plans/community-local/contracts/license-sample/public-key.hex"
+    / "docs/contracts/license-sample/public-key.hex"
 )
 
 

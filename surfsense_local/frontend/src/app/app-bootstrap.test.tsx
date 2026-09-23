@@ -61,7 +61,6 @@ describe("app bootstrap", () => {
         if (path === "/llm/catalog") {
           return Response.json({
             hardware: null,
-            llmfit_version: null,
             curated: [],
             explore: [],
             installed: [],

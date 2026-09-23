@@ -19,10 +19,12 @@ _ATTENTION = Keys.Attention
 
 
 def _widest(value: Any, default: int = 0) -> int:
-    """A field that is scalar in most models and per-layer in some.
+    """A field that is scalar in most models and per-layer in some, as one number.
 
-    The widest layer is the honest reduction: it is what the cache must be sized
-    for, and taking the first element instead under-prices a hybrid model.
+    The widest layer, because the answer this gives is "how large can one layer
+    be", and taking the first element instead under-states a model whose layers
+    differ. It is not what the cache costs: that is a sum over layers, and
+    `_per_layer` is what keeps the values it sums.
     """
     if isinstance(value, list):
         return max((int(v) for v in value), default=default)
@@ -46,7 +48,10 @@ def to_shape(header: GgufHeader) -> ModelShape:
     if not key_length and embedding and head_count:
         key_length = value_length = embedding // head_count
 
-    period, layers = _sliding_pattern(meta.get(_ATTENTION.SLIDING_WINDOW_PATTERN.format(arch=arch)))
+    period, layers = _sliding_pattern(
+        meta.get(_ATTENTION.SLIDING_WINDOW_PATTERN.format(arch=arch))
+    )
+    kv_heads = _per_layer(meta.get(_ATTENTION.HEAD_COUNT_KV.format(arch=arch)))
 
     tokens = meta.get(Keys.Tokenizer.LIST)
     return ModelShape(
@@ -66,10 +71,24 @@ def to_shape(header: GgufHeader) -> ModelShape:
         expert_used_count=field(_LLM.EXPERT_USED_COUNT),
         sliding_window_pattern=period,
         sliding_window_layers=layers,
+        key_length_swa=field(_ATTENTION.KEY_LENGTH_SWA),
+        value_length_swa=field(_ATTENTION.VALUE_LENGTH_SWA),
+        head_count_kv_layers=kv_heads,
         shared_kv_layers=field(_ATTENTION.SHARED_KV_LAYERS),
         kv_lora_rank=field(_ATTENTION.KV_LORA_RANK),
         key_length_mla=field(_ATTENTION.KEY_LENGTH_MLA),
     )
+
+
+def _per_layer(value: Any) -> tuple[int, ...]:
+    """A field's per-layer values, or empty where it states one for the model.
+
+    Empty is what tells a reader the scalar is the whole answer, so a header
+    that varies nothing costs nothing to carry.
+    """
+    if not isinstance(value, list):
+        return ()
+    return tuple(int(v) for v in value)
 
 
 def _sliding_pattern(value: Any) -> tuple[int, tuple[bool, ...]]:

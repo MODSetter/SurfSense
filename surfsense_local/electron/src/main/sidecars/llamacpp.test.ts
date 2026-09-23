@@ -78,12 +78,18 @@ test("passes the preset file once the API has written one", () => {
 })
 
 test("keeps a loaded model resident between two questions", () => {
-  // Measured: without this a model self-evicted after roughly 30s idle, which
-  // turns the second question of a conversation into a reload.
+  // Sleeping is off upstream (`--sleep-idle-seconds` defaults to -1) and the
+  // router evicts otherwise only under capacity pressure, which one model and
+  // `--models-max 1` cannot produce. Measured at b11050 on Metal and on
+  // Vulkan: a model left idle for over a minute reports `loaded` throughout.
+  //
+  // So passing the flag at all is what unloads a model mid-conversation. The
+  // API warms the selected model at startup and on selection, and both are
+  // wasted the moment this reappears.
   const { ctx } = staged()
   const spec = llamacppSpec(ctx)
   assert.ok(spec)
-  assert.equal(spec.args[spec.args.indexOf("--sleep-idle-seconds") + 1], "300")
+  assert.ok(!spec.args.includes("--sleep-idle-seconds"))
 })
 
 test("never sets a layer count, which would abort --fit", () => {

@@ -12,7 +12,7 @@ from shared.queue import ingest_queue
 pytestmark = pytest.mark.integration
 
 SAMPLE = Path(__file__).resolve().parents[5] / (
-    "plans/community-local/contracts/export-sample"
+    "docs/contracts/export-sample"
 )
 
 

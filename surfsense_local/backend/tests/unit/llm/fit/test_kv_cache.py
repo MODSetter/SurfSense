@@ -78,3 +78,40 @@ def test_a_latent_attention_model_caches_one_compressed_entry_per_token() -> Non
     expected = per_layer_token * 28 * 16384
 
     assert kv_cache_bytes(deepseek_like, 16384, KvPrecision.F16) == expected
+
+
+# Gemma 4 12B, read from the real header. Two things make it heterogeneous, and
+# both are per layer: the sliding layers carry 8 KV heads at 256 wide, while the
+# full-attention layers carry 1 head at 512. Measured on an M2 and an RTX 3050
+# at b11050, identical on both.
+GEMMA4_12B = ModelShape(
+    architecture="gemma4",
+    block_count=48,
+    head_count_kv=8,
+    head_count_kv_layers=tuple((8, 8, 8, 8, 8, 1)[index % 6] for index in range(48)),
+    key_length=512,
+    value_length=512,
+    key_length_swa=256,
+    value_length_swa=256,
+    context_length=262144,
+    n_vocab=262144,
+    sliding_window=1024,
+    sliding_window_layers=tuple(
+        (True, True, True, True, True, False)[index % 6] for index in range(48)
+    ),
+)
+
+
+@pytest.mark.parametrize(
+    ("n_ctx", "measured_mib"),
+    [(4096, 544), (8192, 608), (16384, 736), (32768, 992)],
+)
+def test_a_layer_keeps_its_own_head_count_and_width(n_ctx, measured_mib) -> None:
+    """llama.cpp sizes each layer from `n_embd_k_gqa(il)`, which reads that
+    layer's own head count and its own key width.
+
+    Collapsing either to one number per model prices all 48 layers as though
+    they were the widest of them, which over-stated this model by 5.1x at 32768:
+    5056 MiB against the 992 llama.cpp allocates.
+    """
+    assert kv_cache_bytes(GEMMA4_12B, n_ctx, KvPrecision.F16) == measured_mib * MIB

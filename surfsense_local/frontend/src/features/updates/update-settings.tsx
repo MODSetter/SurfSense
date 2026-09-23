@@ -5,7 +5,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { askEgress } from "@/features/egress/egress-prompt"
+import { askEgress } from "@/features/egress/ask-egress"
 import type { UpdateState } from "@/lib/api"
 
 import {

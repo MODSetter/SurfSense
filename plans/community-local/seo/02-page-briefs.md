@@ -293,13 +293,13 @@ the desktop app keeps better than the hosted page did:
   array claims `sites like chatgpt` and `chatgpt alternative free`; we rank for
   neither. Do not build pages for this cluster.
 - **The model table stays, and its rows must be real.** Render it from
-  [`curated-models.json`](../../../surfsense_local/backend/modules/llm/recommendations/curated-models.json)
-  (Qwen3 0.6B/1.7B/4B/8B/14B/32B, Qwen2.5 Coder 7B/32B, with the sizes in
-  [`providers/ollama/catalog.py`](../../../surfsense_local/backend/modules/llm/providers/ollama/catalog.py)),
+  [`curated-models.json`](../../../surfsense_local/backend/modules/llm/catalog/curated-models.json)
+  (six Qwen3 sizes, 0.6B to 32B, since the llama.cpp runtime replaced Ollama;
+  the Qwen2.5 Coder rows and the Ollama `catalog.py` that carried the sizes are
+  gone),
   vendored into the web app at build time with a check that fails the build
-  when the two drift. The roster is Qwen-family for v1 and grows when
-  llama.cpp lands; a generated table cannot advertise a model the app cannot
-  run. Columns that serve the intent: model, download size, what laptop runs
+  when the two drift. The roster is Qwen-family for v1; a generated table
+  cannot advertise a model the app cannot run. Columns that serve the intent: model, download size, what laptop runs
   it, and — the reason the visitor is here — that it needs no account.
 - **Where the rows link.** Not to per-model pages. Each row goes to the
   matching provider page under "Model-provider pages" below (Ollama first,

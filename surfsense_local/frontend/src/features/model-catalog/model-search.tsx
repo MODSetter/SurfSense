@@ -1,13 +1,30 @@
-import { useId, useState } from "react"
+import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { SearchIcon } from "@/components/ui/icons"
+import { DotIcon, SearchIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
-import { getRepoDetail, searchModels, type RepoBuild } from "./api"
+import {
+  HUGGINGFACE,
+  destinationsQueryKey,
+  listDestinations,
+  setDestinationEnabled,
+} from "@/features/egress/api"
+import { askEgress } from "@/features/egress/ask-egress"
+import {
+  getRepoDetail,
+  searchModels,
+  type RepoBuild,
+  type SearchRow,
+} from "./api"
 import { FitBadge, FitReason } from "./fit-badge"
+
+// Tall enough for a handful of results, so the common search neither moves the
+// page nor leaves a hole under a short list. The section is the last thing in
+// the scroll region, where any change in height drags the content above it.
+const RESERVED = "min-h-80"
 
 // Matches the API side cache. Hugging Face allows 500 requests per 5 minutes,
 // and a list is refetched on every keystroke a debounce lets through.
@@ -18,6 +35,13 @@ const formatSize = (bytes: number) =>
 
 const formatDownloads = (count: number) =>
   new Intl.NumberFormat(undefined, { notation: "compact" }).format(count)
+
+/** What a row says about a repo, in the order it is said. */
+const describe = (hit: SearchRow) => [
+  `${formatDownloads(hit.downloads)} downloads`,
+  ...(hit.license ? [hit.license] : []),
+  ...(hit.quantized_from ? [`quantized from ${hit.quantized_from}`] : []),
+]
 
 /**
  * One repo's builds, fetched when the row is opened rather than when it is
@@ -77,7 +101,9 @@ function RepoBuilds({
           >
             <div className="flex min-w-0 flex-col gap-0.5">
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">{build.quantization}</span>
+                <span className="text-sm font-medium">
+                  {build.quantization}
+                </span>
                 <FitBadge fit={build.fit} copy={build.badge} />
                 <span className="text-xs text-muted-foreground">
                   {formatSize(build.size_bytes)}
@@ -112,6 +138,32 @@ export function ModelSearch({
   const [openRepo, setOpenRepo] = useState<string | null>(null)
   const trimmed = query.trim()
 
+  const destinations = useQuery({
+    queryKey: destinationsQueryKey,
+    queryFn: ({ signal }) => listDestinations(signal),
+  })
+  const huggingface = destinations.data?.find(
+    (row) => row.destination === HUGGINGFACE
+  )
+  // Reaching for the box is what raises the question, and it is raised as soon
+  // as both are true: the user wants to search, and the answer is known to be
+  // no. Either can arrive first, so neither is the trigger on its own.
+  const [reached, setReached] = useState(false)
+  // Once per visit. Asking again on every click is nagging, and a refusal
+  // still leaves the box usable enough to read why nothing comes back.
+  const asked = useRef(false)
+
+  useEffect(() => {
+    if (!reached || asked.current || huggingface === undefined) return
+    if (huggingface.enabled) return
+    asked.current = true
+    void askEgress({
+      destination: huggingface.destination,
+      host: huggingface.host,
+      allow: () => setDestinationEnabled(huggingface.destination, true),
+    })
+  }, [reached, huggingface])
+
   const results = useQuery({
     queryKey: ["llm", "search", "list", trimmed],
     queryFn: ({ signal }) => searchModels(trimmed, signal),
@@ -139,76 +191,101 @@ export function ModelSearch({
             placeholder="Search all models"
             aria-label="Search all models"
             className="h-8 border-0 bg-secondary pl-8 text-sm focus-visible:border-0"
+            onFocus={() => setReached(true)}
             onChange={(event) => setQuery(event.target.value)}
           />
         </div>
       </div>
 
-      {trimmed.length <= 1 ? (
-        <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          Type to search every model llama.cpp can run.
-        </p>
-      ) : results.isPending ? (
-        <p className="flex items-center gap-2 text-sm text-muted-foreground">
-          <Spinner className="size-3" />
-          Searching
-        </p>
-      ) : results.isError ? (
-        <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-          Searching needs access to huggingface.co, which is turned off or
-          unreachable. Tested models and anything already installed still work.
-        </p>
-      ) : results.data.results.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          No models match &ldquo;{trimmed}&rdquo;.
-        </p>
-      ) : (
-        <ul
-          className="divide-y overflow-hidden rounded-xl border bg-card"
-          aria-label="Search results"
-        >
-          {results.data.results.map((hit) => {
-            const open = openRepo === hit.repo
-            return (
-              <li key={hit.repo}>
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/20"
-                  onClick={() => setOpenRepo(open ? null : hit.repo)}
-                >
-                  <div className="flex min-w-0 flex-col gap-0.5">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="truncate text-sm font-medium">
-                        {hit.repo}
-                      </span>
-                      {hit.gated ? (
-                        <Badge variant="outline">Needs an account</Badge>
-                      ) : null}
+      {/* Reserved once, so the page below does not move as the section goes
+          from a prompt to a spinner to a list and back. Results longer than
+          this still extend it; nothing shorter shrinks it. */}
+      <div data-slot="search-results" className={RESERVED}>
+        {trimmed.length <= 1 ? (
+          <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            Type to search every model llama.cpp can run.
+          </p>
+        ) : results.isPending ? (
+          <p className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Spinner className="size-3" />
+            Searching
+          </p>
+        ) : results.isError ? (
+          <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+            Searching needs access to huggingface.co, which is turned off or
+            unreachable. Tested models and anything already installed still
+            work.
+          </p>
+        ) : results.data.results.length === 0 ? (
+          <p className="text-sm text-muted-foreground">
+            No models match &ldquo;{trimmed}&rdquo;.
+          </p>
+        ) : (
+          <ul
+            className="divide-y overflow-hidden rounded-xl border bg-card"
+            aria-label="Search results"
+          >
+            {results.data.results.map((hit) => {
+              const open = openRepo === hit.repo
+              const parts = describe(hit)
+              return (
+                <li key={hit.repo}>
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left transition-colors hover:bg-muted/20"
+                    onClick={() => setOpenRepo(open ? null : hit.repo)}
+                  >
+                    <div className="flex min-w-0 flex-col gap-0.5">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm font-medium">
+                          {hit.repo}
+                        </span>
+                        {hit.gated ? (
+                          <Badge variant="outline">Needs an account</Badge>
+                        ) : null}
+                      </div>
+                      <p className="flex min-w-0 items-center text-xs text-muted-foreground">
+                        {parts.map((part, index) => (
+                          <Fragment key={part}>
+                            {index > 0 ? (
+                              <DotIcon
+                                aria-hidden="true"
+                                className="size-3 shrink-0"
+                              />
+                            ) : null}
+                            {/* The tail is the longest part and the least load
+                              bearing, so it is the one that ellipsizes: the
+                              count and the licence stay whole at any width. */}
+                            <span
+                              className={
+                                index === parts.length - 1
+                                  ? "min-w-0 truncate"
+                                  : "shrink-0"
+                              }
+                            >
+                              {part}
+                            </span>
+                          </Fragment>
+                        ))}
+                      </p>
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {formatDownloads(hit.downloads)} downloads
-                      {hit.license ? ` · ${hit.license}` : ""}
-                      {hit.quantized_from
-                        ? ` · quantized from ${hit.quantized_from}`
-                        : ""}
-                    </p>
-                  </div>
-                </button>
-                {open ? (
-                  <div className="border-t bg-muted/20">
-                    <RepoBuilds
-                      repo={hit.repo}
-                      onInstall={onInstall}
-                      disabled={disabled}
-                    />
-                  </div>
-                ) : null}
-              </li>
-            )
-          })}
-        </ul>
-      )}
+                  </button>
+                  {open ? (
+                    <div className="border-t bg-muted/20">
+                      <RepoBuilds
+                        repo={hit.repo}
+                        onInstall={onInstall}
+                        disabled={disabled}
+                      />
+                    </div>
+                  ) : null}
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </div>
     </section>
   )
 }

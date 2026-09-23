@@ -129,10 +129,17 @@ export type RepoDetail = {
 
 export type InstallEvent =
   | {
-      // `preparing` is the wait for the runtime to restart and pick the model
-      // up; the router learns about a new file only at startup.
-      type: "starting" | "verifying" | "preparing" | "selecting"
+      type: "starting" | "verifying" | "selecting"
       message?: string
+    }
+  | {
+      // `preparing` covers two waits: the runtime restarting and picking the
+      // model up, which the router only does at startup, and then loading the
+      // weights. `progress` is the runtime's own account of the second, absent
+      // until it has one to give.
+      type: "preparing"
+      message?: string
+      progress?: number | null
     }
   | {
       type: "downloading"

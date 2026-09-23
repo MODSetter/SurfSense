@@ -1,6 +1,6 @@
 """Contract 4: the sunset flag on ``GET /health``.
 
-Spec: ``plans/community-local/contracts/04-sunset-flag.md``. Legacy desktop
+Spec: ``docs/contracts/04-sunset-flag.md``. Legacy desktop
 v0.0.40 asks this endpoint one question at startup and, when the answer is yes,
 loads the live ``/sunset`` page instead of its bundled frontend.
 

@@ -2,7 +2,7 @@ import type { ComponentType } from "react"
 
 import { Button } from "@/components/ui/button"
 import { DownloadCircle02Icon, LicenseIcon } from "@/components/ui/icons"
-import { askEgress } from "@/features/egress/egress-prompt"
+import { askEgress } from "@/features/egress/ask-egress"
 import type { LicenseState } from "@/features/license/api"
 import { useLicense } from "@/features/license/use-license"
 import {
