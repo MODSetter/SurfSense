@@ -18,10 +18,12 @@ The screen can list plugins, install one, set a secret, and start a run, using t
 | `PUT` | `/plugins/{id}/secrets/{name}` | Body `{ "value": str }`. Encrypts via `shared/secrets.py` under `plugin:<id>:<name>`. `name` must be in the manifest. Never returns the value. |
 | `GET` | `/plugins/{id}/secrets` | Names and a boolean `set`. Never values. |
 | `POST` | `/workspaces/{id}/plugins/{plugin}/entries/{entry}/runs` | Body is the inputs object. 422 when a name or kind does not match the entry. 422 when a declared secret is unset, listing the names. 402 when locked. 403 `egress_disabled` naming the first host in `hosts` that has not been allowed, the same shape as the other egress denials. Inserts `plugin_runs` and enqueues `run_plugin`. |
-| `GET` | `/workspaces/{id}/plugin-runs/{run}` | Status, error, log tail, and `plugin_results` rows. |
+| `GET` | `/workspaces/{id}/plugin-runs/{run}` | Status, error, and log tail. What the run produced is in the workspace already: the plugin wrote it through these same routes while it ran. |
 | `POST` | `/workspaces/{id}/plugin-runs/{run}/cancel` | Sets the cancel flag the task watches. |
 
 Emit `plugin.run.updated` on the existing events broker when a run status changes, carrying the run id, so the screen can invalidate.
+
+Electron writes `http://127.0.0.1:<port>` to `~/.surfsense/api-url` where it picks the port (`electron/src/main/index.ts`), and removes the file on quit. The running app does not need this — the runner passes the URL in the environment — but an author running the harness does, and guessing a dynamic port is not a thing to ask of a contributor. It discloses nothing: loopback already answers a port scan.
 
 ## Acceptance
 

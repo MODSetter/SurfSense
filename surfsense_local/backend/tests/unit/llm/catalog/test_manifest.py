@@ -7,12 +7,12 @@ catches a mistake before review does.
 import pytest
 from pydantic import ValidationError
 
-from modules.llm.catalog import (
+from modules.llm.catalog.manifest import (
     SCHEMA_VERSION,
     CuratedModelsManifest,
+    Variant,
     load_curated_models,
 )
-from modules.llm.catalog.manifest import Variant
 
 pytestmark = pytest.mark.unit
 

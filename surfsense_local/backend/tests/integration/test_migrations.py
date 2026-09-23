@@ -91,7 +91,7 @@ def test_connection_migration_drops_old_remote_secrets(
 
     with engine.connect() as connection:
         selections = connection.execute(
-            text("SELECT role, provider FROM selected_models")
+            text("SELECT provider FROM selected_models")
         ).all()
         tables = inspect(connection).get_table_names()
     assert selections == []

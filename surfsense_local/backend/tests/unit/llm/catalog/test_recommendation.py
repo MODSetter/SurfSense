@@ -7,7 +7,8 @@ speed is the goal, and on small cards they disagree.
 
 import pytest
 
-from modules.llm.catalog import CuratedModel, recommend
+from modules.llm.catalog.manifest import CuratedModel
+from modules.llm.catalog.recommendation import recommend
 from modules.llm.fit import HardwareBudget
 
 pytestmark = pytest.mark.unit

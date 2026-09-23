@@ -43,16 +43,17 @@ async def test_the_selection_is_read_after_it_is_set(
     client: AsyncClient, llamacpp_server: str
 ) -> None:
     """Set persists the choice; read is how the rest of the app learns it."""
-    assert (await client.get("/llm/selection/generation")).status_code == 404
+    assert (await client.get("/llm/selection/text_gen")).status_code == 404
 
     written = await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={"provider": "llamacpp", "name": "Qwen3-4B-Q4_K_M"},
     )
     assert written.status_code == 200
     assert written.json()["name"] == "Qwen3-4B-Q4_K_M"
+    assert written.json()["model_type"] == "text_gen"
 
-    read = await client.get("/llm/selection/generation")
+    read = await client.get("/llm/selection/text_gen")
     assert read.json() == written.json()
 
 
@@ -61,11 +62,11 @@ async def test_the_selection_says_which_prompt_tier_the_model_gets(
 ) -> None:
     """A 1.7B model asks for a different prompt than a hosted frontier one."""
     await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"},
     )
 
-    read = (await client.get("/llm/selection/generation")).json()
+    read = (await client.get("/llm/selection/text_gen")).json()
 
     assert read["tier"] == "compact"
 
@@ -77,7 +78,7 @@ async def test_selecting_a_chat_model_does_not_complete_onboarding(
     assert (await client.get("/llm/onboarding")).json() == {"completed": False}
 
     await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"},
     )
     assert (await client.get("/llm/onboarding")).json() == {"completed": False}
@@ -101,7 +102,7 @@ async def test_deleting_the_selected_local_model_clears_only_the_selection(
 ) -> None:
     """Deleting the active model preserves completed onboarding."""
     await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"},
     )
     assert (await client.post("/llm/onboarding")).status_code == 200
@@ -113,7 +114,7 @@ async def test_deleting_the_selected_local_model_clears_only_the_selection(
         "name": "Qwen3-1.7B-Q4_K_M",
         "selection_cleared": True,
     }
-    assert (await client.get("/llm/selection/generation")).status_code == 404
+    assert (await client.get("/llm/selection/text_gen")).status_code == 404
     assert (await client.get("/llm/onboarding")).json() == {"completed": True}
     # Disk is the inventory, and it is what the catalog reads. The router still
     # lists the model until its next restart, which the preset rewrite triggers:
@@ -197,19 +198,19 @@ async def test_choosing_again_updates_in_place(
 ) -> None:
     """One row per role: the second choice replaces the first, not adds to it."""
     await client.put(
-        "/llm/selection/generation", json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"}
+        "/llm/selection/text_gen", json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"}
     )
     await client.put(
-        "/llm/selection/generation", json={"provider": "llamacpp", "name": "Qwen3-4B-Q4_K_M"}
+        "/llm/selection/text_gen", json={"provider": "llamacpp", "name": "Qwen3-4B-Q4_K_M"}
     )
 
-    assert (await client.get("/llm/selection/generation")).json()["name"] == "Qwen3-4B-Q4_K_M"
+    assert (await client.get("/llm/selection/text_gen")).json()["name"] == "Qwen3-4B-Q4_K_M"
 
 
 async def test_a_selection_names_a_known_provider(client: AsyncClient) -> None:
     """A choice pointing at no provider would never resolve to a model."""
     reply = await client.put(
-        "/llm/selection/generation", json={"provider": "openai", "name": "gpt-4o"}
+        "/llm/selection/text_gen", json={"provider": "openai", "name": "gpt-4o"}
     )
     assert reply.status_code == 422
 
@@ -219,13 +220,13 @@ async def test_a_selection_names_an_installed_model(
 ) -> None:
     """A stale or invented model name is rejected before it reaches chat."""
     reply = await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={"provider": "llamacpp", "name": "does-not-exist"},
     )
 
     assert reply.status_code == 422
     assert reply.json()["detail"] == "model is not installed: does-not-exist"
-    assert (await client.get("/llm/selection/generation")).status_code == 404
+    assert (await client.get("/llm/selection/text_gen")).status_code == 404
 
 
 async def test_a_generation_selection_requires_completion_capability(
@@ -248,10 +249,10 @@ async def test_a_generation_selection_requires_completion_capability(
     monkeypatch.setitem(registry.REGISTRY, "llamacpp", EmbeddingOnly)
 
     reply = await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={"provider": "llamacpp", "name": "embedder"},
     )
 
     assert reply.status_code == 422
     assert reply.json()["detail"] == "model does not support generation: embedder"
-    assert (await client.get("/llm/selection/generation")).status_code == 404
+    assert (await client.get("/llm/selection/text_gen")).status_code == 404

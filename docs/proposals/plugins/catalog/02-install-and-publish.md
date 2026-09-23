@@ -18,7 +18,7 @@ Merging a plugin publishes a tarball and a catalog entry. The app installs that 
 - `license: paid` consults the stored license state, `status()` in `modules/license/service.py`. Missing, expired, or `clock_untrusted` refuses the install and the run with `license_required`. A `trial` license unlocks it for its term. `free` does not consult it.
 - Refresh: download `catalog.json` from the compiled URL when `plugin_catalog` egress is enabled. Replace the in-memory catalog. The bundled file remains the fallback when the destination is off.
 - Add `plugin_catalog` and `plugin_install` in `modules/egress/service.py`, and include them in `list_destinations`, so both appear in Settings → Network, off by default. Destinations are one row per host today, so what these two are called is open ([README](../README.md#open-questions)).
-- Uninstall: delete `<data>/plugins/<id>/` including `data` and every version, delete `installed_plugins`, delete secrets named `plugin:<id>:*`. Do not delete documents or `plugin_results`.
+- Uninstall: delete `<data>/plugins/<id>/` including `data` and every version, delete `installed_plugins`, delete secrets named `plugin:<id>:*`. Do not delete documents: they are the user's, whatever put them there.
 
 ## Acceptance
 

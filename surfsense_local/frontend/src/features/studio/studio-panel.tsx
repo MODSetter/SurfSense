@@ -26,6 +26,7 @@ import {
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
+import type { ModelType } from "@/features/model-selection/model-type"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
@@ -53,10 +54,20 @@ function catalogFormats(formats: StudioFormat[]) {
   return STUDIO_CATALOG.map((entry) => loaded.get(entry.key) ?? entry)
 }
 
+// Only for the catalog painted before the API answers; the backend's own
+// reason replaces it.
+const NEEDED_MODEL: Record<ModelType, string> = {
+  text_gen: "a chat model",
+  image_gen: "an image model",
+  image_edit: "an image editing model",
+  video_gen: "a video model",
+  audio_gen: "an audio model",
+}
+
 function unavailableReason(entry: StudioFormat) {
   return (
     entry.unavailable_reason ??
-    `Needs a ${entry.requires_roles.join(" and ").replaceAll("_", " ")} model`
+    `Needs ${entry.requires_model_types.map((type) => NEEDED_MODEL[type]).join(" and ")}`
   )
 }
 

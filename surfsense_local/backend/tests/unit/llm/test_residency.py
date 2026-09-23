@@ -7,7 +7,8 @@ wanted and nobody is waiting yet.
 
 import pytest
 
-from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
@@ -18,7 +19,7 @@ MODEL = "Qwen3-1.7B-Q4_K_M"
 
 def selection(provider: str, name: str = MODEL) -> SelectedModel:
     """A chosen model, built without a database: only two fields are read."""
-    return SelectedModel(role=ModelRole.GENERATION, provider=provider, name=name)
+    return SelectedModel(model_type=ModelType.TEXT_GEN, provider=provider, name=name)
 
 
 async def warm(router: FakeRouter, selected: SelectedModel | None) -> bool:

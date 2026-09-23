@@ -2,7 +2,7 @@
 
 The contract the SDK, the runtime, the catalog, and the app all implement. A change here is a change to every stream.
 
-Version is `1`. The handshake and `sdk` range are how a later version shows up. Do not add a field to a message without bumping it.
+Version is `1`. The `sdk` range in a manifest is how a plugin says which version of the surface it was written against. Adding to that surface is additive. Changing or removing anything in it is a bump.
 
 ## On disk
 
@@ -78,62 +78,81 @@ The app ships a copy taken at desktop build time. A refresh downloads this same 
 
 ## How a run starts
 
-There is no socket and no request protocol. The plugin does its own network calls, reads secrets from the environment, and appends results to a file. The app spawns it and reads that file after the process exits.
+The app spawns a process, hands it context, and waits for it to exit. The plugin does its own HTTP — to the sources it scrapes, and to the app, which already serves its API on loopback. There is no socket of ours, no message framing, and no results file.
 
 ```
-<python> -m surfsense_plugin <plugin-dir> <entry> --inputs <file> --results <file> --data <dir>
+<python> -m surfsense_plugin <plugin-dir> <entry> --inputs <file> --data <dir>
 ```
 
 | Argument | Meaning |
 |---|---|
 | `<entry>` | An entry name from the manifest. The app checks this before spawn. |
 | `--inputs` | A JSON object. Keys are the entry's input names, values match the declared kinds. The app writes this file. |
-| `--results` | An empty file the app creates. The plugin appends one JSON object per line. |
 | `--data` | `<data>/plugins/<id>/data`. Exists from install, survives upgrades, deleted on uninstall. |
 
-For each secret name in the manifest, the app sets `SURFSENSE_PLUGIN_SECRET_<NAME>` to the stored value. Secret names match `^[a-z][a-z0-9_]{0,63}$` so they are environment variables. The app refuses to spawn when a declared secret has no stored value, or when a host in `hosts` has not been allowed.
+### Context
 
-Stdout and stderr are logs. The app keeps the last 16 KiB on the run.
+Everything a plugin needs to know about where it is running arrives in the environment before it starts. Nothing is discovered and nothing is negotiated.
 
-Exit 0 is success. Any other exit is `failed`. The app still imports every well-formed results line already in the file.
+| Variable | Meaning |
+|---|---|
+| `SURFSENSE_PLUGIN_API_URL` | `http://127.0.0.1:<port>`. The app's own API. Every verb in the SDK is built on this. |
+| `SURFSENSE_PLUGIN_WORKSPACE_ID` | The workspace the run was started in. Verbs default to it. |
+| `SURFSENSE_PLUGIN_RUN_ID` | This run. Verbs stamp it on whatever they create. |
+| `SURFSENSE_PLUGIN_ID` | The plugin's own id, so it can identify itself to the sources it calls. |
+| `SURFSENSE_PLUGIN_SECRET_<NAME>` | One per declared secret. Names match `^[a-z][a-z0-9_]{0,63}$` so they are legal variables. The app refuses to spawn when a declared secret has no stored value, or when a host in `hosts` has not been allowed. |
 
-Cancel: `SIGTERM`, then `SIGKILL` five seconds later. The run is `cancelled`. Lines already flushed stay.
+Before it imports `main.py`, the SDK appends `<plugin-dir>` and `<plugin-dir>/site-packages` to `sys.path`, in that order. So a plugin may split itself across files, and neither its own modules nor a pinned dependency can shadow the stdlib.
 
-### Results file
+### Outcome
 
-Each line is one JSON object, flushed before the next one:
+Exit 0 is `succeeded`. Any other exit is `failed` with `error` of `exit <code>`. Stdout and stderr are logs; the app keeps the last 16 KiB on the run.
 
-```json
-{"kind":"document","body":{"title":"Show HN","content":"..."}}
-```
+Cancel is `SIGTERM`, then `SIGKILL` five seconds later, and the run is `cancelled`. Whatever the plugin already committed through the API stays, because it was committed when the call returned.
 
-| `kind` | `body` | What the app does after the process exits |
-|---|---|---|
-| `document` | `{ "title": str, "content": str }` | Insert a `NOTE` in the run's workspace, set `document_metadata` to `{ "pluginId", "entry", "runId" }`, enqueue `ingest_document`. Do not set `dedup_key`. |
-| anything else | a JSON object | Insert a row on the run: `kind` + `body`. The screen shows it. |
-
-A line over 1 MiB, or a line that is not JSON, is skipped. The valid lines before and after it are still imported. A run that writes no lines is a success that produced nothing. `document` is how a source plugin puts something in the library. It is not required.
+### Network
 
 The plugin's own HTTP is ordinary Python. The app does not see those calls. Every run start checks each host in `hosts` against the egress grants, and a host not yet allowed raises the egress consent prompt, so consent is asked before the first run and a host revoked in Settings → Network stops the next one. Nothing checks the plugin's calls during a run, so the app cannot stop a call to a host the plugin did not declare. `hosts` is also what the catalog shows.
+
+## The verb facade
+
+A plugin calls `document.add(...)`. It never calls `POST /workspaces/{id}/documents`.
+
+That indirection is the whole design. The SDK is the public contract and the routes stay internal, so a route can be renamed on a Tuesday without breaking a published plugin — we update one wrapper. The `sdk` range in a manifest is how a plugin declares which facade it was built against.
+
+**Domains:** `workspace`, `document`, `artifact`, `model`. Complete within each. A verb missing from a domain is a gap an author routes around by calling the route directly, and a half-facade protects nothing.
+
+**Not exposed:** `license`, `egress`, `migration`. No plugin has business in them.
+
+Loopback carries no authentication, so the facade is what we sanction rather than what we prevent — a plugin can ignore the SDK and call anything. Review is the mechanism here, as it is for everything else a plugin does. The `hosts` list stays a statement about egress; loopback is not egress and does not belong in it.
 
 ## SDK surface
 
 ```python
+import json
 import urllib.request
-from surfsense_plugin import entry, result, secret
+
+from surfsense_plugin import document, entry, secret
+
 
 @entry("search")
 def search(query: str) -> None:
     token = secret("token")
     request = urllib.request.Request(
-        "https://hacker-news.firebaseio.com/v0/item/1.json",
+        f"https://hn.algolia.com/api/v1/search?query={query}",
         headers={"Authorization": f"Bearer {token}"},
     )
     with urllib.request.urlopen(request) as response:
-        body = response.read().decode()
-    result("document", {"title": "Show HN", "content": body})
+        hits = json.load(response)["hits"]
+
+    seen = {existing["title"] for existing in document.list()}
+    for hit in hits:
+        if hit["title"] not in seen:
+            document.add(title=hit["title"], content=hit["story_text"])
 ```
 
-`secret` reads the environment variable. A missing one raises. `result` appends one line to the results file and flushes it. There is no `fetch` in the SDK.
+`entry` names a function the app can run. `secret` reads its variable and raises when it is absent. `data()` returns the `--data` directory. The rest is the facade, and it reaches the app over loopback like any other HTTP call.
 
-The harness is `python -m surfsense_plugin.harness <plugin-dir> <entry> --input query=plugins`. It passes secrets from the process environment, runs the entry, and prints the results file. It does not intercept HTTP.
+A verb returns what it created, which is what the file never could: an id a plugin can use in the next call.
+
+The harness is `python -m surfsense_plugin.harness <plugin-dir> <entry> --input query=plugins`. It lays down the same files, spawns the same command, and exits with the run's code. Verbs need the app running — see [`sdk/01-library-and-harness.md`](sdk/01-library-and-harness.md) for how it finds the port.

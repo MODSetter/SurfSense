@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 
 import {
+  chatCandidates,
   getConnectionModels,
   getConnections,
   getGenerationSelection,
@@ -133,16 +134,7 @@ async function fetchSelectionState(
           connection.id,
           signal
         )
-        models = [
-          ...models,
-          ...connectionModels
-            .filter((model) => model.capabilities.includes("completion"))
-            .map((model) => ({
-              ...model,
-              provider: "openai_compatible",
-              installed: true,
-            })),
-        ]
+        models = [...models, ...chatCandidates(connectionModels)]
       } catch (error) {
         if (signal.aborted) throw error
       } finally {

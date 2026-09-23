@@ -139,7 +139,7 @@ describe("studio panel", () => {
             {
               key: "summary",
               label: "Summary",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },
@@ -211,7 +211,7 @@ describe("studio panel", () => {
             {
               key: "podcast",
               label: "Podcast",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },
@@ -274,7 +274,7 @@ describe("studio panel", () => {
           {
             key: "summary",
             label: "Summary",
-            requires_roles: ["generation"],
+            requires_model_types: ["text_gen"],
             available: true,
             unavailable_reason: null,
           },
@@ -311,7 +311,7 @@ describe("studio panel", () => {
             {
               key: "image",
               label: "Image",
-              requires_roles: ["image_generation", "generation"],
+              requires_model_types: ["image_gen", "text_gen"],
               available: false,
               unavailable_reason: "Needs an image model",
             },
@@ -345,7 +345,7 @@ describe("studio panel", () => {
             {
               key: "quiz",
               label: "Quiz",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },

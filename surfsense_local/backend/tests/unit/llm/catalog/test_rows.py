@@ -2,7 +2,8 @@
 
 import pytest
 
-from modules.llm.catalog import CuratedModel, curated_rows
+from modules.llm.catalog.manifest import CuratedModel
+from modules.llm.catalog.rows import curated_rows
 from modules.llm.fit import FitState, HardwareBudget
 
 pytestmark = pytest.mark.unit

@@ -27,7 +27,8 @@ from modules.llm.catalog.schemas import (
     SearchRead,
     SystemRead,
 )
-from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from modules.llm.schemas import SelectionRead
 from modules.llm.selection import choose_model
 
@@ -168,7 +169,7 @@ async def install(
                 with request.app.state.session_factory() as fresh:
                     chosen = await choose_model(
                         fresh,
-                        ModelRole.GENERATION,
+                        ModelType.TEXT_GEN,
                         service.provider_name,
                         plan.model_id,
                     )
@@ -197,7 +198,7 @@ async def install(
 
 
 def _selected_local(session: SessionDep) -> str | None:
-    selected = session.get(SelectedModel, ModelRole.GENERATION)
+    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     if selected is None or selected.connection_id is not None:
         return None
     return selected.name

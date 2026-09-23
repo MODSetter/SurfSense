@@ -1,26 +1,30 @@
 # Model selection and prompt tiers
 
-> **Being redesigned.** The [model catalog proposal](../../proposals/model-catalog.md) replaces the two roles with one selection per model type. This page describes the code as it is until that work ships.
-
-One model answers each role, local or remote, and the app records a few facts
+One model is chosen per model type, local or remote, and the app records a few facts
 about it at the moment it is chosen, so that every later request knows how to
 prompt it without asking the network. The prompt tier those facts imply is
 computed on read and never stored, so a threshold can move on evidence without a
 migration or a re-selection. Finishing onboarding is a separate marker that
 choosing or clearing a model never touches.
 
-**Code:** [`surfsense_local/backend/modules/llm/selection.py`](../../../surfsense_local/backend/modules/llm/selection.py), [`surfsense_local/backend/modules/llm/models.py`](../../../surfsense_local/backend/modules/llm/models.py), [`surfsense_local/backend/modules/llm/profile/`](../../../surfsense_local/backend/modules/llm/profile/), [`surfsense_local/backend/modules/llm/prompting/`](../../../surfsense_local/backend/modules/llm/prompting/), [`surfsense_local/backend/modules/llm/resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py), [`surfsense_local/backend/modules/llm/router.py`](../../../surfsense_local/backend/modules/llm/router.py)
+**Code:** [`surfsense_local/backend/modules/llm/selection.py`](../../../surfsense_local/backend/modules/llm/selection.py), [`surfsense_local/backend/modules/llm/model_type.py`](../../../surfsense_local/backend/modules/llm/model_type.py), [`surfsense_local/backend/modules/llm/selectable.py`](../../../surfsense_local/backend/modules/llm/selectable.py), [`surfsense_local/backend/modules/llm/models.py`](../../../surfsense_local/backend/modules/llm/models.py), [`surfsense_local/backend/modules/llm/profile/`](../../../surfsense_local/backend/modules/llm/profile/), [`surfsense_local/backend/modules/llm/prompting/`](../../../surfsense_local/backend/modules/llm/prompting/), [`surfsense_local/backend/modules/llm/resolution.py`](../../../surfsense_local/backend/modules/llm/resolution.py), [`surfsense_local/backend/modules/llm/router.py`](../../../surfsense_local/backend/modules/llm/router.py)
 **Decisions:** [ADR 0011](../../adr/0011-llama-cpp-local-runtime.md), [ADR 0015](../../adr/0015-openai-compatible-connections.md)
 
-## One row per role
+## One row per model type
 
-`SelectedModel` holds one row per role in `selected_models`, keyed by the role,
-so choosing again updates in place.
+`ModelType` is what a model is for: `text_gen`, `image_gen`, `image_edit`,
+`video_gen` or `audio_gen`. There are no separate roles; the type is the slot.
+`SelectedModel` holds one row per type in `selected_models`, keyed by
+`model_type`, so choosing again updates in place.
 
-| Role | Local | Remote |
-|---|---|---|
-| `generation` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` |
-| `image_generation` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` |
+| Model type | Local | Remote | Read by |
+|---|---|---|---|
+| `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
+| `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
+| `image_edit`, `video_gen`, `audio_gen` | none | `openai_compatible`, with a `connection_id` | nothing yet |
+
+A type no feature reads can still be chosen; the feature that first reads one
+brings the client that calls it.
 
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
@@ -28,19 +32,23 @@ when the provider is `openai_compatible`, and deleting a connection cascades to
 the rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
-`GET /llm/selection/{role}` returns the row with its computed `tier`, or `404`
-when nothing is chosen. `PUT /llm/selection/{role}` takes `provider`, `name`,
-`connection_id` and `allow_unlisted`, then validates, fingerprints and stores:
+`GET /llm/selection/{model_type}` returns the row with its computed `tier`, or
+`404` when nothing is chosen. `PUT /llm/selection/{model_type}` takes
+`provider`, `name`, `connection_id` and `allow_unlisted`, then validates,
+fingerprints and stores:
 
-- **Local text** (`llamacpp`): the role must be `generation`, there is no
+- **Local text** (`llamacpp`): the type must be `text_gen`, there is no
   connection, and the router must list the model as installed with the
   `completion` capability.
-- **Local image** (`sdcpp`): the role must be `image_generation`, and the model
-  must be one of the bundled image models and downloaded.
+- **Local image** (`sdcpp`): the type must be `image_gen`, and the model must be
+  one of the bundled image models and downloaded.
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
-  id anyway; a model whose capabilities are known must support the role. Remote
+  id anyway. Otherwise the model must be able to fill the slot, by one rule in
+  `selectable.py`: a model fills the slots of the types it is, and one nothing
+  recognises fills every slot. The connection's model listing sends the same
+  answer as `selectable_for`, so every picker offers what selection accepts. Remote
   inventory is discovered live and never synchronized into SQLite
   ([`../connections.md`](../connections.md)).
 

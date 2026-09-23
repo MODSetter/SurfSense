@@ -222,7 +222,10 @@ function ComboboxInput({
               const option = listRef.current?.querySelector<HTMLElement>(
                 `#${CSS.escape(combobox.activeId)}`
               )
-              if (option?.dataset.value) {
+              if (
+                option?.dataset.value &&
+                option.dataset.disabled === undefined
+              ) {
                 event.preventDefault()
                 select(option.dataset.value)
               }
@@ -337,11 +340,14 @@ function ComboboxItem({
   children,
   value,
   keywords = [],
+  disabled = false,
   onClick,
   ...props
 }: Omit<React.ComponentProps<"div">, "onSelect"> & {
   value: string
   keywords?: string[]
+  /** Listed and findable, but never selected. */
+  disabled?: boolean
 }) {
   const combobox = useCombobox("ComboboxItem")
   const { register, matches, select, setActiveId, activeId, itemId } = combobox
@@ -365,10 +371,12 @@ function ComboboxItem({
       data-slot="combobox-item"
       data-value={value}
       data-highlighted={activeId === id ? "" : undefined}
+      data-disabled={disabled ? "" : undefined}
       aria-selected={selected}
+      aria-disabled={disabled || undefined}
       hidden={!visible}
       className={cn(
-        "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-highlighted:**:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "relative flex w-full cursor-default items-center gap-1.5 rounded-md py-1 pr-8 pl-1.5 text-sm outline-hidden select-none data-highlighted:bg-accent data-highlighted:text-accent-foreground data-highlighted:**:text-accent-foreground data-disabled:opacity-60 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className
       )}
       onPointerMove={() => setActiveId(id)}
@@ -376,7 +384,7 @@ function ComboboxItem({
       onPointerDown={(event) => event.preventDefault()}
       onClick={(event) => {
         onClick?.(event)
-        select(value)
+        if (!disabled) select(value)
       }}
       {...props}
     >

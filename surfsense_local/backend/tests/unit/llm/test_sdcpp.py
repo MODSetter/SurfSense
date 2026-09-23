@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi import HTTPException
 
-from modules.llm.models import ModelRole
+from modules.llm.model_type import ModelType
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.selection import _validate_local_image
 from shared.config import get_llm_settings
@@ -77,24 +77,24 @@ def test_an_empty_file_is_not_a_model(staged: Path) -> None:
     assert sdcpp.installed(model) is False
 
 
-def test_the_local_image_model_only_takes_the_image_role(staged: Path) -> None:
+def test_the_local_image_model_only_takes_the_image_gen_slot(staged: Path) -> None:
     """It cannot chat, cannot carry a connection, and must be downloaded first."""
     model = sdcpp.CATALOG[0]
     _download(staged, model)
 
-    with pytest.raises(HTTPException, match="does not answer chat"):
-        _validate_local_image(ModelRole.GENERATION, model.name, None)
+    with pytest.raises(HTTPException, match="does not serve text_gen"):
+        _validate_local_image(ModelType.TEXT_GEN, model.name, None)
     with pytest.raises(HTTPException, match="must not include a connection"):
-        _validate_local_image(ModelRole.IMAGE_GENERATION, model.name, 1)
+        _validate_local_image(ModelType.IMAGE_GEN, model.name, 1)
     with pytest.raises(HTTPException, match="unknown local image model"):
-        _validate_local_image(ModelRole.IMAGE_GENERATION, "sd-cpp-local", None)
+        _validate_local_image(ModelType.IMAGE_GEN, "sd-cpp-local", None)
 
-    _validate_local_image(ModelRole.IMAGE_GENERATION, model.name, None)
+    _validate_local_image(ModelType.IMAGE_GEN, model.name, None)
 
     # A catalogued model that was never downloaded is refused by name.
     with pytest.raises(HTTPException, match="is not installed"):
         _validate_local_image(
-            ModelRole.IMAGE_GENERATION, sdcpp.CATALOG[1].name, None
+            ModelType.IMAGE_GEN, sdcpp.CATALOG[1].name, None
         )
 
 

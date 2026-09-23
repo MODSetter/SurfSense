@@ -8,7 +8,8 @@ from sqlalchemy import Engine
 
 from modules.chat.budget import ANSWER_RESERVE_TOKENS
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
 from tests.integration.chat.conftest import set_props_n_ctx, set_tokens_per_word
@@ -42,7 +43,7 @@ def _seed(
             ids[title] = doc.id
         session.add(
             SelectedModel(
-                role=ModelRole.GENERATION, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
             )
         )
         session.commit()
@@ -57,7 +58,7 @@ def _choose_generation_model(engine: Engine) -> None:
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                role=ModelRole.GENERATION, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
             )
         )
         session.commit()
@@ -332,7 +333,7 @@ async def test_missing_embedding_assets_are_an_actionable_503(
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                role=ModelRole.GENERATION, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
             )
         )
         session.commit()

@@ -6,7 +6,8 @@ from sqlalchemy import Engine
 
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from modules.llm.providers.kokoro import provider as kokoro
 from shared.db import create_session_factory
 from shared.queue import studio_queue
@@ -26,7 +27,7 @@ def choose_model(engine: Engine) -> None:
     """A generation model must be selected before a job can run."""
     with create_session_factory(engine)() as session:
         session.add(
-            SelectedModel(role=ModelRole.GENERATION, provider="llamacpp", name="Qwen3-4B-Q4_K_M")
+            SelectedModel(model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-4B-Q4_K_M")
         )
         session.commit()
 
@@ -55,12 +56,12 @@ async def test_formats_lists_summary_as_available(
     assert response.status_code == 200
     summary = next(f for f in response.json() if f["key"] == "summary")
     assert summary["available"] is True
-    assert summary["requires_roles"] == ["generation"]
+    assert summary["requires_model_types"] == ["text_gen"]
     assert summary["unavailable_reason"] is None
 
     image = next(f for f in response.json() if f["key"] == "image")
     assert image["available"] is False
-    assert image["requires_roles"] == ["image_generation", "generation"]
+    assert image["requires_model_types"] == ["image_gen", "text_gen"]
 
 
 async def test_a_format_missing_both_models_says_so(
@@ -90,14 +91,14 @@ async def test_infographic_needs_the_image_model_and_the_chat_model(
     """The chat model writes the brief, the image model paints it: both gate it."""
     listed = await client.get(f"/workspaces/{workspace_id}/studio/formats")
     infographic = next(f for f in listed.json() if f["key"] == "infographic")
-    assert infographic["requires_roles"] == ["image_generation", "generation"]
+    assert infographic["requires_model_types"] == ["image_gen", "text_gen"]
     assert infographic["available"] is False
     assert infographic["unavailable_reason"] == "Needs an image model"
 
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                role=ModelRole.IMAGE_GENERATION, provider="llamacpp", name="x/flux2-klein"
+                model_type=ModelType.IMAGE_GEN, provider="sdcpp", name="sdxl-base-1.0"
             )
         )
         session.commit()

@@ -4,7 +4,7 @@ Nearest `AGENTS.md` wins. Edit this file, not `CLAUDE.md` (`CLAUDE.md` is a syml
 
 ## Overview
 
-Desktop app plus scraper API. Four trees:
+Desktop app plus scraper API. Five trees:
 
 | Tree | Role |
 |------|------|
@@ -12,6 +12,7 @@ Desktop app plus scraper API. Four trees:
 | `surfsense_web` | Next.js hosted UI |
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
+| `plugins` | The plugin SDK, and every plugin — ours and contributed |
 
 The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
 
@@ -26,9 +27,11 @@ Applies to **every new file**. Existing code is not a template and not a cleanup
 - If a responsibility grows sub-responsibilities, promote it to a folder. Each sub-responsibility is its own file.
 - Names state what and why, not how.
 - Comments and docstrings state intent only. Do not restate the code.
+- Keep them short. A line or two. Write only what the code cannot say: a constraint, a rejected alternative, a number that justifies a threshold.
 
 **Must not**
 
+- Do not write essays in docstrings. If it explains how you arrived at the code rather than what the code must honour, delete it.
 - Do not put new work in a nearby file because it is convenient. New responsibility, new file.
 - Do not add catch-all folders (`utils`, `helpers`, `common`, `misc`, `shared`) unless that name is the product concept.
 - Do not layer-split new work (`controllers/`, `services/`, `models/` as the primary tree).
@@ -63,6 +66,10 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
+# plugin SDK
+cd plugins/sdk && uv sync
+cd plugins/sdk && uv run ruff check .
+
 # compose (dev and self-host, not production)
 docker compose -f docker/docker-compose.yml
 
@@ -80,6 +87,7 @@ pre-commit run --all-files
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
+| Plugin SDK | `cd plugins/sdk && uv run pytest` |
 
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 

@@ -1,10 +1,11 @@
 import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 import type { DocumentStatus } from "@/features/sources/api"
+import type { ModelType } from "@/features/model-selection/model-type"
 
 export type StudioFormat = {
   key: string
   label: string
-  requires_roles: ("generation" | "image_generation")[]
+  requires_model_types: ModelType[]
   available: boolean
   unavailable_reason: string | null
 }

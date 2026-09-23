@@ -22,9 +22,9 @@ def test_every_kind_has_a_pipeline() -> None:
 
 
 def test_every_pipeline_takes_what_its_format_declares() -> None:
-    """The harness passes requires_roles positionally, then sources and prompt,
+    """The harness passes requires_model_types positionally, then sources and prompt,
     then the checked options for the formats that take them."""
     for fmt in FORMATS:
         render = job_router.pipeline_for(job_router.Kind(fmt.key))
-        expected = len(fmt.requires_roles) + 2 + (fmt.validate_options is not None)
+        expected = len(fmt.requires_model_types) + 2 + (fmt.validate_options is not None)
         assert len(inspect.signature(render).parameters) == expected, fmt.key

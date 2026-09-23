@@ -26,11 +26,11 @@ datas.append(
     )
 )
 # Read by path, so the analyser cannot see it. Without this every remote model
-# reports its capability as unknown in a frozen build only.
+# reads as unknown in a frozen build only.
 datas.append(
     (
-        str(BACKEND / "modules" / "llm" / "connections" / "model-capabilities.json"),
-        "modules/llm/connections",
+        str(BACKEND / "modules" / "llm" / "catalog" / "remote" / "manifest" / "models.json"),
+        "modules/llm/catalog/remote/manifest",
     )
 )
 

@@ -73,7 +73,7 @@ class OpenAICompatibleChatProvider:
             Model(
                 model.name,
                 installed=True,
-                capabilities=model.capabilities,
+                capabilities=model.types,
             )
             for model in discovered
         ]

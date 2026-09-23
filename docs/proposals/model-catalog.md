@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/model_type.py
   - surfsense_local/backend/modules/llm/catalog/
@@ -25,9 +25,9 @@ Until this work ships, `docs/architecture/` describes the code as it is and this
 |---|---|---|
 | [`local-models/catalog.md`](../architecture/local-models/catalog.md) | the local catalog: curated manifest, install gate, search | replaced by `model-catalog/local.md`, and deleted |
 | [`connections.md`](../architecture/connections.md) | connections, and how their models are listed and classified | keeps storage, keys, the probe and the runtime; model listing moves to `model-catalog/remote.md` |
-| [`local-models/selection.md`](../architecture/local-models/selection.md) | one model per role | one model per `ModelType` |
-| [`data-model.md`](../architecture/data-model.md) | `selected_models.role` | `selected_models.model_type`, and the provider id on a connection |
-| [`studio.md`](../architecture/studio.md) | the `image_generation` role and the hard-coded sd.cpp list | the `image_gen` selection and the local manifest |
+| [`local-models/selection.md`](../architecture/local-models/selection.md) | one model per `ModelType` | done in step 1 |
+| [`data-model.md`](../architecture/data-model.md) | `selected_models.model_type` (step 1) | the provider id on a connection |
+| [`studio.md`](../architecture/studio.md) | the `image_gen` selection (step 1) and the hard-coded sd.cpp list | the local manifest |
 
 Known gaps in `local-models/catalog.md` this closes:
 
@@ -255,21 +255,26 @@ The script is tested against recorded Hugging Face responses, so a change in how
 | Connect | `status`, `base_url`, `account_fields`, `key`, `local`, `reason` | a provider the app cannot call is never offered as if it could be | the connection form asks for exactly what the provider needs, and an unreachable one says why |
 | Classifier evidence | `modalities`, `context` | classification is re-run offline over committed evidence | the capability filter |
 | Support evidence | `output_limit`, `tool_call`, `reasoning`, `reasoning_options`, `structured_output`, `temperature` | a request sends only parameters the model accepts, and chat sizes its history to the real window instead of a fixed budget | fewer failures mid-chat |
-| Call | `call` | a model served only on `/responses` (34 today) or through another protocol is unreachable with a reason, not a failure on the first message | the reason on the row |
+| Call | `call` | a model served only on `/responses` (21 today) or through another protocol (147) is unreachable with a reason, not a failure on the first message | the reason on the row |
 | Display | `name`, `family`, `description`, `release_date`, `status` | | readable names, grouping by family, newest first, deprecated hidden by default and still named on a selection that uses one |
 
 **How `connect` is derived.** models.dev writes a base URL (`api`) only for providers reached through the generic `@ai-sdk/openai-compatible` package; a provider with its own package has the URL built into that package. So:
 
 | Case | Evidence | `connect` |
 |---|---|---|
-| URL stated | `api`, 197 of 223 providers | `ready`, `base_url_origin: models.dev` |
+| URL stated, OpenAI protocol | `api` with an OpenAI-style package, 184 of 223 providers | `ready`, `base_url_origin: models.dev` |
+| URL stated, another protocol | `api` with `@ai-sdk/anthropic` or a vendor package: MiniMax, Subconscious and six more | `unreachable`: "Speaks Anthropic's API, which SurfSense does not" |
 | URL is a template | `${VAR}` in `api` (Databricks, Cloudflare Workers AI, Infomaniak and two more) | `needs_account_details`, `account_fields` from the variables |
-| No URL, one fixed endpoint | own SDK, OpenAI-compatible endpoint known (OpenAI, Groq, Mistral, xAI, Together, Cerebras, DeepInfra, Perplexity, Gemini, Anthropic) | `ready` from the reviewed table, `base_url_origin: reviewed` |
-| No URL, per account | Azure, Cloudflare AI Gateway, SAP AI Core, watsonx and similar | `needs_account_details`, URL template from the reviewed table |
-| Not a bearer key | Amazon Bedrock (AWS signing), Google Vertex (Cloud OAuth) | `unreachable`, with the reason |
+| No URL, one fixed endpoint | own SDK, OpenAI-compatible endpoint verified (OpenAI, Groq, Mistral, xAI, Together, Cerebras, Gemini) | `ready` from the reviewed table, `base_url_origin: reviewed`: 7 providers |
+| Not a bearer key | Amazon Bedrock (AWS signing), Google Vertex (Cloud sign-in) | `unreachable`, with the reason, from the reviewed table |
+| No URL and no entry | Azure, SAP AI Core, watsonx, and endpoints not yet verified such as Anthropic, DeepInfra and Perplexity: 16 providers | `needs_url`: the user enters it |
 | Loopback URL | LM Studio and three more | `key: none`, `local: true` |
 
 `npm` is not a reachability test on its own: Groq, Mistral, xAI and Together have their own package and serve the OpenAI API. The reviewed table is where a person decides it, once per provider, in a pull request.
+
+**The reviewed table** (`scripts/remote_manifest/endpoints.py`) only fills what models.dev cannot say: a hosted provider's fixed OpenAI-compatible URL where its SDK hides it, or why a provider is unreachable. It never overrides a URL models.dev states, and it holds nothing that depends on the user. A URL is added once someone has checked it against the provider's docs, and the entry cites where; until then the provider is `needs_url`, never a guess. The refresh script flags an entry whose provider left models.dev.
+
+**The user has the last word on every URL.** Picking a hosted provider fills its URL in, and the field stays editable, so a company proxy or gateway in front of it works. A local server (Ollama, vLLM, llama.cpp's server, a machine on the network) is not in the table at all: its port is whatever the user configured, so the form asks for the URL, with examples as placeholder text only, and the save probes `GET {url}/models` as it does today. Loopback needs no key and no egress decision. Offering the local servers actually answering on this machine is a possible later improvement, not a preset.
 
 **Left out:** `cost`, because a list price refreshed a few times a year is wrong more often than it helps, differs from what a user with discounts, caching or a free tier pays, and billing is out of scope; the provider's `doc` link is on the row instead. `npm` and `env` are translated, not copied. `attachment` repeats the input modalities. `knowledge`, `interleaved` and `open_weights` have no reader. At this shape the file is about 3 MB, most of it `description`.
 
@@ -339,9 +344,9 @@ Opening a repo picks its builds with `catalog/local/builds.py`, the same file-pi
 
 For a connection to a manifest provider, the model is looked up under that provider only: OpenRouter's rows describe OpenRouter. An id with no provider to scope it, from a custom endpoint or new since the last refresh, is looked up across providers, in order:
 
-1. **The maker's own entry**, when the id's prefix names a provider that carries it: `deepseek/deepseek-v3.2` reads DeepSeek's.
-2. **Agreement**: every provider carrying the id classifies it the same way.
-3. **Otherwise unknown**, never a majority vote.
+1. **The maker's own entry**, when the id's prefix names a provider that carries it, under the id without the prefix or with it: `openai/gpt-5.5` reads OpenAI's `gpt-5.5`.
+2. **The types every provider agrees on**: the intersection of what each provider carrying the id says, and support fields only where they all report the same value. Only 30 of 3,814 ids get a different type from different providers, mostly bare OpenAI ids one gateway extends with image output; the intersection labels `gpt-5` a text model rather than unknown, and never claims a type any provider disputes.
+3. **Otherwise unknown**: nothing carries the id.
 
 Each step tries the full id, then its last path segment, so `Qwen/Qwen3-8B` on a vLLM server finds the manifest's rows for it.
 
@@ -353,9 +358,9 @@ Each step tries the full id, then its last path segment, so `Qwen/Qwen3-8B` on a
 
 ```text
 modules/llm/model_type.py  ModelType: the one primitive local, remote, selection and the database share
+modules/llm/selectable.py  the one rule for which slots a model fills
 modules/llm/catalog/
   source.py                Source: the catalog's source filter
-  router.py                mounts both sides
   local/
     manifest/              models.json, schema, loader
     classifier.py          GGUF evidence → type
@@ -365,16 +370,22 @@ modules/llm/catalog/
     builds.py              which files make a build, and the quantization order: used by search and the refresh script
     search/                Hugging Face search, tickets
     rows.py                the local row
+    router.py              the local routes
   remote/
     manifest/              models.json, schema, loader, lookup
-    classifier.py
-    support.py
+    classifier.py          modalities → type, over a manifest entry
+    support.py             tool call, reasoning, structured output, context
+    not_text_gen.py        the names that refuse embedders and rerankers
     catalog.py             manifest + connections' listings → rows
-    discovery.py           calls a connection's /models
-    rows.py                the remote row
+    rows.py                the remote row, its availability, and the inputs catalog.py takes
+    schemas.py             what the remote routes return
+    router.py              the remote routes
+
+scripts/refresh_remote_manifest.py   fetch, translate, guard, validate, write
+scripts/remote_manifest/             translate.py, endpoints.py (the reviewed table), guard.py, render.py
 ```
 
-Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD and keys stay in `connections/`.
+Each side mounts its own router under `/llm/catalog/{local,remote}`. Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD, keys and live discovery stay in `connections/`: discovery calls a connection's `/models`, reads declared modalities first, and otherwise asks the manifest lookup, scoped by the connection's `catalog_provider`.
 
 Adding a type is an enum value in `model_type.py`, the classifier groups that emit it, and a CHECK migration. Adding a remote provider is a manifest refresh. Adding a kind of source is a new side under `catalog/` with the same four files.
 
@@ -385,10 +396,13 @@ Adding a type is an enum value in `model_type.py`, the classifier groups that em
 | `GET /llm/catalog/local` | manifest and downloaded rows, budget, `gpu_status` | none |
 | `GET /llm/catalog/local/search?q=` | search hits | `host:huggingface.co` |
 | `GET /llm/catalog/local/search/{repo}` | a repo's builds, classified and priced | `host:huggingface.co` |
-| `GET /llm/catalog/remote` | manifest rows, connected ones marked unchecked | none |
+| `GET /llm/catalog/remote` | the providers: name, `connect`, and how many models of each type they serve | none |
+| `GET /llm/catalog/remote/providers/{id}` | one provider's rows, connected ones marked unchecked | none |
 | `GET /llm/catalog/remote/connections/{id}` | that connection's rows, checked against its listing | that host |
 
-The screen paints local and remote rows from the two offline routes at once, then each connection's check fills in on its own, so a slow endpoint never holds the page. `/llm/image/local/*` and `/llm/connections/{id}/models` go.
+All 8,116 remote rows in one response would be several megabytes, one provider holding 586 of them, so the providers come first and a provider's rows when it is opened.
+
+The screen paints local and remote rows from the two offline routes at once, then each connection's check fills in on its own, so a slow endpoint never holds the page. `/llm/image/local/*` and `/llm/connections/{id}/models` go in step 6, with the screen that replaces their readers.
 
 ## The screen
 
@@ -401,12 +415,16 @@ The screen paints local and remote rows from the two offline routes at once, the
 
 Each step ships alone and leaves the app working.
 
-1. **Shared words.** `model_type.py` and `source.py`; `selected_models` keyed by `model_type`, with its migration; `/llm/selection/{model_type}`; selection and the pickers use the one rule.
-2. **Remote manifest.** The refresh script keeps providers and evidence; the classifier and support move under `catalog/remote/` and run at lookup; connections read types from them. Embedders stop reading as chat.
-3. **Remote catalog.** `catalog.py`, the provider id on a connection, presets from the manifest, the two remote routes.
+1. **Shared words.** `model_type.py` and `selectable.py`; `selected_models` keyed by `model_type`, with its migration; `/llm/selection/{model_type}`; selection and the pickers use the one rule. `source.py` waits for its first reader, in 3c.
+2. **Remote manifest.** The refresh script keeps providers and evidence; the classifier and support move under `catalog/remote/` and run at lookup; connections read types from them. Embedders stop reading as chat. The `connect` block and `call` wait for step 3, which is their first reader.
+3. **Remote catalog**, in four commits:
+   - **3a.** `connect` and `call` in the manifest, and the reviewed table.
+   - **3b.** A connection stores its manifest provider (`catalog_provider`, or `custom`), and the lookup is scoped by it.
+   - **3c.** `catalog/source.py` and `catalog/remote/catalog.py`, the pure function from the manifest and the listings to rows.
+   - **3d.** The three remote routes, and the connection form's presets from the manifest.
 4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable.
 5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; the recommendation steps down builds before models.
-6. **The screen.** One list, both filters; connections become a settings panel.
+6. **The screen.** One list, both filters; connections become a settings panel. `/llm/connections/{id}/models` and `/llm/image/local/*` go with the cards and pickers that still read them.
 7. **Searched image models.** Single-file SD 1.5 and SDXL from search become runnable.
 
 ## Decided here

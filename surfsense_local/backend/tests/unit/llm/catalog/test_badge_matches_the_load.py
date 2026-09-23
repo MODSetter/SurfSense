@@ -11,8 +11,9 @@ depending on which machine it runs on.
 
 import pytest
 
-from modules.llm.catalog import curated_rows, load_curated_models
+from modules.llm.catalog.manifest import load_curated_models
 from modules.llm.catalog.recommendation import recommend
+from modules.llm.catalog.rows import curated_rows
 from modules.llm.fit import HardwareBudget, plan_load
 
 pytestmark = pytest.mark.unit

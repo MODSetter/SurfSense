@@ -100,17 +100,17 @@ describe("SettingsDialog", () => {
         if (path === "/llm/providers") {
           return Response.json([])
         }
-        if (path === "/llm/selection/generation") {
+        if (path === "/llm/selection/text_gen") {
           return Response.json({
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             name: "qwen3:1.7b",
             updated_at: "2026-09-09T00:00:00Z",
           })
         }
-        if (path === "/llm/selection/image_generation") {
+        if (path === "/llm/selection/image_gen") {
           return Response.json({
-            role: "image_generation",
+            model_type: "image_gen",
             provider: "openai_compatible",
             connection_id: 9,
             name: "flux",

@@ -52,27 +52,23 @@ import {
   type ConnectionModel,
   type ModelSelection,
 } from "./api"
+import { MODEL_TYPES, type ModelType } from "./model-type"
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "The request failed"
 }
 
-function supportsImage(model: ConnectionModel) {
-  return model.capabilities.includes("image_generation")
+const TYPE_LABELS: Record<ModelType, string> = {
+  text_gen: "Text generation",
+  image_gen: "Image generation",
+  image_edit: "Image editing",
+  video_gen: "Video generation",
+  audio_gen: "Audio generation",
 }
 
-function supportsChat(model: ConnectionModel) {
-  return model.capabilities.includes("completion")
-}
-
-function capabilityBadge(capability: string) {
-  if (capability === "completion") {
-    return { label: "Completion", variant: "secondary" } as const
-  }
-  if (capability === "image_generation") {
-    return { label: "Image Generation", variant: "secondary" } as const
-  }
-  return { label: capability, variant: "outline" } as const
+// The backend decides which slots a model fills; the card only reads it.
+function canFill(model: ConnectionModel, modelType: ModelType) {
+  return model.selectable_for.includes(modelType)
 }
 
 type ModelFilter = "all" | "chat" | "image" | "unknown"
@@ -104,11 +100,11 @@ export function ConnectionCard({
   const [search, setSearch] = useState("")
   const [filter, setFilter] = useState<ModelFilter>("all")
   const [disconnecting, setDisconnecting] = useState(false)
-  // A model awaiting a role, which it can be asked to prove it fills first.
+  // A model awaiting a slot, which it can be asked to prove it fills first.
   // `unlisted` is set only for a hand-typed id, so a model the connection did
   // list still goes through the server's own check.
   const [trying, setTrying] = useState<{
-    role: ModelSelection["role"]
+    modelType: ModelType
     model: ConnectionModel
     unlisted?: boolean
   } | null>(null)
@@ -116,7 +112,7 @@ export function ConnectionCard({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [reply, setReply] = useState<string | null>(null)
   const [unlisted, setUnlisted] = useState<{
-    role: ModelSelection["role"]
+    modelType: ModelType
     model: ConnectionModel
     message: string
   } | null>(null)
@@ -154,25 +150,25 @@ export function ConnectionCard({
   })
 
   const assign = async (
-    role: ModelSelection["role"],
+    modelType: ModelType,
     model: ConnectionModel,
     allowUnlisted = false
   ) => {
     setError(null)
     try {
       const selection = await setSelection(
-        role,
+        modelType,
         selectable(model),
         undefined,
         allowUnlisted
       )
-      if (role === "generation") onGenerationSelected(selection)
+      if (modelType === "text_gen") onGenerationSelected(selection)
       setTrying(null)
       setUnlisted(null)
       onChanged()
     } catch (cause) {
       if (!allowUnlisted && cause instanceof ApiError && cause.status === 422) {
-        setUnlisted({ role, model, message: messageFrom(cause) })
+        setUnlisted({ modelType, model, message: messageFrom(cause) })
       } else {
         setError(messageFrom(cause))
       }
@@ -181,11 +177,11 @@ export function ConnectionCard({
 
   const runTest = () => {
     if (!trying) return
-    const { role, model } = trying
+    const { modelType, model } = trying
     setTestBusy(true)
     setError(null)
     const attempt =
-      role === "image_generation"
+      modelType === "image_gen"
         ? testConnectionImage(connection.id, model.name).then((blob) => {
             if (previewUrl) URL.revokeObjectURL(previewUrl)
             setPreviewUrl(URL.createObjectURL(blob))
@@ -203,8 +199,11 @@ export function ConnectionCard({
           connection_id: connection.id,
           connection_label: connection.label,
           name,
-          capabilities: [],
+          types: [],
           capability_source: "unknown",
+          // A hand-typed id is unknown, and unknown fills every slot; the
+          // backend still checks it when it is assigned.
+          selectable_for: [...MODEL_TYPES],
         }
       : null
   }
@@ -224,8 +223,8 @@ export function ConnectionCard({
     const query = search.trim().toLocaleLowerCase()
     return models.filter((model) => {
       if (!model.name.toLocaleLowerCase().includes(query)) return false
-      if (filter === "chat") return supportsChat(model)
-      if (filter === "image") return supportsImage(model)
+      if (filter === "chat") return model.types.includes("text_gen")
+      if (filter === "image") return model.types.includes("image_gen")
       if (filter === "unknown") return model.capability_source === "unknown"
       return true
     })
@@ -362,7 +361,7 @@ export function ConnectionCard({
                   const model = manualModel()
                   if (model) {
                     setTrying({
-                      role: "image_generation",
+                      modelType: "image_gen",
                       model,
                       unlisted: true,
                     })
@@ -378,7 +377,7 @@ export function ConnectionCard({
                 onClick={() => {
                   const model = manualModel()
                   if (model) {
-                    setTrying({ role: "generation", model, unlisted: true })
+                    setTrying({ modelType: "text_gen", model, unlisted: true })
                   }
                 }}
               >
@@ -451,21 +450,18 @@ export function ConnectionCard({
                         <div className="mt-1 flex flex-wrap gap-1">
                           {model.capability_source === "unknown" ? (
                             <Badge variant="outline">Capability unknown</Badge>
-                          ) : model.capabilities.length === 0 ? (
-                            // Known to fill neither role. Saying so explains the
-                            // disabled buttons, which an empty row would not.
+                          ) : model.types.length === 0 ? (
+                            // Known to be none of the types. Saying so explains
+                            // the disabled buttons, which an empty row would not.
                             <Badge variant="outline">
-                              Not a chat or image model
+                              Not a model SurfSense can use
                             </Badge>
                           ) : (
-                            model.capabilities.map((capability) => {
-                              const badge = capabilityBadge(capability)
-                              return (
-                                <Badge key={capability} variant={badge.variant}>
-                                  {badge.label}
-                                </Badge>
-                              )
-                            })
+                            model.types.map((modelType) => (
+                              <Badge key={modelType} variant="secondary">
+                                {TYPE_LABELS[modelType]}
+                              </Badge>
+                            ))
                           )}
                         </div>
                       </div>
@@ -483,11 +479,10 @@ export function ConnectionCard({
                         disabled={
                           disabled ||
                           imageName === model.name ||
-                          (model.capability_source !== "unknown" &&
-                            !supportsImage(model))
+                          !canFill(model, "image_gen")
                         }
                         onClick={() =>
-                          setTrying({ role: "image_generation", model })
+                          setTrying({ modelType: "image_gen", model })
                         }
                       >
                         {imageName === model.name
@@ -508,10 +503,11 @@ export function ConnectionCard({
                         disabled={
                           disabled ||
                           generationName === model.name ||
-                          (model.capability_source !== "unknown" &&
-                            !supportsChat(model))
+                          !canFill(model, "text_gen")
                         }
-                        onClick={() => setTrying({ role: "generation", model })}
+                        onClick={() =>
+                          setTrying({ modelType: "text_gen", model })
+                        }
                       >
                         {generationName === model.name
                           ? "In use"
@@ -555,13 +551,13 @@ export function ConnectionCard({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {trying?.role === "image_generation"
+              {trying?.modelType === "image_gen"
                 ? `Assign ${trying?.model.name} as Image?`
                 : `Use ${trying?.model.name} for chat?`}
             </DialogTitle>
             <DialogDescription>
               {trying?.model.capability_source === "unknown" ? (
-                trying.role === "image_generation" ? (
+                trying.modelType === "image_gen" ? (
                   <>
                     This endpoint does not publish capabilities, so image
                     support is unconfirmed. It must implement
@@ -570,12 +566,12 @@ export function ConnectionCard({
                   </>
                 ) : (
                   <>
-                    This endpoint does not publish capabilities, so chat
-                    support is unconfirmed. Testing sends one short prompt and
-                    may cost money.
+                    This endpoint does not publish capabilities, so chat support
+                    is unconfirmed. Testing sends one short prompt and may cost
+                    money.
                   </>
                 )
-              ) : trying?.role === "image_generation" ? (
+              ) : trying?.modelType === "image_gen" ? (
                 <>
                   Image support is confirmed. Testing runs real inference and
                   may cost money.
@@ -611,13 +607,17 @@ export function ConnectionCard({
               onClick={runTest}
             >
               {testBusy ? <Spinner data-icon="inline-start" /> : null}
-              {trying?.role === "image_generation" ? "Test image" : "Test chat"}
+              {trying?.modelType === "image_gen" ? "Test image" : "Test chat"}
             </Button>
             <Button
               disabled={!trying}
               onClick={() =>
                 trying &&
-                void assign(trying.role, trying.model, trying.unlisted ?? false)
+                void assign(
+                  trying.modelType,
+                  trying.model,
+                  trying.unlisted ?? false
+                )
               }
             >
               {previewUrl || reply ? "Use this model" : "Use without testing"}
@@ -643,7 +643,8 @@ export function ConnectionCard({
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={() =>
-                unlisted && void assign(unlisted.role, unlisted.model, true)
+                unlisted &&
+                void assign(unlisted.modelType, unlisted.model, true)
               }
             >
               Use unlisted model

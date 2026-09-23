@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus
-from modules.llm.models import ModelRole
+from modules.llm.model_type import ModelType
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.resolution import (
     ModelResolutionError,
@@ -69,7 +69,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
         kind = job_router.Kind(artifact.format)
         fmt = FORMATS_BY_KEY[kind]
         models = [
-            _choose_model(session, ModelRole(role)) for role in fmt.requires_roles
+            _choose_model(session, model_type)
+            for model_type in fmt.requires_model_types
         ]
         # Options were checked at job creation; only formats that take them get them.
         extras = [meta.get("options")] if fmt.validate_options else []
@@ -132,11 +133,11 @@ def _reason(failure: Exception) -> str:
 
 
 def _choose_model(
-    session: Session, role: ModelRole
+    session: Session, model_type: ModelType
 ) -> ResolvedGeneration | ResolvedImageGeneration:
-    """The model the user selected for one of the roles a format declares."""
+    """The model the user selected for one of the types a format declares."""
     try:
-        if role is ModelRole.IMAGE_GENERATION:
+        if model_type is ModelType.IMAGE_GEN:
             return resolve_image_generation(session)
         return resolve_generation(session)
     except ModelResolutionError as error:

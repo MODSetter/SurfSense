@@ -3,7 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from modules.llm.connections.service import CapabilitySource
-from modules.llm.models import ModelRole
+from modules.llm.model_type import ModelType
 from modules.llm.profile import Tier
 
 
@@ -39,6 +39,8 @@ class ConnectionWrite(BaseModel):
     base_url: str = Field(min_length=1, max_length=2048)
     api_key: str | None = Field(default=None, max_length=4096)
     allow_unverified: bool = False
+    # A manifest provider id, or `custom` for an endpoint the manifest does not list.
+    catalog_provider: str = Field(default="custom", min_length=1, max_length=100)
 
 
 class ConnectionRead(BaseModel):
@@ -46,6 +48,7 @@ class ConnectionRead(BaseModel):
     label: str
     provider: str
     base_url: str
+    catalog_provider: str
     has_api_key: bool
     created_at: datetime
     updated_at: datetime
@@ -55,8 +58,10 @@ class ConnectionModelRead(BaseModel):
     connection_id: int
     connection_label: str
     name: str
-    capabilities: list[str]
+    types: list[ModelType]
     capability_source: CapabilitySource
+    # Decided here, never in the renderer, so every picker offers the same set.
+    selectable_for: list[ModelType]
 
 
 class LocalImageModelRead(BaseModel):
@@ -96,7 +101,7 @@ class ChatTestRead(BaseModel):
 
 
 class SelectionWrite(BaseModel):
-    """The choice a client makes for a role."""
+    """The choice a client makes for a model type."""
 
     provider: str
     connection_id: int | None = None
@@ -105,11 +110,11 @@ class SelectionWrite(BaseModel):
 
 
 class SelectionRead(BaseModel):
-    """The model currently answering for a role."""
+    """The model currently chosen for a model type."""
 
     model_config = ConfigDict(from_attributes=True)
 
-    role: ModelRole
+    model_type: ModelType
     provider: str
     connection_id: int | None
     name: str

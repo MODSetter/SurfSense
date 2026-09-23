@@ -25,21 +25,21 @@ The catalog is a tuple of twelve `Format` rows in [`formats.py`](../../surfsense
 
 | Key | Label | Needs | Worker path | Stored file |
 |---|---|---|---|---|
-| `summary` | Summary | generation | `content/summary/` | none; the markdown is the artifact |
-| `docx` | Word | generation | `office/` | `.docx` |
-| `pptx` | Slides | generation | `office/` | `.pptx` |
-| `xlsx` | Spreadsheet | generation | `office/` | `.xlsx` |
-| `html` | Web page | generation | `web/html/` | `.html` |
-| `pdf` | PDF | generation | `office/` | `.pdf` |
-| `mindmap` | Mind map | generation | `content/mindmap/` | none; the outline is the body |
-| `flashcards` | Flashcards | generation | `content/flashcards/` | deck JSON |
-| `quiz` | Quiz | generation | `content/quiz/` | quiz JSON |
-| `podcast` | Podcast | generation and the voice model | `media/audio/podcast/` | WAV audio |
-| `image` | Image | image_generation, generation | `media/visual/image/` | the image |
-| `infographic` | Infographic | image_generation, generation | `media/visual/infographic/` | the image |
+| `summary` | Summary | text_gen | `content/summary/` | none; the markdown is the artifact |
+| `docx` | Word | text_gen | `office/` | `.docx` |
+| `pptx` | Slides | text_gen | `office/` | `.pptx` |
+| `xlsx` | Spreadsheet | text_gen | `office/` | `.xlsx` |
+| `html` | Web page | text_gen | `web/html/` | `.html` |
+| `pdf` | PDF | text_gen | `office/` | `.pdf` |
+| `mindmap` | Mind map | text_gen | `content/mindmap/` | none; the outline is the body |
+| `flashcards` | Flashcards | text_gen | `content/flashcards/` | deck JSON |
+| `quiz` | Quiz | text_gen | `content/quiz/` | quiz JSON |
+| `podcast` | Podcast | text_gen and the voice model | `media/audio/podcast/` | WAV audio |
+| `image` | Image | image_gen, text_gen | `media/visual/image/` | the image |
+| `infographic` | Infographic | image_gen, text_gen | `media/visual/infographic/` | the image |
 
-- `requires_roles` is a tuple in the order the pipeline's `render()` takes its models. A format is available when every required role has a selection; otherwise the reason names every missing role in a fixed reading order: "Needs a chat model", "Needs an image model" or "Needs a chat model and an image model". Naming only the first missing role made selecting it look like the gate moving to the other.
-- `podcast` also sets `requires_voice`, and is unavailable ("Needs a voice model") while the Kokoro files are missing; opening a podcast brief answers `409` with the same words. It is a flag rather than a role because the bundled voice is not selectable.
+- `requires_model_types` is a tuple in the order the pipeline's `render()` takes its models. A format is available when every required model type has a selection; otherwise the reason names every missing one in a fixed reading order: "Needs a chat model", "Needs an image model" or "Needs a chat model and an image model". Naming only the first missing type made selecting it look like the gate moving to the other.
+- `podcast` also sets `requires_voice`, and is unavailable ("Needs a voice model") while the Kokoro files are missing; opening a podcast brief answers `409` with the same words. It is a flag rather than a required model type because the bundled voice is not selectable.
 - Which formats are available is the server's answer to what is selected, so the panel asks again whenever the chat selection changes or the settings dialog closes, since the image model is chosen inside settings and nothing else reports it.
 - An image selection can resolve to the bundled sd-server as well as to a remote connection, so needing an image model does not mean needing a key or a network.
 - [`tests/unit/worker/test_studio_job_router.py`](../../surfsense_local/backend/tests/unit/worker/test_studio_job_router.py) asserts that `job_router.py` names every catalog key and nothing else, that each key has a pipeline, and that each pipeline takes its models, the sources, the prompt and, for a format with options, the options.
@@ -89,7 +89,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 ## Jobs
 
 - `studio_job` runs on the `studio` Huey queue in `huey.db` with `retries=1`. `worker-studio` drains it with four threads, because the work mostly waits on a model ([ADR 0008](../adr/0008-two-job-queues.md)).
-- A job ([`job.py`](../../surfsense_local/backend/worker/studio/job.py)) marks the document `processing` unless it was cancelled, gathers the sources, resolves one model per required role, and commits before rendering, so no write lock is held across a generation that can take minutes. It checks for a cancel before and after rendering.
+- A job ([`job.py`](../../surfsense_local/backend/worker/studio/job.py)) marks the document `processing` unless it was cancelled, gathers the sources, resolves one model per required model type, and commits before rendering, so no write lock is held across a generation that can take minutes. It checks for a cancel before and after rendering.
 - [`persist.py`](../../surfsense_local/backend/worker/studio/shared/persist.py) sets the document's title and markdown, then chunks, embeds and indexes that body with the ingest code, so the artifact is searchable and citable. If the format has a file, it clears the artifact's folder and file rows and writes the file named by its role, recording its size and SHA-256. No pipeline writes a `preview` yet.
 - The document is created without a `dedup_key`, so it is never deduplicated against another document.
 - A failure rolls back and writes `failed` with a reason cut to 500 characters: the error's first line, or for an HTTP error its whole message after "The model could not be reached: ". The job is then re-raised for Huey's one retry, except an image error: the endpoint may already have generated, and billed, an image.
@@ -149,7 +149,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 ## The image path
 
-- `image` and `infographic` resolve the `image_generation` selection. A remote selection loads its connection, which runs the egress check and decrypts the key. An `sdcpp` selection points the same client at the bundled sd-server's loopback URL, with no key and no egress decision, which is what makes an image possible on an offline machine.
+- `image` and `infographic` resolve the `image_gen` selection. A remote selection loads its connection, which runs the egress check and decrypts the key. An `sdcpp` selection points the same client at the bundled sd-server's loopback URL, with no key and no egress decision, which is what makes an image possible on an offline machine.
 - The client posts `{model, prompt}` to `/images/generations`, falls back once to `/images` only on `404` or `405`, and remembers the route that worked for the life of the process. It accepts `b64_json`, a data URL or a URL, caps the sizes, and checks the bytes against the claimed MIME type ([`connections.md`](connections.md)).
 - The generation model writes first in both formats. The markdown body is the image prompt or the brief, so an image can be found by what it shows.
 

@@ -48,22 +48,24 @@ def _freeze(spec: str, tmp_path: Path) -> Path:
 
 
 def _assert_capability_catalogue_shipped(binary: Path) -> None:
-    """Both binaries classify remote models, so both must carry the table.
+    """Both binaries classify remote models, so both must carry the manifest.
 
     It is read by path, so the analyser cannot see it and only an explicit datas
     entry puts it in the bundle. Missing it degrades silently: every remote model
-    reports its capability as unknown, in frozen builds only.
+    reads as unknown, in frozen builds only.
     """
-    catalogue = (
+    manifest = (
         binary.parent
         / "_internal"
         / "modules"
         / "llm"
-        / "connections"
-        / "model-capabilities.json"
+        / "catalog"
+        / "remote"
+        / "manifest"
+        / "models.json"
     )
-    assert catalogue.is_file(), f"capability catalogue missing from {binary.parent}"
-    assert json.loads(catalogue.read_text())["models"]
+    assert manifest.is_file(), f"remote model manifest missing from {binary.parent}"
+    assert json.loads(manifest.read_text())["providers"]
 
 
 def _free_port() -> int:

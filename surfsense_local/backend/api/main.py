@@ -21,7 +21,8 @@ from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
 from modules.llm.catalog.dependencies import get_catalog_service
-from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
@@ -112,7 +113,7 @@ def _warm_catalog(session_factory: sessionmaker[Session]) -> None:
     # nothing on screen to say why.
     try:
         with session_factory() as session:
-            selected = session.get(SelectedModel, ModelRole.GENERATION)
+            selected = session.get(SelectedModel, ModelType.TEXT_GEN)
         asyncio.run(warm_selected(selected, get_llm_settings().llamacpp_base_url))
     except Exception:
         logger.exception("could not warm the selected model at startup")

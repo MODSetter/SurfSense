@@ -122,7 +122,7 @@ describe("dashboard chat", () => {
           <DashboardPage
             initialProviderAvailable={true}
             selection={{
-              role: "generation",
+              model_type: "text_gen",
               provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
@@ -203,7 +203,7 @@ describe("dashboard chat", () => {
           <DashboardPage
             initialProviderAvailable={true}
             selection={{
-              role: "generation",
+              model_type: "text_gen",
               provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
@@ -309,7 +309,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -452,7 +452,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -537,7 +537,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -689,7 +689,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -791,7 +791,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -828,9 +828,9 @@ describe("dashboard chat", () => {
             { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
-        if (path === "/llm/selection/generation") {
+        if (path === "/llm/selection/text_gen") {
           return Response.json({
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -880,7 +880,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -959,7 +959,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -1023,7 +1023,7 @@ describe("dashboard chat", () => {
           <DashboardPage
             initialProviderAvailable={true}
             selection={{
-              role: "generation",
+              model_type: "text_gen",
               provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
@@ -1114,7 +1114,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -1168,7 +1168,7 @@ describe("dashboard chat", () => {
             {
               key: "summary",
               label: "Summary",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },
@@ -1214,7 +1214,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
@@ -1296,7 +1296,7 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
+            model_type: "text_gen",
             provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",

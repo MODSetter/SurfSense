@@ -44,8 +44,8 @@ export function OpenAICompatiblePanel({
     const controller = new AbortController()
     void Promise.all([
       getConnections(controller.signal),
-      getSelection("generation", controller.signal),
-      getSelection("image_generation", controller.signal),
+      getSelection("text_gen", controller.signal),
+      getSelection("image_gen", controller.signal),
     ])
       .then(([nextConnections, nextGeneration, nextImage]) => {
         setConnections(nextConnections)
