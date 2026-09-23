@@ -10,17 +10,17 @@ import dataclasses
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from modules.llm.catalog.local.build_choice import default_build, recommended_build
-from modules.llm.catalog.local.builds import Build, BuildFile, FileRole
+from modules.llm.catalog.local.engines.llamacpp.builds.choice import default_build, recommended_build
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import classify
-from modules.llm.catalog.local.downloaded import DownloadedModel
-from modules.llm.catalog.local.lead_build import lead_build
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import DownloadedModel
+from modules.llm.catalog.local.engines.llamacpp.rows.lead_build import lead_build
 from modules.llm.catalog.local.manifest import CuratedModel
-from modules.llm.catalog.local.pricing import price
+from modules.llm.catalog.local.engines.llamacpp.pricing import price
 from modules.llm.catalog.local.quantization import quantization_label
-from modules.llm.catalog.local.recommendation import recommended_model
+from modules.llm.catalog.local.engines.llamacpp.rows.recommendation import recommended_model
 from modules.llm.catalog.local.rows import BuildRow, LocalRow, Origin
-from modules.llm.catalog.local.support import (
+from modules.llm.catalog.local.engines.llamacpp.support import (
     LocalSupport,
     projector_fits_model,
     projector_reads_images,

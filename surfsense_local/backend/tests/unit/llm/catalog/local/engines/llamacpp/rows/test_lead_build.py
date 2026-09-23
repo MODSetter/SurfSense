@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 import pytest
 
-from modules.llm.catalog.local.lead_build import LeadReason, lead_build
+from modules.llm.catalog.local.engines.llamacpp.rows.lead_build import LeadReason, lead_build
 from modules.llm.fit import FitState
 
 pytestmark = pytest.mark.unit

@@ -4,13 +4,13 @@ before it downloads."""
 import httpx
 import pytest
 
-from modules.llm.catalog.local.builds import BuildFile, FileRole
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import BuildFile, FileRole
 from modules.llm.catalog.local.rows import Origin
-from modules.llm.catalog.local.search.exact_check import check_build
-from modules.llm.catalog.local.search.hits import search_models
-from modules.llm.catalog.local.search.listing import read_listing
-from modules.llm.catalog.local.search.repo_row import repo_row
-from modules.llm.catalog.local.search.tickets import TicketStore
+from modules.llm.catalog.local.engines.llamacpp.search.exact_check import check_build
+from modules.llm.catalog.local.engines.llamacpp.search.hits import search_models
+from modules.llm.catalog.local.engines.llamacpp.search.listing import read_listing
+from modules.llm.catalog.local.engines.llamacpp.search.repo_row import repo_row
+from modules.llm.catalog.local.engines.llamacpp.search.tickets import TicketStore
 from modules.llm.fit import FitState, HardwareBudget
 from modules.llm.model_type import ModelType
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
@@ -205,7 +205,7 @@ BUILD_FILES = (
 @pytest.mark.asyncio
 async def test_the_exact_check_reads_the_build_and_its_projector() -> None:
     """The exact check reads the build and its projector."""
-    from modules.llm.catalog.local.builds import Build
+    from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build
 
     async with httpx.AsyncClient(transport=files(2560)) as client:
         checked = await check_build(
@@ -223,7 +223,7 @@ async def test_the_exact_check_reads_the_build_and_its_projector() -> None:
 @pytest.mark.asyncio
 async def test_a_projector_for_another_model_is_dropped_before_download() -> None:
     """A projector for another model is dropped before download."""
-    from modules.llm.catalog.local.builds import Build
+    from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build
 
     async with httpx.AsyncClient(transport=files(4096)) as client:
         checked = await check_build(client, Build("Q4_K_M", BUILD_FILES), None, BUDGET)
@@ -254,7 +254,7 @@ async def test_a_search_describes_a_repo_without_grading_it() -> None:
 
 def test_a_ticket_resolves_to_the_build_it_was_minted_for() -> None:
     """A ticket resolves to the build it was minted for."""
-    from modules.llm.catalog.local.builds import Build
+    from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build
 
     store = TicketStore(ttl_seconds=300)
     build = Build("Q4_K_M", BUILD_FILES)

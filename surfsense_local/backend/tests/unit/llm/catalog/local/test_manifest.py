@@ -9,7 +9,7 @@ import copy
 import pytest
 from pydantic import ValidationError
 
-from modules.llm.catalog.local.builds import FileRole
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import FileRole
 from modules.llm.catalog.local.manifest import (
     SCHEMA_VERSION,
     LocalManifest,

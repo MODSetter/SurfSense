@@ -2,7 +2,7 @@
 
 import pytest
 
-from modules.llm.catalog.local.builds import (
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import (
     FileRole,
     ListedFile,
     builds_in,

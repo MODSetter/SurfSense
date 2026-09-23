@@ -8,10 +8,10 @@ from pathlib import Path
 
 import pytest
 
-from modules.llm.catalog.local.catalog import local_catalog
-from modules.llm.catalog.local.downloaded import scan
+from modules.llm.catalog.local.engines.llamacpp.rows.catalog import local_catalog
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import scan
 from modules.llm.catalog.local.installs import InstalledBuild, projector_filename
-from modules.llm.catalog.local.lead_build import LeadReason
+from modules.llm.catalog.local.engines.llamacpp.rows.lead_build import LeadReason
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.rows import Origin
 from modules.llm.fit import BadgeLevel, HardwareBudget, SpeedTier, plan_load, speed_tier

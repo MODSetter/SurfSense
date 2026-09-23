@@ -2,7 +2,7 @@
 
 import pytest
 
-from modules.llm.catalog.local.support import (
+from modules.llm.catalog.local.engines.llamacpp.support import (
     projector_fits_model,
     projector_reads_images,
     template_support,

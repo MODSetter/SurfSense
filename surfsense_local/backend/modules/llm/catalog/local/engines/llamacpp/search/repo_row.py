@@ -10,12 +10,12 @@ no recommended build, no star.
 import dataclasses
 from collections.abc import Callable
 
-from modules.llm.catalog.local.builds import Build, builds_in
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, builds_in
 from modules.llm.catalog.local.classifier import classify
-from modules.llm.catalog.local.pricing import estimated_price
+from modules.llm.catalog.local.engines.llamacpp.pricing import estimated_price
 from modules.llm.catalog.local.rows import BuildRow, LocalRow, Origin
-from modules.llm.catalog.local.search.listing import RepoListing
-from modules.llm.catalog.local.support import LocalSupport
+from modules.llm.catalog.local.engines.llamacpp.search.listing import RepoListing
+from modules.llm.catalog.local.engines.llamacpp.support import LocalSupport
 from modules.llm.fit import HardwareBudget, badge
 from modules.llm.model_type import ModelType
 

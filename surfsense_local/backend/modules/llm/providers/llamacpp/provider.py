@@ -29,7 +29,7 @@ from pathlib import Path
 import httpx
 
 from modules.llm.catalog.local.classifier import classify
-from modules.llm.catalog.local.downloaded import read_cached
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import read_cached
 from modules.llm.gguf.file_kind import FileKind, kind_of
 from modules.llm.providers.llamacpp.capabilities import Capabilities, read_capabilities
 from modules.llm.providers.llamacpp.messages import for_template

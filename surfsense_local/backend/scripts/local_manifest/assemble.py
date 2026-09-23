@@ -12,9 +12,9 @@ from typing import Any
 
 from local_manifest.entries import Entry
 from local_manifest.recorded import RepoAtRevision
-from modules.llm.catalog.local.build_choice import PREFERENCE
-from modules.llm.catalog.local.builds import Build, FileRole, builds_in
-from modules.llm.catalog.local.support import (
+from modules.llm.catalog.local.engines.llamacpp.builds.choice import PREFERENCE
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, FileRole, builds_in
+from modules.llm.catalog.local.engines.llamacpp.support import (
     PROJECTOR_KEYS,
     projector_fits_model,
     projector_reads_images,

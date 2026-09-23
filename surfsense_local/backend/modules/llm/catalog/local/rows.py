@@ -7,10 +7,10 @@ position or a score; the manifest's order chooses the star and is never sent.
 from dataclasses import dataclass
 from enum import StrEnum
 
-from modules.llm.catalog.local.builds import Build
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build
 from modules.llm.catalog.local.classifier import Classification
-from modules.llm.catalog.local.lead_build import Lead
-from modules.llm.catalog.local.support import LocalSupport
+from modules.llm.catalog.local.engines.llamacpp.rows.lead_build import Lead
+from modules.llm.catalog.local.engines.llamacpp.support import LocalSupport
 from modules.llm.fit import Badge, FitVerdict
 from modules.llm.model_type import ModelType
 

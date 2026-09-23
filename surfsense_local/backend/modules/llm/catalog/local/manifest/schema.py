@@ -10,7 +10,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from modules.llm.catalog.local.builds import Build, BuildFile, FileRole
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, BuildFile, FileRole
 from modules.llm.fit import ModelShape
 
 SCHEMA_VERSION = 1

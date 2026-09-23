@@ -6,7 +6,7 @@ from local_manifest.entries import ENTRIES, Entry
 from local_manifest.guard import losses
 from local_manifest.recorded import RepoAtRevision
 
-from modules.llm.catalog.local.builds import ListedFile
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import ListedFile
 from modules.llm.catalog.local.manifest import SCHEMA_VERSION, LocalManifest
 from modules.llm.gguf import read_header_prefix
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv, tensor

@@ -10,7 +10,7 @@ recommended build never carries a badge saying it will be slow.
 from collections.abc import Callable, Sequence
 from typing import Protocol
 
-from modules.llm.catalog.local.build_choice.preference import RECOMMENDABLE
+from modules.llm.catalog.local.engines.llamacpp.builds.choice.preference import RECOMMENDABLE
 from modules.llm.fit import RECOMMENDABLE_TIERS, SpeedTier
 
 

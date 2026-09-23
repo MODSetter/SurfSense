@@ -26,7 +26,7 @@ from local_manifest.entries import ENTRIES
 from local_manifest.guard import losses
 from local_manifest.hub import header, repo_at_revision
 
-from modules.llm.catalog.local.build_choice import default_build
+from modules.llm.catalog.local.engines.llamacpp.builds.choice import default_build
 from modules.llm.catalog.local.manifest import (
     MANIFEST_PATH,
     SCHEMA_VERSION,

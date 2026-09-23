@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Protocol
 
-from modules.llm.catalog.local.build_choice.preference import RECOMMENDABLE
+from modules.llm.catalog.local.engines.llamacpp.builds.choice.preference import RECOMMENDABLE
 
 
 class LeadReason(StrEnum):

@@ -9,7 +9,7 @@ import httpx
 import pytest
 
 from modules.llm.catalog.local import service as service_module
-from modules.llm.catalog.local.builds import Build, BuildFile, FileRole
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, BuildFile, FileRole
 from modules.llm.catalog.local.installs import projector_filename, read_installs
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.rows import Origin

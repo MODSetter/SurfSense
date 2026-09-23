@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from modules.llm.catalog.local.builds import ListedFile, preferred_projector
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import ListedFile, preferred_projector
 
 API = "https://huggingface.co/api/models"
 TIMEOUT = httpx.Timeout(30.0, connect=10.0)

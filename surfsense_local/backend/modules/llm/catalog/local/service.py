@@ -16,9 +16,9 @@ from pathlib import Path
 
 import httpx
 
-from modules.llm.catalog.local.builds import Build, FileRole
-from modules.llm.catalog.local.catalog import LocalCatalog, local_catalog
-from modules.llm.catalog.local.downloaded import DownloadedModel, scan
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, FileRole
+from modules.llm.catalog.local.engines.llamacpp.rows.catalog import LocalCatalog, local_catalog
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import DownloadedModel, scan
 from modules.llm.catalog.local.installs import (
     InstalledBuild,
     forget_install,
@@ -28,12 +28,12 @@ from modules.llm.catalog.local.installs import (
 )
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
-from modules.llm.catalog.local.search.exact_check import check_build
-from modules.llm.catalog.local.search.hits import SearchHit, search_models
-from modules.llm.catalog.local.search.listing import read_listing
-from modules.llm.catalog.local.search.repo_row import repo_row
-from modules.llm.catalog.local.search.tickets import TicketStore
-from modules.llm.catalog.local.support import (
+from modules.llm.catalog.local.engines.llamacpp.search.exact_check import check_build
+from modules.llm.catalog.local.engines.llamacpp.search.hits import SearchHit, search_models
+from modules.llm.catalog.local.engines.llamacpp.search.listing import read_listing
+from modules.llm.catalog.local.engines.llamacpp.search.repo_row import repo_row
+from modules.llm.catalog.local.engines.llamacpp.search.tickets import TicketStore
+from modules.llm.catalog.local.engines.llamacpp.support import (
     projector_fits_model,
     projector_reads_images,
 )
