@@ -1,5 +1,7 @@
 # OpenAI-compatible connections
 
+> **Being redesigned.** The [model catalog proposal](../proposals/model-catalog.md) replaces how a connection lists and classifies its models, and where the form's presets come from; connection storage, keys and the runtime stay. This page describes the code as it is until that work ships.
+
 A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to the chat role or the image role. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
 **Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/model-selection/`](../../surfsense_local/frontend/src/features/model-selection/)
