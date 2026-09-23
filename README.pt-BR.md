@@ -36,7 +36,7 @@
   <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
 
   <p>
-    <a href="README.md">English</a> | <a href="README.es.md">Español</a> | Português | <a href="README.hi.md">हिन्दी</a> | <a href="README.zh-CN.md">简体中文</a>
+    <a href="README.md">English</a> | <a href="README.ar.md">العربية</a> | <a href="README.de.md">Deutsch</a> | <a href="README.es.md">Español</a> | <a href="README.fr.md">Français</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.ja.md">日本語</a> | <a href="README.ko.md">한국어</a> | Português | <a href="README.ru.md">Русский</a> | <a href="README.zh-CN.md">简体中文</a>
   </p>
 </div>
 

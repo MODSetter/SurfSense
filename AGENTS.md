@@ -13,7 +13,7 @@ Desktop app plus scraper API. Four trees:
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
 
-Hosted Azure still ships until after launch. Product direction is local + API.
+The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
 
 ## Code organization
 
@@ -63,7 +63,7 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
-# compose (hosted still uses this until after launch)
+# compose (dev and self-host, not production)
 docker compose -f docker/docker-compose.yml
 
 # hooks
@@ -82,6 +82,16 @@ pre-commit run --all-files
 | Desktop | `cd surfsense_local/electron && pnpm test` |
 
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
+
+## Pull requests
+
+Follow [CONTRIBUTING.md](CONTRIBUTING.md). The parts agents miss:
+
+- Open PRs against `dev`. `gh pr create` targets the default branch, `main`, unless you pass `--base dev`.
+- `gh pr create --body` skips the PR template. Keep its headings: What, Why, `Fixes #`, How to test.
+- Commit messages and PR titles are Conventional Commits, `type(scope): summary`. The commitizen hook runs only where it is installed; CI does not run it.
+- A new feature starts as a proposal PR in `docs/proposals/`, not as code.
+- `surfsense_backend/app/proprietary/` is Business Source License 1.1: ask a maintainer before changing it. A change to `docs/contracts/` needs the owners of both sides.
 
 ## Skills
 
@@ -117,10 +127,10 @@ its lock entry is valid.
 
 ## Boundaries
 
-- Do not carve hosted code out of backend/web until after launch.
-- Do not drop SearxNG, sandbox, OpenSandbox, or zero-cache from compose until a new compose is defined after launch.
+- Do not carve hosted code out of backend/web until the purge on 18 Oct 2026. The export window and the purge script run on that code until then.
+- Do not drop SearxNG, sandbox, OpenSandbox, or zero-cache from compose until a new compose is defined.
 - Edit the root `README.md` directly. The draft at `plans/community-local/seo/drafts/README.md` shipped on 18 Sep 2026 and is kept only for history. Anything added to the README replaces something — its length was measured against the eight biggest repos in this category.
-- Do not commit unless asked.
+- Do not commit, push or open a PR unless asked.
 
 ## Security
 

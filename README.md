@@ -1,8 +1,8 @@
 <!--
   The sunset callout is time-boxed. Delete it on 18 October 2026 when the
   export window closes, along with the "Importing from the hosted app" link
-  further down. Do the same in README.es.md, README.pt-BR.md, README.hi.md and
-  README.zh-CN.md, which track this file section for section.
+  further down. Do the same in every README.<locale>.md. Those files track
+  this one section for section.
   Rationale for this page: plans/community-local/seo/06-repo-readme.md
 -->
 
@@ -36,7 +36,7 @@
   <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
 
   <p>
-    English | <a href="README.es.md">Español</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.zh-CN.md">简体中文</a>
+    English | <a href="README.ar.md">العربية</a> | <a href="README.de.md">Deutsch</a> | <a href="README.es.md">Español</a> | <a href="README.fr.md">Français</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.ja.md">日本語</a> | <a href="README.ko.md">한국어</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.ru.md">Русский</a> | <a href="README.zh-CN.md">简体中文</a>
   </p>
 </div>
 
