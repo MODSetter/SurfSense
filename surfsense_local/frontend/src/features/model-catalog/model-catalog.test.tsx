@@ -73,6 +73,7 @@ const row = (
   builds,
   default_quantization: "Q4_K_M",
   recommended: false,
+  engine: "llamacpp",
   lead: { quantization: builds[0]?.quantization ?? "", why: "recommended" },
   ...overrides,
 })
@@ -147,6 +148,46 @@ describe("model catalog", () => {
     expect(screen.queryByRole("button", { name: /scan/i })).toBeNull()
   })
 
+  it("renders an image model that carries no fit estimate", async () => {
+    // sd.cpp builds are not priced for this machine: the row states the size
+    // and offers the download, with no badge and no reason line.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(
+              {
+                id: "stable-diffusion-1.5",
+                name: "Stable Diffusion 1.5",
+                family: "Stable Diffusion",
+                types: ["image_gen"],
+                selectable_for: ["image_gen"],
+                engine: "sdcpp",
+                default_quantization: "Q4_0",
+                lead: { quantization: "Q4_0", why: "default" },
+              },
+              [
+                build({
+                  catalog_id: "opaque-sd15",
+                  quantization: "Q4_0",
+                  footprint_bytes: 3_051_366_272,
+                  fit: null,
+                  badge: null,
+                }),
+              ]
+            ),
+          ],
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    expect(await screen.findByText("Stable Diffusion 1.5")).toBeTruthy()
+    expect(screen.getByText("Q4_0")).toBeTruthy()
+  })
+
   it("explains a light spill without flagging it", async () => {
     // Recommended on purpose, so it must not wear a warning beside the star.
     vi.stubGlobal(
@@ -208,7 +249,7 @@ describe("model catalog", () => {
         ? new Response(
             stream([
               '{"type":"downloading","completed":5,"total":10}\n',
-              '{"type":"complete","selection":{"role":"generation","provider":"llamacpp","name":"Qwen3-8B-Q4_K_M","updated_at":"2026-09-07T00:00:00Z"}}\n',
+              '{"type":"complete","selection":{"model_type":"text_gen","provider":"llamacpp","connection_id":null,"name":"Qwen3-8B-Q4_K_M","updated_at":"2026-09-07T00:00:00Z"}}\n',
             ])
           )
         : null
@@ -939,5 +980,157 @@ describe("installing a curated build", () => {
     const list = await screen.findByRole("list", { name: "Builds of Qwen3 8B" })
     expect(await within(list).findByRole("progressbar")).toBeTruthy()
     install.release()
+  })
+})
+
+describe("image models", () => {
+  // The parent reads onSelected and onModelUnavailable as the chat model
+  // changing. An image model is chosen here too, and must never reach them.
+  const imageRow = (overrides: Partial<LocalBuild> = {}) =>
+    row(
+      {
+        id: "stable-diffusion-1.5",
+        name: "Stable Diffusion 1.5",
+        family: "Stable Diffusion",
+        types: ["image_gen"],
+        selectable_for: ["image_gen"],
+        engine: "sdcpp",
+        default_quantization: "Q4_0",
+        lead: { quantization: "Q4_0", why: "default" },
+      },
+      [
+        build({
+          catalog_id: "opaque-sd15",
+          quantization: "Q4_0",
+          footprint_bytes: 3_051_366_272,
+          fit: null,
+          badge: null,
+          ...overrides,
+        }),
+      ]
+    )
+  const imageSelection = {
+    model_type: "image_gen",
+    provider: "sdcpp",
+    connection_id: null,
+    name: "v1-5-pruned_Q4_0",
+    updated_at: "2026-09-23T00:00:00Z",
+  }
+
+  it("uses an installed image model as the image model, not the chat model", async () => {
+    const onSelected = vi.fn()
+    const fetchMock = serving(
+      catalog({ rows: [imageRow({ installed_as: "v1-5-pruned_Q4_0" })] }),
+      (path, init) =>
+        path === "/llm/selection/image_gen" && init?.method === "PUT"
+          ? Response.json(imageSelection)
+          : null
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage onSelected={onSelected} />)
+    // Offered in Installed and on the catalog row alike, as for a chat model.
+    const [use] = await screen.findAllByRole("button", {
+      name: "Use Stable Diffusion 1.5 Q4_0",
+    })
+    await user.click(use)
+
+    await waitFor(() => {
+      const put = fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/llm/selection/image_gen" && init?.method === "PUT"
+      )
+      expect(JSON.parse(String(put?.[1]?.body))).toEqual(
+        expect.objectContaining({
+          provider: "sdcpp",
+          connection_id: null,
+          name: "v1-5-pruned_Q4_0",
+        })
+      )
+    })
+    expect(onSelected).not.toHaveBeenCalled()
+  })
+
+  it("installs an image model without reporting it as the chat model", async () => {
+    const onSelected = vi.fn()
+    const fetchMock = serving(catalog({ rows: [imageRow()] }), (path) =>
+      path === "/llm/install"
+        ? new Response(
+            stream([
+              `{"type":"complete","selection":${JSON.stringify(imageSelection)}}\n`,
+            ])
+          )
+        : null
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage onSelected={onSelected} />)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Download Stable Diffusion 1.5 Q4_0",
+      })
+    )
+
+    // The catalog is asked again once the install has settled.
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([path]) => path === "/llm/catalog/local")
+          .length
+      ).toBeGreaterThan(1)
+    )
+    expect(onSelected).not.toHaveBeenCalled()
+  })
+
+  it("deleting the image model in use leaves the chat model alone", async () => {
+    const onModelUnavailable = vi.fn()
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            imageRow({ installed_as: "v1-5-pruned_Q4_0", selected: true }),
+          ],
+        }),
+        (path, init) =>
+          path === "/llm/models/v1-5-pruned_Q4_0" && init?.method === "DELETE"
+            ? Response.json({
+                name: "v1-5-pruned_Q4_0",
+                selection_cleared: true,
+              })
+            : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(
+      <ModelCatalogPage allowDelete onModelUnavailable={onModelUnavailable} />
+    )
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Delete Stable Diffusion 1.5 Q4_0",
+      })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete model" })
+    )
+
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull())
+    expect(onModelUnavailable).not.toHaveBeenCalled()
+  })
+
+  it("no longer asks the old image card's route", async () => {
+    const fetchMock = serving(catalog({ rows: [imageRow()] }))
+    vi.stubGlobal("fetch", fetchMock)
+
+    render(<ModelCatalogPage />)
+    await screen.findByText("Stable Diffusion 1.5")
+
+    expect(
+      fetchMock.mock.calls.some(([path]) =>
+        String(path).startsWith("/llm/image/local")
+      )
+    ).toBe(false)
   })
 })

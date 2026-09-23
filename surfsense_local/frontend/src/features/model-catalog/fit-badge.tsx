@@ -24,11 +24,12 @@ export function FitBadge({
   copy,
   className,
 }: {
-  fit: Fit
-  copy: FitCopy
+  fit: Fit | null
+  copy: FitCopy | null
   className?: string
 }) {
-  if (copy.level === "none") return null
+  // No copy is no estimate at all, which says nothing rather than "fits".
+  if (!fit || !copy || copy.level === "none") return null
   return (
     <Badge
       variant={variantFor[copy.level]}
@@ -43,7 +44,7 @@ export function FitBadge({
  * The explanation, dimmed and trailing, when there is one. A light spill is
  * explained here without a badge: described, not flagged.
  */
-export function FitReason({ copy }: { copy: FitCopy }) {
-  if (!copy.reason) return null
+export function FitReason({ copy }: { copy: FitCopy | null }) {
+  if (!copy?.reason) return null
   return <p className="text-xs text-muted-foreground">{copy.reason}</p>
 }

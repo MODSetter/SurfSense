@@ -19,7 +19,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
 import type { Budget, GpuStatus, LocalBuild, LocalRow } from "./api"
-import { LocalImageModel } from "./local-image-model"
 import { ModelCard } from "./model-card"
 import { ModelFamilyGroup } from "./model-family-group"
 import { ModelSearch } from "./model-search"
@@ -142,6 +141,7 @@ export function ModelCatalogPage({
     label: string
     installed_as: string
     selected: boolean
+    engine: LocalRow["engine"]
   } | null>(null)
 
   // No skeleton: the catalog is the manifest plus a directory listing, priced
@@ -192,25 +192,30 @@ export function ModelCatalogPage({
 
   // A searched build and a curated one install through the same call, because
   // the id is opaque either way and the server cannot tell them apart.
-  const act = (build: LocalBuild) => {
+  const act = (build: LocalBuild, engine: LocalRow["engine"] = "llamacpp") => {
     if (busy) {
       return
     }
     // No confirmation for a partial fit. It runs, slower, and llama.cpp places
     // the layers; only physics blocks, and that is already `can_install`.
     if (build.installed_as) {
-      selectInstalled.mutate(build.installed_as)
+      selectInstalled.mutate({ installed_as: build.installed_as, engine })
     } else {
       install.mutate(build)
     }
   }
 
-  const deleteBuild = (label: string, build: LocalBuild) => {
+  const deleteBuild = (
+    label: string,
+    build: LocalBuild,
+    engine: LocalRow["engine"]
+  ) => {
     if (build.installed_as) {
       setPendingDelete({
         label,
         installed_as: build.installed_as,
         selected: build.selected,
+        engine,
       })
     }
   }
@@ -221,10 +226,12 @@ export function ModelCatalogPage({
       installState={installState}
       actionsDisabled={busy}
       runtimeAvailable
-      onAction={act}
+      onAction={(build) => act(build, row.engine)}
       onCancel={cancelInstall}
       onDelete={
-        allowDelete ? (build) => deleteBuild(row.name, build) : undefined
+        allowDelete
+          ? (build) => deleteBuild(row.name, build, row.engine)
+          : undefined
       }
     />
   )
@@ -303,13 +310,18 @@ export function ModelCatalogPage({
                         >
                           In use
                         </Button>
-                      ) : row.selectable_for.includes("text_gen") ? (
+                      ) : row.runnable ? (
                         <Button
                           type="button"
                           size="sm"
                           disabled={busy}
                           aria-label={`Use ${label}`}
-                          onClick={() => selectInstalled.mutate(installedAs)}
+                          onClick={() =>
+                            selectInstalled.mutate({
+                              installed_as: installedAs,
+                              engine: row.engine,
+                            })
+                          }
                         >
                           Use
                         </Button>
@@ -321,7 +333,7 @@ export function ModelCatalogPage({
                           variant="destructive"
                           disabled={busy}
                           aria-label={`Delete ${label}`}
-                          onClick={() => deleteBuild(label, build)}
+                          onClick={() => deleteBuild(label, build, row.engine)}
                         >
                           <Trash2Icon />
                         </Button>
@@ -332,8 +344,6 @@ export function ModelCatalogPage({
               </ul>
             </section>
           ) : null}
-
-          <LocalImageModel disabled={busy} />
 
           {curated.length > 0 ? (
             <CatalogSection {...curatedSection}>{card}</CatalogSection>
@@ -386,7 +396,9 @@ export function ModelCatalogPage({
             <AlertDialogTitle>Delete {pendingDelete?.label}?</AlertDialogTitle>
             <AlertDialogDescription>
               {pendingDelete?.selected
-                ? "This is your current model. Deleting it will require you to choose another model."
+                ? pendingDelete.engine === "sdcpp"
+                  ? "This is your current image model. Image formats need another one until you choose it."
+                  : "This is your current model. Deleting it will require you to choose another model."
                 : "This permanently removes the local model and its downloaded data from this machine."}
             </AlertDialogDescription>
           </AlertDialogHeader>

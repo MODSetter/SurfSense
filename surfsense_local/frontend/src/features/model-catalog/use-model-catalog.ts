@@ -7,9 +7,11 @@ import {
   getModelCatalog,
   installCatalogModel,
   type InstallEvent,
+  type LocalRow,
 } from "./api"
 import {
   setGenerationSelection,
+  setSelection,
   type ModelSelection,
 } from "@/features/model-selection/api"
 
@@ -23,6 +25,20 @@ export type InstallState =
       catalogId: string
       event: InstallEvent
     }
+
+/** An installed build, and the engine whose selection it would fill. */
+export type InstalledTarget = {
+  installed_as: string
+  engine: LocalRow["engine"]
+}
+
+/**
+ * The parent hears only about the chat model: it holds that selection as the
+ * app's model, and an image model chosen here must not replace it.
+ */
+function isChatSelection(selection: ModelSelection | null | undefined) {
+  return selection?.model_type === "text_gen"
+}
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
@@ -80,7 +96,7 @@ export function useModelCatalog(
         queryClient.invalidateQueries({ queryKey: selectionQueryKey }),
       ])
       setInstallState({ status: "idle" })
-      onSelected?.(selection)
+      if (isChatSelection(selection)) onSelected?.(selection)
     },
     onError: (error) => {
       controller.current = null
@@ -100,26 +116,34 @@ export function useModelCatalog(
     // The runtime's own name for the file, not a row. A model installed from
     // search has no curated row to carry it, and that list is the only place
     // it appears.
-    mutationFn: (modelId: string) =>
-      setGenerationSelection({
-        provider: "llamacpp",
-        connection_id: null,
-        name: modelId,
-      }),
+    mutationFn: (target: InstalledTarget) =>
+      target.engine === "sdcpp"
+        ? setSelection("image_gen", {
+            provider: "sdcpp",
+            connection_id: null,
+            name: target.installed_as,
+          })
+        : setGenerationSelection({
+            provider: "llamacpp",
+            connection_id: null,
+            name: target.installed_as,
+          }),
     onSuccess: async (selection) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: catalogQueryKey }),
         queryClient.invalidateQueries({ queryKey: selectionQueryKey }),
       ])
-      onSelected?.(selection)
+      if (isChatSelection(selection)) onSelected?.(selection)
     },
   })
 
   const deleteModel = useMutation({
-    mutationFn: (target: { installed_as: string }) =>
+    mutationFn: (target: InstalledTarget) =>
       deleteLocalModel(target.installed_as),
-    onSuccess: async (result) => {
-      if (result.selection_cleared) {
+    onSuccess: async (result, target) => {
+      // Only the chat model's loss is the parent's to handle; losing the image
+      // model only makes image formats unavailable, which Studio asks for.
+      if (result.selection_cleared && target.engine !== "sdcpp") {
         onModelUnavailable?.()
       }
       onModelsChanged?.()

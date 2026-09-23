@@ -1,4 +1,4 @@
-import { request, requestJson, requestVoid } from "@/lib/api"
+import { request, requestJson } from "@/lib/api"
 import type { ModelSelection } from "@/features/model-selection/api"
 
 /**
@@ -50,8 +50,10 @@ export type LocalBuild = {
   /** Everything that lands on disk and loads together, projector included. */
   footprint_bytes: number
   files: BuildFile[]
-  fit: Fit
-  badge: Badge
+  /** Null where the engine has no fit estimate (image models): the row states
+   *  the download size and nothing about this machine. */
+  fit: Fit | null
+  badge: Badge | null
   can_install: boolean
   /** What the runtime calls this build on disk, which Use and Delete act on. */
   installed_as: string | null
@@ -89,13 +91,21 @@ export type LocalRow = {
   default_quantization: string | null
   /** The one model starred for this computer. Curated models only. */
   recommended: boolean
+  /** The engine that offered the row and would run it. */
+  engine: "llamacpp" | "sdcpp"
   /**
    * The build the row shows and its Download fetches, and why the server chose
    * it. Absent for a searched repo, which lists every build and leads with none.
    */
   lead: {
     quantization: string
-    why: "in_use" | "installed" | "recommended" | "fits_slower" | "nothing_fits"
+    why:
+      | "in_use"
+      | "installed"
+      | "recommended"
+      | "fits_slower"
+      | "nothing_fits"
+      | "default"
   } | null
 }
 
@@ -217,60 +227,6 @@ export async function* parseNdjson<T>(
     }
   } finally {
     reader.releaseLock()
-  }
-}
-
-export type LocalImageModel = {
-  name: string
-  label: string
-  detail: string
-  size_bytes: number
-  installed: boolean
-  selected: boolean
-}
-
-/** `offered` is false where no sd-server shipped for the platform. */
-export type LocalImageCatalog = {
-  provider: string
-  offered: boolean
-  ready: boolean
-  models: LocalImageModel[]
-}
-
-export type DownloadStep = {
-  status: string
-  completed: number
-  total: number
-}
-
-export function getLocalImageCatalog(
-  signal?: AbortSignal
-): Promise<LocalImageCatalog> {
-  return requestJson<LocalImageCatalog>("/llm/image/local", { signal })
-}
-
-export function deleteLocalImageModel(
-  name: string,
-  signal?: AbortSignal
-): Promise<void> {
-  return requestVoid(`/llm/image/local/${encodeURIComponent(name)}`, {
-    method: "DELETE",
-    signal,
-  })
-}
-
-export async function installLocalImageModel(
-  name: string,
-  onStep: (step: DownloadStep) => void,
-  signal?: AbortSignal
-): Promise<void> {
-  const response = await request(
-    `/llm/image/local/${encodeURIComponent(name)}/install`,
-    { method: "POST", signal }
-  )
-  if (!response.body) throw new Error("The download returned no progress")
-  for await (const step of parseNdjson<DownloadStep>(response.body)) {
-    onStep(step)
   }
 }
 
