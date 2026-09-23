@@ -36,6 +36,14 @@ Applies to **every new file**. Existing code is not a template and not a cleanup
 
 The tree is inconsistent. New work follows this. Old work stays until a task explicitly owns it.
 
+## Docs
+
+[`docs/`](docs/README.md) is the engineering map. `architecture/` says what is true now, one doc per feature; `adr/` says why; `proposals/` holds designs not built yet; `contracts/` holds the frozen interfaces between trees. Task status lives in GitHub issues; docs carry only a proposal's `status` and each architecture doc's Known gaps. `plans/` is business and ops material, not specs.
+
+- Before changing a feature, read its doc in `docs/architecture/` and the ADRs it links.
+- If a change alters behaviour a doc describes, update the doc in the same change. Fixing a Known gap deletes its line.
+- Run `python scripts/check_docs.py` after editing anything under `docs/` or `plans/`.
+
 ## Commands
 
 ```bash

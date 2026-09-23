@@ -1,0 +1,36 @@
+# Review routing. The last matching pattern wins; when a line names several
+# owners, approval from any one of them is enough.
+
+*                                               @MODSetter
+
+/docs/                                          @MODSetter @CREDO23 @AnishSarkar22
+/AGENTS.md                                      @MODSetter @CREDO23 @AnishSarkar22
+/CONTRIBUTING.md                                @MODSetter @CREDO23 @AnishSarkar22
+/docs/contracts/                                @CREDO23 @AnishSarkar22
+/plans/                                         @MODSetter
+
+/surfsense_local/frontend/                      @AnishSarkar22
+/surfsense_local/backend/modules/llm/           @AnishSarkar22
+/surfsense_local/backend/worker/studio/         @CREDO23 @AnishSarkar22
+/surfsense_local/backend/modules/artifacts/     @CREDO23 @AnishSarkar22
+/surfsense_local/backend/modules/chat/          @CREDO23 @AnishSarkar22
+/surfsense_local/backend/modules/documents/     @CREDO23 @AnishSarkar22
+/surfsense_local/backend/worker/ingestion/      @CREDO23 @AnishSarkar22
+/surfsense_local/backend/shared/search.py       @CREDO23 @AnishSarkar22
+/surfsense_local/backend/modules/license/       @CREDO23
+/surfsense_local/backend/modules/migration/     @CREDO23
+/surfsense_local/backend/modules/egress/        @CREDO23
+/surfsense_local/backend/shared/secrets.py      @CREDO23
+/surfsense_local/electron/                      @CREDO23 @AnishSarkar22
+/surfsense_local/RELEASE.md                     @CREDO23 @AnishSarkar22
+/.github/workflows/release-local.yml            @CREDO23 @AnishSarkar22
+
+/surfsense_backend/app/license/                 @CREDO23
+/surfsense_backend/app/mailer/                  @CREDO23
+/surfsense_backend/app/payments/                @CREDO23
+/surfsense_backend/app/sunset.py                @CREDO23
+/surfsense_backend/app/capabilities/            @AnishSarkar22 @MODSetter
+/surfsense_backend/app/proprietary/             @AnishSarkar22 @MODSetter
+
+/surfsense_web/                                 @AnishSarkar22
+/surfsense_mcp/                                 @CREDO23

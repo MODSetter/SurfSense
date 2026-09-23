@@ -20,15 +20,15 @@ flowchart LR
     M[Lost the file, support email] --> LI
 ```
 
-| Page | For whom | Reached from | Login | Status |
-|---|---|---|---|---|
-| `/` landing | new visitors | search, email, social | no | open (B6) |
-| `/pricing` | buyers | landing, `/sunset` | no | open (B5) — the route exists but still sells pay-as-you-go credits; no license prices, early-bird date, buy buttons or trial form |
-| `/license/success` | just paid | Stripe redirect only | no | done |
-| `/license` | resend, trial | pricing, support, email | no | done |
-| `/downloads` | anyone installing | landing, `/sunset`, success page, `/free` | no | open (B5), may be a landing section |
-| `/free` | search traffic wanting AI without an account | organic search | no | open (B5) — decided (below), but the page still runs on hosted inference and every claim on it is about to become false |
-| `/sunset` | existing hosted users | app redirect, legacy desktop | yes, export needs it | export done; download links, import steps, refund offer open |
+| Page | For whom | Reached from | Login |
+|---|---|---|---|
+| `/` landing | new visitors | search, email, social | no |
+| `/pricing` | buyers | landing, `/sunset` | no |
+| `/license/success` | just paid | Stripe redirect only | no |
+| `/license` | resend, trial | pricing, support, email | no |
+| `/downloads` | anyone installing | landing, `/sunset`, success page, `/free` | no |
+| `/free` | search traffic wanting AI without an account | organic search | no |
+| `/sunset` | existing hosted users | app redirect, legacy desktop | yes, export needs it |
 
 ## 1. New buyer
 
@@ -51,7 +51,7 @@ sequenceDiagram
     U->>W: /downloads → installer for their OS
 ```
 
-`/license/success` exists so the buyer never depends on the email arriving. Both paths yield the same file: the Keygen id is derived from the Stripe session, so the webhook and the success page cannot mint two licenses ([01-license-routes.md](01-license-routes.md)).
+`/license/success` exists so the buyer never depends on the email arriving. Both paths yield the same file: the Keygen id is derived from the Stripe session, so the webhook and the success page cannot mint two licenses ([`license/portal.md`](../../../docs/architecture/license/portal.md)).
 
 ## 2. Existing hosted user, after T-0
 

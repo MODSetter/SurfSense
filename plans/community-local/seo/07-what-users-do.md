@@ -29,18 +29,14 @@ Three corrections separate this from a naive query.
 
 **1. Count users, not messages.** Traffic is power-law: the top 10 accounts are
 11.3% of all user messages and the top 100 are 31.3%, against a mean of 11.2 and
-a **median of 3**. A message-weighted share measures a handful of heavy accounts.
-The largest single one is generating Spanish-language alternative-history
-football content — thousands of messages about Sergio Ramos signing for Boca
-Juniors, with images and podcasts. Real usage, but it is one person's hobby and
-it would otherwise outweigh several hundred law firms. Every share below counts
-a user once per domain no matter how much they send.
+a **median of 3**. A message-weighted share measures a handful of heavy accounts:
+the largest single account, a personal hobby project, would otherwise outweigh
+several hundred law firms. Every share below counts a user once per domain no
+matter how much they send.
 
 **2. Exclude users who never state a task.** 56% of users with a message, and
 77% of users with a titled thread, only greet the assistant or ask what it can
-do — "Greeting", "Greeting in Persian", "AI Capabilities Overview", "what can u
-do are like notebook but worst". Leaving them in the denominator deflates every
-real share. They are reported here and then excluded.
+do. Leaving them in the denominator deflates every real share. They are reported here and then excluded.
 
 **3. Read the corpus before classifying it.** The first pass used a
 hand-written English taxonomy and matched 5-7% of rows, which is a statement
@@ -103,38 +99,25 @@ on titles and **1.7:1** on queries.
 Study is not small and nothing here argues for dropping it. It argues against
 leading with it.
 
-## The deliverable job, in users' own words
+## The deliverable job
 
-This is the 43%, and it is not homework. Lightly trimmed, one per user:
+This is the 43%, and it is not homework. The requests ask for slide decks,
+briefs, technical responses and stakeholder infographics, built from a file the
+user already has and written for executives, stakeholders, inspectors or a
+meeting, in many languages.
 
-- "Create a slide deck and a narrated video overview from these sources"
-- "core idea should be professional technical for clear presentation that CEO of
-  brokerage companies can understand it"
-- an electrical specialist drafting a response to a numbered inspection report
-- "Campaign Brief / Creative Deck — Purpose: inspire stakeholders with a visual,
-  concise, storytelling-driven overview of your campaign's creative direction"
-- a Persian request for a stakeholder infographic for a 48-unit housing
-  cooperative
-- a French documentary bundle justifying the technical organisation of a carbon
-  study meeting
-- "@الزراعة الذكية.docx make a powerful presentation"
+And the professional domains are genuinely professional. Legal requests include
+evidence bundles for hearings, contract questions, immigration matters, letters
+in disputes, and policy documents checked against the law.
 
-And the professional domains are genuinely professional. From legal:
-
-- a CCMA arbitration evidence bundle, indexed and paginated, asked for on the
-  free tier by a disabled applicant
-- a Russian contractor checking whether a US service agreement can pay in USDT
-- a Canadian immigration sponsorship matter
-- a law firm's letter in a building dispute, over keys a contractor failed to
-  return by the deadline in a notice
-- a code of conduct reviewed against the Corporations Act and anti-discrimination
-  law
+Individual requests are not quoted here: this repository is public, and they
+come from users' private chats.
 
 **The shape is always the same: a file goes in, a professional artefact comes
 out.** That matters for what can honestly be promised, because it is exactly
 what the local app does — `DocumentType` is `FILE`, `NOTE`, `ARTIFACT`, and
 uploads are PDF, DOCX, PPTX, XLSX, HTML, CSV, MD, TXT and images. No connector
-is needed for any request quoted above.
+is needed for any request described above.
 
 ## Two things the docs currently get wrong
 

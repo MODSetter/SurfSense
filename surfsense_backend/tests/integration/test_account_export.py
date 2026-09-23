@@ -31,10 +31,10 @@ pytestmark = pytest.mark.integration
 
 def _contracts_dir() -> Path:
     for parent in Path(__file__).resolve().parents:
-        candidate = parent / "plans" / "community-local" / "contracts"
+        candidate = parent / "docs" / "contracts"
         if candidate.is_dir():
             return candidate
-    raise RuntimeError("plans/community-local/contracts not found")
+    raise RuntimeError("docs/contracts not found")
 
 
 def _check_export_sample(root: Path) -> int:
