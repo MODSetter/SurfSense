@@ -1221,7 +1221,7 @@ async def health_check():
     """Lightweight liveness probe exempt from rate limiting.
 
     Also carries the sunset flag legacy desktop clients read once at startup
-    (``plans/community-local/contracts/04-sunset-flag.md``). The flag is read
+    (``docs/contracts/04-sunset-flag.md``). The flag is read
     per request, so flipping it never needs a deploy.
     """
     return {

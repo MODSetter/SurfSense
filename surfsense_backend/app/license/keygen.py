@@ -2,7 +2,7 @@
 
 Keygen is the system of record for licenses: there is no license table, so
 every lookup here is a filter over license ``metadata``. See
-``plans/community-local/portal/01-license-routes.md``.
+``docs/architecture/license/portal.md``.
 """
 
 from __future__ import annotations

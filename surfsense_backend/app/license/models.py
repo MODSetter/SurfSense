@@ -4,7 +4,7 @@ There is no license table. Stripe and Keygen are the system of record, and
 every lookup is a filter over Keygen license ``metadata``. Nothing in this
 slice takes a database session or touches Postgres.
 
-Spec: ``plans/community-local/portal/01-license-routes.md``.
+Spec: ``docs/architecture/license/portal.md``.
 """
 
 from __future__ import annotations

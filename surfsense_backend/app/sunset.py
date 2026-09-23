@@ -14,7 +14,7 @@ Two properties matter more than anything else here:
   authentication would lock people out of the one action still available and
   make the 30-day window meaningless.
 
-Spec: ``plans/community-local/00d-pivot-plan.md`` (B7, the export-only switch).
+Spec: ``docs/architecture/sunset.md``.
 """
 
 from __future__ import annotations

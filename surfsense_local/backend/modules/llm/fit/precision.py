@@ -16,7 +16,7 @@ and the one the verdict is about. Widening past it is opportunistic and belongs
 to `plan_load`.
 
 > ponytail: whether q8_0 is the right trade at all is the open measurement in
-> `07-llamacpp-runtime.md`. Unsloth measured a quantized cache at 35 % slower
+> `docs/architecture/local-models/fit.md`. Unsloth measured a quantized cache at 35 % slower
 > generation, which if it reproduces here means preferring a small spill instead.
 > Until then the badge's job is to agree with the loader, whatever the loader
 > does, which is exactly what this shared rule buys.
