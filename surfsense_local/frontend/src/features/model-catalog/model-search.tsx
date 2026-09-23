@@ -92,7 +92,7 @@ function RepoBuilds({
     <>
       <p className="flex flex-wrap items-center gap-2 px-3 pt-2 text-xs text-muted-foreground">
         {row.support.reads_images ? (
-          <Badge variant="outline">Reads images</Badge>
+          <Badge variant="secondary">Reads images</Badge>
         ) : null}
         {row.runnable
           ? "Sizes are exact. Fit is estimated and checked before download."
@@ -247,6 +247,9 @@ export function ModelSearch({
                         <span className="truncate text-sm font-medium">
                           {hit.repo}
                         </span>
+                        {hit.reads_images ? (
+                          <Badge variant="secondary">Reads images</Badge>
+                        ) : null}
                         {hit.gated ? (
                           <Badge variant="outline">Needs an account</Badge>
                         ) : null}

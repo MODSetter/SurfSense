@@ -142,6 +142,9 @@ export type SearchRow = {
   /** "quantized from Qwen/Qwen3-8B", which is provenance and not a grade. */
   quantized_from: string | null
   last_modified: string | null
+  /** The repo ships a vision projector, judged by its file names. A guess
+   *  until the header is read before install. */
+  reads_images: boolean
 }
 
 /** A repo's builds from its listing alone: no file is read to draw it. */

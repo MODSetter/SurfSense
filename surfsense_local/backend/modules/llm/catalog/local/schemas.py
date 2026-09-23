@@ -130,6 +130,8 @@ class SearchHitRead(BaseModel):
     gated: bool
     quantized_from: str | None
     last_modified: str | None
+    # Judged by the repo's file names; the header read before install decides.
+    reads_images: bool
 
 
 class SearchRead(BaseModel):

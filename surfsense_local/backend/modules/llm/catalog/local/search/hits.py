@@ -9,6 +9,8 @@ from dataclasses import dataclass
 
 import httpx
 
+from modules.llm.catalog.local.builds import ListedFile, preferred_projector
+
 API = "https://huggingface.co/api/models"
 TIMEOUT = httpx.Timeout(30.0, connect=10.0)
 
@@ -23,6 +25,9 @@ class SearchHit:
     gated: bool = False
     # Provenance, not a grade: 32 of the top 40 GGUF repos carry this tag.
     quantized_from: str | None = None
+    # The repo ships a vision projector, judged by its file names with the rule
+    # a repo's builds use. A guess until the header is read before install.
+    reads_images: bool = False
 
 
 async def search_models(
@@ -63,4 +68,15 @@ def _hit(row: dict) -> SearchHit:
             ),
             None,
         ),
+        reads_images=_ships_projector(row),
     )
+
+
+def _ships_projector(row: dict) -> bool:
+    """`full=true` lists every file, so this needs no request of its own."""
+    names = [
+        ListedFile(sibling["rfilename"], 0)
+        for sibling in row.get("siblings") or ()
+        if isinstance(sibling, dict) and isinstance(sibling.get("rfilename"), str)
+    ]
+    return preferred_projector(names) is not None

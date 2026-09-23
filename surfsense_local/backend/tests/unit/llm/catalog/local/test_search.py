@@ -264,3 +264,31 @@ def test_a_ticket_resolves_to_the_build_it_was_minted_for() -> None:
     assert ticket is not None and ticket.build == build
     assert store.resolve(token, now=301.0) is None
     assert store.resolve("never-minted") is None
+
+
+@pytest.mark.asyncio
+async def test_a_hit_says_it_reads_images_from_its_file_names_alone() -> None:
+    """The listing already carries every repo's file names, so the list can say
+    what opening the repo would, with no further request."""
+    vision = {
+        "id": "unsloth/gemma-3-4b-it-GGUF",
+        "siblings": [
+            {"rfilename": "gemma-3-4b-it-Q4_K_M.gguf"},
+            {"rfilename": "mmproj-F16.gguf"},
+        ],
+    }
+    text = {
+        "id": "MaziyarPanahi/gemma-3-4b-it-GGUF",
+        "siblings": [{"rfilename": "gemma-3-4b-it.Q4_K_M.gguf"}],
+    }
+    requests: list[httpx.Request] = []
+
+    def answer(request: httpx.Request) -> httpx.Response:
+        requests.append(request)
+        return httpx.Response(200, json=[vision, text])
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(answer)) as client:
+        hits = await search_models(client, "gemma")
+
+    assert [hit.reads_images for hit in hits] == [True, False]
+    assert len(requests) == 1

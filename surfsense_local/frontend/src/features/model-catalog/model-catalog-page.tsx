@@ -284,7 +284,7 @@ export function ModelCatalogPage({
                           {label}
                         </span>
                         {build.reads_images ? (
-                          <Badge variant="outline">Reads images</Badge>
+                          <Badge variant="secondary">Reads images</Badge>
                         ) : null}
                       </div>
                       {!row.runnable ? (

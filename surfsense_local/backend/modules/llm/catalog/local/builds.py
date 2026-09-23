@@ -87,23 +87,19 @@ def builds_in(
     listing: Iterable[ListedFile], *, repo: str = "", revision: str = "main"
 ) -> list[Build]:
     """Every build a repo offers, smallest first, each with its projector."""
+    listing = list(listing)
     weights: list[ListedFile] = []
-    projectors: list[ListedFile] = []
     for entry in listing:
         lowered = entry.path.lower()
-        if not lowered.endswith(".gguf") or _DRAFTER.search(lowered):
+        if not _companion_candidate(lowered) or "mmproj" in lowered.rsplit("/", 1)[-1]:
             continue
         basename = lowered.rsplit("/", 1)[-1]
-        if "imatrix" in basename:
-            continue
-        if "mmproj" in basename:
-            projectors.append(entry)
-        elif not _BIG_ENDIAN.search(
-            basename.removesuffix(".gguf")
-        ) and _in_build_folder(entry.path):
+        if not _BIG_ENDIAN.search(basename.removesuffix(".gguf")) and _in_build_folder(
+            entry.path
+        ):
             weights.append(entry)
 
-    projector = _preferred_projector(projectors)
+    projector = preferred_projector(listing)
     builds: dict[str, Build] = {}
     for label, parts in _group_parts(weights):
         files = tuple(
@@ -166,7 +162,20 @@ def _rank(build: Build) -> tuple[int, int, int]:
     return (path.count("/"), build.quantization == UNKNOWN, len(path))
 
 
-def _preferred_projector(projectors: list[ListedFile]) -> ListedFile | None:
+def preferred_projector(listing: Iterable[ListedFile]) -> ListedFile | None:
+    """The repo's vision projector, judged by name alone, or None.
+
+    The one rule the search list and a repo's builds share, so the two never
+    disagree about whether a repo reads images. A name is a guess: the header
+    read before install confirms it or drops the projector.
+    """
+    projectors = [
+        entry
+        for entry in listing
+        if _companion_candidate(entry.path.lower())
+        and "mmproj" in entry.path.lower().rsplit("/", 1)[-1]
+    ]
+
     def rank(entry: ListedFile) -> tuple[int, int]:
         label = quantization_label(entry.path)
         position = (
@@ -177,3 +186,12 @@ def _preferred_projector(projectors: list[ListedFile]) -> ListedFile | None:
         return position, len(entry.path)
 
     return min(projectors, key=rank, default=None)
+
+
+def _companion_candidate(lowered: str) -> bool:
+    """A GGUF that is neither a drafter nor a calibration file."""
+    return (
+        lowered.endswith(".gguf")
+        and not _DRAFTER.search(lowered)
+        and "imatrix" not in lowered.rsplit("/", 1)[-1]
+    )

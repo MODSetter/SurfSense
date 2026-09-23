@@ -96,6 +96,7 @@ async def search(
                 "gated": hit.gated,
                 "quantized_from": hit.quantized_from,
                 "last_modified": hit.last_modified,
+                "reads_images": hit.reads_images,
             }
             for hit in hits
         ]

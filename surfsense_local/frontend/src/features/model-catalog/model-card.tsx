@@ -119,7 +119,7 @@ export function ModelCard({
             <p className="truncate text-sm font-medium">{row.name}</p>
             <FitBadge fit={lead.fit} copy={lead.badge} />
             {row.support.reads_images ? (
-              <Badge variant="outline">Reads images</Badge>
+              <Badge variant="secondary">Reads images</Badge>
             ) : null}
             <span className="flex shrink-0 items-center text-xs text-muted-foreground">
               {lead.quantization}

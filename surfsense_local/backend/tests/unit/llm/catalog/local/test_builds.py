@@ -2,7 +2,12 @@
 
 import pytest
 
-from modules.llm.catalog.local.builds import FileRole, ListedFile, builds_in
+from modules.llm.catalog.local.builds import (
+    FileRole,
+    ListedFile,
+    builds_in,
+    preferred_projector,
+)
 from modules.llm.catalog.local.quantization import quantization_label
 
 pytestmark = pytest.mark.unit
@@ -123,3 +128,20 @@ def test_a_file_without_a_quantization_is_still_a_build() -> None:
     (build,) = builds_in([listed("tiny-model.gguf", 7)])
 
     assert build.quantization == "unknown"
+
+
+def test_a_repos_projector_is_found_from_its_names_alone() -> None:
+    """The rule the search list and a repo's builds share, so the two never
+    disagree about whether a repo reads images."""
+    names = [
+        listed("gemma-3-4b-it-Q4_K_M.gguf"),
+        listed("mmproj-F32.gguf"),
+        listed("mmproj-model-f16.gguf"),
+        listed("MTP/mmproj-drafter.gguf"),
+        listed("imatrix_mmproj.gguf"),
+    ]
+
+    found = preferred_projector(names)
+
+    assert found is not None and found.path == "mmproj-model-f16.gguf"
+    assert preferred_projector([listed("gemma-3-1b-it-Q4_K_M.gguf")]) is None

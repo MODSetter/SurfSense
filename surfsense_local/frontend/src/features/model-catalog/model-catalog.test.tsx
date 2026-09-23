@@ -499,6 +499,7 @@ describe("model catalog", () => {
                 gated: false,
                 quantized_from: "Qwen/Qwen3-8B",
                 last_modified: null,
+                reads_images: true,
               },
             ],
           })
@@ -545,6 +546,8 @@ describe("model catalog", () => {
 
     const hit = await screen.findByText("unsloth/Qwen3-8B-GGUF")
     expect(screen.getByText(/quantized from Qwen\/Qwen3-8B/)).toBeTruthy()
+    // Said beside the name, before the repo is opened.
+    expect(screen.getByText("Reads images")).toBeTruthy()
     await user.click(hit)
 
     const builds = await screen.findByRole("list", {
@@ -554,8 +557,9 @@ describe("model catalog", () => {
     expect(
       screen.getByText(/Fit is estimated and checked before download/)
     ).toBeTruthy()
-    expect(screen.getByText("Reads images")).toBeTruthy()
-    expect(screen.queryByLabelText("Recommended for this computer")).toBeNull()
+    expect(
+      within(builds).queryByText("Recommended for this computer")
+    ).toBeNull()
   })
 
   it("shows install failures as a toast instead of inside the model row", async () => {
