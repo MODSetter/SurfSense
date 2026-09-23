@@ -39,6 +39,8 @@ class ConnectionWrite(BaseModel):
     base_url: str = Field(min_length=1, max_length=2048)
     api_key: str | None = Field(default=None, max_length=4096)
     allow_unverified: bool = False
+    # A manifest provider id, or `custom` for an endpoint the manifest does not list.
+    catalog_provider: str = Field(default="custom", min_length=1, max_length=100)
 
 
 class ConnectionRead(BaseModel):
@@ -46,6 +48,7 @@ class ConnectionRead(BaseModel):
     label: str
     provider: str
     base_url: str
+    catalog_provider: str
     has_api_key: bool
     created_at: datetime
     updated_at: datetime

@@ -86,6 +86,9 @@ class ProviderConnection(Base):
     label: Mapped[str] = mapped_column(String(collation="NOCASE"))
     provider: Mapped[str]
     base_url: Mapped[str]
+    # The manifest provider this reaches, so its models are read from that
+    # provider's own entries; `custom` for anything the manifest does not list.
+    catalog_provider: Mapped[str] = mapped_column(server_default="custom")
     api_key_ciphertext: Mapped[bytes | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

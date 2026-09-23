@@ -37,6 +37,9 @@ class RemoteLookup:
             for model_id, model in provider.models.items():
                 self._carriers[model_id].append(model)
 
+    def has_provider(self, provider: str) -> bool:
+        return provider in self._manifest.providers
+
     def classify(self, model_id: str, provider: str | None = None) -> RemoteClassification:
         candidates = _candidates(model_id)
         served = self._manifest.providers.get(provider) if provider else None

@@ -116,7 +116,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 
 | Table | Columns | Notes |
 |---|---|---|
-| `provider_connections` | `id`, `label`, `provider`, `base_url`, `api_key_ciphertext`, timestamps | `label` unique case-insensitively; `provider` must be `openai_compatible`; the key is Fernet ciphertext since `0007` |
+| `provider_connections` | `id`, `label`, `provider`, `base_url`, `catalog_provider`, `api_key_ciphertext`, timestamps | `label` unique case-insensitively; `provider` must be `openai_compatible`; `catalog_provider` is a remote manifest provider id or `custom`, since `0014`; the key is Fernet ciphertext since `0007` |
 | `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen` or `audio_gen` |
 | `onboarding_completion` | `id`, `completed_at` | a singleton (`CHECK id = 1`) whose presence means onboarding is done |
 
@@ -250,6 +250,7 @@ erDiagram
     text label UK
     text provider
     text base_url
+    text catalog_provider
     blob api_key_ciphertext
     datetime created_at
     datetime updated_at
@@ -298,6 +299,7 @@ erDiagram
 | `0011` | `0011_document_cancelled_status.py` | `cancelled` added to `documents.status` |
 | `0012` | `0012_llamacpp_provider.py` | `selected_models` rebuilt with `llamacpp` in place of `ollama`, clearing Ollama selections rather than remapping them; an `ollama_pull` egress grant becomes `model_download` |
 | `0013` | `0013_selection_by_model_type.py` | `selected_models` rebuilt keyed by `model_type`: `generation` becomes `text_gen` and `image_generation` becomes `image_gen`; downgrading drops a selection in the three types the old key cannot hold |
+| `0014` | `0014_connection_catalog_provider.py` | `provider_connections.catalog_provider`, `custom` for every existing connection; downgrading drops the column in place, because a table rebuild would cascade into `selected_models` |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint or rename a primary key in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.

@@ -136,6 +136,65 @@ async def test_a_catalogued_embedder_fills_no_slot(
     assert (embedder["types"], embedder["selectable_for"]) == ([], [])
 
 
+async def test_a_connection_names_the_manifest_provider_it_reaches(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """Stored as chosen, never read back from the URL; omitted means custom."""
+    body = {"provider": "openai_compatible", "base_url": openai_server}
+    named = await client.post(
+        "/llm/connections", json={**body, "label": "Neon", "catalog_provider": "neon"}
+    )
+    plain = await client.post("/llm/connections", json={**body, "label": "Mine"})
+
+    assert named.json()["catalog_provider"] == "neon"
+    assert plain.json()["catalog_provider"] == "custom"
+    listed = {c["label"]: c["catalog_provider"] for c in (await client.get("/llm/connections")).json()}
+    assert listed == {"Neon": "neon", "Mine": "custom"}
+
+
+async def test_a_provider_the_manifest_does_not_list_is_refused_before_saving(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """A typo would otherwise scope every lookup to nothing."""
+    refused = await client.post(
+        "/llm/connections",
+        json={
+            "label": "Typo",
+            "provider": "openai_compatible",
+            "base_url": openai_server,
+            "catalog_provider": "opneai",
+        },
+    )
+
+    assert refused.status_code == 422
+    assert (await client.get("/llm/connections")).json() == []
+
+
+async def test_a_connection_reads_its_own_providers_entry(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Neon serves gpt-5-5 with image output; other providers serve it as text.
+    A Neon connection reads Neon's entry, a custom one what every provider agrees on."""
+    monkeypatch.setattr(
+        conftest, "REMOTE_MODELS", [*conftest.REMOTE_MODELS, {"id": "gpt-5-5"}]
+    )
+    body = {"provider": "openai_compatible", "base_url": openai_server}
+    neon = (
+        await client.post(
+            "/llm/connections",
+            json={**body, "label": "Neon", "catalog_provider": "neon"},
+        )
+    ).json()
+    custom = (await client.post("/llm/connections", json={**body, "label": "Mine"})).json()
+
+    async def types(connection: dict) -> list[str]:
+        listed = (await client.get(f"/llm/connections/{connection['id']}/models")).json()
+        return next(m["types"] for m in listed if m["name"] == "gpt-5-5")
+
+    assert await types(neon) == ["text_gen", "image_gen", "image_edit"]
+    assert await types(custom) == ["text_gen"]
+
+
 async def test_connection_update_distinguishes_omitted_and_null_secret(
     client: AsyncClient, openai_server: str
 ) -> None:

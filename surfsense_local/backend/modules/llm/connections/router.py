@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
+from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.connections.service import (
+    CUSTOM,
     discover_models,
     normalize_base_url,
     probe_connection,
@@ -48,6 +50,7 @@ def _read(connection: ProviderConnection) -> ConnectionRead:
         label=connection.label,
         provider=connection.provider,
         base_url=connection.base_url,
+        catalog_provider=connection.catalog_provider,
         has_api_key=connection.api_key_ciphertext is not None,
         created_at=connection.created_at,
         updated_at=connection.updated_at,
@@ -64,6 +67,13 @@ def _candidate(payload: ConnectionWrite) -> tuple[str, str, str | None]:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"unknown connection provider: {payload.provider}",
+        )
+    if payload.catalog_provider != CUSTOM and not remote_lookup().has_provider(
+        payload.catalog_provider
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"unknown catalog provider: {payload.catalog_provider}",
         )
     try:
         base_url = normalize_base_url(payload.base_url)
@@ -153,6 +163,7 @@ async def create_connection(
         label=label,
         provider=payload.provider,
         base_url=base_url,
+        catalog_provider=payload.catalog_provider,
         api_key=api_key,
     )
     return await transact(session, _save, connection)
@@ -171,6 +182,7 @@ async def update_connection(
     connection.label = label
     connection.provider = payload.provider
     connection.base_url = base_url
+    connection.catalog_provider = payload.catalog_provider
     connection.api_key = api_key
     return await transact(session, _save, connection)
 

@@ -37,6 +37,7 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 | `id` | the connection's identity; selections point at it |
 | `label` | required, unique case-insensitively |
 | `provider` | `openai_compatible`, enforced by a CHECK |
+| `catalog_provider` | the remote manifest provider this reaches, such as `openai` or `neon`, or `custom` for an endpoint the manifest does not list; stored as chosen, never read from the URL |
 | `base_url` | the exact API root, normally ending in `/v1`, stored without a trailing slash |
 | `api_key_ciphertext` | the Fernet-encrypted key, nullable, never returned by any route |
 | `created_at`, `updated_at` | |
@@ -65,10 +66,12 @@ The write body:
   "provider": "openai_compatible",
   "base_url": "https://qwen.internal/v1",
   "api_key": null,
-  "allow_unverified": false
+  "allow_unverified": false,
+  "catalog_provider": "custom"
 }
 ```
 
+- `catalog_provider` defaults to `custom`; any other value must be a provider in the remote manifest, or the write is a `422`.
 - On update, an omitted `api_key` keeps the stored key, a value replaces it, and `null` clears it. On create, omitted and `null` both mean no key. A key that is given must not be empty.
 - Create and update check a candidate before touching stored state: normalise the URL, require egress to its host, call `GET {base_url}/models` with the candidate key, and require an OpenAI list envelope in reply. A failed update leaves the working connection and its key as they were.
 - A probe that fails for any reason gets `422` with code `unverified_connection`, and nothing is saved. For an endpoint without useful model discovery the form offers "Save anyway", which repeats the write with `allow_unverified: true`; a model id then has to be entered by hand. A failed probe never becomes a silent unverified save.
@@ -82,7 +85,7 @@ The write body:
 Each model's `types` come from the first of three sources that knows it, and nothing is guessed; `capability_source` says which:
 
 1. `declared`: output modalities the endpoint publishes: text is `text_gen`, image `image_gen`, video `video_gen` and audio `audio_gen`.
-2. `catalog`: the remote model manifest, [`catalog/remote/manifest/models.json`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/models.json). `scripts/refresh_remote_manifest.py` builds it offline from models.dev, keyed provider then model, with the evidence the classifier reads rather than a verdict; a person reviews the diff and commits it, and nothing fetches models.dev at runtime. The lookup reads the maker's own entry when the id's prefix names one, otherwise the types every provider carrying the id agrees on, trying the full id and then its last path segment ([`lookup.py`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/lookup.py)). A model found with no types, such as an embedder, is known to fill no slot.
+2. `catalog`: the remote model manifest, [`catalog/remote/manifest/models.json`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/models.json). `scripts/refresh_remote_manifest.py` builds it offline from models.dev, keyed provider then model, with the evidence the classifier reads rather than a verdict; a person reviews the diff and commits it, and nothing fetches models.dev at runtime. A connection with a `catalog_provider` reads that provider's entry first. Otherwise, and for an id its provider does not carry, the lookup reads the maker's own entry when the id's prefix names one, otherwise the types every provider carrying the id agrees on, trying the full id and then its last path segment ([`lookup.py`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/lookup.py)). A model found with no types, such as an embedder, is known to fill no slot.
 3. `unknown`: neither source knows the id.
 
 Each listed model also carries `selectable_for`, the slots it can fill, decided by the one rule in [`selectable.py`](../../surfsense_local/backend/modules/llm/selectable.py): the types it is, or every type when it is unknown. The pickers read that field rather than deciding, and choosing a model applies the same rule, so a model is selectable everywhere or nowhere. A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.

@@ -16,6 +16,9 @@ DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 # an id neither source knows stays "unknown" and the picker says so.
 CapabilitySource = Literal["declared", "catalog", "unknown"]
 
+# The catalog provider of an endpoint the manifest does not list.
+CUSTOM = "custom"
+
 
 # What an endpoint's declared output modality says a model is for.
 _DECLARED_AS = {
@@ -99,12 +102,15 @@ def _entries(payload: object) -> dict[str, set[str]]:
     return entries
 
 
-def _classify(name: str, modalities: set[str]) -> DiscoveredModel:
+def _classify(
+    name: str, modalities: set[str], catalog_provider: str | None = None
+) -> DiscoveredModel:
     """Resolve one model against every source, in order, first answer winning.
 
     The same three doors for every model from every endpoint: what the endpoint
     published, then the reviewed catalogue, then nothing. There is no fourth
-    door that guesses.
+    door that guesses. A connection that names its manifest provider reads that
+    provider's entry first.
     """
     if modalities:
         declared = tuple(
@@ -113,7 +119,7 @@ def _classify(name: str, modalities: set[str]) -> DiscoveredModel:
             if modality in modalities
         )
         return DiscoveredModel(name, declared, "declared")
-    catalogued = remote_lookup().classify(name)
+    catalogued = remote_lookup().classify(name, provider=catalog_provider)
     if catalogued.known:
         # Enum order, so a model's types read the same wherever they are shown.
         types = tuple(t for t in ModelType if t in catalogued.types)
@@ -156,8 +162,10 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
     merged = {name: set(modalities) for name, modalities in baseline.items()}
     for name, modalities in optional.items():
         merged.setdefault(name, set()).update(modalities)
+    # `custom` names no manifest provider, so its models are read across all.
+    provider = None if connection.catalog_provider == CUSTOM else connection.catalog_provider
     return sorted(
-        (_classify(name, modalities) for name, modalities in merged.items()),
+        (_classify(name, modalities, provider) for name, modalities in merged.items()),
         key=lambda model: model.name.casefold(),
     )
 
