@@ -6,7 +6,9 @@ from httpx import AsyncClient
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
-async def test_the_catalog_renders_with_no_network_and_no_scan(client: AsyncClient) -> None:
+async def test_the_catalog_renders_with_no_network_and_no_scan(
+    client: AsyncClient,
+) -> None:
     """The catalog renders with no network and no scan."""
     reply = await client.get("/llm/catalog/local")
 
@@ -14,7 +16,12 @@ async def test_the_catalog_renders_with_no_network_and_no_scan(client: AsyncClie
     body = reply.json()
     curated = [row for row in body["rows"] if row["origin"] == "curated"]
     assert curated
-    assert all(build["badge"]["verdict"] for row in curated for build in row["builds"])
+    # A badge names a verdict exactly when it warns.
+    for row in curated:
+        for build in row["builds"]:
+            badge = build["badge"]
+            assert badge["level"] in {"none", "notice", "refuse"}
+            assert bool(badge["verdict"]) == (badge["level"] != "none")
     assert "scanned" not in body
 
 
@@ -27,7 +34,12 @@ async def test_every_local_row_has_one_shape(client: AsyncClient) -> None:
         assert {"types", "selectable_for", "support", "builds", "runnable"} <= set(row)
         assert "reads_images" in row["support"]
         for build in row["builds"]:
-            assert {"footprint_bytes", "files", "reads_images", "projector_checked"} <= set(build)
+            assert {
+                "footprint_bytes",
+                "files",
+                "reads_images",
+                "projector_checked",
+            } <= set(build)
 
 
 async def test_no_row_carries_a_rank_on_the_wire(client: AsyncClient) -> None:
@@ -51,14 +63,20 @@ async def test_each_curated_model_names_its_default_and_at_most_one_recommended_
             assert sum(b["recommended"] for b in row["builds"]) <= 1
 
 
-async def test_the_offload_fraction_survives_to_the_renderer(client: AsyncClient) -> None:
+async def test_the_offload_fraction_survives_to_the_renderer(
+    client: AsyncClient,
+) -> None:
     """The offload fraction survives to the renderer."""
     body = (await client.get("/llm/catalog/local")).json()
 
-    assert all("offload_fraction" in b["fit"] for row in body["rows"] for b in row["builds"])
+    assert all(
+        "offload_fraction" in b["fit"] for row in body["rows"] for b in row["builds"]
+    )
 
 
-async def test_the_system_route_describes_one_device_never_a_sum(client: AsyncClient) -> None:
+async def test_the_system_route_describes_one_device_never_a_sum(
+    client: AsyncClient,
+) -> None:
     """The system route describes one device never a sum."""
     body = (await client.get("/llm/system")).json()
 
@@ -68,13 +86,21 @@ async def test_the_system_route_describes_one_device_never_a_sum(client: AsyncCl
     assert "gpu_status" not in budget
 
 
-async def test_search_is_refused_until_its_destination_is_allowed(client: AsyncClient) -> None:
+async def test_search_is_refused_until_its_destination_is_allowed(
+    client: AsyncClient,
+) -> None:
     """Search is refused until its destination is allowed."""
-    assert (await client.get("/llm/catalog/local/search", params={"q": "qwen"})).status_code == 403
-    assert (await client.get("/llm/catalog/local/search/unsloth/Qwen3-8B-GGUF")).status_code == 403
+    assert (
+        await client.get("/llm/catalog/local/search", params={"q": "qwen"})
+    ).status_code == 403
+    assert (
+        await client.get("/llm/catalog/local/search/unsloth/Qwen3-8B-GGUF")
+    ).status_code == 403
 
 
-async def test_installing_an_unknown_id_says_the_catalog_is_stale(client: AsyncClient) -> None:
+async def test_installing_an_unknown_id_says_the_catalog_is_stale(
+    client: AsyncClient,
+) -> None:
     """Installing an unknown id says the catalog is stale."""
     reply = await client.post("/llm/install", json={"catalog_id": "never-minted"})
 
@@ -82,7 +108,9 @@ async def test_installing_an_unknown_id_says_the_catalog_is_stale(client: AsyncC
     assert "stale" in reply.json()["detail"]
 
 
-async def test_a_curated_build_is_installed_by_its_opaque_id(client: AsyncClient) -> None:
+async def test_a_curated_build_is_installed_by_its_opaque_id(
+    client: AsyncClient,
+) -> None:
     """A valid id gets past resolution and fails on egress, not on being unknown."""
     body = (await client.get("/llm/catalog/local")).json()
     catalog_id = body["rows"][0]["builds"][0]["catalog_id"]

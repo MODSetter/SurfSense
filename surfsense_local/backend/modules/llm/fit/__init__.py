@@ -1,6 +1,6 @@
 from modules.llm.fit.budget import HardwareBudget
 from modules.llm.fit.compute_buffers import compute_buffer_bytes
-from modules.llm.fit.copy import Badge, badge
+from modules.llm.fit.copy import Badge, BadgeLevel, badge
 from modules.llm.fit.estimate import (
     CONTEXT_FLOOR_TOKENS,
     CONTEXT_RUNGS,
@@ -21,6 +21,7 @@ __all__ = [
     "CONTEXT_RUNGS",
     "RECOMMENDABLE_TIERS",
     "Badge",
+    "BadgeLevel",
     "FitState",
     "FitVerdict",
     "HardwareBudget",

@@ -262,7 +262,11 @@ def _build(build: BuildRow, selected: str | None) -> dict:
             "offload_fraction": fit.offload_fraction,
             "approximate": fit.approximate,
         },
-        "badge": {"verdict": build.badge.verdict, "reason": build.badge.reason},
+        "badge": {
+            "level": build.badge.level.value,
+            "verdict": build.badge.verdict,
+            "reason": build.badge.reason,
+        },
         "can_install": build.can_install,
         "installed_as": build.installed_as,
         "selected": build.installed_as is not None and build.installed_as == selected,

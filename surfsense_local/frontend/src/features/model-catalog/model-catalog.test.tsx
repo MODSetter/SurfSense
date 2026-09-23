@@ -39,7 +39,7 @@ const build = (overrides: Partial<LocalBuild> = {}): LocalBuild => ({
     },
   ],
   fit: fit(),
-  badge: { verdict: "Full speed", reason: "Runs entirely on the GPU" },
+  badge: { level: "none", verdict: "", reason: "" },
   can_install: true,
   installed_as: null,
   selected: false,
@@ -134,16 +134,46 @@ describe("model catalog", () => {
     expect(values).toEqual([{ type: "starting" }, { type: "complete" }])
   })
 
-  it("renders a hardware line and badged rows with no scan button", async () => {
-    // There is no scan: the budget comes from the runtime's own allocator, so
-    // there is nothing to wait for and nothing for the user to press.
+  it("renders a hardware line and quiet rows with no scan button", async () => {
+    // There is no scan: the budget comes from the runtime's own allocator. A
+    // build that runs fully carries no badge; a badge is only ever a warning.
     vi.stubGlobal("fetch", serving(catalog()))
 
     render(<ModelCatalogPage />)
 
-    expect(await screen.findByText("Full speed")).toBeTruthy()
-    expect(screen.getByText("Runs entirely on the GPU")).toBeTruthy()
+    expect(await screen.findByText("Qwen3 8B")).toBeTruthy()
+    expect(screen.queryByText("Full speed")).toBeNull()
     expect(screen.queryByRole("button", { name: /scan/i })).toBeNull()
+  })
+
+  it("explains a light spill without flagging it", async () => {
+    // Recommended on purpose, so it must not wear a warning beside the star.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({ recommended: true }, [
+              build({
+                recommended: true,
+                fit: fit({ state: "partial", offload_fraction: 0.2 }),
+                badge: {
+                  level: "none",
+                  verdict: "",
+                  reason: "Most of it runs on the GPU.",
+                },
+              }),
+            ]),
+          ],
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    expect(await screen.findByText("Most of it runs on the GPU.")).toBeTruthy()
+    expect(screen.getByLabelText("Recommended for this computer")).toBeTruthy()
+    expect(screen.queryByText("Reduced speed")).toBeNull()
   })
 
   it("says the card was not detected rather than calling the machine CPU only", async () => {
@@ -211,9 +241,9 @@ describe("model catalog", () => {
               build({
                 fit: fit({ state: "partial", offload_fraction: 0.28 }),
                 badge: {
+                  level: "notice",
                   verdict: "Reduced speed",
-                  reason:
-                    "A little too big for the GPU. Most of it still fits.",
+                  reason: "Too big for the GPU, so part runs on the CPU.",
                 },
               }),
             ]),
@@ -244,6 +274,7 @@ describe("model catalog", () => {
               build({
                 fit: fit({ state: "partial", offload_fraction: 0.7 }),
                 badge: {
+                  level: "notice",
                   verdict: "Reduced speed",
                   reason: "Well over the GPU's memory. Expect it to be slow.",
                 },
@@ -273,6 +304,7 @@ describe("model catalog", () => {
               build({
                 fit: fit({ state: "too_big", offload_fraction: 1 }),
                 badge: {
+                  level: "refuse",
                   verdict: "Won't fit",
                   reason: "Needs about 21 GB. This Mac has 13.6 GB",
                 },
@@ -515,7 +547,9 @@ describe("model catalog", () => {
     await user.click(hit)
 
     expect(await screen.findByText("Q4_K_M")).toBeTruthy()
-    expect(screen.getByText("~ Full speed")).toBeTruthy()
+    expect(
+      screen.getByText(/Fit is estimated and checked before download/)
+    ).toBeTruthy()
     expect(screen.getByText("Reads images")).toBeTruthy()
     expect(screen.queryByLabelText("Recommended for this computer")).toBeNull()
   })

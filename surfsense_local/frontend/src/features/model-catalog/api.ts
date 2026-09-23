@@ -21,8 +21,13 @@ export type Fit = {
   approximate: boolean
 }
 
-/** A verdict plus one plain line of why. The API owns this copy. */
+/**
+ * A warning when there is one, plus one plain line of why. `none` means there
+ * is nothing to flag: the verdict is empty and the reason, if any, is quiet.
+ * The API owns this copy.
+ */
 export type Badge = {
+  level: "none" | "notice" | "refuse"
   verdict: string
   reason: string
 }

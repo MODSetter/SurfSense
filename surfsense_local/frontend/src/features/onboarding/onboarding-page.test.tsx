@@ -93,7 +93,7 @@ function installApi() {
                   offload_fraction: 0,
                   approximate: false,
                 },
-                badge: { verdict: "Full speed", reason: "" },
+                badge: { level: "none", verdict: "", reason: "" },
                 can_install: false,
                 installed_as: "Llama 3.2 1B",
                 selected: true,

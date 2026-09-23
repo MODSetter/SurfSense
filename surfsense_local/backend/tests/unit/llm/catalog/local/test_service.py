@@ -18,6 +18,7 @@ from modules.llm.catalog.local.service import (
     InstallRefusedError,
     LocalCatalogService,
 )
+from modules.llm.fit import BadgeLevel
 from modules.llm.hardware import GpuStatus
 from modules.llm.providers.types import DownloadProgress
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
@@ -39,7 +40,12 @@ def test_the_catalog_renders_before_anything_is_installed(service) -> None:
 
     curated = [r for r in catalog.local.rows if r.origin is Origin.CURATED]
     assert curated
-    assert all(b.badge.verdict for r in curated for b in r.builds)
+    # A badge names a verdict exactly when it warns.
+    assert all(
+        bool(b.badge.verdict) == (b.badge.level is not BadgeLevel.NONE)
+        for r in curated
+        for b in r.builds
+    )
     assert not any(b.installed_as for r in curated for b in r.builds)
 
 

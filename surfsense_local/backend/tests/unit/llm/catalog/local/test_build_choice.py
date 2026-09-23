@@ -64,12 +64,10 @@ def test_a_default_that_runs_slowly_steps_down_to_the_largest_that_runs_well() -
 
 def test_the_step_down_skips_what_would_still_be_slow() -> None:
     """The step down skips what would still be slow."""
-    choose = tiers(
-        UD_Q4_K_XL=SpeedTier.TOO_BIG,
-        Q4_K_M=SpeedTier.HEAVY_SPILL,
-    )
+    q4s = B("Q4_K_S", 4)
+    choose = tiers(UD_Q4_K_XL=SpeedTier.TOO_BIG, Q4_K_M=SpeedTier.HEAVY_SPILL)
 
-    assert recommended_build(LADDER, UD4, choose) is Q3
+    assert recommended_build([Q3, q4s, Q4, UD4], UD4, choose) is q4s
 
 
 def test_nothing_fast_enough_means_no_recommendation() -> None:
@@ -80,3 +78,16 @@ def test_nothing_fast_enough_means_no_recommendation() -> None:
 def test_no_default_means_no_recommendation() -> None:
     """No default means no recommendation."""
     assert recommended_build(LADDER, None, lambda _: SpeedTier.FULL) is None
+
+
+def test_the_step_down_never_recommends_below_four_bits() -> None:
+    """A three or two bit build of a larger model is not clearly better than a
+    four bit build of a smaller one, so the star moves to the smaller model."""
+    choose = tiers(UD_Q4_K_XL=SpeedTier.TOO_BIG, Q4_K_M=SpeedTier.TOO_BIG)
+
+    assert recommended_build(LADDER, UD4, choose) is None
+
+
+def test_a_default_below_four_bits_is_never_recommended() -> None:
+    """A repo whose best build is three bit offers nothing to recommend."""
+    assert recommended_build([Q3], Q3, tiers()) is None

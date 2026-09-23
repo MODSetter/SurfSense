@@ -37,6 +37,10 @@ class SystemRead(BaseModel):
 
 
 class BadgeRead(BaseModel):
+    """A warning, when there is one. `none` means there is nothing to flag,
+    and then `verdict` is empty; `reason` may still describe the fit quietly."""
+
+    level: str
     verdict: str
     reason: str
 

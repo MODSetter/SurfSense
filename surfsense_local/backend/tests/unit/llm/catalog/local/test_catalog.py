@@ -13,7 +13,7 @@ from modules.llm.catalog.local.downloaded import scan
 from modules.llm.catalog.local.installs import InstalledBuild, projector_filename
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.rows import Origin
-from modules.llm.fit import HardwareBudget, SpeedTier, plan_load, speed_tier
+from modules.llm.fit import BadgeLevel, HardwareBudget, SpeedTier, plan_load, speed_tier
 from modules.llm.model_type import ModelType
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
 
@@ -79,6 +79,7 @@ def test_a_recommended_build_never_runs_slowly(budget_name) -> None:
         for build in row.builds:
             if build.recommended:
                 assert speed_tier(build.fit) in {SpeedTier.FULL, SpeedTier.LIGHT_SPILL}
+                assert build.badge.level is BadgeLevel.NONE
 
 
 @pytest.mark.parametrize("budget_name", BUDGETS)
@@ -302,3 +303,16 @@ def test_an_unreadable_file_is_listed_as_an_approximate_chat_model(
     assert row.runnable
     assert row.classification.approximate
     assert row.builds[0].fit.approximate
+
+
+def test_an_eight_gigabyte_mac_stars_a_four_bit_build_not_a_three_bit_larger_one() -> (
+    None
+):
+    """The measured screenshot: the star sat on Qwen3 8B at UD-Q3_K_XL beside
+    Qwen3 4B running at full speed. Below four bits the star moves down a model."""
+    result = catalog(BUDGETS["unified-8gb"])
+    star = next(r for r in result.rows if r.id == result.recommended_id)
+
+    (picked,) = [b for b in star.builds if b.recommended]
+    assert not picked.build.quantization.removeprefix("UD-").startswith(("Q2", "Q3"))
+    assert picked.badge.level is BadgeLevel.NONE

@@ -28,3 +28,13 @@ PREFERENCE: tuple[str, ...] = (
     "BF16",
     "F32",
 )
+
+# The builds a recommendation may land on: four bits and up. Below that, a
+# larger model's build is not clearly better than a smaller model's four bit
+# one, so the star moves to the smaller model instead. The rest stay listed and
+# installable; they are never recommended.
+RECOMMENDABLE: frozenset[str] = frozenset(
+    label
+    for label in PREFERENCE
+    if not label.removeprefix("UD-").startswith(("Q2", "Q3"))
+)
