@@ -62,6 +62,7 @@ def test_an_image_selection_becomes_the_image_gen_selection(tmp_path: Path) -> N
         tmp_path,
         "INSERT INTO selected_models(role, provider, name) "
         "VALUES ('image_generation', 'sdcpp', 'sdxl-base-1.0')",
+        target="0013",
     )
 
     with engine.connect() as connection:
