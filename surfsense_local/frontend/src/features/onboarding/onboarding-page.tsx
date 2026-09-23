@@ -1,10 +1,6 @@
 import { useState } from "react"
 
-import {
-  ArrowRightIcon,
-  CircleAlertIcon,
-  RefreshCwIcon,
-} from "@/components/ui/icons"
+import { ArrowRightIcon, CircleAlertIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -19,13 +15,10 @@ import {
 } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
-import {
-  completeOnboarding,
-  type ModelSelection,
-} from "@/features/model-selection/api"
-import { ModelSelectionContent } from "@/features/model-selection/model-selection-content"
-import { useModelSelection } from "@/features/model-selection/use-model-selection"
+import type { ModelSelection } from "@/features/models/selection/api"
+import { useSelection } from "@/features/models/selection/use-selection"
 
+import { completeOnboarding } from "./api"
 import { OnboardingDither } from "./onboarding-dither"
 
 const ONBOARDING_STEPS = [1, 2] as const
@@ -80,13 +73,7 @@ function OnboardingProgress({ step }: { step: number }) {
  * `currentColor` from `--primary` to `--primary-foreground` as the disc
  * arrives underneath them.
  */
-function FlowButton({
-  text,
-  onClick,
-}: {
-  text: string
-  onClick: () => void
-}) {
+function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
   return (
     <button
       type="button"
@@ -153,18 +140,19 @@ function OfflineState({ message }: { message: string }) {
   )
 }
 
+/**
+ * The model step's frame. Its content is still to be designed; it will be
+ * built on the same hooks as the settings pages in `features/models`.
+ */
 function ModelSetupStep({
   onComplete,
 }: {
   onComplete: (selection: ModelSelection) => void
 }) {
-  const { state, isRefreshing, select, refresh } = useModelSelection()
+  const chat = useSelection("text_gen")
   const [completing, setCompleting] = useState(false)
   const [completeError, setCompleteError] = useState<string | null>(null)
-  const showsModelSelection = state.status !== "api-unavailable"
-  const selection = state.status === "ready" ? state.selection : null
-  const canContinue = selection !== null
-  const busy = completing || isRefreshing
+  const selection = chat.data ?? null
 
   const finish = async () => {
     if (selection === null) return
@@ -195,25 +183,7 @@ function ModelSetupStep({
       </CardHeader>
 
       <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-        {state.status === "api-unavailable" ? (
-          <OfflineState message={state.message} />
-        ) : null}
-        {showsModelSelection ? (
-          <div className="min-h-0 flex-1 overflow-hidden">
-            <ModelSelectionContent
-              allowDelete
-              state={state}
-              draftKey={null}
-              disabled={busy}
-              onSelect={select}
-              onCatalogSelected={() => void refresh({ silent: true })}
-              onModelUnavailable={() => void refresh({ silent: true })}
-              onModelsChanged={() => void refresh({ silent: true })}
-              refresh={refresh}
-            />
-          </div>
-        ) : null}
-
+        {chat.isError ? <OfflineState message={chat.error.message} /> : null}
         {completeError ? (
           <p className="text-sm text-destructive" aria-live="polite">
             {completeError}
@@ -221,25 +191,11 @@ function ModelSetupStep({
         ) : null}
       </CardContent>
 
-      <CardFooter className="justify-between gap-3">
-        <Button
-          type="button"
-          variant="outline"
-          className="min-h-10"
-          disabled={state.status !== "ready" || busy}
-          onClick={() => void refresh()}
-        >
-          {isRefreshing ? (
-            <Spinner data-icon="inline-start" />
-          ) : (
-            <RefreshCwIcon data-icon="inline-start" />
-          )}
-          {isRefreshing ? "Refreshing..." : "Refresh"}
-        </Button>
+      <CardFooter className="justify-end gap-3">
         <Button
           type="button"
           className="min-h-10"
-          disabled={!canContinue || busy}
+          disabled={selection === null || completing}
           onClick={() => void finish()}
         >
           {completing ? <Spinner data-icon="inline-start" /> : null}
