@@ -4,7 +4,7 @@
 
 A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
-**Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/model-selection/`](../../surfsense_local/frontend/src/features/model-selection/)
+**Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/models/remote/`](../../surfsense_local/frontend/src/features/models/remote/)
 **Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
 
 ## Terms
@@ -105,7 +105,7 @@ Each listed model also carries `selectable_for`, the slots it can fill, decided 
 - A listed id the provider's manifest entry lacks, one newer than the last refresh, is added as `available`. A `custom` connection's rows are its listing and nothing else.
 - An endpoint that is down leaves the manifest rows `could_not_check` with a `200`, not a `502`: an endpoint being down is not its models disappearing.
 - Deprecated models are left out unless `include_deprecated=true`.
-- `GET /llm/connections/{connection_id}/models` still backs the connection cards, the pickers, and the checks at boot and on the dashboard that the selected remote model is still listed. Nothing in the frontend reads the two row routes yet.
+- `GET /llm/connections/{connection_id}/models` still backs the server groups, the pickers, and the checks at boot and on the dashboard that the selected remote model is still listed. Nothing in the frontend reads the two row routes yet.
 
 ## Runtime
 
@@ -140,7 +140,7 @@ Loading a connection runs the egress check for its host. The bundled sd-server s
 
 - `chat-test` streams one answer from the chosen model, by default to a prompt asking for one short sentence, capped at 1,024 tokens and 600 characters, so a model whose capability is `unknown` can be seen answering before it becomes the chat model. An empty reply is a `502`, which is what a reasoning model returns when it spends the whole budget thinking.
 - `image-test` generates one image, by default a blue circle on white, through the real image client and returns the bytes with `Cache-Control: no-store`. It creates no artifact.
-- Selecting a model never runs inference. The connection card offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
+- Selecting a model never runs inference. The server group offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
 
 ## Where keys live
 
@@ -156,7 +156,8 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 
 ## Frontend
 
-- The model settings list connection cards. Each card loads its own models, so a slow or failed endpoint does not hold up the others, and a model can be assigned to chat or to image after an optional test.
+- Each model section in Settings, Chat and Image, shows every connection as a group under the local models. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; while closed it shows only the model in use, if that comes from it. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from the **Use a server** card on the section's **Add model** page, and saving it returns to the list with its group open.
+- Edit and Disconnect sit on each group. Edit opens the same form as a page, not a dialog. A connection serves every slot, so Disconnect names each model it will clear, Chat, Image or both, whichever section it is disconnected from.
 - The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. "Local or custom server" leaves the URL to the user, since its port is whatever its owner set, with `http://localhost:11434/v1` as placeholder text only; a loopback server the manifest lists, such as LM Studio, fills the manifest's URL like any ready provider. The save sends `catalog_provider`.
 
 ## Known gaps

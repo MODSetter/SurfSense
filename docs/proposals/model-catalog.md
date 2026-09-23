@@ -5,8 +5,7 @@ code:
   - surfsense_local/backend/modules/llm/catalog/
   - surfsense_local/backend/alembic/versions/
   - surfsense_local/backend/scripts/
-  - surfsense_local/frontend/src/features/model-catalog/
-  - surfsense_local/frontend/src/features/model-selection/
+  - surfsense_local/frontend/src/features/models/
   - surfsense_local/frontend/src/features/connections/
 ---
 

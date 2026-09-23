@@ -10,7 +10,7 @@ egress is off. Every build is priced by the same fit estimate ([`fit.md`](fit.md
 Only curated models are ever recommended, as a model or as a build. Installs key
 on an opaque id the server mints, so the renderer can never name a download.
 
-**Code:** [`surfsense_local/backend/modules/llm/catalog/local/`](../../../surfsense_local/backend/modules/llm/catalog/local/), [`surfsense_local/backend/modules/llm/providers/llamacpp/download.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/download.py), [`surfsense_local/backend/scripts/refresh_local_manifest.py`](../../../surfsense_local/backend/scripts/refresh_local_manifest.py), [`surfsense_local/backend/scripts/local_manifest/`](../../../surfsense_local/backend/scripts/local_manifest/), [`surfsense_local/frontend/src/features/model-catalog/`](../../../surfsense_local/frontend/src/features/model-catalog/)
+**Code:** [`surfsense_local/backend/modules/llm/catalog/local/`](../../../surfsense_local/backend/modules/llm/catalog/local/), [`surfsense_local/backend/modules/llm/providers/llamacpp/download.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/download.py), [`surfsense_local/backend/scripts/refresh_local_manifest.py`](../../../surfsense_local/backend/scripts/refresh_local_manifest.py), [`surfsense_local/backend/scripts/local_manifest/`](../../../surfsense_local/backend/scripts/local_manifest/), [`surfsense_local/frontend/src/features/models/local/`](../../../surfsense_local/frontend/src/features/models/local/)
 **Decisions:** [ADR 0014](../../adr/0014-two-tier-model-catalog.md), [ADR 0017](../../adr/0017-egress-off-by-default.md), [ADR 0026](../../adr/0026-curated-order-is-list-position.md), [ADR 0027](../../adr/0027-egress-consent-per-host.md)
 
 ## Three origins, one row
@@ -301,14 +301,22 @@ on search and repo reads, and the stream's generic error during an install.
 
 ## On the screen
 
-Onboarding and Settings share the model screen. From the top:
+Settings has one section per model type, **Chat models** and **Image models**.
+Each names the model in use at the top, then groups the slot's models by source:
+**This computer**, every build on disk, curated or not, with Use (when its type
+can fill the slot) or In use and Delete after confirmation; then one group per
+connected server ([`../connections.md`](../connections.md)). **Add model** opens
+one page with both ways in: a collapsed **Use a server** card first, because it
+is short, then **On this computer**, the catalog below. The image section shows
+the catalog only when the API reports the sd.cpp models
+([`../studio.md`](../studio.md)) `offered`, which it decides from the image
+models directory rather than the `sd-server` binary
+([`../packaging.md`](../packaging.md)); otherwise that part of the page says
+image models cannot run on this computer, and the layout stays the same.
+
+The chat catalog, from the top:
 
 - **A hardware line**, on first paint, with no scan and no button.
-- **Installed**: every build on disk, curated or not, with Use (when its type can
-  fill the text slot) or In use, and Delete after confirmation.
-- **Image models**: the sd.cpp models ([`../studio.md`](../studio.md)), shown
-  when the API reports them `offered`, which it decides from the image models
-  directory rather than the `sd-server` binary ([`../packaging.md`](../packaging.md)).
 - **Tested by SurfSense**: the curated rows, grouped by family. Each shows the
   star when it is the one for this computer, its name, a badge only when it warns,
   **Vision** when it reads images, the build it leads with and its size, and one
@@ -326,6 +334,9 @@ Rules the screen holds:
 - Reduced speed installs like any other build, with no confirmation. Only a
   refusal blocks.
 - Install errors, including the exact check's refusals, show as a toast.
+- An install belongs to the app, not the page that started it: leaving the
+  Add model page or closing Settings does not cancel it, and the section's list
+  shows its progress until it ends.
 
 ## How it is tested
 
@@ -336,7 +347,7 @@ pricing through the catalog (the badge matches the load on every budget shape; a
 recommended build never warns), reprice, search against mocked transports, and
 the service's installs; the routes are covered in
 [`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/),
-and the screen in `model-catalog.test.tsx` and `install-view.test.tsx`.
+and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and the settings sections' `chat-models-settings.test.tsx` and `image-models-settings.test.tsx`.
 
 ## Known gaps
 
@@ -355,4 +366,4 @@ and the screen in `model-catalog.test.tsx` and `install-view.test.tsx`.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
 - The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
 - Nothing checks free disk space before a download starts.
-- The screen is still separate lists, not the one list with Source and Capability filters the proposal describes.
+- Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.
