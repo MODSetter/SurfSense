@@ -73,7 +73,7 @@ Anything that reads context should raise with the reason when it is absent, the 
 
 Three holes in `document`. One is a bug in waiting, two are deliberate:
 
-- **Provenance.** `add()` cannot say which plugin wrote a note, because the route takes only a title and content. The column is there; the schema is not. Until that lands, nothing in the library records where it came from — see the umbrella's caught-while-specifying table.
+- **Provenance.** `add()` cannot say which plugin wrote a note, because the route takes only a title and content. The column is there; the schema is not. Until that lands, nothing in the library records where it came from — see [Caught while specifying](README.md#caught-while-specifying).
 
 - **Reading a document's body.** There is no route for it. `DocumentRead` omits content on purpose — it would bloat every poll the UI makes — and the only reads that return a body are `by-chunk` and `original`. A plugin that wants to enrich what it finds needs a route the app does not have yet, so this is an app change first and a verb second.
 - **Deleting.** One line to add, and left out on purpose: a plugin removing the user's documents is a different question from a plugin adding some, and nothing has asked for it. Add it when a syncing plugin does, not to tick off the domain.

@@ -10,7 +10,7 @@ egress is off. Every build is priced by the same fit estimate ([`fit.md`](fit.md
 Only curated models are ever recommended, as a model or as a build. Installs key
 on an opaque id the server mints, so the renderer can never name a download.
 
-**Code:** [`surfsense_local/backend/modules/llm/catalog/local/`](../../../surfsense_local/backend/modules/llm/catalog/local/), [`surfsense_local/backend/scripts/refresh_local_manifest.py`](../../../surfsense_local/backend/scripts/refresh_local_manifest.py), [`surfsense_local/backend/scripts/local_manifest/`](../../../surfsense_local/backend/scripts/local_manifest/), [`surfsense_local/frontend/src/features/model-catalog/`](../../../surfsense_local/frontend/src/features/model-catalog/)
+**Code:** [`surfsense_local/backend/modules/llm/catalog/local/`](../../../surfsense_local/backend/modules/llm/catalog/local/), [`surfsense_local/backend/modules/llm/providers/llamacpp/download.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/download.py), [`surfsense_local/backend/scripts/refresh_local_manifest.py`](../../../surfsense_local/backend/scripts/refresh_local_manifest.py), [`surfsense_local/backend/scripts/local_manifest/`](../../../surfsense_local/backend/scripts/local_manifest/), [`surfsense_local/frontend/src/features/model-catalog/`](../../../surfsense_local/frontend/src/features/model-catalog/)
 **Decisions:** [ADR 0014](../../adr/0014-two-tier-model-catalog.md), [ADR 0017](../../adr/0017-egress-off-by-default.md), [ADR 0026](../../adr/0026-curated-order-is-list-position.md), [ADR 0027](../../adr/0027-egress-consent-per-host.md)
 
 ## Three origins, one row
@@ -25,7 +25,7 @@ on an opaque id the server mints, so the renderer can never name a download.
 | Can be starred | yes | no | no |
 
 Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/llm/catalog/local/rows.py)):
-its types and `selectable_for` ([`selection.md`](selection.md)), its support
+its types, to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
 (`context`, `reads_images`, `tools`, `reasoning`), whether the bundled runtime can
 run it and why not, its builds, the build it leads with and why, and the star.
 Each build is a set of files with roles, and carries its fit, badge, whether it is
@@ -42,7 +42,7 @@ preferred first, and nothing in it is a score.
 ```jsonc
 {
   "schema_version": 1,
-  "refreshed_at": "2026-09-24",
+  "refreshed_at": "2026-09-23",
   "models": [
     {
       "id": "qwen3-8b", "name": "Qwen3 8B", "family": "Qwen3", "publisher": "Qwen",
@@ -77,10 +77,15 @@ preferred first, and nothing in it is a score.
   verified.
 - **Vision is a file, not a label.** A build that reads images lists its projector,
   with the projector's own GGUF keys under llama.cpp's names.
-- **`parameters_b` is counted from the tensor table**, and nothing but the
-  quantization label is read from a filename. The label keeps a quantizer's
-  prefix (`UD-Q4_K_XL`), because the preference order ranks it.
+- **`parameters_b` is counted from the tensor table.** No size, parameter count
+  or architecture is read from a filename. Names only sort files into builds
+  ([below](#which-files-make-a-build)) and give the quantization label, which
+  keeps a quantizer's prefix (`UD-Q4_K_XL`) because the preference order ranks it.
 - **`shape` is optional** for a model the llama.cpp estimator does not price.
+- **`aliases` fold a download into its curated row.** A downloaded file shows as
+  a curated build when its install record names the model's `source_repo`, an
+  alias or a build's repo with the same quantization, or, with no record, when
+  its file name is the build's own.
 
 The shipped seven, all from `unsloth/*-GGUF`, 18 builds each, none validated,
 most preferred first: Qwen3 32B, 14B, 8B, 4B, Gemma 3 4B (reads images), Qwen3
@@ -92,8 +97,9 @@ at startup by an empty one, so downloaded models and search still work.
 ## Authoring
 
 `scripts/refresh_local_manifest.py`, run by hand; never in CI, at packaging or
-on a request path. `local_manifest/entries.py` is the only hand-authored input:
-which models, in which order, from which repo. For each repo the script reads the
+on a request path. `local_manifest/entries.py` is the hand-authored input:
+which models, in which order, from which repo; `VALIDATED`, in the script
+itself, is the other. For each repo the script reads the
 commit sha, the file listing at that commit (sizes and `lfs.oid` hashes) and the
 repo's `params` file, then the default build's header and its projector's header
 over HTTP range requests. No weights are downloaded.
@@ -104,7 +110,7 @@ over HTTP range requests. No weights are downloaded.
   quantizations such as `TQ1_0` that the order does not rank.
 - **It refuses to write** a build without a hash or size, a projector that does not
   see images or is not as wide as the model, and a refresh that drops a model or
-  a build unless `--accept-loss` names the loss.
+  a build, listing what would go, unless it is rerun with `--accept-loss`.
 - **`VALIDATED`** names builds somebody downloaded, chatted with and confirmed
   citations resolve on, with the llama.cpp build they ran it on. It is empty.
 
@@ -140,8 +146,8 @@ For each curated model, in [`build_choice/`](../../../surfsense_local/backend/mo
 then names the build each row leads with, which is what its Download fetches, and
 why: `in_use`, then `installed`, then `recommended`, then `fits_slower` (the
 largest four bit or better build that installs), then `nothing_fits` (the default,
-to say how big the model is and that it will not fit). A searched row leads with
-nothing; it lists every build.
+when no build of four bits or more installs, to say how big the model is). A
+searched row leads with nothing; it lists every build.
 
 **The star** goes to the first curated model, in manifest order, with a
 recommended build, so a machine short of the preferred model's default gets a
@@ -154,9 +160,10 @@ small machine's screen is the one thing a model chooser must not do.
 A badge is a warning, shown only when there is something to warn about
 ([`fit.md`](fit.md#badges)): nothing for a build that runs fully or spills a
 little, "Reduced speed" in amber for a heavier spill, "Won't fit" in red. The
-tiers a build can be recommended at are exactly the tiers with no badge, so the
-star and a warning never share a row. A light spill is described quietly in the
-reason line instead.
+tiers a build can be recommended at are exactly the tiers with no badge, so a
+recommended build never warns. A row can still show both: the star sits beside
+the build the row leads with, which is the one in use or installed before the
+recommended one. A light spill is described quietly in the reason line instead.
 
 ## What a model is, and whether it can run here
 
@@ -212,20 +219,21 @@ screen searches once a query has two characters and keeps results for 300 s.
 
 **Opening a repo reads its listing and no file**, about a second: the summary and
 the file tree, fetched together. Every build is listed smallest first with its
-exact size and an estimated fit, marked `~`, which over-charges on purpose (the
-weights plus 15% and a gibibyte, in
+exact size and an estimated fit, whose badge is marked `~`, which over-charges
+on purpose (the weights plus 15% and a gibibyte, in
 [`pricing.py`](../../../surfsense_local/backend/modules/llm/catalog/local/pricing.py))
 so it never calls a spill resident. The type comes from the repo's tag and
 Hugging Face's parsed architecture, ignored when it names a projector, and is
-marked approximate. An estimate never refuses: the exact answer comes before any
-bytes move.
+marked approximate. An estimated fit never refuses, because the exact answer
+comes before any bytes move. A repo whose type is not `TEXT_GEN` gets no install
+ids, so none of its builds can be downloaded.
 
 **Installing a searched build reads it exactly.**
 [`exact_check.py`](../../../surfsense_local/backend/modules/llm/catalog/local/search/exact_check.py)
-reads the weights' header and the projector's, then refuses a file that is not a
-model, a type the runtime cannot run, or a build too big for the machine, with
-the sentence a person reads, and drops a projector that does not see or belongs
-to another model. A header parses in about 50 ms, because a vocabulary is
+reads the weights' header and the projector's, and drops a projector that does
+not see or belongs to another model. The service then refuses a file that is not
+a model, a type the runtime cannot run, or a build too big for the machine, with
+the sentence a person reads. A header parses in about 50 ms, because a vocabulary is
 counted rather than decoded
 ([`header_prefix.py`](../../../surfsense_local/backend/modules/llm/gguf/header_prefix.py)).
 
@@ -243,13 +251,14 @@ Both fail the same way: `422 catalog id is stale or unknown; refresh the catalog
 NDJSON, one `{"type": …}` frame per line:
 
 ```text
-starting     "Checking the model"              a searched build's headers are read
+starting     "Checking the model"              every install; only a searched build's headers are read
 error        the reason, and the stream ends   when the exact check refuses
 starting     "Preparing download"
 downloading  completed / total, repeated       across every file of the build
-verifying    "Checking the model"
+verifying    "Checking the model"              each file with a hash was checked as it landed
 preparing    "Preparing the model runtime"     preset rewritten, waiting for the router
-preparing    "Loading the model", progress     the router loading it, repeated
+preparing    "Loading the model", progress     the router loading it, repeated; "Loading image
+                                               support" or "Loading the draft model" for those stages
 selecting    "Selecting model"                 only when select is true
 complete     "Model is ready"
              or "Downloaded. It becomes available once the runtime restarts."
@@ -258,8 +267,9 @@ error        "The model could not be installed. Retry the download."
 
 The API fetches each file of the build from
 `https://huggingface.co/{repo}/resolve/{revision}/{path}` into the models folder
-itself, verifying every file against its sha256: an in-process fetch is the only
-place `egress.require()` can hold. Each file lands as a `.part` and is renamed
+itself, verifying every file against its sha256 (a searched file whose listing
+gives no LFS hash goes unchecked): an in-process fetch is the only place
+`egress.require()` can hold. Each file lands as a `.part` and is renamed
 only when whole and verified, a cancelled download resumes with a `Range`
 request, and one install runs at a time. Then the install record is written,
 `reprice()` rewrites the preset, the stream waits for the router to list the
@@ -267,7 +277,8 @@ model and forwards its load progress, and with `select` the model becomes the
 `text_gen` selection ([`runtime.md`](runtime.md)).
 
 Deleting a model removes every file its install record names, every part of a
-split build and its projector, and forgets it.
+split build and its projector, and forgets it. A file with no record, one copied
+in by hand, loses only `<id>.gguf` and `mmproj-<id>.gguf`.
 
 ## HTTP routes
 
@@ -285,7 +296,8 @@ delete is in `modules/llm/router.py` beside the selection routes.
 
 Search, repo reads and downloads share one consent, `host:huggingface.co`
 ([`../egress.md`](../egress.md)). A destination that is off is a `403` with
-`code: egress_disabled`; an unreachable host is a `503` naming `huggingface.co`.
+`code: egress_disabled`. An unreachable host is a `503` naming `huggingface.co`
+on search and repo reads, and the stream's generic error during an install.
 
 ## On the screen
 
@@ -294,6 +306,9 @@ Onboarding and Settings share the model screen. From the top:
 - **A hardware line**, on first paint, with no scan and no button.
 - **Installed**: every build on disk, curated or not, with Use (when its type can
   fill the text slot) or In use, and Delete after confirmation.
+- **Image models**: the sd.cpp models ([`../studio.md`](../studio.md)), shown
+  when the API reports them `offered`, which it decides from the image models
+  directory rather than the `sd-server` binary ([`../packaging.md`](../packaging.md)).
 - **Tested by SurfSense**: the curated rows, grouped by family. Each shows the
   star when it is the one for this computer, its name, a badge only when it warns,
   **Vision** when it reads images, the build it leads with and its size, and one
@@ -304,8 +319,8 @@ Onboarding and Settings share the model screen. From the top:
 
 Rules the screen holds:
 
-- The install button names the phase ("Checking…", "Downloading…",
-  "Preparing…"), and the progress bar and Cancel sit under the build being
+- The install button names the phase ("Starting…", "Downloading…",
+  "Verifying…", "Preparing…", "Selecting…"), and the progress bar and Cancel sit under the build being
   installed, curated or searched. "Other builds" stays open while one of its
   builds installs.
 - Reduced speed installs like any other build, with no confirmation. Only a
@@ -325,15 +340,19 @@ and the screen in `model-catalog.test.tsx` and `install-view.test.tsx`.
 
 ## Known gaps
 
-- Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand is picked up at the next start, when `reprice()` writes its preset ([`runtime.md`](runtime.md)).
+- Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Chat sends text only, so a model that reads images never receives one.
 - Image models are not in the manifest: the three sd.cpp models are still a hard-coded list in `providers/sdcpp/`, with their own routes and one file each ([`../studio.md`](../studio.md)).
-- A vision model downloaded before install records existed keeps its projector as `mmproj-F16.gguf`, which pairs with nothing, so it loads as text only until the projector is renamed to `mmproj-<model>.gguf` or the model is reinstalled.
+- A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
+- An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
+- A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
 - No build is validated: `validated.llama_cpp` is empty on all 126.
-- `sampling`, `template` and `run.args` are committed but not read at runtime: chat does not use the publisher's sampling yet.
+- `sampling`, `template.system_role` and `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
-- The API does not cache search, so only the renderer's 300 s query cache stands between typing and Hugging Face's rate limit.
-- A deleted curated repo gets the generic install error; nothing says the model is gone from its source.
+- `POST /llm/install` does not refuse a curated build that will not fit; only the screen's disabled Download does.
+- A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
+- The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
+- A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
 - The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
 - Nothing checks free disk space before a download starts.
 - The screen is still separate lists, not the one list with Source and Capability filters the proposal describes.

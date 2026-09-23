@@ -45,11 +45,11 @@ The Date is the day the decision was first written down. Source links are permal
 | 0008 | [Ingest and Studio jobs run on separate Huey queues, each drained by its own worker](0008-two-job-queues.md) | Accepted |
 | 0009 | [The UI stays fresh by invalidating queries on server-sent events, with no sync engine](0009-freshness-by-invalidation.md) | Accepted |
 | 0010 | [Studio models emit structured content and trusted builders render it, so no model-written code runs](0010-studio-builders-not-sandboxes.md) | Accepted |
-| 0011 | [llama-server in router mode is the one local model runtime](0011-llama-cpp-local-runtime.md) | Accepted, in part superseded by 0026 |
+| 0011 | [llama-server in router mode is the one local model runtime](0011-llama-cpp-local-runtime.md) | Accepted, in part superseded by 0026 and the model catalog proposal |
 | 0012 | [The GPU backend is Vulkan everywhere off Apple Silicon, with no CUDA payload](0012-vulkan-only-gpu-backend.md) | Accepted |
 | 0013 | [Model fit comes from the allocator's view of one device, and only physics refuses an install](0013-fit-from-the-allocator.md) | Accepted |
-| 0014 | [The model catalog is a curated offline manifest plus Hugging Face search, and SurfSense downloads the files itself](0014-two-tier-model-catalog.md) | Accepted, in part superseded by 0026 and 0027 |
-| 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted |
+| 0014 | [The model catalog is a curated offline manifest plus Hugging Face search, and SurfSense downloads the files itself](0014-two-tier-model-catalog.md) | Accepted, in part superseded by 0026, 0027 and the model catalog proposal |
+| 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal |
 | 0016 | [The app sends no telemetry or crash reports](0016-no-telemetry.md) | Accepted |
 | 0017 | [Every outbound destination is off until the user allows it](0017-egress-off-by-default.md) | Accepted, in part superseded by 0027 |
 | 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted |
@@ -60,5 +60,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0023 | [Every hosted sunset behaviour sits behind a runtime flag, and nothing is deleted or redirected unconditionally](0023-sunset-behind-flags.md) | Accepted |
 | 0024 | [The license portal has no accounts and no license tables; Stripe and Keygen are the system of record](0024-portal-without-accounts.md) | Accepted |
 | 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Accepted |
-| 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted |
+| 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal |
 | 0027 | [Egress consent is per host, so model search and downloads share one](0027-egress-consent-per-host.md) | Accepted |

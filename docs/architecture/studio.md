@@ -151,7 +151,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 - `image` and `infographic` resolve the `image_gen` selection. A remote selection loads its connection, which runs the egress check and decrypts the key. An `sdcpp` selection points the same client at the bundled sd-server's loopback URL, with no key and no egress decision, which is what makes an image possible on an offline machine.
 - The client posts `{model, prompt}` to `/images/generations`, falls back once to `/images` only on `404` or `405`, and remembers the route that worked for the life of the process. It accepts `b64_json`, a data URL or a URL, caps the sizes, and checks the bytes against the claimed MIME type ([`connections.md`](connections.md)).
-- The generation model writes first in both formats. The markdown body is the image prompt or the brief, so an image can be found by what it shows.
+- The `text_gen` model writes first in both formats. The markdown body is the image prompt or the brief, so an image can be found by what it shows.
 
 ## Known gaps
 

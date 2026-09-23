@@ -28,6 +28,7 @@ The plugins proposal adds a consent for each host a plugin declares, asked befor
 |---|---|---|
 | Probing a connection when it is created or updated, listing its models, running its chat and image tests | `modules/llm/connections/router.py` | `host:` |
 | Choosing a remote model | `modules/llm/selection.py`, through `allowed_connection()` | `host:` |
+| Checking a connection's rows against its live listing | `GET /llm/catalog/remote/connections/{id}` in `modules/llm/catalog/remote/router.py`, through `allowed_connection()` | `host:` |
 | Chat and Studio generation, text or image, through a remote connection | `_connection()` in `modules/llm/resolution.py` | `host:` |
 | Downloading a GGUF | `POST /llm/install` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in the same file | `host:huggingface.co` |

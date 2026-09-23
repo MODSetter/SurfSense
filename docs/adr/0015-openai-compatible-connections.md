@@ -1,6 +1,6 @@
 # ADR 0015: Remote models come through named OpenAI-compatible connections, discovered live
 
-- **Status:** Accepted
+- **Status:** Accepted; the per-role selection is revised by the [model catalog proposal](../proposals/model-catalog.md), in progress: a selection is keyed by model type, with no roles
 - **Date:** 2026-09-10
 - **Source:** [Connections plan L8–68](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L8-L68), [Connections plan L70–128](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L70-L128), [Connections plan L160–170](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L160-L170), [Connections plan L360–362](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L360-L362)
 

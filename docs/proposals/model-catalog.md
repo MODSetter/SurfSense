@@ -6,6 +6,7 @@ code:
   - surfsense_local/backend/alembic/versions/
   - surfsense_local/backend/scripts/
   - surfsense_local/frontend/src/features/model-catalog/
+  - surfsense_local/frontend/src/features/model-selection/
   - surfsense_local/frontend/src/features/connections/
 ---
 
@@ -13,23 +14,21 @@ code:
 
 > Every model the app can use is classified from a packaged manifest, offline, and shown in one screen filtered by source (local, remote) and by capability (the model's type). Local and remote are two catalogs that share one vocabulary and nothing else.
 
-The remote classifier this builds on, `taxonomy/` (`classify.py`, `supports.py`, `not_text_gen.py`, with tests), is on the `refactor/model-catalog` branch and not yet in `dev`.
-
-This reworks the local catalog ([`catalog.md`](../architecture/local-models/catalog.md)), the hard-coded sd.cpp list, and the per-connection model lists ([`connections.md`](../architecture/connections.md)). Those docs describe the code being replaced. They constrain this design only where a decision below says so.
+This reworks the local catalog ([`catalog.md`](../architecture/local-models/catalog.md)), the hard-coded sd.cpp list, and the per-connection model lists ([`connections.md`](../architecture/connections.md)). Those docs describe the code as it stands, including the parts of this design already built. They constrain this design only where a decision below says so.
 
 ## What this replaces
 
-Until this work ships, `docs/architecture/` describes the code as it is and this proposal describes where it is going; each architecture page below says so at its top. When it ships, the pages change as follows and this proposal is deleted.
+Until this work ships, `docs/architecture/` describes the code as it is and this proposal describes where it is going; `catalog.md` and `connections.md` say at their top what is still to come. When it ships, the pages change as follows and this proposal is deleted.
 
 | Architecture page | Today | When this ships |
 |---|---|---|
 | [`local-models/catalog.md`](../architecture/local-models/catalog.md) | the local catalog: curated manifest, install gate, search | replaced by `model-catalog/local.md`, and deleted |
 | [`connections.md`](../architecture/connections.md) | connections, and how their models are listed and classified | keeps storage, keys, the probe and the runtime; model listing moves to `model-catalog/remote.md` |
 | [`local-models/selection.md`](../architecture/local-models/selection.md) | one model per `ModelType` | done in step 1 |
-| [`data-model.md`](../architecture/data-model.md) | `selected_models.model_type` (step 1) | the provider id on a connection |
+| [`data-model.md`](../architecture/data-model.md) | `selected_models.model_type` (step 1) and the provider id on a connection (step 3b) | done |
 | [`studio.md`](../architecture/studio.md) | the `image_gen` selection (step 1) and the hard-coded sd.cpp list | the local manifest |
 
-Known gaps in `local-models/catalog.md` this closes:
+Known gaps in `local-models/catalog.md` that step 5 closed:
 
 - A vision model installs as text only: a build's `files[]` carries its projector (step 5).
 - Downloads are not checksum-verified: every file has a `sha256` (step 5).
@@ -80,13 +79,13 @@ class Source(StrEnum):             # where a model comes from
 `ModelType` sits at the root of `modules/llm/`, not inside `catalog/`, because it is more than a filter: the classifiers produce it, the catalogs filter on it, and selection, the database and the pickers key on it. `Source` is only the catalog's filter.
 
 - **A type is a filter, a support is a badge.** Reading images (the **Vision** badge) does not make a model an image model. Each side's support is its own dataclass, because the fields each can know differ.
-- **None is not no.** A support field is `None` when the evidence is silent, as `taxonomy/supports.py` already holds for models.dev.
+- **None is not no.** A support field is `None` when the evidence is silent, as `catalog/remote/support.py` holds for models.dev.
 - **Unknown is a state, not a type.** A remote id nothing recognises has no types and `known=False`. The capability filter offers "Unknown" only when such rows exist.
 - **One word per idea.** `completion`, `image_generation` as a capability, and the curated `vision` go.
 
 ### A type is a selection
 
-There is no separate list of roles. A role would be a second word for each type: today `generation` is `TEXT_GEN` and `image_generation` is `IMAGE_GEN`, one to one. So the type is the selection, and the user picks one model for each `ModelType`:
+There is no separate list of roles. A role would be a second word for each type: `generation` was `TEXT_GEN` and `image_generation` was `IMAGE_GEN`, one to one. So the type is the selection, and the user picks one model for each `ModelType`:
 
 - **`selected_models` is keyed by type.** The column `role` becomes `model_type`, its CHECK lists the five values, and a hand-written migration maps `generation` to `text_gen` and `image_generation` to `image_gen`. The provider CHECK follows: `llamacpp` only for `text_gen`, `sdcpp` only for `image_gen`, `openai_compatible` for any.
 - **One rule decides who can fill a slot.** A model can be selected for a type when its classification contains that type, or when it is unknown. Selection, the catalog and the pickers read the same rule, so a model is selectable everywhere or nowhere.
@@ -186,10 +185,10 @@ A local model differs from a remote one in that the user downloads files and run
 | position, `validated` | the recommendation reads position; `validated` names the runtime build a person ran this exact build on, because some quantizations run only on newer or forked llama.cpp | "Recommended for this computer" |
 
 - **`id` is ours**, not a Hugging Face repo: a build comes from a quantizer's repo, and an image model's files from several.
-- **Vision is a file, not a label.** A build that reads images lists its projector in `files[]`; there is no `capabilities` field and no `"vision"` string to keep in step with it. Today's `capabilities`, `mmproj`, `variants`, `model_id` and `decode_fraction` go: the first three become `files[]` roles and `builds`, `model_id` becomes `id` and `source_repo`, and nothing reads `decode_fraction`.
+- **Vision is a file, not a label.** A build that reads images lists its projector in `files[]`; there is no `capabilities` field and no `"vision"` string to keep in step with it. The old manifest's `capabilities`, `mmproj`, `variants`, `model_id` and `decode_fraction` went: the first three become `files[]` roles and `builds`, `model_id` becomes `id` and `source_repo`, and nothing reads `decode_fraction`.
 - **Every file is pinned to a commit.** Quantizers change repos in place: Unsloth renamed, moved and deleted files on `main` of a published repo, and re-uploads fixed chat templates under the same name.
 - **`template` is read at refresh time** from the chat template in the header, so the catalog never loads a model to say what it supports.
-- **Nothing but the quantization label is taken from a filename.** Not size, not parameter count, not architecture: a catalog that did so got 99.6% of its sizes wrong. The label is the exception because it has no other source: `UD-Q4_K_XL` is a quantizer's naming convention, and the header's `general.file_type` names the same file by its base type. The label is read with its prefix kept; a parser that reads `UD-Q4_K_XL` as `Q4_K_XL`, as search's does today, would never match the top of the preference order.
+- **Nothing but the quantization label is taken from a filename.** Not size, not parameter count, not architecture: a catalog that did so got 99.6% of its sizes wrong. The label is the exception because it has no other source: `UD-Q4_K_XL` is a quantizer's naming convention, and the header's `general.file_type` names the same file by its base type. The label is read with its prefix kept; a parser that reads `UD-Q4_K_XL` as `Q4_K_XL`, as search's did before `quantization.py`, would never match the top of the preference order.
 
 The three image models hard-coded in `providers/sdcpp/` become entries like any other.
 
@@ -208,7 +207,7 @@ The script is tested against recorded Hugging Face responses, so a change in how
 
 ### Remote
 
-`catalog/remote/manifest/models.json`, built by `scripts/refresh_remote_manifest.py`, which grows out of today's `fetch_model_capabilities.py`. It keeps models.dev's nesting, provider then models, in the app's own words: models.dev is written for the Vercel AI SDK, and its `npm` and `env` fields name JavaScript packages and environment variables this app never uses. The script translates them into what the app does with a provider.
+`catalog/remote/manifest/models.json`, built by `scripts/refresh_remote_manifest.py`, which replaced `fetch_model_capabilities.py`. It keeps models.dev's nesting, provider then models, in the app's own words: models.dev is written for the Vercel AI SDK, and its `npm` and `env` fields name JavaScript packages and environment variables this app never uses. The script translates them into what the app does with a provider.
 
 ```jsonc
 {
@@ -220,7 +219,7 @@ The script is tested against recorded Hugging Face responses, so a change in how
       "name": "OpenAI",
       "doc": "https://platform.openai.com/docs/models",
       "connect": {
-        "status": "ready",              // ready | needs_account_details | unreachable
+        "status": "ready",              // ready | needs_account_details | needs_url | unreachable
         "base_url": "https://api.openai.com/v1",
         "base_url_origin": "reviewed",  // models.dev | reviewed
         "account_fields": [],           // [{"name": "DATABRICKS_HOST", "label": "Databricks host"}]
@@ -280,17 +279,17 @@ The script is tested against recorded Hugging Face responses, so a change in how
 
 **The user has the last word on every URL.** Picking a hosted provider fills its URL in, and the field stays editable, so a company proxy or gateway in front of it works. A local server (Ollama, vLLM, llama.cpp's server, a machine on the network) is not in the table at all: its port is whatever the user configured, so the form asks for the URL, with examples as placeholder text only, and the save probes `GET {url}/models` as it does today. Loopback needs no key and no egress decision. Offering the local servers actually answering on this machine is a possible later improvement, not a preset.
 
-**Left out:** `cost`, because a list price refreshed a few times a year is wrong more often than it helps, differs from what a user with discounts, caching or a free tier pays, and billing is out of scope; the provider's `doc` link is on the row instead. `npm` and `env` are translated, not copied. `attachment` repeats the input modalities. `knowledge`, `interleaved` and `open_weights` have no reader. At this shape the file is about 3 MB, most of it `description`.
+**Left out:** `cost`, because a list price refreshed a few times a year is wrong more often than it helps, differs from what a user with discounts, caching or a free tier pays, and billing is out of scope; the provider's `doc` link is on the row instead. `npm` and `env` are translated, not copied. `attachment` repeats the input modalities. `knowledge`, `interleaved` and `open_weights` have no reader. At this shape the file is about 4 MB, most of it `description`.
 
 **A remote model's identity is `provider/model`.** `openai/gpt-5-nano` and `openrouter/qwen/qwen3.7-max`. The same model id appears under many providers (1,114 of 3,814 ids), and each provider's entry describes what that provider serves, which differs for 407 of them: `deepseek/deepseek-v3.2` takes PDFs on one provider and text only on nine others. Keyed by provider, nothing collides and nothing is merged. OpenRouter is one provider among the others, not an exclusion.
 
-Today's snapshot drops the provider and keys by model id alone. That is what forced it to merge disagreeing entries by majority, to exclude OpenRouter, and to store two derived strings instead of the evidence, which is why embedders read as chat models.
+The snapshot this replaced dropped the provider and keyed by model id alone. That is what forced it to merge disagreeing entries by majority, to exclude OpenRouter, and to store two derived strings instead of the evidence, which is why embedders read as chat models.
 
 ## Local
 
 ### Classifier
 
-`catalog/local/classifier.py`: an `evidence` object in, a type or known-none out. The manifest stores that object; for a downloaded file it is read from the header, and for a search hit from the candidate build's header and the repo's tag. It replaces the denylist in `catalog/search/not_chat.py`, which answered only "chat or refuse", with groups that each answer a type:
+`catalog/local/classifier.py`: an `evidence` object in, a type or known-none out. The manifest stores that object; for a downloaded file it is read from the header, and for a search hit from the candidate build's header and the repo's tag. It replaced the denylist in the former `catalog/search/not_chat.py`, which answered only "chat or refuse", with groups that each answer a type:
 
 - Diffusion architectures (`sd1`, `sdxl`, `sd3`, `flux`, `flux2`, `qwen_image`, `z_image`, `lumina2` and the rest) are `IMAGE_GEN`. They were refused because the old catalog was text only; the app ships sd.cpp.
 - Video architectures (`wan`, `ltxv`, `hyvid`, `cosmos`) are `VIDEO_GEN`.
@@ -423,7 +422,7 @@ Opening a repo picks its builds with `catalog/local/builds.py`, the same file-pi
 
 ### Classifier and support
 
-`catalog/remote/classifier.py` and `catalog/remote/support.py` are today's `taxonomy/classify.py`, `taxonomy/supports.py` and `not_text_gen.py`, moved, with their tests, and reading the manifest's field names (`context` for `limit.context`) instead of a raw models.dev entry. Their rules do not change. An endpoint that declares `output_modalities` in its own listing is classified from those first, since the endpoint is the authority on what it serves.
+`catalog/remote/classifier.py` and `catalog/remote/support.py` are the former `taxonomy/classify.py`, `taxonomy/supports.py` and `not_text_gen.py`, moved, with their tests, and reading the manifest's field names (`context` for `limit.context`) instead of a raw models.dev entry. Their rules do not change. An endpoint that declares `output_modalities` in its own listing is classified from those first, since the endpoint is the authority on what it serves.
 
 ### Catalog
 
@@ -490,9 +489,11 @@ modules/llm/catalog/
 
 scripts/refresh_remote_manifest.py   fetch, translate, guard, validate, write
 scripts/remote_manifest/             translate.py, endpoints.py (the reviewed table), guard.py, render.py
+scripts/refresh_local_manifest.py    read each repo at a pinned commit, assemble, guard, write
+scripts/local_manifest/              entries.py (the hand-authored list), hub.py, assemble.py, guard.py, recorded.py
 ```
 
-Each side mounts its own router under `/llm/catalog/{local,remote}`. Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD, keys and live discovery stay in `connections/`: discovery calls a connection's `/models`, reads declared modalities first, and otherwise asks the manifest lookup, scoped by the connection's `catalog_provider`.
+The remote router mounts under `/llm/catalog/remote`; the local one under `/llm`, where it serves `/llm/catalog/local`, `/llm/system` and `/llm/install`. Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD, keys and live discovery stay in `connections/`: discovery calls a connection's `/models`, reads declared modalities first, and otherwise asks the manifest lookup, scoped by the connection's `catalog_provider`.
 
 Adding a type is an enum value in `model_type.py`, the classifier groups that emit it, and a CHECK migration. Adding a remote provider is a manifest refresh. Adding a kind of source is a new side under `catalog/` with the same four files.
 
@@ -530,8 +531,8 @@ Each step ships alone and leaves the app working.
    - **3b.** A connection stores its manifest provider (`catalog_provider`, or `custom`), and the lookup is scoped by it.
    - **3c.** `catalog/source.py` and `catalog/remote/catalog.py`, the pure function from the manifest and the listings to rows.
    - **3d.** The three remote routes, and the connection form's presets from the manifest.
-4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable. Local selection reads `selectable_for` over the classifier's types, as remote does, and the llama.cpp provider stops declaring `completion` for every file on disk, which today lets a downloaded embedder fill the `text_gen` slot. `support.py` reads `reads_images` from a projector's header.
-5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; each curated model recommends a build by its default and the step-down, priced at its whole footprint. The manifest's list is reversed once, from today's smallest first to most preferred first. Today's `catalog/` root files move under `catalog/local/`, and the local routes move to `/llm/catalog/local`.
+4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable. Local selection reads `selectable_for` over the classifier's types, as remote does, and the llama.cpp provider stops declaring `completion` for every file on disk, which let a downloaded embedder fill the `text_gen` slot. `support.py` reads `reads_images` from a projector's header.
+5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; each curated model recommends a build by its default and the step-down, priced at its whole footprint. The manifest's list is reversed once, from the old smallest first to most preferred first. The old `catalog/` root files move under `catalog/local/`, and the local routes move to `/llm/catalog/local`.
 6. **The screen.** One list, both filters; connections become a settings panel. `/llm/connections/{id}/models` and `/llm/image/local/*` go with the cards and pickers that still read them.
 7. **Searched image models.** Single-file SD 1.5 and SDXL from search become runnable.
 

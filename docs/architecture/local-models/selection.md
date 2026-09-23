@@ -28,8 +28,9 @@ brings the client that calls it.
 
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
-when the provider is `openai_compatible`, and deleting a connection cascades to
-the rows that name it. `provider` is the SurfSense inference provider, never the
+when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
+`llamacpp` hold only `text_gen` and `sdcpp` only `image_gen`, and deleting a
+connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
 `GET /llm/selection/{model_type}` returns the row with its computed `tier`, or
@@ -38,8 +39,9 @@ model's publisher.
 fingerprints and stores:
 
 - **Local text** (`llamacpp`): the type must be `text_gen`, there is no
-  connection, and the router must list the model as installed with the
-  `completion` capability.
+  connection, the router must list the model as installed, and its own header
+  must make it `text_gen` ([`catalog.md`](catalog.md)). The provider drops a
+  file whose header is not a model, and an unreadable header counts as `text_gen`.
 - **Local image** (`sdcpp`): the type must be `image_gen`, and the model must be
   one of the bundled image models and downloaded.
 - **Remote** (`openai_compatible`): a connection is required, and the model is
@@ -59,7 +61,7 @@ and choosing a model is when the user has said they are about to use it
 loads nothing.
 
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears the generation row
+([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen` row
 if it named that model and reports `selection_cleared`; nothing chooses another
 model in its place. Revision `0012`, which replaced Ollama with llama.cpp,
 cleared any generation selection pointing at Ollama rather than remapping it,
@@ -137,7 +139,7 @@ three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
 
 `GET /llm/onboarding` returns `{"completed": bool}`, true once the singleton
 `onboarding_completion` row exists. `POST /llm/onboarding` writes that row and
-requires a persisted generation selection, answering `422 chat model required`
+requires a persisted `text_gen` selection, answering `422 chat model required`
 otherwise; an image model is optional. The marker means the user finished
 choosing, and it is the one thing that must not become true early.
 
@@ -149,7 +151,7 @@ missing selection is fixed from Settings, which renders the same model screen.
 
 ## Resolution: local and remote
 
-`resolve_generation()` reads the generation row. A `llamacpp` row resolves to the
+`resolve_generation()` reads the `text_gen` row. A `llamacpp` row resolves to the
 bundled runtime ([`runtime.md`](runtime.md)). An `openai_compatible` row resolves
 to its connection, and `egress.require()` checks the connection's host, which is
 a no-op for a loopback host, so a local LM Studio or Ollama endpoint never

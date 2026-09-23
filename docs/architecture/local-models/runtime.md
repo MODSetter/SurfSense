@@ -195,7 +195,7 @@ half-written INI never loads.
 
 ## From download to answerable
 
-`CatalogService.reprice()` writes the preset for every `.gguf` in the models
+`LocalCatalogService.reprice()` writes the preset for every `.gguf` in the models
 directory, at API startup (on the warm thread, after the device probe), after
 every install and after every delete. At startup, because a model placed in the
 directory by hand would otherwise load at llama.cpp's default window, and a stale
@@ -209,7 +209,8 @@ It skips an unreadable file with a warning: a truncated or foreign file costs th
 one model, while failing would leave the runtime dead over a file nobody asked it
 to load. It pairs each model with the projector its install record names, or one saved
 as `mmproj-<model>.gguf`, and only when that projector's header says it sees
-images and is as wide as the model; nothing is paired by guessing from the
+images and is as wide as the model, or either header leaves the width out;
+nothing is paired by guessing from the
 folder. It plans the
 load with `plan_load()` ([`fit.md`](fit.md)): the capacity budget decides the
 verdict, so the plan agrees with the badge the catalog showed, and the live
@@ -293,12 +294,12 @@ downloads, the preset, waiting for the router to list a model, and warming.
 | Need | How |
 |---|---|
 | Is it up | `GET /health` |
-| What is installed | `GET /models`: every file in the models directory, resident or not |
+| What is installed | `GET /models`: every file in the models directory, resident or not; the provider drops a file whose header says it is not a model |
 | Template capabilities and the loaded window | `GET /props?model=<id>` (`chat_template_caps`, `default_generation_settings.n_ctx`), plus `architecture.input_modalities` from `GET /models` |
 | Exact token counts | `POST /tokenize`, proxied to the model's worker, which autoloads it |
 | Chat | `POST /v1/chat/completions`, through `OpenAICompatibleChatProvider` |
-| Download | SurfSense fetches `resolve/main/{file}` itself ([`catalog.md`](catalog.md)) |
-| Delete | SurfSense unlinks the file |
+| Download | SurfSense fetches `resolve/{revision}/{path}` itself and checks each file against its sha256 when it has one ([`catalog.md`](catalog.md)) |
+| Delete | SurfSense unlinks every file the install record names ([`catalog.md`](catalog.md)) |
 
 Chat is composed, not reimplemented. llama-server speaks OpenAI on
 `/v1/chat/completions`, so the streaming, deadlines, error handling and message
