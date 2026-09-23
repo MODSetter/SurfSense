@@ -4,10 +4,13 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  * Pricing copy.
  *
  * Sourced from `plans/community-local/`:
- *   - tiers and figures: `00d-pivot-plan.md` ("Pricing", line 50) and its
- *     licensing, plugin and trial sections
+ *   - tiers and figures: `00d-pivot-plan.md` ("Pricing") and its
+ *     licensing and trial sections
  *   - title, meta, H1 and the lead-with-free rule: `seo/02-page-briefs.md`
  *     (`/pricing` — B5)
+ *
+ * The plugin note follows `docs/adr/0025-scraper-client-as-paid-plugin.md`,
+ * which supersedes the plan's plugin section.
  *
  * Three things here disagree with the plan documents, all decided after those
  * documents were written:
@@ -33,9 +36,9 @@ import { DOWNLOADS_URL, REPO_URL } from "@/components/site/site-content";
  * Two things the brief asks for are deliberately absent, because inventing them
  * would be worse than omitting them:
  *
- *   - **The early-bird end date.** The plan fixes it at launch + 30 days, and
- *     launch day is not set (`portal/02-pages.md`). The copy states the window,
- *     not a date.
+ *   - **The early-bird end date.** The plan fixes it at launch + 30 days.
+ *     Launch was 18 Sep 2026, so that is 18 Oct 2026; the copy has not been
+ *     updated to state it and still gives the window.
  *   - **The six NotebookLM comparison H2s.** Each must open with a factual,
  *     dated answer about Google's tiers, prices and source limits, and no
  *     document in `plans/` carries those numbers. The brief is explicit about
@@ -144,7 +147,7 @@ export const SMALL_GROUP_NOTE =
 
 /** Required by the brief: buyers must know the first plugin is not in the box. */
 export const PLUGIN_NOTE =
-	"No plugin ships in version 2.0. The first one is the hosted scraper API, covering all nine platforms and the web crawler, and it arrives the week after launch as 2.1, through auto-update.";
+	"No plugin ships in version 2.0. The first one will be the hosted scraper API, covering all nine platforms and the web crawler, installed from inside the app once the plugin system is ready.";
 
 /**
  * Answers are written as quotable definitions: one plain paragraph an AI
