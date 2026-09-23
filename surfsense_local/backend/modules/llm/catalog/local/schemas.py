@@ -78,6 +78,14 @@ class BuildRead(BaseModel):
     projector_checked: bool
 
 
+class LeadRead(BaseModel):
+    """The build a row shows and its Download fetches, and why it is that one:
+    `in_use`, `installed`, `recommended`, `fits_slower` or `nothing_fits`."""
+
+    quantization: str
+    why: str
+
+
 class SupportRead(BaseModel):
     context: int | None
     reads_images: bool
@@ -101,6 +109,8 @@ class LocalRowRead(BaseModel):
     builds: list[BuildRead]
     default_quantization: str | None
     recommended: bool
+    # Absent for a searched repo, which lists every build and leads with none.
+    lead: LeadRead | None
 
 
 class LocalCatalogRead(BaseModel):

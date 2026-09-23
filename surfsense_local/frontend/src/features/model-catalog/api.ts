@@ -89,6 +89,14 @@ export type LocalRow = {
   default_quantization: string | null
   /** The one model starred for this computer. Curated models only. */
   recommended: boolean
+  /**
+   * The build the row shows and its Download fetches, and why the server chose
+   * it. Absent for a searched repo, which lists every build and leads with none.
+   */
+  lead: {
+    quantization: string
+    why: "in_use" | "installed" | "recommended" | "fits_slower" | "nothing_fits"
+  } | null
 }
 
 /** One device, never a sum across devices. */

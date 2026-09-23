@@ -14,7 +14,6 @@ import type { LocalBuild, LocalRow } from "./api"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
 import { installView } from "./install-view"
-import { leadBuild } from "./lead-build"
 import type { InstallState } from "./use-model-catalog"
 
 const formatSize = (bytes: number) =>
@@ -96,7 +95,8 @@ export function ModelCard({
 }) {
   const buildsId = useId()
   const [open, setOpen] = useState(false)
-  const lead = leadBuild(row)
+  // The server chose it; the card only finds it among the builds it lists.
+  const lead = row.builds.find((b) => b.quantization === row.lead?.quantization)
   if (!lead) return null
 
   const installingHere =

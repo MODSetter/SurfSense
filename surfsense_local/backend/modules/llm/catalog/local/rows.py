@@ -9,6 +9,7 @@ from enum import StrEnum
 
 from modules.llm.catalog.local.builds import Build
 from modules.llm.catalog.local.classifier import Classification
+from modules.llm.catalog.local.lead_build import Lead
 from modules.llm.catalog.local.support import LocalSupport
 from modules.llm.fit import Badge, FitVerdict
 from modules.llm.model_type import ModelType
@@ -53,6 +54,9 @@ class LocalRow:
     builds: tuple[BuildRow, ...]
     default_quantization: str | None
     recommended: bool
+    # The build the row shows and its Download fetches, and why. None for a
+    # searched repo, which lists every build and leads with none.
+    lead: Lead | None = None
 
     @property
     def runnable(self) -> bool:

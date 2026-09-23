@@ -118,3 +118,22 @@ async def test_a_curated_build_is_installed_by_its_opaque_id(
     reply = await client.post("/llm/install", json={"catalog_id": catalog_id})
 
     assert reply.status_code == 403
+
+
+async def test_every_curated_row_says_which_build_it_leads_with_and_why(
+    client: AsyncClient,
+) -> None:
+    """The screen computes nothing: the server names the build Download fetches."""
+    body = (await client.get("/llm/catalog/local")).json()
+
+    for row in body["rows"]:
+        if row["origin"] == "curated":
+            lead = row["lead"]
+            assert lead["why"] in {
+                "in_use",
+                "installed",
+                "recommended",
+                "fits_slower",
+                "nothing_fits",
+            }
+            assert lead["quantization"] in {b["quantization"] for b in row["builds"]}

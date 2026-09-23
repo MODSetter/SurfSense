@@ -73,6 +73,7 @@ const row = (
   builds,
   default_quantization: "Q4_K_M",
   recommended: false,
+  lead: { quantization: builds[0]?.quantization ?? "", why: "recommended" },
   ...overrides,
 })
 
@@ -641,21 +642,27 @@ describe("model catalog", () => {
 })
 
 describe("builds of a curated model", () => {
-  it("leads with the recommended build and lists the others on request", async () => {
+  it("leads with the build the server chose and lists the others on request", async () => {
     vi.stubGlobal(
       "fetch",
       serving(
         catalog({
           rows: [
-            row({ default_quantization: "UD-Q4_K_XL" }, [
-              build({ catalog_id: "q3", quantization: "Q3_K_M" }),
-              build({
-                catalog_id: "q4",
-                quantization: "Q4_K_M",
-                recommended: true,
-              }),
-              build({ catalog_id: "ud", quantization: "UD-Q4_K_XL" }),
-            ]),
+            row(
+              {
+                default_quantization: "UD-Q4_K_XL",
+                lead: { quantization: "Q4_K_M", why: "recommended" },
+              },
+              [
+                build({ catalog_id: "q3", quantization: "Q3_K_M" }),
+                build({
+                  catalog_id: "q4",
+                  quantization: "Q4_K_M",
+                  recommended: true,
+                }),
+                build({ catalog_id: "ud", quantization: "UD-Q4_K_XL" }),
+              ]
+            ),
           ],
         })
       )
@@ -706,5 +713,59 @@ describe("builds of a curated model", () => {
     render(<ModelCatalogPage />)
 
     expect(await screen.findByText("Reads images")).toBeTruthy()
+  })
+})
+
+describe("a model with no recommended build", () => {
+  it("offers the largest build that installs rather than one that cannot", async () => {
+    // Step two found nothing that runs well, but a smaller four bit build still
+    // installs. The row leads with it, so Download is never needlessly disabled.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(
+              {
+                default_quantization: "UD-Q4_K_XL",
+                lead: { quantization: "Q4_K_M", why: "fits_slower" },
+              },
+              [
+                build({
+                  catalog_id: "q4",
+                  quantization: "Q4_K_M",
+                  fit: fit({ state: "partial", offload_fraction: 0.4 }),
+                  badge: {
+                    level: "notice",
+                    verdict: "Reduced speed",
+                    reason: "Too big for the GPU, so part runs on the CPU.",
+                  },
+                }),
+                build({
+                  catalog_id: "ud",
+                  quantization: "UD-Q4_K_XL",
+                  can_install: false,
+                  fit: fit({ state: "too_big", offload_fraction: 1 }),
+                  badge: {
+                    level: "refuse",
+                    verdict: "Won't fit",
+                    reason: "Needs about 6.5 GB. This Mac has 6.4 GB",
+                  },
+                }),
+              ]
+            ),
+          ],
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    const download = await screen.findByRole("button", {
+      name: "Download Qwen3 8B Q4_K_M",
+    })
+    expect(download.hasAttribute("disabled")).toBe(false)
+    expect(screen.getByText("Reduced speed")).toBeTruthy()
+    expect(screen.queryByText("Won't fit")).toBeNull()
   })
 })

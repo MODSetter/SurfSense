@@ -65,7 +65,7 @@ def read_system(service: LocalCatalogDep) -> dict:
 def read_local_catalog(service: LocalCatalogDep, session: SessionDep) -> dict:
     """No network call of any kind."""
     selected = _selected_local(session)
-    catalog = service.catalog()
+    catalog = service.catalog(selected=selected)
     return {
         "budget": _budget(catalog.budget),
         "gpu_status": catalog.gpu_status.value,
@@ -242,6 +242,11 @@ def _row(row: LocalRow, selected: str | None) -> dict:
         "builds": [_build(build, selected) for build in row.builds],
         "default_quantization": row.default_quantization,
         "recommended": row.recommended,
+        "lead": (
+            {"quantization": row.lead.quantization, "why": row.lead.why.value}
+            if row.lead
+            else None
+        ),
     }
 
 

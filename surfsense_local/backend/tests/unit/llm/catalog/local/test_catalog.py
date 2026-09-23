@@ -11,6 +11,7 @@ import pytest
 from modules.llm.catalog.local.catalog import local_catalog
 from modules.llm.catalog.local.downloaded import scan
 from modules.llm.catalog.local.installs import InstalledBuild, projector_filename
+from modules.llm.catalog.local.lead_build import LeadReason
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.rows import Origin
 from modules.llm.fit import BadgeLevel, HardwareBudget, SpeedTier, plan_load, speed_tier
@@ -316,3 +317,60 @@ def test_an_eight_gigabyte_mac_stars_a_four_bit_build_not_a_three_bit_larger_one
     (picked,) = [b for b in star.builds if b.recommended]
     assert not picked.build.quantization.removeprefix("UD-").startswith(("Q2", "Q3"))
     assert picked.badge.level is BadgeLevel.NONE
+
+
+@pytest.mark.parametrize("budget_name", BUDGETS)
+def test_every_curated_row_leads_with_a_build_it_can_install_unless_none_can(
+    budget_name,
+) -> None:
+    """The lead is what Download fetches, so it is never a refusal while a
+    four bit or better build of the model installs."""
+    for row in curated_rows(BUDGETS[budget_name]):
+        assert row.lead is not None
+        lead = next(
+            b for b in row.builds if b.build.quantization == row.lead.quantization
+        )
+        if row.lead.why is LeadReason.NOTHING_FITS:
+            assert not any(
+                b.fit.can_install
+                and b.build.quantization.removeprefix("UD-")[:2] not in ("Q2", "Q3")
+                for b in row.builds
+            )
+        else:
+            assert lead.fit.can_install
+
+
+@pytest.mark.parametrize("budget_name", BUDGETS)
+def test_a_row_leads_with_its_recommended_build_whenever_it_has_one(
+    budget_name,
+) -> None:
+    """Step two's pick is what Download fetches, not the step one default."""
+    for row in curated_rows(BUDGETS[budget_name]):
+        picked = [b for b in row.builds if b.recommended]
+        assert (row.lead.why is LeadReason.RECOMMENDED) == bool(picked)
+        if picked:
+            assert row.lead.quantization == picked[0].build.quantization
+
+
+@pytest.mark.parametrize("budget_name", BUDGETS)
+def test_the_starred_row_leads_with_its_recommended_build(budget_name) -> None:
+    """The star and the row's own build never disagree."""
+    for row in curated_rows(BUDGETS[budget_name]):
+        if row.recommended:
+            assert row.lead.why is LeadReason.RECOMMENDED
+
+
+def test_the_build_in_use_leads_its_row(tmp_path: Path) -> None:
+    """In use wins over a recommendation."""
+    a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
+
+    result = local_catalog(
+        CURATED,
+        scan(tmp_path, {}),
+        BUDGETS["discrete-24gb"],
+        lambda b: b.quantization,
+        selected="Qwen3-8B-Q4_K_M",
+    )
+
+    row = next(r for r in result.rows if r.id == "qwen3-8b")
+    assert (row.lead.quantization, row.lead.why) == ("Q4_K_M", LeadReason.IN_USE)

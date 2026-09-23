@@ -157,11 +157,17 @@ class LocalCatalogService:
 
     # the catalog ------------------------------------------------------------
 
-    def catalog(self) -> Catalog:
+    def catalog(self, *, selected: str | None = None) -> Catalog:
+        """`selected` is the runtime's name for the model in use, so a row can
+        lead with it."""
         inventory = self.inventory()
         budget = self.budget()
         local = local_catalog(
-            self._manifest.models, self.installed(), budget, self._curated_id
+            self._manifest.models,
+            self.installed(),
+            budget,
+            self._curated_id,
+            selected=selected,
         )
         return Catalog(budget, inventory.devices, inventory.gpu_status, local)
 

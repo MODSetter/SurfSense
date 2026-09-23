@@ -80,6 +80,7 @@ function installApi() {
             not_runnable_reason: null,
             default_quantization: null,
             recommended: false,
+            lead: { quantization: "Q4_K_M", why: "in_use" },
             builds: [
               {
                 catalog_id: "",

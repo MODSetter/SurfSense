@@ -14,6 +14,7 @@ from modules.llm.catalog.local.build_choice import default_build, recommended_bu
 from modules.llm.catalog.local.builds import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import classify
 from modules.llm.catalog.local.downloaded import DownloadedModel
+from modules.llm.catalog.local.lead_build import lead_build
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.pricing import price
 from modules.llm.catalog.local.quantization import quantization_label
@@ -41,6 +42,8 @@ def local_catalog(
     downloaded: Sequence[DownloadedModel],
     budget: HardwareBudget,
     catalog_id: Callable[[Build], str],
+    *,
+    selected: str | None = None,
 ) -> LocalCatalog:
     claimed: set[str] = set()
     curated = []
@@ -49,15 +52,22 @@ def local_catalog(
         claimed |= installed
         curated.append(row)
     star = recommended_model(curated)
-    curated = [dataclasses.replace(r, recommended=r.id == star) for r in curated]
-    # Fit coarsely, list position finely: a refused 32B at the top of a small
-    # machine's screen is the one thing a model chooser must not do.
-    order = {row.id: i for i, row in enumerate(curated)}
-    curated.sort(key=lambda r: (_best_state(r), order[r.id]))
     others = [
         _downloaded_row(d, budget) for d in downloaded if d.model_id not in claimed
     ]
-    return LocalCatalog(tuple(curated + others), star)
+
+    def led(row: LocalRow) -> LocalRow:
+        lead = lead_build(row.builds, row.default_quantization, selected=selected)
+        return dataclasses.replace(row, recommended=row.id == star, lead=lead)
+
+    curated = [led(row) for row in curated]
+    # By the fit of the build each row shows, coarsely, then list position: a
+    # refused 32B at the top of a small machine's screen is the one thing a
+    # model chooser must not do.
+    order = {row.id: i for i, row in enumerate(curated)}
+    curated.sort(key=lambda r: (_lead_state(r), order[r.id]))
+    rows = tuple(curated + [led(row) for row in others])
+    return LocalCatalog(rows, star)
 
 
 def _curated_row(
@@ -198,7 +208,13 @@ def _downloaded_row(d: DownloadedModel, budget: HardwareBudget) -> LocalRow:
     )
 
 
-def _best_state(row: LocalRow) -> int:
-    return min(
-        (_STATE_ORDER[b.fit.state] for b in row.builds), default=len(_STATE_ORDER)
+def _lead_state(row: LocalRow) -> int:
+    lead = next(
+        (
+            b
+            for b in row.builds
+            if row.lead and b.build.quantization == row.lead.quantization
+        ),
+        None,
     )
+    return _STATE_ORDER[lead.fit.state] if lead else len(_STATE_ORDER)
