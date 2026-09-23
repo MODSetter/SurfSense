@@ -1,7 +1,9 @@
 ---
 status: proposed
 code:
+  - surfsense_local/backend/modules/llm/model_type.py
   - surfsense_local/backend/modules/llm/catalog/
+  - surfsense_local/backend/alembic/versions/
   - surfsense_local/backend/scripts/
   - surfsense_local/frontend/src/features/model-catalog/
   - surfsense_local/frontend/src/features/connections/
@@ -9,7 +11,9 @@ code:
 
 # The model catalog
 
-> Every model the app can use is classified from a packaged manifest, offline, and shown in one screen filtered by source (local, remote) and by capability (text, image). Local and remote are two catalogs that share one vocabulary and nothing else.
+> Every model the app can use is classified from a packaged manifest, offline, and shown in one screen filtered by source (local, remote) and by capability (the model's type). Local and remote are two catalogs that share one vocabulary and nothing else.
+
+The remote classifier this builds on, `taxonomy/` (`classify.py`, `supports.py`, `not_text_gen.py`, with tests), is on the `refactor/model-catalog` branch and not yet in `dev`.
 
 This reworks the local catalog ([`catalog.md`](../architecture/local-models/catalog.md)), the hard-coded sd.cpp list, and the per-connection model lists ([`connections.md`](../architecture/connections.md)). Those docs describe the code being replaced. They constrain this design only where a decision below says so.
 
@@ -31,7 +35,7 @@ manifest ─► classifier ─► support ─► catalog ─► rows
 | Catalog | manifest + downloaded files → rows | manifest + connections' live listings → rows |
 | Live extension | Hugging Face search, opt-in, same classifier | none: the manifest is the catalog |
 
-**Why two catalogs.** Local and remote share almost nothing: a local model is a repo and a file, is priced for this machine and is downloaded; a remote model is a connection and an id, needs a key and is tested. One generalised shape over both is where maintenance and debugging break. They share only the words the screen filters on.
+**Why two catalogs.** Local and remote share almost nothing: a local model is a repo and a file, is priced for this machine and is downloaded; a remote model is a connection and an id, needs a key and is tested. One generalised shape over both is where maintenance and debugging break. They share only the words the screen filters on and selection is keyed by.
 
 **Why a packaged manifest.** Listing and classifying never need the network. The catalog renders on first paint, on an airgapped machine, and every classification rule is a unit test over a committed fixture.
 
@@ -261,8 +265,9 @@ Today's snapshot drops the provider and keys by model id alone. That is what for
 `catalog/local/classifier.py`: an `evidence` object in, a type or known-none out. The manifest stores that object; for a downloaded file it is read from the header, and for a search hit from the candidate build's header and the repo's tag. It replaces the denylist in `catalog/search/not_chat.py`, which answered only "chat or refuse", with groups that each answer a type:
 
 - Diffusion architectures (`sd1`, `sdxl`, `sd3`, `flux`, `flux2`, `qwen_image`, `z_image`, `lumina2` and the rest) are `IMAGE_GEN`. They were refused because the old catalog was text only; the app ships sd.cpp.
-- Video architectures (`wan`, `ltxv`, `hyvid`, `cosmos`) are `VIDEO_GEN`, classified and not listed.
-- Embedders, speech, labellers, OCR, draft heads and projectors are known-none.
+- Video architectures (`wan`, `ltxv`, `hyvid`, `cosmos`) are `VIDEO_GEN`.
+- Text-to-speech models are `AUDIO_GEN`.
+- Embedders, rerankers, speech recognisers, labellers, OCR, draft heads and projectors are known-none: no type describes what they produce.
 - Any other architecture is `TEXT_GEN`. A denylist ages the right way: an unknown architecture is usually a chat model released last week.
 
 Evidence rules:
@@ -274,7 +279,7 @@ Evidence rules:
 
 ### What a type is, and whether the app can run it
 
-Two answers the old code gave as one refusal. The classifier says a FLUX GGUF is `IMAGE_GEN`. The catalog says whether this app can run it: a model is runnable when its runtime supports every file role it needs and the app knows every file. A curated FLUX entry lists its VAE and text encoders and is runnable. A FLUX build found by search is one file with no known companions, so its row is `IMAGE_GEN`, not runnable, "Needs files SurfSense cannot find on its own".
+Two answers the old code gave as one refusal. The classifier says a FLUX GGUF is `IMAGE_GEN` and a Wan GGUF is `VIDEO_GEN`. Both are listed; the app ships no runtime for video or speech, so a local `VIDEO_GEN` or `AUDIO_GEN` row is not runnable, "SurfSense cannot run video models yet", and the same model from a remote provider can still be selected. The catalog says whether this app can run it: a model is runnable when its runtime supports every file role it needs and the app knows every file. A curated FLUX entry lists its VAE and text encoders and is runnable. A FLUX build found by search is one file with no known companions, so its row is `IMAGE_GEN`, not runnable, "Needs files SurfSense cannot find on its own".
 
 ### Catalog
 
