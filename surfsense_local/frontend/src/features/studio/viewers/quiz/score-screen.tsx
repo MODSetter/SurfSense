@@ -33,7 +33,7 @@ function QuestionSection({
 }) {
   return (
     <section>
-      <h3 className="font-medium text-sm">
+      <h3 className="text-sm font-medium">
         {title} ({indices.length})
       </h3>
       {indices.length > 0 ? (
@@ -44,7 +44,7 @@ function QuestionSection({
                 type="button"
                 onClick={() => onReview(index)}
                 aria-label={`Review question ${index + 1}`}
-                className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+                className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <span className="font-medium text-foreground">
                   {index + 1}.
@@ -58,7 +58,7 @@ function QuestionSection({
           ))}
         </ol>
       ) : (
-        <p className="mt-2 text-muted-foreground text-sm">None</p>
+        <p className="mt-2 text-sm text-muted-foreground">None</p>
       )}
     </section>
   )
@@ -99,11 +99,11 @@ export function QuizScoreScreen({
     <section>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-muted-foreground text-sm">Your score</p>
+          <p className="text-sm text-muted-foreground">Your score</p>
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="mt-1 font-semibold text-4xl tracking-tight outline-none"
+            className="mt-1 text-4xl font-semibold tracking-tight outline-none"
           >
             {correct}/{quiz.questions.length}{" "}
             <span className="text-muted-foreground">({percentage}%)</span>

@@ -35,13 +35,10 @@ function SpreadsheetGrid({ sheet }: { sheet: SheetView }) {
     const colCount = Math.max(1, ...sheet.cells.map((row) => row.length))
     const gridColumns: Column<GridRow>[] = [
       { key: "rowNumber", name: "", width: 48, frozen: true },
-      ...Array.from(
-        { length: colCount },
-        (_, col): Column<GridRow> => ({
-          key: `column-${col}`,
-          name: columnLabel(col),
-        })
-      ),
+      ...Array.from({ length: colCount }, (_, col): Column<GridRow> => ({
+        key: `column-${col}`,
+        name: columnLabel(col),
+      })),
     ]
     const gridRows: GridRow[] = sheet.cells.map((row, index) =>
       Object.fromEntries([
@@ -131,7 +128,8 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
             {fallbackMessage(error)}
           </p>
         </div>
-        {error && !(error instanceof ParseWorkbookError && error.code === "oversize") ? (
+        {error &&
+        !(error instanceof ParseWorkbookError && error.code === "oversize") ? (
           <Button
             type="button"
             variant="secondary"
@@ -153,7 +151,7 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
         <div
           role="tablist"
           aria-label="Worksheets"
-          className="flex shrink-0 gap-1 overflow-x-auto border-neutral-200 border-b px-2 py-1.5"
+          className="flex shrink-0 gap-1 overflow-x-auto border-b border-neutral-200 px-2 py-1.5"
         >
           {view.sheets.map((entry, index) => (
             <button
@@ -163,8 +161,8 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
               aria-selected={index === active}
               className={
                 index === active
-                  ? "rounded-md bg-neutral-100 px-2.5 py-1 font-medium text-neutral-950 text-xs"
-                  : "rounded-md px-2.5 py-1 text-neutral-500 text-xs hover:bg-neutral-100"
+                  ? "rounded-md bg-neutral-100 px-2.5 py-1 text-xs font-medium text-neutral-950"
+                  : "rounded-md px-2.5 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
               }
               onClick={() => setActive(index)}
             >
@@ -175,9 +173,9 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
       ) : null}
 
       {sheet.truncated ? (
-        <p className="shrink-0 border-neutral-200 border-b px-3 py-1.5 text-neutral-500 text-xs">
-          Showing the first {sheet.cells.length} rows. Download the file for
-          the full workbook.
+        <p className="shrink-0 border-b border-neutral-200 px-3 py-1.5 text-xs text-neutral-500">
+          Showing the first {sheet.cells.length} rows. Download the file for the
+          full workbook.
         </p>
       ) : null}
 

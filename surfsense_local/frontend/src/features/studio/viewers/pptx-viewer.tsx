@@ -8,8 +8,9 @@ import { fileUrl, type ArtifactDetail } from "../api"
 // Dynamically imported, same reasoning as pdf-viewer's pdfjs-dist load: it's
 // a large DOM-touching renderer, no reason to pay for it (or risk jsdom
 // issues in tests) until a pptx artifact actually mounts.
-let pptxRendererPromise: Promise<typeof import("@aiden0z/pptx-renderer")> | null =
-  null
+let pptxRendererPromise: Promise<
+  typeof import("@aiden0z/pptx-renderer")
+> | null = null
 function loadPptxRenderer() {
   pptxRendererPromise ??= import("@aiden0z/pptx-renderer")
   return pptxRendererPromise

@@ -119,9 +119,7 @@ describe("LeftSidebar", () => {
   })
 
   it("pins the footer under the sources slot", () => {
-    render(
-      <LeftSidebar {...baseProps()} footer={<div>License footer</div>} />
-    )
+    render(<LeftSidebar {...baseProps()} footer={<div>License footer</div>} />)
 
     expect(screen.getByText("License footer")).toBeTruthy()
   })

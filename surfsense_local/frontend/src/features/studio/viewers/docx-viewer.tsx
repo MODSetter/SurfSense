@@ -106,7 +106,10 @@ export function DocxViewer({
       setZoom((current) =>
         Math.min(
           MAX_ZOOM,
-          Math.max(MIN_ZOOM, current * (event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP))
+          Math.max(
+            MIN_ZOOM,
+            current * (event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)
+          )
         )
       )
     }
