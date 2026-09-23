@@ -52,6 +52,7 @@ import {
   Quiz02Icon as Quiz02IconData,
   RefreshCwIcon as RefreshCwIconData,
   Search01Icon,
+  ServerIcon as ServerIconData,
   ServerOffIcon as ServerOffIconData,
   SidebarRight01Icon as SidebarRight01IconData,
   Settings02Icon,
@@ -156,6 +157,7 @@ export const Presentation02Icon = createIcon(Presentation02IconData)
 export const Quiz02Icon = createIcon(Quiz02IconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const SearchIcon = createIcon(Search01Icon)
+export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
 export const SidebarRightIcon = createIcon(SidebarRight01IconData)

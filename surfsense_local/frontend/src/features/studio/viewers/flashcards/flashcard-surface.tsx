@@ -54,7 +54,7 @@ export function FlashcardSurface({
         <button
           type="button"
           onClick={onFlip}
-          className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+          className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
           aria-label={revealed ? "Show question" : "Reveal answer"}
         />
       </div>
@@ -75,7 +75,7 @@ export function FlashcardSurface({
       <button
         type="button"
         onClick={onFlip}
-        className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
         aria-label={revealed ? "Show question" : "Reveal answer"}
       />
     </div>

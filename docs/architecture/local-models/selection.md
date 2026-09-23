@@ -147,7 +147,9 @@ Two invariants, both easy to break from the frontend: selecting or clearing a
 model never writes or resets the marker, and Settings' Use actions never call the
 route. Only the onboarding page's "Start chatting" does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
-missing selection is fixed from Settings, which renders the same model screen.
+missing selection is fixed from Settings' Chat models section. Onboarding's model
+step reads the same hooks in `frontend/src/features/models/`; its content is not
+built yet (Known gaps).
 
 ## Resolution: local and remote
 
@@ -220,3 +222,4 @@ over HTTP.
 - No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
 - Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.
+- Onboarding's model step is an empty frame: it shows no way to choose a model, so "Start chatting" stays disabled on a fresh install until a chat model is selected some other way.

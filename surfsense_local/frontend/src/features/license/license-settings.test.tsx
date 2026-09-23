@@ -58,9 +58,7 @@ function stubApi(initial: LicenseStatus, onPut: () => Response) {
   return calls
 }
 
-async function openAddDialog(
-  user: ReturnType<typeof userEvent.setup>
-) {
+async function openAddDialog(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Add license" }))
   return screen.getByRole("dialog", { name: /Add license/ })
 }
@@ -200,9 +198,7 @@ describe("License settings", () => {
       await screen.findByRole("button", { name: "Replace license" })
     )
 
-    expect(
-      screen.getByRole("dialog", { name: /Replace license/ })
-    ).toBeTruthy()
+    expect(screen.getByRole("dialog", { name: /Replace license/ })).toBeTruthy()
   })
 
   it("removes the license from this device", async () => {

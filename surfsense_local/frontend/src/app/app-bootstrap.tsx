@@ -3,13 +3,13 @@ import { lazy, Suspense, useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
+import { getProviderModels } from "@/features/models/chat-candidates/api"
+import { getConnectionModels } from "@/features/models/remote/models/api"
 import {
   getGenerationSelection,
-  getConnectionModels,
-  getOnboardingStatus,
-  getProviderModels,
   type ModelSelection,
-} from "@/features/model-selection/api"
+} from "@/features/models/selection/api"
+import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 

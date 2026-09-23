@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react"
 
-import { getShaderColorFromString, ShaderMount } from "@paper-design/shaders-react"
+import {
+  getShaderColorFromString,
+  ShaderMount,
+} from "@paper-design/shaders-react"
 
 import ditherBackground from "./onboarding-dither-background.webp"
 import { onboardingDitherFragmentShader } from "./onboarding-dither-shader"

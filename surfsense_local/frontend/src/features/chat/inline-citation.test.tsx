@@ -53,9 +53,7 @@ describe("InlineCitation", () => {
       </CitationProvider>
     )
 
-    fireEvent.click(
-      screen.getByRole("button", { name: "View cited chunk 30" })
-    )
+    fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
     expect(onCitation).toHaveBeenCalledWith(30)
   })
 })

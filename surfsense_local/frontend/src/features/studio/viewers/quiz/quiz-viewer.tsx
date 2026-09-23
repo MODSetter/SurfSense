@@ -46,7 +46,11 @@ type Screen = "taking" | "score" | "review"
 // comes from the artifact itself (artifact.quiz_state), already persisted
 // server-side — see backend/modules/artifacts/quiz_progress.py.
 export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
-  const { data: quiz, isLoading, error } = useQuery({
+  const {
+    data: quiz,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["artifact-file", artifact.id],
     queryFn: ({ signal }) => readArtifactFile<Quiz>(artifact.id, signal),
   })
@@ -60,7 +64,7 @@ export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
   }
   if (error || !quiz) {
     return (
-      <p className={`${VIEWER_PADDING} text-destructive text-sm`}>
+      <p className={`${VIEWER_PADDING} text-sm text-destructive`}>
         {error instanceof Error ? error.message : "Failed to load this quiz"}
       </p>
     )
@@ -92,15 +96,18 @@ function QuizRunner({
   const [message, setMessage] = useState("")
 
   const answer = useMutation({
-    mutationFn: (body: { question_index: number; selected_option_index: number }) =>
-      answerQuizQuestion(artifact.id, body),
+    mutationFn: (body: {
+      question_index: number
+      selected_option_index: number
+    }) => answerQuizQuestion(artifact.id, body),
   })
   const skip = useMutation({
     mutationFn: (body: { question_index: number }) =>
       skipQuizQuestion(artifact.id, body),
   })
   const retake = useMutation({
-    mutationFn: (body: { mode: QuizMode }) => retakeQuizRequest(artifact.id, body),
+    mutationFn: (body: { mode: QuizMode }) =>
+      retakeQuizRequest(artifact.id, body),
   })
   const saving = answer.isPending || skip.isPending
 
@@ -133,7 +140,9 @@ function QuizRunner({
       })
       applyState(next)
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Answer could not be saved")
+      setMessage(
+        err instanceof Error ? err.message : "Answer could not be saved"
+      )
     }
   }
 
@@ -155,7 +164,9 @@ function QuizRunner({
       applyState(next)
       moveForward()
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Question could not be skipped")
+      setMessage(
+        err instanceof Error ? err.message : "Question could not be skipped"
+      )
     }
   }
 
@@ -170,7 +181,9 @@ function QuizRunner({
       setScreen(quizRunComplete(next) ? "score" : "taking")
       requestAnimationFrame(() => headingRef.current?.focus())
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Quiz could not be restarted")
+      setMessage(
+        err instanceof Error ? err.message : "Quiz could not be restarted"
+      )
     }
   }
 
@@ -209,7 +222,7 @@ function QuizRunner({
 
   return (
     <section aria-labelledby={headingId} className={VIEWER_PADDING}>
-      <div className="mb-6 flex items-center justify-between gap-4 text-muted-foreground text-sm">
+      <div className="mb-6 flex items-center justify-between gap-4 text-sm text-muted-foreground">
         <p className="truncate">Attempt your quiz</p>
         <p className="shrink-0 tabular-nums">
           {position + 1} / {state.active_question_indices.length}
@@ -229,7 +242,7 @@ function QuizRunner({
         id={headingId}
         ref={headingRef}
         tabIndex={-1}
-        className="mb-6 font-semibold text-xl outline-none sm:text-2xl"
+        className="mb-6 text-xl font-semibold outline-none sm:text-2xl"
       >
         <StudyText content={question.question_text} />
       </h2>
@@ -296,7 +309,7 @@ function QuizRunner({
         </Button>
       </div>
       {message ? (
-        <p role="alert" className="mt-4 text-destructive text-sm">
+        <p role="alert" className="mt-4 text-sm text-destructive">
           {message}
         </p>
       ) : null}

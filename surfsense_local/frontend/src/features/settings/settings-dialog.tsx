@@ -9,8 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  Chat01Icon,
   ComputerEthernetIcon,
-  CpuIcon,
+  Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
   Settings2Icon,
@@ -24,12 +25,13 @@ import { NetworkSettings } from "@/features/egress/network-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
-import type { ModelSelection } from "@/features/model-selection/api"
+import type { ModelSelection } from "@/features/models/selection/api"
 import { UpdateSettings } from "@/features/updates/update-settings"
 import { cn } from "@/lib/utils"
 
 import { AppearanceToggle } from "./appearance-toggle"
-import { ModelsSettings } from "./models-settings"
+import { ChatModelsSettings } from "./models/chat-models-settings"
+import { ImageModelsSettings } from "./models/image-models-settings"
 import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
@@ -38,7 +40,8 @@ type SettingsNavItem = {
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
-export type SettingsSectionId = "general" | "models" | "network" | "license"
+export type SettingsSectionId =
+  "general" | "chat-models" | "image-models" | "network" | "license"
 
 const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
 
@@ -125,9 +128,14 @@ const SETTINGS_SECTIONS = [
     icon: Settings2Icon,
   },
   {
-    id: "models",
-    label: "Models",
-    icon: CpuIcon,
+    id: "chat-models",
+    label: "Chat",
+    icon: Chat01Icon,
+  },
+  {
+    id: "image-models",
+    label: "Image",
+    icon: Image01Icon,
   },
   {
     id: "network",
@@ -206,11 +214,14 @@ export function SettingsDialog({
             {activeSection.id === "general" ? (
               <GeneralSettings onImported={onImported} />
             ) : null}
-            {activeSection.id === "models" ? (
-              <ModelsSettings
+            {activeSection.id === "chat-models" ? (
+              <ChatModelsSettings
                 onModelUnavailable={onModelUnavailable}
                 onSelected={onModelSelected}
               />
+            ) : null}
+            {activeSection.id === "image-models" ? (
+              <ImageModelsSettings onModelUnavailable={onModelUnavailable} />
             ) : null}
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}

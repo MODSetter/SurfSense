@@ -42,7 +42,7 @@ export function QuizReviewScreen({
     <section>
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <p className="text-muted-foreground text-sm">Review</p>
+          <p className="text-sm text-muted-foreground">Review</p>
           <p className="font-medium">
             Question {index + 1} of {quiz.questions.length}
           </p>
@@ -54,7 +54,7 @@ export function QuizReviewScreen({
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="mb-6 font-semibold text-xl outline-none sm:text-2xl"
+        className="mb-6 text-xl font-semibold outline-none sm:text-2xl"
       >
         <StudyText content={question.question_text} />
       </h2>

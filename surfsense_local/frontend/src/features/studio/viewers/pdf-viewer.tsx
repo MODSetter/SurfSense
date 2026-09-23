@@ -97,7 +97,9 @@ export function PdfViewer({
         ])
 
         if (!response.ok) {
-          throw new Error(`Server returned ${response.status} while retrieving the PDF`)
+          throw new Error(
+            `Server returned ${response.status} while retrieving the PDF`
+          )
         }
 
         const data = await response.arrayBuffer()
@@ -151,7 +153,9 @@ export function PdfViewer({
         resizeObserver.observe(container)
       } catch (error: unknown) {
         if (disposed) return
-        setLoadError(error instanceof Error ? error.message : "Failed to load PDF")
+        setLoadError(
+          error instanceof Error ? error.message : "Failed to load PDF"
+        )
         setLoading(false)
       }
     })()
@@ -161,8 +165,10 @@ export function PdfViewer({
       controller.abort()
       if (resizeFrame !== null) cancelAnimationFrame(resizeFrame)
       resizeObserver?.disconnect()
-      if (eventBus && handlePagesInit) eventBus.off("pagesinit", handlePagesInit)
-      if (eventBus && handlePageRendered) eventBus.off("pagerendered", handlePageRendered)
+      if (eventBus && handlePagesInit)
+        eventBus.off("pagesinit", handlePagesInit)
+      if (eventBus && handlePageRendered)
+        eventBus.off("pagerendered", handlePageRendered)
       pdfViewer?.setDocument(null)
       pdfViewerRef.current = null
       if (pdfDocument) {

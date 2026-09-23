@@ -1,5 +1,7 @@
 import type { ReactNode } from "react"
 
+import { Button } from "@/components/ui/button"
+import { ArrowLeftIcon } from "@/components/ui/icons"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 
 export function SettingsSection({
@@ -7,12 +9,15 @@ export function SettingsSection({
   description,
   children,
   footer,
+  back,
   scrollable = true,
 }: {
   title: string
   description: string
   children: ReactNode
   footer?: ReactNode
+  /** A sub-page names the page it returns to. */
+  back?: { label: string; onClick: () => void }
   // true: header fixed, only the content below it scrolls (most sections).
   // false: nothing here scrolls — the content manages its own scroll area(s).
   // "all": header and content scroll together as one region, for content
@@ -21,6 +26,18 @@ export function SettingsSection({
 }) {
   const heading = (
     <>
+      {back ? (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="mb-2 -ml-2 text-muted-foreground"
+          onClick={back.onClick}
+        >
+          <ArrowLeftIcon data-icon="inline-start" />
+          {back.label}
+        </Button>
+      ) : null}
       <h2 className="font-heading text-lg font-medium text-balance">{title}</h2>
       <p className="mt-1 text-sm text-pretty text-muted-foreground">
         {description}

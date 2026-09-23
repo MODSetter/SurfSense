@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
-import type { ModelType } from "@/features/model-selection/model-type"
+import type { ModelType } from "@/features/models/model-type"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
@@ -145,8 +145,7 @@ function Composer({
                 Sources
               </p>
               <p className="text-sm text-muted-foreground">
-                Add and index a source first — only ready documents can be
-                used.
+                Add and index a source first — only ready documents can be used.
               </p>
             </div>
           ) : (
