@@ -92,7 +92,7 @@ describe("SettingsDialog", () => {
     )
   })
 
-  it("opens model management inside settings", async () => {
+  it("shows each model type as its own section", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (input: RequestInfo | URL) => {
@@ -142,37 +142,42 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup()
 
     render(<SettingsHarness />)
-    await user.click(screen.getByRole("button", { name: "Models" }))
+    await user.click(screen.getByRole("button", { name: "Chat models" }))
 
-    expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
-    expect(screen.queryByText("Currently using")).toBeNull()
-
-    const roles = await screen.findByRole("region", { name: "Models in use" })
-    expect(roles.textContent).toContain("qwen3:1.7b")
-    expect(roles.textContent).toContain("Local")
-    expect(roles.textContent).toContain("flux")
-    expect(roles.textContent).toContain("openrouter test")
-
-    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
-    expect(screen.getByRole("tab", { name: "OpenAI-compatible" })).toBeTruthy()
     expect(
-      screen.queryByRole("button", { name: "Use selected model" })
-    ).toBeNull()
+      await screen.findByRole("heading", { name: "Chat models" })
+    ).toBeTruthy()
+    // The model in use is named even when no local file answers to it.
+    const chat = await screen.findByRole("region", {
+      name: "chat model in use",
+    })
+    await waitFor(() => expect(chat.textContent).toContain("qwen3:1.7b"))
+    expect(chat.textContent).toContain("Not found on this computer")
     const scrollViewport = document.querySelector(
       '[data-slot="scroll-shadow-viewport"]'
     )
     expect(scrollViewport?.className).toContain("overflow-y-auto")
-    // The "Models" heading scrolls with the rest of the section now — its
-    // content varies too much in height for a fixed header to make sense.
+    // The heading scrolls with the rest of the section: its content varies
+    // too much in height for a fixed header to make sense.
     expect(
-      scrollViewport?.contains(screen.getByRole("heading", { name: "Models" }))
+      scrollViewport?.contains(
+        screen.getByRole("heading", { name: "Chat models" })
+      )
     ).toBe(true)
+
+    await user.click(screen.getByRole("button", { name: "Image models" }))
+
     expect(
-      await screen.findByText("No local models are available")
+      await screen.findByRole("heading", { name: "Image models" })
     ).toBeTruthy()
+    const image = await screen.findByRole("region", {
+      name: "image model in use",
+    })
+    await waitFor(() => expect(image.textContent).toContain("flux"))
+    expect(image.textContent).toContain("openrouter test")
   })
 
-  it("shows the model tabs without a catalog skeleton while selection data loads", async () => {
+  it("shows nothing half-loaded while model data loads", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => undefined))
@@ -180,20 +185,10 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup()
 
     render(<SettingsHarness />)
-    await user.click(screen.getByRole("button", { name: "Models" }))
+    await user.click(screen.getByRole("button", { name: "Chat models" }))
 
-    expect(screen.getByRole("heading", { name: "Models" })).toBeTruthy()
-    const roles = screen.getByRole("region", { name: "Models in use" })
-    expect(roles.querySelectorAll("[data-slot=skeleton]")).toHaveLength(2)
-    expect(screen.queryByText("Loading…")).toBeNull()
-    expect(screen.getByRole("tab", { name: "Local" })).toBeTruthy()
-    // The catalog GET no longer probes hardware on an unrefreshed load, so
-    // no loading state is expected here even with this promise never resolving.
-    expect(
-      screen.queryByRole("status", { name: "Scanning model catalog" })
-    ).toBeNull()
-    expect(
-      screen.queryByRole("status", { name: "Loading model settings" })
-    ).toBeNull()
+    expect(screen.getByRole("heading", { name: "Chat models" })).toBeTruthy()
+    expect(screen.queryByText("No chat model yet")).toBeNull()
+    expect(screen.queryByRole("status")).toBeNull()
   })
 })

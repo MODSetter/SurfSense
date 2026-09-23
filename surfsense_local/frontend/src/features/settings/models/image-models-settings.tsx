@@ -1,0 +1,50 @@
+import { DownloadImageModels } from "@/features/models/local/image/download-image-models"
+import { ImageDownloadProgress } from "@/features/models/local/image/image-download-progress"
+import { useDeleteLocalImageModel } from "@/features/models/local/image/use-delete-local-image-model"
+import { useImageInstall } from "@/features/models/local/image/use-image-install"
+import { useSelect } from "@/features/models/selection/use-selection"
+import { useImageModels } from "@/features/models/your-models/use-image-models"
+
+import { ModelSlotSettings } from "./model-slot-settings"
+
+export function ImageModelsSettings({
+  onModelUnavailable,
+}: {
+  // A server removed from here can also be the one serving chat.
+  onModelUnavailable: () => void
+}) {
+  const models = useImageModels()
+  const select = useSelect("image_gen")
+  const remove = useDeleteLocalImageModel()
+  const { installState, cancelInstall } = useImageInstall()
+
+  return (
+    <ModelSlotSettings
+      title="Image models"
+      description="The model that makes images in Studio. Run one on this computer, or use one from a server."
+      slot="image"
+      modelType="image_gen"
+      models={models}
+      pending={
+        installState.status === "installing" ? (
+          <div className="flex flex-col gap-2">
+            <p className="truncate text-sm font-medium">{installState.label}</p>
+            <ImageDownloadProgress
+              label={installState.label}
+              step={installState.step}
+              onCancel={cancelInstall}
+            />
+          </div>
+        ) : null
+      }
+      download={<DownloadImageModels />}
+      onChatCleared={onModelUnavailable}
+      onUse={async (row) => {
+        if (row.target) await select.mutateAsync({ target: row.target })
+      }}
+      onDelete={async (row) => {
+        if (row.removeId) await remove.mutateAsync(row.removeId)
+      }}
+    />
+  )
+}
