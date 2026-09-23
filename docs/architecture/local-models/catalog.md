@@ -1,5 +1,7 @@
 # The model catalog
 
+> **Being redesigned.** The [model catalog proposal](../../proposals/model-catalog.md) replaces this catalog: the curated manifest, the install gate, and the separate image model list. This page describes the code as it is until that work ships.
+
 The model screen offers local generation models from two tiers: a curated
 manifest of pinned builds (none yet marked `validated`), shipped frozen and priced offline from
 committed header fields, and a search over every GGUF repo on Hugging Face,
