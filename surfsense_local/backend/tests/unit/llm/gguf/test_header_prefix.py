@@ -88,3 +88,45 @@ def test_the_reader_leaves_no_temporary_file_behind(tmp_path, monkeypatch) -> No
         read_header_prefix(gguf(entries())[:20])
 
     assert list(tmp_path.iterdir()) == []
+
+
+def test_a_vocabulary_is_counted_rather_than_decoded() -> None:
+    """A vocabulary is 150k strings, and walking it element by element through
+    the base class cost 3.4 s of a 3.5 s parse. Nothing reads the words, only how
+    many there are, so a long array keeps its length and nothing else."""
+    words = [f"t{i}" for i in range(10_000)]
+    header = read_header_prefix(
+        gguf(
+            [
+                kv("general.architecture", STRING, "qwen3"),
+                array("tokenizer.ggml.tokens", STRING, words),
+                array("tokenizer.ggml.token_type", UINT32, [1] * 10_000),
+                array("qwen3.attention.head_count_kv", UINT32, [8, 4]),
+            ]
+        )
+    )
+
+    assert len(header.metadata["tokenizer.ggml.tokens"]) == 10_000
+    assert len(header.metadata["tokenizer.ggml.token_type"]) == 10_000
+    assert header.metadata["qwen3.attention.head_count_kv"] == [8, 4]
+
+
+def test_a_long_array_cut_short_is_still_a_truncated_header() -> None:
+    """A long array cut short is still a truncated header."""
+    whole = gguf([kv("general.architecture", STRING, "qwen3"),
+                  array("tokenizer.ggml.tokens", STRING, [f"t{i}" for i in range(10_000)])])
+
+    with pytest.raises(TruncatedHeaderError):
+        read_header_prefix(whole[: len(whole) - 100])
+
+
+def test_a_real_sized_vocabulary_parses_in_well_under_a_second() -> None:
+    """Qwen3's is 151,936 tokens. The base class took 3.4 s on it."""
+    import time
+
+    prefix = gguf([kv("general.architecture", STRING, "qwen3"),
+                   array("tokenizer.ggml.tokens", STRING, [f"tok{i}" for i in range(152_000)])])
+    started = time.perf_counter()
+    read_header_prefix(prefix)
+
+    assert time.perf_counter() - started < 1.0

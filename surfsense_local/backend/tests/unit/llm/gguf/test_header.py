@@ -185,3 +185,14 @@ def test_unknown_value_types_do_not_stop_the_parse() -> None:
     entries = [*qwen3_entries(), kv("some.vendor.metric", FLOAT32, 0.5)]
 
     assert read_header(gguf(entries)).block_count == 28
+
+
+def test_a_vocabulary_too_long_to_decode_still_counts() -> None:
+    """The compute buffer is priced from n_vocab, so counting instead of decoding
+    must not lose it."""
+    entries = [
+        *qwen3_entries()[:-1],
+        array("tokenizer.ggml.tokens", STRING, [f"t{i}" for i in range(20_000)]),
+    ]
+
+    assert read_header(gguf(entries)).n_vocab == 20_000

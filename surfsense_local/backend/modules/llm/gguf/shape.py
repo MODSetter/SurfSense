@@ -12,7 +12,7 @@ from typing import Any
 from gguf.constants import Keys
 
 from modules.llm.fit import ModelShape
-from modules.llm.gguf.header_prefix import GgufHeader, read_header_prefix
+from modules.llm.gguf.header_prefix import ElidedArray, GgufHeader, read_header_prefix
 
 _LLM = Keys.LLM
 _ATTENTION = Keys.Attention
@@ -61,7 +61,7 @@ def to_shape(header: GgufHeader) -> ModelShape:
         key_length=key_length,
         value_length=value_length,
         context_length=field(_LLM.CONTEXT_LENGTH),
-        n_vocab=len(tokens) if isinstance(tokens, list) else field(_LLM.VOCAB_SIZE),
+        n_vocab=len(tokens) if isinstance(tokens, (list, ElidedArray)) else field(_LLM.VOCAB_SIZE),
         sliding_window=field(_ATTENTION.SLIDING_WINDOW),
         expert_count=field(_LLM.EXPERT_COUNT),
         embedding_length=embedding,
