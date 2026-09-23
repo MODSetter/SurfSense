@@ -127,7 +127,7 @@ You do not need Docker, a terminal, a GPU or a compose file.
 
 The download is the slow part, because the installer carries the parser, the retrieval model, the podcast voice and the local model servers, so the app works with the network off.
 
-## Docs, roadmap and community
+## Docs and community
 
 The app and its updates are free. A licence adds plugins and priority support and gates nothing else, so an expired licence still leaves you the app and every future update. See [pricing](https://www.surfsense.com/pricing).
 
@@ -136,11 +136,16 @@ The Docker stack in this repo (`surfsense_backend`, `surfsense_web`, compose fil
 - [Documentation](https://www.surfsense.com/docs) for install, models, Studio formats and self-hosting
 - [Importing from the hosted app](https://www.surfsense.com/sunset)
 - [MCP server](./surfsense_mcp) for the hosted scraper API
-- [Roadmap discussion](https://github.com/MODSetter/SurfSense/discussions/565) and the [project board](https://github.com/users/MODSetter/projects/3)
 - [Discord](https://discord.gg/ejRNvftDp9) for help and ideas, [Discussions](https://github.com/MODSetter/SurfSense/discussions) for direction, [Issues](https://github.com/MODSetter/SurfSense/issues) for reproducible bugs
 - **Star the repo** if you want to follow where this goes
 
-Pull requests welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); the desktop app lives in [`surfsense_local/`](./surfsense_local) and its README covers the development loop.
+## Contributing
+
+Pull requests are welcome, and [CONTRIBUTING.md](CONTRIBUTING.md) walks through the whole flow. In short:
+
+- **Find something to work on:** an issue labelled [`good first issue`](https://github.com/MODSetter/SurfSense/labels/good%20first%20issue) or [`help wanted`](https://github.com/MODSetter/SurfSense/labels/help%20wanted), or a line from the Known gaps list at the end of each doc in [`docs/architecture/`](docs/architecture/overview.md).
+- **Read how it works first:** [`docs/`](docs/README.md) explains each feature and why it is built that way, and [`docs/ROADMAP.md`](docs/ROADMAP.md) shows what the maintainers are working on.
+- **Open a PR against `dev`.** Bug fixes and docs need no discussion first; a new feature starts with a short design proposal. The desktop app lives in [`surfsense_local/`](./surfsense_local), and its README covers the development loop.
 
 Thanks to all our Surfers:
 

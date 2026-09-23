@@ -126,7 +126,7 @@ SurfSense यह नहीं बता सकता कि इससे को�
 
 धीमा हिस्सा सिर्फ़ डाउनलोड है, क्योंकि इंस्टॉलर के साथ पार्सर, रिट्रीवल मॉडल, पॉडकास्ट की आवाज़ और लोकल मॉडल सर्वर भी आते हैं, ताकि नेटवर्क बंद होने पर भी ऐप काम करे।
 
-## डॉक्स, रोडमैप और कम्युनिटी
+## डॉक्स और कम्युनिटी
 
 ऐप और उसके अपडेट मुफ़्त हैं। लाइसेंस से प्लगइन और प्रायॉरिटी सपोर्ट मिलते हैं, इसके अलावा वह कुछ नहीं रोकता — यानी लाइसेंस खत्म हो जाने पर भी ऐप और आने वाला हर अपडेट आपके पास बना रहता है। देखें [प्राइसिंग](https://www.surfsense.com/pricing)।
 
@@ -135,11 +135,16 @@ SurfSense यह नहीं बता सकता कि इससे को�
 - इंस्टॉल, मॉडल, Studio फ़ॉर्मैट और सेल्फ़-होस्टिंग के लिए [डॉक्युमेंटेशन](https://www.surfsense.com/docs)
 - [होस्टेड ऐप से इम्पोर्ट करना](https://www.surfsense.com/sunset)
 - होस्टेड स्क्रेपर API के लिए [MCP सर्वर](./surfsense_mcp)
-- [रोडमैप चर्चा](https://github.com/MODSetter/SurfSense/discussions/565) और [प्रोजेक्ट बोर्ड](https://github.com/users/MODSetter/projects/3)
 - मदद और आइडिया के लिए [Discord](https://discord.gg/ejRNvftDp9), दिशा तय करने के लिए [Discussions](https://github.com/MODSetter/SurfSense/discussions), और दोबारा दोहराए जा सकने वाले बग के लिए [Issues](https://github.com/MODSetter/SurfSense/issues)
 - आगे यह कहाँ जाता है, इस पर नज़र रखनी हो तो **रिपो को स्टार करें**
 
-पुल रिक्वेस्ट का स्वागत है। शुरुआत [CONTRIBUTING.md](CONTRIBUTING.md) से करें; डेस्कटॉप ऐप [`surfsense_local/`](./surfsense_local) में है और उसका README डेवलपमेंट लूप समझाता है।
+## योगदान कैसे करें
+
+पुल रिक्वेस्ट का स्वागत है, और [CONTRIBUTING.md](CONTRIBUTING.md) पूरी प्रक्रिया समझाता है। संक्षेप में:
+
+- **काम चुनें:** [`good first issue`](https://github.com/MODSetter/SurfSense/labels/good%20first%20issue) या [`help wanted`](https://github.com/MODSetter/SurfSense/labels/help%20wanted) लेबल वाला कोई issue, या [`docs/architecture/`](docs/architecture/overview.md) के हर डॉक के आख़िर में दी गई Known gaps (ज्ञात कमियाँ) सूची की कोई पंक्ति।
+- **पहले समझें कि यह कैसे काम करता है:** [`docs/`](docs/README.md) हर फ़ीचर को और उसे इस तरह बनाने की वजह समझाता है, और [`docs/ROADMAP.md`](docs/ROADMAP.md) बताता है कि मेंटेनर किस पर काम कर रहे हैं।
+- **`dev` ब्रांच पर PR खोलें।** बग फ़िक्स और डॉक्स के लिए पहले चर्चा ज़रूरी नहीं है; नया फ़ीचर एक छोटे डिज़ाइन प्रस्ताव से शुरू होता है। डेस्कटॉप ऐप [`surfsense_local/`](./surfsense_local) में है और उसका README डेवलपमेंट लूप समझाता है।
 
 हमारे सभी Surfers का शुक्रिया:
 

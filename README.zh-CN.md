@@ -126,7 +126,7 @@ SurfSense 无法告诉你这是否满足某项具体的合规要求，那取决�
 
 慢的是下载这一步，因为安装程序里装着解析器、检索模型、播客语音和本地模型服务，这样应用在断网状态下也能用。
 
-## 文档、路线图与社区
+## 文档与社区
 
 应用及其更新都是免费的。许可证增加的是插件和优先支持，除此之外不锁任何功能，所以许可证到期后，应用和今后的每一次更新依然归你。详见[定价](https://www.surfsense.com/pricing)。
 
@@ -135,11 +135,16 @@ SurfSense 无法告诉你这是否满足某项具体的合规要求，那取决�
 - [文档](https://www.surfsense.com/docs)：安装、模型、Studio 格式与自托管
 - [从托管版应用导入](https://www.surfsense.com/sunset)
 - [MCP 服务器](./surfsense_mcp)：对接托管版抓取 API
-- [路线图讨论](https://github.com/MODSetter/SurfSense/discussions/565)与[项目看板](https://github.com/users/MODSetter/projects/3)
 - [Discord](https://discord.gg/ejRNvftDp9) 用来求助和交流想法，[Discussions](https://github.com/MODSetter/SurfSense/discussions) 用来讨论方向，[Issues](https://github.com/MODSetter/SurfSense/issues) 用来提可复现的缺陷
 - **给仓库点个 Star**，就能跟进它之后的走向
 
-欢迎提交 Pull Request。先从 [CONTRIBUTING.md](CONTRIBUTING.md) 开始；桌面应用在 [`surfsense_local/`](./surfsense_local)，它的 README 讲了开发流程。
+## 参与贡献
+
+欢迎提交 Pull Request，[CONTRIBUTING.md](CONTRIBUTING.md) 讲了完整流程。简单来说：
+
+- **找一件事来做**：带有 [`good first issue`](https://github.com/MODSetter/SurfSense/labels/good%20first%20issue) 或 [`help wanted`](https://github.com/MODSetter/SurfSense/labels/help%20wanted) 标签的 issue，或者 [`docs/architecture/`](docs/architecture/overview.md) 里每篇文档末尾 Known gaps（已知缺口）列表中的一条。
+- **先读懂它怎么工作**：[`docs/`](docs/README.md) 解释了每个功能以及它为什么这样实现，[`docs/ROADMAP.md`](docs/ROADMAP.md) 列出了维护者正在做的事。
+- **向 `dev` 分支提交 PR**。修复缺陷和改文档不需要事先讨论；新功能先写一份简短的设计提案。桌面应用在 [`surfsense_local/`](./surfsense_local)，它的 README 讲了开发流程。
 
 感谢所有 Surfer：
 

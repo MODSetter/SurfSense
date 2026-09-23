@@ -127,7 +127,7 @@ Você não precisa de Docker, terminal, GPU nem arquivo compose.
 
 O download é a parte lenta, porque o instalador carrega o leitor de documentos, o modelo de recuperação, a voz do podcast e os servidores de modelos locais, e é isso que faz o aplicativo funcionar com a rede desligada.
 
-## Documentação, roadmap e comunidade
+## Documentação e comunidade
 
 O aplicativo e suas atualizações são gratuitos. Uma licença adiciona plugins e suporte prioritário e não bloqueia mais nada, então uma licença expirada ainda deixa com você o aplicativo e todas as atualizações futuras. Veja os [preços](https://www.surfsense.com/pricing).
 
@@ -136,11 +136,16 @@ A stack Docker deste repositório (`surfsense_backend`, `surfsense_web`, arquivo
 - [Documentação](https://www.surfsense.com/docs) sobre instalação, modelos, formatos do Studio e auto-hospedagem
 - [Importando do app hospedado](https://www.surfsense.com/sunset)
 - [Servidor MCP](./surfsense_mcp) para a API de scraping hospedada
-- [Discussão do roadmap](https://github.com/MODSetter/SurfSense/discussions/565) e o [quadro do projeto](https://github.com/users/MODSetter/projects/3)
 - [Discord](https://discord.gg/ejRNvftDp9) para ajuda e ideias, [Discussions](https://github.com/MODSetter/SurfSense/discussions) para a direção do produto, [Issues](https://github.com/MODSetter/SurfSense/issues) para bugs reproduzíveis
 - **Dê uma estrela no repositório** se quiser acompanhar para onde isso vai
 
-Pull requests são bem-vindos. Comece pelo [CONTRIBUTING.md](CONTRIBUTING.md); o aplicativo de desktop fica em [`surfsense_local/`](./surfsense_local) e o README dele cobre o ciclo de desenvolvimento.
+## Como contribuir
+
+Pull requests são bem-vindos, e o [CONTRIBUTING.md](CONTRIBUTING.md) explica todo o fluxo. Em resumo:
+
+- **Encontre algo para fazer:** uma issue com o rótulo [`good first issue`](https://github.com/MODSetter/SurfSense/labels/good%20first%20issue) ou [`help wanted`](https://github.com/MODSetter/SurfSense/labels/help%20wanted), ou uma linha da lista Known gaps (lacunas conhecidas) no fim de cada documento em [`docs/architecture/`](docs/architecture/overview.md).
+- **Leia antes como funciona:** [`docs/`](docs/README.md) explica cada funcionalidade e por que ela é feita assim, e o [`docs/ROADMAP.md`](docs/ROADMAP.md) mostra no que os mantenedores estão trabalhando.
+- **Abra um PR para `dev`.** Correções de bugs e documentação não precisam de discussão antes; uma funcionalidade nova começa com uma proposta de design curta. O aplicativo de desktop fica em [`surfsense_local/`](./surfsense_local) e o README dele cobre o ciclo de desenvolvimento.
 
 Obrigado a todos os nossos Surfers:
 
