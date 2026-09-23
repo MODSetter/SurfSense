@@ -15,7 +15,7 @@ The local runtime was Ollama. Its library held 240 models. A measured scan resol
 - Per-model flags go in a preset INI, passed as `--models-preset`, which the router reads once at startup. `POST /models/load` accepts an `args` field and ignores it, measured. Installing a model or changing its load plan rewrites the file, and Electron restarts the sidecar ([`providers/llamacpp/preset.py`](../../surfsense_local/backend/modules/llm/providers/llamacpp/preset.py)).
 - `--fit` owns layer placement. SurfSense never sets `n-gpu-layers`: setting it aborts the fitter, and the model then loads entirely on the CPU with exit code 0 and no error.
 - MLX is not shipped, to be revisited after launch. MLX's format covers 23,985 Hugging Face repos against GGUF's 204,797. Mac users who want MLX point a connection at LM Studio, which is why the `LM Studio (local)` and `Ollama (local)` presets stay in [`connection-form.tsx`](../../surfsense_local/frontend/src/features/model-selection/connection-form.tsx).
-- llmfit runs only at authoring time. A person runs [`scripts/refresh_curated_models.py`](../../surfsense_local/backend/scripts/refresh_curated_models.py) when adding or changing a curated entry and commits the numbers. llmfit is not shipped, not in CI and not on any request path.
+- llmfit runs only at authoring time. A person runs `scripts/refresh_curated_models.py` (now [`scripts/refresh_local_manifest.py`](../../surfsense_local/backend/scripts/refresh_local_manifest.py), which uses no llmfit, per [ADR 0026](0026-curated-order-is-list-position.md)) when adding or changing a curated entry and commits the numbers. llmfit is not shipped, not in CI and not on any request path.
 
 ## Consequences
 

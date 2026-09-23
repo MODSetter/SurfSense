@@ -293,7 +293,7 @@ the desktop app keeps better than the hosted page did:
   array claims `sites like chatgpt` and `chatgpt alternative free`; we rank for
   neither. Do not build pages for this cluster.
 - **The model table stays, and its rows must be real.** Render it from
-  [`curated-models.json`](../../../surfsense_local/backend/modules/llm/catalog/curated-models.json)
+  [`curated-models.json`](../../../surfsense_local/backend/modules/llm/catalog/local/manifest/models.json)
   (six Qwen3 sizes, 0.6B to 32B, since the llama.cpp runtime replaced Ollama;
   the Qwen2.5 Coder rows and the Ollama `catalog.py` that carried the sizes are
   gone),
