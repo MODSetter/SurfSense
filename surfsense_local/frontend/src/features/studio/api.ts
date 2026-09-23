@@ -1,6 +1,6 @@
 import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 import type { DocumentStatus } from "@/features/sources/api"
-import type { ModelType } from "@/features/model-selection/model-type"
+import type { ModelType } from "@/features/models/model-type"
 
 export type StudioFormat = {
   key: string
