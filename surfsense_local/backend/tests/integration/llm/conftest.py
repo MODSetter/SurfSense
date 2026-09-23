@@ -6,7 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
-from modules.llm.catalog.dependencies import get_catalog_service
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from shared.config import get_llm_settings
 
 INSTALLED = ["Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"]
@@ -84,7 +84,7 @@ def llamacpp_server(
     for name in INSTALLED:
         (models / f"{name}.gguf").write_bytes(b"GGUF")
     monkeypatch.setattr(get_llm_settings(), "llamacpp_models_dir", models)
-    get_catalog_service.cache_clear()
+    get_local_catalog.cache_clear()
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubRouter)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
@@ -94,7 +94,7 @@ def llamacpp_server(
 
     server.shutdown()
     server.server_close()
-    get_catalog_service.cache_clear()
+    get_local_catalog.cache_clear()
 
 
 REMOTE_MODELS = [

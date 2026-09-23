@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
@@ -8,8 +8,9 @@ import { render } from "@/test-utils"
 import { ModelCatalogPage } from "./model-catalog-page"
 import {
   parseNdjson,
-  type CatalogRow,
   type Fit,
+  type LocalBuild,
+  type LocalRow,
   type ModelCatalog,
 } from "./api"
 
@@ -26,23 +27,53 @@ const fit = (overrides: Partial<Fit> = {}): Fit => ({
   ...overrides,
 })
 
-const row = (overrides: Partial<CatalogRow> = {}): CatalogRow => ({
+const build = (overrides: Partial<LocalBuild> = {}): LocalBuild => ({
   catalog_id: "opaque-qwen",
-  model_id: "Qwen/Qwen3-8B",
-  variant_model_id: "Qwen3-8B-Q4_K_M",
-  label: "Qwen3 8B",
-  family: "Qwen3",
-  parameter_count: "8B",
   quantization: "Q4_K_M",
-  size_bytes: 5_027_784_512,
-  context_length: 40960,
+  footprint_bytes: 5_027_784_512,
+  files: [
+    {
+      role: "weights",
+      path: "Qwen3-8B-Q4_K_M.gguf",
+      size_bytes: 5_027_784_512,
+    },
+  ],
   fit: fit(),
-  badge: { verdict: "Full speed", reason: "Runs entirely on the GPU" },
-  capabilities: [],
-  installed: false,
-  selected: false,
+  badge: { level: "none", verdict: "", reason: "" },
   can_install: true,
+  installed_as: null,
+  selected: false,
   recommended: false,
+  reads_images: false,
+  projector_checked: true,
+  ...overrides,
+})
+
+const row = (
+  overrides: Partial<LocalRow> = {},
+  builds: LocalBuild[] = [build()]
+): LocalRow => ({
+  id: "qwen3-8b",
+  source: "local",
+  origin: "curated",
+  name: "Qwen3 8B",
+  family: "Qwen3",
+  types: ["text_gen"],
+  known: true,
+  approximate: false,
+  selectable_for: ["text_gen"],
+  support: {
+    context: 40960,
+    reads_images: false,
+    tools: true,
+    reasoning: true,
+  },
+  runnable: true,
+  not_runnable_reason: null,
+  builds,
+  default_quantization: "Q4_K_M",
+  recommended: false,
+  lead: { quantization: builds[0]?.quantization ?? "", why: "recommended" },
   ...overrides,
 })
 
@@ -57,9 +88,8 @@ const catalog = (overrides: Partial<ModelCatalog> = {}): ModelCatalog => ({
     has_gpu: true,
   },
   gpu_status: "present",
-  curated: [row()],
-  installed: [],
-  recommended_model_id: null,
+  rows: [row()],
+  recommended_id: null,
   ...overrides,
 })
 
@@ -80,7 +110,7 @@ function serving(
 ) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input)
-    if (path === "/llm/catalog") return Response.json(data)
+    if (path === "/llm/catalog/local") return Response.json(data)
     return (
       extra(path, init) ??
       Response.json({ detail: "not found" }, { status: 404 })
@@ -105,16 +135,46 @@ describe("model catalog", () => {
     expect(values).toEqual([{ type: "starting" }, { type: "complete" }])
   })
 
-  it("renders a hardware line and badged rows with no scan button", async () => {
-    // There is no scan: the budget comes from the runtime's own allocator, so
-    // there is nothing to wait for and nothing for the user to press.
+  it("renders a hardware line and quiet rows with no scan button", async () => {
+    // There is no scan: the budget comes from the runtime's own allocator. A
+    // build that runs fully carries no badge; a badge is only ever a warning.
     vi.stubGlobal("fetch", serving(catalog()))
 
     render(<ModelCatalogPage />)
 
-    expect(await screen.findByText("Full speed")).toBeTruthy()
-    expect(screen.getByText("Runs entirely on the GPU")).toBeTruthy()
+    expect(await screen.findByText("Qwen3 8B")).toBeTruthy()
+    expect(screen.queryByText("Full speed")).toBeNull()
     expect(screen.queryByRole("button", { name: /scan/i })).toBeNull()
+  })
+
+  it("explains a light spill without flagging it", async () => {
+    // Recommended on purpose, so it must not wear a warning beside the star.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({ recommended: true }, [
+              build({
+                recommended: true,
+                fit: fit({ state: "partial", offload_fraction: 0.2 }),
+                badge: {
+                  level: "none",
+                  verdict: "",
+                  reason: "Most of it runs on the GPU.",
+                },
+              }),
+            ]),
+          ],
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    expect(await screen.findByText("Most of it runs on the GPU.")).toBeTruthy()
+    expect(screen.getByLabelText("Recommended for this computer")).toBeTruthy()
+    expect(screen.queryByText("Reduced speed")).toBeNull()
   })
 
   it("says the card was not detected rather than calling the machine CPU only", async () => {
@@ -157,7 +217,9 @@ describe("model catalog", () => {
     const user = userEvent.setup()
 
     render(<ModelCatalogPage onSelected={onSelected} />)
-    await user.click(await screen.findByRole("button", { name: "Download" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    )
 
     await waitFor(() => expect(onSelected).toHaveBeenCalledOnce())
     const call = fetchMock.mock.calls.find(([path]) => path === "/llm/install")
@@ -175,14 +237,17 @@ describe("model catalog", () => {
       "fetch",
       serving(
         catalog({
-          curated: [
-            row({
-              fit: fit({ state: "partial", offload_fraction: 0.28 }),
-              badge: {
-                verdict: "Reduced speed",
-                reason: "A little too big for the GPU. Most of it still fits.",
-              },
-            }),
+          rows: [
+            row({}, [
+              build({
+                fit: fit({ state: "partial", offload_fraction: 0.28 }),
+                badge: {
+                  level: "notice",
+                  verdict: "Reduced speed",
+                  reason: "Too big for the GPU, so part runs on the CPU.",
+                },
+              }),
+            ]),
           ],
         })
       )
@@ -190,7 +255,9 @@ describe("model catalog", () => {
 
     render(<ModelCatalogPage />)
 
-    const action = await screen.findByRole("button", { name: "Download" })
+    const action = await screen.findByRole("button", {
+      name: "Download Qwen3 8B Q4_K_M",
+    })
     expect(action.hasAttribute("disabled")).toBe(false)
     expect(screen.getByText("Reduced speed")).toBeTruthy()
     expect(screen.queryByRole("alertdialog")).toBeNull()
@@ -203,14 +270,17 @@ describe("model catalog", () => {
       "fetch",
       serving(
         catalog({
-          curated: [
-            row({
-              fit: fit({ state: "partial", offload_fraction: 0.7 }),
-              badge: {
-                verdict: "Reduced speed",
-                reason: "Well over the GPU's memory. Expect it to be slow.",
-              },
-            }),
+          rows: [
+            row({}, [
+              build({
+                fit: fit({ state: "partial", offload_fraction: 0.7 }),
+                badge: {
+                  level: "notice",
+                  verdict: "Reduced speed",
+                  reason: "Well over the GPU's memory. Expect it to be slow.",
+                },
+              }),
+            ]),
           ],
         })
       )
@@ -230,15 +300,18 @@ describe("model catalog", () => {
       "fetch",
       serving(
         catalog({
-          curated: [
-            row({
-              fit: fit({ state: "too_big", offload_fraction: 1 }),
-              badge: {
-                verdict: "Won't fit",
-                reason: "Needs about 21 GB. This Mac has 13.6 GB",
-              },
-              can_install: false,
-            }),
+          rows: [
+            row({}, [
+              build({
+                fit: fit({ state: "too_big", offload_fraction: 1 }),
+                badge: {
+                  level: "refuse",
+                  verdict: "Won't fit",
+                  reason: "Needs about 21 GB. This Mac has 13.6 GB",
+                },
+                can_install: false,
+              }),
+            ]),
           ],
         })
       )
@@ -246,7 +319,9 @@ describe("model catalog", () => {
 
     render(<ModelCatalogPage />)
 
-    const action = await screen.findByRole("button", { name: "Download" })
+    const action = await screen.findByRole("button", {
+      name: "Download Qwen3 8B Q4_K_M",
+    })
     expect(action.hasAttribute("disabled")).toBe(true)
     expect(
       screen.getByText("Needs about 21 GB. This Mac has 13.6 GB")
@@ -260,8 +335,8 @@ describe("model catalog", () => {
       "fetch",
       serving(
         catalog({
-          curated: [row({ recommended: true })],
-          recommended_model_id: "Qwen/Qwen3-8B",
+          rows: [row({ recommended: true }, [build({ recommended: true })])],
+          recommended_id: "qwen3-8b",
         })
       )
     )
@@ -407,13 +482,13 @@ describe("model catalog", () => {
     ).toBeTruthy()
   })
 
-  it("lists search results and prices a repo's builds when it is opened", async () => {
-    // The header read costs a few megabytes, so it happens on opening a row
-    // rather than for every result in a list.
+  it("lists search results and a repo's builds from its listing", async () => {
+    // Opening a repo reads its listing only. No header is read to draw the
+    // list, so each fit is an estimate and says so.
     vi.stubGlobal(
       "fetch",
       serving(catalog(), (path) => {
-        if (path.startsWith("/llm/search?")) {
+        if (path.startsWith("/llm/catalog/local/search?")) {
           return Response.json({
             results: [
               {
@@ -424,32 +499,38 @@ describe("model catalog", () => {
                 gated: false,
                 quantized_from: "Qwen/Qwen3-8B",
                 last_modified: null,
+                reads_images: true,
               },
             ],
           })
         }
-        if (path.startsWith("/llm/search/")) {
+        if (path.startsWith("/llm/catalog/local/search/")) {
           return Response.json({
             repo: "unsloth/Qwen3-8B-GGUF",
-            architecture: "qwen3",
-            context_length: 40960,
-            supported: true,
-            chat_template: true,
-            ineligible_reason: null,
-            builds: [
+            gated: false,
+            row: row(
               {
-                catalog_id: "ticket-1",
-                file: "Qwen3-8B-Q4_K_M.gguf",
-                quantization: "Q4_K_M",
-                size_bytes: 5_027_784_512,
-                fit: fit(),
-                badge: {
-                  verdict: "Full speed",
-                  reason: "Runs entirely on the GPU",
+                id: "unsloth/Qwen3-8B-GGUF",
+                origin: "search",
+                name: "unsloth/Qwen3-8B-GGUF",
+                approximate: true,
+                default_quantization: null,
+                support: {
+                  context: null,
+                  reads_images: true,
+                  tools: null,
+                  reasoning: null,
                 },
-                can_install: true,
               },
-            ],
+              [
+                build({
+                  catalog_id: "ticket-1",
+                  fit: fit({ approximate: true }),
+                  reads_images: true,
+                  projector_checked: false,
+                }),
+              ]
+            ),
           })
         }
         return null
@@ -464,10 +545,22 @@ describe("model catalog", () => {
     )
 
     const hit = await screen.findByText("unsloth/Qwen3-8B-GGUF")
-    expect(screen.getByText(/quantized from Qwen\/Qwen3-8B/)).toBeTruthy()
+    // Provenance stays in the API, off the row.
+    expect(screen.queryByText(/quantized from/)).toBeNull()
+    // Said beside the name, before the repo is opened.
+    expect(screen.getByText("Vision")).toBeTruthy()
     await user.click(hit)
 
-    expect(await screen.findByText("Q4_K_M")).toBeTruthy()
+    const builds = await screen.findByRole("list", {
+      name: "Builds in unsloth/Qwen3-8B-GGUF",
+    })
+    expect(within(builds).getByText("Q4_K_M")).toBeTruthy()
+    expect(
+      screen.getByText(/Fit is estimated and checked before download/)
+    ).toBeTruthy()
+    expect(
+      within(builds).queryByText("Recommended for this computer")
+    ).toBeNull()
   })
 
   it("shows install failures as a toast instead of inside the model row", async () => {
@@ -484,7 +577,9 @@ describe("model catalog", () => {
     const user = userEvent.setup()
 
     render(<ModelCatalogPage />)
-    await user.click(await screen.findByRole("button", { name: "Download" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    )
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith("Download interrupted", {
@@ -499,14 +594,17 @@ describe("model catalog", () => {
     // button here it downloads, lists, deletes — and can never be chosen.
     const fetchMock = serving(
       catalog({
-        curated: [],
-        installed: [
-          {
-            model_id: "some-searched-model",
-            file: "some-searched-model.gguf",
-            size_bytes: 1_000_000_000,
-            selected: false,
-          },
+        rows: [
+          row(
+            {
+              id: "some-searched-model",
+              origin: "downloaded",
+              name: "some-searched-model",
+              family: "",
+              default_quantization: null,
+            },
+            [build({ catalog_id: "", installed_as: "some-searched-model" })]
+          ),
         ],
       })
     )
@@ -533,7 +631,11 @@ describe("model catalog", () => {
   it("confirms deletion of an installed model", async () => {
     vi.stubGlobal(
       "fetch",
-      serving(catalog({ curated: [row({ installed: true })] }))
+      serving(
+        catalog({
+          rows: [row({}, [build({ installed_as: "Qwen3-8B-Q4_K_M" })])],
+        })
+      )
     )
     const user = userEvent.setup()
 
@@ -544,5 +646,298 @@ describe("model catalog", () => {
 
     expect(await screen.findByRole("alertdialog")).toBeTruthy()
     expect(screen.getByText("Delete Qwen3 8B?")).toBeTruthy()
+  })
+})
+
+describe("builds of a curated model", () => {
+  it("leads with the build the server chose and lists the others on request", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(
+              {
+                default_quantization: "UD-Q4_K_XL",
+                lead: { quantization: "Q4_K_M", why: "recommended" },
+              },
+              [
+                build({ catalog_id: "q3", quantization: "Q3_K_M" }),
+                build({
+                  catalog_id: "q4",
+                  quantization: "Q4_K_M",
+                  recommended: true,
+                }),
+                build({ catalog_id: "ud", quantization: "UD-Q4_K_XL" }),
+              ]
+            ),
+          ],
+        })
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+
+    expect(
+      await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: "Download Qwen3 8B Q3_K_M" })
+    ).toBeNull()
+
+    await user.click(screen.getByRole("button", { name: "2 other builds" }))
+
+    expect(
+      screen.getByRole("button", { name: "Download Qwen3 8B Q3_K_M" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Download Qwen3 8B UD-Q4_K_XL" })
+    ).toBeTruthy()
+  })
+
+  it("says a model reads images when its build carries a projector", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(
+              {
+                support: {
+                  context: 131072,
+                  reads_images: true,
+                  tools: null,
+                  reasoning: null,
+                },
+              },
+              [build({ reads_images: true })]
+            ),
+          ],
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    expect(await screen.findByText("Vision")).toBeTruthy()
+  })
+})
+
+describe("a model with no recommended build", () => {
+  it("offers the largest build that installs rather than one that cannot", async () => {
+    // Step two found nothing that runs well, but a smaller four bit build still
+    // installs. The row leads with it, so Download is never needlessly disabled.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(
+              {
+                default_quantization: "UD-Q4_K_XL",
+                lead: { quantization: "Q4_K_M", why: "fits_slower" },
+              },
+              [
+                build({
+                  catalog_id: "q4",
+                  quantization: "Q4_K_M",
+                  fit: fit({ state: "partial", offload_fraction: 0.4 }),
+                  badge: {
+                    level: "notice",
+                    verdict: "Reduced speed",
+                    reason: "Too big for the GPU, so part runs on the CPU.",
+                  },
+                }),
+                build({
+                  catalog_id: "ud",
+                  quantization: "UD-Q4_K_XL",
+                  can_install: false,
+                  fit: fit({ state: "too_big", offload_fraction: 1 }),
+                  badge: {
+                    level: "refuse",
+                    verdict: "Won't fit",
+                    reason: "Needs about 6.5 GB. This Mac has 6.4 GB",
+                  },
+                }),
+              ]
+            ),
+          ],
+        })
+      )
+    )
+
+    render(<ModelCatalogPage />)
+
+    const download = await screen.findByRole("button", {
+      name: "Download Qwen3 8B Q4_K_M",
+    })
+    expect(download.hasAttribute("disabled")).toBe(false)
+    expect(screen.getByText("Reduced speed")).toBeTruthy()
+    expect(screen.queryByText("Won't fit")).toBeNull()
+  })
+})
+
+describe("installing a searched build", () => {
+  it("shows the phase and a progress bar, as a curated build does", async () => {
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog({ rows: [] }), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          return Response.json({
+            results: [
+              {
+                repo: "unsloth/gemma-3-4b-it-GGUF",
+                downloads: 1,
+                likes: 1,
+                license: null,
+                gated: false,
+                quantized_from: null,
+                last_modified: null,
+                reads_images: true,
+              },
+            ],
+          })
+        }
+        if (path.startsWith("/llm/catalog/local/search/")) {
+          return Response.json({
+            repo: "unsloth/gemma-3-4b-it-GGUF",
+            gated: false,
+            row: row({ origin: "search", lead: null }, [
+              build({
+                catalog_id: "ticket-1",
+                fit: fit({ approximate: true }),
+              }),
+            ]),
+          })
+        }
+        if (path === "/llm/install") {
+          // Starts downloading, then holds, so the in-flight state is visible.
+          const encoder = new TextEncoder()
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              async start(controller) {
+                controller.enqueue(
+                  encoder.encode(
+                    '{"type":"downloading","completed":5,"total":10}\n'
+                  )
+                )
+                await held
+                controller.close()
+              },
+            })
+          )
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "gemma"
+    )
+    await user.click(await screen.findByText("unsloth/gemma-3-4b-it-GGUF"))
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Download unsloth/gemma-3-4b-it-GGUF Q4_K_M",
+      })
+    )
+
+    expect(await screen.findByText("Downloading…")).toBeTruthy()
+    expect(await screen.findByRole("progressbar")).toBeTruthy()
+    release()
+  })
+})
+
+describe("installing a curated build", () => {
+  function holdingInstall() {
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const encoder = new TextEncoder()
+    const reply = () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          async start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                '{"type":"downloading","completed":5,"total":10}\n'
+              )
+            )
+            await held
+            controller.close()
+          },
+        })
+      )
+    return { reply, release: () => release() }
+  }
+
+  const twoBuilds = () =>
+    catalog({
+      rows: [
+        row({ lead: { quantization: "UD-Q4_K_XL", why: "recommended" } }, [
+          build({
+            catalog_id: "ud",
+            quantization: "UD-Q4_K_XL",
+            recommended: true,
+          }),
+          build({ catalog_id: "q4", quantization: "Q4_K_M" }),
+        ]),
+      ],
+    })
+
+  it("shows the bar under the lead build when it is the one downloading", async () => {
+    const install = holdingInstall()
+    vi.stubGlobal(
+      "fetch",
+      serving(twoBuilds(), (path) =>
+        path === "/llm/install" ? install.reply() : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Download Qwen3 8B UD-Q4_K_XL",
+      })
+    )
+
+    expect(await screen.findByRole("progressbar")).toBeTruthy()
+    // Not inside the other builds, which stay collapsed.
+    expect(
+      screen.queryByRole("list", { name: "Builds of Qwen3 8B" })
+    ).toBeNull()
+    install.release()
+  })
+
+  it("shows the bar under an other build when it is the one downloading", async () => {
+    const install = holdingInstall()
+    vi.stubGlobal(
+      "fetch",
+      serving(twoBuilds(), (path) =>
+        path === "/llm/install" ? install.reply() : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(
+      await screen.findByRole("button", { name: "1 other builds" })
+    )
+    await user.click(
+      screen.getByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    )
+
+    const list = await screen.findByRole("list", { name: "Builds of Qwen3 8B" })
+    expect(await within(list).findByRole("progressbar")).toBeTruthy()
+    install.release()
   })
 })

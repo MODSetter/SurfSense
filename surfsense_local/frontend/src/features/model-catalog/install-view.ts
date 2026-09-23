@@ -8,7 +8,8 @@ const bytes = (value: number) =>
   }).format(value / 1e9)
 
 export type InstallView = {
-  /** One word, for somewhere with no room. */
+  /** One word, for somewhere with no room. A phase still under way trails an
+   *  ellipsis; a finished one does not. */
   short: string
   label: string
   detail: string | null
@@ -26,7 +27,7 @@ export type InstallView = {
 export function installView(event: InstallEvent): InstallView {
   if (event.type === "downloading") {
     return {
-      short: "Downloading",
+      short: "Downloading…",
       label: event.message || "Downloading",
       detail:
         event.total > 0
@@ -43,7 +44,7 @@ export function installView(event: InstallEvent): InstallView {
     // The runtime reports its own load progress, so this wait moves for the
     // same reason the download did instead of sitting still for half a minute.
     return {
-      short: "Preparing",
+      short: "Preparing…",
       label: event.message || "Preparing",
       detail: null,
       percent:
@@ -60,8 +61,9 @@ export function installView(event: InstallEvent): InstallView {
     selecting: "Selecting",
     complete: "Done",
   }
+  const underway = event.type !== "complete" && event.type !== "error"
   return {
-    short: rest[event.type] ?? "Failed",
+    short: underway ? `${rest[event.type]}…` : (rest[event.type] ?? "Failed"),
     label: message || rest[event.type] || "Install failed",
     detail: null,
     percent: event.type === "complete" ? 100 : null,

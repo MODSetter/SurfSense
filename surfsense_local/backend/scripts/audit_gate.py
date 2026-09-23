@@ -34,7 +34,7 @@ import httpx
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from modules.llm.catalog.search.not_chat import NOT_CHAT, refusal
+from modules.llm.catalog.local.classifier import GROUPS, classify
 
 API = "https://huggingface.co/api/models"
 PAGE = 100
@@ -62,7 +62,7 @@ def listing(client: httpx.Client, wanted: int) -> list[str]:
 
 
 def facts(client: httpx.Client, repo: str) -> tuple[str, str | None] | None:
-    """The same call `read_repo_facts` makes, so the audit sees what the gate sees."""
+    """The repo summary search reads when a repo is opened."""
     try:
         reply = client.get(
             f"{API}/{repo}", params={"expand[]": ["gguf", "pipeline_tag"]}
@@ -93,11 +93,11 @@ def main(argv: list[str]) -> int:
                 rows.append((repo, *found))
             time.sleep(PAUSE)
 
-    refused = [(r, a, t) for r, a, t in rows if refusal(a, t)]
+    refused = [(r, a, t) for r, a, t in rows if classify(a, t).reason]
     matched = Counter()
     for _, architecture, tag in rows:
         for name in (architecture, tag):
-            if name and name.lower() in NOT_CHAT:
+            if name and name.lower() in GROUPS:
                 matched[name.lower()] += 1
 
     print(f"listed {len(repos)}  parsed {len(rows)}  admitted {len(rows) - len(refused)}")
@@ -105,8 +105,8 @@ def main(argv: list[str]) -> int:
     for repo, architecture, tag in sorted(refused, key=lambda row: row[1]):
         print(f"  {architecture:<16} {tag!s:<22} {repo}")
 
-    dead = sorted(set(NOT_CHAT) - set(matched))
-    print(f"\nDEAD ENTRIES {len(dead)} of {len(NOT_CHAT)}. A misspelling looks like this.")
+    dead = sorted(set(GROUPS) - set(matched))
+    print(f"\nDEAD ENTRIES {len(dead)} of {len(GROUPS)}. A misspelling looks like this.")
     print("  " + ", ".join(dead))
     return 0
 

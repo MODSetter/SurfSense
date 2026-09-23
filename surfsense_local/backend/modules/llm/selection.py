@@ -179,10 +179,10 @@ async def _validate_local(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not installed: {model_name}",
         )
-    if "completion" not in model.capabilities:
+    if model_type not in selectable_for(model.types, model.known):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"model does not support generation: {model_name}",
+            f"model does not support {model_type.value}: {model_name}",
         )
 
 

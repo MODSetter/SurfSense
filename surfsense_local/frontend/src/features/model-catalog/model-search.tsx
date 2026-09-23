@@ -2,7 +2,6 @@ import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DotIcon, SearchIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
@@ -16,10 +15,13 @@ import { askEgress } from "@/features/egress/ask-egress"
 import {
   getRepoDetail,
   searchModels,
-  type RepoBuild,
+  type LocalBuild,
   type SearchRow,
 } from "./api"
+import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
+import { InstallProgress } from "./install-progress"
+import type { InstallState } from "./use-model-catalog"
 
 // Tall enough for a handful of results, so the common search neither moves the
 // page nor leaves a hole under a short list. The section is the last thing in
@@ -40,21 +42,24 @@ const formatDownloads = (count: number) =>
 const describe = (hit: SearchRow) => [
   `${formatDownloads(hit.downloads)} downloads`,
   ...(hit.license ? [hit.license] : []),
-  ...(hit.quantized_from ? [`quantized from ${hit.quantized_from}`] : []),
 ]
 
 /**
- * One repo's builds, fetched when the row is opened rather than when it is
- * listed: pricing a build exactly means reading two to four megabytes of its
- * header, which is not something to do for every result in a list.
+ * One repo's builds, fetched when the row is opened. The listing alone: each
+ * size is exact and each fit an estimate, and the one header read happens when
+ * a build is installed. Search describes and never recommends.
  */
 function RepoBuilds({
   repo,
   onInstall,
+  onCancel,
+  installState,
   disabled,
 }: {
   repo: string
-  onInstall: (build: RepoBuild) => void
+  onInstall: (build: LocalBuild) => void
+  onCancel: () => void
+  installState: InstallState
   disabled: boolean
 }) {
   const detail = useQuery({
@@ -67,58 +72,66 @@ function RepoBuilds({
     return (
       <p className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
         <Spinner className="size-3" />
-        Reading this model's details
+        Listing this model's builds
       </p>
     )
   }
   if (detail.isError || !detail.data) {
     return (
       <p className="px-3 py-2 text-xs text-destructive">
-        Could not read this model's details.
+        Could not list this model's builds.
       </p>
     )
   }
-  if (!detail.data.supported) {
+
+  const { row } = detail.data
+  if (row.builds.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-muted-foreground">
-        {detail.data.ineligible_reason ?? "This model cannot run here."}
+        This repo has no build SurfSense can run.
       </p>
     )
   }
 
   return (
     <>
-      {!detail.data.chat_template && (
-        <p className="px-3 pt-2 text-xs text-muted-foreground">
-          No chat template. It may answer badly in a chat.
-        </p>
-      )}
+      <p className="px-3 pt-2 text-xs text-muted-foreground">
+        {row.runnable
+          ? "Sizes are exact. Fit is estimated and checked before download."
+          : row.not_runnable_reason}
+      </p>
       <ul className="flex flex-col divide-y" aria-label={`Builds in ${repo}`}>
-        {detail.data.builds.map((build) => (
+        {row.builds.map((build) => (
           <li
-            key={build.catalog_id}
-            className="flex items-center justify-between gap-3 px-3 py-2"
+            key={build.catalog_id || build.quantization}
+            className="flex flex-col gap-2 px-3 py-2"
           >
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">
-                  {build.quantization}
-                </span>
-                <FitBadge fit={build.fit} copy={build.badge} />
-                <span className="text-xs text-muted-foreground">
-                  {formatSize(build.size_bytes)}
-                </span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {build.quantization}
+                  </span>
+                  <FitBadge fit={build.fit} copy={build.badge} />
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {formatSize(build.footprint_bytes)}
+                  </span>
+                </div>
+                <FitReason copy={build.badge} />
               </div>
-              <FitReason copy={build.badge} />
+              <BuildAction
+                build={build}
+                label={repo}
+                installState={installState}
+                disabled={disabled}
+                runtimeAvailable
+                onAction={onInstall}
+              />
             </div>
-            <Button
-              type="button"
-              size="sm"
-              disabled={disabled || !build.can_install}
-              onClick={() => onInstall(build)}
-            >
-              Download
-            </Button>
+            {installState.status === "installing" &&
+            installState.catalogId === build.catalog_id ? (
+              <InstallProgress event={installState.event} onCancel={onCancel} />
+            ) : null}
           </li>
         ))}
       </ul>
@@ -128,9 +141,13 @@ function RepoBuilds({
 
 export function ModelSearch({
   onInstall,
+  onCancel,
+  installState,
   disabled,
 }: {
-  onInstall: (build: RepoBuild) => void
+  onInstall: (build: LocalBuild) => void
+  onCancel: () => void
+  installState: InstallState
   disabled: boolean
 }) {
   const headingId = useId()
@@ -179,8 +196,8 @@ export function ModelSearch({
             All models
           </h2>
           <p className="text-xs text-muted-foreground">
-            Every model llama.cpp can run. Ordered by how often each one is
-            downloaded, which is popularity and not a recommendation.
+            The wider Hugging Face catalog, not reviewed by us. Ordered by
+            downloads.
           </p>
         </div>
         <div className="relative w-full max-w-[14rem] sm:w-auto">
@@ -203,7 +220,7 @@ export function ModelSearch({
       <div data-slot="search-results" className={RESERVED}>
         {trimmed.length <= 1 ? (
           <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            Type to search every model llama.cpp can run.
+            Type to find a model on Hugging Face.
           </p>
         ) : results.isPending ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -241,6 +258,9 @@ export function ModelSearch({
                         <span className="truncate text-sm font-medium">
                           {hit.repo}
                         </span>
+                        {hit.reads_images ? (
+                          <Badge variant="secondary">Vision</Badge>
+                        ) : null}
                         {hit.gated ? (
                           <Badge variant="outline">Needs an account</Badge>
                         ) : null}
@@ -276,6 +296,8 @@ export function ModelSearch({
                       <RepoBuilds
                         repo={hit.repo}
                         onInstall={onInstall}
+                        onCancel={onCancel}
+                        installState={installState}
                         disabled={disabled}
                       />
                     </div>

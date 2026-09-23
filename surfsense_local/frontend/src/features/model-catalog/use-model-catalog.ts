@@ -6,9 +6,7 @@ import {
   deleteLocalModel,
   getModelCatalog,
   installCatalogModel,
-  type CatalogRow,
   type InstallEvent,
-  type RepoBuild,
 } from "./api"
 import {
   setGenerationSelection,
@@ -52,10 +50,11 @@ export function useModelCatalog(
     queryFn: ({ signal }) => getModelCatalog(signal),
   })
 
-  // Curated rows and searched builds install through one path, because the id
-  // is opaque either way and the server cannot tell them apart.
+  // Curated and searched builds install through one path, because the id is
+  // opaque either way. A searched build is read exactly before any bytes move,
+  // and a refusal arrives as the stream's error, shown as a toast.
   const install = useMutation({
-    mutationFn: async (target: CatalogRow | RepoBuild) => {
+    mutationFn: async (target: { catalog_id: string }) => {
       const nextController = new AbortController()
       controller.current = nextController
       setInstallState({
@@ -117,8 +116,8 @@ export function useModelCatalog(
   })
 
   const deleteModel = useMutation({
-    mutationFn: (target: { variant_model_id: string }) =>
-      deleteLocalModel(target.variant_model_id),
+    mutationFn: (target: { installed_as: string }) =>
+      deleteLocalModel(target.installed_as),
     onSuccess: async (result) => {
       if (result.selection_cleared) {
         onModelUnavailable?.()

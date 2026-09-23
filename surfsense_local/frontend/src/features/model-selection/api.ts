@@ -15,6 +15,9 @@ export type ProviderModel = {
   installed: boolean
   capabilities: string[]
   display_name?: string | null
+  types: ModelType[]
+  /** The slots it can fill, by the one rule selection and every picker share. */
+  selectable_for: ModelType[]
 }
 
 /**
@@ -37,7 +40,6 @@ export type SelectableModel = ProviderModel & {
   connection_id: number | null
   connection_label?: string
   capability_source?: CapabilitySource
-  selectable_for?: ModelType[]
 }
 
 export type Connection = {
@@ -146,7 +148,7 @@ export async function getInstalledGenerationModels(
           return models
             .filter(
               (model) =>
-                model.installed && model.capabilities.includes("completion")
+                model.installed && model.selectable_for.includes("text_gen")
             )
             .map((model) => ({
               ...model,

@@ -79,7 +79,7 @@ class Source(StrEnum):             # where a model comes from
 
 `ModelType` sits at the root of `modules/llm/`, not inside `catalog/`, because it is more than a filter: the classifiers produce it, the catalogs filter on it, and selection, the database and the pickers key on it. `Source` is only the catalog's filter.
 
-- **A type is a filter, a support is a badge.** "Reads images" does not make a model an image model. Each side's support is its own dataclass, because the fields each can know differ.
+- **A type is a filter, a support is a badge.** Reading images (the **Vision** badge) does not make a model an image model. Each side's support is its own dataclass, because the fields each can know differ.
 - **None is not no.** A support field is `None` when the evidence is silent, as `taxonomy/supports.py` already holds for models.dev.
 - **Unknown is a state, not a type.** A remote id nothing recognises has no types and `known=False`. The capability filter offers "Unknown" only when such rows exist.
 - **One word per idea.** `completion`, `image_generation` as a capability, and the curated `vision` go.
@@ -141,9 +141,11 @@ A local model differs from a remote one in that the user downloads files and run
 
       "shape": { "block_count": 36, "head_count_kv": 8, "…": "…" },   // text only
 
-      "builds": [                               // best quality first; the recommendation steps down
+      "builds": [                               // smallest first; the order carries no preference
+        { "quantization": "Q3_K_M", "…": "…" },
+        { "quantization": "Q4_K_M", "…": "…" },
         {
-          "quantization": "UD-Q4_K_XL",
+          "quantization": "UD-Q4_K_XL",         // the label as the quantizer names it, UD- prefix kept
           "files": [
             {
               "role": "weights",                // weights | projector | drafter | vae | text_encoder
@@ -154,12 +156,13 @@ A local model differs from a remote one in that the user downloads files and run
               "size_bytes": 5100000000,
               "sha256": "…"
             }
+            // a vision build adds { "role": "projector", "path": "mmproj-F16.gguf", … } with the same pins
           ],
           "run": { "args": [] },
           "validated": { "llama_cpp": null }    // the runtime build a person ran it on
         },
-        { "quantization": "Q4_K_M", "…": "…" },
-        { "quantization": "Q3_K_M", "…": "…" }
+        { "quantization": "Q6_K", "…": "…" },
+        { "quantization": "Q8_0", "…": "…" }
       ]
     }
   ]
@@ -170,11 +173,11 @@ A local model differs from a remote one in that the user downloads files and run
 |---|---|---|
 | `evidence` | one classifier for everything local: a manifest entry, a downloaded file's header and a search hit all produce this same object | the capability filter |
 | `aliases` | a file the user downloaded from another repo holding the same model, such as the vendor's or another quantizer's, is recognised as this entry | a searched download of a curated model shows as that model |
-| `context`, `template` | chat sizes its history to the real window; the tool and reasoning flags are there for the later chat rework | badges such as "Reads images" and long context |
+| `context`, `template` | chat sizes its history to the real window; the tool and reasoning flags are there for the later chat rework | badges such as Vision and long context |
 | `sampling` | each model runs with its publisher's settings, and a hybrid model with the right ones for each mode, not one set for every model | better answers with no settings to learn |
 | `image` | Studio generates with the model's native size, steps, guidance and sampler | sensible defaults per image model |
 | `shape` | the fit estimate and the recommendation, offline | Fits, Reduced speed, Won't fit |
-| several `builds` | a machine that cannot fit the preferred build gets a smaller build of the same model before a smaller model | the best quality this machine can run |
+| several `builds` | each model recommends one build for this machine ([Which build of a model](#which-build-of-a-model)), so a machine that cannot run the default gets a smaller build of the same model | the best quality this machine can run at a usable speed |
 | `files[]` and `role` | a model is a set of files: vision needs a projector, a multi-token-prediction model a drafter, FLUX a VAE and text encoders, a split build every part. The downloader fetches the set, and whether the app can run a model is whether its runtime supports every role | vision and image models work after download; a multi-file model is a manifest entry, not new code |
 | `revision`, `upstream_repo` | a quantizer re-uploading, renaming or deleting a file cannot change what is downloaded; a mirror names what it copies | no failed download on a model that worked last month |
 | `sha256`, `size_bytes` | every download is verified | an honest progress bar and a real verification step |
@@ -183,9 +186,10 @@ A local model differs from a remote one in that the user downloads files and run
 | position, `validated` | the recommendation reads position; `validated` names the runtime build a person ran this exact build on, because some quantizations run only on newer or forked llama.cpp | "Recommended for this computer" |
 
 - **`id` is ours**, not a Hugging Face repo: a build comes from a quantizer's repo, and an image model's files from several.
+- **Vision is a file, not a label.** A build that reads images lists its projector in `files[]`; there is no `capabilities` field and no `"vision"` string to keep in step with it. Today's `capabilities`, `mmproj`, `variants`, `model_id` and `decode_fraction` go: the first three become `files[]` roles and `builds`, `model_id` becomes `id` and `source_repo`, and nothing reads `decode_fraction`.
 - **Every file is pinned to a commit.** Quantizers change repos in place: Unsloth renamed, moved and deleted files on `main` of a published repo, and re-uploads fixed chat templates under the same name.
 - **`template` is read at refresh time** from the chat template in the header, so the catalog never loads a model to say what it supports.
-- **Nothing is taken from a filename.** Not size, not parameter count, not quantization: a catalog that did so got 99.6% of its sizes wrong, and a quantizer names some files after a quantization they are not.
+- **Nothing but the quantization label is taken from a filename.** Not size, not parameter count, not architecture: a catalog that did so got 99.6% of its sizes wrong. The label is the exception because it has no other source: `UD-Q4_K_XL` is a quantizer's naming convention, and the header's `general.file_type` names the same file by its base type. The label is read with its prefix kept; a parser that reads `UD-Q4_K_XL` as `Q4_K_XL`, as search's does today, would never match the top of the preference order.
 
 The three image models hard-coded in `providers/sdcpp/` become entries like any other.
 
@@ -194,7 +198,7 @@ The three image models hard-coded in `providers/sdcpp/` become entries like any 
 `scripts/refresh_local_manifest.py`, run by hand, output reviewed in a pull request. Six steps, each owned by a person or the script:
 
 1. **A person chooses the models.** Their order, `name`, `description`, `aliases`, and which repo each build comes from, preferring an ungated mirror of a gated vendor repo and recording the vendor as `upstream_repo`.
-2. **The script resolves builds.** For each model it pins a few quantizations by a preference order (`UD-Q4_K_XL`, `Q4_K_M`, `Q3_K_M`, …, `F16` last), using the same file-picking rules search uses (`catalog/local/builds.py`): skip imatrix files and big-endian builds; take the first shard of a split set and list every part; look in quantization subfolders only when the repo root has none; attach a projector confirmed by its header (`general.type` is `mmproj`), preferring F16, and a multi-token-prediction file as a `drafter`.
+2. **The script resolves builds.** For each model it pins every build whose quantization is in the preference order ([Which build of a model](#which-build-of-a-model)), not only the default, so a machine that cannot run the default has a smaller build of the same model to step down to. It uses the same file-picking rules search uses (`catalog/local/builds.py`): skip imatrix files and big-endian builds; take the first shard of a split set and list every part; count weights at the root and in folders named after a quantization (`BF16/`), the root winning a quantization both hold, and nothing in any other folder; leave out drafters (`mtp`, `draft`, `dflash`, `eagle`), which nothing runs yet; attach the repo's projector, preferring F16, to every build, and confirm it by its header (`general.type` is `mmproj`, it sees images, and it is as wide as the model).
 3. **The script reads evidence** from each chosen file's own header over HTTP range requests, never from the repo-level `gguf` metadata Hugging Face serves, which describes one arbitrary file in the repo. `revision`, `size_bytes` and `sha256` come from the repo's file listing (`lfs.oid`) at a pinned commit. No weights are downloaded.
 4. **The script proposes run defaults; a person reviews them.** Sampling comes from the repo's machine-readable `params` file where one exists, with its source in `origin`, because published settings disagree with each other between a model card, its docs and its example commands. Image settings are proposed per family and reviewed the same way.
 5. **The script guards itself.** It refuses to write a build it could not read completely, so nothing unknown can be recommended; refuses a refresh that drops models or builds without the person naming them; and flags a chat template that differs between the pinned revision and `main`, which is how a quantizer ships a fix.
@@ -305,6 +309,33 @@ Evidence rules:
 
 Two answers the old code gave as one refusal. The classifier says a FLUX GGUF is `IMAGE_GEN` and a Wan GGUF is `VIDEO_GEN`. Both are listed; the app ships no runtime for video or speech, so a local `VIDEO_GEN` or `AUDIO_GEN` row is not runnable, "SurfSense cannot run video models yet", and the same model from a remote provider can still be selected. The catalog says whether this app can run it: a model is runnable when its runtime supports every file role it needs and the app knows every file. A curated FLUX entry lists its VAE and text encoders and is runnable. A FLUX build found by search is one file with no known companions, so its row is `IMAGE_GEN`, not runnable, "Needs files SurfSense cannot find on its own".
 
+### Support, and reading images
+
+`catalog/local/support.py` says what a build can do, for every local row, curated or not:
+
+```python
+LocalSupport(
+    context: int | None,       # the trained window
+    reads_images: bool,        # the build ships a projector with a vision encoder
+    tools: bool | None,        # from the chat template; None when there is none to read
+    reasoning: bool | None,
+)
+```
+
+The two sources give the same object. A curated build's support comes from the manifest: `context`, `template`, and whether `files[]` has a `projector`. A downloaded file or a searched repo's comes from headers: the model's own header for `context` and the template, and the projector's header (`general.type` is `mmproj`, then `clip.has_vision_encoder`) for whether it reads images.
+
+Images are the only input beyond text this work shows. llama.cpp also takes audio through a projector with an audio encoder (`clip.has_audio_encoder`), but nothing in the app sends audio, so an audio-only projector earns no badge and is not part of a build's file set. Audio is one more field and one more badge when a feature needs it.
+
+`reads_images` is a plain boolean, because it describes this install and not the model family: weights without their projector cannot see, whatever the base model could. It is a badge, never a type: a vision chat model is `TEXT_GEN` that reads images.
+
+A vision build is whole only with its projector, so:
+
+- **The downloader fetches both**, as one build's file set, and records the pairing in the models folder's install record, saving the projector as `mmproj-<model>.gguf` so two vision models never share or overwrite one. A projector merely sitting beside a model is never attached to it.
+- **Fit prices both.** The footprint is the sum of the build's files, passed to `estimate()` as `mmproj_bytes` for the projector, so the recommendation never picks a build that fits only until the projector loads.
+- **The runtime loads both.** The preset names the recorded projector, or one saved under the model's name, only when its header sees images and matches the model's width, and `providers/llamacpp/capabilities.py` still decides at load time whether the running model can take an image (the runtime reports an image input and the template takes typed content). The catalog's `reads_images` is what can be known before a download; the runtime's answer is what chat trusts.
+
+Sending an image to a local model in a chat is not part of this work: chat sends text only today. Until chat's own change lands, Vision describes the model and the build, not a feature of the chat screen.
+
 ### Catalog
 
 `catalog/local/catalog.py` is a pure function: the manifest and the list of downloaded files in, rows out.
@@ -316,13 +347,77 @@ Two answers the old code gave as one refusal. The classifier says a FLUX GGUF is
 
 Nothing is pre-installed; the app ships no model weights. A downloaded file is an input because its row offers Use and Delete instead of Download. A file whose repo is a manifest entry's `aliases` is shown as that entry. Any other, downloaded from search or copied by hand, is in no manifest: its own header is the only evidence, and the same classifier reads it. Header reads are cached on path, size and modification time, so a folder of large files is read once.
 
-**The recommendation** walks the manifest from the most preferred model down. For each model it takes the best build this machine runs at a recommendable speed, stepping down that model's builds before moving to a smaller model, so a machine one gigabyte short of `UD-Q4_K_XL` gets the same model at `Q4_K_M` rather than a model half its size.
+**One row shape for every local row**, whatever its origin:
+
+```jsonc
+{
+  "id": "qwen3-8b",                  // curated id, or repo and file for any other
+  "source": "local",
+  "origin": "curated",               // curated | downloaded | search
+  "name": "Qwen3 8B", "family": "Qwen3",
+  "types": ["text_gen"], "known": true,
+  "selectable_for": ["text_gen"],    // selectable.py, the rule remote rows use
+  "support": { "context": 40960, "reads_images": false, "tools": true, "reasoning": true },
+  "runnable": true, "not_runnable_reason": null,
+  "builds": [
+    { "catalog_id": "…", "quantization": "UD-Q4_K_XL", "footprint_bytes": 5100000000,
+      "fit": { … }, "badge": { … }, "can_install": true, "installed": false, "recommended": true }
+  ],
+  "default_quantization": "UD-Q4_K_XL",   // null unless curated
+  "recommended": true                     // the model-level star; false unless curated
+}
+```
+
+| | curated | downloaded, in no manifest | search |
+|---|---|---|---|
+| evidence and support | manifest | the file's header | the candidate build's header and the repo's tag |
+| `builds` | every pinned build | the file on disk | every build in the repo |
+| `default_quantization`, a build's `recommended` | set | null, false | null, false |
+| the row's `recommended` | can be true | false | false |
+| `reads_images` | a build lists a `projector` | a projector sits beside the file | the repo ships a projector |
+
+The screen renders these fields and computes none of them: no fit, no default, no recommendation, no selectability.
+
+**The recommendation** walks the manifest from the most preferred model down. For each model it asks for that model's recommended build ([Which build of a model](#which-build-of-a-model)), and the first model with one wins, so a machine one gigabyte short of `UD-Q4_K_XL` gets the same model at `Q4_K_M` rather than a model half its size.
+
+### Which build of a model
+
+Each curated model recommends one of its builds for this machine. The rule follows Unsloth Studio's, with SurfSense's speed gate in place of its "does it load".
+
+1. **The default, blind to hardware:** the first build whose quantization is in the preference order. The order starts with the quantizations that give the most quality per byte and ends with the unquantized ones:
+
+   ```text
+   UD-Q4_K_XL, UD-Q4_K_L, UD-Q5_K_XL, UD-Q3_K_XL, UD-Q6_K_XL, UD-Q8_K_XL, UD-Q2_K_XL,
+   Q4_K_M, Q4_K_S, Q5_K_M, Q5_K_S, Q6_K, Q8_0, Q3_K_M, Q3_K_L, Q3_K_S, Q2_K,
+   IQ4_NL, IQ4_XS, F16, BF16, F32
+   ```
+
+2. **The recommended build, for this machine:**
+   - the default, when its speed tier is recommendable (`FULL` or `LIGHT_SPILL`, [`speed.py`](../../surfsense_local/backend/modules/llm/fit/speed.py));
+   - else the largest build smaller than the default whose tier is recommendable, at four bits or more;
+   - else none. The model gets no star, and every build physics does not refuse stays installable.
+
+Rules:
+
+- **Never above the default.** A build larger than the default is never recommended, however much memory is spare: on a large card, recommending the largest build that fits picks F16, several times the download for little gain.
+- **The gate is the speed tier the badge reads.** Unsloth keeps the default whenever it loads at all, including a heavy CPU spill. Using `RECOMMENDABLE_TIERS` for both the default check and the step-down means a recommended build never carries a badge saying it will be slow.
+- **Never below four bits.** A three or two bit build of a larger model is not clearly better than a four bit build of a smaller one, so past that floor the star moves to the smaller model. Those builds stay listed and installable; they are never recommended.
+- **A build is priced at its whole footprint**, the weights plus its projector, at the cache precision the loader would choose. Priced on the weights alone, a vision build is recommended and then does not fit once its projector loads.
+- **The builds' order in the manifest carries no preference.** The preference order picks the default and size orders the step-down, so the manifest stores builds smallest first, for readable diffs.
+
+The two steps are pure functions over builds, not over manifest entries: `default_build(builds, preference)` and `recommended_build(builds, default, tier_of)`. A build supplies its quantization label and footprint, and `tier_of` is handed in, so a curated model passes its committed `shape` and a searched repo could pass its header's. Only curated models call them in this work.
+
+The backend decides, the screen renders. A curated row carries every build with its fit and badge, the default's quantization, which build is recommended, and **the build it leads with and why**: `in_use`, then `installed`, then `recommended`, then `fits_slower` (the largest four bit or better build that installs, so a model with no recommendation still offers a build that installs rather than a refusal), then `nothing_fits` (the default, to say how big the model is). The row's Download fetches that build. The screen computes nothing, and curated rows sort by the fit of the build they lead with, then by list position.
+
+**Badges are warnings.** A build that runs fully or spills a little (`FULL`, `LIGHT_SPILL`) carries no badge, only a quiet reason line; a heavier spill shows "Reduced speed" in amber and a refusal "Won't fit" in red. The tiers a build can be recommended at are exactly the tiers with no badge, so the star and a warning never share a row ([`fit.md`](../architecture/local-models/fit.md#badges)).
 
 ### Search
 
-`catalog/local/search/` is the one live part of either catalog: 200,000 GGUF repos cannot be packaged. It is opt-in, asks egress consent for `huggingface.co`, and classifies a result with the same classifier over the candidate build's header. Search results rank by downloads and are described, never judged, as today.
+`catalog/local/search/` is the one live part of either catalog: 200,000 GGUF repos cannot be packaged. It is opt-in and asks egress consent for `huggingface.co`. Search results rank by downloads and are described, never judged: downloads, licence, gated, and Vision when the repo's file names include a projector, by the same projector rule `builds.py` uses; the listing's `full=true` already carries every repo's file names, so this costs no request. A hit also keeps its `base_model:quantized:` tag as `quantized_from`, returned by the API and not shown. Nothing from search is written to a manifest.
 
-Opening a repo picks its builds with `catalog/local/builds.py`, the same file-picking rules and quantization order the refresh script uses, so a searched repo and a curated one can never disagree about which file is the model, which is the projector, and which build to offer first.
+**Opening a repo reads its listing, never a file.** The repo summary and file tree come back in about a second; each build shows its exact size and a fit estimated from sizes, marked `~`, which over-charges on purpose (weights plus 15% and a gibibyte) so it never calls a spill resident, and never refuses. The type comes from the repo's tag and Hugging Face's parsed architecture, ignored when it names a projector, marked approximate. **Installing a build reads it exactly:** before any bytes move, the weights' and projector's headers are read, the build is refused if it is not a model, not a type the runtime runs, or too big, and a projector that does not see or belongs to another model is dropped. Reading a header costs about 50 ms because a vocabulary is counted, not decoded.
+
+Opening a repo picks its builds with `catalog/local/builds.py`, the same file-picking rules the refresh script uses, so a searched repo and a curated one can never disagree about which file is the model and which is the projector. The builds are listed smallest first, each with its size and fit badge, and each shows the same install button and progress as a curated build. Search has no default build and no recommendation, of a build or of a model: SurfSense recommends only what a person curated and reviewed.
 
 ## Remote
 
@@ -366,11 +461,23 @@ modules/llm/catalog/
     classifier.py          GGUF evidence → type
     support.py             context, reads images, tools
     catalog.py             manifest + downloaded files → rows
+    recommendation.py      the model-level star: the first model with a recommended build
+    lead_build.py          the build a row leads with, and why
+    pricing.py             one price for a build: exact from a shape, else estimated from sizes
     downloaded.py          reads the models folder, cached on path, size and mtime
-    builds.py              which files make a build, and the quantization order: used by search and the refresh script
-    search/                Hugging Face search, tickets
+    installs.py            the install record: which files each install put on disk
+    quantization.py        a build's quantization label, prefix kept
+    builds.py              which files make a build, and the repo's projector: used by search and the refresh script
+    build_choice/          which build of a model to recommend
+      preference.py        the quantization preference order
+      default_build.py     the first build in that order, blind to hardware
+      recommended_build.py the default, or the largest smaller build fast enough here
+    search/                hits.py, listing.py, repo_row.py, exact_check.py, tickets.py
     rows.py                the local row
-    router.py              the local routes
+    service.py             the side effects: the machine, the models folder, the network
+    schemas.py             what the local routes return
+    dependencies.py        wiring the service once per process
+    router.py              the local routes, `/llm/system` and `/llm/install`
   remote/
     manifest/              models.json, schema, loader, lookup
     classifier.py          modalities → type, over a manifest entry
@@ -395,7 +502,8 @@ Adding a type is an enum value in `model_type.py`, the classifier groups that em
 |---|---|---|
 | `GET /llm/catalog/local` | manifest and downloaded rows, budget, `gpu_status` | none |
 | `GET /llm/catalog/local/search?q=` | search hits | `host:huggingface.co` |
-| `GET /llm/catalog/local/search/{repo}` | a repo's builds, classified and priced | `host:huggingface.co` |
+| `GET /llm/catalog/local/search/{repo}` | a repo's builds from its listing: exact sizes, estimated fit | `host:huggingface.co` |
+| `POST /llm/install` | the install stream; a searched build's headers are read first | `host:huggingface.co` |
 | `GET /llm/catalog/remote` | the providers: name, `connect`, and how many models of each type they serve | none |
 | `GET /llm/catalog/remote/providers/{id}` | one provider's rows, connected ones marked unchecked | none |
 | `GET /llm/catalog/remote/connections/{id}` | that connection's rows, checked against its listing | that host |
@@ -407,7 +515,7 @@ The screen paints local and remote rows from the two offline routes at once, the
 ## The screen
 
 - One list, two filters: **Source** (All, Local, Remote) and **Capability** (each type that has rows, and Unknown when any row is).
-- A local row keeps its fit badge, Download, Use and Delete, and the recommendation mark. A remote row shows its provider and connection, Test and Use, or Add a key.
+- A local row keeps its badge (a warning only), Download, Use and Delete, and the recommendation mark, and shows **Vision** when `reads_images` is true, curated or not. The progress bar sits under the build being installed. A remote row shows its provider and connection, Test and Use, or Add a key.
 - Hugging Face search is its own box, because it sends what the user types to a third party.
 - Connections (URL, key) are managed in a settings panel, `features/connections/`. Their models appear in the catalog.
 
@@ -422,8 +530,8 @@ Each step ships alone and leaves the app working.
    - **3b.** A connection stores its manifest provider (`catalog_provider`, or `custom`), and the lookup is scoped by it.
    - **3c.** `catalog/source.py` and `catalog/remote/catalog.py`, the pure function from the manifest and the listings to rows.
    - **3d.** The three remote routes, and the connection form's presets from the manifest.
-4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable.
-5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; the recommendation steps down builds before models.
+4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable. Local selection reads `selectable_for` over the classifier's types, as remote does, and the llama.cpp provider stops declaring `completion` for every file on disk, which today lets a downloaded embedder fill the `text_gen` slot. `support.py` reads `reads_images` from a projector's header.
+5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; each curated model recommends a build by its default and the step-down, priced at its whole footprint. The manifest's list is reversed once, from today's smallest first to most preferred first. Today's `catalog/` root files move under `catalog/local/`, and the local routes move to `/llm/catalog/local`.
 6. **The screen.** One list, both filters; connections become a settings panel. `/llm/connections/{id}/models` and `/llm/image/local/*` go with the cards and pickers that still read them.
 7. **Searched image models.** Single-file SD 1.5 and SDXL from search become runnable.
 
@@ -442,9 +550,16 @@ Each step ships alone and leaves the app working.
 - This work stores and shows support, and sizes chat history from `context`; nothing else in chat changes. An agent loop, where chat hands the model tools such as document search and reads `tool_call` to know which models can take part, belongs to a later chat rework with its own proposal. Chat has no tools today ([`chat.md`](../architecture/chat.md)).
 - A local model is a set of files with roles, each pinned to a commit and verified by sha256. A multi-file image model is runnable when the manifest lists its files; one found by search is classified and not runnable.
 - Local text and image models share one manifest list and one classifier; `id` is ours, not a repo, and `aliases` name the other repos that hold the same model.
-- A curated model pins a few builds; the recommendation steps down a model's builds before moving to a smaller model.
+- A curated model pins every build in the quantization preference order. Its recommended build is the default when that runs at a recommendable speed, else the largest smaller build that does, never a larger one. The rule is two pure functions over builds; the backend computes it and the screen renders it.
+- Only curated models are recommended, as a model or as a build. Search lists builds with their fit and recommends nothing.
+- A recommendation never goes below four bits, and a row leads with the build its Download fetches, chosen and explained by the server.
+- A badge is a warning: none where a build can be recommended, amber for a heavier spill, red for a refusal.
+- Opening a searched repo reads no file; the exact header read happens at install, before any bytes move.
+- A projector is paired with its model at install and recorded, never guessed from what sits in the folder.
+- A local model reads images when its build carries a projector: listed in `files[]` for a curated build, read from the projector's header for any other. `reads_images` is a support badge, never a type, and every local row, curated or not, carries the same `LocalSupport`. Images are the only extra input shown; audio waits for a feature that sends it.
+- Sending images to a local model in chat is chat's change, not this one.
 - Sampling and image settings are per model, proposed by the script from published sources, reviewed, and recorded with their origin.
-- Nothing about a local model is read from a filename.
+- Nothing about a local model is read from a filename except its quantization label, which keeps a quantizer's prefix such as `UD-`.
 - The refresh script and search share one set of file-picking rules.
 - From the references studied (Unsloth Studio, Local AI Zone, GGUF Loader), rules and conventions are borrowed and no code: Unsloth Studio is AGPL-3.0.
 

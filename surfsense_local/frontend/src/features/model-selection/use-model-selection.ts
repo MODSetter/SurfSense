@@ -110,7 +110,7 @@ async function fetchSelectionState(
             ...providerModels
               .filter(
                 (model) =>
-                  model.installed && model.capabilities.includes("completion")
+                  model.installed && model.selectable_for.includes("text_gen")
               )
               .map((model) => ({
                 ...model,

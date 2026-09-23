@@ -130,15 +130,10 @@ describe("SettingsDialog", () => {
             },
           ])
         }
-        if (path === "/llm/catalog") {
+        if (path === "/llm/catalog/local") {
           return Response.json({
-            hardware: null,
-            curated: [],
-            explore: [],
-            installed: [],
-            scanned: true,
-            warnings: [],
-            runtime_status: {},
+            rows: [],
+            recommended_id: null,
           })
         }
         return Response.json({ detail: "not found" }, { status: 404 })

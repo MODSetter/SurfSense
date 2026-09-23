@@ -36,6 +36,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-notice: var(--notice);
+  --color-warning: var(--warning);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -83,6 +84,10 @@
      update. Distinct from `destructive`, which means danger. The same blue
      clears 3:1 on both app shells, so both themes share it. */
   --notice: #3f74c8;
+  /* Something works, but worse than it could: a model that runs slower here.
+     Distinct from `destructive`, which refuses. Text on its own 10% tint
+     clears 4.5:1 on every light surface. */
+  --warning: #945005;
   --destructive-foreground: #ffffff;
   --border: #dedede;
   --input: #d6d6d6;
@@ -125,6 +130,9 @@
      update. Distinct from `destructive`, which means danger. The same blue
      clears 3:1 on both app shells, so both themes share it. */
   --notice: #3f74c8;
+  /* Lighter than the light theme's, so text on its own 15% tint clears 4.5:1
+     on every dark surface. */
+  --warning: #e4a03c;
   --destructive-foreground: #ffffff;
   --border: #2c2c2c;
   --input: #2c2c2c;

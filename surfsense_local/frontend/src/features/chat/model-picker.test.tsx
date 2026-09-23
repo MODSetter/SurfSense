@@ -112,12 +112,16 @@ describe("composer model picker", () => {
             {
               name: "llama3.2:1b",
               installed: true,
-              capabilities: ["completion"],
+              capabilities: ["text_gen"],
+              types: ["text_gen"],
+              selectable_for: ["text_gen"],
             },
             {
               name: "qwen3:1.7b",
               installed: true,
-              capabilities: ["completion"],
+              capabilities: ["text_gen"],
+              types: ["text_gen"],
+              selectable_for: ["text_gen"],
             },
           ])
         }

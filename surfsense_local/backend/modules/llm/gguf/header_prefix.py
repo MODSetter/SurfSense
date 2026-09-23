@@ -12,24 +12,41 @@ the way, and this module is exactly the adapter around them:
   slice that runs past the end rather than raising, so the shortfall would
   surface later as a confident wrong answer instead of a retry.
 
-Two private methods are therefore overridden: `_get` bounds checks every read,
-and `_build_tensors` keeps names, dimensions and types without touching data.
+Three private methods are overridden: `_get` bounds checks every read,
+`_build_tensors` keeps names, dimensions and types without touching data, and
+`_build_fields` counts a vocabulary rather than decoding it.
 Both are private upstream, which is why `gguf` is pinned to an exact version and
-`test_header_prefix.py` asserts that version beside the two behaviours.
+`test_header_prefix.py` asserts that version beside these behaviours.
 """
 
 import os
+import struct
 import tempfile
 from dataclasses import dataclass
 from typing import Any, Literal, NamedTuple
 
 import numpy as np
 import numpy.typing as npt
+from gguf.constants import GGUFValueType
 from gguf.gguf_reader import GGUFReader, ReaderField
 
 # The pseudo fields the reader synthesises for the file's own counts. They are
 # not model metadata and no caller looks them up by these names.
 _SYNTHETIC_PREFIX = "GGUF."
+
+# Longer than any per-layer field, shorter than any vocabulary.
+_ELIDE_OVER = 4096
+_U64 = struct.Struct("<Q")
+
+
+@dataclass(frozen=True)
+class ElidedArray:
+    """An array the header holds but nothing reads: its length, not its items."""
+
+    length: int
+
+    def __len__(self) -> int:
+        return self.length
 
 
 class TruncatedHeaderError(ValueError):
@@ -92,6 +109,72 @@ class HeaderPrefixReader(GGUFReader):
             )
         return super()._get(offset, dtype, count, override_order)
 
+    def _build_fields(self, offs: int, count: int) -> int:
+        """The base loop, except a long array is counted rather than decoded.
+
+        A vocabulary is 150k strings, and the base class builds a view per
+        element: 3.4 s of a 3.5 s parse. Nothing here reads the words, only how
+        many there are, so an array past `_ELIDE_OVER` keeps its length.
+        """
+        self.elided: dict[str, int] = {}
+        for _ in range(count):
+            orig_offs = offs
+            kv_klen, kv_kdata = self._get_str(offs)
+            offs += int(kv_klen.nbytes + kv_kdata.nbytes)
+            raw_kv_type = self._get(offs, np.uint32)
+            offs += int(raw_kv_type.nbytes)
+            name = str(bytes(kv_kdata), encoding="utf-8")
+            skipped = self._skip_long_array(offs, int(raw_kv_type[0]))
+            if skipped is not None:
+                length, size = skipped
+                self.elided[name] = length
+                offs += size
+                continue
+            parts: list[npt.NDArray[Any]] = [kv_klen, kv_kdata, raw_kv_type]
+            idxs_offs = len(parts)
+            size, field_parts, field_idxs, field_types = self._get_field_parts(
+                offs, raw_kv_type[0]
+            )
+            parts += field_parts
+            self._push_field(
+                ReaderField(
+                    orig_offs, name, parts, [i + idxs_offs for i in field_idxs], field_types
+                ),
+                skip_sum=True,
+            )
+            offs += size
+        return offs
+
+    def _skip_long_array(self, offs: int, raw_type: int) -> tuple[int, int] | None:
+        """(length, bytes) of a long array of scalars or strings, or None to let
+        the base class parse it. Little endian only; the rest takes the slow path."""
+        if raw_type != GGUFValueType.ARRAY or self.byte_order != "I":
+            return None
+        item_type = int(self._get(offs, np.uint32)[0])
+        length = int(self._get(offs + 4, np.uint64)[0])
+        if length <= _ELIDE_OVER:
+            return None
+        start = offs + 12
+        if item_type == GGUFValueType.STRING:
+            view = memoryview(self.data)
+            end = len(view)
+            cursor = start
+            for _ in range(length):
+                if cursor + 8 > end:
+                    raise TruncatedHeaderError("header runs past the prefix")
+                (size,) = _U64.unpack_from(view, cursor)
+                cursor += 8 + size
+            if cursor > end:
+                raise TruncatedHeaderError("header runs past the prefix")
+            return length, cursor - offs
+        scalar = self.gguf_scalar_to_np.get(GGUFValueType(item_type))
+        if scalar is None:
+            return None
+        total = 12 + length * np.dtype(scalar).itemsize
+        if offs + total > len(self.data):
+            raise TruncatedHeaderError("header runs past the prefix")
+        return length, total
+
     def _build_tensors(self, start_offs: int, fields: list[ReaderField]) -> None:
         """Names, dimensions and types. Never the data.
 
@@ -114,11 +197,12 @@ class HeaderPrefixReader(GGUFReader):
 
     def header(self) -> GgufHeader:
         """The parsed header, with the reader's own bookkeeping fields dropped."""
-        metadata = {
+        metadata: dict[str, Any] = {
             name: field.contents()
             for name, field in self.fields.items()
             if not name.startswith(_SYNTHETIC_PREFIX)
         }
+        metadata.update({name: ElidedArray(n) for name, n in self.elided.items()})
         return GgufHeader(metadata=metadata, tensors=self.header_tensors)
 
     def close(self) -> None:

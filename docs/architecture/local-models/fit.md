@@ -246,7 +246,7 @@ empty listing, so a card the OS can see still reads `broken_install`.
 integrated part counts here and is still skipped by `select_device()`. "Is the
 runtime seeing the hardware" and "what will hold the layers" are different
 questions, and conflating them would badge an AMD APU laptop as broken. The
-status travels beside the budget on `GET /llm/system` and `GET /llm/catalog`,
+status travels beside the budget on `GET /llm/system` and `GET /llm/catalog/local`,
 never inside it, because a broken install must not read as a machine without a
 card.
 
@@ -500,47 +500,47 @@ FULL             state is FITS
 RECOMMENDABLE_TIERS = {FULL, LIGHT_SPILL}
 ```
 
-A recommended build can therefore only carry full-speed or "Most of it still
-fits" wording, by construction. `test_badge_matches_the_load.py` holds it with a
-sweep of every curated model against every budget shape.
+A recommended build can therefore never carry a warning, by construction:
+the tiers it may be recommended at are exactly the tiers with no badge (below).
+`catalog/local/test_catalog.py` holds it with a sweep of every curated build
+against every budget shape.
 
 ### Badges
 
-A badge is a verdict plus one plain line of why. The verdict is what someone
-choosing a model needs (fast, slower, or impossible); the mechanism is the
-explanation, not the headline. `fit/copy.py` branches on two facts the budget
-carries, `uma` and `has_gpu`, never on the runtime's name, and the renderer shows
-the text verbatim. On a discrete GPU:
+A badge is a **warning**, shown only when there is something to warn about. It
+carries a `level` (`none`, `notice` or `refuse`), a verdict and one plain line
+of why, all from `fit/copy.py`, which reads the speed tier and never the
+runtime's name; the renderer shows the text verbatim and picks the style from the
+level. On a discrete GPU:
 
 ```text
-Full speed      Runs entirely on your graphics card
-Reduced speed   A little too big for the graphics card. Most of it still fits.
-Reduced speed   Too big for the graphics card, so part runs on the processor.
-Reduced speed   Well over the graphics card's memory. Expect it to be slow.
-Won't fit       Needs about 21 GB. This PC has 13.6 GB
+tier            level    verdict         reason
+FULL            none     (none)          (none)
+LIGHT_SPILL     none     (none)          Most of it runs on the graphics card.
+MODERATE_SPILL  notice   Reduced speed   Too big for the graphics card, so part runs on the processor.
+HEAVY_SPILL     notice   Reduced speed   Well over the graphics card's memory. Expect it to be slow.
+TOO_BIG         refuse   Won't fit       Needs about 21 GB. This PC has 13.6 GB
 ```
 
 On unified memory the card becomes "the GPU", the processor becomes "the CPU",
-and "This PC" becomes "This Mac". With no GPU, `PARTIAL` is unreachable and two
-states remain:
+and "This PC" becomes "This Mac". With no GPU, `PARTIAL` is unreachable, so a
+build either shows nothing or "Won't fit".
 
-```text
-Works here      Runs on your processor
-Won't fit       Needs about 21 GB. This PC has 16 GB
-```
-
-- **"Full speed", not "Fast".** Fast is a promise the badge cannot keep: a 32B
-  running entirely on a 4090 is still slower than a 4B. Full speed is relative to
-  the model, which is exactly what the state means.
-- **"Works here" with no GPU.** Technically `FITS`, but "Full speed" reads as a
-  boast about a slow situation when there is no faster alternative to contrast.
+- **No badge where a build can be recommended.** `FULL` and `LIGHT_SPILL` carry
+  none, so the star and a warning can never sit on one row. A light spill is
+  still described, quietly, in the reason line.
+- **A notice is amber, a refusal red.** The screen draws `notice` with the
+  `warning` color token and `refuse` with `destructive`: reduced speed installs
+  like any other build, and styling it as a failure would discourage a setup that
+  works.
 - **Decimal GB with one decimal, trailing zero dropped**, so a pair reads "21 GB"
   and "13.6 GB". Rounding the second to "14 GB" loses the half gigabyte that
   decided the answer.
 
 No user-facing string here uses an em dash or a hyphen, only commas, full stops
 and parentheses; `test_badge_copy.py` asserts it. A verdict priced from file size
-alone is marked approximate, and the screen puts `~` before it.
+alone, which is what a searched repo shows before its header is read, is marked
+approximate, and the screen puts `~` before it.
 
 ## The load plan
 
@@ -696,12 +696,11 @@ Vulkan alone is in [`../../proposals/cuda-backend.md`](../../proposals/cuda-back
 Unit tests under
 [`surfsense_local/backend/tests/unit/llm/`](../../../surfsense_local/backend/tests/unit/llm/)
 in `fit/`, `gguf/` and `hardware/`, with `fit/test_properties.py` sweeping shapes,
-windows, precisions and budget shapes; `catalog/test_badge_matches_the_load.py`
+windows, precisions and budget shapes; `catalog/local/test_catalog.py`
 holds the badge to the load, and `tests/unit/chat/test_budget.py` the chat budget.
 
 ## Known gaps
 
-- The curated manifest cannot carry `key_length_swa`, `value_length_swa` or `head_count_kv_layers`: `ModelShapeSpec` forbids fields it does not declare and does not declare these, while `refresh_curated_models.py` writes every `ModelShape` field, so the next refresh fails validation before writing. Curated entries are priced at the scalar widths, which differs from the per-layer sum only for a model whose layers differ.
 - Live host memory reads 0 on Windows: `system_memory.available_bytes()` has no Windows branch and `os.sysconf` does not exist there, and `Device.reports_live_memory`, which tells a live reading from a restated total, is never read. On a Windows machine with no GPU every model is therefore planned at the 8,192 floor; capacity mode is unaffected because it reads the CPU device's total.
 - The question's 1,024-token share is not enforced: `MessageText` in `modules/chat/schemas.py` sets no maximum length, so a longer question can push a turn with a full history past the window.
 - The `q8_0` preference is unmeasured: nobody has timed a resident `q8_0` cache against a small `f16` spill on prompt rate, and published figures report quantized caches generating materially slower.

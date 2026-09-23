@@ -232,3 +232,26 @@ async def test_a_load_that_lost_the_race_is_not_an_error(anyio_backend) -> None:
     await provider._router.load("Qwen3-1.7B-Q4_K_M")
 
     assert fake.load_calls == ["Qwen3-1.7B-Q4_K_M"]
+
+
+@pytest.mark.asyncio
+async def test_each_model_is_typed_from_its_own_header(tmp_path) -> None:
+    """The router lists every file in the folder. A downloaded embedder is not
+    a chat model, and saying `completion` for every file let one fill the slot."""
+    from modules.llm.model_type import ModelType
+    from tests.unit.llm.gguf.build import STRING, gguf, kv
+
+    (tmp_path / "chat.gguf").write_bytes(gguf([kv("general.architecture", STRING, "qwen3")]))
+    (tmp_path / "embedder.gguf").write_bytes(gguf([kv("general.architecture", STRING, "nomic-bert")]))
+    (tmp_path / "mmproj-chat.gguf").write_bytes(
+        gguf([kv("general.type", STRING, "mmproj"), kv("general.architecture", STRING, "clip")])
+    )
+    fake = FakeRouter(["chat", "embedder", "mmproj-chat"])
+    provider = LlamaCppProvider("http://127.0.0.1:1234", tmp_path, transport=fake.transport())
+
+    models = {m.name: m for m in await provider.models()}
+
+    assert set(models) == {"chat", "embedder"}
+    assert models["chat"].types == (ModelType.TEXT_GEN,)
+    assert models["embedder"].types == ()
+    assert models["embedder"].known

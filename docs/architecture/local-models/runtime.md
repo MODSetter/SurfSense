@@ -168,7 +168,7 @@ ctx-size = 16384
 parallel = 1
 fit-target = 1024
 fit-ctx = 16384
-mmproj = /Users/…/models/mmproj-F16.gguf       ; only with a projector
+mmproj = /Users/…/models/mmproj-Qwen3-8B-Q4_K_M.gguf ; only with a projector
 cache-type-k = q8_0                            ; only at q8_0
 cache-type-v = q8_0
 flash-attn = on
@@ -207,7 +207,10 @@ For each file it reads the header and skips anything the header does not name a
 model, such as a vision projector, which has a header and a size like any model.
 It skips an unreadable file with a warning: a truncated or foreign file costs that
 one model, while failing would leave the runtime dead over a file nobody asked it
-to load. It pairs each model with its projector (`projector_for()`) and plans the
+to load. It pairs each model with the projector its install record names, or one saved
+as `mmproj-<model>.gguf`, and only when that projector's header says it sees
+images and is as wide as the model; nothing is paired by guessing from the
+folder. It plans the
 load with `plan_load()` ([`fit.md`](fit.md)): the capacity budget decides the
 verdict, so the plan agrees with the badge the catalog showed, and the live
 budget caps how far the window widens past the floor.
@@ -396,8 +399,8 @@ runtime:
   `b11050` with a model resident, it terminated four processes depth first with
   no survivors. On macOS and Linux each sidecar is spawned in its own process
   group, which receives `SIGTERM` and then `SIGKILL` after 5 s.
-- `bundling/api.spec` ships `modules/llm/catalog/curated-models.json` at
-  `modules/llm/catalog`. The manifest is read by path, so the analyser cannot see
+- `bundling/api.spec` ships `modules/llm/catalog/local/manifest/models.json` at
+  `modules/llm/catalog/local/manifest`. The manifest is read by path, so the analyser cannot see
   it, and a packaging test asserts it is bundled.
 - Release CI stages the runtime with `node scripts/fetch-llamacpp.mjs`, and on
   Linux runs the packaged `llama-server --list-devices` from

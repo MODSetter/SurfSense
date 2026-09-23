@@ -4,24 +4,19 @@ import { cn } from "@/lib/utils"
 import type { Fit, Badge as FitCopy } from "./api"
 
 /**
- * Three states, and the API owns every word of them. Copy branches on whether
- * the machine has a discrete card or unified memory, which is a fact about the
- * budget rather than about the runtime, so it is decided server side and
- * rendered verbatim here.
- *
- * "Full speed" is relative to the model, not a promise of speed in the
- * abstract: a 32B running entirely on a 4090 is still slower than a 4B.
+ * A warning, shown only when there is something to warn about, and the API owns
+ * every word of it. A build that runs fully says nothing, and neither does one
+ * the server may recommend, so the star and a warning never share a row.
  */
 const variantFor: Record<
-  Fit["state"],
-  "secondary" | "outline" | "destructive"
+  Exclude<FitCopy["level"], "none">,
+  "warning" | "destructive"
 > = {
-  fits: "secondary",
-  // Not destructive. Reduced speed installs exactly like full speed, it just
-  // runs slower, and styling it as a failure would discourage a configuration
-  // that measurably works.
-  partial: "outline",
-  too_big: "destructive",
+  // Amber, not red. Reduced speed installs exactly like full speed, it just
+  // runs slower, and styling it as a failure would discourage a setup that
+  // measurably works.
+  notice: "warning",
+  refuse: "destructive",
 }
 
 export function FitBadge({
@@ -33,9 +28,10 @@ export function FitBadge({
   copy: FitCopy
   className?: string
 }) {
+  if (copy.level === "none") return null
   return (
     <Badge
-      variant={variantFor[fit.state]}
+      variant={variantFor[copy.level]}
       className={cn("shrink-0", className)}
     >
       {fit.approximate ? `~ ${copy.verdict}` : copy.verdict}
@@ -44,9 +40,10 @@ export function FitBadge({
 }
 
 /**
- * The explanation, dimmed and trailing. Kept separate from the verdict because
- * the verdict is what someone choosing a model needs and the mechanism is not.
+ * The explanation, dimmed and trailing, when there is one. A light spill is
+ * explained here without a badge: described, not flagged.
  */
 export function FitReason({ copy }: { copy: FitCopy }) {
+  if (!copy.reason) return null
   return <p className="text-xs text-muted-foreground">{copy.reason}</p>
 }
