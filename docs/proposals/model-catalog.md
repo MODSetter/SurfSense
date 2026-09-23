@@ -53,7 +53,7 @@ class ModelType(StrEnum):          # what a model is for: the capability filter
 ```
 
 - **A type is a filter, a support is a badge.** "Reads images" does not make a model an image model. Each side's support is its own dataclass, because the fields each can know differ.
-- **None is not no.** A support field is `None` when the evidence is silent, as [`supports.py`](../../surfsense_local/backend/modules/llm/taxonomy/supports.py) already holds for models.dev.
+- **None is not no.** A support field is `None` when the evidence is silent, as `taxonomy/supports.py` already holds for models.dev.
 - **Unknown is a state, not a type.** A remote id nothing recognises has no types and `known=False`. The capability filter offers "Unknown" only when such rows exist.
 - **One word per idea.** `completion`, `image_generation` as a capability, and the curated `vision` go.
 
@@ -297,7 +297,7 @@ Opening a repo picks its builds with `catalog/local/builds.py`, the same file-pi
 
 ### Classifier and support
 
-`catalog/remote/classifier.py` and `catalog/remote/support.py` are today's [`classify.py`](../../surfsense_local/backend/modules/llm/taxonomy/classify.py), [`supports.py`](../../surfsense_local/backend/modules/llm/taxonomy/supports.py) and `not_text_gen.py`, moved, with their tests, and reading the manifest's field names (`context` for `limit.context`) instead of a raw models.dev entry. Their rules do not change. An endpoint that declares `output_modalities` in its own listing is classified from those first, since the endpoint is the authority on what it serves.
+`catalog/remote/classifier.py` and `catalog/remote/support.py` are today's `taxonomy/classify.py`, `taxonomy/supports.py` and `not_text_gen.py`, moved, with their tests, and reading the manifest's field names (`context` for `limit.context`) instead of a raw models.dev entry. Their rules do not change. An endpoint that declares `output_modalities` in its own listing is classified from those first, since the endpoint is the authority on what it serves.
 
 ### Catalog
 
