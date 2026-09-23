@@ -2,7 +2,6 @@ import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { DotIcon, SearchIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
@@ -19,7 +18,10 @@ import {
   type LocalBuild,
   type SearchRow,
 } from "./api"
+import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
+import { InstallProgress } from "./install-progress"
+import type { InstallState } from "./use-model-catalog"
 
 // Tall enough for a handful of results, so the common search neither moves the
 // page nor leaves a hole under a short list. The section is the last thing in
@@ -40,7 +42,6 @@ const formatDownloads = (count: number) =>
 const describe = (hit: SearchRow) => [
   `${formatDownloads(hit.downloads)} downloads`,
   ...(hit.license ? [hit.license] : []),
-  ...(hit.quantized_from ? [`quantized from ${hit.quantized_from}`] : []),
 ]
 
 /**
@@ -51,10 +52,14 @@ const describe = (hit: SearchRow) => [
 function RepoBuilds({
   repo,
   onInstall,
+  onCancel,
+  installState,
   disabled,
 }: {
   repo: string
   onInstall: (build: LocalBuild) => void
+  onCancel: () => void
+  installState: InstallState
   disabled: boolean
 }) {
   const detail = useQuery({
@@ -90,10 +95,7 @@ function RepoBuilds({
 
   return (
     <>
-      <p className="flex flex-wrap items-center gap-2 px-3 pt-2 text-xs text-muted-foreground">
-        {row.support.reads_images ? (
-          <Badge variant="secondary">Reads images</Badge>
-        ) : null}
+      <p className="px-3 pt-2 text-xs text-muted-foreground">
         {row.runnable
           ? "Sizes are exact. Fit is estimated and checked before download."
           : row.not_runnable_reason}
@@ -102,29 +104,34 @@ function RepoBuilds({
         {row.builds.map((build) => (
           <li
             key={build.catalog_id || build.quantization}
-            className="flex items-center justify-between gap-3 px-3 py-2"
+            className="flex flex-col gap-2 px-3 py-2"
           >
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium">
-                  {build.quantization}
-                </span>
-                <FitBadge fit={build.fit} copy={build.badge} />
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {formatSize(build.footprint_bytes)}
-                </span>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium">
+                    {build.quantization}
+                  </span>
+                  <FitBadge fit={build.fit} copy={build.badge} />
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {formatSize(build.footprint_bytes)}
+                  </span>
+                </div>
+                <FitReason copy={build.badge} />
               </div>
-              <FitReason copy={build.badge} />
+              <BuildAction
+                build={build}
+                label={repo}
+                installState={installState}
+                disabled={disabled}
+                runtimeAvailable
+                onAction={onInstall}
+              />
             </div>
-            <Button
-              type="button"
-              size="sm"
-              disabled={disabled || !build.can_install}
-              aria-label={`Download ${repo} ${build.quantization}`}
-              onClick={() => onInstall(build)}
-            >
-              Download
-            </Button>
+            {installState.status === "installing" &&
+            installState.catalogId === build.catalog_id ? (
+              <InstallProgress event={installState.event} onCancel={onCancel} />
+            ) : null}
           </li>
         ))}
       </ul>
@@ -134,9 +141,13 @@ function RepoBuilds({
 
 export function ModelSearch({
   onInstall,
+  onCancel,
+  installState,
   disabled,
 }: {
   onInstall: (build: LocalBuild) => void
+  onCancel: () => void
+  installState: InstallState
   disabled: boolean
 }) {
   const headingId = useId()
@@ -248,7 +259,7 @@ export function ModelSearch({
                           {hit.repo}
                         </span>
                         {hit.reads_images ? (
-                          <Badge variant="secondary">Reads images</Badge>
+                          <Badge variant="secondary">Vision</Badge>
                         ) : null}
                         {hit.gated ? (
                           <Badge variant="outline">Needs an account</Badge>
@@ -285,6 +296,8 @@ export function ModelSearch({
                       <RepoBuilds
                         repo={hit.repo}
                         onInstall={onInstall}
+                        onCancel={onCancel}
+                        installState={installState}
                         disabled={disabled}
                       />
                     </div>

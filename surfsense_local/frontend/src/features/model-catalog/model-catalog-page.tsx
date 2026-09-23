@@ -284,7 +284,7 @@ export function ModelCatalogPage({
                           {label}
                         </span>
                         {build.reads_images ? (
-                          <Badge variant="secondary">Reads images</Badge>
+                          <Badge variant="secondary">Vision</Badge>
                         ) : null}
                       </div>
                       {!row.runnable ? (
@@ -341,7 +341,12 @@ export function ModelCatalogPage({
 
           <Separator className="my-4" />
 
-          <ModelSearch onInstall={act} disabled={busy} />
+          <ModelSearch
+            onInstall={act}
+            onCancel={cancelInstall}
+            installState={installState}
+            disabled={busy}
+          />
 
           {curated.length + installed.length === 0 ? (
             <Alert>

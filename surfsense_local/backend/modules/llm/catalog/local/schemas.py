@@ -128,6 +128,8 @@ class SearchHitRead(BaseModel):
     likes: int
     license: str | None
     gated: bool
+    # The repo it was quantized from, from its `base_model:quantized:` tag.
+    # Provenance, returned for callers and deliberately not shown on the row.
     quantized_from: str | None
     last_modified: str | None
     # Judged by the repo's file names; the header read before install decides.

@@ -545,9 +545,10 @@ describe("model catalog", () => {
     )
 
     const hit = await screen.findByText("unsloth/Qwen3-8B-GGUF")
-    expect(screen.getByText(/quantized from Qwen\/Qwen3-8B/)).toBeTruthy()
+    // Provenance stays in the API, off the row.
+    expect(screen.queryByText(/quantized from/)).toBeNull()
     // Said beside the name, before the repo is opened.
-    expect(screen.getByText("Reads images")).toBeTruthy()
+    expect(screen.getByText("Vision")).toBeTruthy()
     await user.click(hit)
 
     const builds = await screen.findByRole("list", {
@@ -719,7 +720,7 @@ describe("builds of a curated model", () => {
 
     render(<ModelCatalogPage />)
 
-    expect(await screen.findByText("Reads images")).toBeTruthy()
+    expect(await screen.findByText("Vision")).toBeTruthy()
   })
 })
 
@@ -774,5 +775,169 @@ describe("a model with no recommended build", () => {
     expect(download.hasAttribute("disabled")).toBe(false)
     expect(screen.getByText("Reduced speed")).toBeTruthy()
     expect(screen.queryByText("Won't fit")).toBeNull()
+  })
+})
+
+describe("installing a searched build", () => {
+  it("shows the phase and a progress bar, as a curated build does", async () => {
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog({ rows: [] }), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          return Response.json({
+            results: [
+              {
+                repo: "unsloth/gemma-3-4b-it-GGUF",
+                downloads: 1,
+                likes: 1,
+                license: null,
+                gated: false,
+                quantized_from: null,
+                last_modified: null,
+                reads_images: true,
+              },
+            ],
+          })
+        }
+        if (path.startsWith("/llm/catalog/local/search/")) {
+          return Response.json({
+            repo: "unsloth/gemma-3-4b-it-GGUF",
+            gated: false,
+            row: row({ origin: "search", lead: null }, [
+              build({
+                catalog_id: "ticket-1",
+                fit: fit({ approximate: true }),
+              }),
+            ]),
+          })
+        }
+        if (path === "/llm/install") {
+          // Starts downloading, then holds, so the in-flight state is visible.
+          const encoder = new TextEncoder()
+          return new Response(
+            new ReadableStream<Uint8Array>({
+              async start(controller) {
+                controller.enqueue(
+                  encoder.encode(
+                    '{"type":"downloading","completed":5,"total":10}\n'
+                  )
+                )
+                await held
+                controller.close()
+              },
+            })
+          )
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "gemma"
+    )
+    await user.click(await screen.findByText("unsloth/gemma-3-4b-it-GGUF"))
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Download unsloth/gemma-3-4b-it-GGUF Q4_K_M",
+      })
+    )
+
+    expect(await screen.findByText("Downloading…")).toBeTruthy()
+    expect(await screen.findByRole("progressbar")).toBeTruthy()
+    release()
+  })
+})
+
+describe("installing a curated build", () => {
+  function holdingInstall() {
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const encoder = new TextEncoder()
+    const reply = () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          async start(controller) {
+            controller.enqueue(
+              encoder.encode(
+                '{"type":"downloading","completed":5,"total":10}\n'
+              )
+            )
+            await held
+            controller.close()
+          },
+        })
+      )
+    return { reply, release: () => release() }
+  }
+
+  const twoBuilds = () =>
+    catalog({
+      rows: [
+        row({ lead: { quantization: "UD-Q4_K_XL", why: "recommended" } }, [
+          build({
+            catalog_id: "ud",
+            quantization: "UD-Q4_K_XL",
+            recommended: true,
+          }),
+          build({ catalog_id: "q4", quantization: "Q4_K_M" }),
+        ]),
+      ],
+    })
+
+  it("shows the bar under the lead build when it is the one downloading", async () => {
+    const install = holdingInstall()
+    vi.stubGlobal(
+      "fetch",
+      serving(twoBuilds(), (path) =>
+        path === "/llm/install" ? install.reply() : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Download Qwen3 8B UD-Q4_K_XL",
+      })
+    )
+
+    expect(await screen.findByRole("progressbar")).toBeTruthy()
+    // Not inside the other builds, which stay collapsed.
+    expect(
+      screen.queryByRole("list", { name: "Builds of Qwen3 8B" })
+    ).toBeNull()
+    install.release()
+  })
+
+  it("shows the bar under an other build when it is the one downloading", async () => {
+    const install = holdingInstall()
+    vi.stubGlobal(
+      "fetch",
+      serving(twoBuilds(), (path) =>
+        path === "/llm/install" ? install.reply() : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<ModelCatalogPage />)
+    await user.click(
+      await screen.findByRole("button", { name: "1 other builds" })
+    )
+    await user.click(
+      screen.getByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    )
+
+    const list = await screen.findByRole("list", { name: "Builds of Qwen3 8B" })
+    expect(await within(list).findByRole("progressbar")).toBeTruthy()
+    install.release()
   })
 })

@@ -139,7 +139,13 @@ export type SearchRow = {
   likes: number
   license: string | null
   gated: boolean
-  /** "quantized from Qwen/Qwen3-8B", which is provenance and not a grade. */
+  /**
+   * The repo it was quantized from, from its `base_model:quantized:` tag.
+   * Provenance, not a grade. Not shown on the row: it names the exact parent
+   * repo (an intermediate `...-unquantized` repo for a QAT build), which the
+   * repo's own name usually already says. Kept for matching a typed search
+   * against a repo's base model.
+   */
   quantized_from: string | null
   last_modified: string | null
   /** The repo ships a vision projector, judged by its file names. A guess

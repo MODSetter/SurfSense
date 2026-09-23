@@ -2,80 +2,21 @@ import { useId, useState } from "react"
 import {
   ChevronDownIcon,
   DotIcon,
-  DownloadIcon,
   SparklesIcon,
   Trash2Icon,
 } from "@/components/ui/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import type { LocalBuild, LocalRow } from "./api"
+import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
-import { installView } from "./install-view"
 import type { InstallState } from "./use-model-catalog"
 
 const formatSize = (bytes: number) =>
   `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
-
-function BuildAction({
-  build,
-  label,
-  installState,
-  disabled,
-  runtimeAvailable,
-  onAction,
-}: {
-  build: LocalBuild
-  label: string
-  installState: InstallState
-  disabled: boolean
-  runtimeAvailable: boolean
-  onAction: (build: LocalBuild) => void
-}) {
-  const isInstalling =
-    installState.status === "installing" &&
-    installState.catalogId === build.catalog_id
-  const installed = build.installed_as !== null
-  // Only physics refuses. Reduced speed installs exactly like full speed.
-  const cannotInstall = !installed && (!build.can_install || !runtimeAvailable)
-
-  if (build.selected) {
-    return (
-      <Button type="button" size="sm" variant="outline" disabled>
-        In use
-      </Button>
-    )
-  }
-  return (
-    <Button
-      type="button"
-      size="sm"
-      className="whitespace-nowrap"
-      disabled={disabled || cannotInstall}
-      aria-label={`${installed ? "Use" : "Download"} ${label} ${build.quantization}`}
-      onClick={() => onAction(build)}
-    >
-      {/* A disabled button still reading "Download" while its own bar fills
-          reads as unavailable rather than busy, so it names the phase. */}
-      {isInstalling ? (
-        <>
-          <span className="animate-spin" data-icon="inline-start">
-            <Spinner className="size-3.5" />
-          </span>
-          {installView(installState.event).short}
-        </>
-      ) : (
-        <>
-          {!installed ? <DownloadIcon data-icon="inline-start" /> : null}
-          {installed ? "Use" : "Download"}
-        </>
-      )}
-    </Button>
-  )
-}
 
 export function ModelCard({
   row,
@@ -100,10 +41,14 @@ export function ModelCard({
   const lead = row.builds.find((b) => b.quantization === row.lead?.quantization)
   if (!lead) return null
 
-  const installingHere =
+  // The bar sits under whichever build is downloading, the lead or one listed
+  // under it, the same as a searched repo's builds.
+  const installing = (build: LocalBuild) =>
     installState.status === "installing" &&
-    row.builds.some((b) => b.catalog_id === installState.catalogId)
+    installState.catalogId === build.catalog_id
   const others = row.builds.filter((b) => b !== lead)
+  // Kept open while one of its builds downloads, so its bar cannot be hidden.
+  const expanded = open || others.some(installing)
 
   return (
     <article className="px-3 py-2 transition-colors hover:bg-muted/20">
@@ -119,7 +64,7 @@ export function ModelCard({
             <p className="truncate text-sm font-medium">{row.name}</p>
             <FitBadge fit={lead.fit} copy={lead.badge} />
             {row.support.reads_images ? (
-              <Badge variant="secondary">Reads images</Badge>
+              <Badge variant="secondary">Vision</Badge>
             ) : null}
             <span className="flex shrink-0 items-center text-xs text-muted-foreground">
               {lead.quantization}
@@ -163,11 +108,17 @@ export function ModelCard({
         </div>
       </div>
 
+      {installing(lead) && installState.status === "installing" ? (
+        <div className="mt-2">
+          <InstallProgress event={installState.event} onCancel={onCancel} />
+        </div>
+      ) : null}
+
       {others.length > 0 && row.runnable ? (
         <div className="mt-1">
           <button
             type="button"
-            aria-expanded={open}
+            aria-expanded={expanded}
             aria-controls={buildsId}
             className="flex items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             onClick={() => setOpen((value) => !value)}
@@ -176,12 +127,12 @@ export function ModelCard({
               aria-hidden="true"
               className={cn(
                 "size-3 transition-transform motion-reduce:transition-none",
-                open && "rotate-180"
+                expanded && "rotate-180"
               )}
             />
-            {open ? "Hide other builds" : `${others.length} other builds`}
+            {expanded ? "Hide other builds" : `${others.length} other builds`}
           </button>
-          {open ? (
+          {expanded ? (
             <ul
               id={buildsId}
               className="mt-1 flex flex-col divide-y rounded-lg border"
@@ -190,25 +141,33 @@ export function ModelCard({
               {others.map((build) => (
                 <li
                   key={build.catalog_id || build.quantization}
-                  className="flex items-center justify-between gap-3 px-2.5 py-1.5"
+                  className="flex flex-col gap-2 px-2.5 py-1.5"
                 >
-                  <div className="flex min-w-0 items-center gap-2">
-                    <span className="font-mono text-xs">
-                      {build.quantization}
-                    </span>
-                    <FitBadge fit={build.fit} copy={build.badge} />
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {formatSize(build.footprint_bytes)}
-                    </span>
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-2">
+                      <span className="font-mono text-xs">
+                        {build.quantization}
+                      </span>
+                      <FitBadge fit={build.fit} copy={build.badge} />
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {formatSize(build.footprint_bytes)}
+                      </span>
+                    </div>
+                    <BuildAction
+                      build={build}
+                      label={row.name}
+                      installState={installState}
+                      disabled={actionsDisabled}
+                      runtimeAvailable={runtimeAvailable}
+                      onAction={onAction}
+                    />
                   </div>
-                  <BuildAction
-                    build={build}
-                    label={row.name}
-                    installState={installState}
-                    disabled={actionsDisabled}
-                    runtimeAvailable={runtimeAvailable}
-                    onAction={onAction}
-                  />
+                  {installing(build) && installState.status === "installing" ? (
+                    <InstallProgress
+                      event={installState.event}
+                      onCancel={onCancel}
+                    />
+                  ) : null}
                 </li>
               ))}
             </ul>
@@ -216,17 +175,10 @@ export function ModelCard({
         </div>
       ) : null}
 
-      {installingHere || !runtimeAvailable ? (
-        <div className="mt-2 flex flex-col gap-2">
-          {installingHere && installState.status === "installing" ? (
-            <InstallProgress event={installState.event} onCancel={onCancel} />
-          ) : null}
-          {!runtimeAvailable ? (
-            <p className="text-xs text-destructive">
-              The local runtime is unavailable.
-            </p>
-          ) : null}
-        </div>
+      {!runtimeAvailable ? (
+        <p className="mt-2 text-xs text-destructive">
+          The local runtime is unavailable.
+        </p>
       ) : null}
     </article>
   )

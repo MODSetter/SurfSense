@@ -23,7 +23,12 @@ class SearchHit:
     last_modified: str | None = None
     license: str | None = None
     gated: bool = False
-    # Provenance, not a grade: 32 of the top 40 GGUF repos carry this tag.
+    # Provenance, not a grade: 32 of the top 40 GGUF repos carry the
+    # `base_model:quantized:<repo>` tag. Returned by the API and not shown on the
+    # row: it names the exact parent repo, which for a QAT build is an
+    # intermediate `...-unquantized` repo, and the repo's own name usually says
+    # the same. Kept for a later reader, such as matching a typed search against
+    # a repo's base model, which is what Unsloth Studio uses it for.
     quantized_from: str | None = None
     # The repo ships a vision projector, judged by its file names with the rule
     # a repo's builds use. A guess until the header is read before install.
