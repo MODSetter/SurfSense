@@ -82,6 +82,10 @@ def _section(preset: ModelPreset) -> str:
 
 def write_presets(path: Path, presets: list[ModelPreset]) -> None:
     """Replace the preset file atomically, so a half-written INI never loads."""
+    # TODO: skip the write when the rendered text matches the file. Every write
+    # moves the mtime, Electron's watchGenerationPreset restarts the router on
+    # that, and the startup warm_selected() load dies with it, so the first
+    # question of every session pays a cold load. Known gap in runtime.md.
     temporary = path.with_suffix(f"{path.suffix}.tmp")
     temporary.write_text(render_presets(presets))
     temporary.replace(path)

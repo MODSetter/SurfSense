@@ -17,6 +17,25 @@ The remote classifier this builds on, `taxonomy/` (`classify.py`, `supports.py`,
 
 This reworks the local catalog ([`catalog.md`](../architecture/local-models/catalog.md)), the hard-coded sd.cpp list, and the per-connection model lists ([`connections.md`](../architecture/connections.md)). Those docs describe the code being replaced. They constrain this design only where a decision below says so.
 
+## What this replaces
+
+Until this work ships, `docs/architecture/` describes the code as it is and this proposal describes where it is going; each architecture page below says so at its top. When it ships, the pages change as follows and this proposal is deleted.
+
+| Architecture page | Today | When this ships |
+|---|---|---|
+| [`local-models/catalog.md`](../architecture/local-models/catalog.md) | the local catalog: curated manifest, install gate, search | replaced by `model-catalog/local.md`, and deleted |
+| [`connections.md`](../architecture/connections.md) | connections, and how their models are listed and classified | keeps storage, keys, the probe and the runtime; model listing moves to `model-catalog/remote.md` |
+| [`local-models/selection.md`](../architecture/local-models/selection.md) | one model per role | one model per `ModelType` |
+| [`data-model.md`](../architecture/data-model.md) | `selected_models.role` | `selected_models.model_type`, and the provider id on a connection |
+| [`studio.md`](../architecture/studio.md) | the `image_generation` role and the hard-coded sd.cpp list | the `image_gen` selection and the local manifest |
+
+Known gaps in `local-models/catalog.md` this closes:
+
+- A vision model installs as text only: a build's `files[]` carries its projector (step 5).
+- Downloads are not checksum-verified: every file has a `sha256` (step 5).
+- Curated rows send `context_length: 0`: `context` is in the manifest (step 5).
+- A dead curated pin gets the generic install error: files are pinned to a commit, so a re-upload, rename or deletion on `main` no longer breaks a shipped manifest; a deleted repo still does (step 5).
+
 ## The shape of it
 
 Each side runs the same four steps, with its own evidence:

@@ -1,5 +1,7 @@
 # Model selection and prompt tiers
 
+> **Being redesigned.** The [model catalog proposal](../../proposals/model-catalog.md) replaces the two roles with one selection per model type. This page describes the code as it is until that work ships.
+
 One model answers each role, local or remote, and the app records a few facts
 about it at the moment it is chosen, so that every later request knows how to
 prompt it without asking the network. The prompt tier those facts imply is
