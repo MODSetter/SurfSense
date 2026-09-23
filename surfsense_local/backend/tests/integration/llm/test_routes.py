@@ -5,7 +5,7 @@ from sqlalchemy import Engine
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm import providers as registry
 from modules.llm.activity import model_activity, model_key
-from modules.llm.catalog.dependencies import get_catalog_service
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.providers.types import Message, Model
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
@@ -31,7 +31,7 @@ async def test_installed_models_carry_their_capabilities(
     body = (await client.get("/llm/providers/llamacpp/models")).json()
 
     assert {model["name"] for model in body} == {"Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"}
-    assert "completion" in body[0]["capabilities"]
+    assert "text_gen" in body[0]["selectable_for"]
 
 
 async def test_an_unknown_provider_is_a_404(client: AsyncClient) -> None:
@@ -119,8 +119,9 @@ async def test_deleting_the_selected_local_model_clears_only_the_selection(
     # Disk is the inventory, and it is what the catalog reads. The router still
     # lists the model until its next restart, which the preset rewrite triggers:
     # it scans its directory once at startup and has no way to be told otherwise.
-    installed = (await client.get("/llm/catalog")).json()["installed"]
-    assert [row["model_id"] for row in installed] == ["Qwen3-4B-Q4_K_M"]
+    rows = (await client.get("/llm/catalog/local")).json()["rows"]
+    installed = [b["installed_as"] for row in rows for b in row["builds"] if b["installed_as"]]
+    assert installed == ["Qwen3-4B-Q4_K_M"]
 
 
 async def test_remote_models_cannot_be_deleted(client: AsyncClient) -> None:
@@ -151,7 +152,7 @@ async def test_a_model_cannot_be_deleted_while_one_is_installing(
     client: AsyncClient, llamacpp_server: str
 ) -> None:
     """One runtime mutation cannot overlap another."""
-    lock = get_catalog_service().install_lock()
+    lock = get_local_catalog().install_lock()
     await lock.acquire()
     try:
         reply = await client.delete("/llm/models/Qwen3-1.7B-Q4_K_M")
@@ -229,7 +230,7 @@ async def test_a_selection_names_an_installed_model(
     assert (await client.get("/llm/selection/text_gen")).status_code == 404
 
 
-async def test_a_generation_selection_requires_completion_capability(
+async def test_a_text_selection_requires_a_text_model(
     client: AsyncClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """An installed embedding model cannot be selected to answer chat."""
@@ -241,7 +242,8 @@ async def test_a_generation_selection_requires_completion_capability(
             return True
 
         async def models(self) -> list[Model]:
-            return [Model("embedder", installed=True, capabilities=("embedding",))]
+            # Known, and a type no slot holds: an embedder.
+            return [Model("embedder", installed=True, types=(), known=True)]
 
         def chat(self, model: str, messages: list[Message]):  # pragma: no cover
             raise NotImplementedError
@@ -254,5 +256,5 @@ async def test_a_generation_selection_requires_completion_capability(
     )
 
     assert reply.status_code == 422
-    assert reply.json()["detail"] == "model does not support generation: embedder"
+    assert reply.json()["detail"] == "model does not support text_gen: embedder"
     assert (await client.get("/llm/selection/text_gen")).status_code == 404

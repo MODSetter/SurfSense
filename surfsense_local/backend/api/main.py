@@ -20,7 +20,7 @@ from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
-from modules.llm.catalog.dependencies import get_catalog_service
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
@@ -99,7 +99,7 @@ def _warm_catalog(session_factory: sessionmaker[Session]) -> None:
     than starting a second probe.
     """
     try:
-        get_catalog_service().warm()
+        get_local_catalog().warm()
     except Exception:
         logger.exception("could not warm the model catalog at startup")
         return

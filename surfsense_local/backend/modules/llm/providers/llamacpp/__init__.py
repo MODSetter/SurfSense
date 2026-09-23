@@ -12,7 +12,6 @@ from modules.llm.providers.llamacpp.preset import (
     render_presets,
     write_presets,
 )
-from modules.llm.providers.llamacpp.projector import projector_for
 from modules.llm.providers.llamacpp.provider import PROVIDER, LlamaCppProvider
 from modules.llm.providers.llamacpp.router_client import RouterClient, RouterModel
 from modules.llm.providers.llamacpp.warm import warm_model
@@ -29,7 +28,6 @@ __all__ = [
     "RouterModel",
     "download_gguf",
     "for_template",
-    "projector_for",
     "read_capabilities",
     "render_presets",
     "warm_model",

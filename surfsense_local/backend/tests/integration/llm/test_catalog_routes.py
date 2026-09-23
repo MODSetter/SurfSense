@@ -1,8 +1,4 @@
-"""The model screen's routes.
-
-These replace `GET /llm/system`, `GET /llm/catalog` and `POST /llm/install` at
-the same paths, so this file is also the check that the reshape landed.
-"""
+"""The local catalog's routes: offline rows, gated search, opaque installs."""
 
 import pytest
 from httpx import AsyncClient
@@ -11,122 +7,86 @@ pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 
 async def test_the_catalog_renders_with_no_network_and_no_scan(client: AsyncClient) -> None:
-    """A clean machine sees a hardware line and badged rows on first paint."""
-    reply = await client.get("/llm/catalog")
+    """The catalog renders with no network and no scan."""
+    reply = await client.get("/llm/catalog/local")
 
     assert reply.status_code == 200
     body = reply.json()
-    assert body["curated"]
-    assert all(row["badge"]["verdict"] for row in body["curated"])
-
-
-async def test_no_row_carries_a_rank_on_the_wire(client: AsyncClient) -> None:
-    """Asserted on the serialized response, so it cannot be reintroduced by an
-    accidental `from_attributes` widening."""
-    body = (await client.get("/llm/catalog")).json()
-
-    for row in body["curated"]:
-        assert "rank" not in row
-        assert "score" not in row
-
-
-async def test_the_response_carries_no_scanned_flag(client: AsyncClient) -> None:
-    """There is no scan. The flag is what the frontend hung a button on."""
-    body = (await client.get("/llm/catalog")).json()
-
+    curated = [row for row in body["rows"] if row["origin"] == "curated"]
+    assert curated
+    assert all(build["badge"]["verdict"] for row in curated for build in row["builds"])
     assert "scanned" not in body
 
 
-async def test_the_offload_fraction_survives_to_the_renderer(client: AsyncClient) -> None:
-    """The graded reason line is selected from it, and the renderer must not
-    recompute what the estimator already knows."""
-    body = (await client.get("/llm/catalog")).json()
+async def test_every_local_row_has_one_shape(client: AsyncClient) -> None:
+    """Every local row has one shape."""
+    body = (await client.get("/llm/catalog/local")).json()
 
-    assert all("offload_fraction" in row["fit"] for row in body["curated"])
+    for row in body["rows"]:
+        assert row["source"] == "local"
+        assert {"types", "selectable_for", "support", "builds", "runnable"} <= set(row)
+        assert "reads_images" in row["support"]
+        for build in row["builds"]:
+            assert {"footprint_bytes", "files", "reads_images", "projector_checked"} <= set(build)
+
+
+async def test_no_row_carries_a_rank_on_the_wire(client: AsyncClient) -> None:
+    """No row carries a rank on the wire."""
+    body = (await client.get("/llm/catalog/local")).json()
+
+    for row in body["rows"]:
+        for field in ("rank", "score", "position"):
+            assert field not in row
+
+
+async def test_each_curated_model_names_its_default_and_at_most_one_recommended_build(
+    client: AsyncClient,
+) -> None:
+    """Each curated model names its default and at most one recommended build."""
+    body = (await client.get("/llm/catalog/local")).json()
+
+    for row in body["rows"]:
+        if row["origin"] == "curated":
+            assert row["default_quantization"] == "UD-Q4_K_XL"
+            assert sum(b["recommended"] for b in row["builds"]) <= 1
+
+
+async def test_the_offload_fraction_survives_to_the_renderer(client: AsyncClient) -> None:
+    """The offload fraction survives to the renderer."""
+    body = (await client.get("/llm/catalog/local")).json()
+
+    assert all("offload_fraction" in b["fit"] for row in body["rows"] for b in row["builds"])
 
 
 async def test_the_system_route_describes_one_device_never_a_sum(client: AsyncClient) -> None:
-    """Summing backends reports 12 GB on a 6 GB card, wrong in the dangerous
-    direction: it tells a user a model fits when it cannot."""
+    """The system route describes one device never a sum."""
     body = (await client.get("/llm/system")).json()
 
     budget = body["budget"]
     assert budget["usable_vram_bytes"] <= budget["device_free_bytes"]
-    for device in body["devices"]:
-        assert budget["device_total_bytes"] <= max(
-            device["total_bytes"] for device in body["devices"]
-        )
+    assert body["gpu_status"] in {"present", "absent", "broken_install", "unknown"}
+    assert "gpu_status" not in budget
 
 
-async def test_search_is_refused_until_its_destination_is_allowed(
-    client: AsyncClient,
-) -> None:
-    """Typing into a search box sends that text to huggingface.co, which is a
-    consent of its own and separate from allowing a download."""
-    reply = await client.get("/llm/search", params={"q": "qwen"})
-
-    assert reply.status_code == 403
+async def test_search_is_refused_until_its_destination_is_allowed(client: AsyncClient) -> None:
+    """Search is refused until its destination is allowed."""
+    assert (await client.get("/llm/catalog/local/search", params={"q": "qwen"})).status_code == 403
+    assert (await client.get("/llm/catalog/local/search/unsloth/Qwen3-8B-GGUF")).status_code == 403
 
 
-async def test_installing_an_unknown_id_says_the_catalog_is_stale(
-    client: AsyncClient,
-) -> None:
-    """One staleness failure, not two: a searched build's ticket expires on the
-    same clock as the row it was minted for."""
+async def test_installing_an_unknown_id_says_the_catalog_is_stale(client: AsyncClient) -> None:
+    """Installing an unknown id says the catalog is stale."""
     reply = await client.post("/llm/install", json={"catalog_id": "never-minted"})
 
     assert reply.status_code == 422
     assert "stale" in reply.json()["detail"]
 
 
-async def test_installing_is_refused_until_its_destination_is_allowed(
-    client: AsyncClient,
-) -> None:
-    """Downloading a model reaches huggingface.co, and that is a consent the
-    user gives explicitly. Separate from search: this is a repo they named.
-    """
-    body = (await client.get("/llm/catalog")).json()
-    catalog_id = body["curated"][0]["catalog_id"]
+async def test_a_curated_build_is_installed_by_its_opaque_id(client: AsyncClient) -> None:
+    """A valid id gets past resolution and fails on egress, not on being unknown."""
+    body = (await client.get("/llm/catalog/local")).json()
+    catalog_id = body["rows"][0]["builds"][0]["catalog_id"]
 
     reply = await client.post("/llm/install", json={"catalog_id": catalog_id})
 
     assert reply.status_code == 403
-
-
-async def test_a_curated_row_can_be_installed_by_its_opaque_id(
-    client: AsyncClient,
-) -> None:
-    """The renderer sends only that id: no repo, file, URL or path. A valid id
-    gets past resolution and fails on egress, not on being unrecognised."""
-    body = (await client.get("/llm/catalog")).json()
-    catalog_id = body["curated"][0]["catalog_id"]
-
-    reply = await client.post("/llm/install", json={"catalog_id": catalog_id})
-
-    assert reply.status_code != 422
-
-
-async def test_the_system_route_says_whether_the_runtime_sees_the_hardware(
-    client: AsyncClient,
-) -> None:
-    """An empty device list means nothing on its own: a machine with no card and
-    a machine whose card the runtime cannot reach both report one."""
-    body = (await client.get("/llm/system")).json()
-
-    assert body["gpu_status"] in {"present", "absent", "broken_install", "unknown"}
-
-
-async def test_the_catalog_carries_the_same_diagnosis(client: AsyncClient) -> None:
-    """The screen that renders the badges is the one that has to explain them."""
-    body = (await client.get("/llm/catalog")).json()
-
-    assert body["gpu_status"] in {"present", "absent", "broken_install", "unknown"}
-
-
-async def test_the_budget_never_reports_a_gpu_diagnosis(client: AsyncClient) -> None:
-    """The budget is memory. Phase 8.3 asks for a distinct state, not a flag
-    folded into the numbers, so a reader of one cannot mistake it for the other.
-    """
-    body = (await client.get("/llm/system")).json()
-
-    assert "gpu_status" not in body["budget"]

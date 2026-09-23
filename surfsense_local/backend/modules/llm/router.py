@@ -11,9 +11,9 @@ from api.dependencies import SessionDep, transact
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.egress import service as egress
 from modules.llm.activity import ModelBusyError, model_activity, model_key
-from modules.llm.catalog.dependencies import CatalogServiceDep
+from modules.llm.catalog.local.dependencies import LocalCatalogDep
+from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
-from modules.llm.catalog.router import router as catalog_router
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import LocalRuntimeDep, ProviderDep
 from modules.llm.model_type import ModelType
@@ -32,11 +32,12 @@ from modules.llm.schemas import (
     SelectionRead,
     SelectionWrite,
 )
+from modules.llm.selectable import selectable_for
 from modules.llm.selection import choose_model, complete_onboarding
 from shared.config import get_llm_settings
 
 router = APIRouter(prefix="/llm", tags=["llm"])
-router.include_router(catalog_router)
+router.include_router(local_catalog_router)
 router.include_router(remote_catalog_router)
 router.include_router(connections_router)
 
@@ -95,6 +96,8 @@ async def list_models(provider: ProviderDep) -> list[ModelRead]:
             installed=model.installed,
             capabilities=list(model.capabilities),
             display_name=model.display_name or model.name,
+            types=list(model.types),
+            selectable_for=selectable_for(model.types, model.known),
         )
         for model in await provider.models()
     ]
@@ -108,7 +111,7 @@ async def list_models(provider: ProviderDep) -> list[ModelRead]:
 async def delete_model(
     model_name: str,
     store: LocalRuntimeDep,
-    service: CatalogServiceDep,
+    service: LocalCatalogDep,
     session: SessionDep,
 ) -> ModelDeleteRead:
     # Inventory from disk, not from the runtime. Asking the router first meant a
@@ -136,7 +139,9 @@ async def delete_model(
     try:
         try:
             async with model_activity.deleting(model_key(store.name, model_name)):
-                await store.delete(model_name)
+                # Every part of a split build and its projector, from the
+                # install record, not only the file the runtime is pointed at.
+                service.remove(model_name)
         except ModelBusyError as error:
             raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
         except FileNotFoundError as error:
