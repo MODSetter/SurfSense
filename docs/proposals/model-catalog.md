@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/model_type.py
   - surfsense_local/backend/modules/llm/catalog/
@@ -358,9 +358,9 @@ Each step tries the full id, then its last path segment, so `Qwen/Qwen3-8B` on a
 
 ```text
 modules/llm/model_type.py  ModelType: the one primitive local, remote, selection and the database share
+modules/llm/selectable.py  the one rule for which slots a model fills
 modules/llm/catalog/
   source.py                Source: the catalog's source filter
-  router.py                mounts both sides
   local/
     manifest/              models.json, schema, loader
     classifier.py          GGUF evidence → type
@@ -370,16 +370,22 @@ modules/llm/catalog/
     builds.py              which files make a build, and the quantization order: used by search and the refresh script
     search/                Hugging Face search, tickets
     rows.py                the local row
+    router.py              the local routes
   remote/
     manifest/              models.json, schema, loader, lookup
-    classifier.py
-    support.py
+    classifier.py          modalities → type, over a manifest entry
+    support.py             tool call, reasoning, structured output, context
+    not_text_gen.py        the names that refuse embedders and rerankers
     catalog.py             manifest + connections' listings → rows
-    discovery.py           calls a connection's /models
-    rows.py                the remote row
+    rows.py                the remote row, its availability, and the inputs catalog.py takes
+    schemas.py             what the remote routes return
+    router.py              the remote routes
+
+scripts/refresh_remote_manifest.py   fetch, translate, guard, validate, write
+scripts/remote_manifest/             translate.py, endpoints.py (the reviewed table), guard.py, render.py
 ```
 
-Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD and keys stay in `connections/`.
+Each side mounts its own router under `/llm/catalog/{local,remote}`. Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD, keys and live discovery stay in `connections/`: discovery calls a connection's `/models`, reads declared modalities first, and otherwise asks the manifest lookup, scoped by the connection's `catalog_provider`.
 
 Adding a type is an enum value in `model_type.py`, the classifier groups that emit it, and a CHECK migration. Adding a remote provider is a manifest refresh. Adding a kind of source is a new side under `catalog/` with the same four files.
 
@@ -396,7 +402,7 @@ Adding a type is an enum value in `model_type.py`, the classifier groups that em
 
 All 8,116 remote rows in one response would be several megabytes, one provider holding 586 of them, so the providers come first and a provider's rows when it is opened.
 
-The screen paints local and remote rows from the two offline routes at once, then each connection's check fills in on its own, so a slow endpoint never holds the page. `/llm/image/local/*` and `/llm/connections/{id}/models` go.
+The screen paints local and remote rows from the two offline routes at once, then each connection's check fills in on its own, so a slow endpoint never holds the page. `/llm/image/local/*` and `/llm/connections/{id}/models` go in step 6, with the screen that replaces their readers.
 
 ## The screen
 
@@ -409,7 +415,7 @@ The screen paints local and remote rows from the two offline routes at once, the
 
 Each step ships alone and leaves the app working.
 
-1. **Shared words.** `model_type.py` and `source.py`; `selected_models` keyed by `model_type`, with its migration; `/llm/selection/{model_type}`; selection and the pickers use the one rule.
+1. **Shared words.** `model_type.py` and `selectable.py`; `selected_models` keyed by `model_type`, with its migration; `/llm/selection/{model_type}`; selection and the pickers use the one rule. `source.py` waits for its first reader, in 3c.
 2. **Remote manifest.** The refresh script keeps providers and evidence; the classifier and support move under `catalog/remote/` and run at lookup; connections read types from them. Embedders stop reading as chat. The `connect` block and `call` wait for step 3, which is their first reader.
 3. **Remote catalog**, in four commits:
    - **3a.** `connect` and `call` in the manifest, and the reviewed table.
@@ -418,7 +424,7 @@ Each step ships alone and leaves the app working.
    - **3d.** The three remote routes, and the connection form's presets from the manifest.
 4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable.
 5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; the recommendation steps down builds before models.
-6. **The screen.** One list, both filters; connections become a settings panel.
+6. **The screen.** One list, both filters; connections become a settings panel. `/llm/connections/{id}/models` and `/llm/image/local/*` go with the cards and pickers that still read them.
 7. **Searched image models.** Single-file SD 1.5 and SDXL from search become runnable.
 
 ## Decided here

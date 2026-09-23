@@ -8,6 +8,7 @@ What the maintainers are working on, grouped by when. This page names the initia
 - **Egress gaps.** The follow-up fetch for a remote image URL leaves without a consent decision, Electron's spellchecker likely fetches dictionaries without one, and some stored grants no longer match what Settings › Network shows. See [egress](architecture/egress.md).
 - **Import from cloud.** The hosted export window closes on 18 Oct 2026. Imports need a progress summary, and a re-run must bring back the chat threads an interrupted import missed. See [import](architecture/import.md).
 - **Scraper API and MCP license mode.** PATs are purged on 18 Oct 2026; after that, license mode is how scraper API and MCP users keep access. See [contract 2](contracts/02-scraper-api-auth.md).
+- **Model catalog.** One catalog for local and remote models, each classified offline from a reviewed, packaged manifest and keyed by model type. See the [proposal](proposals/model-catalog.md).
 - **Hosted wind-down to 18 Oct 2026.** `/sunset` lacks the deletion date, the refund offer and the MCP change; background jobs keep running through the export-only tail; and the purge is still ahead. See [sunset](architecture/sunset.md), the [license portal](architecture/license/portal.md) and the page plan in [`plans/community-local/portal/02-pages.md`](../plans/community-local/portal/02-pages.md).
 
 ## Next
