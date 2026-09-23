@@ -6,7 +6,6 @@ through the same functions and cannot disagree. `None` means the evidence is
 silent, not that the answer is no.
 """
 
-from dataclasses import dataclass
 from typing import Any
 
 from gguf.constants import Keys
@@ -20,17 +19,6 @@ _EMBEDDING = Keys.LLM.EMBEDDING_LENGTH
 # The GGUF keys a projector file carries into the manifest, so a curated build
 # answers from the same keys a searched one reads live.
 PROJECTOR_KEYS = (_GENERAL_TYPE, _ARCHITECTURE, _HAS_VISION, _PROJECTION_DIM)
-
-
-@dataclass(frozen=True)
-class LocalSupport:
-    """What a request to this build may carry. Images only: nothing in the app
-    sends audio, so an audio projector earns nothing here."""
-
-    context: int | None
-    reads_images: bool
-    tools: bool | None
-    reasoning: bool | None
 
 
 def is_projector(kv: dict[str, Any]) -> bool:

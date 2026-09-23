@@ -8,25 +8,12 @@ the model is and that it will not fit.
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from enum import StrEnum
 from typing import Protocol
 
-from modules.llm.catalog.local.engines.llamacpp.builds.choice.preference import RECOMMENDABLE
-
-
-class LeadReason(StrEnum):
-    IN_USE = "in_use"
-    INSTALLED = "installed"
-    RECOMMENDED = "recommended"
-    FITS_SLOWER = "fits_slower"
-    NOTHING_FITS = "nothing_fits"
-
-
-@dataclass(frozen=True)
-class Lead:
-    quantization: str
-    why: LeadReason
+from modules.llm.catalog.local.engines.llamacpp.builds.choice.preference import (
+    RECOMMENDABLE,
+)
+from modules.llm.catalog.local.rows import Lead, LeadReason
 
 
 class _Fit(Protocol):

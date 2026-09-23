@@ -67,24 +67,6 @@ class ConnectionModelRead(BaseModel):
     selectable_for: list[ModelType]
 
 
-class LocalImageModelRead(BaseModel):
-    name: str
-    label: str
-    detail: str
-    size_bytes: int
-    installed: bool
-    selected: bool
-
-
-class LocalImageCatalogRead(BaseModel):
-    """What this build can generate locally, and which model holds the role."""
-
-    provider: str
-    offered: bool
-    ready: bool
-    models: list[LocalImageModelRead]
-
-
 class LocalImageRuntimeRead(BaseModel):
     """What Electron should have sd-server running, or nulls for nothing."""
 

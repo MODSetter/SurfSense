@@ -16,6 +16,7 @@ from fastapi.responses import StreamingResponse
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
+from modules.llm.catalog.local.install.plan import InstallRefusedError
 from modules.llm.catalog.local.rows import BuildRow, LocalRow
 from modules.llm.catalog.local.schemas import (
     InstallRequest,
@@ -24,7 +25,6 @@ from modules.llm.catalog.local.schemas import (
     SearchRead,
     SystemRead,
 )
-from modules.llm.catalog.local.service import InstallRefusedError
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.schemas import SelectionRead
@@ -64,13 +64,18 @@ def read_system(service: LocalCatalogDep) -> dict:
 )
 def read_local_catalog(service: LocalCatalogDep, session: SessionDep) -> dict:
     """No network call of any kind."""
-    selected = _selected_local(session)
-    catalog = service.catalog(selected=selected)
+    selected = {
+        model_type: name
+        for model_type in (ModelType.TEXT_GEN, ModelType.IMAGE_GEN)
+        if (name := _selected_local(session, model_type))
+    }
+    catalog = service.catalog(selected)
+    in_use = set(selected.values())
     return {
         "budget": _budget(catalog.budget),
         "gpu_status": catalog.gpu_status.value,
-        "rows": [_row(row, selected) for row in catalog.local.rows],
-        "recommended_id": catalog.local.recommended_id,
+        "rows": [_row(row, in_use) for row in catalog.rows],
+        "recommended_id": catalog.recommended_id,
     }
 
 
@@ -83,7 +88,7 @@ async def search(
     """Absent rather than degraded when egress is off."""
     await transact(session, egress.require, egress.HUGGINGFACE)
     try:
-        hits = await service.search(q, limit=limit)
+        hits = await service.llamacpp.search(q, limit=limit)
     except httpx.HTTPError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, UNREACHABLE) from error
     return {
@@ -115,7 +120,7 @@ async def read_repo(repo: str, service: LocalCatalogDep, session: SessionDep) ->
         row, gated = await service.repo(repo)
     except httpx.HTTPError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, UNREACHABLE) from error
-    return {"repo": repo, "gated": gated, "row": _row(row, selected=None)}
+    return {"repo": repo, "gated": gated, "row": _row(row, in_use=set())}
 
 
 @router.post("/install", summary="Download a model and optionally select it")
@@ -155,42 +160,24 @@ async def install(
                     total=step.total,
                 )
             yield _event("verifying", message="Checking the model")
-            # The router only learns about a model by restarting, and reporting
-            # complete before then promises a model a chat cannot reach.
-            service.reprice()
-            yield _event("preparing", message="Preparing the model runtime")
-            servable = await service.wait_until_servable(checked.model_id)
-            # Listed is not loaded: warm it now, while the user is still looking
-            # at the install, so the first question does not pay a cold load.
-            if servable:
-                async for step in service.warm_model(checked.model_id):
-                    yield _event(
-                        "preparing",
-                        message=_loading_message(step.stage),
-                        progress=step.value,
-                    )
+            engine = service.engine(checked.engine)
+            ready = "Model is ready"
+            async for step in engine.after_install(checked.model_id):
+                if step.kind == "complete":
+                    ready = step.message
+                    continue
+                yield _event(step.kind, message=step.message, progress=step.progress)
             selection = None
             if payload.select:
                 yield _event("selecting", message="Selecting model")
                 with request.app.state.session_factory() as fresh:
                     chosen = await choose_model(
-                        fresh,
-                        ModelType.TEXT_GEN,
-                        service.provider_name,
-                        checked.model_id,
+                        fresh, engine.model_type, engine.provider, checked.model_id
                     )
                     selection = SelectionRead.model_validate(chosen).model_dump(
                         mode="json"
                     )
-            yield _event(
-                "complete",
-                message=(
-                    "Model is ready"
-                    if servable
-                    else "Downloaded. It becomes available once the runtime restarts."
-                ),
-                selection=selection,
-            )
+            yield _event("complete", message=ready, selection=selection)
         except Exception:
             logger.exception("model install failed")
             yield _event(
@@ -202,8 +189,10 @@ async def install(
     return StreamingResponse(progress(), media_type="application/x-ndjson")
 
 
-def _selected_local(session: SessionDep) -> str | None:
-    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+def _selected_local(
+    session: SessionDep, model_type: ModelType = ModelType.TEXT_GEN
+) -> str | None:
+    selected = session.get(SelectedModel, model_type)
     if selected is None or selected.connection_id is not None:
         return None
     return selected.name
@@ -221,7 +210,7 @@ def _budget(budget) -> dict:
     }
 
 
-def _row(row: LocalRow, selected: str | None) -> dict:
+def _row(row: LocalRow, in_use: set[str]) -> dict:
     classification = row.classification
     return {
         "id": row.id,
@@ -240,9 +229,10 @@ def _row(row: LocalRow, selected: str | None) -> dict:
         },
         "runnable": row.runnable,
         "not_runnable_reason": row.not_runnable_reason,
-        "builds": [_build(build, selected) for build in row.builds],
+        "builds": [_build(build, in_use) for build in row.builds],
         "default_quantization": row.default_quantization,
         "recommended": row.recommended,
+        "engine": row.engine,
         "lead": (
             {"quantization": row.lead.quantization, "why": row.lead.why.value}
             if row.lead
@@ -251,8 +241,8 @@ def _row(row: LocalRow, selected: str | None) -> dict:
     }
 
 
-def _build(build: BuildRow, selected: str | None) -> dict:
-    fit = build.fit
+def _build(build: BuildRow, in_use: set[str]) -> dict:
+    fit, badge = build.fit, build.badge
     return {
         "catalog_id": build.catalog_id,
         "quantization": build.build.quantization,
@@ -261,21 +251,29 @@ def _build(build: BuildRow, selected: str | None) -> dict:
             {"role": f.role.value, "path": f.path, "size_bytes": f.size_bytes}
             for f in build.build.files
         ],
-        "fit": {
-            "state": fit.state.value,
-            "need_bytes": fit.need_bytes,
-            "budget_bytes": fit.budget_bytes,
-            "offload_fraction": fit.offload_fraction,
-            "approximate": fit.approximate,
-        },
-        "badge": {
-            "level": build.badge.level.value,
-            "verdict": build.badge.verdict,
-            "reason": build.badge.reason,
-        },
+        "fit": (
+            {
+                "state": fit.state.value,
+                "need_bytes": fit.need_bytes,
+                "budget_bytes": fit.budget_bytes,
+                "offload_fraction": fit.offload_fraction,
+                "approximate": fit.approximate,
+            }
+            if fit
+            else None
+        ),
+        "badge": (
+            {
+                "level": badge.level.value,
+                "verdict": badge.verdict,
+                "reason": badge.reason,
+            }
+            if badge
+            else None
+        ),
         "can_install": build.can_install,
         "installed_as": build.installed_as,
-        "selected": build.installed_as is not None and build.installed_as == selected,
+        "selected": build.installed_as is not None and build.installed_as in in_use,
         "recommended": build.recommended,
         "reads_images": build.reads_images,
         "projector_checked": build.projector_checked,
@@ -284,15 +282,3 @@ def _build(build: BuildRow, selected: str | None) -> dict:
 
 def _event(kind: str, **payload: object) -> bytes:
     return (json.dumps({"type": kind, **payload}) + "\n").encode()
-
-
-# The runtime names its load stages; these are what a person reads.
-_LOADING_MESSAGES = {
-    "text_model": "Loading the model",
-    "mmproj_model": "Loading image support",
-    "spec_model": "Loading the draft model",
-}
-
-
-def _loading_message(stage: str | None) -> str:
-    return _LOADING_MESSAGES.get(stage or "", "Loading the model")

@@ -8,14 +8,14 @@ from pathlib import Path
 
 import pytest
 
-from modules.llm.catalog.local.engines.llamacpp.rows.catalog import local_catalog
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import scan
+from modules.llm.catalog.local.engines.llamacpp.rows.catalog import local_catalog
 from modules.llm.catalog.local.installs import InstalledBuild, projector_filename
-from modules.llm.catalog.local.engines.llamacpp.rows.lead_build import LeadReason
-from modules.llm.catalog.local.manifest import load_local_manifest
-from modules.llm.catalog.local.rows import Origin
+from modules.llm.catalog.local.manifest import LocalManifest, load_local_manifest
+from modules.llm.catalog.local.rows import LeadReason, Origin
 from modules.llm.fit import BadgeLevel, HardwareBudget, SpeedTier, plan_load, speed_tier
 from modules.llm.model_type import ModelType
+from tests.unit.llm.catalog.local.test_manifest import image_entry, manifest
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
 
 pytestmark = pytest.mark.unit
@@ -143,6 +143,18 @@ def test_no_row_carries_a_score() -> None:
 
     for field in ("score", "rank", "position", "quality"):
         assert not hasattr(row, field)
+
+
+def test_an_image_model_in_the_manifest_is_not_a_llama_cpp_row() -> None:
+    """sd.cpp's entries share the manifest, not this runtime: shown here they
+    would be priced as chat models and installed where llama-server lists them."""
+    image = LocalManifest.model_validate(manifest(image_entry())).models[0]
+
+    result = local_catalog(
+        [*CURATED, image], [], BUDGETS["discrete-24gb"], lambda b: "id"
+    )
+
+    assert image.id not in {row.id for row in result.rows}
 
 
 # downloaded files ---------------------------------------------------------

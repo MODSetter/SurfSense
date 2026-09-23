@@ -2,12 +2,12 @@
 
 import pytest
 
+from modules.llm.catalog.local.build import FileRole
 from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import (
-    FileRole,
-    ListedFile,
     builds_in,
     preferred_projector,
 )
+from modules.llm.catalog.local.listed_file import ListedFile
 from modules.llm.catalog.local.quantization import quantization_label
 
 pytestmark = pytest.mark.unit

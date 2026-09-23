@@ -9,7 +9,7 @@ import secrets
 import time
 from dataclasses import dataclass
 
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build
+from modules.llm.catalog.local.build import Build
 
 # The same window the renderer's search cache uses.
 TTL_SECONDS = 300.0

@@ -10,22 +10,30 @@ import dataclasses
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
-from modules.llm.catalog.local.engines.llamacpp.builds.choice import default_build, recommended_build
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, BuildFile, FileRole
+from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import classify
-from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import DownloadedModel
-from modules.llm.catalog.local.engines.llamacpp.rows.lead_build import lead_build
-from modules.llm.catalog.local.manifest import CuratedModel
+from modules.llm.catalog.local.engines.llamacpp import ENGINE
+from modules.llm.catalog.local.engines.llamacpp.builds.choice import (
+    default_build,
+    recommended_build,
+)
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
+    DownloadedModel,
+)
 from modules.llm.catalog.local.engines.llamacpp.pricing import price
-from modules.llm.catalog.local.quantization import quantization_label
-from modules.llm.catalog.local.engines.llamacpp.rows.recommendation import recommended_model
-from modules.llm.catalog.local.rows import BuildRow, LocalRow, Origin
+from modules.llm.catalog.local.engines.llamacpp.rows.lead_build import lead_build
+from modules.llm.catalog.local.engines.llamacpp.rows.recommendation import (
+    recommended_model,
+)
 from modules.llm.catalog.local.engines.llamacpp.support import (
-    LocalSupport,
     projector_fits_model,
     projector_reads_images,
     template_support,
 )
+from modules.llm.catalog.local.engines.registry import engine_for
+from modules.llm.catalog.local.manifest import CuratedModel
+from modules.llm.catalog.local.quantization import quantization_label
+from modules.llm.catalog.local.rows import BuildRow, LocalRow, LocalSupport, Origin
 from modules.llm.fit import FitState, HardwareBudget, badge, speed_tier
 
 _STATE_ORDER = {FitState.FITS: 0, FitState.PARTIAL: 1, FitState.TOO_BIG: 2}
@@ -47,7 +55,7 @@ def local_catalog(
 ) -> LocalCatalog:
     claimed: set[str] = set()
     curated = []
-    for model in models:
+    for model in filter(_runs_here, models):
         row, installed = _curated_row(model, downloaded, budget, catalog_id)
         claimed |= installed
         curated.append(row)
@@ -134,9 +142,17 @@ def _curated_row(
             builds=tuple(rows),
             default_quantization=default.quantization if default else None,
             recommended=False,
+            engine=ENGINE,
         ),
         installed,
     )
+
+
+def _runs_here(model: CuratedModel) -> bool:
+    """The manifest holds every engine's models; this catalog shows llama.cpp's."""
+    types = classify(model.evidence.architecture, model.evidence.pipeline_tag).types
+    engine = engine_for(types)
+    return engine is not None and engine.name == ENGINE
 
 
 def _installed_as(
@@ -205,6 +221,7 @@ def _downloaded_row(d: DownloadedModel, budget: HardwareBudget) -> LocalRow:
         ),
         default_quantization=None,
         recommended=False,
+        engine=ENGINE,
     )
 
 

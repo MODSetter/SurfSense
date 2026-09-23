@@ -8,16 +8,13 @@ from pathlib import Path
 import httpx
 import pytest
 
-from modules.llm.catalog.local import service as service_module
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, BuildFile, FileRole
+from modules.llm.catalog.local.build import Build, BuildFile, FileRole
+from modules.llm.catalog.local.install import download as download_module
+from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.installs import projector_filename, read_installs
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.rows import Origin
-from modules.llm.catalog.local.service import (
-    InstallPlan,
-    InstallRefusedError,
-    LocalCatalogService,
-)
+from modules.llm.catalog.local.service import LocalCatalogService
 from modules.llm.fit import BadgeLevel
 from modules.llm.hardware import GpuStatus
 from modules.llm.providers.types import DownloadProgress
@@ -38,7 +35,7 @@ def test_the_catalog_renders_before_anything_is_installed(service) -> None:
     """The catalog renders before anything is installed."""
     catalog = service.catalog()
 
-    curated = [r for r in catalog.local.rows if r.origin is Origin.CURATED]
+    curated = [r for r in catalog.rows if r.origin is Origin.CURATED]
     assert curated
     # A badge names a verdict exactly when it warns.
     assert all(
@@ -54,7 +51,7 @@ def test_a_missing_runtime_does_not_stop_the_catalog(service) -> None:
     catalog = service.catalog()
 
     assert catalog.devices == ()
-    assert catalog.local.rows
+    assert catalog.rows
 
 
 def test_every_curated_build_has_a_stable_opaque_id(service) -> None:
@@ -64,7 +61,7 @@ def test_every_curated_build_has_a_stable_opaque_id(service) -> None:
     def ids() -> dict[tuple[str, str], str]:
         return {
             (r.id, b.build.quantization): b.catalog_id
-            for r in service.catalog().local.rows
+            for r in service.catalog().rows
             for b in r.builds
         }
 
@@ -168,7 +165,7 @@ def fake_hub(monkeypatch):
         destination.write_bytes(data)
         yield DownloadProgress("complete", len(data), len(data))
 
-    monkeypatch.setattr(service_module, "download_gguf", download)
+    monkeypatch.setattr(download_module, "download_gguf", download)
     return asked
 
 
@@ -176,7 +173,7 @@ async def test_a_build_installs_as_its_whole_file_set_pinned_and_recorded(
     service, tmp_path, fake_hub
 ) -> None:
     """A build installs as its whole file set pinned and recorded."""
-    plan = InstallPlan("gemma-Q4_K_M", vision_build(), needs_check=False)
+    plan = InstallPlan("gemma-Q4_K_M", vision_build(), "llamacpp")
 
     steps = [step async for step in service.install(plan)]
 
@@ -188,6 +185,43 @@ async def test_a_build_installs_as_its_whole_file_set_pinned_and_recorded(
     record = read_installs(models)["gemma-Q4_K_M"]
     assert record.projector == projector_filename("gemma-Q4_K_M")
     assert record.projector_gguf["clip.has_vision_encoder"] is True
+
+
+async def test_an_image_build_lands_in_sd_servers_folder_not_llama_servers(
+    tmp_path, fake_hub
+) -> None:
+    """llama-server lists every GGUF in its folder, so a diffusion file there
+    would show up as a chat model that fails to load."""
+    service = LocalCatalogService(
+        load_local_manifest(),
+        tmp_path / "models",
+        tmp_path / "lib",
+        images_dir=tmp_path / "images",
+    )
+    build = Build(
+        "Q4_0",
+        (
+            BuildFile(
+                FileRole.WEIGHTS,
+                "v1-5-pruned_Q4_0.gguf",
+                len(WEIGHTS),
+                sha(WEIGHTS),
+                "kostakoff/stable-diffusion-v1-5-GGUF",
+                "r1",
+            ),
+        ),
+    )
+    plan = InstallPlan("v1-5-pruned_Q4_0", build, "sdcpp")
+
+    [step async for step in service.install(plan)]
+
+    images = tmp_path / "images"
+    assert (images / "v1-5-pruned_Q4_0.gguf").read_bytes() == WEIGHTS
+    assert not (tmp_path / "models" / "v1-5-pruned_Q4_0.gguf").exists()
+    record = read_installs(images)["v1-5-pruned_Q4_0"]
+    assert record.repo == "kostakoff/stable-diffusion-v1-5-GGUF"
+    assert record.quantization == "Q4_0"
+    assert read_installs(tmp_path / "models") == {}
 
 
 async def test_a_file_that_does_not_match_its_hash_fails_the_install(
@@ -203,7 +237,7 @@ async def test_a_file_that_does_not_match_its_hash_fails_the_install(
         [
             step
             async for step in service.install(
-                InstallPlan("x-Q4_K_M", bad, needs_check=False)
+                InstallPlan("x-Q4_K_M", bad, "llamacpp")
             )
         ]
 
@@ -212,10 +246,10 @@ async def test_removing_a_model_takes_its_projector_with_it(
     service, tmp_path, fake_hub
 ) -> None:
     """Removing a model takes its projector with it."""
-    plan = InstallPlan("gemma-Q4_K_M", vision_build(), needs_check=False)
+    plan = InstallPlan("gemma-Q4_K_M", vision_build(), "llamacpp")
     [step async for step in service.install(plan)]
 
-    service.remove("gemma-Q4_K_M")
+    service.remove("gemma-Q4_K_M", engine="llamacpp")
 
     assert list((tmp_path / "models").glob("*.gguf")) == []
     assert read_installs(tmp_path / "models") == {}
@@ -223,7 +257,7 @@ async def test_removing_a_model_takes_its_projector_with_it(
 
 def test_a_curated_id_resolves_to_its_pinned_build_without_a_check(service) -> None:
     """A curated id resolves to its pinned build without a check."""
-    row = next(r for r in service.catalog().local.rows if r.id == "qwen3-8b")
+    row = next(r for r in service.catalog().rows if r.id == "qwen3-8b")
     build = row.builds[0]
 
     plan = service.resolve_install(build.catalog_id)
@@ -269,7 +303,7 @@ def serve(monkeypatch, body: bytes, projector: bytes | None = None) -> None:
 
 def searched(build: Build, tag: str | None = None) -> InstallPlan:
     """A searched build that still needs its exact check."""
-    return InstallPlan("m", build, needs_check=True, pipeline_tag=tag)
+    return InstallPlan("m", build, "llamacpp", needs_check=True, pipeline_tag=tag)
 
 
 TEXT = Build(
@@ -336,3 +370,38 @@ async def test_a_projector_that_does_not_belong_is_dropped_by_the_check(
     checked = await service.check(searched(build))
 
     assert checked.build.projector is None
+
+
+def test_startup_records_image_models_the_old_list_downloaded(tmp_path) -> None:
+    """They keep working where they lie: installed, selectable, deletable."""
+    images = tmp_path / "images"
+    images.mkdir()
+    (tmp_path / "models").mkdir()  # Electron creates it before the API starts
+    (images / "sd15-q4_0.gguf").write_bytes(WEIGHTS)
+    service = LocalCatalogService(
+        load_local_manifest(), tmp_path / "models", tmp_path / "lib", images_dir=images
+    )
+
+    service.warm()
+
+    record = read_installs(images)["v1-5-pruned_Q4_0"]
+    assert record.weights == ("sd15-q4_0.gguf",)
+    image = service.sdcpp.installed_image("v1-5-pruned_Q4_0")
+    assert image is not None and image.file == "sd15-q4_0.gguf"
+
+
+def test_a_recorded_image_model_is_not_recorded_again(tmp_path) -> None:
+    """A later start finds the record and leaves it as it was."""
+    images = tmp_path / "images"
+    images.mkdir()
+    (tmp_path / "models").mkdir()  # Electron creates it before the API starts
+    (images / "sd15-q4_0.gguf").write_bytes(WEIGHTS)
+    service = LocalCatalogService(
+        load_local_manifest(), tmp_path / "models", tmp_path / "lib", images_dir=images
+    )
+    service.warm()
+    first = (images / "installs.json").read_text()
+
+    service.warm()
+
+    assert (images / "installs.json").read_text() == first

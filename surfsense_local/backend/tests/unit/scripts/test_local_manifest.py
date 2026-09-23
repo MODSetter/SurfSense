@@ -1,12 +1,18 @@
 """The local manifest is a repo at a commit, read and pinned, never typed."""
 
 import pytest
-from local_manifest.assemble import UnreadableBuildError, entry_for, pinned_builds
-from local_manifest.entries import ENTRIES, Entry
+from local_manifest.entries import ENTRIES
+from local_manifest.entry import Entry
 from local_manifest.guard import losses
+from local_manifest.llamacpp.assemble import (
+    UnreadableBuildError,
+    entry_for,
+    pinned_builds,
+)
 from local_manifest.recorded import RepoAtRevision
+from local_manifest.sdcpp.entry import ImageEntry
 
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import ListedFile
+from modules.llm.catalog.local.listed_file import ListedFile
 from modules.llm.catalog.local.manifest import SCHEMA_VERSION, LocalManifest
 from modules.llm.gguf import read_header_prefix
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv, tensor
@@ -185,8 +191,8 @@ def test_a_refresh_that_drops_a_model_or_build_is_named() -> None:
 
 
 def test_the_list_is_most_preferred_first() -> None:
-    """The list is most preferred first."""
-    names = [entry.name for entry in ENTRIES]
+    """The list is most preferred first, within each type."""
+    names = [entry.name for entry in ENTRIES if not isinstance(entry, ImageEntry)]
 
     assert names[0] == "Qwen3 32B"
     assert names[-1] == "Qwen3 0.6B"

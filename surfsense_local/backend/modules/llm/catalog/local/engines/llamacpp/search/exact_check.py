@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, BuildFile, FileRole
+from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import Classification, classify
 from modules.llm.catalog.local.engines.llamacpp.pricing import exact_price
 from modules.llm.catalog.local.engines.llamacpp.support import (

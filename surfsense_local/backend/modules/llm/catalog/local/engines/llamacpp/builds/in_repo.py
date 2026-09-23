@@ -7,70 +7,11 @@ later from its header, before any bytes move; this decides what to offer.
 """
 
 import re
-from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
-from enum import StrEnum
-from typing import Any
+from collections.abc import Iterable
 
+from modules.llm.catalog.local.build import Build, BuildFile, FileRole
+from modules.llm.catalog.local.listed_file import ListedFile
 from modules.llm.catalog.local.quantization import UNKNOWN, label_in, quantization_label
-
-
-class FileRole(StrEnum):
-    WEIGHTS = "weights"
-    PROJECTOR = "projector"
-
-
-@dataclass(frozen=True)
-class ListedFile:
-    """One row of a repo listing."""
-
-    path: str
-    size_bytes: int
-    sha256: str | None = None
-
-
-@dataclass(frozen=True)
-class BuildFile:
-    """One file of a build, pinned where the listing allowed it.
-
-    `gguf` holds header keys under llama.cpp's own names: committed for a curated
-    projector, read live for a searched one, so both answer through one rule.
-    """
-
-    role: FileRole
-    path: str
-    size_bytes: int
-    sha256: str | None = None
-    repo: str = ""
-    revision: str = "main"
-    gguf: Mapping[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class Build:
-    """A set of files that runs as one model. Split weights list every part."""
-
-    quantization: str
-    files: tuple[BuildFile, ...]
-
-    @property
-    def weights(self) -> BuildFile:
-        """The first weights file, which is the one the runtime is pointed at."""
-        return next(f for f in self.files if f.role is FileRole.WEIGHTS)
-
-    @property
-    def projector(self) -> BuildFile | None:
-        return next((f for f in self.files if f.role is FileRole.PROJECTOR), None)
-
-    @property
-    def footprint_bytes(self) -> int:
-        """Everything that lands on disk and loads together."""
-        return sum(f.size_bytes for f in self.files)
-
-    @property
-    def weights_bytes(self) -> int:
-        return sum(f.size_bytes for f in self.files if f.role is FileRole.WEIGHTS)
-
 
 # Files that ship beside a model and are not one. Matched per path segment, so a
 # drafter in an `MTP/` folder and one named `-draft-` are both caught.

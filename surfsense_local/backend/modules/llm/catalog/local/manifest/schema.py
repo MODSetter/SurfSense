@@ -8,99 +8,37 @@ nothing here is a quality score.
 
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, Field, model_validator
 
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, BuildFile, FileRole
+from modules.llm.catalog.local.build import Build, BuildFile, FileRole
+from modules.llm.catalog.local.classifier import classify
+from modules.llm.catalog.local.engines.llamacpp.manifest_fields import (
+    Sampling,
+    ShapeSpec,
+    Template,
+)
+from modules.llm.catalog.local.engines.registry import ENGINE_ENTRY_FIELDS, engine_for
+from modules.llm.catalog.local.engines.sdcpp.manifest_fields import ImageDefaults
+from modules.llm.catalog.local.manifest.strict import STRICT
 from modules.llm.fit import ModelShape
 
 SCHEMA_VERSION = 1
-
-_Strict = ConfigDict(extra="forbid", frozen=True)
 
 
 class Evidence(BaseModel):
     """What the classifier reads: the chosen file's own header, and the repo's tag."""
 
-    model_config = _Strict
+    model_config = STRICT
 
     architecture: str = Field(min_length=1)
     pipeline_tag: str | None = None
     parameters_b: float | None = Field(default=None, gt=0)
 
 
-class Template(BaseModel):
-    """Read from the chat template at refresh time. None where it is silent."""
-
-    model_config = _Strict
-
-    tools: bool | None = None
-    reasoning: bool | None = None
-    system_role: bool | None = None
-
-
-class SamplingSet(BaseModel):
-    model_config = _Strict
-
-    temperature: float | None = None
-    top_p: float | None = None
-    top_k: int | None = None
-    min_p: float | None = None
-
-
-class Sampling(BaseModel):
-    """The publisher's settings, reviewed, with where they came from."""
-
-    model_config = _Strict
-
-    origin: str = Field(min_length=1)
-    thinking: SamplingSet | None = None
-    non_thinking: SamplingSet | None = None
-
-
-class ImageDefaults(BaseModel):
-    model_config = _Strict
-
-    origin: str = Field(min_length=1)
-    resolution: int | None = None
-    steps: int | None = None
-    cfg: float | None = None
-    sampler: str | None = None
-    flow_shift: float | None = None
-
-
-class ShapeSpec(BaseModel):
-    """The header fields the fit estimate reads, committed so an airgapped machine
-    can price the row. Required widths: a missing one would price the compute
-    buffer as though the model had no layers."""
-
-    model_config = _Strict
-
-    block_count: int = Field(gt=0)
-    head_count_kv: int = Field(gt=0)
-    key_length: int = Field(gt=0)
-    value_length: int = Field(gt=0)
-    n_vocab: int = Field(gt=0)
-    embedding_length: int = Field(gt=0)
-    feed_forward_length: int = Field(gt=0)
-    sliding_window: int = Field(default=0, ge=0)
-    expert_count: int = Field(default=0, ge=0)
-    expert_feed_forward_length: int = Field(default=0, ge=0)
-    expert_shared_feed_forward_length: int = Field(default=0, ge=0)
-    expert_used_count: int = Field(default=0, ge=0)
-    sliding_window_pattern: int = Field(default=0, ge=0)
-    sliding_window_layers: list[bool] = Field(default_factory=list)
-    key_length_swa: int = Field(default=0, ge=0)
-    value_length_swa: int = Field(default=0, ge=0)
-    head_count_kv_layers: list[int] = Field(default_factory=list)
-    shared_kv_layers: int = Field(default=0, ge=0)
-    kv_lora_rank: int = Field(default=0, ge=0)
-    key_length_mla: int = Field(default=0, ge=0)
-
-
 class ManifestFile(BaseModel):
     """One file, pinned to a commit and verified by its hash."""
 
-    model_config = _Strict
+    model_config = STRICT
 
     role: FileRole
     repo: str = Field(min_length=1)
@@ -115,7 +53,7 @@ class ManifestFile(BaseModel):
 
 
 class RunArgs(BaseModel):
-    model_config = _Strict
+    model_config = STRICT
 
     args: list[str] = Field(default_factory=list)
 
@@ -123,13 +61,14 @@ class RunArgs(BaseModel):
 class Validated(BaseModel):
     """The runtime build a person ran this exact build on, or None."""
 
-    model_config = _Strict
+    model_config = STRICT
 
     llama_cpp: str | None = None
+    sd_cpp: str | None = None
 
 
 class ManifestBuild(BaseModel):
-    model_config = _Strict
+    model_config = STRICT
 
     quantization: str = Field(min_length=1)
     files: list[ManifestFile] = Field(min_length=1)
@@ -158,7 +97,7 @@ class ManifestBuild(BaseModel):
 
 
 class CuratedModel(BaseModel):
-    model_config = _Strict
+    model_config = STRICT
 
     id: str = Field(pattern=r"^[a-z0-9][a-z0-9.\-]*$")
     name: str = Field(min_length=1)
@@ -169,13 +108,33 @@ class CuratedModel(BaseModel):
     source_repo: str = Field(min_length=1)
     aliases: list[str] = Field(default_factory=list)
     evidence: Evidence
-    context: int = Field(gt=0)
+    # The trained window; a text model's only. An image model has none.
+    context: int | None = Field(default=None, gt=0)
     template: Template = Field(default_factory=Template)
     sampling: Sampling | None = None
     image: ImageDefaults | None = None
     # Text models only: an image model is not priced by the llama.cpp estimator.
     shape: ShapeSpec | None = None
     builds: list[ManifestBuild] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _engine_fields(self) -> "CuratedModel":
+        types = classify(self.evidence.architecture, self.evidence.pipeline_tag).types
+        engine = engine_for(types)
+        if engine is None:
+            raise ValueError(f"{self.id}: no bundled engine runs this model")
+        present = {
+            name
+            for name in ENGINE_ENTRY_FIELDS
+            if name in self.model_fields_set and getattr(self, name) is not None
+        }
+        if foreign := present - engine.entry_owns:
+            raise ValueError(
+                f"{self.id}: {engine.name} reads none of {sorted(foreign)}"
+            )
+        if missing := engine.entry_requires - present:
+            raise ValueError(f"{self.id}: {engine.name} needs {sorted(missing)}")
+        return self
 
     @model_validator(mode="after")
     def _distinct_builds(self) -> "CuratedModel":
@@ -204,7 +163,7 @@ class CuratedModel(BaseModel):
 
 
 class LocalManifest(BaseModel):
-    model_config = _Strict
+    model_config = STRICT
 
     schema_version: int
     refreshed_at: str

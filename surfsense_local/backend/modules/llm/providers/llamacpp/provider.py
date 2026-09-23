@@ -136,7 +136,9 @@ class LlamaCppProvider:
         header = read_cached(self._models_dir / f"{name}.gguf")
         if header is not None and kind_of(header).kind not in _MODEL_KINDS:
             return None
-        architecture = str(header.metadata.get("general.architecture", "")) if header else ""
+        architecture = (
+            str(header.metadata.get("general.architecture", "")) if header else ""
+        )
         found = classify(architecture, readable=header is not None)
         return Model(
             name,

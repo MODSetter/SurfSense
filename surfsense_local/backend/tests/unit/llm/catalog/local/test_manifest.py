@@ -9,7 +9,7 @@ import copy
 import pytest
 from pydantic import ValidationError
 
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import FileRole
+from modules.llm.catalog.local.build import FileRole
 from modules.llm.catalog.local.manifest import (
     SCHEMA_VERSION,
     LocalManifest,
@@ -176,3 +176,69 @@ def test_the_shipped_manifest_loads() -> None:
     assert shipped.models
     for model in shipped.models:
         assert model.builds
+
+
+def image_entry(**overrides) -> dict:
+    """SD 1.5 as sd.cpp runs it: one self-contained file, no chat fields."""
+    base = {
+        "id": "stable-diffusion-1.5",
+        "name": "Stable Diffusion 1.5",
+        "family": "Stable Diffusion",
+        "publisher": "Runway",
+        "description": "Fastest, lowest memory. 512x512.",
+        "license": "creativeml-openrail-m",
+        "source_repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+        "evidence": {"architecture": "sd1", "pipeline_tag": "text-to-image"},
+        "image": {
+            "origin": "stable-diffusion-v1-5/stable-diffusion-v1-5 model card",
+            "resolution": 512,
+            "steps": 20,
+            "cfg": 7.0,
+            "sampler": "euler_a",
+        },
+        "builds": [
+            {
+                "quantization": "Q4_0",
+                "files": [
+                    {
+                        **file("weights", "v1-5-pruned_Q4_0.gguf", 3_051_366_272),
+                        "repo": "kostakoff/stable-diffusion-v1-5-GGUF",
+                    }
+                ],
+                "validated": {"sd_cpp": "master-869-07a85c7"},
+            }
+        ],
+    }
+    return {**base, **overrides}
+
+
+def test_an_image_model_needs_no_chat_fields() -> None:
+    """No context window, template, sampling or fit shape: sd.cpp reads none."""
+    (model,) = LocalManifest.model_validate(manifest(image_entry())).models
+
+    assert model.context is None
+    assert model.model_shape is None
+    assert model.image is not None and model.image.resolution == 512
+    assert model.builds[0].validated.sd_cpp == "master-869-07a85c7"
+
+
+@pytest.mark.parametrize(
+    "broken",
+    [
+        pytest.param(entry(context=None), id="a chat model without its window"),
+        pytest.param(
+            entry(image=image_entry()["image"]), id="a chat model with image defaults"
+        ),
+        pytest.param(image_entry(image=None), id="an image model without its defaults"),
+        pytest.param(
+            image_entry(shape=entry()["shape"]), id="an image model with a fit shape"
+        ),
+        pytest.param(image_entry(context=4096), id="an image model with a window"),
+    ],
+)
+def test_a_model_carries_its_own_engines_fields_and_no_others(broken: dict) -> None:
+    """The evidence says which engine runs a model, and that engine says which
+    committed fields it reads. A field no engine reads would be reviewed and
+    trusted while doing nothing."""
+    with pytest.raises(ValidationError):
+        LocalManifest.model_validate(manifest(broken))

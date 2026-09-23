@@ -6,12 +6,10 @@ Run by hand, never in CI and never at packaging:
 
 A person reads the diff and commits it. `local_manifest/entries.py` is the only
 hand-authored input: which models, in which order. For each, this reads the
-repo at its current commit, pins every build in the quantization preference
-order with its hash, and reads the default build's header (and its projector's)
-over HTTP range requests. No weights are downloaded.
-
-`VALIDATED` names builds somebody downloaded, chatted with and confirmed
-citations resolve on, with the llama.cpp build they ran it on.
+repo at its current commit, pins every build in its engine's preference order
+with its hash, and reads the default build's header (and a projector's) over
+HTTP range requests. No weights are downloaded. Each engine's `refresh.py`
+holds its `VALIDATED` builds.
 """
 
 import argparse
@@ -21,50 +19,26 @@ import sys
 from datetime import UTC, datetime
 
 import httpx
-from local_manifest.assemble import UnreadableBuildError, entry_for, pinned_builds
 from local_manifest.entries import ENTRIES
 from local_manifest.guard import losses
-from local_manifest.hub import header, repo_at_revision
+from local_manifest.llamacpp import refresh as llamacpp
+from local_manifest.sdcpp import refresh as sdcpp
+from local_manifest.sdcpp.entry import ImageEntry
+from local_manifest.unreadable import UnreadableBuildError
 
-from modules.llm.catalog.local.engines.llamacpp.builds.choice import default_build
 from modules.llm.catalog.local.manifest import (
     MANIFEST_PATH,
     SCHEMA_VERSION,
     LocalManifest,
 )
 
-# weights path -> the llama.cpp build a person ran it on
-VALIDATED: dict[str, str] = {}
-
 
 async def build() -> dict:
     models = []
     async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
         for entry in ENTRIES:
-            snapshot = await repo_at_revision(client, entry.repo)
-            builds = pinned_builds(snapshot)
-            chosen = default_build(builds)
-            if chosen is None:
-                raise UnreadableBuildError(
-                    f"{entry.repo}: no build in the preference order"
-                )
-            weights = await header(
-                client, entry.repo, snapshot.revision, chosen.weights.path
-            )
-            projector = (
-                await header(
-                    client, entry.repo, snapshot.revision, chosen.projector.path
-                )
-                if chosen.projector
-                else None
-            )
-            written = entry_for(entry, snapshot, builds, weights, projector, VALIDATED)
-            print(
-                f"  {entry.name:12s} {snapshot.revision[:8]}  {len(builds):2d} builds, "
-                f"default {chosen.quantization}"
-                + (", reads images" if projector else "")
-            )
-            models.append(written)
+            engine = sdcpp if isinstance(entry, ImageEntry) else llamacpp
+            models.append(await engine.refresh(client, entry))
     return {
         "schema_version": SCHEMA_VERSION,
         "refreshed_at": datetime.now(UTC).date().isoformat(),

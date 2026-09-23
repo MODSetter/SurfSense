@@ -4,7 +4,10 @@ from dataclasses import dataclass
 
 import pytest
 
-from modules.llm.catalog.local.engines.llamacpp.builds.choice import default_build, recommended_build
+from modules.llm.catalog.local.engines.llamacpp.builds.choice import (
+    default_build,
+    recommended_build,
+)
 from modules.llm.fit import SpeedTier
 
 pytestmark = pytest.mark.unit

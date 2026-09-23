@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.profile import Tier
@@ -58,8 +59,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
     if selected is None:
         raise ModelResolutionError("no image model selected")
     if selected.provider == sdcpp.PROVIDER:
-        model = sdcpp.find(selected.name)
-        if model is None or not sdcpp.installed(model):
+        if get_local_catalog().sdcpp.installed_image(selected.name) is None:
             raise ModelResolutionError("the local image model is not installed")
         # sd-server speaks /images/generations, so the OpenAI-compatible client
         # reaches it unchanged. Connection id 0: it has no connection row, and

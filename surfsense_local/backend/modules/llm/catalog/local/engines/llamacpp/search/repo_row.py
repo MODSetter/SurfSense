@@ -10,12 +10,13 @@ no recommended build, no star.
 import dataclasses
 from collections.abc import Callable
 
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, builds_in
+from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.classifier import classify
+from modules.llm.catalog.local.engines.llamacpp import ENGINE
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import builds_in
 from modules.llm.catalog.local.engines.llamacpp.pricing import estimated_price
-from modules.llm.catalog.local.rows import BuildRow, LocalRow, Origin
 from modules.llm.catalog.local.engines.llamacpp.search.listing import RepoListing
-from modules.llm.catalog.local.engines.llamacpp.support import LocalSupport
+from modules.llm.catalog.local.rows import BuildRow, LocalRow, LocalSupport, Origin
 from modules.llm.fit import HardwareBudget, badge
 from modules.llm.model_type import ModelType
 
@@ -58,4 +59,5 @@ def repo_row(
         builds=tuple(rows),
         default_quantization=None,
         recommended=False,
+        engine=ENGINE,
     )

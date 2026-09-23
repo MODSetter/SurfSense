@@ -25,6 +25,7 @@ def get_local_catalog() -> LocalCatalogService:
         settings.llamacpp_models_dir or Path("models"),
         settings.llamacpp_library_dir or Path("."),
         settings.llamacpp_base_url,
+        images_dir=settings.image_models_dir,
     )
 
 

@@ -3,7 +3,9 @@
 from collections.abc import Sequence
 from typing import Protocol
 
-from modules.llm.catalog.local.engines.llamacpp.builds.choice.preference import PREFERENCE
+from modules.llm.catalog.local.engines.llamacpp.builds.choice.preference import (
+    PREFERENCE,
+)
 
 
 class Labelled(Protocol):

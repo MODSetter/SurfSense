@@ -10,10 +10,12 @@ import math
 from dataclasses import asdict
 from typing import Any
 
-from local_manifest.entries import Entry
+from local_manifest.entry import Entry
 from local_manifest.recorded import RepoAtRevision
+from local_manifest.unreadable import UnreadableBuildError
+from modules.llm.catalog.local.build import Build, FileRole
 from modules.llm.catalog.local.engines.llamacpp.builds.choice import PREFERENCE
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import Build, FileRole, builds_in
+from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import builds_in
 from modules.llm.catalog.local.engines.llamacpp.support import (
     PROJECTOR_KEYS,
     projector_fits_model,
@@ -25,11 +27,6 @@ from modules.llm.gguf import GgufHeader, to_shape
 _TEMPLATE = "tokenizer.chat_template"
 _SAMPLING_KEYS = ("temperature", "top_p", "top_k", "min_p")
 _NOT_SHAPE = ("architecture", "context_length")
-
-
-class UnreadableBuildError(Exception):
-    """A build or file this refresh could not read completely. Nothing unknown is
-    written, so nothing unknown can be recommended."""
 
 
 def pinned_builds(snapshot: RepoAtRevision) -> list[Build]:

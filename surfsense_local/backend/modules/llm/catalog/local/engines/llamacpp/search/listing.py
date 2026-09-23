@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from modules.llm.catalog.local.engines.llamacpp.builds.in_repo import ListedFile
+from modules.llm.catalog.local.listed_file import ListedFile
 
 API = "https://huggingface.co/api/models"
 TIMEOUT = httpx.Timeout(15.0, connect=10.0)

@@ -14,6 +14,9 @@ from pathlib import Path
 
 import pytest
 
+from modules.llm.catalog.local.engines.llamacpp.models_folder.readiness import (
+    wait_until_servable,
+)
 from modules.llm.catalog.local.installs import projector_filename
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.service import LocalCatalogService
@@ -70,7 +73,7 @@ def test_a_downloaded_model_gets_a_preset_section(service, tmp_path: Path) -> No
     """The section is what the router matches a discovered file against."""
     a_model(tmp_path / "models" / "Qwen3-1.7B-Q4_K_M.gguf")
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     ini = (tmp_path / "models" / PRESET_FILE).read_text()
     assert "[Qwen3-1.7B-Q4_K_M]" in ini
@@ -84,7 +87,7 @@ def test_the_window_comes_from_the_fit_calculation_not_a_default(
     otherwise pick its own window and shrink it as far as 4096."""
     a_model(tmp_path / "models" / "small.gguf", ctx=8192)
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     assert "ctx-size = 8192" in (tmp_path / "models" / PRESET_FILE).read_text()
 
@@ -96,7 +99,7 @@ def test_every_installed_model_is_priced_not_only_the_newest(
     a_model(tmp_path / "models" / "one.gguf")
     a_model(tmp_path / "models" / "two.gguf")
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     ini = (tmp_path / "models" / PRESET_FILE).read_text()
     assert "[one]" in ini and "[two]" in ini
@@ -109,7 +112,7 @@ def test_a_partial_download_is_not_offered_to_the_runtime(
     a_model(tmp_path / "models" / "done.gguf")
     (tmp_path / "models" / "busy.gguf.part").write_bytes(b"GGUF not finished")
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     ini = (tmp_path / "models" / PRESET_FILE).read_text()
     assert "[done]" in ini
@@ -122,7 +125,7 @@ def test_one_unreadable_file_does_not_cost_the_others(service, tmp_path: Path) -
     a_model(tmp_path / "models" / "good.gguf")
     (tmp_path / "models" / "corrupt.gguf").write_bytes(b"not a gguf at all")
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     ini = (tmp_path / "models" / PRESET_FILE).read_text()
     assert "[good]" in ini
@@ -133,7 +136,7 @@ def test_repricing_an_empty_directory_writes_an_empty_preset(
     service, tmp_path: Path
 ) -> None:
     """Deleting the last model must not leave a section pointing at nothing."""
-    service.reprice()
+    service.llamacpp.reprice()
 
     assert (tmp_path / "models" / PRESET_FILE).read_text() == ""
 
@@ -148,7 +151,7 @@ def test_a_truncated_model_is_skipped_like_any_other_unreadable_one(
     a_model(tmp_path / "models" / "whole.gguf")
     (tmp_path / "models" / "cut.gguf").write_bytes(b"GGUF")
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     ini = (tmp_path / "models" / PRESET_FILE).read_text()
     assert "[whole]" in ini
@@ -166,7 +169,9 @@ async def test_waiting_for_the_runtime_gives_up_rather_than_hanging(
     """
     a_model(tmp_path / "models" / "m.gguf")
 
-    reachable = await service.wait_until_servable("m", timeout=0.3, interval=0.05)
+    reachable = await wait_until_servable(
+        "http://127.0.0.1:9", "m", timeout=0.3, interval=0.05
+    )
 
     assert reachable is False
 
@@ -179,7 +184,7 @@ def test_a_projector_is_never_offered_as_a_model(tmp_path: Path) -> None:
     a_projector(tmp_path / "mmproj-F16.gguf")
     service = LocalCatalogService(load_local_manifest(), tmp_path, tmp_path)
 
-    service.reprice()
+    service.llamacpp.reprice()
     ini = (tmp_path / PRESET_FILE).read_text()
 
     assert "[Qwen3-VL-Q4_K_M]" in ini
@@ -198,7 +203,7 @@ def test_a_vision_model_names_its_projector_and_reserves_room_for_it(
     projector.write_bytes(projector.read_bytes() + b"\0" * padding)
     service = LocalCatalogService(load_local_manifest(), tmp_path, tmp_path)
 
-    service.reprice()
+    service.llamacpp.reprice()
     ini = (tmp_path / PRESET_FILE).read_text()
 
     assert f"mmproj = {projector}" in ini
@@ -212,7 +217,7 @@ def test_a_text_model_leaves_the_margin_at_llama_cpps_own_default(
     a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
     service = LocalCatalogService(load_local_manifest(), tmp_path, tmp_path)
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     assert "fit-target = 1024" in (tmp_path / PRESET_FILE).read_text()
 
@@ -226,7 +231,7 @@ def test_a_lone_projector_is_never_attached_to_a_model_beside_it(
     a_projector(tmp_path / "mmproj-F16.gguf")
     service = LocalCatalogService(load_local_manifest(), tmp_path, tmp_path)
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     assert "mmproj" not in (tmp_path / PRESET_FILE).read_text()
 
@@ -237,7 +242,7 @@ def test_a_projector_named_anything_is_not_offered_as_a_model(tmp_path: Path) ->
     a_model(tmp_path / "Qwen3-8B-Q4_K_M.gguf")
     service = LocalCatalogService(load_local_manifest(), tmp_path, tmp_path)
 
-    service.reprice()
+    service.llamacpp.reprice()
 
     written = (tmp_path / PRESET_FILE).read_text()
     assert "vision-half-BF16" not in written
