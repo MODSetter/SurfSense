@@ -94,7 +94,7 @@ export function LocalImageModel({ disabled = false }: { disabled?: boolean }) {
   const use = (model: ImageModel) => {
     setBusy(model.name)
     setError(null)
-    void setSelection("image_generation", {
+    void setSelection("image_gen", {
       provider: catalog.provider,
       connection_id: null,
       name: model.name,

@@ -2,7 +2,7 @@
 
 > **Being redesigned.** The [model catalog proposal](../proposals/model-catalog.md) replaces how a connection lists and classifies its models, and where the form's presets come from; connection storage, keys and the runtime stay. This page describes the code as it is until that work ships.
 
-A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to the chat role or the image role. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
+A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
 **Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/model-selection/`](../../surfsense_local/frontend/src/features/model-selection/)
 **Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
@@ -13,16 +13,16 @@ A connection is one named remote endpoint that speaks the OpenAI API: a hosted p
 provider             a protocol implementation: llamacpp, sdcpp or openai_compatible
 provider connection  one named remote endpoint and its optional bearer key
 model                an id the endpoint lists live, or one entered by hand
-role                 the one active model for generation or for image_generation
+model type           what a model is for, and the slot one selection fills: text_gen, image_gen, image_edit, video_gen or audio_gen
 ```
 
-A connection is role-neutral: which role it serves depends on the model assigned from it and the routes the endpoint implements. One gateway can hold both roles; chat and image models on separate infrastructure are two connections. "OpenAI-compatible" means compatible for a given route, not that every route exists. Core vLLM serves `/chat/completions` but no image output, while vLLM-Omni serves `/images/generations`, so a typical organization has one connection for each.
+A connection is type-neutral: which slot it fills depends on the model assigned from it and the routes the endpoint implements. One gateway can hold several slots; chat and image models on separate infrastructure are two connections. "OpenAI-compatible" means compatible for a given route, not that every route exists. Core vLLM serves `/chat/completions` but no image output, while vLLM-Omni serves `/images/generations`, so a typical organization has one connection for each.
 
 ```text
 OpenAI-compatible connection
   ├── GET  /models                  live discovery and health
-  ├── POST /chat/completions        the generation role
-  └── POST /images/generations      the image_generation role
+  ├── POST /chat/completions        the text_gen selection
+  └── POST /images/generations      the image_gen selection
       └── POST /images              an alternate image route
 ```
 
@@ -43,7 +43,7 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 
 A base URL must be `http` or `https` with a host, and may not carry credentials, a query or a fragment. Private, loopback and link-local hosts are valid: the API binds to loopback, and reaching internal endpoints is the point. If the API ever binds externally, this becomes an SSRF boundary and has to be redesigned first.
 
-`selected_models` holds one row per role. An `openai_compatible` row names its `connection_id`, and the foreign key cascades, so deleting a connection clears exactly the roles that used it. Two endpoints serving the same model id stay distinct, because a selection's identity includes the connection. The full table is in [`data-model.md`](data-model.md); choosing a model and onboarding are in [`local-models/selection.md`](local-models/selection.md).
+`selected_models` holds one row per model type. An `openai_compatible` row names its `connection_id`, and the foreign key cascades, so deleting a connection clears exactly the selections that used it. Two endpoints serving the same model id stay distinct, because a selection's identity includes the connection. The full table is in [`data-model.md`](data-model.md); choosing a model and onboarding are in [`local-models/selection.md`](local-models/selection.md).
 
 ## HTTP
 
@@ -79,13 +79,13 @@ The write body:
 
 `GET .../models` calls `{base_url}/models` and, in parallel, `{base_url}/models?output_modalities=image`. A valid answer to the second is merged in and any failure of it is ignored: OpenRouter's default listing leaves out most of its image models, and an endpoint that ignores the parameter returns the same set, so no provider has to be recognised. Ids are deduplicated within the connection and sorted. A failed baseline call is a `502`, and the connection stays.
 
-Each model's capability comes from the first of three sources that knows it, and nothing is guessed:
+Each model's `types` come from the first of three sources that knows it, and nothing is guessed; `capability_source` says which:
 
-1. `declared`: output modalities the endpoint publishes, text meaning `completion` and image meaning `image_generation`.
-2. `catalog`: [`model-capabilities.json`](../../surfsense_local/backend/modules/llm/connections/model-capabilities.json), a reviewed snapshot built offline from models.dev by `scripts/fetch_model_capabilities.py` and committed, looked up by the full id and then by its last path segment. A row with no capabilities is a known "neither role".
+1. `declared`: output modalities the endpoint publishes: text is `text_gen`, image `image_gen`, video `video_gen` and audio `audio_gen`.
+2. `catalog`: [`model-capabilities.json`](../../surfsense_local/backend/modules/llm/connections/model-capabilities.json), a reviewed snapshot built offline from models.dev by `scripts/fetch_model_capabilities.py` and committed, looked up by the full id and then by its last path segment. It still stores `completion` and `image_generation`, read as `text_gen` and `image_gen`. A row with no capabilities is known to be none of the types.
 3. `unknown`: neither source knows the id.
 
-A known mismatch disables a role; `unknown` leaves both open. Choosing a model applies the same rule: a remote choice is refused only when its capability is known and lacks the role. A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.
+Each listed model also carries `selectable_for`, the slots it can fill, decided by the one rule in [`selectable.py`](../../surfsense_local/backend/modules/llm/selectable.py): the types it is, or every type when it is unknown. The pickers read that field rather than deciding, and choosing a model applies the same rule, so a model is selectable everywhere or nowhere. A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.
 
 ## Runtime
 
@@ -105,12 +105,12 @@ Images go through `OpenAICompatibleImageProvider`:
 - There is no fallback or retry after any other failure: auth, rate limit, timeout, `5xx`, a connection error or a malformed success. The endpoint may already have generated, and billed, an image. These surface as `NonRetryableImageError`, which a Studio job does not retry either. Route negotiation is not a retry policy.
 - Both routes send `model` and `prompt`. The first entry of the reply's `data` may be `b64_json`, a base64 data URL, or an `http(s)` URL, which is downloaded without the endpoint's bearer token and with at most three redirects. Replies are capped at 28 MB and images at 20 MB, under a 180-second timeout, and the bytes must be PNG, JPEG, GIF, WebP or SVG and match any MIME type the endpoint claims.
 
-[`resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py) turns a role's selection into a provider for chat, titles and Studio; the connection routes build their own for discovery and tests:
+[`resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py) turns a model type's selection into a provider for chat, titles and Studio; the connection routes build their own for discovery and tests:
 
 ```text
-generation        llamacpp                   → the supervised llama-server
+text_gen          llamacpp                   → the supervised llama-server
                   openai_compatible + id     → load the connection → chat provider
-image_generation  sdcpp                      → the image provider at sd-server's loopback URL
+image_gen         sdcpp                      → the image provider at sd-server's loopback URL
                   openai_compatible + id     → load the connection → image provider
 ```
 

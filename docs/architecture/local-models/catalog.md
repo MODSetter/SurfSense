@@ -463,7 +463,7 @@ Rules the screen holds:
   Progress is announced through a throttled live region, and the other model
   actions are disabled. A cancelled install says so and stays retryable; a
   finished one refreshes the catalog and selection queries.
-- Use on an installed model calls `PUT /llm/selection/generation` with the
+- Use on an installed model calls `PUT /llm/selection/text_gen` with the
   runtime's name for the file, which also starts loading it
   ([`selection.md`](selection.md)).
 - Delete calls the backend; the renderer never touches the models directory. The

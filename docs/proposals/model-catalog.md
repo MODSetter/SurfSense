@@ -25,9 +25,9 @@ Until this work ships, `docs/architecture/` describes the code as it is and this
 |---|---|---|
 | [`local-models/catalog.md`](../architecture/local-models/catalog.md) | the local catalog: curated manifest, install gate, search | replaced by `model-catalog/local.md`, and deleted |
 | [`connections.md`](../architecture/connections.md) | connections, and how their models are listed and classified | keeps storage, keys, the probe and the runtime; model listing moves to `model-catalog/remote.md` |
-| [`local-models/selection.md`](../architecture/local-models/selection.md) | one model per role | one model per `ModelType` |
-| [`data-model.md`](../architecture/data-model.md) | `selected_models.role` | `selected_models.model_type`, and the provider id on a connection |
-| [`studio.md`](../architecture/studio.md) | the `image_generation` role and the hard-coded sd.cpp list | the `image_gen` selection and the local manifest |
+| [`local-models/selection.md`](../architecture/local-models/selection.md) | one model per `ModelType` | done in step 1 |
+| [`data-model.md`](../architecture/data-model.md) | `selected_models.model_type` (step 1) | the provider id on a connection |
+| [`studio.md`](../architecture/studio.md) | the `image_gen` selection (step 1) and the hard-coded sd.cpp list | the local manifest |
 
 Known gaps in `local-models/catalog.md` this closes:
 

@@ -18,7 +18,7 @@ pytestmark = pytest.mark.integration
 
 
 def upgraded(tmp_path: Path, seed: str) -> object:
-    """A database seeded at 0011 and then upgraded to head."""
+    """A database seeded at 0011 and then upgraded to 0012."""
     engine = create_db_engine(tmp_path / "surfsense.db")
     config = Config()
     config.set_main_option(
@@ -30,7 +30,7 @@ def upgraded(tmp_path: Path, seed: str) -> object:
         for statement in seed.strip().split(";"):
             if statement.strip():
                 connection.execute(text(statement))
-    command.upgrade(config, "head")
+    command.upgrade(config, "0012")
     return engine
 
 

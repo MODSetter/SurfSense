@@ -3,6 +3,7 @@ import base64
 import pytest
 
 from modules.llm.connections.service import normalize_base_url, parse_models
+from modules.llm.model_type import ModelType
 from modules.llm.providers.openai_compatible.chat import _delta
 from modules.llm.providers.openai_compatible.image import (
     NonRetryableImageError,
@@ -33,7 +34,7 @@ def test_base_url_is_normalized_without_weakening_internal_network_support() -> 
         normalize_base_url("https://example.test/v1?token=secret")
 
 
-def test_capabilities_come_from_the_endpoint_then_the_catalogue_then_nowhere() -> None:
+def test_types_come_from_the_endpoint_then_the_catalogue_then_nowhere() -> None:
     """Declared beats catalogued beats unknown, and nothing is read off a name.
 
     The bare ids are real: OpenAI and Gemini return nothing else from /models.
@@ -59,34 +60,34 @@ def test_capabilities_come_from_the_endpoint_then_the_catalogue_then_nowhere() -
     }
 
     declared = models["openai/gpt-4o"]
-    assert declared.capabilities == ("completion",)
+    assert declared.types == (ModelType.TEXT_GEN,)
     assert declared.capability_source == "declared"
     assert declared.capability_known is True
 
-    assert models["gpt-image-2"].capabilities == ("image_generation",)
+    assert models["gpt-image-2"].types == (ModelType.IMAGE_GEN,)
     assert models["gpt-image-2"].capability_source == "catalog"
 
     # Resolved by the last path segment, for the ids Gemini and gateways prefix.
     # Both roles at once is a real answer, not a conflict: this model returns
     # text alongside the image, and dropping either would hide it from a picker.
     gemini = models["models/gemini-3.1-flash-image"]
-    assert gemini.capabilities == ("completion", "image_generation")
+    assert gemini.types == (ModelType.TEXT_GEN, ModelType.IMAGE_GEN)
     assert gemini.capability_source == "catalog"
 
-    assert models["gpt-4o-mini"].capabilities == ("completion",)
+    assert models["gpt-4o-mini"].types == (ModelType.TEXT_GEN,)
     assert models["gpt-4o-mini"].capability_source == "catalog"
 
     # Knowing a model does neither is an answer, and it is what keeps the picker
     # from offering speech and video models for chat.
     for name in ("whisper-large-v3", "veo-3.1-generate-preview"):
-        assert models[name].capabilities == ()
+        assert models[name].types == ()
         assert models[name].capability_source == "catalog"
         assert models[name].capability_known is True
 
     # Absent from models.dev, so unknown rather than guessed. This is the model
     # that used to be labelled a chat model by reading its name.
     for name in ("babbage-002", "a-model-nobody-has-catalogued"):
-        assert models[name].capabilities == ()
+        assert models[name].types == ()
         assert models[name].capability_source == "unknown"
         # Unknown must not gate a choice; the test dialog resolves it instead.
         assert models[name].capability_known is False

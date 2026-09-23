@@ -55,7 +55,7 @@ describe("app bootstrap", () => {
         if (path === "/llm/providers") {
           return Response.json([])
         }
-        if (path === "/llm/selection/generation") {
+        if (path === "/llm/selection/text_gen") {
           return Response.json({ detail: "not found" }, { status: 404 })
         }
         if (path === "/llm/catalog") {
@@ -108,7 +108,7 @@ describe("app bootstrap", () => {
         if (path === "/llm/providers") {
           return Response.json([])
         }
-        if (path === "/llm/selection/generation") {
+        if (path === "/llm/selection/text_gen") {
           return Response.json({ detail: "not found" }, { status: 404 })
         }
         if (path === "/workspaces") {

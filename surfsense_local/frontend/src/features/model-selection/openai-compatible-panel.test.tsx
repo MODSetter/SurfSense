@@ -33,7 +33,7 @@ const connections = [
 ]
 
 describe("OpenAI-compatible connections", () => {
-  it("offers a model only for the role it is classified for", async () => {
+  it("offers a model only for the slots it is classified for", async () => {
     // OpenAI and Gemini publish no capabilities, so their models arrive read
     // from the name. A guess is worth acting on: it hides the wrong button,
     // while a model it cannot place at all keeps both and can still be tested.
@@ -49,22 +49,31 @@ describe("OpenAI-compatible connections", () => {
             connection_id: 1,
             connection_label: "Chat gateway",
             name: "gpt-image-1",
-            capabilities: ["image_generation"],
+            types: ["image_gen"],
             capability_source: "catalog",
+            selectable_for: ["image_gen"],
           },
           {
             connection_id: 1,
             connection_label: "Chat gateway",
             name: "gpt-4o-mini",
-            capabilities: ["completion"],
+            types: ["text_gen"],
             capability_source: "catalog",
+            selectable_for: ["text_gen"],
           },
           {
             connection_id: 1,
             connection_label: "Chat gateway",
             name: "whisper-1",
-            capabilities: [],
+            types: [],
             capability_source: "unknown",
+            selectable_for: [
+              "text_gen",
+              "image_gen",
+              "image_edit",
+              "video_gen",
+              "audio_gen",
+            ],
           },
         ])
       }
@@ -117,29 +126,29 @@ describe("OpenAI-compatible connections", () => {
       resolveSlow = resolve
     })
     const selections: Partial<
-      Record<"generation" | "image_generation", Record<string, unknown>>
+      Record<"text_gen" | "image_gen", Record<string, unknown>>
     > = {}
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
         if (path === "/llm/connections") return Response.json(connections)
         if (path.startsWith("/llm/selection/")) {
-          const role = path.endsWith("image_generation")
-            ? "image_generation"
-            : "generation"
+          const modelType = path.endsWith("image_gen")
+            ? "image_gen"
+            : "text_gen"
           if (init?.method === "PUT") {
             const body = JSON.parse(String(init.body))
-            selections[role] = {
-              role,
+            selections[modelType] = {
+              model_type: modelType,
               ...body,
               updated_at: "2026-09-10T00:00:00Z",
             }
-            return Response.json(selections[role])
+            return Response.json(selections[modelType])
           }
-          if (!selections[role]) {
+          if (!selections[modelType]) {
             return Response.json({ detail: "not selected" }, { status: 404 })
           }
-          return Response.json(selections[role])
+          return Response.json(selections[modelType])
         }
         if (path === "/llm/connections/1/models") return slow
         if (path === "/llm/connections/2/models") {
@@ -148,8 +157,15 @@ describe("OpenAI-compatible connections", () => {
               connection_id: 2,
               connection_label: "Image gateway",
               name: "shared-model",
-              capabilities: [],
+              types: [],
               capability_source: "unknown",
+              selectable_for: [
+                "text_gen",
+                "image_gen",
+                "image_edit",
+                "video_gen",
+                "audio_gen",
+              ],
             },
           ])
         }
@@ -243,7 +259,7 @@ describe("OpenAI-compatible connections", () => {
     expect(inUseChat.hasAttribute("disabled")).toBe(true)
     const write = fetchMock.mock.calls.find(
       ([path, init]) =>
-        path === "/llm/selection/generation" && init?.method === "PUT"
+        path === "/llm/selection/text_gen" && init?.method === "PUT"
     )
     expect(JSON.parse(String(write?.[1]?.body))).toEqual({
       provider: "openai_compatible",
@@ -268,7 +284,7 @@ describe("OpenAI-compatible connections", () => {
     expect(inUseImage.hasAttribute("disabled")).toBe(true)
     const imageWrite = fetchMock.mock.calls.find(
       ([path, init]) =>
-        path === "/llm/selection/image_generation" && init?.method === "PUT"
+        path === "/llm/selection/image_gen" && init?.method === "PUT"
     )
     // Listed by the connection, so the server's own check still applies.
     expect(JSON.parse(String(imageWrite?.[1]?.body)).allow_unlisted).toBe(false)
@@ -287,15 +303,17 @@ describe("OpenAI-compatible connections", () => {
           connection_id: 1,
           connection_label: "Chat gateway",
           name: "shared-model",
-          capabilities: ["completion"],
+          types: ["text_gen"],
           capability_source: "declared",
+          selectable_for: ["text_gen"],
         },
         {
           connection_id: 1,
           connection_label: "Chat gateway",
           name: "draw-model",
-          capabilities: ["image_generation"],
+          types: ["image_gen"],
           capability_source: "declared",
+          selectable_for: ["image_gen"],
         },
       ])
     )
@@ -304,13 +322,13 @@ describe("OpenAI-compatible connections", () => {
       .getByText("shared-model")
       .closest("li")
       ?.querySelector("[data-slot=badge]")
-    expect(chatBadge?.textContent).toBe("Completion")
+    expect(chatBadge?.textContent).toBe("Text generation")
     expect(chatBadge?.getAttribute("data-variant")).toBe("secondary")
     const imageBadge = screen
       .getByText("draw-model")
       .closest("li")
       ?.querySelector("[data-slot=badge]")
-    expect(imageBadge?.textContent).toBe("Image Generation")
+    expect(imageBadge?.textContent).toBe("Image generation")
     expect(imageBadge?.getAttribute("data-variant")).toBe("secondary")
   })
 
@@ -337,18 +355,18 @@ describe("OpenAI-compatible connections", () => {
           return Response.json({ ...connections[1], ...body })
         }
         if (path === "/llm/connections") return Response.json(list)
-        if (path === "/llm/selection/generation") {
+        if (path === "/llm/selection/text_gen") {
           return Response.json({
-            role: "generation",
+            model_type: "text_gen",
             provider: "openai_compatible",
             connection_id: 1,
             name: "chat",
             updated_at: "2026-09-10T00:00:00Z",
           })
         }
-        if (path === "/llm/selection/image_generation") {
+        if (path === "/llm/selection/image_gen") {
           return Response.json({
-            role: "image_generation",
+            model_type: "image_gen",
             provider: "openai_compatible",
             connection_id: 1,
             name: "image",
@@ -381,9 +399,9 @@ describe("OpenAI-compatible connections", () => {
       screen.getByText("Chat and Image roles will be cleared.")
     ).toBeTruthy()
     expect(
-      screen.getByText("Chat and Image roles will be cleared.").closest(
-        '[data-slot="alert-dialog-content"]'
-      )?.className
+      screen
+        .getByText("Chat and Image roles will be cleared.")
+        .closest('[data-slot="alert-dialog-content"]')?.className
     ).toContain("select-none")
     const confirm = screen.getAllByRole("button", { name: "Disconnect" }).at(-1)
     if (!confirm) throw new Error("disconnect confirmation missing")

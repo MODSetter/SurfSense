@@ -9,7 +9,8 @@ from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
-from modules.llm.models import ModelRole, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
 from modules.workspaces.models import Workspace
 from worker.jobs import cancel_studio_job
@@ -26,7 +27,7 @@ def list_formats(session: Session) -> list[FormatRead]:
             FormatRead(
                 key=fmt.key,
                 label=fmt.label,
-                requires_roles=list(fmt.requires_roles),
+                requires_model_types=list(fmt.requires_model_types),
                 available=available,
                 unavailable_reason=reason,
             )
@@ -143,36 +144,36 @@ def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:
         ) from error
 
 
-# What a role is called in a sentence, carrying its own article so the line
-# reads whichever roles it names. A format states the roles it needs and this
-# turns them into the one line the screen shows, so the wording cannot drift
-# between formats that need the same thing.
-_ROLE_PHRASES: dict[ModelRole, str] = {
-    ModelRole.GENERATION: "a chat model",
-    ModelRole.IMAGE_GENERATION: "an image model",
+# What a model type is called in a sentence, carrying its own article so the
+# line reads whichever types it names. A format states the types it needs and
+# this turns them into the one line the screen shows, so the wording cannot
+# drift between formats that need the same thing.
+_TYPE_PHRASES: dict[ModelType, str] = {
+    ModelType.TEXT_GEN: "a chat model",
+    ModelType.IMAGE_GEN: "an image model",
 }
 
-# Sentence order, which is not the order a format lists its roles in: the
+# Sentence order, which is not the order a format lists its types in: the
 # pipeline takes them in the order it runs them, and a reader wants the same
 # phrasing whichever format they are looking at.
-_ROLE_ORDER: tuple[ModelRole, ...] = (
-    ModelRole.GENERATION,
-    ModelRole.IMAGE_GENERATION,
+_TYPE_ORDER: tuple[ModelType, ...] = (
+    ModelType.TEXT_GEN,
+    ModelType.IMAGE_GEN,
 )
 
 
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
     """Whether this format can run, and the one line saying why not.
 
-    Every missing role is named, not the first one noticed. A format needing
-    two of them reported only whichever `requires_roles` happened to list
+    Every missing type is named, not the first one noticed. A format needing
+    two of them reported only whichever `requires_model_types` happened to list
     first, so selecting that one moved the reason to the other and read as the
     gate shifting rather than as half of it being met.
     """
     missing = [
-        role
-        for role in map(ModelRole, fmt.requires_roles)
-        if session.get(SelectedModel, role) is None
+        model_type
+        for model_type in fmt.requires_model_types
+        if session.get(SelectedModel, model_type) is None
     ]
     if missing:
         return False, _required(missing)
@@ -184,7 +185,7 @@ def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
     return True, None
 
 
-def _required(missing: list[ModelRole]) -> str:
+def _required(missing: list[ModelType]) -> str:
     """"Needs a chat model and an image model", in a fixed reading order."""
-    phrases = [_ROLE_PHRASES[role] for role in _ROLE_ORDER if role in missing]
+    phrases = [_TYPE_PHRASES[kind] for kind in _TYPE_ORDER if kind in missing]
     return f"Needs {' and '.join(phrases)}"

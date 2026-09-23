@@ -236,7 +236,7 @@ wanted and nobody is waiting yet:
   ([`catalog.md`](catalog.md)). Frames for any other model are ignored: with
   `--models-max 1`, another model's load is this one being evicted.
 - **On selection**, as a FastAPI background task after
-  `PUT /llm/selection/{role}` has answered, because the load blocks until the
+  `PUT /llm/selection/{model_type}` has answered, because the load blocks until the
   model is resident ([`selection.md`](selection.md)).
 - **At startup**, on the catalog warm thread after `reprice()`, because the
   preset decides the window the load will use. Nothing is resident after a

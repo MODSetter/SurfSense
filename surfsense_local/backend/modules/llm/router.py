@@ -15,7 +15,8 @@ from modules.llm.catalog.dependencies import CatalogServiceDep
 from modules.llm.catalog.router import router as catalog_router
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import LocalRuntimeDep, ProviderDep
-from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, llamacpp, provider_names
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.residency import warm_selected
@@ -171,7 +172,7 @@ def _studio_running(session: Session) -> bool:
 
 def _clear_selection(session: Session, provider: str, model_name: str) -> bool:
     """Drop the generation selection if it named the model just deleted."""
-    selected = session.get(SelectedModel, ModelRole.GENERATION)
+    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     cleared = (
         selected is not None
         and selected.provider == provider
@@ -276,7 +277,7 @@ async def install_local_image_model(
 
 
 def _chosen_image_model(session: Session) -> SelectedModel | None:
-    return session.get(SelectedModel, ModelRole.IMAGE_GENERATION)
+    return session.get(SelectedModel, ModelType.IMAGE_GEN)
 
 
 async def _image_server_healthy() -> bool:
@@ -289,32 +290,34 @@ async def _image_server_healthy() -> bool:
 
 
 @router.get(
-    "/selection/{role}",
+    "/selection/{model_type}",
     response_model=SelectionRead,
-    summary="Read the model chosen for a role",
+    summary="Read the model chosen for a model type",
 )
-def read_selection(role: ModelRole, session: SessionDep) -> SelectedModel:
-    selected = session.get(SelectedModel, role)
+def read_selection(model_type: ModelType, session: SessionDep) -> SelectedModel:
+    selected = session.get(SelectedModel, model_type)
     if selected is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"no model chosen for {role}")
+        raise HTTPException(
+            status.HTTP_404_NOT_FOUND, f"no model chosen for {model_type}"
+        )
 
     return selected
 
 
 @router.put(
-    "/selection/{role}",
+    "/selection/{model_type}",
     response_model=SelectionRead,
-    summary="Choose the model for a role",
+    summary="Choose the model for a model type",
 )
 async def set_selection(
-    role: ModelRole,
+    model_type: ModelType,
     payload: SelectionWrite,
     session: SessionDep,
     background: BackgroundTasks,
 ) -> SelectedModel:
     chosen = await choose_model(
         session,
-        role,
+        model_type,
         payload.provider,
         payload.name,
         connection_id=payload.connection_id,

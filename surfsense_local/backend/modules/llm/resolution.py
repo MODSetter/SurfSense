@@ -3,7 +3,8 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
-from modules.llm.models import ModelRole, ProviderConnection, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.profile import Tier
 from modules.llm.providers import get_provider, llamacpp
 from modules.llm.providers.kokoro import provider as kokoro
@@ -37,7 +38,7 @@ class ResolvedImageGeneration:
 
 
 def resolve_generation(session: Session) -> ResolvedGeneration:
-    selected = session.get(SelectedModel, ModelRole.GENERATION)
+    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
     if selected is None:
         raise ModelResolutionError("no chat model selected")
     if selected.provider == llamacpp.PROVIDER:
@@ -53,7 +54,7 @@ def resolve_generation(session: Session) -> ResolvedGeneration:
 
 
 def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
-    selected = session.get(SelectedModel, ModelRole.IMAGE_GENERATION)
+    selected = session.get(SelectedModel, ModelType.IMAGE_GEN)
     if selected is None:
         raise ModelResolutionError("no image model selected")
     if selected.provider == sdcpp.PROVIDER:

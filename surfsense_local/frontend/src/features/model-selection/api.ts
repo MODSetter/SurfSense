@@ -1,5 +1,7 @@
 import { ApiError, request, requestJson, requestVoid } from "@/lib/api"
 
+import type { ModelType } from "./model-type"
+
 export type Provider = {
   name: string
   healthy: boolean
@@ -23,7 +25,7 @@ export type ProviderModel = {
 export type CapabilitySource = "declared" | "catalog" | "unknown"
 
 export type ModelSelection = {
-  role: "generation" | "image_generation"
+  model_type: ModelType
   provider: string
   connection_id: number | null
   name: string
@@ -35,6 +37,7 @@ export type SelectableModel = ProviderModel & {
   connection_id: number | null
   connection_label?: string
   capability_source?: CapabilitySource
+  selectable_for?: ModelType[]
 }
 
 export type Connection = {
@@ -59,8 +62,10 @@ export type ConnectionModel = {
   connection_id: number
   connection_label: string
   name: string
-  capabilities: string[]
+  types: ModelType[]
   capability_source: CapabilitySource
+  /** The slots the backend says this model can fill; pickers never decide it. */
+  selectable_for: ModelType[]
 }
 
 export type OnboardingStatus = {
@@ -143,7 +148,7 @@ export async function getGenerationSelection(
   signal?: AbortSignal
 ): Promise<ModelSelection | null> {
   try {
-    return await requestJson<ModelSelection>("/llm/selection/generation", {
+    return await requestJson<ModelSelection>("/llm/selection/text_gen", {
       signal,
     })
   } catch (error) {
@@ -155,11 +160,11 @@ export async function getGenerationSelection(
 }
 
 export async function getSelection(
-  role: ModelSelection["role"],
+  modelType: ModelType,
   signal?: AbortSignal
 ): Promise<ModelSelection | null> {
   try {
-    return await requestJson<ModelSelection>(`/llm/selection/${role}`, {
+    return await requestJson<ModelSelection>(`/llm/selection/${modelType}`, {
       signal,
     })
   } catch (error) {
@@ -173,16 +178,16 @@ export function setGenerationSelection(
   signal?: AbortSignal,
   allowUnlisted = false
 ): Promise<ModelSelection> {
-  return setSelection("generation", model, signal, allowUnlisted)
+  return setSelection("text_gen", model, signal, allowUnlisted)
 }
 
 export function setSelection(
-  role: ModelSelection["role"],
+  modelType: ModelType,
   model: Pick<SelectableModel, "provider" | "connection_id" | "name">,
   signal?: AbortSignal,
   allowUnlisted = false
 ): Promise<ModelSelection> {
-  return requestJson<ModelSelection>(`/llm/selection/${role}`, {
+  return requestJson<ModelSelection>(`/llm/selection/${modelType}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -193,6 +198,18 @@ export function setSelection(
     }),
     signal,
   })
+}
+
+/** A connection's models that can fill the chat slot, as the backend decided. */
+export function chatCandidates(models: ConnectionModel[]): SelectableModel[] {
+  return models
+    .filter((model) => model.selectable_for.includes("text_gen"))
+    .map((model) => ({
+      ...model,
+      capabilities: model.types,
+      provider: "openai_compatible",
+      installed: true,
+    }))
 }
 
 export function getConnections(signal?: AbortSignal): Promise<Connection[]> {
@@ -287,15 +304,7 @@ export async function getAvailableGenerationModels(
       connections.map(async (connection) => {
         try {
           const models = await getConnectionModels(connection.id, signal)
-          return models
-            // Speech, embedding, and moderation models are classified as
-            // neither, and a chat picker is no place for them.
-            .filter((model) => model.capabilities.includes("completion"))
-            .map((model) => ({
-              ...model,
-              provider: "openai_compatible",
-              installed: true,
-            }))
+          return chatCandidates(models)
         } catch (error) {
           if (signal?.aborted) throw error
           return []

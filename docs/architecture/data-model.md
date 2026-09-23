@@ -117,7 +117,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | Table | Columns | Notes |
 |---|---|---|
 | `provider_connections` | `id`, `label`, `provider`, `base_url`, `api_key_ciphertext`, timestamps | `label` unique case-insensitively; `provider` must be `openai_compatible`; the key is Fernet ciphertext since `0007` |
-| `selected_models` | `role`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `updated_at` | one row per role, `generation` or `image_generation` |
+| `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen` or `audio_gen` |
 | `onboarding_completion` | `id`, `completed_at` | a singleton (`CHECK id = 1`) whose presence means onboarding is done |
 
 - A CHECK on `selected_models` allows `llamacpp` and `sdcpp` only without a connection and `openai_compatible` only with one. `connection_id` cascades, so deleting a connection clears exactly the roles that used it.
@@ -255,7 +255,7 @@ erDiagram
     datetime updated_at
   }
   selected_models {
-    text role PK
+    text model_type PK
     text provider
     int connection_id FK
     text name
@@ -297,9 +297,10 @@ erDiagram
 | `0010` | `0010_selected_model_fingerprint.py` | `params_b`, `vendor` and `line` on `selected_models` |
 | `0011` | `0011_document_cancelled_status.py` | `cancelled` added to `documents.status` |
 | `0012` | `0012_llamacpp_provider.py` | `selected_models` rebuilt with `llamacpp` in place of `ollama`, clearing Ollama selections rather than remapping them; an `ollama_pull` egress grant becomes `model_download` |
+| `0013` | `0013_selection_by_model_type.py` | `selected_models` rebuilt keyed by `model_type`: `generation` becomes `text_gen` and `image_generation` becomes `image_gen`; downgrading drops a selection in the three types the old key cannot hold |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
-- SQLite cannot alter a CHECK constraint in place, so `0004`, `0009` and `0012` copy `selected_models` into a new table.
+- SQLite cannot alter a CHECK constraint or rename a primary key in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
 - [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind.
 

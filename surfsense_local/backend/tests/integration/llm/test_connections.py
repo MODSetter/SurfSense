@@ -50,6 +50,73 @@ async def test_connection_secret_is_redacted_and_models_merge(
     }
 
 
+async def test_listed_models_say_what_they_are_and_which_slots_they_fill(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """The listing speaks in model types, and the backend alone decides the slots."""
+    connection = await _connect(client, openai_server)
+
+    models = {
+        model["name"]: model
+        for model in (
+            await client.get(f"/llm/connections/{connection['id']}/models")
+        ).json()
+    }
+
+    chat = models["anthropic/claude-3.5-sonnet"]
+    image = models["black-forest-labs/flux"]
+    assert (chat["types"], chat["selectable_for"]) == (["text_gen"], ["text_gen"])
+    assert (image["types"], image["selectable_for"]) == (["image_gen"], ["image_gen"])
+
+
+async def test_a_model_nothing_recognises_can_fill_every_slot(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Unknown is not no: the user sees it answer before trusting it anywhere."""
+    monkeypatch.setattr(
+        conftest,
+        "REMOTE_MODELS",
+        [*conftest.REMOTE_MODELS, {"id": "acme/mystery-1"}],
+    )
+    connection = await _connect(client, openai_server)
+
+    models = (await client.get(f"/llm/connections/{connection['id']}/models")).json()
+    mystery = next(model for model in models if model["name"] == "acme/mystery-1")
+
+    assert mystery["types"] == []
+    assert mystery["capability_source"] == "unknown"
+    assert mystery["selectable_for"] == [
+        "text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"
+    ]
+
+
+async def test_a_declared_video_model_fills_the_video_slot_and_nothing_else(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every type is a slot the user can fill, even one no feature reads yet."""
+    monkeypatch.setattr(
+        conftest,
+        "REMOTE_MODELS",
+        [
+            *conftest.REMOTE_MODELS,
+            {"id": "acme/clipmaker", "architecture": {"output_modalities": ["video"]}},
+        ],
+    )
+    connection = await _connect(client, openai_server)
+    choice = {
+        "provider": "openai_compatible",
+        "connection_id": connection["id"],
+        "name": "acme/clipmaker",
+    }
+
+    chosen = await client.put("/llm/selection/video_gen", json=choice)
+    refused = await client.put("/llm/selection/text_gen", json=choice)
+
+    assert chosen.status_code == 200, chosen.text
+    assert chosen.json()["model_type"] == "video_gen"
+    assert refused.status_code == 422
+
+
 async def test_connection_update_distinguishes_omitted_and_null_secret(
     client: AsyncClient, openai_server: str
 ) -> None:
@@ -118,7 +185,7 @@ async def test_chat_and_image_roles_can_use_one_connection(
     """A gateway connection may back both independent selected roles."""
     connection = await _connect(client, openai_server)
     chat = await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={
             "provider": "openai_compatible",
             "connection_id": connection["id"],
@@ -126,7 +193,7 @@ async def test_chat_and_image_roles_can_use_one_connection(
         },
     )
     image = await client.put(
-        "/llm/selection/image_generation",
+        "/llm/selection/image_gen",
         json={
             "provider": "openai_compatible",
             "connection_id": connection["id"],
@@ -155,7 +222,7 @@ async def test_a_hosted_models_tier_is_read_from_the_listing_it_came_from(
     connection = await _connect(client, openai_server)
 
     selected = await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={
             "provider": "openai_compatible",
             "connection_id": connection["id"],
@@ -187,7 +254,7 @@ async def test_chat_test_answers_without_selecting_or_running_up_a_bill(
     assert json.loads(body)["max_tokens"] == CHAT_TEST_MAX_TOKENS
 
     # Trying a model is not choosing it.
-    assert (await client.get("/llm/selection/generation")).status_code == 404
+    assert (await client.get("/llm/selection/text_gen")).status_code == 404
 
 
 async def test_a_thinking_model_on_a_connection_is_not_called_broken(
@@ -235,7 +302,7 @@ async def test_the_local_image_model_can_take_the_image_role(
     model = _stage(tmp_path, monkeypatch)
 
     chosen = await client.put(
-        "/llm/selection/image_generation",
+        "/llm/selection/image_gen",
         json={
             "provider": sdcpp.PROVIDER,
             "connection_id": None,
@@ -245,7 +312,7 @@ async def test_the_local_image_model_can_take_the_image_role(
     assert chosen.status_code == 200, chosen.text
     assert chosen.json()["provider"] == sdcpp.PROVIDER
 
-    read = await client.get("/llm/selection/image_generation")
+    read = await client.get("/llm/selection/image_gen")
     assert read.json()["name"] == model.name
 
     # Electron reconciles sd-server against this, so it must name the weights
@@ -264,7 +331,7 @@ async def test_an_image_model_in_use_cannot_be_deleted_out_from_under_itself(
     (tmp_path / spare.file).write_bytes(b"\0" * spare.size_bytes)
 
     await client.put(
-        "/llm/selection/image_generation",
+        "/llm/selection/image_gen",
         json={
             "provider": sdcpp.PROVIDER,
             "connection_id": None,
@@ -329,7 +396,7 @@ async def test_image_selection_alone_does_not_complete_onboarding(
     """The optional Image role cannot bypass required chat onboarding."""
     connection = await _connect(client, openai_server)
     selected = await client.put(
-        "/llm/selection/image_generation",
+        "/llm/selection/image_gen",
         json={
             "provider": "openai_compatible",
             "connection_id": connection["id"],
@@ -346,8 +413,8 @@ async def test_deleting_connection_cascades_only_its_selections(
     """Disconnect removes both referenced roles but preserves onboarding."""
     connection = await _connect(client, openai_server)
     for role, name in (
-        ("generation", "anthropic/claude-3.5-sonnet"),
-        ("image_generation", "black-forest-labs/flux"),
+        ("text_gen", "anthropic/claude-3.5-sonnet"),
+        ("image_gen", "black-forest-labs/flux"),
     ):
         await client.put(
             f"/llm/selection/{role}",
@@ -362,9 +429,9 @@ async def test_deleting_connection_cascades_only_its_selections(
     assert (
         await client.delete(f"/llm/connections/{connection['id']}")
     ).status_code == 204
-    assert (await client.get("/llm/selection/generation")).status_code == 404
+    assert (await client.get("/llm/selection/text_gen")).status_code == 404
     assert (
-        await client.get("/llm/selection/image_generation")
+        await client.get("/llm/selection/image_gen")
     ).status_code == 404
     assert (await client.get("/llm/onboarding")).json() == {"completed": True}
 
@@ -385,7 +452,7 @@ async def test_unverified_and_unlisted_paths_require_explicit_confirmation(
     assert saved.status_code == 201
 
     ordinary = await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={
             "provider": "openai_compatible",
             "connection_id": saved.json()["id"],
@@ -394,7 +461,7 @@ async def test_unverified_and_unlisted_paths_require_explicit_confirmation(
     )
     assert ordinary.status_code == 422
     confirmed = await client.put(
-        "/llm/selection/generation",
+        "/llm/selection/text_gen",
         json={
             "provider": "openai_compatible",
             "connection_id": saved.json()["id"],

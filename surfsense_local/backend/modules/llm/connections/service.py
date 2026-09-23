@@ -6,6 +6,7 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from modules.llm.connections.model_capabilities import lookup_capabilities
+from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 
 DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
@@ -16,10 +17,21 @@ DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 CapabilitySource = Literal["declared", "catalog", "unknown"]
 
 
+# The words the reviewed catalogue still uses, until it stores model types.
+_CATALOGUED_AS = {"completion": ModelType.TEXT_GEN, "image_generation": ModelType.IMAGE_GEN}
+# What an endpoint's declared output modality says a model is for.
+_DECLARED_AS = {
+    "text": ModelType.TEXT_GEN,
+    "image": ModelType.IMAGE_GEN,
+    "video": ModelType.VIDEO_GEN,
+    "audio": ModelType.AUDIO_GEN,
+}
+
+
 @dataclass(frozen=True)
 class DiscoveredModel:
     name: str
-    capabilities: tuple[str, ...]
+    types: tuple[ModelType, ...]
     capability_source: CapabilitySource
 
     @property
@@ -97,15 +109,16 @@ def _classify(name: str, modalities: set[str]) -> DiscoveredModel:
     door that guesses.
     """
     if modalities:
-        capabilities = []
-        if "text" in modalities:
-            capabilities.append("completion")
-        if "image" in modalities:
-            capabilities.append("image_generation")
-        return DiscoveredModel(name, tuple(capabilities), "declared")
+        declared = tuple(
+            model_type
+            for modality, model_type in _DECLARED_AS.items()
+            if modality in modalities
+        )
+        return DiscoveredModel(name, declared, "declared")
     catalogued = lookup_capabilities(name)
     if catalogued is not None:
-        return DiscoveredModel(name, catalogued, "catalog")
+        types = tuple(_CATALOGUED_AS[capability] for capability in catalogued)
+        return DiscoveredModel(name, types, "catalog")
     return DiscoveredModel(name, (), "unknown")
 
 

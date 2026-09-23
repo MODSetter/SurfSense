@@ -28,15 +28,15 @@ function installApi() {
         },
       ])
     }
-    if (path === "/llm/selection/generation") {
+    if (path === "/llm/selection/text_gen") {
       return Response.json({
-        role: "generation",
+        model_type: "text_gen",
         provider: "llamacpp",
         name: "llama3.2:1b",
         updated_at: "2026-09-05T00:00:00Z",
       })
     }
-    if (path === "/llm/selection/image_generation") {
+    if (path === "/llm/selection/image_gen") {
       return Response.json({ detail: "not selected" }, { status: 404 })
     }
     if (path === "/llm/connections") {
@@ -197,10 +197,10 @@ describe("model onboarding", () => {
   it("leaves onboarding only after Start chatting, and needs a chat model", async () => {
     const fetchMock = vi.fn<typeof fetch>(async (input) => {
       const path = String(input)
-      if (path === "/llm/selection/generation") {
+      if (path === "/llm/selection/text_gen") {
         return Response.json({ detail: "not selected" }, { status: 404 })
       }
-      if (path === "/llm/selection/image_generation") {
+      if (path === "/llm/selection/image_gen") {
         return Response.json({ detail: "not selected" }, { status: 404 })
       }
       if (path === "/llm/connections") return Response.json([])

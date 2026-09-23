@@ -1,18 +1,13 @@
-import enum
 from datetime import datetime
 
 from cryptography.fernet import InvalidToken
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from modules.llm.model_type import ModelType
 from modules.llm.profile import Fingerprint, Line, Tier, classify, from_name
 from shared.db import Base, text_enum
 from shared.secrets import decrypt, encrypt
-
-
-class ModelRole(enum.StrEnum):
-    GENERATION = "generation"
-    IMAGE_GENERATION = "image_generation"
 
 
 class OnboardingCompletion(Base):
@@ -35,10 +30,18 @@ class SelectedModel(Base):
             "(provider = 'openai_compatible' AND connection_id IS NOT NULL)",
             name="provider_connection",
         ),
+        CheckConstraint(
+            # A local runtime serves one type: llama.cpp answers text, sd-server draws.
+            "(provider <> 'llamacpp' OR model_type = 'text_gen') AND "
+            "(provider <> 'sdcpp' OR model_type = 'image_gen')",
+            name="local_runtime_type",
+        ),
     )
 
-    # One row per role, so the role is the key: choosing again updates in place.
-    role: Mapped[ModelRole] = mapped_column(text_enum(ModelRole), primary_key=True)
+    # One row per type, so the type is the key: choosing again updates in place.
+    model_type: Mapped[ModelType] = mapped_column(
+        text_enum(ModelType), primary_key=True
+    )
     provider: Mapped[str]
     connection_id: Mapped[int | None] = mapped_column(
         ForeignKey("provider_connections.id", ondelete="CASCADE"), nullable=True

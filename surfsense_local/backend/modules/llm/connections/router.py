@@ -27,6 +27,7 @@ from modules.llm.schemas import (
     ConnectionWrite,
     ModelTestWrite,
 )
+from modules.llm.selectable import selectable_for
 
 router = APIRouter(prefix="/connections")
 
@@ -202,8 +203,9 @@ async def list_connection_models(
             connection_id=connection.id,
             connection_label=connection.label,
             name=model.name,
-            capabilities=list(model.capabilities),
+            types=list(model.types),
             capability_source=model.capability_source,
+            selectable_for=selectable_for(model.types, model.capability_known),
         )
         for model in models
     ]

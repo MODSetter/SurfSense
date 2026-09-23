@@ -95,7 +95,7 @@ export function SelectedRoles({
   useEffect(() => {
     const controller = new AbortController()
     void Promise.all([
-      getSelection("image_generation", controller.signal),
+      getSelection("image_gen", controller.signal),
       getConnections(controller.signal),
     ])
       .then(([image, connections]) => {

@@ -2,6 +2,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from modules.artifacts.podcast import brief
+from modules.llm.model_type import ModelType
 
 
 @dataclass(frozen=True)
@@ -11,9 +12,9 @@ class Format:
     key: str
     label: str
     # In the order the pipeline's render() takes its models.
-    requires_roles: tuple[str, ...] = ("generation",)
-    # ponytail: the voice engine is not a selectable role yet, so it is a flag;
-    # it folds into requires_roles when a text_to_speech role exists.
+    requires_model_types: tuple[ModelType, ...] = (ModelType.TEXT_GEN,)
+    # ponytail: the voice engine is not a selectable model type yet, so it is a
+    # flag; it folds into requires_model_types when audio_gen is read here.
     requires_voice: bool = False
     # Checks and fills the request's options, or raises ValueError with why.
     # Formats without one take no options.
@@ -38,9 +39,15 @@ FORMATS: tuple[Format, ...] = (
         requires_voice=True,
         validate_options=brief.validate_options,
     ),
-    Format("image", "Image", requires_roles=("image_generation", "generation")),
     Format(
-        "infographic", "Infographic", requires_roles=("image_generation", "generation")
+        "image",
+        "Image",
+        requires_model_types=(ModelType.IMAGE_GEN, ModelType.TEXT_GEN),
+    ),
+    Format(
+        "infographic",
+        "Infographic",
+        requires_model_types=(ModelType.IMAGE_GEN, ModelType.TEXT_GEN),
     ),
 )
 
