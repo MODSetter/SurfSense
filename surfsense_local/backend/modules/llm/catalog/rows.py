@@ -37,6 +37,8 @@ class CatalogRow:
     label: str
     family: str
     parameter_count: str
+    context_length: int
+    architecture: str
     variant: Variant
     fit: FitVerdict
     badge: Badge
@@ -104,6 +106,8 @@ def _row(model: CuratedModel, budget: HardwareBudget) -> CatalogRow:
         label=model.label,
         family=model.family,
         parameter_count=model.parameter_count,
+        context_length=model.shape.context_length,
+        architecture=model.shape.architecture,
         variant=variant,
         fit=fit,
         badge=badge(fit, budget),

@@ -36,6 +36,7 @@ const row = (overrides: Partial<CatalogRow> = {}): CatalogRow => ({
   quantization: "Q4_K_M",
   size_bytes: 5_027_784_512,
   context_length: 40960,
+  architecture: "qwen3",
   fit: fit(),
   badge: { verdict: "Full speed", reason: "Runs entirely on the GPU" },
   capabilities: [],

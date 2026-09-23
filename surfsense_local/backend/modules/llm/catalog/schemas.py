@@ -72,6 +72,7 @@ class CatalogRowRead(BaseModel):
     quantization: str
     size_bytes: int
     context_length: int
+    architecture: str
     fit: FitRead
     badge: BadgeRead
     capabilities: list[str]

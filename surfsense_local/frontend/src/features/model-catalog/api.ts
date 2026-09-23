@@ -40,6 +40,7 @@ export type CatalogRow = {
   quantization: string
   size_bytes: number
   context_length: number
+  architecture: string
   fit: Fit
   badge: Badge
   capabilities: string[]
