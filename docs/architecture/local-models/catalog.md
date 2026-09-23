@@ -306,8 +306,9 @@ Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per
 connected server ([`../connections.md`](../connections.md)). **Add model** opens
-one page with both ways in: a collapsed **Use a server** card first, because it
-is short, then **On this computer**, the catalog below. The image section shows
+one page with both ways in, laid out alike, no card or border around either:
+**Use a server**, collapsed to a Connect button until opened, because it is
+short, then **On this computer**, the catalog below. The image section shows
 the catalog only when the API reports the sd.cpp models
 ([`../studio.md`](../studio.md)) `offered`, which it decides from the image
 models directory rather than the `sd-server` binary
@@ -323,7 +324,9 @@ The chat catalog, from the top:
   action. "N other builds" opens the rest, each with its badge, size and action.
 - **All models**: the search, its own box because what the user types goes to a
   third party. Focusing it raises the egress question once per visit when
-  `host:huggingface.co` is off.
+  `host:huggingface.co` is off. Results scroll inside their own capped-height
+  list rather than lengthening the page, the same as a server's model list
+  ([`../connections.md`](../connections.md)).
 
 Rules the screen holds:
 
