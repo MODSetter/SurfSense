@@ -405,7 +405,7 @@ export function ModelCatalogPage({
               {deleteModel.isPending ? (
                 <Spinner data-icon="inline-start" />
               ) : null}
-              {deleteModel.isPending ? "Deleting..." : "Delete model"}
+              {deleteModel.isPending ? "Deleting…" : "Delete model"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -10,12 +10,12 @@ import type { Fit, Badge as FitCopy } from "./api"
  */
 const variantFor: Record<
   Exclude<FitCopy["level"], "none">,
-  "outline" | "destructive"
+  "warning" | "destructive"
 > = {
-  // Not destructive. Reduced speed installs exactly like full speed, it just
+  // Amber, not red. Reduced speed installs exactly like full speed, it just
   // runs slower, and styling it as a failure would discourage a setup that
   // measurably works.
-  notice: "outline",
+  notice: "warning",
   refuse: "destructive",
 }
 

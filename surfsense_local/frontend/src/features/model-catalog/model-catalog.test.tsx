@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { toast } from "sonner"
 
@@ -547,7 +547,10 @@ describe("model catalog", () => {
     expect(screen.getByText(/quantized from Qwen\/Qwen3-8B/)).toBeTruthy()
     await user.click(hit)
 
-    expect(await screen.findByText("Q4_K_M")).toBeTruthy()
+    const builds = await screen.findByRole("list", {
+      name: "Builds in unsloth/Qwen3-8B-GGUF",
+    })
+    expect(within(builds).getByText("Q4_K_M")).toBeTruthy()
     expect(
       screen.getByText(/Fit is estimated and checked before download/)
     ).toBeTruthy()

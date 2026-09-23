@@ -35,13 +35,30 @@ describe("install progress", () => {
 
   it("names the phase in one word, for somewhere with no room", () => {
     // The button carries this. A percentage there would resize it, and the row
-    // with it, on every frame.
+    // with it, on every frame. A phase still under way trails an ellipsis; a
+    // finished one does not.
+    expect(installView({ type: "starting" }).short).toBe("Starting…")
     expect(
       installView({ type: "downloading", completed: 1, total: 2 }).short
-    ).toBe("Downloading")
+    ).toBe("Downloading…")
     expect(installView({ type: "preparing", progress: 0.2 }).short).toBe(
-      "Preparing"
+      "Preparing…"
     )
+    expect(installView({ type: "verifying" }).short).toBe("Verifying…")
+    expect(installView({ type: "selecting" }).short).toBe("Selecting…")
+    expect(
+      installView({
+        type: "complete",
+        selection: {
+          model_type: "text_gen",
+          provider: "llamacpp",
+          connection_id: null,
+          name: "m",
+          updated_at: "",
+        },
+      }).short
+    ).toBe("Done")
+    expect(installView({ type: "error", message: "x" }).short).toBe("Failed")
   })
 
   it("prefers the server's own wording for the line under it", () => {

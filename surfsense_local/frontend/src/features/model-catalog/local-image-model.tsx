@@ -132,7 +132,7 @@ export function LocalImageModel({ disabled = false }: { disabled?: boolean }) {
                     {model.label}
                     {model.selected ? (
                       <Badge variant="secondary">
-                        {catalog.ready ? "In use" : "Starting..."}
+                        {catalog.ready ? "In use" : "Starting…"}
                       </Badge>
                     ) : null}
                   </p>

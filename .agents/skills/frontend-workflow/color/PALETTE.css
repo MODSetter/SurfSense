@@ -24,6 +24,7 @@
   --foreground: #1e1e1e;
   --destructive: #dc2626;
   --notice: #3f74c8;
+  --warning: #945005;
   --shadow-blur: 10px;
   --shadow-color: #000000;
   --sidebar-ring: #2e2e2e;
@@ -73,6 +74,7 @@
   --foreground: #e8e3da;
   --destructive: #ef4444;
   --notice: #3f74c8;
+  --warning: #e4a03c;
   --shadow-blur: 15px;
   --shadow-color: #000000;
   --sidebar-ring: #d1cfc0;
@@ -122,6 +124,7 @@
   --color-foreground: var(--foreground);
   --color-destructive: var(--destructive);
   --color-notice: var(--notice);
+  --color-warning: var(--warning);
   --color-shadow-blur: var(--shadow-blur);
   --color-shadow-color: var(--shadow-color);
   --color-sidebar-ring: var(--sidebar-ring);

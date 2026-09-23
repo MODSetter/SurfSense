@@ -1,6 +1,7 @@
 import { useId, useState } from "react"
 import {
   ChevronDownIcon,
+  DotIcon,
   DownloadIcon,
   SparklesIcon,
   Trash2Icon,
@@ -120,8 +121,12 @@ export function ModelCard({
             {row.support.reads_images ? (
               <Badge variant="outline">Reads images</Badge>
             ) : null}
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {lead.quantization} · {formatSize(lead.footprint_bytes)}
+            <span className="flex shrink-0 items-center text-xs text-muted-foreground">
+              {lead.quantization}
+              <DotIcon aria-hidden="true" className="size-3 shrink-0" />
+              <span className="tabular-nums">
+                {formatSize(lead.footprint_bytes)}
+              </span>
             </span>
           </div>
           {row.runnable ? (
