@@ -22,7 +22,7 @@ export function ChatModelsSettings({
 
   return (
     <ModelSlotSettings
-      title="Chat models"
+      title="Text generation models"
       description="The model that answers in chat. Run one on this computer, or use one from a server."
       slot="chat"
       modelType="text_gen"

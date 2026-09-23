@@ -129,12 +129,12 @@ const SETTINGS_SECTIONS = [
   },
   {
     id: "chat-models",
-    label: "Chat models",
+    label: "Chat",
     icon: Chat01Icon,
   },
   {
     id: "image-models",
-    label: "Image models",
+    label: "Image",
     icon: Image01Icon,
   },
   {

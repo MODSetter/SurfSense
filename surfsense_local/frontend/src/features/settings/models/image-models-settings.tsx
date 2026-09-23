@@ -20,7 +20,7 @@ export function ImageModelsSettings({
 
   return (
     <ModelSlotSettings
-      title="Image models"
+      title="Image generation models"
       description="The model that makes images in Studio. Run one on this computer, or use one from a server."
       slot="image"
       modelType="image_gen"

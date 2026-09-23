@@ -301,7 +301,7 @@ on search and repo reads, and the stream's generic error during an install.
 
 ## On the screen
 
-Settings has one section per model type, **Chat models** and **Image models**.
+Settings has one section per model type, **Chat** and **Image** in the nav, each headed **Text generation models** / **Image generation models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per

@@ -185,7 +185,7 @@ describe("chat model settings", () => {
     await user.click(screen.getByRole("button", { name: "Save server" }))
 
     expect(
-      await screen.findByRole("heading", { name: "Chat models" })
+      await screen.findByRole("heading", { name: "Text generation models" })
     ).toBeTruthy()
     expect(
       await screen.findByLabelText("Search models from My vLLM")
@@ -338,9 +338,13 @@ describe("chat model settings", () => {
     )
     expect(await screen.findByRole("progressbar")).toBeTruthy()
 
-    await user.click(screen.getByRole("button", { name: "Chat models" }))
+    await user.click(
+      screen.getByRole("button", { name: "Text generation models" })
+    )
 
-    expect(screen.getByRole("heading", { name: "Chat models" })).toBeTruthy()
+    expect(
+      screen.getByRole("heading", { name: "Text generation models" })
+    ).toBeTruthy()
     expect(await screen.findByText("Qwen3 8B Q4_K_M")).toBeTruthy()
     expect(screen.getByRole("progressbar")).toBeTruthy()
 

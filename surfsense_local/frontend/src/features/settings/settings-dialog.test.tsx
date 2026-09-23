@@ -142,10 +142,10 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup()
 
     render(<SettingsHarness />)
-    await user.click(screen.getByRole("button", { name: "Chat models" }))
+    await user.click(screen.getByRole("button", { name: "Chat" }))
 
     expect(
-      await screen.findByRole("heading", { name: "Chat models" })
+      await screen.findByRole("heading", { name: "Text generation models" })
     ).toBeTruthy()
     // The model in use is named even when no local file answers to it.
     const chat = await screen.findByRole("region", {
@@ -161,14 +161,14 @@ describe("SettingsDialog", () => {
     // too much in height for a fixed header to make sense.
     expect(
       scrollViewport?.contains(
-        screen.getByRole("heading", { name: "Chat models" })
+        screen.getByRole("heading", { name: "Text generation models" })
       )
     ).toBe(true)
 
-    await user.click(screen.getByRole("button", { name: "Image models" }))
+    await user.click(screen.getByRole("button", { name: "Image" }))
 
     expect(
-      await screen.findByRole("heading", { name: "Image models" })
+      await screen.findByRole("heading", { name: "Image generation models" })
     ).toBeTruthy()
     const image = await screen.findByRole("region", {
       name: "image model in use",
@@ -185,9 +185,11 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup()
 
     render(<SettingsHarness />)
-    await user.click(screen.getByRole("button", { name: "Chat models" }))
+    await user.click(screen.getByRole("button", { name: "Chat" }))
 
-    expect(screen.getByRole("heading", { name: "Chat models" })).toBeTruthy()
+    expect(
+      screen.getByRole("heading", { name: "Text generation models" })
+    ).toBeTruthy()
     expect(screen.queryByText("No chat model yet")).toBeNull()
     expect(screen.queryByRole("status")).toBeNull()
   })
