@@ -6,6 +6,7 @@ from urllib.parse import urlsplit, urlunsplit
 import httpx
 
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
+from modules.llm.catalog.remote.rows import CUSTOM
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 
@@ -15,9 +16,6 @@ DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 # for it, "catalog" the reviewed table shipped with the app. Nothing is guessed:
 # an id neither source knows stays "unknown" and the picker says so.
 CapabilitySource = Literal["declared", "catalog", "unknown"]
-
-# The catalog provider of an endpoint the manifest does not list.
-CUSTOM = "custom"
 
 
 # What an endpoint's declared output modality says a model is for.

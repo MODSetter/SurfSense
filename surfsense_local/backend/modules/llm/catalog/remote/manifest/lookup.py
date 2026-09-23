@@ -37,6 +37,10 @@ class RemoteLookup:
             for model_id, model in provider.models.items():
                 self._carriers[model_id].append(model)
 
+    @property
+    def manifest(self) -> RemoteManifest:
+        return self._manifest
+
     def has_provider(self, provider: str) -> bool:
         return provider in self._manifest.providers
 

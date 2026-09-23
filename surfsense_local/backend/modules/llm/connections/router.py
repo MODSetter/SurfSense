@@ -9,8 +9,8 @@ from sqlalchemy.orm import Session
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
+from modules.llm.catalog.remote.rows import CUSTOM
 from modules.llm.connections.service import (
-    CUSTOM,
     discover_models,
     normalize_base_url,
     probe_connection,
