@@ -37,38 +37,40 @@ manifest ─► classifier ─► support ─► catalog ─► rows
 
 ## The shared vocabulary
 
-`catalog/types.py` is the only module both sides import:
+Two enums, and the only words local and remote share:
 
 ```python
-class Source(StrEnum):
-    LOCAL = "local"
-    REMOTE = "remote"
-
-class ModelType(StrEnum):          # what a model is for: the capability filter
+# modules/llm/model_type.py: a primitive of the whole llm module
+class ModelType(StrEnum):          # what a model is for
     TEXT_GEN = "text_gen"
     IMAGE_GEN = "image_gen"
     IMAGE_EDIT = "image_edit"
     VIDEO_GEN = "video_gen"
     AUDIO_GEN = "audio_gen"
+
+# modules/llm/catalog/source.py
+class Source(StrEnum):             # where a model comes from
+    LOCAL = "local"
+    REMOTE = "remote"
 ```
+
+`ModelType` sits at the root of `modules/llm/`, not inside `catalog/`, because it is more than a filter: the classifiers produce it, the catalogs filter on it, and selection, the database and the pickers key on it. `Source` is only the catalog's filter.
 
 - **A type is a filter, a support is a badge.** "Reads images" does not make a model an image model. Each side's support is its own dataclass, because the fields each can know differ.
 - **None is not no.** A support field is `None` when the evidence is silent, as `taxonomy/supports.py` already holds for models.dev.
 - **Unknown is a state, not a type.** A remote id nothing recognises has no types and `known=False`. The capability filter offers "Unknown" only when such rows exist.
 - **One word per idea.** `completion`, `image_generation` as a capability, and the curated `vision` go.
 
-### Types and roles
+### A type is a selection
 
-The app has two roles, `generation` and `image_generation`. `catalog/roles.py` holds the one mapping:
+There is no separate list of roles. A role would be a second word for each type: today `generation` is `TEXT_GEN` and `image_generation` is `IMAGE_GEN`, one to one. So the type is the selection, and the user picks one model for each `ModelType`:
 
-```python
-ROLE_FOR_TYPE = {
-    ModelType.TEXT_GEN: ModelRole.GENERATION,
-    ModelType.IMAGE_GEN: ModelRole.IMAGE_GENERATION,
-}
-```
+- **`selected_models` is keyed by type.** The column `role` becomes `model_type`, its CHECK lists the five values, and a hand-written migration maps `generation` to `text_gen` and `image_generation` to `image_gen`. The provider CHECK follows: `llamacpp` only for `text_gen`, `sdcpp` only for `image_gen`, `openai_compatible` for any.
+- **One rule decides who can fill a slot.** A model can be selected for a type when its classification contains that type, or when it is unknown. Selection, the catalog and the pickers read the same rule, so a model is selectable everywhere or nowhere.
+- **Every type is listed and selectable**, including those no feature reads yet. Chat, titles and Studio's writing read `text_gen`; Studio's images read `image_gen`; `image_edit`, `video_gen` and `audio_gen` have no reader yet, and their setting says so rather than hiding. The feature that first reads one brings the client that calls it.
+- **Adding a type is adding an enum value**, the classifier groups that emit it, and a CHECK migration.
 
-Both catalogs list only rows with a type in that mapping, and the filter offers only those types. `IMAGE_EDIT`, `VIDEO_GEN` and `AUDIO_GEN` are still classified, because the classifier states what is true, and a new role unlocks its models with one line here. Selection and the chat and image pickers apply the same mapping, so a model is selectable for a role everywhere or nowhere.
+A second role over one type, such as a separate model for titles, would bring a mapping back. It is introduced when such a role exists, with the case in front of it, not before.
 
 ## Manifests
 
@@ -326,9 +328,9 @@ Each step tries the full id, then its last path segment, so `Qwen/Qwen3-8B` on a
 ## Layout
 
 ```text
+modules/llm/model_type.py  ModelType: the one primitive local, remote, selection and the database share
 modules/llm/catalog/
-  types.py                 Source, ModelType: the only shared words
-  roles.py                 ROLE_FOR_TYPE
+  source.py                Source: the catalog's source filter
   router.py                mounts both sides
   local/
     manifest/              models.json, schema, loader
@@ -350,7 +352,7 @@ modules/llm/catalog/
 
 Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD and keys stay in `connections/`.
 
-Adding a local type is a group in the local classifier and a line in `roles.py`. Adding a remote provider is a manifest refresh. Adding a kind of source is a new side under `catalog/` with the same four files.
+Adding a type is an enum value in `model_type.py`, the classifier groups that emit it, and a CHECK migration. Adding a remote provider is a manifest refresh. Adding a kind of source is a new side under `catalog/` with the same four files.
 
 ## HTTP
 
@@ -366,7 +368,7 @@ The screen paints local and remote rows from the two offline routes at once, the
 
 ## The screen
 
-- One list, two filters: **Source** (All, Local, Remote) and **Capability** (Text, Image, and Unknown when any row is).
+- One list, two filters: **Source** (All, Local, Remote) and **Capability** (each type that has rows, and Unknown when any row is).
 - A local row keeps its fit badge, Download, Use and Delete, and the recommendation mark. A remote row shows its provider and connection, Test and Use, or Add a key.
 - Hugging Face search is its own box, because it sends what the user types to a third party.
 - Connections (URL, key) are managed in a settings panel, `features/connections/`. Their models appear in the catalog.
@@ -375,7 +377,7 @@ The screen paints local and remote rows from the two offline routes at once, the
 
 Each step ships alone and leaves the app working.
 
-1. **Shared words.** `types.py` and `roles.py`; selection and the pickers use `roles.py`.
+1. **Shared words.** `model_type.py` and `source.py`; `selected_models` keyed by `model_type`, with its migration; `/llm/selection/{model_type}`; selection and the pickers use the one rule.
 2. **Remote manifest.** The refresh script keeps providers and evidence; the classifier and support move under `catalog/remote/` and run at lookup; connections read types from them. Embedders stop reading as chat.
 3. **Remote catalog.** `catalog.py`, the provider id on a connection, presets from the manifest, the two remote routes.
 4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable.
@@ -387,7 +389,7 @@ Each step ships alone and leaves the app working.
 
 - Two catalogs, one shared vocabulary.
 - Manifests hold evidence, are refreshed by script and reviewed, and are never fetched at packaging.
-- Types with no role are classified and not listed.
+- `ModelType` is a primitive of `modules/llm/`, and a type is a selection: no roles. Every type is listed and selectable, and one no feature reads yet says so.
 - Remote providers are browsable before they are connected.
 - A connection stores its manifest provider; a typed URL is `custom`.
 - A remote model is identified by `provider/model`; no provider is excluded and no entries are merged.
