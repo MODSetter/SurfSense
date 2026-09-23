@@ -48,7 +48,7 @@ from curated.huggingface import find_variant, read_header
 from curated.projector import find_projector
 from curated.tensor_bytes import decode_fraction
 
-from modules.llm.catalog import SCHEMA_VERSION, CuratedModelsManifest
+from modules.llm.catalog.manifest import SCHEMA_VERSION, CuratedModelsManifest
 from modules.llm.fit import ModelShape
 from modules.llm.gguf import to_shape
 

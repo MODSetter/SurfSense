@@ -64,25 +64,31 @@ def test_types_come_from_the_endpoint_then_the_catalogue_then_nowhere() -> None:
     assert declared.capability_source == "declared"
     assert declared.capability_known is True
 
-    assert models["gpt-image-2"].types == (ModelType.IMAGE_GEN,)
+    assert models["gpt-image-2"].types == (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT)
     assert models["gpt-image-2"].capability_source == "catalog"
 
     # Resolved by the last path segment, for the ids Gemini and gateways prefix.
-    # Both roles at once is a real answer, not a conflict: this model returns
+    # Several types at once is a real answer, not a conflict: this model returns
     # text alongside the image, and dropping either would hide it from a picker.
     gemini = models["models/gemini-3.1-flash-image"]
-    assert gemini.types == (ModelType.TEXT_GEN, ModelType.IMAGE_GEN)
+    assert gemini.types == (
+        ModelType.TEXT_GEN,
+        ModelType.IMAGE_GEN,
+        ModelType.IMAGE_EDIT,
+    )
     assert gemini.capability_source == "catalog"
 
     assert models["gpt-4o-mini"].types == (ModelType.TEXT_GEN,)
     assert models["gpt-4o-mini"].capability_source == "catalog"
 
-    # Knowing a model does neither is an answer, and it is what keeps the picker
-    # from offering speech and video models for chat.
-    for name in ("whisper-large-v3", "veo-3.1-generate-preview"):
-        assert models[name].types == ()
-        assert models[name].capability_source == "catalog"
-        assert models[name].capability_known is True
+    # Knowing a model is none of the types is an answer, and it is what keeps
+    # a transcriber out of every picker.
+    assert models["whisper-large-v3"].types == ()
+    assert models["whisper-large-v3"].capability_source == "catalog"
+    assert models["whisper-large-v3"].capability_known is True
+
+    # The manifest keeps the modalities, so a video model is one, not "neither".
+    assert models["veo-3.1-generate-preview"].types == (ModelType.VIDEO_GEN,)
 
     # Absent from models.dev, so unknown rather than guessed. This is the model
     # that used to be labelled a chat model by reading its name.

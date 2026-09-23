@@ -339,9 +339,9 @@ Opening a repo picks its builds with `catalog/local/builds.py`, the same file-pi
 
 For a connection to a manifest provider, the model is looked up under that provider only: OpenRouter's rows describe OpenRouter. An id with no provider to scope it, from a custom endpoint or new since the last refresh, is looked up across providers, in order:
 
-1. **The maker's own entry**, when the id's prefix names a provider that carries it: `deepseek/deepseek-v3.2` reads DeepSeek's.
-2. **Agreement**: every provider carrying the id classifies it the same way.
-3. **Otherwise unknown**, never a majority vote.
+1. **The maker's own entry**, when the id's prefix names a provider that carries it, under the id without the prefix or with it: `openai/gpt-5.5` reads OpenAI's `gpt-5.5`.
+2. **The types every provider agrees on**: the intersection of what each provider carrying the id says, and support fields only where they all report the same value. Only 30 of 3,814 ids get a different type from different providers, mostly bare OpenAI ids one gateway extends with image output; the intersection labels `gpt-5` a text model rather than unknown, and never claims a type any provider disputes.
+3. **Otherwise unknown**: nothing carries the id.
 
 Each step tries the full id, then its last path segment, so `Qwen/Qwen3-8B` on a vLLM server finds the manifest's rows for it.
 
@@ -402,8 +402,8 @@ The screen paints local and remote rows from the two offline routes at once, the
 Each step ships alone and leaves the app working.
 
 1. **Shared words.** `model_type.py` and `source.py`; `selected_models` keyed by `model_type`, with its migration; `/llm/selection/{model_type}`; selection and the pickers use the one rule.
-2. **Remote manifest.** The refresh script keeps providers and evidence; the classifier and support move under `catalog/remote/` and run at lookup; connections read types from them. Embedders stop reading as chat.
-3. **Remote catalog.** `catalog.py`, the provider id on a connection, presets from the manifest, the two remote routes.
+2. **Remote manifest.** The refresh script keeps providers and evidence; the classifier and support move under `catalog/remote/` and run at lookup; connections read types from them. Embedders stop reading as chat. The `connect` block and `call` wait for step 3, which is their first reader.
+3. **Remote catalog.** `connect` and `call` in the manifest, `catalog.py`, the provider id on a connection, presets from the manifest, the two remote routes.
 4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable.
 5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; the recommendation steps down builds before models.
 6. **The screen.** One list, both filters; connections become a settings panel.

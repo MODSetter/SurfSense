@@ -1,18 +1,37 @@
-"""Fixtures are real models.dev entries; counts were measured over all 223 providers."""
+"""Shapes are real models.dev entries; counts were measured over all 223 providers."""
 
 import pytest
 
-from modules.llm.taxonomy import ModelType, classify
+from modules.llm.catalog.remote.classifier import classify
+from modules.llm.catalog.remote.manifest.schema import RemoteModel
+from modules.llm.model_type import ModelType
 
 pytestmark = pytest.mark.unit
 
 
-def _entry(inputs: list[str], outputs: list[str], **rest: object) -> dict:
-    return {
-        "modalities": {"input": inputs, "output": outputs},
-        "limit": {"context": 128000},
-        **rest,
-    }
+def _entry(
+    inputs: list[str],
+    outputs: list[str],
+    *,
+    context: int | None = 128000,
+    output_limit: int | None = None,
+) -> RemoteModel:
+    """A manifest entry with everything the classifier does not read left unset."""
+    return RemoteModel(
+        name="model",
+        family=None,
+        description=None,
+        release_date=None,
+        status=None,
+        modalities={"input": inputs, "output": outputs},
+        context=context,
+        output_limit=output_limit,
+        tool_call=None,
+        reasoning=None,
+        reasoning_options=None,
+        structured_output=None,
+        temperature=None,
+    )
 
 
 def test_text_on_both_sides_is_the_chat_case() -> None:
@@ -35,7 +54,7 @@ def test_an_image_model_that_also_emits_text_is_not_a_chat_model() -> None:
     """The GPT image models declare text output, so modalities alone put them
     in the chat tab, where they answer with a picture. They report no context
     window, which a model you can converse with always has."""
-    gpt_image = _entry(["text", "image"], ["text", "image"], limit={"context": 0})
+    gpt_image = _entry(["text", "image"], ["text", "image"], context=None)
 
     assert classify("gpt-image-1.5", gpt_image) == {
         ModelType.IMAGE_GEN,
@@ -84,20 +103,20 @@ def test_video_out_is_video_generation() -> None:
 
 def test_an_entry_that_declares_nothing_gets_no_type() -> None:
     """Skipped, not defaulted: every default lands it in a tab where it fails."""
-    assert classify("mystery-model", {}) == set()
+    assert classify("mystery-model", _entry([], [])) == set()
 
 
 def test_an_embedding_model_is_not_a_chat_model() -> None:
     """Text on both sides and it cannot answer a word — the one type the
     declared modalities hide."""
-    embedding = _entry(["text"], ["text"], limit={"context": 8191, "output": 1536})
+    embedding = _entry(["text"], ["text"], context=8191, output_limit=1536)
 
     assert classify("text-embedding-3-small", embedding) == set()
 
 
 def test_a_reranker_is_not_a_chat_model() -> None:
     """Its output limit is an ordinary 4096, so the name has to refuse it."""
-    reranker = _entry(["text"], ["text"], limit={"context": 128000, "output": 4096})
+    reranker = _entry(["text"], ["text"], context=128000, output_limit=4096)
 
     assert classify("Qwen/Qwen3-Reranker-4B", reranker) == set()
 
@@ -105,8 +124,6 @@ def test_a_reranker_is_not_a_chat_model() -> None:
 def test_a_small_output_limit_does_not_make_a_model_an_embedder() -> None:
     """Guards the rule we deliberately did not write: across 223 providers it
     refuses one model the names miss, and that one is a support chatbot."""
-    support_bot = _entry(
-        ["text"], ["text"], limit={"context": 8192, "output": 512}, cost={"output": 0}
-    )
+    support_bot = _entry(["text"], ["text"], context=8192, output_limit=512)
 
     assert classify("nano-gpt-help", support_bot) == {ModelType.TEXT_GEN}

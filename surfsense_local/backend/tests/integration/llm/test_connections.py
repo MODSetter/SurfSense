@@ -117,6 +117,25 @@ async def test_a_declared_video_model_fills_the_video_slot_and_nothing_else(
     assert refused.status_code == 422
 
 
+async def test_a_catalogued_embedder_fills_no_slot(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The manifest keeps the evidence the classifier needs, so an embedder the
+    endpoint lists without modalities is known to be no chat model."""
+    monkeypatch.setattr(
+        conftest,
+        "REMOTE_MODELS",
+        [*conftest.REMOTE_MODELS, {"id": "text-embedding-3-small"}],
+    )
+    connection = await _connect(client, openai_server)
+
+    models = (await client.get(f"/llm/connections/{connection['id']}/models")).json()
+    embedder = next(m for m in models if m["name"] == "text-embedding-3-small")
+
+    assert embedder["capability_source"] == "catalog"
+    assert (embedder["types"], embedder["selectable_for"]) == ([], [])
+
+
 async def test_connection_update_distinguishes_omitted_and_null_secret(
     client: AsyncClient, openai_server: str
 ) -> None:

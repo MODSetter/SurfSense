@@ -7,7 +7,8 @@ from pathlib import Path
 import httpx
 import pytest
 
-from modules.llm.catalog import CatalogService, load_curated_models
+from modules.llm.catalog.manifest import load_curated_models
+from modules.llm.catalog.service import CatalogService
 from modules.llm.gguf.source import PROBE_BYTES
 from modules.llm.hardware import GpuStatus
 from tests.unit.llm.gguf.build import STRING, UINT32, array, gguf, kv

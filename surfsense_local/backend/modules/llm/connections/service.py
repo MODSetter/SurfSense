@@ -5,7 +5,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
-from modules.llm.connections.model_capabilities import lookup_capabilities
+from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 
@@ -17,8 +17,6 @@ DISCOVERY_TIMEOUT = httpx.Timeout(10.0, connect=5.0)
 CapabilitySource = Literal["declared", "catalog", "unknown"]
 
 
-# The words the reviewed catalogue still uses, until it stores model types.
-_CATALOGUED_AS = {"completion": ModelType.TEXT_GEN, "image_generation": ModelType.IMAGE_GEN}
 # What an endpoint's declared output modality says a model is for.
 _DECLARED_AS = {
     "text": ModelType.TEXT_GEN,
@@ -115,9 +113,10 @@ def _classify(name: str, modalities: set[str]) -> DiscoveredModel:
             if modality in modalities
         )
         return DiscoveredModel(name, declared, "declared")
-    catalogued = lookup_capabilities(name)
-    if catalogued is not None:
-        types = tuple(_CATALOGUED_AS[capability] for capability in catalogued)
+    catalogued = remote_lookup().classify(name)
+    if catalogued.known:
+        # Enum order, so a model's types read the same wherever they are shown.
+        types = tuple(t for t in ModelType if t in catalogued.types)
         return DiscoveredModel(name, types, "catalog")
     return DiscoveredModel(name, (), "unknown")
 
