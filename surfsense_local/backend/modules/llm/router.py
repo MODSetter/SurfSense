@@ -12,6 +12,7 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.egress import service as egress
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.catalog.dependencies import CatalogServiceDep
+from modules.llm.catalog.remote.router import router as remote_catalog_router
 from modules.llm.catalog.router import router as catalog_router
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import LocalRuntimeDep, ProviderDep
@@ -36,6 +37,7 @@ from shared.config import get_llm_settings
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(catalog_router)
+router.include_router(remote_catalog_router)
 router.include_router(connections_router)
 
 

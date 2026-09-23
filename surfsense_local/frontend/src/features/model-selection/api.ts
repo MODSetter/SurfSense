@@ -45,6 +45,7 @@ export type Connection = {
   label: string
   provider: "openai_compatible"
   base_url: string
+  catalog_provider: string
   has_api_key: boolean
   created_at: string
   updated_at: string
@@ -56,6 +57,31 @@ export type ConnectionWrite = {
   base_url: string
   api_key?: string | null
   allow_unverified: boolean
+  /** A remote manifest provider id, or "custom" for anything it does not list. */
+  catalog_provider: string
+}
+
+/** The catalog provider of a connection the manifest does not list. */
+export const CUSTOM_PROVIDER = "custom"
+
+/** How a connection reaches a provider, from the remote manifest. */
+export type ProviderConnect = {
+  status: "ready" | "needs_account_details" | "needs_url" | "unreachable"
+  base_url: string | null
+  base_url_origin: "models.dev" | "reviewed" | null
+  account_fields: { name: string; label: string }[]
+  key: "required" | "none"
+  local: boolean
+  reason: string | null
+}
+
+export type RemoteProvider = {
+  id: string
+  name: string
+  doc: string | null
+  connect: ProviderConnect
+  type_counts: Partial<Record<ModelType, number>>
+  connections: number
 }
 
 export type ConnectionModel = {
@@ -210,6 +236,12 @@ export function chatCandidates(models: ConnectionModel[]): SelectableModel[] {
       provider: "openai_compatible",
       installed: true,
     }))
+}
+
+export function getRemoteProviders(
+  signal?: AbortSignal
+): Promise<RemoteProvider[]> {
+  return requestJson<RemoteProvider[]>("/llm/catalog/remote", { signal })
 }
 
 export function getConnections(signal?: AbortSignal): Promise<Connection[]> {

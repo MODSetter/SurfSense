@@ -90,6 +90,23 @@ Each model's `types` come from the first of three sources that knows it, and not
 
 Each listed model also carries `selectable_for`, the slots it can fill, decided by the one rule in [`selectable.py`](../../surfsense_local/backend/modules/llm/selectable.py): the types it is, or every type when it is unknown. The pickers read that field rather than deciding, and choosing a model applies the same rule, so a model is selectable everywhere or nowhere. A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.
 
+## The remote catalog
+
+`catalog/remote/router.py` serves the manifest and the connections as rows ([`catalog.py`](../../surfsense_local/backend/modules/llm/catalog/remote/catalog.py)). All 8,000-odd remote rows at once would be several megabytes, so providers come first and a provider's rows when it is opened.
+
+| Method | Path | Returns | Network |
+|---|---|---|---|
+| `GET` | `/llm/catalog/remote` | every provider: `connect`, its model count per type, and how many connections name it | none |
+| `GET` | `/llm/catalog/remote/providers/{id}` | that provider's rows: `not_connected`, or one `unchecked` row per connection that names it | none |
+| `GET` | `/llm/catalog/remote/connections/{id}` | that connection's rows checked against its live listing | that host |
+
+- A row carries its `availability`: `not_connected`, `unchecked`, `available`, `not_served` (retired, or the key cannot reach it), `could_not_check`, or `unusable` with a `reason`. An unusable row, from an unreachable provider or a model served only on `/responses` or through another protocol, has an empty `selectable_for`.
+- Each connection has its own rows, because two keys to one provider can reach different models.
+- A listed id the provider's manifest entry lacks, one newer than the last refresh, is added as `available`. A `custom` connection's rows are its listing and nothing else.
+- An endpoint that is down leaves the manifest rows `could_not_check` with a `200`, not a `502`: an endpoint being down is not its models disappearing.
+- Deprecated models are left out unless `include_deprecated=true`.
+- `GET /llm/connections/{connection_id}/models` still backs the connection cards and the chat picker; it goes when the model screen moves onto these routes.
+
 ## Runtime
 
 Chat goes through `OpenAICompatibleChatProvider(base_url, api_key)`:
@@ -140,7 +157,7 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 ## Frontend
 
 - The model settings list connection cards. Each card loads its own models, so a slow or failed endpoint does not hold up the others, and a model can be assigned to chat or to image after an optional test.
-- The connection form suggests base URLs for OpenAI, OpenRouter, Together AI, Groq, DeepSeek, Mistral, Fireworks, xAI, Cerebras and Google Gemini, and for local Ollama, LM Studio and vLLM servers.
+- The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. A local or custom server's URL is always typed, since its port is whatever its owner set; the examples are placeholder text only. The save sends `catalog_provider`.
 
 ## Known gaps
 
