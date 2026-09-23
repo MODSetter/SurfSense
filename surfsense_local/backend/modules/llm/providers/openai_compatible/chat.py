@@ -74,6 +74,8 @@ class OpenAICompatibleChatProvider:
                 model.name,
                 installed=True,
                 capabilities=model.types,
+                types=model.types,
+                known=model.capability_known,
             )
             for model in discovered
         ]

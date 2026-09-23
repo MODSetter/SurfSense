@@ -28,6 +28,9 @@ from pathlib import Path
 
 import httpx
 
+from modules.llm.catalog.local.classifier import classify
+from modules.llm.catalog.local.downloaded import read_cached
+from modules.llm.gguf.file_kind import FileKind, kind_of
 from modules.llm.providers.llamacpp.capabilities import Capabilities, read_capabilities
 from modules.llm.providers.llamacpp.messages import for_template
 from modules.llm.providers.llamacpp.router_client import RouterClient
@@ -36,6 +39,8 @@ from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatPro
 from modules.llm.providers.types import Message, Model
 
 PROVIDER = "llamacpp"
+# The first part of a split build is listed as a shard; it is the model.
+_MODEL_KINDS = frozenset({FileKind.MODEL, FileKind.SHARD})
 
 logger = logging.getLogger(__name__)
 
@@ -109,15 +114,37 @@ class LlamaCppProvider:
             return None
 
     async def models(self) -> list[Model]:
-        """Everything in the models directory, resident or not.
+        """Every model in the models directory, resident or not, typed from its
+        own header.
 
         The router auto-discovers the directory, so installed state is a fact
-        about disk rather than something we track separately.
+        about disk. It also lists what is not a model (a projector beside its
+        weights), and a model that is not a chat model (a downloaded embedder),
+        so each file's header says which it is.
         """
-        return [
-            Model(model.id, installed=True, capabilities=("completion",))
-            for model in await self._router.models()
-        ]
+        models = []
+        for listed in await self._router.models():
+            typed = self._typed(listed.id)
+            if typed is not None:
+                models.append(typed)
+        return models
+
+    def _typed(self, name: str) -> Model | None:
+        """None for a file that is not a model at all."""
+        if self._models_dir is None:
+            return Model(name, installed=True, known=False)
+        header = read_cached(self._models_dir / f"{name}.gguf")
+        if header is not None and kind_of(header).kind not in _MODEL_KINDS:
+            return None
+        architecture = str(header.metadata.get("general.architecture", "")) if header else ""
+        found = classify(architecture, readable=header is not None)
+        return Model(
+            name,
+            installed=True,
+            capabilities=tuple(t.value for t in found.types),
+            types=found.types,
+            known=found.known,
+        )
 
     async def delete(self, name: str) -> None:
         """Remove the weights from disk.

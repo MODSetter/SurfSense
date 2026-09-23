@@ -26,6 +26,9 @@ class ModelRead(BaseModel):
     installed: bool
     capabilities: list[str]
     display_name: str | None = None
+    types: list[ModelType] = []
+    # The slots it can fill, by the one rule selection and every picker share.
+    selectable_for: list[ModelType] = []
 
 
 class ModelDeleteRead(BaseModel):

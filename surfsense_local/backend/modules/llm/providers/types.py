@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from modules.llm.model_type import ModelType
+
 
 @dataclass(frozen=True)
 class Model:
@@ -9,6 +11,10 @@ class Model:
     installed: bool
     capabilities: tuple[str, ...] = ()
     display_name: str | None = None
+    # What the model is for. `known` is False where nothing could say, and an
+    # unknown model fills every slot: the user can see it answer first.
+    types: tuple[ModelType, ...] = ()
+    known: bool = True
 
 
 @dataclass(frozen=True)
