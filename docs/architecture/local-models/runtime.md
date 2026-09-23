@@ -195,7 +195,7 @@ half-written INI never loads.
 
 ## From download to answerable
 
-`CatalogService.reprice()` writes the preset for every `.gguf` in the models
+llama.cpp's catalog engine, `LlamaCppEngine.reprice()` ([`models_folder/preset.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/models_folder/preset.py)), writes the preset for every `.gguf` in the models
 directory, at API startup (on the warm thread, after the device probe), after
 every install and after every delete. At startup, because a model placed in the
 directory by hand would otherwise load at llama.cpp's default window, and a stale

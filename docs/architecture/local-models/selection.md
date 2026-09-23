@@ -40,8 +40,10 @@ fingerprints and stores:
 - **Local text** (`llamacpp`): the type must be `text_gen`, there is no
   connection, and the router must list the model as installed with the
   `completion` capability.
-- **Local image** (`sdcpp`): the type must be `image_gen`, and the model must be
-  one of the bundled image models and downloaded.
+- **Local image** (`sdcpp`): the type must be `image_gen`, there is no
+  connection, and the name must be a curated image build installed in the
+  images folder, named by its first weights file as a chat build is
+  ([`catalog.md`](catalog.md)).
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
