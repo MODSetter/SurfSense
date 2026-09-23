@@ -6,6 +6,7 @@ both the Metal and CPU devices. That number decides PARTIAL against TOO_BIG, so
 it is worth asking the OS directly.
 """
 
+import ctypes
 import os
 import subprocess
 import sys
@@ -17,6 +18,8 @@ def available_bytes() -> int:
         return _darwin()
     if sys.platform.startswith("linux"):
         return _linux()
+    if sys.platform == "win32":
+        return _windows()
     return _total()
 
 
@@ -60,3 +63,36 @@ def _darwin() -> int:
 
     reclaimable = counts.get("Pages free", 0) + counts.get("Pages inactive", 0)
     return reclaimable * page_size if reclaimable else _total()
+
+
+class _MemoryStatusEx(ctypes.Structure):
+    """MEMORYSTATUSEX, as `GlobalMemoryStatusEx` fills it."""
+
+    _fields_ = [
+        ("dwLength", ctypes.c_ulong),
+        ("dwMemoryLoad", ctypes.c_ulong),
+        ("ullTotalPhys", ctypes.c_ulonglong),
+        ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong),
+        ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong),
+        ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+    ]
+
+
+def _windows() -> int:
+    """Available physical memory, the figure Task Manager calls Available.
+
+    Windows has no `os.sysconf`, so without this the live budget read 0 and
+    planned every model on a machine with no GPU at the context floor.
+    """
+    status = _MemoryStatusEx()
+    status.dwLength = ctypes.sizeof(_MemoryStatusEx)
+    try:
+        read = ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status))
+    except (AttributeError, OSError):
+        return 0
+    if not read:
+        return 0
+    return status.ullAvailPhys or status.ullTotalPhys
