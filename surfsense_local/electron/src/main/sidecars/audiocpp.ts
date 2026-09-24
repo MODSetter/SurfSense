@@ -15,7 +15,7 @@ export const AUDIOCPP_SIDECAR = "audiocpp"
 /** The model list the API writes; command-line flags override the rest of it. */
 export const SERVER_CONFIG = "server.json"
 
-/** eSpeak-ng as fetch-audiocpp.mjs stages it, from the espeakng-loader wheel. */
+/** eSpeak-ng as scripts/audiocpp/espeak.mjs stages it, from the espeakng-loader wheel. */
 const ESPEAK_DIR = "espeak"
 const ESPEAK_LIBRARY: Record<string, string> = {
   linux: "libespeak-ng.so",

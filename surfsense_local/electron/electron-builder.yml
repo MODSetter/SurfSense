@@ -35,6 +35,10 @@ extraResources:
   # Empty on hosts with no prebuilt binary; the sidecar then simply does not start.
   - from: sdcpp
     to: sdcpp
+  # audio.cpp's server for podcast voices, with the eSpeak-ng it phonemises
+  # through (scripts/audiocpp/). Voice models are downloaded, never bundled.
+  - from: audiocpp
+    to: audiocpp
 
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml. Both manifests now sit on the
