@@ -7,11 +7,16 @@ import { BuildAction } from "@/features/models/local/chat/build-action"
 import { FitBadge } from "@/features/models/local/chat/fit-badge"
 import { InstallProgress } from "@/features/models/local/chat/install-progress"
 import type { InstallState } from "@/features/models/local/create-install"
+import { intl } from "@/i18n/intl"
 
 import { leadBuild } from "./local-choices"
 
 const formatSize = (bytes: number) =>
-  `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
+  intl.formatNumber(bytes / 1e9, {
+    style: "unit",
+    unit: "gigabyte",
+    maximumFractionDigits: 1,
+  })
 
 /**
  * Every model this computer can run, one line each, the recommended one first.
@@ -41,7 +46,10 @@ export function LocalModelList({
       // Four rows and half of the next: the cut row says the list scrolls.
       viewportClassName="max-h-72"
     >
-      <ul className="divide-y" aria-label="Models for this computer">
+      <ul
+        className="divide-y"
+        aria-label={intl.formatMessage({ id: "onboarding_model_list_aria" })}
+      >
         {rows.map((row) => {
           const build = leadBuild(row)
           if (!build) return null
@@ -58,10 +66,18 @@ export function LocalModelList({
                       {row.name}
                     </span>
                     {row.recommended ? (
-                      <Badge variant="secondary">Recommended</Badge>
+                      <Badge variant="secondary">
+                        {intl.formatMessage({
+                          id: "onboarding_model_list_recommended_label",
+                        })}
+                      </Badge>
                     ) : null}
                     {row.support.reads_images ? (
-                      <Badge variant="secondary">Vision</Badge>
+                      <Badge variant="secondary">
+                        {intl.formatMessage({
+                          id: "onboarding_model_list_vision_label",
+                        })}
+                      </Badge>
                     ) : null}
                     <FitBadge fit={build.fit} copy={build.badge} />
                   </div>
@@ -74,7 +90,11 @@ export function LocalModelList({
                     {installed ? (
                       <>
                         <DotIcon aria-hidden="true" className="size-3" />
-                        <span>On this computer</span>
+                        <span>
+                          {intl.formatMessage({
+                            id: "onboarding_model_list_installed_label",
+                          })}
+                        </span>
                       </>
                     ) : null}
                   </p>
@@ -94,7 +114,12 @@ export function LocalModelList({
                       size="icon-sm"
                       variant="destructive"
                       disabled={disabled}
-                      aria-label={`Delete ${row.name}`}
+                      aria-label={intl.formatMessage(
+                        { id: "onboarding_model_list_delete_aria" },
+                        {
+                          name: row.name,
+                        }
+                      )}
                       onClick={() => onDelete(row)}
                     >
                       <Trash2Icon />

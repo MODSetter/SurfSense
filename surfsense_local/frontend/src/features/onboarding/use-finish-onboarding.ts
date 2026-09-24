@@ -2,6 +2,7 @@ import { useState } from "react"
 
 import type { ModelSelection } from "@/features/models/selection/api"
 import { useSelection } from "@/features/models/selection/use-selection"
+import { intl } from "@/i18n/intl"
 
 import { completeOnboarding } from "./api"
 
@@ -20,7 +21,9 @@ export function useFinishOnboarding(
   const finish = async () => {
     const selection = chat.data
     if (!selection) {
-      setError("Choose a chat model first")
+      setError(
+        intl.formatMessage({ id: "onboarding_finish_no_chat_model_error" })
+      )
       return
     }
     setFinishing(true)
@@ -30,7 +33,9 @@ export function useFinishOnboarding(
       onComplete(selection)
     } catch (cause) {
       setError(
-        cause instanceof Error ? cause.message : "Could not finish setup"
+        cause instanceof Error
+          ? cause.message
+          : intl.formatMessage({ id: "onboarding_finish_error" })
       )
     } finally {
       setFinishing(false)

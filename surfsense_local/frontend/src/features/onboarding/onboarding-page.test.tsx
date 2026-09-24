@@ -670,7 +670,7 @@ describe("onboarding", () => {
     await waitFor(() =>
       expect(
         screen.getByRole("region", { name: "Model ready" }).textContent
-      ).toBe("Usingaion-2.0via OpenRouter")
+      ).toBe("Using aion-2.0 via OpenRouter")
     )
   })
 

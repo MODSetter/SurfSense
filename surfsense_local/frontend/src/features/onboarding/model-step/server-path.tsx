@@ -6,6 +6,7 @@ import type { Connection } from "@/features/models/remote/connections/api"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
+import { intl } from "@/i18n/intl"
 
 import type { OnboardingSlot } from "./slot"
 
@@ -38,7 +39,7 @@ export function ServerPath({
         />
       ) : (
         <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
-          No servers connected yet.
+          {intl.formatMessage({ id: "onboarding_server_path_empty" })}
         </p>
       )}
       <Button
@@ -48,7 +49,11 @@ export function ServerPath({
         onClick={() => setDialog("new")}
       >
         <PlusIcon data-icon="inline-start" />
-        {servers.length ? "Connect another server" : "Connect a server"}
+        {servers.length
+          ? intl.formatMessage({
+              id: "onboarding_server_path_connect_another_button",
+            })
+          : intl.formatMessage({ id: "onboarding_server_path_connect_button" })}
       </Button>
       <ConnectionDialog
         open={dialog !== null}

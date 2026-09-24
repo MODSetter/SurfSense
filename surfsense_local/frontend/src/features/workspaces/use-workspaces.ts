@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react"
 
+import { intl } from "@/i18n/intl"
+
 import {
   createWorkspace,
   deleteWorkspace,
@@ -32,7 +34,9 @@ function rememberWorkspace(id: number) {
 }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({ id: "workspaces_unexpected_error" })
 }
 
 export function useWorkspaces(initialWorkspaces: Workspace[]) {

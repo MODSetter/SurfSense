@@ -40,6 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { Workspace } from "./api"
@@ -112,7 +113,9 @@ function WorkspaceNameDialog({
             className="my-4"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            aria-label="Workspace name"
+            aria-label={intl.formatMessage({
+              id: "workspaces_name_dialog_name_aria",
+            })}
             maxLength={200}
           />
           <DialogFooter>
@@ -121,10 +124,16 @@ function WorkspaceNameDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {intl.formatMessage({
+                id: "workspaces_name_dialog_cancel_button",
+              })}
             </Button>
             <Button type="submit" disabled={!name.trim() || isSubmitting}>
-              {isSubmitting ? "Saving..." : submitLabel}
+              {isSubmitting
+                ? intl.formatMessage({
+                    id: "workspaces_name_dialog_saving_status",
+                  })
+                : submitLabel}
             </Button>
           </DialogFooter>
         </form>
@@ -159,7 +168,7 @@ export function WorkspaceRail({
   return (
     <nav
       className="flex h-full flex-col items-center bg-app-shell py-3 text-sidebar-foreground"
-      aria-label="Workspaces"
+      aria-label={intl.formatMessage({ id: "workspaces_rail_aria" })}
     >
       <ScrollArea className="min-h-0 w-full flex-1">
         <div className="flex flex-col items-center gap-2 px-1.5">
@@ -206,14 +215,18 @@ export function WorkspaceRail({
                   <ContextMenuGroup>
                     <ContextMenuItem onSelect={() => setRenaming(workspace)}>
                       <PencilIcon />
-                      Rename
+                      {intl.formatMessage({
+                        id: "workspaces_rail_rename_label",
+                      })}
                     </ContextMenuItem>
                     <ContextMenuItem
                       variant="destructive"
                       onSelect={() => setDeleting(workspace)}
                     >
                       <Trash2Icon />
-                      Delete
+                      {intl.formatMessage({
+                        id: "workspaces_rail_delete_label",
+                      })}
                     </ContextMenuItem>
                   </ContextMenuGroup>
                 </ContextMenuContent>
@@ -227,13 +240,17 @@ export function WorkspaceRail({
                 variant="ghost"
                 className="rounded-xl border border-dashed border-sidebar-border"
                 disabled={isMutating}
-                aria-label="Create workspace"
+                aria-label={intl.formatMessage({
+                  id: "workspaces_rail_create_aria",
+                })}
                 onClick={() => setCreateOpen(true)}
               >
                 <PlusIcon />
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="right">Create workspace</TooltipContent>
+            <TooltipContent side="right">
+              {intl.formatMessage({ id: "workspaces_rail_create_tooltip" })}
+            </TooltipContent>
           </Tooltip>
         </div>
       </ScrollArea>
@@ -244,22 +261,30 @@ export function WorkspaceRail({
             size="icon-lg"
             variant="ghost"
             className="rounded-xl"
-            aria-label="Open settings"
+            aria-label={intl.formatMessage({
+              id: "workspaces_rail_settings_aria",
+            })}
             onClick={onOpenSettings}
           >
             <Settings2Icon />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="right">Settings</TooltipContent>
+        <TooltipContent side="right">
+          {intl.formatMessage({ id: "workspaces_rail_settings_tooltip" })}
+        </TooltipContent>
       </Tooltip>
 
       <WorkspaceNameDialog
         key={`create-${createOpen}`}
         open={createOpen}
-        title="Create workspace"
-        description="Keep a separate source library and set of chats."
+        title={intl.formatMessage({ id: "workspaces_create_dialog_title" })}
+        description={intl.formatMessage({
+          id: "workspaces_create_dialog_body",
+        })}
         initialName=""
-        submitLabel="Create"
+        submitLabel={intl.formatMessage({
+          id: "workspaces_create_dialog_submit_button",
+        })}
         onOpenChange={setCreateOpen}
         onSubmit={onCreate}
       />
@@ -267,10 +292,14 @@ export function WorkspaceRail({
         <WorkspaceNameDialog
           key={renaming.id}
           open
-          title="Rename workspace"
-          description="Choose a name that identifies this research context."
+          title={intl.formatMessage({ id: "workspaces_rename_dialog_title" })}
+          description={intl.formatMessage({
+            id: "workspaces_rename_dialog_body",
+          })}
           initialName={renaming.name}
-          submitLabel="Rename"
+          submitLabel={intl.formatMessage({
+            id: "workspaces_rename_dialog_submit_button",
+          })}
           onOpenChange={(open) => {
             if (!open) setRenaming(null)
           }}
@@ -285,13 +314,24 @@ export function WorkspaceRail({
       >
         <AlertDialogContent className="select-none">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {intl.formatMessage(
+                { id: "workspaces_delete_dialog_title" },
+                {
+                  name: deleting?.name ?? "",
+                }
+              )}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes its chats, documents, and indexed data.
+              {intl.formatMessage({ id: "workspaces_delete_dialog_body" })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              {intl.formatMessage({
+                id: "workspaces_delete_dialog_cancel_button",
+              })}
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
@@ -299,7 +339,9 @@ export function WorkspaceRail({
                 setDeleting(null)
               }}
             >
-              Delete workspace
+              {intl.formatMessage({
+                id: "workspaces_delete_dialog_confirm_button",
+              })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

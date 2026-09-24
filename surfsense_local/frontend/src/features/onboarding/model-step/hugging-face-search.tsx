@@ -5,6 +5,7 @@ import { ChevronRightIcon } from "@/components/ui/icons"
 import type { LocalBuild } from "@/features/models/local/chat/api"
 import { ModelSearch } from "@/features/models/local/chat/model-search"
 import type { InstallState } from "@/features/models/local/create-install"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 /**
@@ -37,7 +38,13 @@ export function HuggingFaceSearch({
         aria-controls={searchId}
         onClick={() => setOpen((value) => !value)}
       >
-        {open ? "Hide Hugging Face search" : "Not listed? Search Hugging Face"}
+        {open
+          ? intl.formatMessage({
+              id: "onboarding_hugging_face_search_hide_button",
+            })
+          : intl.formatMessage({
+              id: "onboarding_hugging_face_search_show_button",
+            })}
         <ChevronRightIcon
           data-icon="inline-end"
           className={cn(
