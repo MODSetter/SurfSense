@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm translations && vite",
-    "translations": "formatjs extract \"src/**/*.{ts,tsx}\" \"../electron/src/main/**/*.ts\" --ignore \"**/*.test.*\" --ignore \"**/*.d.ts\" --ignore \"src/i18n/compiled/**\" --format simple --out-file translations/en.json && formatjs compile-folder translations src/i18n/compiled --format simple --ast",
+    "translations": "pnpm translations:extract && pnpm translations:compile",
+    "translations:extract": "formatjs extract \"src/**/*.{ts,tsx}\" \"../electron/src/main/**/*.ts\" --ignore \"**/*.test.*\" --format simple --out-file translations/en.json",
+    "translations:compile": "formatjs compile-folder translations src/i18n/compiled --format simple --ast",
     "build": "pnpm translations && tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
