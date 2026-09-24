@@ -144,7 +144,7 @@ export function AppBootstrap() {
 
   if (state.status === "error") {
     return (
-      <main className="flex min-h-full items-center justify-center bg-muted/30 p-8">
+      <main className="flex h-full items-center justify-center bg-app-shell p-8">
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
           <AlertTitle>
