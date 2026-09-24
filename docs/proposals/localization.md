@@ -2,17 +2,15 @@
 status: proposed
 code:
   - surfsense_local/frontend/translations/
-  - surfsense_local/frontend/translation-context.json
-  - surfsense_local/frontend/translations.inlang/
   - surfsense_local/frontend/src/i18n/
   - surfsense_local/electron/src/main/i18n/
   - .agents/skills/translate/
-  - scripts/check_translations.py
+  - scripts/check_translations.mjs
 ---
 
 # Localization
 
-> The desktop app's interface in English, Japanese and German, chosen from the OS languages or by the user. Translations are JSON files in the repo, compiled into the app, so nothing is fetched at run time. Paraglide JS compiles them today; the files, folder names and call sites do not name it, so it can be replaced without touching components.
+> The desktop app's interface in English, Japanese and German, chosen from the OS languages or by the user. Translations are ICU MessageFormat JSON files in the repo, precompiled and bundled into the app, so nothing is fetched at run time and the build needs no network. FormatJS renders them, through its documented APIs only.
 
 ## Languages
 
@@ -36,42 +34,42 @@ The language a chat answer or a Studio output is written in is also out of scope
 
 ## Library
 
-[Paraglide JS 2](https://github.com/opral/paraglide-js). Weighed against:
+[FormatJS](https://formatjs.github.io/): `react-intl` in the renderer, `@formatjs/intl` (the same engine without React) in Electron main, `@formatjs/cli` at build time. Weighed against:
 
-| Library | Runtime, gzipped | Why not |
-|---|---|---|
-| Paraglide JS 2 | about 1 KB; unused messages are tree-shaken | chosen |
-| Lingui 5 | about 5 KB | its macros need Babel or SWC, which Rolldown cannot run; Vite 8 and `@vitejs/plugin-react` 6 would have to bring one back |
-| react-i18next | 15 to 20 KB, plus i18next | the heaviest; the usual Electron setup (`i18next-electron-fs-backend`) loads JSON over IPC at run time, a problem a bundled app does not have; keys are untyped |
-| react-intl (FormatJS) | about 18 KB | a runtime ICU parser for messages that can be compiled ahead |
+| Library | Why not |
+|---|---|
+| Paraglide JS 2 | built first, then replaced. Its ICU support is a separate inlang plugin (`@inlang/plugin-icu1`, first released Jan 2026) that inlang recommends loading from a CDN; loading it from `node_modules` works offline but is an off-default setting. inlang removed its lint rules in 2.0, and native rich text needs inlang's own file format. |
+| Lingui 5 | its macros need Babel or SWC, which Rolldown cannot run; Vite 8 and `@vitejs/plugin-react` 6 would have to bring one back |
+| react-i18next | not ICU without a plugin; keys untyped; the usual Electron setup loads JSON over IPC at run time, a problem a bundled app does not have |
 
-Size matters less in an app loaded from disk. What decides it is that Paraglide compiles each message to a typed ES module function, which runs unchanged in the renderer (Vite) and in the main process (Node): a wrong key or parameter is a type error, and there is no provider or runtime state to keep in sync across the two processes.
+What decides it for an air-gapped app: FormatJS reads ICU natively and is plain npm packages pinned by the lockfile, so an offline, reproducible build is its default rather than a setting to protect. It has shipped since 2014 (react-intl, about 2.3M weekly downloads in Sep 2026), and rich text, number and date formatting, and a translation checker (`formatjs verify`) are built in.
+
+Measured on the 740 real strings in three languages: all catalogs cost about 48 KB gzipped (react-intl without its parser 8 KB, precompiled catalogs 40 KB), and a message formats in about 1 µs, so a screen's text takes well under a millisecond. Paraglide was about 10% faster per message and the same size gzipped; neither difference is visible.
 
 ## Keeping the library replaceable
 
-Four layers. Only the build config knows the library.
-
-**Files are ICU MessageFormat 1.** One JSON file per language, `{"key": "ICU string"}`, stored through inlang's [ICU MessageFormat v1 plugin](https://inlang.com/m/p7c8m1d2/plugin-inlang-icu-messageformat-1): `plural`, `select`, `selectordinal`, `=n`, `#` and number and date formatters. FormatJS, i18next with `i18next-icu`, Lingui and every major translation platform read the same files. inlang's own format writes plurals as `declarations`, `selectors` and `match` objects that only inlang reads, so it is not used.
+**Files are ICU MessageFormat 1.** One JSON file per language, `{"key": "ICU string"}`: `plural`, `select`, `selectordinal`, `=n`, `#`, number and date formatters, and rich-text tags. FormatJS reads them natively; i18next with `i18next-icu`, Lingui and every major translation platform read the same files.
 
 **Names are generic.**
 
 ```
 surfsense_local/frontend/
-  translations/             en.json, ja.json, de.json
-  translation-context.json  one line of context per key, for the translator
-  translations.inlang/      settings.json: locales, plugin, pathPattern
+  translations/             en.json, ja.json, de.json (ICU source)
   src/i18n/
-    compiled/               compiler output, gitignored
-    messages.ts             the only import the app uses
-    locale.ts               supported locales, current locale, change locale
+    compiled/               formatjs compile-folder output, gitignored
+    locales.ts              the languages that ship
+    intl.ts                 the page's one IntlShape, all catalogs bundled
+    message-ids.d.ts        FormatjsIntl.Message: ids are the keys of en.json
+    locale.ts               follow main's language; reload on a change
 surfsense_local/electron/src/main/i18n/
-  compiled/                 same messages, compiled for main, gitignored
-  locale.ts                 detect, store and broadcast the locale
+  locales.ts                mirror of the frontend's list
+  app-locale.ts             main's IntlShape for the menu
+  resolve-locale.ts         preference + OS languages → locale
+  locale-prefs.ts           locale-prefs.json in userData
+  locale-ipc.ts             locale:get, locale:preference, locale:set
 ```
 
-The inlang project folder must end in `.inlang`; the name before it is free. The compiler writes wherever `outdir` points. Replacing the library deletes `translations.inlang/` and the `compiled/` folders and rewrites `messages.ts`.
-
-**Call sites use one shape.** Components call `messages.sources_delete_confirm_title({ name })`, one typed function per key, imported from `@/i18n`. That is what Paraglide emits; another library satisfies it with a typed proxy, `(params) => t("sources_delete_confirm_title", params)`, and no component changes. An ESLint `no-restricted-imports` rule forbids importing `compiled/` from outside `src/i18n/`.
+**Call sites use FormatJS's own API.** `intl.formatMessage({ id: "sources_delete_confirm_title" }, { name })`, with `intl` imported from `@/i18n/intl`. It is one `createIntl` instance for the page's life, provided to React with `RawIntlProvider`, the pattern the FormatJS docs give for precompiled catalogs; code outside components uses the same instance. A language change reloads the window, so the instance never goes stale. ESLint forbids importing `compiled/` or the catalogs outside `src/i18n/`.
 
 **The locale belongs to the app.** Main owns it; the renderer is told. The IPC channel and the stored preference never name the library.
 
@@ -94,88 +92,79 @@ The inlang project folder must end in `.inlang`; the name before it is free. The
 
 - `<feature>` is a folder under `src/features/` (`chat`, `sources`, `settings`), or `app` for the shell and `menu` for main. A check fails on any other prefix, so deleting a feature's folder shows its keys as dead.
 - `<surface>` is the component or dialog: `composer`, `delete`, `list`.
-- `<purpose>` names what the text does, never what it says: `_title`, `_body`, `_label`, `_placeholder`, `_button`, `_tooltip`, `_empty`, `_error`, `_toast`, `_aria`. The suffix tells a translator how much room there is. `sources_delete_confirm_title`, not `are_you_sure`.
+- `<purpose>` names what the text does, never what it says: `_title`, `_body`, `_label`, `_placeholder`, `_button`, `_tooltip`, `_empty`, `_error`, `_toast`, `_aria`, `_link`, `_status`. The suffix tells a translator how much room there is. `sources_delete_confirm_title`, not `are_you_sure`.
 - The text for a backend code is `<feature>_error_<code>`, the code as the backend sends it: `chat_error_provider_auth`.
-- A key names the meaning. Rewording that keeps the meaning keeps the key and the skill retranslates it; a new meaning is a new key.
-
-Paraglide's own docs recommend [random readable keys](https://paraglidejs.com/message-keys) (`penguin_purple_shoe`), so a key never has to be renamed when the interface moves. Keys here carry meaning instead, as [Locize](https://www.locize.com/blog/guide-to-i18n-key-naming) and [Lokalise](https://lokalise.com/blog/translation-keys-naming-and-organizing/) recommend: the feature prefix is what lets the check find a deleted feature's keys, and the key is the first context a translator sees. The cost is a rename when a string moves to another feature.
+- A key names the meaning, as [Locize](https://www.locize.com/blog/guide-to-i18n-key-naming) and [Lokalise](https://lokalise.com/blog/translation-keys-naming-and-organizing/) recommend. Rewording that keeps the meaning keeps the key and the skill retranslates it; a new meaning is a new key.
 
 **No shared strings.** "Cancel" in a delete dialog and "Cancel" in a download are two keys. German may want *Abbrechen* in one and *Verwerfen* in the other, and a feature's keys leave with the feature. Repetition in `en.json` is expected; a `common` block is not allowed.
 
 **Whole sentences.** A value is a sentence or a label, never a piece of one. No joining two keys, no leading or trailing space, no label ending in a colon followed by a value in code. Japanese puts the verb last and German moves it, so a sentence built from parts cannot be translated. A value inserted mid-sentence is a named placeholder: `{name}`, `{count}`, `{size}`, never `{0}`.
 
-**Plurals and choices are ICU.** `{count, plural, one {# document} other {# documents}}`. `=0` only when zero reads differently ("No documents"). Never `(s)`, never a `_one` and `_other` key pair. Each language writes the categories its CLDR rules have: Japanese only `other`, German `one` and `other`. The file check compares against those categories, not against English's.
+**Plurals and choices are ICU.** `{count, plural, one {# document} other {# documents}}`; FormatJS prints `#` with the language's digit grouping (12,345; 12.345). `=0` only when zero reads differently ("No documents"). Never `(s)`, never a `_one` and `_other` key pair. Each language writes the categories its CLDR rules have: Japanese only `other`, German `one` and `other`.
 
-**Literal keys only.** Code calls `messages.sources_list_empty()`, never `messages[key]`. A backend code maps to text through a typed record, so a new code without a message is a type error:
+**Literal ids only.** Code calls `intl.formatMessage({ id: "sources_list_empty" })`, never with a computed id. `message-ids.d.ts` makes an id outside `en.json` a type error. A backend code maps to text through a typed record, so a new code without a message is a type error:
 
 ```ts
-const chatErrorMessage: Record<ChatErrorKind, () => string> = {
-  provider_auth: messages.chat_error_provider_auth,
+const chatErrorText: Record<ChatErrorKind, () => string> = {
+  provider_auth: () => intl.formatMessage({ id: "chat_error_provider_auth" }),
   // one entry per ChatErrorKind
 }
 ```
 
-**Sorted.** Keys in each file sorted, tab-indented, one key per line, the same order in every language. A feature's keys sit together, diffs stay small, and two pull requests adding keys to different features rarely conflict. Tabs because the ICU plugin writes tabs, so an inlang tool that saves a file does not reformat all of it. A formatter writes it; the check fails on an unsorted file.
+**Sorted.** Keys in each file sorted, tab-indented, one key per line, the same order in every language. A feature's keys sit together, diffs stay small, and two pull requests adding keys to different features rarely conflict. The check fails on an unsorted file.
 
-**Other languages** hold exactly the keys of `en.json`: none missing, none extra. A missing key shows English, never the key name.
-
-**Context for the translator.** A key and its English do not always say enough: "Open" can be a verb or a state, and `{name}` can be a file or a workspace. `translation-context.json`, beside `translations/`, gives such a key one line on where it appears and what fills its placeholders:
-
-```json
-{
-  "sources_delete_confirm_title": "Title of the dialog that deletes one source. {name} is the file name.",
-  "sources_list_empty": "Shown in the Sources panel when the workspace has no documents."
-}
-```
-
-It sits outside `translations/` so the compiler and any translation platform never read it as a language. Only the `translate` skill reads it. The check fails when a key with a placeholder, or a value of three words or fewer, has no entry, and when an entry names a key `en.json` does not have. Most guides also suggest screenshots; they are left out until a translator who is not an agent asks for them.
+**Other languages** hold exactly the keys of `en.json`: none missing, none extra. At run time each language's catalog is merged over English, so a missing key would show English, never its id.
 
 ## Locale
 
 - **Detect.** On first launch, the first entry of `app.getPreferredSystemLanguages()` whose base language is supported (`ja-JP` → `ja`), else `en`.
 - **Override.** Settings › General gets a Language select beside Appearance: System, English, 日本語, Deutsch, each language written in itself. The choice is saved as `locale-prefs.json` in `userData`, the way [`theme-prefs.ts`](../../surfsense_local/electron/src/main/theme-prefs.ts) saves the theme.
-- **Hand over.** Preload reads the locale synchronously before the renderer's first paint, as it does the system theme, and exposes `locale.set()` and `locale.onChange()`. `src/i18n/locale.ts` passes it to the compiled runtime with `overwriteGetLocale()`.
-- **Change.** A change re-renders the React root under a new `key` and calls `installProductionMenu()` again in main. No restart.
-- **Formatting.** Dates, numbers and relative times go through `Intl` with the current locale. The frontend calls `Intl` or `toLocale*` in 13 places today; each takes the locale from `src/i18n/locale.ts`.
+- **Hand over.** Preload reads the locale synchronously before the renderer's first paint, as it does the system theme, and exposes `locale.get()`, `locale.preference()`, `locale.set()` and `locale.onChange()`. `src/i18n/intl.ts` builds the page's `IntlShape` from `locale.get()` at load, with all three precompiled catalogs bundled, so text is there on the first render with no loading step.
+- **Change.** Main saves the choice, calls `installProductionMenu()` again and tells the window, which reloads; the reloaded page builds its `IntlShape` in the new language. Open dialogs and other in-memory state reset; people rarely switch languages. No restart.
+- **Formatting.** Numbers, dates, relative times, lists and language names go through `intl.formatNumber`, `formatDate`, `formatRelativeTime`, `formatList` and `formatDisplayName`, which cache formatters per language.
 - **Html.** `<html lang>` follows the locale, so the OS picks the right CJK glyphs and screen readers the right voice.
 
 ## Main process
 
-Main shows three strings of its own: the View menu's "View", "Reload" and "Force Reload" in [`electron/src/main/index.ts`](../../surfsense_local/electron/src/main/index.ts). They are compiled from the same `translations/` into `src/main/i18n/compiled/`, as a step in `electron-vite build`. Main has one user, so a module-level locale behind `overwriteGetLocale()` is safe; the `AsyncLocalStorage` pattern Paraglide documents is for servers.
+Main shows three strings of its own: the View menu's "View", "Reload" and "Force Reload" in [`electron/src/main/index.ts`](../../surfsense_local/electron/src/main/index.ts). `app-locale.ts` builds an `IntlShape` with `@formatjs/intl` from the same `translations/` files, imported directly and parsed at run time: three labels do not justify a compile step. Its own `message-ids.d.ts` types the ids.
 
 The `role` menus (`appMenu`, `fileMenu`, `editMenu`, `windowMenu`) take their labels from Electron and the OS. On macOS they are only translated if the app ships that language's `.lproj`, so `mac.electronLanguages` in [`electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml) must include `en`, `ja` and `de` if it is ever narrowed ([electron#26231](https://github.com/electron/electron/issues/26231)).
 
 ## Backend text
 
-The backend returns some English prose the UI shows as is: the chat's error messages in [`modules/chat/errors.py`](../../surfsense_local/backend/modules/chat/errors.py), and `detail` strings that [`lib/api.ts`](../../surfsense_local/frontend/src/lib/api.ts) surfaces. The backend already sends a code with each (`provider_auth`, `egress_disabled`); the frontend translates the code and falls back to the English text for a code it does not know. The backend stays English and gains no i18n.
+The backend returns some English prose the UI shows as is: the chat's error messages in [`modules/chat/errors.py`](../../surfsense_local/backend/modules/chat/errors.py), the license rejection reasons in [`modules/license/router.py`](../../surfsense_local/backend/modules/license/router.py), and `detail` strings that [`lib/api.ts`](../../surfsense_local/frontend/src/lib/api.ts) surfaces. Where the backend sends a code (`provider_auth`, `bad_signature`), the frontend translates the code and falls back to the English text for a code it does not know. The backend stays English and gains no i18n.
+
+## Build
+
+`pnpm translations` runs `formatjs compile-folder translations src/i18n/compiled --format simple --ast`, before `dev`, `build`, `typecheck` and `test`. The AST output means no message is parsed at run time, so Vite aliases `@formatjs/icu-messageformat-parser` to its `no-parser` build, as the FormatJS performance guide describes. `compile-folder` fails the build on a malformed message, and `tsc -b` fails on an id that is not in `en.json`. Everything comes from npm and the lockfile; the build needs no network.
 
 ## Translating
 
-1. **Developers write English only.** A new string is one line in `en.json` and a `messages.*()` call.
+1. **Developers write English only.** A new string is one line in `en.json` and an `intl.formatMessage({ id })` call.
 2. **An agent translates.** The `translate` skill below fills in Japanese and German for every key that is new or whose English changed.
 3. **Review is open.** Anyone who reads the language can correct a translation in a pull request; no release waits on it.
-4. **A file check guards the files.** `scripts/check_translations.py`, a pre-commit hook scoped to `surfsense_local/frontend/translations/` and `translation-context.json`, the way `check_docs.py` guards `docs/`. There is no pull request CI for `surfsense_local` yet, but [`code-quality.yml`](../../.github/workflows/code-quality.yml) runs every pre-commit hook on a non-draft pull request's changed files, so this one runs there too. Python, because that job sets up Python and not Node. It fails on anything [Shape of `en.json`](#shape-of-enjson) forbids: a key missing from or extra to a language, placeholders or select branches that differ from the English, plural categories that do not match the language's CLDR rules, a value with markup or a leading or trailing space, a key prefix that is not a feature, a key no code in the frontend or in Electron main calls, a key that needs context and has none, an unsorted file.
-5. **The build guards the compile.** `pnpm build` fails when the compiler emits zero messages or Rollup warns that a name `is not exported by` the compiled messages: a wrong plugin key or `pathPattern` otherwise compiles nothing, exits 0, and the app fails at run time with `(void 0) is not a function` ([globalize-skills#82](https://github.com/globalize-now/globalize-skills/pull/82)). That runs on every local build and in [`release-local.yml`](../../.github/workflows/release-local.yml), and on pull requests once the desktop CI in the [roadmap](../ROADMAP.md) exists.
+4. **Two pre-commit hooks guard the files.** There is no pull request CI for `surfsense_local` yet, but [`code-quality.yml`](../../.github/workflows/code-quality.yml) runs every pre-commit hook on a non-draft pull request's changed files, so both run there too.
+   - `formatjs-verify` is FormatJS's own check (`formatjs verify --missing-keys --extra-keys --structural-equality`): every key translated, no extra keys, the same placeholders and tags as English. pre-commit installs `@formatjs/cli` for it.
+   - `check-translations` runs [`scripts/check_translations.mjs`](../../scripts/check_translations.mjs), the rules FormatJS does not know: the key shape and prefix, a key no code in the frontend or Electron main calls, a leading or trailing space, an unsorted file. No dependencies, since that job installs nothing and the runner ships Node.
 
-`pnpx @inlang/cli machine translate` is not used: it sends every string to an outside translation service. The strings are not user data, but the app's position is that nothing leaves without a decision ([ADR 0017](../adr/0017-egress-off-by-default.md)), and a skill run by a developer is that decision.
+No machine-translation service is used: the strings are not user data, but the app's position is that nothing leaves without a decision ([ADR 0017](../adr/0017-egress-off-by-default.md)), and a skill run by a developer is that decision.
 
 ## The `translate` skill
 
 `.agents/skills/translate/`, top level, because it runs commands.
 
-- **Glossary.** Terms that stay in English (SurfSense, Studio, Workspace, llama.cpp), and the chosen term per language for the rest, taken from the per-language term table in `03-international.md` so the app and the website use the same words (`ローカルLLM`, `lokale KI`).
+- **Glossary.** Terms that stay in English (SurfSense, Studio, llama.cpp), and the chosen term per language for the rest, taken from the per-language term table in `03-international.md` so the app and the website use the same words (`ローカルLLM`, `lokale KI`).
 - **Tone.** Japanese in です/ます, the default in Microsoft's Japanese style guide, with the plain form for short labels and 〜してください for instructions. German in *du*, which macOS has used since Sierra; never mixed with *Sie*.
-- **Steps.** Find the keys to translate: those missing from a language, and those whose English differs from `en.json` at the last commit that changed that language's file. Read each changed key's line in `translation-context.json`, translate the changed keys, keep every placeholder and ICU branch, run the file check, stop on a failure.
-- **Limits.** Never reword English. Never translate a key name. Flag a string whose meaning is unclear instead of guessing.
+- **Steps.** Find the keys to translate: those missing from a language, and those whose English differs from `en.json` at the last commit that changed that language's file. Read the component that calls each changed key, translate it, keep every placeholder, tag and ICU branch, run both checks, stop on a failure.
+- **Limits.** Never reword English. Never translate a key name, a placeholder or a tag name. Flag a string whose meaning is unclear instead of guessing.
 
 ## Rich text
 
-A sentence with a link or bold span is where libraries differ most, and the ICU plugin stores tags as plain text. Splitting it into keys around the link breaks the whole-sentence rule, so the copy is written without it: the sentence stands alone and the action is its own button or link with its own key. The check fails on a value that contains markup.
+A styled part of a sentence is an ICU tag, FormatJS's native rich text: `"Using <b>{name}</b> via {source}"`, rendered with `intl.formatMessage({ id }, { b: (chunks) => <span …>{chunks}</span> })`. Each language places the tag where its grammar needs it, and `formatjs verify` checks every language keeps the same tags. A value can also be an element, such as a `<RelativeTime>` in `"Last call: {time}"`. A link that is an action gets its own element and key rather than a tag inside a sentence.
 
 ## Build order
 
-1. **Smoke test.** Paraglide 2 lists the ICU plugin as a supported format, and inlang loads a plugin from `./node_modules/@inlang/plugin-icu1/dist/index.js`, so a build needs no network. The settings key is `plugin.inlang.icu-messageformat-1`. Pin `@inlang/paraglide-js` 2.25.4 and `@inlang/plugin-icu1` 1.1.0. What is left to prove: one plural and one placeholder compile and render, in the renderer through the Vite 8 plugin and in main through the CLI.
-2. **Seam.** `src/i18n/`, `translations/en.json`, `translation-context.json`, the lint rule, the file check hook, the formatter, the build guard, the preload bridge and the Language setting, with one feature moved to prove the path.
-3. **Extract.** Move the remaining strings feature by feature, one pull request per feature under `src/features/`. The frontend has about 120 component files.
-4. **Translate.** The skill, then `ja.json` and `de.json`.
-5. **Ship.** Fold what is true into `docs/architecture/localization.md`, record the library choice and the ICU file format as ADRs, delete this proposal.
+1. **Seam.** `src/i18n/`, `translations/en.json`, the compile step, the lint rule, both checks, the preload bridge and the Language setting, with one feature moved to prove the path.
+2. **Extract.** Move the remaining strings feature by feature under `src/features/`. The frontend has about 120 component files.
+3. **Translate.** The skill, then `ja.json` and `de.json`.
+4. **Ship.** Fold what is true into `docs/architecture/localization.md`, record the library choice and the ICU file format as ADRs, delete this proposal.

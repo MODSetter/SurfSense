@@ -4,7 +4,7 @@ One term per concept, so the app says the same thing everywhere. Terms marked wi
 
 ## Stays in English
 
-SurfSense, Studio, Workspace, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and provider name.
+SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and provider name. German also keeps Workspace (`Mein Workspace`, `Workspace-Artefakte`); Japanese writes ワークスペース, since `マイWorkspace` reads as a mistake.
 
 ## Per language
 
@@ -28,3 +28,16 @@ SurfSense, Studio, Workspace, llama.cpp, GGUF, Hugging Face, API, MCP, and every
 | quiz | クイズ | Quiz † |
 | study guide | 学習ガイド | Lernzettel † |
 | podcast | ポッドキャスト | Podcast |
+| workspace | ワークスペース | Workspace |
+| artifact (a Studio output) | 生成物 | Artefakt |
+| chunk (a cited passage) | チャンク | Abschnitt |
+| citation | 引用 | Quellenangabe |
+| Model setup | モデル設定 | Modell-Einrichtung |
+| vision (model badge) | 画像認識 | Vision |
+| build (a quantized variant) | ビルド | Variante |
+| in use | 使用中 | Aktiv |
+| server (a model server) | サーバー | Server |
+| provider | プロバイダー | Anbieter |
+| this computer | このコンピューター | dieser Computer |
+| retry | 再試行 | Erneut versuchen |
+| View (menu) | 表示 | Darstellung |

@@ -10,21 +10,21 @@ The desktop app's interface text lives in `surfsense_local/frontend/translations
 | File | Holds |
 |---|---|
 | `translations/en.json`, `ja.json`, `de.json` | `{"key": "ICU string"}`, flat, sorted, tab-indented |
-| `translation-context.json` | one line per key on where it appears and what fills its placeholders |
 | [`glossary.md`](glossary.md) | terms that stay English, and the chosen term per language |
 
 Only fixed text in the app's code is translated. Never user content, model output, model names or descriptions, file paths, or logs.
 
 ## Adding English
 
-- Key: `<feature>_<surface>_<purpose>`, snake_case. `<feature>` is a folder under `frontend/src/features/`, or `app` for the shell, `menu` for Electron main. `<purpose>` is one of `_title`, `_body`, `_label`, `_placeholder`, `_button`, `_tooltip`, `_empty`, `_error`, `_toast`, `_aria`.
+- Key: `<feature>_<surface>_<purpose>`, snake_case. `<feature>` is a folder under `frontend/src/features/`, or `app` for the shell, `menu` for Electron main. `<purpose>` is one of `_title`, `_body`, `_label`, `_placeholder`, `_button`, `_tooltip`, `_empty`, `_error`, `_toast`, `_aria`, `_link`, `_status`.
 - Name the meaning, not the words: `sources_delete_confirm_title`, not `are_you_sure`.
 - A backend error code maps to `<feature>_error_<code>`.
 - One key per place. Never reuse another feature's "Cancel"; never add a `common` key.
-- A whole sentence per value. No joining keys, no leading or trailing space, no markup. A link or bold span becomes its own key and its own element.
-- Named placeholders only: `{name}`, `{count}`. Plurals are ICU: `{count, plural, one {# document} other {# documents}}`. Never `(s)`.
-- Call it literally: `messages.sources_list_empty()`, never `messages[key]`.
-- Add a line to `translation-context.json` when the key has a placeholder or the value is three words or fewer.
+- A whole sentence per value. No joining keys, no leading or trailing space. A link that is an action becomes its own key and its own element.
+- Named placeholders only: `{name}`, `{count}`. Plurals are ICU: `{count, plural, one {# document} other {# documents}}`; FormatJS prints `#` with the language's digit grouping. Never `(s)`.
+- Call it with FormatJS's own API and a literal id: `intl.formatMessage({ id: "sources_list_empty" })`, or `intl.formatMessage({ id }, { name })` with values. Import `intl` from `@/i18n/intl`. An id outside `en.json` is a type error.
+- A styled part of a sentence (a bold name, an accent) is an ICU tag, FormatJS's native rich text: `"Using <b>{name}</b> via {source}"`, rendered with `intl.formatMessage({ id }, { b: (chunks) => <span …>{chunks}</span> })`. An element can also be a value: `{ time: <RelativeTime … /> }`.
+- Numbers, dates, relative times, lists and language names go through `intl.formatNumber`, `formatDate`, `formatRelativeTime`, `formatList`, `formatDisplayName`, never a bare `Intl.*` or `toLocale*`.
 - Keep the file sorted. Add the same key to `ja.json` and `de.json` in the same change, translated with the steps below.
 
 ## Translating
@@ -38,9 +38,9 @@ Only fixed text in the app's code is translated. Never user content, model outpu
    ```
 
    Repeat with `de.json`. Every added or changed line in that diff is a key to translate.
-2. **Read the context.** Its line in `translation-context.json`, then the component that calls it (`grep -rn "messages.<key>" src`). Translate the meaning in that place, not the English words.
-3. **Translate.** Follow the tone below and [`glossary.md`](glossary.md). Keep every placeholder name and every `select` branch exactly. Write the plural categories the language has, not the English ones: Japanese only `other`, German `one` and `other`.
-4. **Check.** `pre-commit run check-translations --all-files`. Stop and fix on any failure; do not commit around it.
+2. **Read the context.** The component that calls it (`grep -rn '"<key>"' src`). Translate the meaning in that place, not the English words.
+3. **Translate.** Follow the tone below and [`glossary.md`](glossary.md). Keep every placeholder name, tag name and `select` branch exactly. Write the plural categories the language has, not the English ones: Japanese only `other`, German `one` and `other`.
+4. **Check.** From `surfsense_local/frontend`: `pnpm exec formatjs verify "translations/*.json" --source-locale en --missing-keys --extra-keys --structural-equality`, then `node scripts/check_translations.mjs` from the repo root. The `formatjs-verify` and `check-translations` pre-commit hooks run the same. Stop and fix on any failure; do not commit around it.
 
 ## Tone
 
@@ -51,7 +51,7 @@ Only fixed text in the app's code is translated. Never user content, model outpu
 ## Limits
 
 - Never reword English while translating. A problem with the English is a separate change.
-- Never translate a key name or a placeholder name.
-- Never guess. When a key's meaning is unclear from its context line and its component, stop and say which key and why.
+- Never translate a key name, a placeholder name or a tag name.
+- Never guess. When a key's meaning is unclear from its component, stop and say which key and why.
 - Never send strings to an outside translation service or CLI. Nothing leaves without a decision ([ADR 0017](../../../docs/adr/0017-egress-off-by-default.md)).
 - A new term that will recur goes into [`glossary.md`](glossary.md) in the same change.
