@@ -24,6 +24,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.catalog.local.manifest import load_local_manifest
@@ -95,7 +96,16 @@ def installed(tmp_path_factory: pytest.TempPathFactory) -> AudioCppEngine:
                 weights=(name,),
             ),
         )
-    engine = AudioCppEngine(audio, list(CURATED.values()))
+    # Electron hands the API the eSpeak it staged, as it hands the server.
+    espeak = STAGED / "espeak"
+    engine = AudioCppEngine(
+        audio,
+        list(CURATED.values()),
+        espeak=Espeak(
+            espeak / ESPEAK.get(sys.platform, ESPEAK["linux"]),
+            espeak / "espeak-ng-data",
+        ),
+    )
     engine.on_startup()
     return engine
 

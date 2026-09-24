@@ -5,6 +5,7 @@ from pathlib import Path
 
 from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.engines.audiocpp import ENGINE
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.files import files_in
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.installed import (
     InstalledAudio,
@@ -35,12 +36,14 @@ class AudioCppEngine:
         models: Sequence[CuratedModel],
         *,
         bundled_dir: Path | None = None,
+        espeak: Espeak | None = None,
     ) -> None:
         # None where Electron staged no audio.cpp: nothing is offered.
         self._audio_dir = audio_dir
         self._models = models
         # The models pack's voice, read in place.
         self._bundled_dir = bundled_dir
+        self._espeak = espeak
 
     @property
     def folder(self) -> Path | None:
@@ -125,7 +128,7 @@ class AudioCppEngine:
 
     def _write_config(self) -> None:
         if self._audio_dir is not None:
-            write_server_config(self._audio_dir, self.installed())
+            write_server_config(self._audio_dir, self.installed(), self._espeak)
 
     def after_remove(self) -> None:
         self._write_config()

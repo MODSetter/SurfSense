@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
@@ -58,6 +59,7 @@ class LocalCatalogService:
         images_dir: Path | None = None,
         audio_dir: Path | None = None,
         audio_bundled_dir: Path | None = None,
+        audio_espeak: Espeak | None = None,
         probe: Probe = probe_devices,
         os_gpu: OsGpu = os_reports_gpu,
     ) -> None:
@@ -76,7 +78,10 @@ class LocalCatalogService:
         self.llamacpp = LlamaCppEngine(models_dir, runtime_url, self.budget)
         self.sdcpp = SdCppEngine(images_dir, manifest.models)
         self.audiocpp = AudioCppEngine(
-            audio_dir, manifest.models, bundled_dir=audio_bundled_dir
+            audio_dir,
+            manifest.models,
+            bundled_dir=audio_bundled_dir,
+            espeak=audio_espeak,
         )
         self._engines: tuple[LocalEngine, ...] = (
             self.llamacpp,

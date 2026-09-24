@@ -32,6 +32,18 @@ export function audioThreads(logicalCores: number): number {
   return Math.max(1, Math.min(8, Math.floor(logicalCores / 2)))
 }
 
+/** The staged eSpeak-ng, which the server and the API both need to name. */
+export function espeakPaths(audioBinariesDir: string): { library: string; data: string } {
+  return {
+    library: join(
+      audioBinariesDir,
+      ESPEAK_DIR,
+      ESPEAK_LIBRARY[process.platform] ?? ESPEAK_LIBRARY.linux
+    ),
+    data: join(audioBinariesDir, ESPEAK_DIR, "espeak-ng-data"),
+  }
+}
+
 export function binaryPath(ctx: SidecarContext): string {
   return join(ctx.audioBinariesDir ?? "", exe("audiocpp_server"))
 }
@@ -80,15 +92,11 @@ export function audiocppSpec(ctx: SidecarContext): SidecarSpec | null {
     ],
     // ggml loads its backend libraries from beside the executable.
     cwd: ctx.audioBinariesDir,
-    // Kokoro and Kitten phonemise through eSpeak-ng, which audio.cpp loads at
-    // run time and does not ship.
+    // Kokoro phonemises through eSpeak-ng, which audio.cpp loads at run time
+    // and does not ship, and finds it here; Kitten reads the API's config.
     env: {
-      AUDIOCPP_ESPEAK_LIBRARY: join(
-        ctx.audioBinariesDir,
-        ESPEAK_DIR,
-        ESPEAK_LIBRARY[process.platform] ?? ESPEAK_LIBRARY.linux
-      ),
-      AUDIOCPP_ESPEAK_DATA: join(ctx.audioBinariesDir, ESPEAK_DIR, "espeak-ng-data"),
+      AUDIOCPP_ESPEAK_LIBRARY: espeakPaths(ctx.audioBinariesDir).library,
+      AUDIOCPP_ESPEAK_DATA: espeakPaths(ctx.audioBinariesDir).data,
     },
   }
 }

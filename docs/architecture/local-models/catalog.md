@@ -417,7 +417,13 @@ An audio build takes the same stream into the audio folder, with its record in
 that folder's `installs.json`, and skips both `preparing` phases too. The install
 rewrites `server.json`, which names every installed audio model with its family
 and path; Electron restarts audio.cpp's server when the file changes, and a model
-loads on its first request, so there is nothing to wait for.
+loads on its first request, so there is nothing to wait for. A Kitten entry also
+carries the staged eSpeak-ng as `session_options`
+(`kitten_tts.espeak_library_path` and `kitten_tts.espeak_data_path`): audio.cpp's
+Kitten reads eSpeak only from there, not from the server's environment as Kokoro
+does, and without it looks for a system eSpeak most computers lack. Electron
+hands the API those paths as `SURFSENSE_LOCAL_AUDIO_ESPEAK_LIBRARY` and
+`SURFSENSE_LOCAL_AUDIO_ESPEAK_DATA`, the same ones it gives the server.
 
 Deleting a model removes every file its install record names, every part of a
 split build and its projector, and forgets it. A file with no record, one copied

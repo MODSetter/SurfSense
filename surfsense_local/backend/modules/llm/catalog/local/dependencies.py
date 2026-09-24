@@ -6,6 +6,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.bundled import bundled_audio_dir
 from modules.llm.catalog.local.manifest import empty_manifest, load_local_manifest
 from modules.llm.catalog.local.service import LocalCatalogService
@@ -29,6 +30,11 @@ def get_local_catalog() -> LocalCatalogService:
         images_dir=settings.image_models_dir,
         audio_dir=settings.audio_models_dir,
         audio_bundled_dir=bundled_audio_dir(),
+        audio_espeak=(
+            Espeak(settings.audio_espeak_library, settings.audio_espeak_data)
+            if settings.audio_espeak_library and settings.audio_espeak_data
+            else None
+        ),
     )
 
 

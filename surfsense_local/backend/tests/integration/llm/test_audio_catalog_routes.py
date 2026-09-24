@@ -313,3 +313,28 @@ async def test_startup_leaves_a_chosen_voice_alone(
 
     chosen = (await client.get("/llm/selection/audio_gen")).json()
     assert chosen["name"] == "supertonic-3-f16"
+
+
+async def test_kitten_is_told_where_the_shipped_espeak_is(
+    client: AsyncClient, audio_dir, fake_hub, monkeypatch, tmp_path
+) -> None:
+    """audio.cpp's Kitten reads eSpeak's paths only from its session options,
+    not from the environment Kokoro reads, and without them looks for a system
+    eSpeak most computers do not have."""
+    from shared.config import get_llm_settings
+
+    library = tmp_path / "espeak" / "libespeak-ng.so"
+    data = tmp_path / "espeak" / "espeak-ng-data"
+    monkeypatch.setattr(get_llm_settings(), "audio_espeak_library", library)
+    monkeypatch.setattr(get_llm_settings(), "audio_espeak_data", data)
+
+    await install(client, "kokoro-82m", "Q8_0")
+    await install(client, "kitten-tts-mini-0.8", "orig")
+
+    entries = json.loads((audio_dir / "server.json").read_text())["models"]
+    by_id = {entry["id"]: entry for entry in entries}
+    assert by_id["kitten-tts-mini-0.8-orig"]["session_options"] == {
+        "kitten_tts.espeak_library_path": library.as_posix(),
+        "kitten_tts.espeak_data_path": data.as_posix(),
+    }
+    assert "session_options" not in by_id["kokoro-82m-q8_0"]
