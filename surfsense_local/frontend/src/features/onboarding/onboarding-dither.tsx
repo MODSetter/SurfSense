@@ -10,6 +10,9 @@ import { onboardingDitherFragmentShader } from "./onboarding-dither-shader"
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 
+/** The fade out once the welcome is left; the dither unmounts as it ends. */
+const FADE_OUT_MS = 150
+
 // The literal hex values below are the app's own --background token plus a
 // darkened variant of --muted-foreground (light) / --muted-foreground itself
 // (dark), copied rather than read live: shader uniforms are numbers, not CSS
@@ -66,17 +69,32 @@ function useIsDarkTheme() {
  * loop entirely and pins the filter to a single frame — the pattern still
  * draws, it just stops moving.
  */
-export function OnboardingDither({ fading = false }: { fading?: boolean }) {
+export function OnboardingDither({ visible }: { visible: boolean }) {
   const reducedMotion = usePrefersReducedMotion()
   const isDark = useIsDarkTheme()
   const palette = isDark ? PALETTE.dark : PALETTE.light
+  const fading = !visible
+  // Unmounting takes the shader's frame loop with it. The welcome is never
+  // shown again, so a finished fade stays finished.
+  const [gone, setGone] = useState(false)
+  useEffect(() => {
+    if (visible) return
+    const timer = window.setTimeout(() => setGone(true), FADE_OUT_MS)
+    return () => window.clearTimeout(timer)
+  }, [visible])
+
+  if (gone) return null
 
   return (
     <div
-      className="ss-onboarding-dither transition-opacity duration-200 ease-out motion-reduce:transition-none"
+      className="ss-onboarding-dither transition-opacity ease-out motion-reduce:transition-none"
       // Inline, since `.ss-onboarding-dither` sets its own opacity outside
-      // Tailwind's layers and would win over a utility.
-      style={fading ? { opacity: 0 } : undefined}
+      // Tailwind's layers and would win over a utility; the duration shares
+      // FADE_OUT_MS with the unmount.
+      style={{
+        transitionDuration: `${FADE_OUT_MS}ms`,
+        ...(fading && { opacity: 0 }),
+      }}
       aria-hidden="true"
     >
       <ShaderMount
