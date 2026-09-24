@@ -9,6 +9,7 @@ import {
   LightbulbIcon,
   XIcon,
 } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import type { QuizState } from "../../api"
 import { StudyText } from "../study-text"
@@ -42,13 +43,21 @@ export function QuizReviewScreen({
     <section>
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <p className="text-sm text-muted-foreground">Review</p>
+          <p className="text-sm text-muted-foreground">
+            {intl.formatMessage({ id: "studio_quiz_review_title" })}
+          </p>
           <p className="font-medium">
-            Question {index + 1} of {quiz.questions.length}
+            {intl.formatMessage(
+              { id: "studio_quiz_review_position_label" },
+              {
+                number: String(index + 1),
+                total: String(quiz.questions.length),
+              }
+            )}
           </p>
         </div>
         <Button type="button" variant="secondary" size="sm" onClick={onExit}>
-          Exit review
+          {intl.formatMessage({ id: "studio_quiz_review_exit_button" })}
         </Button>
       </div>
       <h2
@@ -83,12 +92,20 @@ export function QuizReviewScreen({
               {correct ? (
                 <span className="text-emerald-600">
                   <CheckIcon className="size-5" />
-                  <span className="sr-only">Correct answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_review_correct_aria",
+                    })}
+                  </span>
                 </span>
               ) : chosen ? (
                 <span className="text-destructive">
                   <XIcon className="size-5" />
-                  <span className="sr-only">Incorrect answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_review_incorrect_aria",
+                    })}
+                  </span>
                 </span>
               ) : null}
             </div>
@@ -97,7 +114,9 @@ export function QuizReviewScreen({
       </div>
       <Alert variant="secondary" className="mt-6 border-0">
         <LightbulbIcon />
-        <AlertTitle>Explanation</AlertTitle>
+        <AlertTitle>
+          {intl.formatMessage({ id: "studio_quiz_review_explanation_title" })}
+        </AlertTitle>
         <AlertDescription>
           <StudyText content={question.explanation_text} />
         </AlertDescription>
@@ -109,7 +128,8 @@ export function QuizReviewScreen({
           disabled={index === 0}
           onClick={() => moveTo(index - 1)}
         >
-          <ArrowLeftIcon /> Previous
+          <ArrowLeftIcon />{" "}
+          {intl.formatMessage({ id: "studio_quiz_review_previous_button" })}
         </Button>
         <Button
           type="button"
@@ -117,7 +137,8 @@ export function QuizReviewScreen({
           disabled={index === quiz.questions.length - 1}
           onClick={() => moveTo(index + 1)}
         >
-          Next <ArrowRightIcon />
+          {intl.formatMessage({ id: "studio_quiz_review_next_button" })}{" "}
+          <ArrowRightIcon />
         </Button>
       </div>
     </section>

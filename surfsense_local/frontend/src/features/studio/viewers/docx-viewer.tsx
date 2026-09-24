@@ -4,6 +4,7 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { FileIcon, ZoomInIcon, ZoomOutIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
 
 /** Reject before docx-preview allocates — keep below the server file limit. */
@@ -45,12 +46,24 @@ export function DocxViewer({
       try {
         if (primary.size_bytes > MAX_VIEWER_BYTES) {
           throw new Error(
-            `Document is too large to preview (${primary.size_bytes} bytes)`
+            intl.formatMessage(
+              { id: "studio_docx_viewer_oversize_error" },
+              {
+                size: String(primary.size_bytes),
+              }
+            )
           )
         }
         const response = await fetch(fileUrl(artifact.id, "primary"))
         if (!response.ok) {
-          throw new Error(`Could not load document (${response.status})`)
+          throw new Error(
+            intl.formatMessage(
+              { id: "studio_docx_viewer_load_error" },
+              {
+                status: String(response.status),
+              }
+            )
+          )
         }
         const buffer = await response.arrayBuffer()
         // docx-preview has no top-level import cost worth paying eagerly —
@@ -134,7 +147,9 @@ export function DocxViewer({
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label="Zoom out"
+        aria-label={intl.formatMessage({
+          id: "studio_docx_viewer_zoom_out_aria",
+        })}
         onClick={zoomOut}
       >
         <ZoomOutIcon />
@@ -143,7 +158,9 @@ export function DocxViewer({
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label="Zoom in"
+        aria-label={intl.formatMessage({
+          id: "studio_docx_viewer_zoom_in_aria",
+        })}
         onClick={zoomIn}
       >
         <ZoomInIcon />
@@ -166,11 +183,13 @@ export function DocxViewer({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white px-5 py-4 text-center">
           <FileIcon className="size-8 text-muted-foreground" />
           <div>
-            <p className="text-sm font-medium">Couldn't open this document</p>
+            <p className="text-sm font-medium">
+              {intl.formatMessage({ id: "studio_docx_viewer_error_title" })}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {error instanceof Error
                 ? error.message
-                : "This document can't be previewed here. Download it to open it."}
+                : intl.formatMessage({ id: "studio_docx_viewer_error_body" })}
             </p>
           </div>
           <Button
@@ -179,7 +198,7 @@ export function DocxViewer({
             size="sm"
             onClick={() => setRetryKey((key) => key + 1)}
           >
-            Try again
+            {intl.formatMessage({ id: "studio_docx_viewer_retry_button" })}
           </Button>
         </div>
       ) : null}

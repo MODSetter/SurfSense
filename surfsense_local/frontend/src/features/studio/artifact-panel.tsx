@@ -5,8 +5,21 @@ import { Button } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
 import { Download01Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
-import { fileUrl, readArtifact, type ArtifactDetail } from "./api"
+import { intl } from "@/i18n/intl"
+import {
+  fileUrl,
+  readArtifact,
+  type ArtifactDetail,
+  type ArtifactFile,
+} from "./api"
 import { getArtifactViewer } from "./viewers/registry"
+
+const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
+  primary: () =>
+    intl.formatMessage({ id: "studio_artifact_panel_download_aria" }),
+  preview: () =>
+    intl.formatMessage({ id: "studio_artifact_panel_download_preview_aria" }),
+}
 
 export function ArtifactPanel({
   artifactId,
@@ -24,10 +37,17 @@ export function ArtifactPanel({
 
   return (
     <DetailPanel
-      title={data?.title ?? (isLoading ? "Loading…" : "Artifact")}
+      title={
+        data?.title ??
+        (isLoading
+          ? intl.formatMessage({ id: "studio_artifact_panel_loading_status" })
+          : intl.formatMessage({ id: "studio_artifact_panel_title" }))
+      }
       titleClassName="select-none"
-      ariaLabel="Artifact"
-      closeLabel="Close artifact"
+      ariaLabel={intl.formatMessage({ id: "studio_artifact_panel_aria" })}
+      closeLabel={intl.formatMessage({
+        id: "studio_artifact_panel_close_aria",
+      })}
       onClose={onClose}
       flush
       actions={
@@ -50,11 +70,7 @@ export function ArtifactPanel({
                   <a
                     href={fileUrl(data.id, file.role)}
                     download
-                    aria-label={
-                      file.role === "primary"
-                        ? "Download"
-                        : `Download ${file.role}`
-                    }
+                    aria-label={DOWNLOAD_LABELS[file.role]()}
                   >
                     <Download01Icon />
                   </a>
@@ -80,7 +96,9 @@ export function ArtifactPanel({
             <p className="text-sm text-destructive">
               {error instanceof Error
                 ? error.message
-                : "Failed to load artifact"}
+                : intl.formatMessage({
+                    id: "studio_artifact_panel_load_error",
+                  })}
             </p>
           </div>
         ) : null}

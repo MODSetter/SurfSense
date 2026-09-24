@@ -15,6 +15,8 @@ import {
   Xls01Icon,
 } from "@/components/ui/icons"
 
+import { intl } from "@/i18n/intl"
+
 import type { StudioFormat } from "./api"
 
 // Frontend-only concern: the backend's format catalog has no notion of an
@@ -37,91 +39,39 @@ export const FORMAT_ICONS: Record<
   infographic: ChartHistogramIcon,
 }
 
+// The backend's catalog sends English labels; a known key shows its own.
+const FORMAT_LABELS: Record<string, () => string> = {
+  summary: () => intl.formatMessage({ id: "studio_format_summary_label" }),
+  docx: () => intl.formatMessage({ id: "studio_format_docx_label" }),
+  pptx: () => intl.formatMessage({ id: "studio_format_pptx_label" }),
+  xlsx: () => intl.formatMessage({ id: "studio_format_xlsx_label" }),
+  html: () => intl.formatMessage({ id: "studio_format_html_label" }),
+  pdf: () => intl.formatMessage({ id: "studio_format_pdf_label" }),
+  mindmap: () => intl.formatMessage({ id: "studio_format_mindmap_label" }),
+  flashcards: () =>
+    intl.formatMessage({ id: "studio_format_flashcards_label" }),
+  quiz: () => intl.formatMessage({ id: "studio_format_quiz_label" }),
+  podcast: () => intl.formatMessage({ id: "studio_format_podcast_label" }),
+  image: () => intl.formatMessage({ id: "studio_format_image_label" }),
+  infographic: () =>
+    intl.formatMessage({ id: "studio_format_infographic_label" }),
+}
+
+export function formatLabel(entry: { key: string; label: string }): string {
+  return FORMAT_LABELS[entry.key]?.() ?? entry.label
+}
+
 // The formats offered before the API answers, and if it never does. The
 // backend's catalog replaces this as soon as it loads.
-export const STUDIO_CATALOG: StudioFormat[] = [
-  {
-    key: "summary",
-    label: "Summary",
-    requires_model_types: ["text_gen"],
+export function studioCatalog(): StudioFormat[] {
+  return Object.keys(FORMAT_LABELS).map((key) => ({
+    key,
+    label: FORMAT_LABELS[key](),
+    requires_model_types:
+      key === "image" || key === "infographic"
+        ? ["image_gen", "text_gen"]
+        : ["text_gen"],
     available: true,
     unavailable_reason: null,
-  },
-  {
-    key: "docx",
-    label: "Word",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "pptx",
-    label: "Slides",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "xlsx",
-    label: "Spreadsheet",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "html",
-    label: "Web page",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "pdf",
-    label: "PDF",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "mindmap",
-    label: "Mind map",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "flashcards",
-    label: "Flashcards",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "quiz",
-    label: "Quiz",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "podcast",
-    label: "Podcast",
-    requires_model_types: ["text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "image",
-    label: "Image",
-    requires_model_types: ["image_gen", "text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-  {
-    key: "infographic",
-    label: "Infographic",
-    requires_model_types: ["image_gen", "text_gen"],
-    available: true,
-    unavailable_reason: null,
-  },
-]
+  }))
+}

@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
 
 // Dynamically imported, same reasoning as pdf-viewer's pdfjs-dist load: it's
@@ -50,7 +51,12 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
 
         if (!response.ok) {
           throw new Error(
-            `Server returned ${response.status} while retrieving the presentation`
+            intl.formatMessage(
+              { id: "studio_pptx_viewer_load_error" },
+              {
+                status: String(response.status),
+              }
+            )
           )
         }
 
@@ -71,7 +77,9 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
       } catch (error: unknown) {
         if (disposed) return
         setLoadError(
-          error instanceof Error ? error.message : "Failed to load presentation"
+          error instanceof Error
+            ? error.message
+            : intl.formatMessage({ id: "studio_pptx_viewer_unknown_error" })
         )
         setLoading(false)
       }
@@ -89,7 +97,9 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
   if (loadError) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-sm font-medium">Failed to load presentation</p>
+        <p className="text-sm font-medium">
+          {intl.formatMessage({ id: "studio_pptx_viewer_error_title" })}
+        </p>
         <p className="text-xs text-muted-foreground">{loadError}</p>
         <Button
           type="button"
@@ -97,7 +107,7 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
           size="sm"
           onClick={() => setRetryKey((key) => key + 1)}
         >
-          Try again
+          {intl.formatMessage({ id: "studio_pptx_viewer_retry_button" })}
         </Button>
       </div>
     )

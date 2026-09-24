@@ -1,5 +1,7 @@
 import { Streamdown } from "streamdown"
 
+import { intl } from "@/i18n/intl"
+
 import { fileUrl, type ArtifactDetail } from "../api"
 import { streamdownPlugins } from "./streamdown-config"
 import { VIEWER_PADDING } from "./viewer-layout"
@@ -17,7 +19,9 @@ export function PodcastViewer({ artifact }: { artifact: ArtifactDetail }) {
       {artifact.content ? (
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground">
-            Transcript
+            {intl.formatMessage({
+              id: "studio_podcast_viewer_transcript_title",
+            })}
           </p>
           <Streamdown
             className="text-sm leading-7"

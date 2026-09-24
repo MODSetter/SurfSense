@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { intl } from "@/i18n/intl"
+
 import {
   cancelArtifact,
   createJob,
@@ -18,7 +20,9 @@ function isAbort(error: unknown) {
 }
 
 export function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({ id: "studio_request_unexpected_error" })
 }
 
 function isRunning(artifact: Artifact) {
@@ -109,14 +113,26 @@ export function useStudio(workspaceId: number, selectionToken = "") {
             )
             if (!before || !isRunning(before)) continue
             if (artifact.status === "ready") {
-              toast.success(`${artifact.title} is ready`)
+              toast.success(
+                intl.formatMessage(
+                  { id: "studio_artifact_ready_toast" },
+                  { name: artifact.title }
+                )
+              )
             } else if (artifact.status === "failed") {
               // The raw error (often a multi-line HTTP exception) belongs in
               // the row's own Ctrl/Cmd-hover tooltip, not a toast.
-              toast.error(`${artifact.title} failed`, {
-                description:
-                  "This artifact couldn't be generated. Retry it from the artifacts tab.",
-              })
+              toast.error(
+                intl.formatMessage(
+                  { id: "studio_artifact_failed_toast" },
+                  { name: artifact.title }
+                ),
+                {
+                  description: intl.formatMessage({
+                    id: "studio_artifact_failed_toast_body",
+                  }),
+                }
+              )
             }
           }
           setArtifacts(next)

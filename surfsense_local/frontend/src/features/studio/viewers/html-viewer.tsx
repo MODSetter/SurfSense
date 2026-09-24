@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { FileIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
 import { VIEWER_PADDING } from "./viewer-layout"
 
@@ -48,9 +49,11 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
       >
         <FileIcon className="size-8 text-muted-foreground" />
         <div>
-          <p className="text-sm font-medium">Couldn't open this page</p>
+          <p className="text-sm font-medium">
+            {intl.formatMessage({ id: "studio_html_viewer_error_title" })}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            This page can't be previewed here. Download it to open it.
+            {intl.formatMessage({ id: "studio_html_viewer_error_body" })}
           </p>
         </div>
         <Button
@@ -59,7 +62,7 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
           size="sm"
           onClick={() => void refetch()}
         >
-          Try again
+          {intl.formatMessage({ id: "studio_html_viewer_retry_button" })}
         </Button>
       </div>
     )

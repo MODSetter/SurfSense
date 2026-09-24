@@ -1,5 +1,7 @@
 import { Streamdown } from "streamdown"
 
+import { intl } from "@/i18n/intl"
+
 import type { ArtifactDetail } from "../api"
 import { streamdownPlugins } from "./streamdown-config"
 import { VIEWER_PADDING } from "./viewer-layout"
@@ -17,7 +19,8 @@ export function SummaryViewer({ artifact }: { artifact: ArtifactDetail }) {
         plugins={streamdownPlugins}
         linkSafety={{ enabled: true }}
       >
-        {artifact.content || "This artifact has no text body."}
+        {artifact.content ||
+          intl.formatMessage({ id: "studio_summary_viewer_empty" })}
       </Streamdown>
     </div>
   )
