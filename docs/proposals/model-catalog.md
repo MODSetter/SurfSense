@@ -25,7 +25,7 @@ Until this work ships, `docs/architecture/` describes the code as it is and this
 | [`connections.md`](../architecture/connections.md) | connections, and how their models are listed and classified | keeps storage, keys, the probe and the runtime; model listing moves to `model-catalog/remote.md` |
 | [`local-models/selection.md`](../architecture/local-models/selection.md) | one model per `ModelType` | done in step 1 |
 | [`data-model.md`](../architecture/data-model.md) | `selected_models.model_type` (step 1) and the provider id on a connection (step 3b) | done |
-| [`studio.md`](../architecture/studio.md) | the `image_gen` selection (step 1) and the hard-coded sd.cpp list | the local manifest |
+| [`studio.md`](../architecture/studio.md) | the `image_gen` selection (step 1) and the hard-coded sd.cpp list | done in step 5 |
 
 Known gaps in `local-models/catalog.md` that step 5 closed:
 
@@ -33,6 +33,7 @@ Known gaps in `local-models/catalog.md` that step 5 closed:
 - Downloads are not checksum-verified: every file has a `sha256` (step 5).
 - Curated rows send `context_length: 0`: `context` is in the manifest (step 5).
 - A dead curated pin gets the generic install error: files are pinned to a commit, so a re-upload, rename or deletion on `main` no longer breaks a shipped manifest; a deleted repo still does (step 5).
+- Image models are not in the manifest: the three sd.cpp models are manifest entries, pinned and hashed like the chat builds (step 5).
 
 ## The shape of it
 
@@ -411,7 +412,7 @@ The backend decides, the screen renders. A curated row carries every build with 
 
 ### Search
 
-`catalog/local/engines/llamacpp/search/` is the one live part of either catalog: 200,000 GGUF repos cannot be packaged. It is opt-in and asks egress consent for `huggingface.co`. Search results rank by downloads and are described, never judged: downloads, licence, gated, and Vision when the repo's file names include a projector, by the same projector rule `repo_builds.py` uses; the listing's `full=true` already carries every repo's file names, so this costs no request. A hit also keeps its `base_model:quantized:` tag as `quantized_from`, returned by the API and not shown. Nothing from search is written to a manifest.
+`catalog/local/engines/llamacpp/search/` is the one live part of either catalog: 200,000 GGUF repos cannot be packaged. It is opt-in and asks egress consent for `huggingface.co`. Search results rank by downloads and are described, never judged: downloads, licence, gated, and Vision when the repo's file names include a projector, by the same projector rule `engines/llamacpp/builds/in_repo.py` uses; the listing's `full=true` already carries every repo's file names, so this costs no request. A hit also keeps its `base_model:quantized:` tag as `quantized_from`, returned by the API and not shown. Nothing from search is written to a manifest.
 
 **Opening a repo reads its listing, never a file.** The repo summary and file tree come back in about a second; each build shows its exact size and a fit estimated from sizes, marked `~`, which over-charges on purpose (weights plus 15% and a gibibyte) so it never calls a spill resident, and never refuses. The type comes from the repo's tag and Hugging Face's parsed architecture, ignored when it names a projector, marked approximate. **Installing a build reads it exactly:** before any bytes move, the weights' and projector's headers are read, the build is refused if it is not a model, not a type the runtime runs, or too big, and a projector that does not see or belongs to another model is dropped. Reading a header costs about 50 ms because a vocabulary is counted, not decoded.
 
