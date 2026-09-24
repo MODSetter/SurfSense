@@ -6,6 +6,7 @@ both the Metal and CPU devices. That number decides PARTIAL against TOO_BIG, so
 it is worth asking the OS directly.
 """
 
+import ctypes
 import os
 import subprocess
 import sys
@@ -17,6 +18,8 @@ def available_bytes() -> int:
         return _darwin()
     if sys.platform.startswith("linux"):
         return _linux()
+    if sys.platform == "win32":
+        return _windows()
     return _total()
 
 
@@ -36,6 +39,30 @@ def _linux() -> int:
     except OSError:
         pass
     return _total()
+
+
+class _MemoryStatusEx(ctypes.Structure):
+    _fields_ = [
+        ("dwLength", ctypes.c_ulong),
+        ("dwMemoryLoad", ctypes.c_ulong),
+        ("ullTotalPhys", ctypes.c_ulonglong),
+        ("ullAvailPhys", ctypes.c_ulonglong),
+        ("ullTotalPageFile", ctypes.c_ulonglong),
+        ("ullAvailPageFile", ctypes.c_ulonglong),
+        ("ullTotalVirtual", ctypes.c_ulonglong),
+        ("ullAvailVirtual", ctypes.c_ulonglong),
+        ("ullAvailExtendedVirtual", ctypes.c_ulonglong),
+    ]
+
+
+def _windows() -> int:
+    """Available physical memory, as psutil and Task Manager report it. There is
+    no sysconf on Windows, so without this the reading was 0."""
+    status = _MemoryStatusEx()
+    status.dwLength = ctypes.sizeof(status)
+    if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(status)):  # type: ignore[attr-defined]
+        return 0
+    return int(status.ullAvailPhys)
 
 
 def _darwin() -> int:
