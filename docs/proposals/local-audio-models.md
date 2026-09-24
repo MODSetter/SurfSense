@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/catalog/local/
   - surfsense_local/backend/modules/llm/providers/
@@ -151,20 +151,22 @@ On macOS too, until measured. Memory is one pool there either way, so Metal's on
 
 ### Packaging
 
-The app builds audio.cpp itself on Windows and Linux in release CI, from a pinned tag whose source archive is checked by sha256, and takes upstream's archive on macOS, as SubtitleEdit builds its own and llama-swap builds from a pinned commit. Upstream's Windows and Linux archives each fail one of the app's floors:
+The app compiles audio.cpp on Windows and Linux from a pinned commit, as Ollama compiles its llama.cpp backends and Jan now compiles its vendored llama.cpp, and takes upstream's archive on macOS. Nothing is hosted: a GitHub release on this repository would become the newest entry of the feed that installed apps read for updates ([updates](../architecture/updates.md)). Upstream's Windows and Linux archives each fail one of the app's floors:
 
-- **Linux: glibc.** Every v0.8.2 Linux archive needs glibc 2.38 (Ubuntu 24.04); the app holds 2.34 (Ubuntu 22.04) for its AppImage. The build runs on the `ubuntu-22.04` runner the release already pins:
-  - GCC 13 from the Ubuntu toolchain PPA, since audio.cpp requires it, linked with `-static-libstdc++ -static-libgcc`, since 22.04's own C++ runtime is older;
-  - `-DENGINE_ENABLE_OPENMP=OFF`, as upstream's macOS builds do, so ggml's own thread pool runs and no `libgomp` ships; the thread sweep is repeated to confirm it is not slower;
-  - Vulkan from 22.04's `libvulkan-dev` and `glslc`;
-  - a gate, as release CI has for `llama-server`: `objdump -T` names nothing newer than `GLIBC_2.34`, then `--list-devices` and one Kokoro synthesis run.
-
-  If GCC 13 on 22.04 fights back, the fallback is the `manylinux_2_28` image with `gcc-toolset-13`, the route Python wheels take, which lowers the floor to glibc 2.28.
-- **Windows: the CPU.** The Vulkan archive has no per-CPU libraries: its CPU code is inside `audiocpp_server.exe`, which carries about 7,300 AVX-512 instructions, so it would stop with an illegal instruction on the Intel 12th to 14th generation and AMD before Zen 4. Upstream's Linux portable archive keeps AVX-512 only in its Skylake-X library, chosen at start.
-- **Both builds** use `-DENGINE_ENABLE_VULKAN=ON -DENGINE_ENABLE_NATIVE_CPU=OFF -DENGINE_ENABLE_CPU_ALL_VARIANTS=ON`, one ggml CPU library per micro-architecture picked at start, and `--model-set custom` with the curated families only, which also shrinks the 90 to 120 MB server.
+- **Linux: glibc.** Every v0.8.2 Linux archive needs glibc 2.38 (Ubuntu 24.04); the app holds 2.34 (Ubuntu 22.04) for its AppImage.
+- **Windows: the CPU.** The Vulkan archive has no per-CPU libraries: its CPU code is inside `audiocpp_server.exe`, which carries about 7,300 AVX-512 instructions, so it would stop with an illegal instruction on the Intel 12th to 14th generation and AMD before Zen 4.
 - **macOS** takes `audio-<tag>-bin-macos-arm64-metal.tar.gz` (28.4 MB for v0.8.2); there is no Intel Mac build ([ADR 0021](../adr/0021-no-intel-mac-build.md)).
 
-`fetch-audiocpp.mjs`, beside [`fetch-llamacpp.mjs`](../../surfsense_local/electron/scripts/fetch-llamacpp.mjs) and [`fetch-sdcpp.mjs`](../../surfsense_local/electron/scripts/fetch-sdcpp.mjs), stages the built or downloaded server, its ggml libraries, its `model_specs/`, its licence and eSpeak, and signing and notarization cover them as they do `sd-server`. Step 1 opens an issue upstream asking for a Windows archive with per-CPU libraries and a Linux archive built on 22.04; when both exist, the build jobs go.
+`scripts/audiocpp/stage.mjs` stages the server, its ggml libraries, the curated families' `model_specs/`, its licence and eSpeak, in dev as `pnpm build:audiocpp` and in the release, and signing and notarization cover them as they do `sd-server`. Its recipe, `scripts/audiocpp/recipe.mjs`:
+
+- builds the CPU backend only, since the server runs with `--backend cpu`. A Vulkan build was 329 of 836 build steps and 57 to 58 MB of each package, and ggml loaded it at start regardless;
+- builds one ggml CPU library per micro-architecture, picked at start, and only the curated families;
+- turns OpenMP off, as upstream's macOS builds do, so ggml's own thread pool runs and no `libgomp` ships; the thread sweep is repeated to confirm it is not slower;
+- on Linux links libstdc++ statically into every file, ggml's CPU modules included, since audio.cpp requires GCC 13 and 22.04's own C++ runtime is older. libgcc stays dynamic: GCC 12 and 13's static unwinder on 22.04 calls `_dl_find_object`, from glibc 2.35, measured on the runner.
+
+In release CI, [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles on `ubuntu-22.04` and Windows, gates the Linux build on `objdump -T` naming nothing newer than `GLIBC_2.34` or `GCC_7.0.0`, RHEL 9's, and on no file needing libstdc++, libgomp or Vulkan, voices one Kokoro passage on both, and hands the staged folders to the packaging jobs. It caches by the recipe, so most releases do not compile. A developer compiles once, with CMake and GCC 13 or Visual Studio 2022; without them `pnpm dev` runs without local audio.
+
+This is a stopgap. Step 1 opens an issue upstream asking for a Windows archive with per-CPU libraries and a Linux archive built on 22.04; when both exist, the app downloads them as it does llama.cpp's, and the compile path goes.
 
 ## The catalog slice
 
@@ -214,7 +216,7 @@ The app builds audio.cpp itself on Windows and Linux in release CI, from a pinne
 
 Each step ships alone and leaves the app working.
 
-1. **The runtime, built and staged.** The release-CI build for Windows and Linux, `fetch-audiocpp.mjs` with eSpeak, the sidecar spec, and Electron's watcher of `server.json`. Nothing writes the file yet, so nothing starts.
+1. **The runtime, built and staged.** The Windows and Linux compile in release CI, `scripts/audiocpp/` with eSpeak, the sidecar spec, and Electron's watcher of `server.json`. Nothing writes the file yet, so nothing starts.
 2. **The catalog slice.** Evidence and the classifier fix, the `audio` block, the three entries through the refresh script, rows, installs into the audio folder, and `server.json`.
 3. **Selection and the screen.** The revision, `audio_gen` through `audiocpp`, and the Audio section.
 4. **The podcast on audio.cpp.** The adapter, the unload at the end of a job, the podcast's model types, and its brief from the roster; the Python Kokoro removed; the README, `studio.md`, `packaging.md` and `overview.md` updated.
@@ -238,7 +240,7 @@ And for the timeout, beyond audio.cpp: Ollama keeps a model 5 minutes after its 
 
 ## Decided here
 
-- audio.cpp's server is the one local audio runtime. The app builds it on Windows and Linux and takes upstream's archive on macOS, each pinned by tag and sha256.
+- audio.cpp's server is the one local audio runtime. The app compiles it, CPU-only, on Windows and Linux from a pinned commit, and takes upstream's archive on macOS, pinned by sha256. Nothing is published as a release of this repository.
 - Audio models are downloaded, not bundled; nothing voices a podcast until one is installed and chosen.
 - Kokoro-82M, Supertonic 3 and KittenTTS Mini are curated, in that order. A curated audio model has packaged voices, at least two, commercial-use weights, and runs on a CPU at about real time.
 - A model's voices and the memory it takes while voicing are committed in the manifest, because the server lists neither.
@@ -253,7 +255,6 @@ And for the timeout, beyond audio.cpp: Ollama keeps a model 5 minutes after its 
 Each is a measurement with its rule already set above:
 
 - **Metal on an Apple Silicon Mac**: warm and cold for the three models, and a chat answer's time while a podcast voices. Metal if it clears the bar under [Backend](#backend); the CPU otherwise.
-- **The Linux build on Ubuntu 22.04**: the CI job under [Packaging](#packaging) on a fork first. Whether 22.04 packages `glslc` is not yet checked; the manylinux route is the fallback.
 - **Kokoro at chunk 120 and 60**: a listening test on podcast turns split at sentence ends. A size that fails it is not stepped down to.
 - **Kitten's chunk size**: the same sweep as Kokoro's, to see whether it has the same dial.
 
@@ -296,3 +297,14 @@ Memory against settings, Kokoro through the CLI, 6 threads, `--seed 7`, peak res
 And through the server, peak after three requests: Kokoro 1,449 MB, Kitten 1,011 MB, Supertonic 368 MB with glibc's defaults; within 2% of those with `MALLOC_ARENA_MAX` at 2 or 1, and 14 to 57% slower.
 
 The CPU numbers vary from run to run on this laptop, by as much as 50% for the same request; read them as the order of magnitude, not a benchmark.
+
+The app's own builds, 24 Sep 2026, test runs of `build-audiocpp.yml`, v0.8.2 with the three curated families. The Vulkan builds came first and were dropped:
+
+| | Linux x64 | Windows x64 |
+|---|---|---|
+| Compile, CPU only | 3.6 min | 9.5 min |
+| Compile, with Vulkan | 9.1 min | about 11.5 min |
+| Staged folder, CPU only, eSpeak included | 50.0 MB | 33.0 MB |
+| ggml's Vulkan library, no longer built | 59.9 MB | 57.5 MB |
+
+The Linux build passed the gate: nothing newer than `GLIBC_2.34` or `GCC_7.0.0`, and no file needing libstdc++, libgomp or Vulkan. The Windows server has no AVX-512 instructions, against 7,264 in upstream's; that code now sits only in `ggml-cpu-skylakex.dll`, which ggml loads only on a CPU that has it. Both voiced a Kokoro passage in CI with the sidecar's eSpeak paths and flags. Staged on the laptop above with those flags, the earlier Linux build voiced each curated model, the model's load included, in 3 to 5 seconds.
