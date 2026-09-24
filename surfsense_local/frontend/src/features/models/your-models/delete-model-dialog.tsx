@@ -9,6 +9,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 
 import type { YourModelRow } from "./your-model-row"
 
@@ -34,16 +35,37 @@ export function DeleteModelDialog({
     >
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
-          <AlertDialogTitle>Delete {row?.name}?</AlertDialogTitle>
+          <AlertDialogTitle>
+            {intl.formatMessage(
+              {
+                id: "models_delete_dialog_title",
+                defaultMessage: "Delete {model}?",
+              },
+              { model: row?.name ?? "" }
+            )}
+          </AlertDialogTitle>
           <AlertDialogDescription>
             {row?.selected
-              ? "This is your current model. Deleting it will require you to choose another model."
-              : "This permanently removes the model and its downloaded data from this computer."}
+              ? intl.formatMessage({
+                  id: "models_delete_dialog_in_use_body",
+                  defaultMessage:
+                    "This is your current model. Deleting it will require you to choose another model.",
+                })
+              : intl.formatMessage({
+                  id: "models_delete_dialog_body",
+                  defaultMessage:
+                    "This permanently removes the model and its downloaded data from this computer.",
+                })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={pending}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={pending}>
+            {intl.formatMessage({
+              id: "models_delete_dialog_cancel_button",
+              defaultMessage: "Cancel",
+            })}
+          </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={pending}
@@ -53,7 +75,15 @@ export function DeleteModelDialog({
             }}
           >
             {pending ? <Spinner data-icon="inline-start" /> : null}
-            {pending ? "Deleting…" : "Delete model"}
+            {pending
+              ? intl.formatMessage({
+                  id: "models_delete_dialog_deleting_status",
+                  defaultMessage: "Deleting…",
+                })
+              : intl.formatMessage({
+                  id: "models_delete_dialog_confirm_button",
+                  defaultMessage: "Delete model",
+                })}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

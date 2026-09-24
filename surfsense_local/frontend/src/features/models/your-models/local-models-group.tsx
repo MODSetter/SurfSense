@@ -1,13 +1,19 @@
 import { useId, useState, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
+import { intl } from "@/i18n/intl"
 
 import { DeleteModelDialog } from "./delete-model-dialog"
 import { ModelRow } from "./model-row"
 import type { YourModelRow } from "./your-model-row"
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "The request failed"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "models_local_group_request_error",
+        defaultMessage: "The request failed",
+      })
 }
 
 /** The slot's models on this computer; a download under way shows as `pending`. */
@@ -52,13 +58,19 @@ export function LocalModelsGroup({
   return (
     <section className="flex flex-col gap-2" aria-labelledby={headingId}>
       <h3 id={headingId} className="text-xs font-medium text-muted-foreground">
-        This computer
+        {intl.formatMessage({
+          id: "models_local_group_title",
+          defaultMessage: "This computer",
+        })}
       </h3>
 
       {rows.length === 0 && !pending ? (
         <div className="flex items-center justify-between gap-3 rounded-xl border border-dashed px-3 py-2.5">
           <p className="text-sm text-muted-foreground">
-            Nothing downloaded yet.
+            {intl.formatMessage({
+              id: "models_local_group_empty",
+              defaultMessage: "Nothing downloaded yet.",
+            })}
           </p>
           <Button
             type="button"
@@ -66,7 +78,10 @@ export function LocalModelsGroup({
             variant="outline"
             onClick={onDownload}
           >
-            Download a model
+            {intl.formatMessage({
+              id: "models_local_group_download_button",
+              defaultMessage: "Download a model",
+            })}
           </Button>
         </div>
       ) : (

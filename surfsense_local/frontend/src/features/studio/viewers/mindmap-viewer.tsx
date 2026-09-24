@@ -5,6 +5,7 @@ import { createPortal } from "react-dom"
 
 import { Button } from "@/components/ui/button"
 import { ArrowExpand01Icon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 
 interface TreeNode {
   label: string
@@ -85,7 +86,10 @@ export function MindmapViewer({
       type="button"
       variant="ghost"
       size="icon-sm"
-      aria-label="Fit mind map"
+      aria-label={intl.formatMessage({
+        id: "studio_mindmap_viewer_fit_aria",
+        defaultMessage: "Fit mind map",
+      })}
       className="text-muted-foreground"
       onClick={() => void markmapRef.current?.fit()}
     >
@@ -103,7 +107,13 @@ export function MindmapViewer({
       />
       {actionsContainer ? createPortal(fitButton, actionsContainer) : null}
       {tree ? (
-        <ul className="sr-only" aria-label="Mind map">
+        <ul
+          className="sr-only"
+          aria-label={intl.formatMessage({
+            id: "studio_mindmap_viewer_tree_aria",
+            defaultMessage: "Mind map",
+          })}
+        >
           <TreeItem node={tree} />
         </ul>
       ) : null}

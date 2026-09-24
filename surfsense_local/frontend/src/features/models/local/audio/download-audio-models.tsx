@@ -3,6 +3,7 @@ import { Fragment, useState } from "react"
 import { CircleAlertIcon, DotIcon, Trash2Icon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { intl } from "@/i18n/intl"
 
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
@@ -16,7 +17,12 @@ import { useDeleteLocalAudioModel } from "./use-delete-local-audio-model"
 import { useLocalAudioCatalog } from "./use-local-audio-catalog"
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "The request failed"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "models_download_audio_request_error",
+        defaultMessage: "The request failed",
+      })
 }
 
 /** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
@@ -48,7 +54,12 @@ export function DownloadAudioModels() {
     return (
       <Alert variant="destructive">
         <CircleAlertIcon />
-        <AlertTitle>Could not load local audio models</AlertTitle>
+        <AlertTitle>
+          {intl.formatMessage({
+            id: "models_download_audio_load_error",
+            defaultMessage: "Could not load local audio models",
+          })}
+        </AlertTitle>
         <AlertDescription>{messageFrom(catalog.error)}</AlertDescription>
       </Alert>
     )
@@ -59,9 +70,18 @@ export function DownloadAudioModels() {
     return (
       <Alert>
         <CircleAlertIcon />
-        <AlertTitle>Audio models cannot run on this computer</AlertTitle>
+        <AlertTitle>
+          {intl.formatMessage({
+            id: "models_download_audio_unsupported_title",
+            defaultMessage: "Audio models cannot run on this computer",
+          })}
+        </AlertTitle>
         <AlertDescription>
-          This build has no local audio runtime. Use a server above instead.
+          {intl.formatMessage({
+            id: "models_download_audio_unsupported_body",
+            defaultMessage:
+              "This build has no local audio runtime. Use a server above instead.",
+          })}
         </AlertDescription>
       </Alert>
     )
@@ -138,7 +158,15 @@ export function DownloadAudioModels() {
                       size="icon-sm"
                       variant="destructive"
                       disabled={busy}
-                      aria-label={`Delete ${model.label}`}
+                      aria-label={intl.formatMessage(
+                        {
+                          id: "models_download_audio_delete_aria",
+                          defaultMessage: "Delete {model}",
+                        },
+                        {
+                          model: model.label,
+                        }
+                      )}
                       onClick={() => {
                         setDeleteError(null)
                         setDeleting(deletableRow(model))

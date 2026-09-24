@@ -49,10 +49,11 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useModifierHeld } from "@/hooks/use-modifier-held"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { Artifact, StudioFormat } from "./api"
-import { FORMAT_ICONS } from "./studio-formats"
+import { FORMAT_ICONS, formatLabel } from "./studio-formats"
 
 function artifactFilterKey(workspaceId: number) {
   return `surfsense:artifact-filter:${workspaceId}:v1`
@@ -127,7 +128,15 @@ function ArtifactRow({
             {ingesting ? (
               <Spinner
                 className="size-4.5 text-muted-foreground"
-                aria-label={`Processing ${artifact.title}`}
+                aria-label={intl.formatMessage(
+                  {
+                    id: "studio_artifact_row_processing_aria",
+                    defaultMessage: "Processing {name}",
+                  },
+                  {
+                    name: artifact.title,
+                  }
+                )}
               />
             ) : null}
             {retryable ? (
@@ -139,8 +148,24 @@ function ArtifactRow({
                     variant="ghost"
                     aria-label={
                       cancelled
-                        ? `Cancelled. Retry ${artifact.title}`
-                        : `Generation failed. Retry ${artifact.title}`
+                        ? intl.formatMessage(
+                            {
+                              id: "studio_artifact_row_retry_cancelled_aria",
+                              defaultMessage: "Cancelled. Retry {name}",
+                            },
+                            {
+                              name: artifact.title,
+                            }
+                          )
+                        : intl.formatMessage(
+                            {
+                              id: "studio_artifact_row_retry_failed_aria",
+                              defaultMessage: "Generation failed. Retry {name}",
+                            },
+                            {
+                              name: artifact.title,
+                            }
+                          )
                     }
                     className="relative hover:bg-transparent"
                     onClick={onRegenerate}
@@ -151,8 +176,14 @@ function ArtifactRow({
                 </TooltipTrigger>
                 <TooltipContent side="top" collisionPadding={8}>
                   {cancelled
-                    ? "Cancelled. Retry again."
-                    : "Generation failed. Retry again."}
+                    ? intl.formatMessage({
+                        id: "studio_artifact_row_retry_cancelled_tooltip",
+                        defaultMessage: "Cancelled. Retry again.",
+                      })
+                    : intl.formatMessage({
+                        id: "studio_artifact_row_retry_failed_tooltip",
+                        defaultMessage: "Generation failed. Retry again.",
+                      })}
                 </TooltipContent>
               </Tooltip>
             ) : null}
@@ -186,7 +217,15 @@ function ArtifactRow({
                   size="icon-sm"
                   variant="ghost"
                   className="size-6 shrink-0 opacity-0 group-hover/artifact:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
-                  aria-label={`Actions for ${artifact.title}`}
+                  aria-label={intl.formatMessage(
+                    {
+                      id: "studio_artifact_row_actions_aria",
+                      defaultMessage: "Actions for {name}",
+                    },
+                    {
+                      name: artifact.title,
+                    }
+                  )}
                 >
                   <EllipsisIcon />
                 </Button>
@@ -200,7 +239,10 @@ function ArtifactRow({
                   {ready ? (
                     <DropdownMenuItem onSelect={onOpen}>
                       <ViewIcon />
-                      Open
+                      {intl.formatMessage({
+                        id: "studio_artifact_row_open_label",
+                        defaultMessage: "Open",
+                      })}
                     </DropdownMenuItem>
                   ) : null}
                   {ready || retryable ? (
@@ -208,13 +250,24 @@ function ArtifactRow({
                     // after a success a fresh run of the same job.
                     <DropdownMenuItem onSelect={onRegenerate}>
                       <RefreshCwIcon />
-                      {ready ? "Regenerate" : "Retry"}
+                      {ready
+                        ? intl.formatMessage({
+                            id: "studio_artifact_row_regenerate_label",
+                            defaultMessage: "Regenerate",
+                          })
+                        : intl.formatMessage({
+                            id: "studio_artifact_row_retry_label",
+                            defaultMessage: "Retry",
+                          })}
                     </DropdownMenuItem>
                   ) : null}
                   {ingesting ? (
                     <DropdownMenuItem onSelect={onCancel}>
                       <CancelCircleHalfDotIcon />
-                      Cancel
+                      {intl.formatMessage({
+                        id: "studio_artifact_row_cancel_label",
+                        defaultMessage: "Cancel",
+                      })}
                     </DropdownMenuItem>
                   ) : null}
                   <DropdownMenuItem
@@ -223,7 +276,10 @@ function ArtifactRow({
                     onSelect={onDelete}
                   >
                     <Trash2Icon />
-                    Delete
+                    {intl.formatMessage({
+                      id: "studio_artifact_row_delete_label",
+                      defaultMessage: "Delete",
+                    })}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
               </DropdownMenuContent>
@@ -233,7 +289,15 @@ function ArtifactRow({
       </TooltipTrigger>
       <TooltipContent side="top" collisionPadding={8}>
         {artifact.error_message ??
-          (cancelled ? "Cancelled" : "Generation failed")}
+          (cancelled
+            ? intl.formatMessage({
+                id: "studio_artifact_row_cancelled_tooltip",
+                defaultMessage: "Cancelled",
+              })
+            : intl.formatMessage({
+                id: "studio_artifact_row_failed_tooltip",
+                defaultMessage: "Generation failed",
+              }))}
       </TooltipContent>
     </Tooltip>
   )
@@ -265,8 +329,19 @@ function TypeFilter({
           )}
           aria-label={
             selected.length > 0
-              ? `Filter artifacts (${selected.length} active)`
-              : "Filter artifacts"
+              ? intl.formatMessage(
+                  {
+                    id: "studio_type_filter_active_aria",
+                    defaultMessage: "Filter artifacts ({count, number} active)",
+                  },
+                  {
+                    count: selected.length,
+                  }
+                )
+              : intl.formatMessage({
+                  id: "studio_type_filter_aria",
+                  defaultMessage: "Filter artifacts",
+                })
           }
         >
           <FilterIcon className="size-4" />
@@ -280,7 +355,12 @@ function TypeFilter({
         sideOffset={8}
         className="w-52 select-none"
       >
-        <DropdownMenuLabel>Filter by type</DropdownMenuLabel>
+        <DropdownMenuLabel>
+          {intl.formatMessage({
+            id: "studio_type_filter_title",
+            defaultMessage: "Filter by type",
+          })}
+        </DropdownMenuLabel>
         <DropdownMenuGroup>
           {formats.map(([format, count]) => {
             const FormatIcon = FORMAT_ICONS[format] ?? FileIcon
@@ -295,8 +375,13 @@ function TypeFilter({
               >
                 <FormatIcon className="size-4 text-muted-foreground" />
                 <span className="flex-1">
-                  {labels.get(format) ?? format}{" "}
-                  <span className="text-muted-foreground">({count})</span>
+                  {formatLabel({
+                    key: format,
+                    label: labels.get(format) ?? format,
+                  })}{" "}
+                  <span className="text-muted-foreground">
+                    ({intl.formatNumber(count)})
+                  </span>
                 </span>
               </DropdownMenuCheckboxItem>
             )
@@ -305,7 +390,12 @@ function TypeFilter({
         {selected.length > 0 ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem onSelect={onClear}>Clear filter</DropdownMenuItem>
+            <DropdownMenuItem onSelect={onClear}>
+              {intl.formatMessage({
+                id: "studio_type_filter_clear_label",
+                defaultMessage: "Clear filter",
+              })}
+            </DropdownMenuItem>
           </>
         ) : null}
       </DropdownMenuContent>
@@ -392,7 +482,10 @@ export function ArtifactList({
           id="all-artifacts"
           className="px-1 text-sm font-medium text-muted-foreground"
         >
-          Artifacts
+          {intl.formatMessage({
+            id: "studio_artifact_list_title",
+            defaultMessage: "Artifacts",
+          })}
         </h3>
         {/* One type is no choice at all; the filter appears with the second. */}
         {availableFormats.length > 1 ? (
@@ -414,9 +507,18 @@ export function ArtifactList({
               <EmptyMedia variant="icon">
                 <FileTextIcon />
               </EmptyMedia>
-              <EmptyTitle>No generated artifacts yet</EmptyTitle>
+              <EmptyTitle>
+                {intl.formatMessage({
+                  id: "studio_artifact_list_empty",
+                  defaultMessage: "No generated artifacts yet",
+                })}
+              </EmptyTitle>
               <EmptyDescription>
-                Artifacts generated in Studio will appear here.
+                {intl.formatMessage({
+                  id: "studio_artifact_list_empty_body",
+                  defaultMessage:
+                    "Artifacts generated in Studio will appear here.",
+                })}
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
@@ -426,10 +528,18 @@ export function ArtifactList({
               <EmptyMedia variant="icon">
                 <FilterIcon />
               </EmptyMedia>
-              <EmptyTitle>No artifacts match this filter</EmptyTitle>
+              <EmptyTitle>
+                {intl.formatMessage({
+                  id: "studio_artifact_list_filtered_empty",
+                  defaultMessage: "No artifacts match this filter",
+                })}
+              </EmptyTitle>
               <EmptyDescription>
                 <Button type="button" variant="link" onClick={clearFormats}>
-                  Clear filter
+                  {intl.formatMessage({
+                    id: "studio_artifact_list_clear_filter_button",
+                    defaultMessage: "Clear filter",
+                  })}
                 </Button>
               </EmptyDescription>
             </EmptyHeader>
@@ -458,22 +568,57 @@ export function ArtifactList({
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              Delete {deleteTarget?.title ?? "this artifact"}?
+              {deleteTarget
+                ? intl.formatMessage(
+                    {
+                      id: "studio_delete_dialog_title",
+                      defaultMessage: "Delete {name}?",
+                    },
+                    {
+                      name: deleteTarget.title,
+                    }
+                  )
+                : intl.formatMessage({
+                    id: "studio_delete_dialog_unnamed_title",
+                    defaultMessage: "Delete this artifact?",
+                  })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes {deleteTarget?.title ?? "this artifact"}{" "}
-              and its generated files.
+              {deleteTarget
+                ? intl.formatMessage(
+                    {
+                      id: "studio_delete_dialog_body",
+                      defaultMessage:
+                        "This permanently deletes {name} and its generated files.",
+                    },
+                    {
+                      name: deleteTarget.title,
+                    }
+                  )
+                : intl.formatMessage({
+                    id: "studio_delete_dialog_unnamed_body",
+                    defaultMessage:
+                      "This permanently deletes this artifact and its generated files.",
+                  })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              {intl.formatMessage({
+                id: "studio_delete_dialog_cancel_button",
+                defaultMessage: "Cancel",
+              })}
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
                 if (deleteTarget) onDelete(deleteTarget.id)
               }}
             >
-              Delete artifact
+              {intl.formatMessage({
+                id: "studio_delete_dialog_confirm_button",
+                defaultMessage: "Delete artifact",
+              })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -24,6 +24,9 @@
           const root = document.documentElement
           root.classList.add(theme)
           root.style.colorScheme = theme
+          // followMainLocale() in main.tsx sets it again; this covers the first frame.
+          const locale = window.surfsense?.locale?.get?.()
+          if (locale) root.lang = locale
         } catch {
           // no-op: fall back to the CSS defaults if storage/matchMedia throws
         }
@@ -31,7 +34,7 @@
     </script>
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SurfSense Community Local</title>
+    <title>SurfSense</title>
   </head>
   <body>
     <div id="root"></div>

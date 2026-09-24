@@ -5,6 +5,7 @@ import { useDeleteLocalChatModel } from "@/features/models/local/chat/use-delete
 import type { ModelSelection } from "@/features/models/selection/api"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useChatModels } from "@/features/models/your-models/use-chat-models"
+import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
 
@@ -22,8 +23,15 @@ export function ChatModelsSettings({
 
   return (
     <ModelSlotSettings
-      title="Text generation models"
-      description="The model that answers in chat. Run one on this computer, or use one from a server."
+      title={intl.formatMessage({
+        id: "settings_chat_models_title",
+        defaultMessage: "Text generation models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_chat_models_body",
+        defaultMessage:
+          "The model that answers in chat. Run one on this computer, or use one from a server.",
+      })}
       slot="chat"
       modelType="text_gen"
       models={models}

@@ -3,11 +3,17 @@ import { useRef, useState, type ChangeEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Upload01Icon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import { intl } from "@/i18n/intl"
 
 import { importBundle, type ImportAccepted } from "./api"
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "migration_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 export function ImportBundleButton({
@@ -43,7 +49,10 @@ export function ImportBundleButton({
         type="file"
         accept=".zip"
         className="sr-only"
-        aria-label="Import from SurfSense cloud"
+        aria-label={intl.formatMessage({
+          id: "migration_import_file_aria",
+          defaultMessage: "Import from SurfSense cloud",
+        })}
         disabled={isImporting}
         onChange={importSelected}
       />
@@ -54,7 +63,15 @@ export function ImportBundleButton({
         onClick={() => fileInput.current?.click()}
       >
         <Upload01Icon />
-        {isImporting ? "Importing…" : "Upload"}
+        {isImporting
+          ? intl.formatMessage({
+              id: "migration_import_importing_status",
+              defaultMessage: "Importing…",
+            })
+          : intl.formatMessage({
+              id: "migration_import_upload_button",
+              defaultMessage: "Upload",
+            })}
       </Button>
       {error ? (
         <p role="alert" className="text-sm text-destructive">

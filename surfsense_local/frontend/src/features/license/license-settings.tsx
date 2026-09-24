@@ -18,7 +18,9 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import { SettingsSection } from "@/features/settings/settings-section"
+import { intl } from "@/i18n/intl"
 
+import { translatedLicenseError } from "./license-error-text"
 import {
   importLicense,
   readLicense,
@@ -30,20 +32,15 @@ import { licenseQueryKey, useLicense } from "./use-license"
 const DAY = 24 * 60 * 60 * 1000
 const EXPIRY_NOTICE_DAYS = 14
 
-function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
-}
+const messageFrom = translatedLicenseError
 
 function planLabel(plan: string) {
-  return `${plan.charAt(0).toUpperCase()}${plan.slice(1)} plan`
-}
-
-function dateLabel(iso: string) {
-  return new Date(iso).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
+  return intl.formatMessage(
+    { id: "license_plan_title", defaultMessage: "{plan} plan" },
+    {
+      plan: `${plan.charAt(0).toUpperCase()}${plan.slice(1)}`,
+    }
+  )
 }
 
 function notice(
@@ -51,24 +48,46 @@ function notice(
 ): { title: string; description: string } | null {
   if (status.state === "clock_untrusted") {
     return {
-      title: "Clock is off",
-      description:
-        "This computer's clock is behind the last time SurfSense ran. Set it right to use your license.",
+      title: intl.formatMessage({
+        id: "license_clock_notice_title",
+        defaultMessage: "Clock is off",
+      }),
+      description: intl.formatMessage({
+        id: "license_clock_notice_body",
+        defaultMessage:
+          "This computer’s clock is behind the last time SurfSense ran. Set it right to use your license.",
+      }),
     }
   }
   if (status.state === "license_expired") {
     return {
-      title: "Expired",
-      description:
-        "This license has expired. Renew it from your account and add the new file.",
+      title: intl.formatMessage({
+        id: "license_expired_notice_title",
+        defaultMessage: "Expired",
+      }),
+      description: intl.formatMessage({
+        id: "license_expired_notice_body",
+        defaultMessage:
+          "This license has expired. Renew it from your account and add the new file.",
+      }),
     }
   }
   if (status.expiry) {
     const days = Math.ceil((Date.parse(status.expiry) - Date.now()) / DAY)
     if (days <= EXPIRY_NOTICE_DAYS) {
       return {
-        title: "Expiring soon",
-        description: `This license runs out in ${days} ${days === 1 ? "day" : "days"}.`,
+        title: intl.formatMessage({
+          id: "license_expiring_notice_title",
+          defaultMessage: "Expiring soon",
+        }),
+        description: intl.formatMessage(
+          {
+            id: "license_expiring_notice_body",
+            defaultMessage:
+              "This license runs out in {count, plural, one {# day} other {# days}}.",
+          },
+          { count: days }
+        ),
       }
     }
   }
@@ -115,10 +134,21 @@ function LicenseFormDialog({
       <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {replacing ? "Replace license" : "Add license"}
+            {replacing
+              ? intl.formatMessage({
+                  id: "license_form_replace_title",
+                  defaultMessage: "Replace license",
+                })
+              : intl.formatMessage({
+                  id: "license_form_add_title",
+                  defaultMessage: "Add license",
+                })}
           </DialogTitle>
           <DialogDescription>
-            Choose a .lic file or paste it below.
+            {intl.formatMessage({
+              id: "license_form_body",
+              defaultMessage: "Choose a .lic file or paste it below.",
+            })}
           </DialogDescription>
         </DialogHeader>
         <FieldGroup>
@@ -129,7 +159,10 @@ function LicenseFormDialog({
               type="file"
               accept=".lic"
               className="sr-only"
-              aria-label="Choose license file"
+              aria-label={intl.formatMessage({
+                id: "license_form_file_aria",
+                defaultMessage: "Choose license file",
+              })}
               disabled={busy}
               onChange={importPicked}
             />
@@ -140,14 +173,25 @@ function LicenseFormDialog({
               onClick={() => fileInput.current?.click()}
             >
               {busy ? <Spinner data-icon="inline-start" /> : null}
-              Choose license file
+              {intl.formatMessage({
+                id: "license_form_choose_file_button",
+                defaultMessage: "Choose license file",
+              })}
             </Button>
           </Field>
           <Field>
-            <FieldLabel htmlFor="license-paste">Or paste the file</FieldLabel>
+            <FieldLabel htmlFor="license-paste">
+              {intl.formatMessage({
+                id: "license_form_paste_label",
+                defaultMessage: "Or paste the file",
+              })}
+            </FieldLabel>
             <textarea
               id="license-paste"
-              aria-label="Paste license file"
+              aria-label={intl.formatMessage({
+                id: "license_form_paste_aria",
+                defaultMessage: "Paste license file",
+              })}
               className="min-h-24 w-full min-w-0 resize-y rounded-lg border border-input bg-transparent px-2.5 py-2 font-mono text-xs transition-colors outline-none placeholder:text-muted-foreground focus-visible:border-ring/70 disabled:pointer-events-none disabled:cursor-not-allowed disabled:bg-input/50 disabled:opacity-50 dark:bg-input/30"
               placeholder="-----BEGIN LICENSE FILE-----"
               value={pasted}
@@ -167,7 +211,10 @@ function LicenseFormDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {intl.formatMessage({
+              id: "license_form_cancel_button",
+              defaultMessage: "Cancel",
+            })}
           </Button>
           <Button
             type="button"
@@ -175,7 +222,10 @@ function LicenseFormDialog({
             onClick={() => void submit(pasted)}
           >
             {busy ? <Spinner data-icon="inline-start" /> : null}
-            Add
+            {intl.formatMessage({
+              id: "license_form_add_button",
+              defaultMessage: "Add",
+            })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -216,8 +266,15 @@ export function LicenseSettings() {
 
   return (
     <SettingsSection
-      title="License"
-      description="Paid plugins need a license file tied to your email. It's verified on this device."
+      title={intl.formatMessage({
+        id: "license_settings_title",
+        defaultMessage: "License",
+      })}
+      description={intl.formatMessage({
+        id: "license_settings_body",
+        defaultMessage:
+          "Paid plugins need a license file tied to your email. It’s verified on this device.",
+      })}
     >
       {loading ? (
         <div className="flex flex-col gap-1">
@@ -229,10 +286,16 @@ export function LicenseSettings() {
       {status?.state === "none" ? (
         <div className="flex items-center justify-between gap-8">
           <p className="text-sm text-pretty text-muted-foreground">
-            No license on this device
+            {intl.formatMessage({
+              id: "license_settings_empty",
+              defaultMessage: "No license on this device",
+            })}
           </p>
           <Button type="button" onClick={() => setEditor("add")}>
-            Add license
+            {intl.formatMessage({
+              id: "license_settings_add_button",
+              defaultMessage: "Add license",
+            })}
           </Button>
         </div>
       ) : null}
@@ -245,7 +308,12 @@ export function LicenseSettings() {
                 {planLabel(status.plan ?? "")}
               </h3>
               {status.state === "active" ? (
-                <Badge variant="secondary">Active</Badge>
+                <Badge variant="secondary">
+                  {intl.formatMessage({
+                    id: "license_status_active_label",
+                    defaultMessage: "Active",
+                  })}
+                </Badge>
               ) : null}
             </div>
             <p className="text-sm text-pretty text-muted-foreground">
@@ -254,13 +322,41 @@ export function LicenseSettings() {
             {status.expiry ? (
               <p className="flex flex-wrap items-center text-sm text-muted-foreground tabular-nums">
                 <span>
-                  {status.state === "active" ? "Expires" : "Ended"}{" "}
-                  {dateLabel(status.expiry)}
+                  {status.state === "active"
+                    ? intl.formatMessage(
+                        {
+                          id: "license_status_expires_label",
+                          defaultMessage: "Expires {date, date, ::yyyyMMMd}",
+                        },
+                        {
+                          date: new Date(status.expiry),
+                        }
+                      )
+                    : intl.formatMessage(
+                        {
+                          id: "license_status_ended_label",
+                          defaultMessage: "Ended {date, date, ::yyyyMMMd}",
+                        },
+                        {
+                          date: new Date(status.expiry),
+                        }
+                      )}
                 </span>
                 {status.max_users ? (
                   <>
                     <DotIcon aria-hidden="true" className="size-3 shrink-0" />
-                    <span>{status.max_users} seats</span>
+                    <span>
+                      {intl.formatMessage(
+                        {
+                          id: "license_status_seats_label",
+                          defaultMessage:
+                            "{count, plural, one {# seat} other {# seats}}",
+                        },
+                        {
+                          count: status.max_users,
+                        }
+                      )}
+                    </span>
                   </>
                 ) : null}
               </p>
@@ -273,7 +369,10 @@ export function LicenseSettings() {
               disabled={busy}
               onClick={() => setEditor("replace")}
             >
-              Replace license
+              {intl.formatMessage({
+                id: "license_settings_replace_button",
+                defaultMessage: "Replace license",
+              })}
             </Button>
             <Button
               type="button"
@@ -282,7 +381,10 @@ export function LicenseSettings() {
               onClick={() => void remove()}
             >
               {busy ? <Spinner data-icon="inline-start" /> : null}
-              Remove license
+              {intl.formatMessage({
+                id: "license_settings_remove_button",
+                defaultMessage: "Remove license",
+              })}
             </Button>
           </div>
         </div>

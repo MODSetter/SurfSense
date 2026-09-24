@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
 import { Spinner } from "@/components/ui/spinner"
 import { getDocumentByChunk } from "@/features/sources/api"
+import { intl } from "@/i18n/intl"
 
 export function CitationPanel({
   workspaceId,
@@ -53,9 +54,29 @@ export function CitationPanel({
 
   return (
     <DetailPanel
-      title={data?.title ?? (isLoading ? "Loading…" : `Chunk #${chunkId}`)}
-      ariaLabel="Citation"
-      closeLabel="Close citation"
+      title={
+        data?.title ??
+        (isLoading
+          ? intl.formatMessage({
+              id: "chat_citation_panel_loading_status",
+              defaultMessage: "Loading…",
+            })
+          : intl.formatMessage(
+              {
+                id: "chat_citation_panel_chunk_title",
+                defaultMessage: "Chunk #{id}",
+              },
+              { id: chunkId }
+            ))
+      }
+      ariaLabel={intl.formatMessage({
+        id: "chat_citation_panel_aria",
+        defaultMessage: "Citation",
+      })}
+      closeLabel={intl.formatMessage({
+        id: "chat_citation_panel_close_aria",
+        defaultMessage: "Close citation",
+      })}
       onClose={onClose}
       bodyRef={scrollContainerRef}
       actions={
@@ -66,7 +87,10 @@ export function CitationPanel({
             className="h-6 px-1.5 text-[11px]"
             onClick={() => onOpen(data.id)}
           >
-            Open file
+            {intl.formatMessage({
+              id: "chat_citation_panel_open_file_button",
+              defaultMessage: "Open file",
+            })}
           </Button>
         ) : null
       }
@@ -79,7 +103,12 @@ export function CitationPanel({
       {error ? (
         <div className="flex min-h-full items-center justify-center text-center">
           <p className="text-sm text-destructive">
-            {error instanceof Error ? error.message : "Failed to load citation"}
+            {error instanceof Error
+              ? error.message
+              : intl.formatMessage({
+                  id: "chat_citation_panel_load_error",
+                  defaultMessage: "Failed to load citation",
+                })}
           </p>
         </div>
       ) : null}
@@ -87,8 +116,16 @@ export function CitationPanel({
         <>
           {hasMoreAbove ? (
             <p className="mb-3 text-center text-[11px] text-muted-foreground">
-              … {startIndex} earlier chunk{startIndex === 1 ? "" : "s"} not
-              shown
+              {intl.formatMessage(
+                {
+                  id: "chat_citation_panel_earlier_chunks_body",
+                  defaultMessage:
+                    "… {count, plural, one {# earlier chunk} other {# earlier chunks}} not shown",
+                },
+                {
+                  count: startIndex,
+                }
+              )}
             </p>
           ) : null}
           <div className="flex flex-col gap-3">
@@ -106,11 +143,22 @@ export function CitationPanel({
                 >
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">
-                      Chunk #{chunk.id}
+                      {intl.formatMessage(
+                        {
+                          id: "chat_citation_panel_chunk_label",
+                          defaultMessage: "Chunk #{id}",
+                        },
+                        {
+                          id: chunk.id,
+                        }
+                      )}
                     </span>
                     {isCited ? (
                       <span className="text-[11px] font-semibold text-primary">
-                        Cited chunk
+                        {intl.formatMessage({
+                          id: "chat_citation_panel_cited_label",
+                          defaultMessage: "Cited chunk",
+                        })}
                       </span>
                     ) : null}
                   </div>
@@ -121,11 +169,16 @@ export function CitationPanel({
           </div>
           {hasMoreBelow ? (
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
-              … {totalChunks - (startIndex + data.chunks.length)} later chunk
-              {totalChunks - (startIndex + data.chunks.length) === 1
-                ? ""
-                : "s"}{" "}
-              not shown
+              {intl.formatMessage(
+                {
+                  id: "chat_citation_panel_later_chunks_body",
+                  defaultMessage:
+                    "… {count, plural, one {# later chunk} other {# later chunks}} not shown",
+                },
+                {
+                  count: totalChunks - (startIndex + data.chunks.length),
+                }
+              )}
             </p>
           ) : null}
         </>

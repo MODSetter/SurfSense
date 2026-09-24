@@ -3,14 +3,17 @@ import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
-import { getProviderModels } from "@/features/models/chat-candidates/api"
-import { getConnectionModels } from "@/features/models/remote/models/api"
 import {
   getGenerationSelection,
   type ModelSelection,
 } from "@/features/models/selection/api"
+import {
+  checkAvailability,
+  type Availability,
+} from "@/features/models/selection/availability"
 import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import { intl } from "@/i18n/intl"
 
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
@@ -24,14 +27,21 @@ type BootstrapState =
       status: "ready"
       /** Loaded before the state turns ready, so it renders without suspending. */
       Dashboard: DashboardComponent
+      // The saved choice, kept whatever its status: clearing it to say it
+      // can't be used would leave nothing to check again once it can.
       selection: ModelSelection | null
-      providerAvailable: boolean
+      availability: Availability
       workspaces: Workspace[]
     }
   | { status: "error"; message: string }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "app_bootstrap_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 async function fetchBootstrapState(): Promise<BootstrapState> {
@@ -49,31 +59,16 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
       getGenerationSelection(),
       listWorkspaces(),
     ])
-    let currentSelection: ModelSelection | null = null
-    if (selection?.provider === "openai_compatible") {
-      const models =
-        selection.connection_id === null
-          ? []
-          : await getConnectionModels(selection.connection_id)
-      currentSelection = models.some((model) => model.name === selection.name)
-        ? selection
-        : null
-    } else if (selection) {
-      const models = await getProviderModels(selection.provider)
-      currentSelection = models.some(
-        (model) =>
-          model.installed &&
-          model.selectable_for.includes("text_gen") &&
-          model.name === selection.name
-      )
-        ? selection
-        : null
-    }
+    // Never fails startup: a model that can't be used opens the app without
+    // it, and the dashboard says why.
+    const availability: Availability = selection
+      ? await checkAvailability(selection)
+      : { status: "gone" }
     return {
       status: "ready",
       Dashboard: await dashboard,
-      selection: currentSelection,
-      providerAvailable: currentSelection !== null,
+      selection,
+      availability,
       workspaces,
     }
   } catch (error) {
@@ -86,7 +81,10 @@ function GlobalLoader() {
     <main
       className="flex h-full items-center justify-center bg-app-shell select-none"
       role="status"
-      aria-label="Starting SurfSense"
+      aria-label={intl.formatMessage({
+        id: "app_bootstrap_loader_aria",
+        defaultMessage: "Starting SurfSense",
+      })}
     >
       <LogoFillLoader />
     </main>
@@ -121,7 +119,7 @@ export function AppBootstrap() {
                 status: "ready",
                 Dashboard,
                 selection,
-                providerAvailable: true,
+                availability: { status: "available" },
                 workspaces,
               })
             )
@@ -135,10 +133,15 @@ export function AppBootstrap() {
 
   if (state.status === "error") {
     return (
-      <main className="flex min-h-full items-center justify-center bg-muted/30 p-8">
+      <main className="flex h-full items-center justify-center bg-app-shell p-8">
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
-          <AlertTitle>SurfSense could not start</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({
+              id: "app_bootstrap_start_failed_title",
+              defaultMessage: "SurfSense could not start",
+            })}
+          </AlertTitle>
           <AlertDescription>
             <p>{state.message}</p>
             <Button
@@ -149,7 +152,10 @@ export function AppBootstrap() {
                 void fetchBootstrapState().then(setState)
               }}
             >
-              Retry
+              {intl.formatMessage({
+                id: "app_bootstrap_retry_button",
+                defaultMessage: "Retry",
+              })}
             </Button>
           </AlertDescription>
         </Alert>
@@ -163,7 +169,7 @@ export function AppBootstrap() {
   return (
     <Dashboard
       selection={state.selection}
-      initialProviderAvailable={state.providerAvailable}
+      initialAvailability={state.availability}
       initialWorkspaces={state.workspaces}
       onModelUnavailable={() =>
         setState((current) =>

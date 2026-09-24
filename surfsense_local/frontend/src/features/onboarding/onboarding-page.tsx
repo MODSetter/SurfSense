@@ -5,6 +5,7 @@ import surfSenseLogo from "@/surfsense-logo.svg"
 
 import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
 import { OnboardingDither } from "./onboarding-dither"
@@ -41,7 +42,16 @@ function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
   return (
     <Stepper
       value={step}
-      aria-label={`Onboarding step ${step} of ${STEPS.length}`}
+      aria-label={intl.formatMessage(
+        {
+          id: "onboarding_progress_aria",
+          defaultMessage: "Onboarding step {step, number} of {total, number}",
+        },
+        {
+          step,
+          total: STEPS.length,
+        }
+      )}
       className="mx-auto max-w-28 gap-1.5"
     >
       {STEPS.map((item, index) => (
@@ -50,7 +60,15 @@ function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
             asChild
             className="h-1 w-full rounded-full bg-border"
           >
-            <span className="sr-only">Step {index + 1}</span>
+            <span className="sr-only">
+              {intl.formatMessage(
+                {
+                  id: "onboarding_progress_step_aria",
+                  defaultMessage: "Step {step, number}",
+                },
+                { step: index + 1 }
+              )}
+            </span>
           </StepperIndicator>
         </StepperItem>
       ))}
@@ -108,21 +126,39 @@ function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
  * `--home-accent` resolves to. In this app's light theme that token is near
  * black rather than peach, so the clause reads as plain heading text there --
  * the alternative, peach on cream, does not carry enough contrast to set text
- * in.
+ * in. The clause is an `<accent>` tag in the message, so each language places
+ * it in its own sentence.
  */
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="text-center">
       <h1 className="relative -top-10 text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
-        Air-gapped, open source{" "}
-        <span className="text-primary">NotebookLM alternative</span>
+        {intl.formatMessage(
+          {
+            id: "onboarding_welcome_title",
+            defaultMessage:
+              "Air-gapped, open source <accent>NotebookLM alternative</accent>",
+          },
+          {
+            accent: (chunks) => <span className="text-primary">{chunks}</span>,
+          }
+        )}
       </h1>
       <p className="mx-auto mt-8 max-w-2xl text-[clamp(1rem,1.6vw,1.25rem)] leading-[1.6] text-pretty text-muted-foreground">
-        A private research notebook that runs entirely on your own machine. Your
-        documents, your model keys, no cloud, no account.
+        {intl.formatMessage({
+          id: "onboarding_welcome_body",
+          defaultMessage:
+            "A private research notebook that runs entirely on your own machine. Your documents, your model keys, no cloud, no account.",
+        })}
       </p>
       <div className="mt-10 flex justify-center">
-        <FlowButton text="Start setting up" onClick={onNext} />
+        <FlowButton
+          text={intl.formatMessage({
+            id: "onboarding_welcome_start_button",
+            defaultMessage: "Start setting up",
+          })}
+          onClick={onNext}
+        />
       </div>
     </div>
   )
@@ -140,7 +176,10 @@ function AudioStep({
   return (
     <ModelStep
       modelType="audio_gen"
-      nextLabel="Finish"
+      nextLabel={intl.formatMessage({
+        id: "onboarding_audio_step_finish_button",
+        defaultMessage: "Finish",
+      })}
       finishing={finishing}
       error={error}
       onBack={onBack}
@@ -178,7 +217,10 @@ export function OnboardingPage({
           {screen === "chat" ? (
             <ModelStep
               modelType="text_gen"
-              nextLabel="Continue"
+              nextLabel={intl.formatMessage({
+                id: "onboarding_chat_step_continue_button",
+                defaultMessage: "Continue",
+              })}
               onNext={() => setScreen("image")}
             />
           ) : null}
@@ -186,7 +228,10 @@ export function OnboardingPage({
             // Optional, and not the last step: Skip moves on, as Continue does.
             <ModelStep
               modelType="image_gen"
-              nextLabel="Continue"
+              nextLabel={intl.formatMessage({
+                id: "onboarding_image_step_continue_button",
+                defaultMessage: "Continue",
+              })}
               onBack={() => setScreen("chat")}
               onNext={() => setScreen("audio")}
               onSkip={() => setScreen("audio")}

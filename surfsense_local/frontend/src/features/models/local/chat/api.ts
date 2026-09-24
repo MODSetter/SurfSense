@@ -1,4 +1,5 @@
 import { request, requestJson } from "@/lib/api"
+import { intl } from "@/i18n/intl"
 
 import type { ModelSelection } from "../../selection/api"
 import { parseNdjson } from "../read-ndjson"
@@ -253,7 +254,12 @@ export async function installCatalogModel(
     signal,
   })
   if (!response.body) {
-    throw new Error("The install stream ended before completion")
+    throw new Error(
+      intl.formatMessage({
+        id: "models_install_stream_ended_error",
+        defaultMessage: "The install stream ended before completion",
+      })
+    )
   }
 
   for await (const event of parseNdjson<InstallEvent>(response.body)) {
@@ -265,7 +271,12 @@ export async function installCatalogModel(
       return event.selection
     }
   }
-  throw new Error("The install stream ended before completion")
+  throw new Error(
+    intl.formatMessage({
+      id: "models_install_stream_ended_error",
+      defaultMessage: "The install stream ended before completion",
+    })
+  )
 }
 
 export function deleteLocalModel(modelId: string): Promise<DeleteModelResult> {

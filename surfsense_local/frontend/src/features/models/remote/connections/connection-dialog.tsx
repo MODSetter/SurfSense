@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { intl } from "@/i18n/intl"
 
 import { useRefreshModels } from "../../models-query"
 import type { Connection } from "./api"
@@ -34,12 +35,33 @@ export function ConnectionDialog({
       <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {connection ? `Edit ${connection.label}` : "Connect a server"}
+            {connection
+              ? intl.formatMessage(
+                  {
+                    id: "models_connection_dialog_edit_title",
+                    defaultMessage: "Edit {server}",
+                  },
+                  {
+                    server: connection.label,
+                  }
+                )
+              : intl.formatMessage({
+                  id: "models_connection_dialog_add_title",
+                  defaultMessage: "Connect a server",
+                })}
           </DialogTitle>
           <DialogDescription>
             {connection
-              ? "Servers are shared by every model type, so a change here applies to all of them."
-              : "Any server that implements the OpenAI API, such as vLLM, LM Studio or OpenRouter."}
+              ? intl.formatMessage({
+                  id: "models_connection_dialog_edit_body",
+                  defaultMessage:
+                    "Servers are shared by every model type, so a change here applies to all of them.",
+                })
+              : intl.formatMessage({
+                  id: "models_connection_dialog_add_body",
+                  defaultMessage:
+                    "Any server that implements the OpenAI API, such as vLLM, LM Studio or OpenRouter.",
+                })}
           </DialogDescription>
         </DialogHeader>
         {/* Mounted per opening, so a closed dialog forgets what was typed. */}
