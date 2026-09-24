@@ -10,7 +10,13 @@ import { ModelStep } from "./model-step/model-step"
 import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
-const ONBOARDING_STEPS = [1, 2, 3] as const
+type Screen = "welcome" | "chat" | "image"
+
+/**
+ * The steps the dots count. The welcome is still onboarding, and still gated by
+ * the same marker, but it is an introduction, not a step to complete.
+ */
+const STEPS = ["chat", "image"] as const
 
 function OnboardingBrand() {
   return (
@@ -30,20 +36,22 @@ function OnboardingBrand() {
   )
 }
 
-function OnboardingProgress({ step }: { step: number }) {
+function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
+  const step = STEPS.indexOf(screen) + 1
   return (
     <Stepper
       value={step}
-      aria-label={`Onboarding step ${step} of ${ONBOARDING_STEPS.length}`}
-      className="mx-auto max-w-28 gap-1.5"
+      aria-label={`Onboarding step ${step} of ${STEPS.length}`}
+      // Two bars as wide as three were, so each bar keeps its size.
+      className="mx-auto max-w-18 gap-1.5"
     >
-      {ONBOARDING_STEPS.map((item) => (
-        <StepperItem key={item} step={item} className="flex-1">
+      {STEPS.map((item, index) => (
+        <StepperItem key={item} step={index + 1} className="flex-1">
           <StepperIndicator
             asChild
             className="h-1 w-full rounded-full bg-border"
           >
-            <span className="sr-only">Step {item}</span>
+            <span className="sr-only">Step {index + 1}</span>
           </StepperIndicator>
         </StepperItem>
       ))}
@@ -148,29 +156,39 @@ export function OnboardingPage({
 }: {
   onComplete: (selection: ModelSelection) => void
 }) {
-  const [step, setStep] = useState<(typeof ONBOARDING_STEPS)[number]>(1)
+  const [screen, setScreen] = useState<Screen>("welcome")
 
   return (
     <main
       data-onboarding-page
       className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
-      {step === 1 ? <OnboardingDither /> : null}
+      {screen === "welcome" ? <OnboardingDither /> : null}
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
-        <OnboardingProgress step={step} />
+        {screen === "welcome" ? (
+          // The dots' height, kept so the hero sits exactly where it did.
+          <div aria-hidden="true" className="h-1" />
+        ) : (
+          <OnboardingProgress screen={screen} />
+        )}
         <div className="flex min-h-0 flex-1 items-center justify-center">
-          {step === 1 ? <WelcomeStep onNext={() => setStep(2)} /> : null}
-          {step === 2 ? (
+          {screen === "welcome" ? (
+            <WelcomeStep onNext={() => setScreen("chat")} />
+          ) : null}
+          {screen === "chat" ? (
             <ModelStep
               modelType="text_gen"
               nextLabel="Continue"
-              onBack={() => setStep(1)}
-              onNext={() => setStep(3)}
+              onBack={() => setScreen("welcome")}
+              onNext={() => setScreen("image")}
             />
           ) : null}
-          {step === 3 ? (
-            <ImageStep onBack={() => setStep(2)} onComplete={onComplete} />
+          {screen === "image" ? (
+            <ImageStep
+              onBack={() => setScreen("chat")}
+              onComplete={onComplete}
+            />
           ) : null}
         </div>
       </div>

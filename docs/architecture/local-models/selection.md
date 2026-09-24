@@ -152,7 +152,7 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page has three steps: welcome, chat model, image model. The two
+The onboarding page opens on a welcome screen, then two steps: chat model and image model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The two
 model steps are one component for either slot
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
 built on the same hooks as Settings but with its own screens. Each lists every

@@ -276,20 +276,21 @@ const openRouter = {
 }
 
 describe("onboarding", () => {
-  it("walks three steps: welcome, chat model, image model", async () => {
+  it("walks the welcome, then two steps: chat model, image model", async () => {
     vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
 
-    expect(screen.getByLabelText("Onboarding step 1 of 3")).toBeTruthy()
+    // The welcome introduces onboarding; it is not one of its steps.
+    expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
     await toChatStep(user)
-    expect(screen.getByLabelText("Onboarding step 2 of 3")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 1 of 2")).toBeTruthy()
 
     await user.click(await screen.findByRole("button", { name: "Continue" }))
     expect(
       await screen.findByRole("heading", { name: "Add an image model" })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 3 of 3")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 2 of 2")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
 
     await user.click(screen.getByRole("button", { name: "Back" }))
