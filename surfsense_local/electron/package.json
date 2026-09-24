@@ -11,7 +11,7 @@
   "main": "./out/main/index.js",
   "scripts": {
     "postinstall": "install-electron",
-    "predev": "pnpm build:model && pnpm build:parser && pnpm build:llamacpp",
+    "predev": "pnpm build:model && pnpm build:parser && pnpm build:llamacpp && pnpm build:sdcpp",
     "dev": "concurrently -k -n vite,electron -c cyan,magenta \"pnpm --dir ../frontend dev\" \"wait-on tcp:127.0.0.1:5173 && node scripts/electron-dev.mjs\"",
     "build": "electron-vite build",
     "build:frontend": "pnpm --dir ../frontend install && pnpm --dir ../frontend build",

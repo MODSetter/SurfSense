@@ -100,7 +100,7 @@ Only `test_license_key.py` runs in CI, inside the release workflow.
 
 ## Known gaps
 
-- Release CI never runs `fetch-sdcpp.mjs`, although `electron-builder.yml` packages an `sdcpp` folder, and `sdcpp/` is not in git, so installers are built without `sd-server`. The app would still offer local image models there, since `offered()` checks the image models directory, which Electron sets for every packaged build, not the binary.
+- Release CI never runs `fetch-sdcpp.mjs`, although `electron-builder.yml` packages an `sdcpp` folder, and `sdcpp/` is not in git, so installers are built without `sd-server` and offer no local image models.
 - No tagged release has built the llama.cpp runtime: the v2.0.2 run staged Ollama and llmfit instead.
 - No workflow runs the `surfsense_local` tests on pull requests; only the license-key test runs, inside the release workflow.
 - No test ingests a PDF with networking disabled.
