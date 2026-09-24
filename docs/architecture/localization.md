@@ -48,6 +48,7 @@ One flat JSON file per language, `{"id": "ICU string"}`, keys sorted with a two-
 - Settings › General has a Language select beside Appearance: Match system, then each language in its own name. The choice is `locale-prefs.json` in `userData`.
 - Preload reads the locale synchronously before first paint and exposes `locale.get()`, `preference()`, `set()` and `onChange()`. `index.html` sets `<html lang>` in the first frame, and [`locale.ts`](../../surfsense_local/frontend/src/i18n/locale.ts) keeps it.
 - A change saves the choice, rebuilds the menu, and reloads the window, which builds its `IntlShape` in the new language. In-memory state, such as an open dialog, resets.
+- Development also lists FormatJS's pseudo-locale `en-XA`: accented English, about 40% longer and bracketed, so overflow, clipping and text outside a message show up without a translation. The renderer lists it only under Vite dev, and main accepts it only when the app is not packaged; a production bundle does not contain it. Main's menu labels stay English under it.
 
 ## Main process
 
@@ -64,7 +65,7 @@ The backend stays English. Where it sends a code with its prose, the frontend sh
 1. `formatjs extract` writes `translations/en.json` from every `defaultMessage` in `frontend/src` and `electron/src/main`.
 2. `formatjs compile-folder translations src/i18n/compiled --format simple --ast` precompiles the catalogs, failing on a malformed message.
 
-Each step is also its own script, `pnpm translations:extract` and `pnpm translations:compile`.
+Each step is also its own script, `pnpm translations:extract` and `pnpm translations:compile`. `dev` alone also runs `pnpm translations:pseudo`, `formatjs compile translations/en.json --ast --pseudo-locale en-XA`, which writes the pseudo-locale's catalog; `intl.ts` reads it through `import.meta.glob`, so a build without it still compiles.
 
 Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since no message is parsed at run time. `compiled/` is gitignored. Everything comes from npm and the lockfile.
 

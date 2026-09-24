@@ -63,6 +63,8 @@ New UI text, step by step:
 6. Run the checks in **Translating** step 4, then `pnpm test`.
 7. Open the app in that language and shorten any text that overflows. Never shrink the UI to fit.
 
+To check layout before any translation exists, pick **English (Pseudo-Accents)** (`en-XA`) under Settings › General in `pnpm dev`. It is longer, accented English; text that stays plain is not in a message.
+
 ## Tone
 
 - **Japanese.** です/ます for sentences, the default in Microsoft's Japanese style guide. Plain form for short labels and buttons (`保存`, `削除`). 〜してください for instructions. Full-width punctuation (`。`, `、`), no space between Japanese and Latin text unless the product name needs it.
