@@ -1,5 +1,5 @@
+import { InstallProgress } from "@/features/models/local/chat/install-progress"
 import { DownloadImageModels } from "@/features/models/local/image/download-image-models"
-import { ImageDownloadProgress } from "@/features/models/local/image/image-download-progress"
 import { useDeleteLocalImageModel } from "@/features/models/local/image/use-delete-local-image-model"
 import { useImageInstall } from "@/features/models/local/image/use-image-install"
 import { useSelect } from "@/features/models/selection/use-selection"
@@ -29,9 +29,8 @@ export function ImageModelsSettings({
         installState.status === "installing" ? (
           <div className="flex flex-col gap-2">
             <p className="truncate text-sm font-medium">{installState.label}</p>
-            <ImageDownloadProgress
-              label={installState.label}
-              step={installState.step}
+            <InstallProgress
+              event={installState.event}
               onCancel={cancelInstall}
             />
           </div>

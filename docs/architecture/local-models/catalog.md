@@ -443,9 +443,10 @@ Rules the screen holds:
 - An install belongs to the app, not the page that started it: leaving the
   Add model page or closing Settings does not cancel it, and the section's list
   shows its progress until it ends.
-- The image section downloads without selecting: a model is chosen with Use
-  once it is on disk, and the one in use has no Delete, because sd-server holds
-  its file.
+- The image section uses the same cards, install states and progress as chat;
+  it only downloads without selecting, so a model is chosen with Use once it is
+  on disk. Every downloaded model has Delete, the one in use included: the API
+  clears the image slot, and Electron stops sd-server on its next poll.
 
 ## How it is tested
 
@@ -462,6 +463,7 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 - Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Chat sends text only, so a model that reads images never receives one.
+- Deleting the image model in use removes its file while sd-server still has it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until sd-server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
