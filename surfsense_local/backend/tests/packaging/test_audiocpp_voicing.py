@@ -1,10 +1,11 @@
 """The staged audio.cpp server voices every curated model through the app's
 adapter, from the config the app writes, and gives the model back after.
 
-Opt-in, like the other packaging tests, and skipped unless both inputs exist:
-the staged server (`pnpm build:audiocpp`, or SURFSENSE_TEST_AUDIOCPP_DIR) and a
-folder holding each curated model's default file under its published name
-(SURFSENSE_TEST_AUDIO_MODELS), each checked against the manifest's sha256.
+Opt-in, like the other packaging tests, and skipped unless
+SURFSENSE_TEST_AUDIO_MODELS names a folder holding each curated model's default
+file under its published name, each checked against the manifest's sha256. Once
+it does, a missing server (`pnpm build:audiocpp`, or SURFSENSE_TEST_AUDIOCPP_DIR)
+fails the run: CI sets the folder, and a skip there would pass unseen.
 """
 
 import asyncio
@@ -56,11 +57,8 @@ LINES = {
     "fr": ["Bonjour et bienvenue.", "Merci de m'accueillir."],
 }
 
-if not SERVER.exists() or MODELS_DIR is None:
-    pytest.skip(
-        "needs a staged audio.cpp server and SURFSENSE_TEST_AUDIO_MODELS",
-        allow_module_level=True,
-    )
+if MODELS_DIR is None:
+    pytest.skip("needs SURFSENSE_TEST_AUDIO_MODELS", allow_module_level=True)
 
 CURATED = {m.id: m for m in load_local_manifest().models if m.id in CASES}
 
@@ -105,6 +103,7 @@ def installed(tmp_path_factory: pytest.TempPathFactory) -> AudioCppEngine:
 @pytest.fixture(scope="module")
 def server(installed: AudioCppEngine) -> Iterator[str]:
     """The server as Electron's sidecar starts it: same flags, same eSpeak."""
+    assert SERVER.exists(), f"no staged audio.cpp server at {SERVER}"
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]

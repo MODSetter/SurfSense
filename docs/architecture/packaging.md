@@ -68,16 +68,16 @@ The release workflow runs the two scripts directly. Without the parser pack, Doc
 
 ## Building audio.cpp
 
-[`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles the Windows and Linux builds with `stage.mjs --strict`, checks them, and hands each staged folder on as an artifact. `release-local.yml` calls it, and its packaging jobs unpack the artifact before `stage.mjs`, which then finds the server already staged. A pull request that changes `scripts/audiocpp/` runs it too. It caches the staged folder by the scripts' contents, so a release that does not change them reuses the last checked build.
+[`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles the Windows and Linux builds with `stage.mjs --strict`, checks them, and hands each staged folder on as an artifact. `release-local.yml` calls it, and its packaging jobs unpack the artifact before `stage.mjs`, which then finds the server already staged. A pull request that changes `scripts/audiocpp/`, the audio.cpp adapter or engine, the manifest or the voicing test runs it too. It caches the staged folder by the scripts' contents, so a release that does not change them reuses the last checked build, and voices with it again.
 
 It is a stopgap. Once upstream publishes archives that meet both floors, the app downloads those as it does llama.cpp's, and the compile path and the workflow go.
 
 - Linux builds on `ubuntu-22.04`, the release's own runner, with GCC 13 from the toolchain PPA. The PPA replaces the runner's libstdc++ with a newer one, so the build runs in its own job, and the frozen Python binaries never bundle it.
 - libstdc++ is linked statically into every file, ggml's CPU modules included, since those take CMake's module flags. libgcc stays dynamic, because GCC 12 and 13's static unwinder on 22.04 calls `_dl_find_object`, from glibc 2.35.
 - OpenMP is off, so no `libgomp` ships.
-- Linux gates on no symbol newer than `GLIBC_2.34` or `GCC_7.0.0`, which RHEL 9's glibc and libgcc provide, and on no file that needs libstdc++, libgomp or Vulkan. The runner's own libstdc++ is newer than a user's, so only that gate, not the smoke run, catches a dynamic one.
+- Linux gates on no symbol newer than `GLIBC_2.34` or `GCC_7.0.0`, which RHEL 9's glibc and libgcc provide, and on no file that needs libstdc++, libgomp or Vulkan. The runner's own libstdc++ is newer than a user's, so only that gate, not the voicing test, catches a dynamic one.
 - Windows copies the MSVC runtime beside the executable, so a clean Windows needs no redistributable.
-- Both voice one passage with Kokoro, with the eSpeak-ng paths and flags the sidecar gives the server.
+- Both run `test_audiocpp_voicing.py` on the staged folder, cached or not, with each curated model's pinned file downloaded from the URL its manifest entry names ([Packaging tests](#packaging-tests)).
 - An artifact drops symlinks and file modes, so the staged folder travels as a tar.
 
 ## Release builds
@@ -112,9 +112,9 @@ All five carry the `packaging` marker, which `pyproject.toml` excludes by defaul
 | `test_real_binaries.py` | the real API binary passes its retrieval import check and answers `/health`; the real worker passes its vision import check and both queue consumers stay up; both binaries ship the remote manifest, and the frozen API serves a curated row |
 | `test_spec_data_files.py` | every literal `datas` path in the specs exists, so a renamed file cannot ship missing |
 | `test_license_key.py` | the compiled license keys exclude the fixture key |
-| `test_audiocpp_voicing.py` | the staged audio.cpp server, started with the sidecar's flags from the `server.json` the app writes, voices two turns of each curated model through the app's adapter, at the sample rate its entry names, then holds no model loaded; it runs only when `SURFSENSE_TEST_AUDIO_MODELS` names a folder of the pinned files, each checked against its sha256 |
+| `test_audiocpp_voicing.py` | the staged audio.cpp server, started with the sidecar's flags from the `server.json` the app writes, voices two turns of each curated model through the app's adapter, at the sample rate its entry names, then holds no model loaded; it runs only when `SURFSENSE_TEST_AUDIO_MODELS` names a folder of the pinned files, each checked against its sha256, and then fails without a staged server; `build-audiocpp.yml` runs it on both builds |
 
-Only `test_license_key.py` runs in CI, inside the release workflow.
+Two run in CI: `test_license_key.py` inside the release workflow, and `test_audiocpp_voicing.py` inside `build-audiocpp.yml`.
 
 ## Known gaps
 
@@ -122,6 +122,6 @@ Only `test_license_key.py` runs in CI, inside the release workflow.
 - No tagged release has built the llama.cpp runtime: the v2.0.2 run staged Ollama and llmfit instead.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
 - No release has built or packaged audio.cpp yet, and nothing has staged its macOS archive on a Mac.
-- No workflow runs the `surfsense_local` tests on pull requests; only the license-key test runs, inside the release workflow.
+- No workflow runs the `surfsense_local` unit or integration tests on pull requests; only the two packaging tests above run in CI.
 - No test ingests a PDF with networking disabled.
 - `test_the_curated_manifest_is_one_of_them` fails on Windows: `literal_data_paths()` joins the spec's path with `Path`, which gives backslashes there, and the test looks for a forward-slash string.
