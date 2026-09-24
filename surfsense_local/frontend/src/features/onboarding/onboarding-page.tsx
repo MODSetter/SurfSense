@@ -63,32 +63,41 @@ function OnboardingProgress({ step }: { step: number }) {
 }
 
 /**
- * The hero's call to action, ported from the site's `FlowButton`
- * (`surfsense_web/components/ui/flow-button.tsx`): two arrows trade places
- * while a disc of `--primary` floods the pill from its centre and the corners
- * tighten. Ported rather than shared -- the original is a Next.js `Link` --
- * and cut down to the one shape this screen needs.
- *
- * The arrows carry no colour of their own so they ride the button's
- * `currentColor` from `--primary` to `--primary-foreground` as the disc
- * arrives underneath them.
+ * The hero's call to action. A disc of `--primary` grows from the trailing
+ * arrow's circle to flood the whole pill on hover, revealing a second copy of
+ * the label clipped to that disc so the text itself switches from
+ * `--primary` to `--primary-foreground` as the fill arrives underneath it.
  */
 function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex cursor-pointer items-center gap-1 overflow-hidden rounded-[100px] border-[1.5px] border-primary/40 bg-transparent px-8 py-3 text-sm font-semibold text-primary transition-all duration-[600ms] ease-[cubic-bezier(0.23,1,0.32,1)] hover:rounded-[12px] hover:border-transparent hover:text-primary-foreground active:scale-[0.95]"
+      className="group relative inline-flex h-11 cursor-pointer items-center overflow-hidden rounded-full border-[1.5px] border-primary/40 bg-transparent pr-11 pl-6 text-sm font-semibold text-primary [--icon-circle:2rem] [--icon-right:0.375rem] [--circle-inset-y:calc((100%-var(--icon-circle))/2)]"
     >
-      <ArrowRightIcon className="absolute left-[-25%] z-[9] size-4 transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:left-4" />
-      <span className="relative z-[1] -translate-x-3 transition-all duration-[800ms] ease-out group-hover:translate-x-3">
-        {text}
-      </span>
+      <span className="relative z-1 pb-px">{text}</span>
+
       <span
         aria-hidden="true"
-        className="absolute top-1/2 left-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary opacity-0 transition-all duration-[800ms] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:size-[220px] group-hover:opacity-100"
+        className="pointer-events-none absolute inset-[var(--circle-inset-y)_var(--icon-right)_var(--circle-inset-y)_calc(100%-var(--icon-right)-var(--icon-circle))] z-2 rounded-full bg-primary transition-all duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] motion-reduce:transition-none group-hover:inset-0"
       />
-      <ArrowRightIcon className="absolute right-4 z-[9] size-4 transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:right-[-25%]" />
+
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-2 flex items-center pr-11 pl-6 text-primary-foreground [clip-path:inset(var(--circle-inset-y)_var(--icon-right)_var(--circle-inset-y)_calc(100%-var(--icon-right)-var(--icon-circle)))] transition-all duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] motion-reduce:transition-none group-hover:[clip-path:inset(0_0_0_0)]"
+      >
+        <span className="relative z-1 pb-px whitespace-nowrap">{text}</span>
+      </span>
+
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 right-(--icon-right) z-3 inline-flex size-(--icon-circle) -translate-y-1/2 items-center justify-center overflow-hidden rounded-full bg-primary text-primary-foreground"
+      >
+        <ArrowRightIcon
+          className="absolute top-1/2 left-1/2 size-4 origin-center translate-x-[-170%] -translate-y-1/2 scale-0 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] motion-reduce:transition-none group-hover:-translate-x-1/2 group-hover:scale-100"
+        />
+        <ArrowRightIcon className="absolute top-1/2 left-1/2 size-4 origin-center -translate-x-1/2 -translate-y-1/2 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] motion-reduce:transition-none group-hover:translate-x-[70%] group-hover:scale-0" />
+      </span>
     </button>
   )
 }
