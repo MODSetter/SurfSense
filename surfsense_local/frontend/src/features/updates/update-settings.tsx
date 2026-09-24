@@ -6,6 +6,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { askEgress } from "@/features/egress/ask-egress"
+import { intl } from "@/i18n/intl"
 import type { UpdateState } from "@/lib/api"
 
 import {
@@ -19,13 +20,21 @@ export type { UpdateState }
 function statusText(state: UpdateState) {
   switch (state.status) {
     case "checking":
-      return "Checking…"
+      return intl.formatMessage({ id: "updates_settings_checking_status" })
     case "up-to-date":
-      return "SurfSense is up to date"
+      return intl.formatMessage({ id: "updates_settings_up_to_date_status" })
     case "downloading":
-      return `Downloading ${state.version}…`
+      return intl.formatMessage(
+        { id: "updates_settings_downloading_status" },
+        {
+          version: state.version,
+        }
+      )
     case "ready":
-      return `SurfSense ${state.version} is ready to install`
+      return intl.formatMessage(
+        { id: "updates_settings_ready_status" },
+        { version: state.version }
+      )
     default:
       return null
   }
@@ -55,14 +64,18 @@ export function UpdateSettings() {
   return (
     <div className="mt-8 flex items-start justify-between gap-8">
       <div className="flex flex-col gap-1">
-        <h3 className="text-sm font-medium">App updates</h3>
+        <h3 className="text-sm font-medium">
+          {intl.formatMessage({ id: "updates_settings_title" })}
+        </h3>
         <p className="text-sm text-pretty text-muted-foreground">
-          Free updates from GitHub Releases. SurfSense stays silent until you
-          allow App updates under Network, which also enables the launch check.
+          {intl.formatMessage({ id: "updates_settings_body" })}
         </p>
         {state.status === "error" ? (
           <p role="alert" className="text-sm text-destructive">
-            Could not check for updates: {state.message}
+            {intl.formatMessage(
+              { id: "updates_settings_check_error" },
+              { message: state.message }
+            )}
           </p>
         ) : text ? (
           <p className="text-sm text-muted-foreground">{text}</p>
@@ -70,7 +83,7 @@ export function UpdateSettings() {
       </div>
       {state.status === "ready" ? (
         <Button type="button" onClick={() => void updates.install()}>
-          Restart to update
+          {intl.formatMessage({ id: "updates_settings_restart_button" })}
         </Button>
       ) : (
         <Button
@@ -81,7 +94,7 @@ export function UpdateSettings() {
           }
           onClick={() => void onCheckClick()}
         >
-          Check now
+          {intl.formatMessage({ id: "updates_settings_check_button" })}
         </Button>
       )}
     </div>
@@ -100,7 +113,12 @@ export function UpdateSettings() {
 export function UpdateButton() {
   const state = useUpdateState()
   if (state.status !== "ready") return null
-  const label = `Restart to install ${state.version}`
+  const label = intl.formatMessage(
+    { id: "updates_title_bar_restart_tooltip" },
+    {
+      version: state.version,
+    }
+  )
   return (
     <Tooltip>
       <TooltipTrigger asChild>
