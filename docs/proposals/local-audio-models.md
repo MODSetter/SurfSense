@@ -16,7 +16,7 @@ code:
 
 > Podcasts are voiced by an audio model the user downloads and chooses, like a chat or an image model, run by [audio.cpp](https://github.com/0xShug0/audio.cpp)'s server. It replaces the Kokoro that runs inside the worker on Python and ONNX today.
 
-This extends the local catalog ([`catalog.md`](../architecture/local-models/catalog.md)) and the [model catalog proposal](model-catalog.md) with a third local runtime, and changes how Studio voices a podcast ([`studio.md`](../architecture/studio.md)). It follows the layout the image work introduced: one slice per engine under `catalog/local/engines/`, behind one `LocalEngine` seam.
+This extends the local catalog ([`catalog.md`](../architecture/local-models/catalog.md)) and the [model catalog proposal](model-catalog.md) with a third local runtime, and changes how Studio voices a podcast ([`studio.md`](../architecture/studio.md)). It follows the layout the image work introduced: one slice per engine under [`catalog/local/engines/`](../../surfsense_local/backend/modules/llm/catalog/local/engines/), behind one seam, [`LocalEngine`](../../surfsense_local/backend/modules/llm/catalog/local/engines/engine.py).
 
 ## What changes
 
@@ -75,7 +75,7 @@ Considered and not curated, each with its reason:
 
 `audiocpp_server --config <audio>/server.json`, started by Electron from the binaries directory with the eSpeak paths below.
 
-The API writes `server.json` the way it writes llama.cpp's `models.ini`: one entry per installed audio model, keyed by the build's id, naming its family, its file, `task: tts` and `mode: offline`. It rewrites the file after every install and delete and at startup, and Electron restarts the server on a change, as it does for the preset ([`runtime.md`](../architecture/local-models/runtime.md)).
+The API writes `server.json` the way it writes llama.cpp's `models.ini` ([`preset.py`](../../surfsense_local/backend/modules/llm/providers/llamacpp/preset.py)): one entry per installed audio model, keyed by the build's id, naming its family, its file, `task: tts` and `mode: offline`. It rewrites the file after every install and delete and at startup, and Electron restarts the server on a change, as it does for the preset ([`runtime.md`](../architecture/local-models/runtime.md)).
 
 The server-wide settings, each set because audio.cpp's default is wrong for this app:
 
@@ -121,7 +121,7 @@ Nothing else moved it. Its graph arenas at a half, a quarter and an eighth of th
 
 So chunk size is the lever, and the app pulls it only when it must:
 
-- **Before voicing, the app checks memory itself.** The server's `min_free_memory_mb` compares free memory with the bytes it will read from the file, 190 MB for Kokoro, not the 1.4 GB the model takes. The podcast job reads the operating system's available memory, as `system_memory.available_bytes()` already does for fit, and compares it with the model's measured peak from the manifest plus 1 GiB of headroom.
+- **Before voicing, the app checks memory itself.** The server's `min_free_memory_mb` compares free memory with the bytes it will read from the file, 190 MB for Kokoro, not the 1.4 GB the model takes. The podcast job reads the operating system's available memory, as [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py) already does for fit, and compares it with the model's measured peak from the manifest plus 1 GiB of headroom.
 - **Short of that, it steps the chunk down** (240, then 120, then 60), the way the chat catalog steps down to a smaller build before it refuses one.
 - **Short even at the smallest chunk, it refuses**, with one sentence: "Voicing needs about 1.4 GB free; this computer has 0.9 GB." Only physics refuses, as for chat models ([ADR 0013](../adr/0013-fit-from-the-allocator.md)).
 - **The server's `min_free_memory_mb` of 1024** stays as the backstop for a load the app did not check.
@@ -164,11 +164,11 @@ The app builds audio.cpp itself on Windows and Linux in release CI, from a pinne
 - **Both builds** use `-DENGINE_ENABLE_VULKAN=ON -DENGINE_ENABLE_NATIVE_CPU=OFF -DENGINE_ENABLE_CPU_ALL_VARIANTS=ON`, one ggml CPU library per micro-architecture picked at start, and `--model-set custom` with the curated families only, which also shrinks the 90 to 120 MB server.
 - **macOS** takes `audio-<tag>-bin-macos-arm64-metal.tar.gz` (28.4 MB for v0.8.2); there is no Intel Mac build ([ADR 0021](../adr/0021-no-intel-mac-build.md)).
 
-`fetch-audiocpp.mjs` stages the built or downloaded server, its ggml libraries, its `model_specs/`, its licence and eSpeak, and signing and notarization cover them as they do `sd-server`. Step 1 opens an issue upstream asking for a Windows archive with per-CPU libraries and a Linux archive built on 22.04; when both exist, the build jobs go.
+`fetch-audiocpp.mjs`, beside [`fetch-llamacpp.mjs`](../../surfsense_local/electron/scripts/fetch-llamacpp.mjs) and [`fetch-sdcpp.mjs`](../../surfsense_local/electron/scripts/fetch-sdcpp.mjs), stages the built or downloaded server, its ggml libraries, its `model_specs/`, its licence and eSpeak, and signing and notarization cover them as they do `sd-server`. Step 1 opens an issue upstream asking for a Windows archive with per-CPU libraries and a Linux archive built on 22.04; when both exist, the build jobs go.
 
 ## The catalog slice
 
-`catalog/local/engines/audiocpp/`, beside `llamacpp/` and `sdcpp/`, grouped the same way:
+`catalog/local/engines/audiocpp/`, beside [`llamacpp/`](../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) and [`sdcpp/`](../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/), grouped the same way:
 
 | Part | What it holds |
 |---|---|
@@ -201,14 +201,14 @@ The app builds audio.cpp itself on Windows and Linux in release CI, from a pinne
 
 ## Selection and Studio
 
-- **A selection.** `audio_gen` takes provider `audiocpp`, with no connection. A hand-written revision rebuilds `selected_models`' checks, as `0013` did, so `audiocpp` is allowed only for `audio_gen`. Onboarding does not ask for one, as it does not ask for an image model.
-- **The screen.** A third section, **Audio**, headed **Audio generation models**, beside Chat and Image: the model in use, the ones on this computer with Use and Delete, and Add model with the curated rows, each showing its size, the memory it takes while voicing, its voice count and its languages. It shows the catalog only when the API reports the audio folder, which Electron sets when it staged the server.
+- **A selection.** `audio_gen` takes provider `audiocpp`, with no connection. A hand-written revision rebuilds `selected_models`' checks, as [`0013`](../../surfsense_local/backend/alembic/versions/0013_selection_by_model_type.py) did, so `audiocpp` is allowed only for `audio_gen`. Onboarding does not ask for one, as it does not ask for an image model.
+- **The screen.** A third section, **Audio**, headed **Audio generation models**, beside Chat and Image ([`features/models/`](../../surfsense_local/frontend/src/features/models/)): the model in use, the ones on this computer with Use and Delete, and Add model with the curated rows, each showing its size, the memory it takes while voicing, its voice count and its languages. It shows the catalog only when the API reports the audio folder, which Electron sets when it staged the server.
 - **The podcast.** Its required model types become `text_gen` and `audio_gen`, in place of the `requires_voice` flag. `resolve_text_to_speech()` reads the `audio_gen` selection and returns an adapter in `providers/audiocpp/`: its `voices()` are the installed model's roster, `synthesize()` asks the server for each turn and joins the WAVs with the 0.35 s gap used today, and the job unloads the model when it ends. The brief's language list and voice picker come from the roster; a remembered brief whose voices the new model lacks falls back to the proposed one, as it does today.
 - **Remote audio stays out.** A connection's model can already be selected for `audio_gen`, but nothing here calls a remote speech endpoint, so the podcast says so and stays unavailable until a remote speech client exists.
 
 ## What goes
 
-`providers/kokoro/`, `scripts/fetch_kokoro_model.py`, the `build:voice` script, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from `worker.spec`. onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
+[`providers/kokoro/`](../../surfsense_local/backend/modules/llm/providers/kokoro/), [`scripts/fetch_kokoro_model.py`](../../surfsense_local/backend/scripts/fetch_kokoro_model.py), the `build:voice` script, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from [`worker.spec`](../../surfsense_local/backend/bundling/worker.spec). onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
 
 ## Order of work
 
