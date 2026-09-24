@@ -58,7 +58,9 @@ class ImageGenerator(Protocol):
 class Voice:
     id: str
     label: str
-    language: str  # BCP-47, e.g. "en-US", "pt-BR"
+    # The languages this voice speaks, as the model's entry names them: one for
+    # a Kokoro voice, every one the model speaks for a Supertonic voice.
+    languages: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -76,8 +78,14 @@ class SynthesizedAudio:
 
 
 class TextToSpeech(Protocol):
-    """Anything that voices a script. Kokoro on this CPU today, hosted APIs later."""
+    """Anything that voices a script: audio.cpp on this computer today."""
 
     def voices(self) -> list[Voice]: ...
 
-    async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio: ...
+    def check_memory(self) -> None:
+        """Raise, with the sentence a person reads, when voicing cannot fit."""
+        ...
+
+    async def synthesize(
+        self, turns: list[SpokenTurn], language: str
+    ) -> SynthesizedAudio: ...

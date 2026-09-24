@@ -405,3 +405,39 @@ def test_a_recorded_image_model_is_not_recorded_again(tmp_path) -> None:
     service.warm()
 
     assert (images / "installs.json").read_text() == first
+
+
+def test_startup_writes_the_audio_config_from_what_is_installed(tmp_path) -> None:
+    """Electron starts audio.cpp's server from this file, so a start heals one
+    that is stale or missing, whatever wrote it last."""
+    import json
+
+    from modules.llm.catalog.local.installs import InstalledBuild, record_install
+
+    audio = tmp_path / "audio"
+    audio.mkdir()
+    (tmp_path / "models").mkdir()  # Electron creates it before the API starts
+    (audio / "kokoro-82m-q8_0.gguf").write_bytes(WEIGHTS)
+    record_install(
+        audio,
+        InstalledBuild(
+            model_id="kokoro-82m-q8_0",
+            repo="audio-cpp/audio.cpp-gguf",
+            revision="0a104324546d2622985e3c676a4b5550cc772127",
+            quantization="Q8_0",
+            weights=("kokoro-82m-q8_0.gguf",),
+        ),
+    )
+    (audio / "server.json").write_text(
+        '{"lazy_load": true, "models": [{"id": "gone"}]}'
+    )
+    service = LocalCatalogService(
+        load_local_manifest(), tmp_path / "models", tmp_path / "lib", audio_dir=audio
+    )
+
+    service.warm()
+
+    config = json.loads((audio / "server.json").read_text())
+    assert [(m["id"], m["family"]) for m in config["models"]] == [
+        ("kokoro-82m-q8_0", "kokoro_tts")
+    ]

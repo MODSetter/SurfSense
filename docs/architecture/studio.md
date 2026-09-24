@@ -34,12 +34,12 @@ The catalog is a tuple of twelve `Format` rows in [`formats.py`](../../surfsense
 | `mindmap` | Mind map | text_gen | `content/mindmap/` | none; the outline is the body |
 | `flashcards` | Flashcards | text_gen | `content/flashcards/` | deck JSON |
 | `quiz` | Quiz | text_gen | `content/quiz/` | quiz JSON |
-| `podcast` | Podcast | text_gen and the voice model | `media/audio/podcast/` | WAV audio |
+| `podcast` | Podcast | text_gen, audio_gen | `media/audio/podcast/` | WAV audio |
 | `image` | Image | image_gen, text_gen | `media/visual/image/` | the image |
 | `infographic` | Infographic | image_gen, text_gen | `media/visual/infographic/` | the image |
 
-- `requires_model_types` is a tuple in the order the pipeline's `render()` takes its models. A format is available when every required model type has a selection; otherwise the reason names every missing one in a fixed reading order: "Needs a chat model", "Needs an image model" or "Needs a chat model and an image model". Naming only the first missing type made selecting it look like the gate moving to the other.
-- `podcast` also sets `requires_voice`, and is unavailable ("Needs a voice model") while the Kokoro files are missing; opening a podcast brief answers `409` with the same words. It is a flag rather than a required model type because the bundled voice is not selectable.
+- `requires_model_types` is a tuple in the order the pipeline's `render()` takes its models. A format is available when every required model type has a selection; otherwise the reason names every missing one in a fixed reading order: "Needs a chat model", "Needs an image model", "Needs an audio model", or two of them joined, as "Needs a chat model and an audio model". Naming only the first missing type made selecting it look like the gate moving to the other.
+- `podcast` needs its `audio_gen` model on this computer: an audio model chosen from a server is refused with "Needs an audio model on this computer", because nothing calls a remote speech endpoint yet. Opening a podcast brief without an audio model answers `409` with "Needs an audio model".
 - Which formats are available is the server's answer to what is selected, so the panel asks again whenever the chat selection changes or the settings dialog closes, since the image model is chosen inside settings and nothing else reports it.
 - An image selection can resolve to the bundled sd-server as well as to a remote connection, so needing an image model does not mean needing a key or a network.
 - [`tests/unit/worker/test_studio_job_router.py`](../../surfsense_local/backend/tests/unit/worker/test_studio_job_router.py) asserts that `job_router.py` names every catalog key and nothing else, that each key has a pipeline, and that each pipeline takes its models, the sources, the prompt and, for a format with options, the options.
@@ -55,13 +55,22 @@ Eight formats follow it:
 - **flashcards**: JSON cards, at most 20, become a deck JSON file and a markdown body.
 - **quiz**: JSON questions, at most 10, each kept only with exactly four options and an answer among them, become a quiz JSON file and a markdown body.
 - **html**: a JSON title and sections, at most 10. Every value is HTML-escaped into a fixed template, so the page cannot carry a script.
-- **podcast**: the model outlines the episode from the brief, then drafts it segment by segment; Kokoro-82M voices every line, and the transcript is the body.
+- **podcast**: the model outlines the episode from the brief, then drafts it segment by segment; the chosen audio model voices every line through audio.cpp's server, and the transcript is the body.
 - **image**: the model writes a title and an image prompt, and the image model paints the prompt.
 - **infographic**: the model writes a factual brief (a title, a summary and up to 8 sections of label, value and detail), and the image model paints a prompt built from it in a fixed sketchnote style.
 
 Four formats break it. DOCX, PPTX, XLSX and PDF go through `office/`: the tier prompt asks the model to "write one standalone Python script" for the format's library (python-docx, python-pptx, xlsxwriter or ReportLab), with a `SKILL.md` of authoring guidance beside each format, and [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py) runs the reply with `exec()` on a thread in the worker process. The script must leave the file's bytes in `output_bytes` and may set `title` and `summary`. A failing script goes back to the model with its error, for up to three attempts. The 120-second limit is a `thread.join`: it bounds how long the job waits, but it cannot stop a thread that ignores it, and the code runs with the worker's privileges. The module says so and names an out-of-process sandbox runner as the way up.
 
-There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path, and a podcast is the `audio/wav` Kokoro returns.
+There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path, and a podcast is one `audio/wav` joined from audio.cpp's WAV for each turn.
+
+## Voicing a podcast
+
+[`providers/audiocpp/`](../../surfsense_local/backend/modules/llm/providers/audiocpp/) voices a podcast with the `audio_gen` model, an audio.cpp build installed in the audio folder ([`local-models/catalog.md`](local-models/catalog.md)):
+
+- **The voices are the model's roster**, from its manifest entry: each voice with the languages it speaks, one for a Kokoro or Kitten voice and all 31 for a Supertonic voice. The brief's language list and each speaker's voice picker come from it. The brief opens in American English where a voice speaks it, else in any English, else in the roster's first language, and a remembered brief the chosen model cannot voice falls back to that.
+- **Memory is checked before anything loads, twice.** The worker compares the operating system's available memory with the model's peak measured while voicing with every chunk of text full, from its entry, plus 1 GiB, and refuses short of it: "Voicing needs about 3.5 GB free; this computer has 1.8 GB. Supertonic 3 needs about 1.6 GB." The second sentence names the first other curated audio model, in the manifest's order, that would fit, and is left out when none would. It checks first, before the chat model drafts anything, so a machine that cannot voice the episode does not spend minutes writing it. It checks again at voicing, because the chat model's own memory may have changed the answer. audio.cpp's own guard counts only the file it reads.
+- **One speech request per turn**, with the turn's voice. The brief's language goes in the request only for a voice that speaks several; a Kokoro voice's name already fixes its language. The turns are joined with 0.35 s between them.
+- **The model is unloaded when voicing ends**, with `POST /v1/tasks/unload_all_models`, success or failure, so its memory is back before the chat model's next job. The server's five-minute idle unload is the backstop.
 
 ## Grounding
 
@@ -92,7 +101,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 - A job ([`job.py`](../../surfsense_local/backend/worker/studio/job.py)) marks the document `processing` unless it was cancelled, gathers the sources, resolves one model per required model type, and commits before rendering, so no write lock is held across a generation that can take minutes. It checks for a cancel before and after rendering.
 - [`persist.py`](../../surfsense_local/backend/worker/studio/shared/persist.py) sets the document's title and markdown, then chunks, embeds and indexes that body with the ingest code, so the artifact is searchable and citable. If the format has a file, it clears the artifact's folder and file rows and writes the file named by its role, recording its size and SHA-256. No pipeline writes a `preview` yet.
 - The document is created without a `dedup_key`, so it is never deduplicated against another document.
-- A failure rolls back and writes `failed` with a reason cut to 500 characters: the error's first line, or for an HTTP error its whole message after "The model could not be reached: ". The job is then re-raised for Huey's one retry, except an image error: the endpoint may already have generated, and billed, an image.
+- A failure rolls back and writes `failed` with a reason cut to 500 characters: the error's first line, or for an HTTP error its whole message after "The model could not be reached: ". The job is then re-raised for Huey's one retry, except an image error, since the endpoint may already have generated, and billed, an image, and a podcast refused for memory, since a retry would draft the episode again and refuse again.
 - **Cancel** marks the document `cancelled` and revokes a queued copy. A running job stops at its next check; a cancel that arrives during the model call waits for the model to return.
 - **Regenerate** refuses a job still `pending` or `processing`, rechecks availability, resets the document to `pending`, clears the error, increments `generation` and re-enqueues with the same sources, prompt and options. The new run replaces the files and the indexed body; the artifact and its document keep their ids.
 - Each transition the Studio worker makes sends an `artifacts` event keyed by artifact id; the API's own changes, to `pending` and `cancelled`, send none. The frontend does not listen yet; the artifact list refetches every 1.5 seconds while one is running ([`overview.md`](overview.md#freshness)).

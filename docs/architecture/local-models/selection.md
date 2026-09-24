@@ -21,7 +21,8 @@ choosing or clearing a model never touches.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `image_edit`, `video_gen`, `audio_gen` | none | `openai_compatible`, with a `connection_id` | nothing yet |
+| `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id`, which nothing reads yet | Studio's `podcast` |
+| `image_edit`, `video_gen` | none | `openai_compatible`, with a `connection_id` | nothing yet |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
@@ -29,7 +30,8 @@ brings the client that calls it.
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
 when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
-`llamacpp` hold only `text_gen` and `sdcpp` only `image_gen`, and deleting a
+`llamacpp` hold only `text_gen`, `sdcpp` only `image_gen` and `audiocpp` only
+`audio_gen`, and deleting a
 connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
@@ -46,6 +48,9 @@ fingerprints and stores:
   connection, and the name must be a curated image build installed in the
   images folder, named by its first weights file as a chat build is
   ([`catalog.md`](catalog.md)).
+- **Local audio** (`audiocpp`): the type must be `audio_gen`, there is no
+  connection, and the name must be a curated audio build installed in the
+  audio folder, named by its weights file as a chat build is.
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
@@ -63,8 +68,8 @@ and choosing a model is when the user has said they are about to use it
 loads nothing.
 
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen` or
-`image_gen` row that named it, by the engine that held it, and reports
+([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen`,
+`image_gen` or `audio_gen` row that named it, by the engine that held it, and reports
 `selection_cleared`; nothing chooses another
 model in its place. Revision `0012`, which replaced Ollama with llama.cpp,
 cleared any generation selection pointing at Ollama rather than remapping it,

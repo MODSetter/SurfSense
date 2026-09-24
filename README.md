@@ -75,7 +75,7 @@ Pick some documents and a format. The app writes it from the sources you chose, 
 | **Spreadsheet** | An `.xlsx` of tables pulled from the sources | generation model |
 | **Web page** | A self-contained HTML page | generation model |
 | **PDF** | A typeset PDF | generation model |
-| **Podcast** | A two-host audio conversation, voiced offline by Kokoro-82M | generation model + bundled voice |
+| **Podcast** | A two-host audio conversation, voiced offline by Kokoro-82M | generation model + audio model |
 | **Image** | An illustration for the material | image model + generation model |
 | **Infographic** | A single-panel visual summary | image model + generation model |
 

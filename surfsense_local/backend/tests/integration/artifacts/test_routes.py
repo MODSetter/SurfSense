@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -6,9 +7,11 @@ from sqlalchemy import Engine
 
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.catalog.local.dependencies import get_local_catalog
+from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.model_type import ModelType
-from modules.llm.models import SelectedModel
-from modules.llm.providers.kokoro import provider as kokoro
+from modules.llm.models import ProviderConnection, SelectedModel
+from shared.config import get_llm_settings
 from shared.db import create_session_factory
 from shared.queue import studio_queue
 
@@ -108,31 +111,100 @@ async def test_infographic_needs_the_image_model_and_the_chat_model(
     assert infographic["available"] is True
 
 
-async def test_podcast_is_gated_on_the_voice_engine(
-    client: AsyncClient, workspace_id: int, choose_model: None, data_dir: Path
+async def test_podcast_is_gated_on_an_audio_model(
+    client: AsyncClient, workspace_id: int, choose_model: None
 ) -> None:
-    """Without the voice weights the button is disabled with why; with them, on."""
+    """It drafts with the chat model and voices with the audio model, so it
+    names the one missing."""
     url = f"/workspaces/{workspace_id}/studio/formats"
     podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
+
     assert podcast["available"] is False
-    assert podcast["unavailable_reason"] == "Needs a voice model"
+    assert podcast["unavailable_reason"] == "Needs an audio model"
+    assert podcast["requires_model_types"] == ["text_gen", "audio_gen"]
 
-    weights = data_dir / "models" / kokoro.MODEL_DIR_NAME
-    weights.mkdir(parents=True)
-    for name in (kokoro.MODEL_FILE, kokoro.VOICES_FILE):
-        (weights / name).write_bytes(b"")
 
+async def test_a_podcast_voices_only_on_this_computer(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """A server's audio model can be chosen, but nothing calls a remote speech
+    endpoint yet, so the podcast says where the model must run."""
+    with create_session_factory(engine)() as session:
+        server = ProviderConnection(
+            label="speech server", provider="openai_compatible", base_url="http://tts"
+        )
+        session.add(server)
+        session.flush()
+        session.add(
+            SelectedModel(
+                model_type=ModelType.AUDIO_GEN,
+                provider="openai_compatible",
+                connection_id=server.id,
+                name="tts-1",
+            )
+        )
+        session.commit()
+
+    url = f"/workspaces/{workspace_id}/studio/formats"
     podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
-    assert podcast["available"] is True
+
+    assert podcast["available"] is False
+    assert podcast["unavailable_reason"] == "Needs an audio model on this computer"
+
+
+KOKORO = ("kokoro-82m-q8_0", "Q8_0")
+KITTEN = ("kitten-tts-mini-0.8-orig", "orig")
 
 
 @pytest.fixture
-def voice_weights(data_dir: Path) -> None:
-    """Stand-in Kokoro files so the podcast format is available."""
-    weights = data_dir / "models" / kokoro.MODEL_DIR_NAME
-    weights.mkdir(parents=True)
-    for name in (kokoro.MODEL_FILE, kokoro.VOICES_FILE):
-        (weights / name).write_bytes(b"")
+def audio_folder(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> Iterator[Path]:
+    """A build that ships audio.cpp: its models folder, empty."""
+    audio = tmp_path / "audio"
+    audio.mkdir()
+    monkeypatch.setattr(get_llm_settings(), "audio_models_dir", audio)
+    get_local_catalog.cache_clear()
+    yield audio
+    get_local_catalog.cache_clear()
+
+
+def choose_voice(engine: Engine, audio: Path, build: tuple[str, str]) -> None:
+    """One curated audio build installed and chosen for the audio slot."""
+    model_id, quantization = build
+    (audio / f"{model_id}.gguf").write_bytes(b"GGUF")
+    record_install(
+        audio,
+        InstalledBuild(
+            model_id=model_id,
+            repo="audio-cpp/audio.cpp-gguf",
+            revision="0a104324546d2622985e3c676a4b5550cc772127",
+            quantization=quantization,
+            weights=(f"{model_id}.gguf",),
+        ),
+    )
+    with create_session_factory(engine)() as session:
+        session.merge(
+            SelectedModel(
+                model_type=ModelType.AUDIO_GEN, provider="audiocpp", name=model_id
+            )
+        )
+        session.commit()
+
+
+@pytest.fixture
+def local_voice(engine: Engine, audio_folder: Path) -> None:
+    """Kokoro, installed and chosen."""
+    choose_voice(engine, audio_folder, KOKORO)
+
+
+async def test_a_local_audio_model_makes_the_podcast_available(
+    client: AsyncClient, workspace_id: int, choose_model: None, local_voice: None
+) -> None:
+    """Drafted by the chat model, voiced by audio.cpp on this computer."""
+    url = f"/workspaces/{workspace_id}/studio/formats"
+    podcast = next(f for f in (await client.get(url)).json() if f["key"] == "podcast")
+
+    assert podcast["available"] is True
+    assert podcast["unavailable_reason"] is None
 
 
 async def test_a_podcast_job_checks_and_stores_its_brief(
@@ -140,7 +212,7 @@ async def test_a_podcast_job_checks_and_stores_its_brief(
     engine: Engine,
     workspace_id: int,
     choose_model: None,
-    voice_weights: None,
+    local_voice: None,
 ) -> None:
     """A brief with a wrong voice is refused at the door; a good one is stored."""
     source_id = make_ready_source(engine, workspace_id)
@@ -181,7 +253,7 @@ async def test_the_brief_opens_with_defaults_then_with_the_last_episode(
     engine: Engine,
     workspace_id: int,
     choose_model: None,
-    voice_weights: None,
+    local_voice: None,
 ) -> None:
     """First visit: two English speakers and the voice catalog. After an episode:
     that episode's brief, so the user only changes what differs."""
@@ -190,8 +262,9 @@ async def test_the_brief_opens_with_defaults_then_with_the_last_episode(
     opened = (await client.get(url)).json()
     assert opened["brief"]["language"] == "en-US"
     assert [s["role"] for s in opened["brief"]["speakers"]] == ["host", "guest"]
-    assert {"id", "label", "language"} <= set(opened["voices"][0])
-    assert {voice["language"] for voice in opened["voices"]} >= {"en-US", "pt-BR"}
+    assert {"id", "label", "languages"} <= set(opened["voices"][0])
+    spoken = {language for voice in opened["voices"] for language in voice["languages"]}
+    assert spoken >= {"en-US", "pt-BR"}
 
     speakers = [{"name": "Ana", "role": "narrator", "voice": "pf_dora"}]
     await client.post(
@@ -209,13 +282,58 @@ async def test_the_brief_opens_with_defaults_then_with_the_last_episode(
     assert reopened["speakers"] == speakers
 
 
-async def test_the_brief_needs_the_voice_engine(
+async def test_the_brief_needs_an_audio_model(
     client: AsyncClient, workspace_id: int
 ) -> None:
-    """No weights, no voices to choose from: the same reason the format shows."""
+    """No audio model, no voices to choose from: the reason the format shows."""
     opened = await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
     assert opened.status_code == 409
-    assert opened.json()["detail"] == "Needs a voice model"
+    assert opened.json()["detail"] == "Needs an audio model"
+
+
+async def test_a_model_without_en_us_opens_in_a_language_it_speaks(
+    client: AsyncClient, engine: Engine, workspace_id: int, audio_folder: Path
+) -> None:
+    """Kitten lists English as plain `en`: the brief opens there, with two of
+    its own voices, rather than empty."""
+    choose_voice(engine, audio_folder, KITTEN)
+
+    url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+    opened = (await client.get(url)).json()
+
+    assert opened["brief"]["language"] == "en"
+    assert [s["voice"] for s in opened["brief"]["speakers"]] == ["Bella", "Jasper"]
+
+
+async def test_a_brief_the_chosen_model_cannot_voice_falls_back_to_the_defaults(
+    client: AsyncClient,
+    engine: Engine,
+    workspace_id: int,
+    choose_model: None,
+    audio_folder: Path,
+) -> None:
+    """Last episode's voices were Kokoro's; with Kitten chosen, they are gone."""
+    choose_voice(engine, audio_folder, KOKORO)
+    await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={
+            "format": "podcast",
+            "document_ids": [make_ready_source(engine, workspace_id)],
+            "options": {
+                "language": "pt-BR",
+                "speakers": [{"name": "Ana", "role": "host", "voice": "pf_dora"}],
+            },
+        },
+    )
+    choose_voice(engine, audio_folder, KITTEN)
+
+    url = f"/workspaces/{workspace_id}/studio/podcast/brief"
+    opened = (await client.get(url)).json()
+
+    assert opened["brief"]["language"] == "en"
+    assert {s["voice"] for s in opened["brief"]["speakers"]} <= {
+        v["id"] for v in opened["voices"]
+    }
 
 
 async def test_a_job_creates_a_pending_artifact(

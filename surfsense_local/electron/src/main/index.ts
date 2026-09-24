@@ -23,6 +23,11 @@ import {
   LLAMACPP_SIDECAR,
   PRESET_FILE,
 } from "./sidecars/llamacpp.ts"
+import {
+  audiocppSpec,
+  AUDIOCPP_SIDECAR,
+  SERVER_CONFIG,
+} from "./sidecars/audiocpp.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import {
   binaryPath as sdcppBinaryPath,
@@ -162,6 +167,33 @@ function watchGenerationPreset(ctx: SidecarContext): void {
   timer.unref()
 }
 
+// audio.cpp's server refuses an empty model list, so it runs only while the API's
+// config names a model. The API rewrites that file on every audio install and
+// delete, and removes it with the last model; follow it, as for the preset.
+function watchAudioModels(ctx: SidecarContext): void {
+  if (ctx.audioModelsDir == null) return
+  const config = join(ctx.audioModelsDir, SERVER_CONFIG)
+  let current = presetStamp(config)
+
+  const reconcile = async () => {
+    if (!sidecars || shuttingDown) return
+    const stamp = presetStamp(config)
+    if (stamp === current) return
+    current = stamp
+
+    if (sidecars.has(AUDIOCPP_SIDECAR)) await stopNamed(sidecars, AUDIOCPP_SIDECAR)
+    const spec = audiocppSpec(ctx)
+    if (spec) startOne(sidecars, spec, onSidecarCrash)
+  }
+
+  const timer = setInterval(() => {
+    void reconcile().catch(() => {
+      // Mid-write or mid-restart; the next tick tries again.
+    })
+  }, 5000)
+  timer.unref()
+}
+
 /** Size and mtime, which is enough to notice a rewrite and costs no read. */
 function presetStamp(path: string): string {
   try {
@@ -199,6 +231,10 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     llamacppBinariesDir: packaged
       ? join(process.resourcesPath, "llamacpp")
       : join(app.getAppPath(), "llamacpp"),
+    // The staged audio.cpp build, same bytes either way, as for llama.cpp.
+    audioBinariesDir: packaged
+      ? join(process.resourcesPath, "audiocpp")
+      : join(app.getAppPath(), "audiocpp"),
   }
   // Unconditional, because dev needs a runtime too and DATA_DIR already keeps
   // dev models out of the real install (~/.surfsense-dev).
@@ -210,6 +246,12 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   // needs the runtime. Measured: "failed to initialize router models: error:
   // '<path>' does not exist or is not a directory".
   mkdirSync(ctx.llamacppModelsDir, { recursive: true })
+
+  // Dev too, as for llama.cpp: podcasts are voiced by the binary that ships.
+  ctx.audioPort = await getFreePort(host)
+  ctx.audioUrl = `http://${host}:${ctx.audioPort}`
+  ctx.audioModelsDir = join(dataDir, "audio")
+  mkdirSync(ctx.audioModelsDir, { recursive: true })
 
   // Same staging in both modes, like llama.cpp. Only a host with a staged
   // sd-server gets an images dir: without one the API offers no image models,
@@ -232,12 +274,15 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     workerSpec(ctx, "ingest"),
     workerSpec(ctx, "studio"),
     llamacppSpec(ctx),
+    // Null until the API's config names an audio model.
+    audiocppSpec(ctx),
   ].filter(
     (s): s is SidecarSpec => s !== null
   )
   sidecars = startAll(specs, onSidecarCrash)
   watchImageModel(ctx)
   watchGenerationPreset(ctx)
+  watchAudioModels(ctx)
 
   // gate on the API only; fail fast if it dies during startup. llama-server is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).

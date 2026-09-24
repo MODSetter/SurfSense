@@ -1,6 +1,7 @@
 """The local manifest is a repo at a commit, read and pinned, never typed."""
 
 import pytest
+from local_manifest.audiocpp.entry import AudioEntry
 from local_manifest.entries import ENTRIES
 from local_manifest.entry import Entry
 from local_manifest.guard import losses
@@ -192,7 +193,17 @@ def test_a_refresh_that_drops_a_model_or_build_is_named() -> None:
 
 def test_the_list_is_most_preferred_first() -> None:
     """The list is most preferred first, within each type."""
-    names = [entry.name for entry in ENTRIES if not isinstance(entry, ImageEntry)]
+    names = [
+        entry.name
+        for entry in ENTRIES
+        if not isinstance(entry, (ImageEntry, AudioEntry))
+    ]
 
     assert names[0] == "Qwen3 32B"
     assert names[-1] == "Qwen3 0.6B"
+    # Kokoro first: the most voices, and the ids podcast briefs store today.
+    assert [e.name for e in ENTRIES if isinstance(e, AudioEntry)] == [
+        "Kokoro 82M",
+        "Supertonic 3",
+        "KittenTTS Mini 0.8",
+    ]

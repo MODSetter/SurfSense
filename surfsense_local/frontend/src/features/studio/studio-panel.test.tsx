@@ -196,8 +196,8 @@ describe("studio panel", () => {
       ],
     }
     const voices = [
-      { id: "af_heart", label: "Heart", language: "en-US" },
-      { id: "am_adam", label: "Adam", language: "en-US" },
+      { id: "af_heart", label: "Heart", languages: ["en-US"] },
+      { id: "am_adam", label: "Adam", languages: ["en-US"] },
     ]
     let openBrief = () => {}
     const briefGate = new Promise<void>((resolve) => {

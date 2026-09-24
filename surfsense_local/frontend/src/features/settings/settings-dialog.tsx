@@ -9,6 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  AudioWave01Icon,
   Chat01Icon,
   ComputerEthernetIcon,
   Image01Icon,
@@ -30,6 +31,7 @@ import { UpdateSettings } from "@/features/updates/update-settings"
 import { cn } from "@/lib/utils"
 
 import { AppearanceToggle } from "./appearance-toggle"
+import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
 import { SettingsSection } from "./settings-section"
@@ -41,7 +43,12 @@ type SettingsNavItem = {
 }
 
 export type SettingsSectionId =
-  "general" | "chat-models" | "image-models" | "network" | "license"
+  | "general"
+  | "chat-models"
+  | "image-models"
+  | "audio-models"
+  | "network"
+  | "license"
 
 const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
 
@@ -138,6 +145,11 @@ const SETTINGS_SECTIONS = [
     icon: Image01Icon,
   },
   {
+    id: "audio-models",
+    label: "Audio",
+    icon: AudioWave01Icon,
+  },
+  {
     id: "network",
     label: "Network",
     icon: ComputerEthernetIcon,
@@ -222,6 +234,9 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "image-models" ? (
               <ImageModelsSettings onModelUnavailable={onModelUnavailable} />
+            ) : null}
+            {activeSection.id === "audio-models" ? (
+              <AudioModelsSettings onModelUnavailable={onModelUnavailable} />
             ) : null}
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}

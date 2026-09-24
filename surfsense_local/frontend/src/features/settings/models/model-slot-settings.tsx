@@ -73,7 +73,7 @@ export function ModelSlotSettings({
   if (page === "add") {
     return (
       <SettingsSection
-        title={`Add ${slot === "image" ? "an" : "a"} ${slot} model`}
+        title={`Add ${/^[aeiou]/.test(slot) ? "an" : "a"} ${slot} model`}
         description="Run one on this computer, or use one from a server you already run."
         back={back}
         scrollable="all"
