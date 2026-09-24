@@ -285,6 +285,8 @@ describe("onboarding", () => {
     expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
     await toChatStep(user)
     expect(screen.getByLabelText("Onboarding step 1 of 2")).toBeTruthy()
+    // The welcome is not somewhere to go back to.
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
 
     await user.click(await screen.findByRole("button", { name: "Continue" }))
     expect(

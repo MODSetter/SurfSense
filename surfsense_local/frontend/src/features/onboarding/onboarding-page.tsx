@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 import { ArrowRightIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
@@ -11,6 +11,9 @@ import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
 type Screen = "welcome" | "chat" | "image"
+
+/** Matches the dither's own `duration-200`, so it unmounts as it reaches 0. */
+const DITHER_FADE_MS = 100
 
 /**
  * The steps the dots count. The welcome is still onboarding, and still gated by
@@ -157,13 +160,23 @@ export function OnboardingPage({
   onComplete: (selection: ModelSelection) => void
 }) {
   const [screen, setScreen] = useState<Screen>("welcome")
+  // The dither outlives the welcome by its fade, then unmounts, taking the
+  // shader's frame loop with it.
+  const [ditherGone, setDitherGone] = useState(false)
+  useEffect(() => {
+    if (screen === "welcome") return
+    const timer = window.setTimeout(() => setDitherGone(true), DITHER_FADE_MS)
+    return () => window.clearTimeout(timer)
+  }, [screen])
 
   return (
     <main
       data-onboarding-page
       className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
-      {screen === "welcome" ? <OnboardingDither /> : null}
+      {screen === "welcome" || !ditherGone ? (
+        <OnboardingDither fading={screen !== "welcome"} />
+      ) : null}
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
         {screen === "welcome" ? (
@@ -180,7 +193,6 @@ export function OnboardingPage({
             <ModelStep
               modelType="text_gen"
               nextLabel="Continue"
-              onBack={() => setScreen("welcome")}
               onNext={() => setScreen("image")}
             />
           ) : null}

@@ -79,7 +79,8 @@ export function ModelStep({
   nextLabel: string
   finishing?: boolean
   error?: string | null
-  onBack: () => void
+  /** Absent on the first step: the welcome is not somewhere to go back to. */
+  onBack?: () => void
   onNext: () => void
   /** Present only where the slot is optional. */
   onSkip?: () => void
@@ -288,10 +289,12 @@ export function ModelStep({
       </CardContent>
 
       <CardFooter className="justify-between gap-3 border-t py-4">
-        <Button type="button" variant="ghost" onClick={onBack}>
-          Back
-        </Button>
-        <div className="flex min-w-0 items-center gap-2">
+        {onBack ? (
+          <Button type="button" variant="ghost" onClick={onBack}>
+            Back
+          </Button>
+        ) : null}
+        <div className="ml-auto flex min-w-0 items-center gap-2">
           {/* Beside the button it unlocks: why Continue is now enabled. */}
           {models.inUse && !models.error ? (
             <div className="mr-2 min-w-0">

@@ -66,16 +66,22 @@ function useIsDarkTheme() {
  * loop entirely and pins the filter to a single frame — the pattern still
  * draws, it just stops moving.
  */
-export function OnboardingDither() {
+export function OnboardingDither({ fading = false }: { fading?: boolean }) {
   const reducedMotion = usePrefersReducedMotion()
   const isDark = useIsDarkTheme()
   const palette = isDark ? PALETTE.dark : PALETTE.light
 
   return (
-    <div className="ss-onboarding-dither" aria-hidden="true">
+    <div
+      className="ss-onboarding-dither transition-opacity duration-200 ease-out motion-reduce:transition-none"
+      // Inline, since `.ss-onboarding-dither` sets its own opacity outside
+      // Tailwind's layers and would win over a utility.
+      style={fading ? { opacity: 0 } : undefined}
+      aria-hidden="true"
+    >
       <ShaderMount
         fragmentShader={onboardingDitherFragmentShader}
-        speed={reducedMotion ? 0 : 1}
+        speed={reducedMotion || fading ? 0 : 1}
         uniforms={{
           u_image: ditherBackground,
           u_colorBack: getShaderColorFromString(palette.back),
