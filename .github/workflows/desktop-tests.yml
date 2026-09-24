@@ -1,0 +1,114 @@
+name: Desktop Tests
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - 'surfsense_local/**'
+      - 'scripts/check_translations.mjs'
+      - '.github/workflows/desktop-tests.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: surfsense_local/backend
+        run: uv sync
+
+      - name: Lint
+        working-directory: surfsense_local/backend
+        run: uv run ruff check .
+
+      - name: Run unit tests
+        working-directory: surfsense_local/backend
+        run: uv run pytest -m unit
+
+      # Tests that need the real embedding model skip without it.
+      - name: Run integration tests
+        working-directory: surfsense_local/backend
+        run: uv run pytest -m integration
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: surfsense_local/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: surfsense_local/frontend
+        run: pnpm install --frozen-lockfile
+
+      # Each script regenerates en.json and compiles the catalogs first.
+      - name: Typecheck
+        working-directory: surfsense_local/frontend
+        run: pnpm typecheck
+
+      - name: Lint
+        working-directory: surfsense_local/frontend
+        run: pnpm lint
+
+      - name: Run tests
+        working-directory: surfsense_local/frontend
+        run: pnpm test
+
+  electron:
+    name: Electron
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: surfsense_local/electron/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: surfsense_local/electron
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: surfsense_local/electron
+        run: pnpm typecheck
+
+      - name: Run tests
+        working-directory: surfsense_local/electron
+        run: pnpm test
