@@ -76,7 +76,7 @@ The list handed to the generator is `[system, *history within budget, user]`.
 
 - Every frame is `data: {json}\n\n`, and the stream ends with `data: [DONE]\n\n` so a client can tell completion from a dropped connection. The response sends `Cache-Control: no-cache` and `X-Accel-Buffering: no` so nothing buffers it into one late blob.
 - A turn that fails before producing any text is deleted, both halves, and the stream goes from `error` straight to `[DONE]`. A turn that fails midway keeps its partial text.
-- Errors are sorted by exception type, HTTP status and provider, and for a 400 by the body's `error.type` ([`errors.py`](../../surfsense_local/backend/modules/chat/errors.py)), into `provider_auth`, `provider_not_found`, `provider_rate_limited`, `provider_unavailable`, `model_cannot_run`, `context_too_long`, `network`, `timeout` and `unknown`, each with a plain-language message.
+- Errors are sorted by exception type, HTTP status and provider, and for a 400 by the body's `error.type` ([`errors.py`](../../surfsense_local/backend/modules/chat/errors.py)), into `provider_auth`, `provider_not_found`, `provider_rate_limited`, `provider_unavailable`, `model_cannot_run`, `context_too_long`, `network`, `timeout` and `unknown`, each with a plain-language English message. The frontend shows its own translated text per kind ([`chat-error-text.ts`](../../surfsense_local/frontend/src/features/chat/chat-error-text.ts)) and falls back to the backend's message for a kind it does not know.
 
 ## Citations
 
@@ -124,7 +124,7 @@ The list handed to the generator is `[system, *history within budget, user]`.
 
 - A stream that ends without an error but yields no text still renames the thread and stores an empty assistant turn; the discard guard is `failed and not parts`.
 - `budget.py` prices the question at 1,024 tokens and says `MessageText` enforces that, but `MessageText` has no length limit, so a long question can push a turn past the model's window.
-- The frontend's copy of the error kinds in `sse.ts` lacks `model_cannot_run` and `context_too_long`, so both offer Retry, which cannot fix either.
+- `model_cannot_run` and `context_too_long` offer Retry in `chat-error-notice.tsx`, which cannot fix either.
 - No live region announces streamed text, and focus does not move to the conversation heading after a thread switch; the dashboard design asks for both.
 - No test covers a client disconnecting mid-reply. The assistant's text is written only when generation ends, inside the stream, so whether a disconnected reply is kept is unverified.
 - A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. How often is unmeasured.

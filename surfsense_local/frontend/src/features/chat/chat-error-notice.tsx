@@ -2,6 +2,8 @@ import { useAuiState } from "@assistant-ui/react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Alert02Icon } from "@/components/ui/icons"
 import { Button } from "@/components/ui/button"
+import { intl } from "@/i18n/intl"
+import { translatedChatError } from "./chat-error-text"
 import type { ChatTurnError } from "./use-chat-runtime"
 
 type Action = "model-setup" | "retry" | "none"
@@ -44,7 +46,7 @@ export function ChatErrorNotice({
     <Alert variant="destructive" className="mt-2 w-auto">
       <Alert02Icon />
       <AlertDescription className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <span>{error.message}</span>
+        <span>{translatedChatError(error)}</span>
         {action === "model-setup" ? (
           <Button
             variant="outline"
@@ -52,7 +54,7 @@ export function ChatErrorNotice({
             className="shrink-0 text-foreground"
             onClick={onModelSetup}
           >
-            Model setup
+            {intl.formatMessage({ id: "chat_failed_reply_model_setup_button" })}
           </Button>
         ) : action === "retry" ? (
           <Button
@@ -61,7 +63,7 @@ export function ChatErrorNotice({
             className="shrink-0 text-foreground"
             onClick={() => onRetry(messageId)}
           >
-            Retry
+            {intl.formatMessage({ id: "chat_failed_reply_retry_button" })}
           </Button>
         ) : null}
       </AlertDescription>

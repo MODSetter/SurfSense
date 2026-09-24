@@ -11,6 +11,7 @@ import {
 import type { ModelSelection } from "@/features/models/selection/api"
 import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
 
@@ -42,7 +43,7 @@ function ModelControl({
       )}
       onClick={onModelSetup}
     >
-      Set up model
+      {intl.formatMessage({ id: "chat_composer_set_up_model_button" })}
     </button>
   )
 }
@@ -60,7 +61,7 @@ function ComposerAction({
         <Button
           size="icon-lg"
           className={cn("rounded-xl", className)}
-          aria-label="Send message"
+          aria-label={intl.formatMessage({ id: "chat_composer_send_aria" })}
         >
           <ArrowUp02Icon />
         </Button>
@@ -74,16 +75,12 @@ function ComposerAction({
         size="icon-lg"
         variant="secondary"
         className={cn("rounded-xl", className)}
-        aria-label="Stop generating"
+        aria-label={intl.formatMessage({ id: "chat_composer_stop_aria" })}
       >
         <CircleStopIcon />
       </Button>
     </ComposerPrimitive.Cancel>
   )
-}
-
-function sourceCountLabel(count: number) {
-  return `${count} ${count === 1 ? "source" : "sources"}`
 }
 
 function SourceCount({
@@ -93,7 +90,10 @@ function SourceCount({
   count: number
   className?: string
 }) {
-  const label = sourceCountLabel(count)
+  const label = intl.formatMessage(
+    { id: "chat_composer_source_count_label" },
+    { count }
+  )
   return (
     <span
       className={cn(
@@ -129,7 +129,7 @@ function AddSourcesButton({
         multiple
         accept={SOURCE_FILE_ACCEPT}
         className="sr-only"
-        aria-label="Add source files"
+        aria-label={intl.formatMessage({ id: "chat_composer_add_files_aria" })}
         disabled={isUploading}
         onChange={upload}
       />
@@ -141,13 +141,17 @@ function AddSourcesButton({
             variant="ghost"
             className={cn("rounded-xl", className)}
             disabled={isUploading}
-            aria-label="Add sources"
+            aria-label={intl.formatMessage({
+              id: "chat_composer_add_sources_aria",
+            })}
             onClick={() => inputRef.current?.click()}
           >
             <PlusIcon className="size-5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="top">Add sources</TooltipContent>
+        <TooltipContent side="top">
+          {intl.formatMessage({ id: "chat_composer_add_sources_tooltip" })}
+        </TooltipContent>
       </Tooltip>
     </>
   )
@@ -205,13 +209,17 @@ export function ChatComposer({
           placeholder={
             !model || providerAvailable
               ? placement === "center"
-                ? "Turn your sources into answers"
-                : "Follow up on this answer"
-              : "Reconnect your model provider to send"
+                ? intl.formatMessage({ id: "chat_composer_start_placeholder" })
+                : intl.formatMessage({
+                    id: "chat_composer_follow_up_placeholder",
+                  })
+              : intl.formatMessage({
+                  id: "chat_composer_provider_offline_placeholder",
+                })
           }
           submitMode="enter"
           rows={1}
-          aria-label="Message"
+          aria-label={intl.formatMessage({ id: "chat_composer_message_aria" })}
         />
         {placement === "center" ? (
           <>
@@ -241,8 +249,10 @@ export function ChatComposer({
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
           <p className="min-w-0 text-left text-[11px] text-muted-foreground select-none">
             {!model || providerAvailable
-              ? "SurfSense can make mistakes. Check important answers."
-              : "Historical chats remain available while the provider is offline."}
+              ? intl.formatMessage({ id: "chat_composer_disclaimer_body" })
+              : intl.formatMessage({
+                  id: "chat_composer_provider_offline_body",
+                })}
           </p>
           <ModelControl
             model={model}

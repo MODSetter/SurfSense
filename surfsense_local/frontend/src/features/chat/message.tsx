@@ -19,6 +19,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
 import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
@@ -115,7 +116,11 @@ function MessageActions({
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                aria-label={isCopied ? "Copied" : "Copy message"}
+                aria-label={
+                  isCopied
+                    ? intl.formatMessage({ id: "chat_message_copied_aria" })
+                    : intl.formatMessage({ id: "chat_message_copy_aria" })
+                }
               >
                 <AuiIf condition={({ message }) => message.isCopied}>
                   <CheckIcon />
@@ -126,7 +131,11 @@ function MessageActions({
               </Button>
             </TooltipTrigger>
           </ActionBarPrimitive.Copy>
-          <TooltipContent>{isCopied ? "Copied" : "Copy"}</TooltipContent>
+          <TooltipContent>
+            {isCopied
+              ? intl.formatMessage({ id: "chat_message_copied_tooltip" })
+              : intl.formatMessage({ id: "chat_message_copy_tooltip" })}
+          </TooltipContent>
         </Tooltip>
       </ActionBarPrimitive.Root>
       {timestampRight ? timestamp : null}

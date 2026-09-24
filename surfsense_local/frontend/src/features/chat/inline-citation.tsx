@@ -1,6 +1,7 @@
 import { createContext, useContext, useMemo, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
+import { intl } from "@/i18n/intl"
 import type { Citation } from "./sse"
 
 type CitationContextValue = {
@@ -49,8 +50,14 @@ export function InlineCitation(props: Record<string, unknown>) {
       variant="ghost"
       size="xs"
       className="mx-0.5 inline-flex h-5 min-w-5 rounded-md bg-popover px-1.5 align-baseline text-[11px] font-medium text-popover-foreground/80 hover:bg-popover hover:text-popover-foreground"
-      title={`View source chunk #${chunkId}`}
-      aria-label={`View cited chunk ${chunkId}`}
+      title={intl.formatMessage(
+        { id: "chat_inline_citation_tooltip" },
+        { id: chunkId }
+      )}
+      aria-label={intl.formatMessage(
+        { id: "chat_inline_citation_aria" },
+        { id: chunkId }
+      )}
       onClick={() => context.onCitation(chunkId)}
     >
       {chunkId}
