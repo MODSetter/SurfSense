@@ -29,6 +29,9 @@ One flat JSON file per language, `{"id": "ICU string"}`, keys sorted with a two-
 - A value is a whole sentence with named placeholders. Plurals are ICU `plural` with the language's CLDR categories and `#`; Japanese writes only `other`. Styled parts of a sentence are tags.
 - Visible apostrophes are `’`: ICU uses `'` as its escape character.
 - Numbers go in raw and the message formats them with an ICU skeleton, as FormatJS's best practices ask: `{size, number, ::unit/gigabyte .#}`, `{percent, number, ::percent}`, `{downloads, number, ::compact-short}`. Each language then writes 1,2 GB, 40 % or 1.2万 its own way.
+- A count or position is `{count, number}`, never a plain `{count}`, which prints raw digits in every language. Identifiers stay plain on purpose: a chunk id (`#{id}`) and an HTTP status (`{status}`) are not amounts.
+- A date goes in as a `Date` and the message formats it with a date skeleton: `{date, date, ::yyyyMMMd}` reads Oct 18, 2026, 18. Okt. 2026 or 2026年10月18日.
+- A number shown outside any message, such as a `3 / 10` counter or a score, goes through `intl.formatNumber`.
 
 ## Rendering
 
@@ -60,6 +63,8 @@ The backend stays English. Where it sends a code with its prose, the frontend sh
 
 1. `formatjs extract` writes `translations/en.json` from every `defaultMessage` in `frontend/src` and `electron/src/main`.
 2. `formatjs compile-folder translations src/i18n/compiled --format simple --ast` precompiles the catalogs, failing on a malformed message.
+
+Each step is also its own script, `pnpm translations:extract` and `pnpm translations:compile`.
 
 Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since no message is parsed at run time. `compiled/` is gitignored. Everything comes from npm and the lockfile.
 
