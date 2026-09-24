@@ -1,12 +1,25 @@
 import { useTheme } from "@/components/theme-provider"
 import { ComputerIcon, MoonIcon, SunIcon } from "@/components/ui/icons"
 import { SegmentedControl } from "@/components/ui/segmented-control"
+import { intl } from "@/i18n/intl"
 
 const THEME_OPTIONS = [
-  { icon: ComputerIcon, value: "system", label: "system" },
-  { icon: SunIcon, value: "light", label: "light" },
-  { icon: MoonIcon, value: "dark", label: "dark" },
+  { icon: ComputerIcon, value: "system" },
+  { icon: SunIcon, value: "light" },
+  { icon: MoonIcon, value: "dark" },
 ] as const
+
+const SWITCH_TO_THEME_ARIA: Record<
+  (typeof THEME_OPTIONS)[number]["value"],
+  () => string
+> = {
+  system: () =>
+    intl.formatMessage({ id: "settings_appearance_switch_to_system_aria" }),
+  light: () =>
+    intl.formatMessage({ id: "settings_appearance_switch_to_light_aria" }),
+  dark: () =>
+    intl.formatMessage({ id: "settings_appearance_switch_to_dark_aria" }),
+}
 
 export function AppearanceToggle() {
   const { theme, setTheme } = useTheme()
@@ -19,7 +32,7 @@ export function AppearanceToggle() {
       count={THEME_OPTIONS.length}
       selectedIndex={selectedIndex}
       role="radiogroup"
-      aria-label="Appearance"
+      aria-label={intl.formatMessage({ id: "settings_appearance_toggle_aria" })}
     >
       {THEME_OPTIONS.map((option) => {
         const Icon = option.icon
@@ -33,7 +46,7 @@ export function AppearanceToggle() {
               value={option.value}
               checked={selected}
               className="peer sr-only"
-              aria-label={`Switch to ${option.label} theme`}
+              aria-label={SWITCH_TO_THEME_ARIA[option.value]()}
               onChange={() => setTheme(option.value)}
             />
             <span className="relative flex size-7 items-center justify-center rounded-md peer-focus-visible:z-10 peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-focus-visible:outline-none">

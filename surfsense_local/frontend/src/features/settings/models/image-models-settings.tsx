@@ -4,6 +4,7 @@ import { useDeleteLocalImageModel } from "@/features/models/local/image/use-dele
 import { useImageInstall } from "@/features/models/local/image/use-image-install"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useImageModels } from "@/features/models/your-models/use-image-models"
+import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
 
@@ -20,8 +21,8 @@ export function ImageModelsSettings({
 
   return (
     <ModelSlotSettings
-      title="Image generation models"
-      description="The model that makes images in Studio. Run one on this computer, or use one from a server."
+      title={intl.formatMessage({ id: "settings_image_models_title" })}
+      description={intl.formatMessage({ id: "settings_image_models_body" })}
       slot="image"
       modelType="image_gen"
       models={models}

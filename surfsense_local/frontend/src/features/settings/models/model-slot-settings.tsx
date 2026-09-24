@@ -23,6 +23,7 @@ import type {
   YourModelRow,
   YourModels,
 } from "@/features/models/your-models/your-model-row"
+import { intl } from "@/i18n/intl"
 
 import { SettingsSection } from "../settings-section"
 
@@ -73,8 +74,13 @@ export function ModelSlotSettings({
   if (page === "add") {
     return (
       <SettingsSection
-        title={`Add ${/^[aeiou]/.test(slot) ? "an" : "a"} ${slot} model`}
-        description="Run one on this computer, or use one from a server you already run."
+        title={intl.formatMessage(
+          { id: "settings_models_add_page_title" },
+          { slot }
+        )}
+        description={intl.formatMessage({
+          id: "settings_models_add_page_body",
+        })}
         back={back}
         scrollable="all"
       >
@@ -91,7 +97,7 @@ export function ModelSlotSettings({
     models.inUse === null
   const add = (
     <Button type="button" size="sm" onClick={() => setPage("add")}>
-      Add model
+      {intl.formatMessage({ id: "settings_models_add_button" })}
     </Button>
   )
 
@@ -100,17 +106,25 @@ export function ModelSlotSettings({
       {models.error ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
-          <AlertTitle>Could not load model settings</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({ id: "settings_models_load_error" })}
+          </AlertTitle>
           <AlertDescription>{models.error.message}</AlertDescription>
         </Alert>
       ) : models.isPending ? null : empty ? (
         <Empty className="border">
           <EmptyHeader>
-            <EmptyTitle>No {slot} model yet</EmptyTitle>
+            <EmptyTitle>
+              {intl.formatMessage({ id: "settings_models_empty" }, { slot })}
+            </EmptyTitle>
             <EmptyDescription>
               {models.canDownload
-                ? "Download one to run on this computer, or use one from a server you already run."
-                : "Use one from a server you already run."}
+                ? intl.formatMessage({
+                    id: "settings_models_empty_download_body",
+                  })
+                : intl.formatMessage({
+                    id: "settings_models_empty_server_body",
+                  })}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>{add}</EmptyContent>
