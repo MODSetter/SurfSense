@@ -1,6 +1,6 @@
 import type en from "../../translations/en.json"
 
-import type { Locale } from "./locales"
+import type { AppLocale } from "./locales"
 
 // FormatJS's own typing hook: a message id outside en.json is a type error.
 declare global {
@@ -9,7 +9,7 @@ declare global {
       ids: keyof typeof en
     }
     interface IntlConfig {
-      locale: Locale
+      locale: AppLocale
     }
   }
 }

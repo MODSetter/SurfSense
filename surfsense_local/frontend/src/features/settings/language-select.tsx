@@ -1,7 +1,7 @@
 import { useEffect, useState, type ComponentProps } from "react"
 
 import { Select } from "@/components/ui/select"
-import { LOCALES, type LocalePreference } from "@/i18n/locales"
+import { SELECTABLE_LOCALES, type LocalePreference } from "@/i18n/locales"
 import { intl } from "@/i18n/intl"
 
 // Each language in its own name, so a user in the wrong one can still find theirs.
@@ -42,7 +42,7 @@ export function LanguageSelect(
           defaultMessage: "Match system",
         })}
       </option>
-      {LOCALES.map((locale) => (
+      {SELECTABLE_LOCALES.map((locale) => (
         <option key={locale} value={locale}>
           {nativeName(locale)}
         </option>

@@ -29,7 +29,14 @@ describe("LanguageSelect", () => {
     const options = screen
       .getAllByRole("option")
       .map((option) => option.textContent)
-    expect(options).toEqual(["Match system", "English", "日本語", "Deutsch"])
+    // Tests run as a dev build, which also lists the pseudo-locale.
+    expect(options).toEqual([
+      "Match system",
+      "English",
+      "日本語",
+      "Deutsch",
+      "English (Pseudo-Accents)",
+    ])
   })
 
   it("shows the saved preference", async () => {
