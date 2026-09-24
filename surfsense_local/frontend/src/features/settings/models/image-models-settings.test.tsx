@@ -157,17 +157,33 @@ describe("image model settings", () => {
     expect(screen.queryByText(/Qwen3 8B/)).toBeNull()
   })
 
-  it("will not delete the image model the runtime is serving", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serving([imageRow({ installed_as: "sdxl-turbo-q4_0", selected: true })])
+  it("deletes the image model in use, like chat", async () => {
+    const fetchMock = serving(
+      [imageRow({ installed_as: "sdxl-turbo-q4_0", selected: true })],
+      (path, init) =>
+        path === "/llm/models/sdxl-turbo-q4_0" && init?.method === "DELETE"
+          ? Response.json({ name: "sdxl-turbo-q4_0", selection_cleared: true })
+          : null
     )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
     render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
 
-    expect(await screen.findByText("SDXL Turbo")).toBeTruthy()
-    expect(
-      screen.queryByRole("button", { name: "Delete SDXL Turbo" })
-    ).toBeNull()
+    await user.click(
+      await screen.findByRole("button", { name: "Delete SDXL Turbo" })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete model" })
+    )
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/llm/models/sdxl-turbo-q4_0" && init?.method === "DELETE"
+        )
+      ).toBe(true)
+    )
   })
 
   it("deletes an image model by the name it has on disk", async () => {
@@ -216,7 +232,7 @@ describe("image model settings", () => {
 
     await user.click(await screen.findByRole("button", { name: "Add model" }))
     await user.click(
-      await screen.findByRole("button", { name: "Download SDXL Turbo" })
+      await screen.findByRole("button", { name: "Download SDXL Turbo Q4_0" })
     )
 
     await waitFor(() => {
@@ -233,5 +249,42 @@ describe("image model settings", () => {
         String(path).startsWith("/llm/image/local")
       )
     ).toBe(false)
+  })
+
+  it("names the phase while it downloads and cancels, like chat", async () => {
+    const fetchMock = serving([imageRow()], (path, init) =>
+      path === "/llm/install"
+        ? new Response(
+            new ReadableStream<Uint8Array>({
+              start(controller) {
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    '{"type":"downloading","completed":1000000000,"total":2000000000}\n'
+                  )
+                )
+                init?.signal?.addEventListener("abort", () =>
+                  controller.error(new DOMException("Aborted", "AbortError"))
+                )
+              },
+            })
+          )
+        : null
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Download SDXL Turbo Q4_0" })
+    )
+
+    expect(await screen.findAllByText("Downloading…")).not.toHaveLength(0)
+    expect(screen.getAllByText("1 GB of 2 GB")).not.toHaveLength(0)
+
+    await user.click(screen.getAllByRole("button", { name: "Cancel" })[0])
+    expect(
+      await screen.findByRole("button", { name: "Download SDXL Turbo Q4_0" })
+    ).toBeTruthy()
   })
 })

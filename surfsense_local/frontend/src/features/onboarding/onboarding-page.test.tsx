@@ -1,35 +1,236 @@
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
 
-function installApi() {
+vi.mock("sonner", () => ({
+  toast: { error: vi.fn(), info: vi.fn() },
+}))
+
+const budget = {
+  device_total_bytes: 16_000_000_000,
+  device_free_bytes: 14_000_000_000,
+  usable_vram_bytes: 12_900_000_000,
+  fit_reserve_bytes: 1_073_741_824,
+  ram_available_bytes: 16_000_000_000,
+  uma: true,
+  has_gpu: true,
+}
+
+type Engine = "llamacpp" | "sdcpp"
+
+function row(
+  engine: Engine,
+  name: string,
+  file: string,
+  overrides: Record<string, unknown> = {}
+) {
+  return {
+    id: file,
+    source: "local",
+    origin: "curated",
+    name,
+    family: name.split(" ")[0],
+    types: [engine === "sdcpp" ? "image_gen" : "text_gen"],
+    known: true,
+    approximate: false,
+    selectable_for: [engine === "sdcpp" ? "image_gen" : "text_gen"],
+    support: {
+      context: null,
+      reads_images: false,
+      tools: null,
+      reasoning: null,
+    },
+    runnable: true,
+    not_runnable_reason: null,
+    default_quantization: "Q4_K_M",
+    recommended: false,
+    engine,
+    lead: { quantization: "Q4_K_M", why: "recommended" },
+    builds: [
+      {
+        catalog_id: `opaque-${file}`,
+        quantization: "Q4_K_M",
+        footprint_bytes: 2_500_000_000,
+        files: [],
+        fit: null,
+        badge: null,
+        can_install: true,
+        installed_as: null,
+        selected: false,
+        recommended: false,
+        reads_images: false,
+        projector_checked: true,
+      },
+    ],
+    ...overrides,
+  }
+}
+
+/**
+ * A backend with state: installing a build puts it on disk and, when asked to,
+ * makes it the slot's model, so the catalog and selection answer accordingly.
+ */
+function backend({
+  rows = [
+    row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
+    row("llamacpp", "Gemma 3 4B", "gemma-3-4b"),
+  ],
+  selections = {} as Record<string, Record<string, unknown>>,
+  connections = [] as unknown[],
+  onDisk = [] as string[],
+} = {}) {
+  const installed = new Set<string>(onDisk)
+  const provider: Record<Engine, string> = {
+    llamacpp: "llamacpp",
+    sdcpp: "sdcpp",
+  }
+  const slotOf = (engine: Engine) =>
+    engine === "sdcpp" ? "image_gen" : "text_gen"
+
+  const catalogRows = () =>
+    rows.map((entry) => ({
+      ...entry,
+      builds: entry.builds.map((build) => {
+        const file = build.catalog_id.replace("opaque-", "")
+        const onDisk = installed.has(file)
+        const selection = selections[slotOf(entry.engine as Engine)]
+        return {
+          ...build,
+          installed_as: onDisk ? file : null,
+          selected: onDisk && selection?.name === file,
+        }
+      }),
+    }))
+
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input)
-    if (path === "/llm/selection/text_gen") {
+    if (path === "/llm/catalog/local") {
       return Response.json({
-        model_type: "text_gen",
-        provider: "llamacpp",
-        name: "llama3.2:1b",
-        updated_at: "2026-09-05T00:00:00Z",
+        budget,
+        gpu_status: "present",
+        rows: catalogRows(),
+        recommended_id: null,
       })
     }
-    if (path === "/llm/selection/image_gen") {
-      return Response.json({ detail: "not selected" }, { status: 404 })
+    if (path.startsWith("/llm/selection/")) {
+      const slot = path.split("/").at(-1) ?? ""
+      if (init?.method === "PUT") {
+        selections[slot] = {
+          model_type: slot,
+          ...JSON.parse(String(init.body)),
+          updated_at: "2026-09-24T00:00:00Z",
+        }
+      }
+      return selections[slot]
+        ? Response.json(selections[slot])
+        : Response.json({ detail: "not selected" }, { status: 404 })
     }
-    if (path === "/llm/connections") {
+    if (path === "/llm/install" && init?.method === "POST") {
+      const body = JSON.parse(String(init.body))
+      const file = String(body.catalog_id).replace("opaque-", "")
+      const entry = rows.find((candidate) => candidate.id === file)
+      const engine = (entry?.engine ?? "llamacpp") as Engine
+      installed.add(file)
+      const selection = body.select
+        ? {
+            model_type: slotOf(engine),
+            provider: provider[engine],
+            connection_id: null,
+            name: file,
+            updated_at: "2026-09-24T00:00:00Z",
+          }
+        : null
+      if (selection) selections[slotOf(engine)] = selection
+      return new Response(
+        [
+          JSON.stringify({ type: "downloading", completed: 1, total: 2 }),
+          JSON.stringify({ type: "complete", selection }),
+          "",
+        ].join("\n")
+      )
+    }
+    if (path.startsWith("/llm/models/") && init?.method === "DELETE") {
+      const file = decodeURIComponent(path.split("/").at(-1) ?? "")
+      installed.delete(file)
+      let cleared = false
+      for (const slot of Object.keys(selections)) {
+        if (selections[slot]?.name === file) {
+          delete selections[slot]
+          cleared = true
+        }
+      }
+      return Response.json({ name: file, selection_cleared: cleared })
+    }
+    if (
+      path.startsWith("/llm/connections/") &&
+      !path.endsWith("/models") &&
+      init?.method === "DELETE"
+    ) {
+      const id = Number(path.split("/").at(-1))
+      connections = connections.filter(
+        (connection) => (connection as { id: number }).id !== id
+      )
+      return new Response(null, { status: 204 })
+    }
+    if (path === "/llm/connections" && init?.method === "POST") {
+      const created = {
+        ...openRouter,
+        ...JSON.parse(String(init.body)),
+        id: 9,
+        has_api_key: false,
+      }
+      connections = [...connections, created]
+      return Response.json(created)
+    }
+    if (/^\/llm\/connections\/\d+\/models$/.test(path)) {
       return Response.json([])
+    }
+    if (path === "/llm/connections") return Response.json(connections)
+    if (path === "/llm/catalog/remote") return Response.json([])
+    if (path.startsWith("/llm/catalog/local/search?")) {
+      return Response.json({
+        results: [
+          {
+            repo: "unsloth/Qwen3-14B-GGUF",
+            downloads: 1000,
+            likes: 1,
+            license: "apache-2.0",
+            gated: false,
+            quantized_from: null,
+            last_modified: null,
+            reads_images: false,
+          },
+        ],
+      })
+    }
+    if (path.startsWith("/llm/catalog/local/search/")) {
+      return Response.json({
+        repo: "unsloth/Qwen3-14B-GGUF",
+        gated: false,
+        row: row("llamacpp", "unsloth/Qwen3-14B-GGUF", "qwen3-14b", {
+          origin: "search",
+          lead: null,
+        }),
+      })
     }
     if (path === "/llm/onboarding" && init?.method === "POST") {
       return Response.json({ completed: true })
     }
-    if (init?.method === "PUT") {
-      throw new Error("Unexpected selection write")
-    }
     return Response.json({ detail: "not found" }, { status: 404 })
   })
+}
+
+const chatChosen = {
+  text_gen: {
+    model_type: "text_gen",
+    provider: "llamacpp",
+    connection_id: null,
+    name: "qwen3-4b",
+    updated_at: "2026-09-24T00:00:00Z",
+  },
 }
 
 beforeEach(() => {
@@ -49,105 +250,465 @@ afterEach(() => {
   vi.unstubAllGlobals()
 })
 
-describe("model onboarding", () => {
-  it("moves from the welcome to the model step", async () => {
-    vi.stubGlobal("fetch", installApi())
+/** The footer's status names the slot's model once it is set. */
+async function expectReady(name: string) {
+  await waitFor(() =>
+    expect(
+      screen.getByRole("region", { name: "Model ready" }).textContent
+    ).toContain(name)
+  )
+}
+
+async function toChatStep(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole("button", { name: "Start setting up" }))
+  await screen.findByRole("heading", { name: "Choose a chat model" })
+}
+
+const openRouter = {
+  id: 4,
+  label: "OpenRouter",
+  provider: "openai_compatible",
+  base_url: "https://openrouter.ai/api/v1",
+  catalog_provider: "openrouter",
+  has_api_key: true,
+  created_at: "2026-09-24T00:00:00Z",
+  updated_at: "2026-09-24T00:00:00Z",
+}
+
+describe("onboarding", () => {
+  it("walks the welcome, then two steps: chat model, image model", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
 
-    expect(
-      screen.getByRole("heading", {
-        name: "Air-gapped, open source NotebookLM alternative",
-      })
-    ).toBeTruthy()
-    const firstProgress = screen.getByLabelText("Onboarding step 1 of 2")
-    expect(firstProgress.children[0]?.getAttribute("data-state")).toBe("active")
-    expect(firstProgress.children[1]?.getAttribute("data-state")).toBe(
-      "inactive"
-    )
-    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    // The welcome introduces onboarding; it is not one of its steps.
+    expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
+    await toChatStep(user)
+    expect(screen.getByLabelText("Onboarding step 1 of 2")).toBeTruthy()
+    // The welcome is not somewhere to go back to.
+    expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
 
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
     expect(
-      screen.getByRole("heading", { name: "Choose your AI model" })
+      await screen.findByRole("heading", { name: "Add an image model" })
     ).toBeTruthy()
-    const secondProgress = screen.getByLabelText("Onboarding step 2 of 2")
-    expect(secondProgress.children[0]?.getAttribute("data-state")).toBe(
-      "completed"
-    )
-    expect(secondProgress.children[1]?.getAttribute("data-state")).toBe(
-      "active"
-    )
-    const page = screen.getByRole("main")
-    const card = document.querySelector('[data-slot="card"]')
-    expect(page.hasAttribute("data-onboarding-page")).toBe(true)
-    expect(page.className).toContain("overflow-hidden")
-    expect(card?.className).toContain("h-full")
+    expect(screen.getByLabelText("Onboarding step 2 of 2")).toBeTruthy()
+    expect(screen.getByText("Optional")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(
+      await screen.findByRole("heading", { name: "Choose a chat model" })
+    ).toBeTruthy()
   })
 
-  it("leaves onboarding only after Start chatting, and needs a chat model", async () => {
-    const fetchMock = vi.fn<typeof fetch>(async (input) => {
-      const path = String(input)
-      if (path === "/llm/selection/text_gen") {
-        return Response.json({ detail: "not selected" }, { status: 404 })
-      }
-      if (path === "/llm/selection/image_gen") {
-        return Response.json({ detail: "not selected" }, { status: 404 })
-      }
-      if (path === "/llm/connections") return Response.json([])
-      if (path === "/llm/providers") {
-        return Response.json([
-          {
-            name: "llamacpp",
-            healthy: true,
-            can_download: true,
-            requires_key: false,
-            configured: true,
-          },
-        ])
-      }
-      if (path === "/llm/providers/llamacpp/models") return Response.json([])
-      if (path === "/llm/catalog/local") {
-        return Response.json({
-          rows: [],
-          recommended_id: null,
-        })
-      }
-      return Response.json({ detail: "not found" }, { status: 404 })
+  it("lists every model at once, the recommended one first", async () => {
+    vi.stubGlobal("fetch", backend())
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    const list = await screen.findByRole("list", {
+      name: "Models for this computer",
+    })
+    const rows = within(list).getAllByRole("listitem")
+    expect(rows[0]?.textContent).toContain("Qwen3 4B")
+    expect(rows[0]?.textContent).toContain("Recommended")
+    expect(rows[1]?.textContent).toContain("Gemma 3 4B")
+    expect(screen.getByText("Apple Silicon GPU")).toBeTruthy()
+    expect(screen.getByText("16 GB memory")).toBeTruthy()
+    expect(
+      screen.getByRole("region", { name: "Use a server" }).textContent
+    ).toContain("Use a server")
+  })
+
+  it("holds Continue until the downloaded model is ready", async () => {
+    const fetchMock = backend()
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    expect(
+      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
+    ).toBe(true)
+    await user.click(
+      await screen.findByRole("button", { name: "Download Qwen3 4B Q4_K_M" })
+    )
+
+    await expectReady("Qwen3 4B Q4_K_M")
+    const install = fetchMock.mock.calls.find(
+      ([path]) => path === "/llm/install"
+    )
+    // Onboarding's download is also the choice: no second click to use it.
+    expect(JSON.parse(String(install?.[1]?.body))).toEqual({
+      catalog_id: "opaque-qwen3-4b",
+      select: true,
+    })
+    await waitFor(() =>
+      expect(
+        screen
+          .getByRole("button", { name: "Continue" })
+          .hasAttribute("disabled")
+      ).toBe(false)
+    )
+    // The list stays: changing the model is picking another row.
+    expect(
+      screen.getByRole("list", { name: "Models for this computer" })
+    ).toBeTruthy()
+  })
+
+  it("switches to another downloaded model in place", async () => {
+    const fetchMock = backend({
+      selections: { ...chatChosen },
+      onDisk: ["qwen3-4b", "gemma-3-4b"],
     })
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
-    const onComplete = vi.fn()
-    render(<OnboardingPage onComplete={onComplete} />)
-    await user.click(screen.getByRole("button", { name: "Start setting up" }))
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    await expectReady("Qwen3 4B Q4_K_M")
+    await user.click(
+      screen.getByRole("button", { name: "Use Gemma 3 4B Q4_K_M" })
+    )
+
+    await expectReady("Gemma 3 4B Q4_K_M")
+    const write = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/llm/selection/text_gen" && init?.method === "PUT"
+    )
+    expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+      provider: "llamacpp",
+      name: "gemma-3-4b",
+    })
+  })
+
+  it("shows a download under its row and stays put", async () => {
+    let release = () => {}
+    const held = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    const base = backend()
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) !== "/llm/install") return base(input, init)
+        // Let the backend record the install, then hold the stream open.
+        const finished = await base(input, init)
+        const text = await finished.text()
+        const encoder = new TextEncoder()
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            async start(controller) {
+              const [progress, complete] = text.split("\n")
+              controller.enqueue(encoder.encode(`${progress}\n`))
+              await held
+              controller.enqueue(encoder.encode(`${complete}\n`))
+              controller.close()
+            },
+          })
+        )
+      })
+    )
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Download Gemma 3 4B Q4_K_M" })
+    )
+
+    const list = screen.getByRole("list", { name: "Models for this computer" })
+    const row = within(list).getByText("Gemma 3 4B").closest("li")
+    expect(
+      await within(row as HTMLElement).findByRole("progressbar")
+    ).toBeTruthy()
+
+    release()
+    await waitFor(() =>
+      expect(within(row as HTMLElement).getByText("In use")).toBeTruthy()
+    )
+  })
+
+  it("deletes a downloaded model after confirming, as Settings does", async () => {
+    const fetchMock = backend({ onDisk: ["gemma-3-4b"] })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Gemma 3 4B" })
+    )
+    expect(await screen.findByText("Delete Gemma 3 4B?")).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete model" }))
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/llm/models/gemma-3-4b" && init?.method === "DELETE"
+        )
+      ).toBe(true)
+    )
+  })
+
+  it("searches Hugging Face on the chat step and installs as the choice", async () => {
+    const fetchMock = backend()
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    // Closed until asked for: typing reaches a third party.
+    expect(
+      screen.queryByRole("searchbox", { name: "Search all models" })
+    ).toBeNull()
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Not listed? Search Hugging Face",
+      })
+    )
+    // Asked for, so the box takes focus, as a server's search does.
+    const search = screen.getByRole("searchbox", { name: "Search all models" })
+    expect(search).toBe(document.activeElement)
+    await user.type(search, "qwen")
+    await user.click(await screen.findByText("unsloth/Qwen3-14B-GGUF"))
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Download unsloth/Qwen3-14B-GGUF Q4_K_M",
+      })
+    )
+
+    await waitFor(() => {
+      const install = fetchMock.mock.calls.find(
+        ([path]) => path === "/llm/install"
+      )
+      expect(JSON.parse(String(install?.[1]?.body))).toEqual({
+        catalog_id: "opaque-qwen3-14b",
+        select: true,
+      })
+    })
+  })
+
+  it("offers no search on the image step", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", { name: "Add an image model" })
 
     expect(
-      (
-        await screen.findByRole("button", { name: "Start chatting" })
-      ).hasAttribute("disabled")
+      screen.queryByRole("button", {
+        name: "Not listed? Search Hugging Face",
+      })
+    ).toBeNull()
+  })
+
+  it("connects a server when there is none", async () => {
+    vi.stubGlobal("fetch", backend())
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    const server = screen.getByRole("region", { name: "Use a server" })
+    await user.click(within(server).getByRole("button", { name: "Connect" }))
+    // A dialog over the step, not a page: the list stays behind it.
+    const dialog = screen.getByRole("dialog", { name: "Connect a server" })
+    expect(within(dialog).getByLabelText("Base URL")).toBeTruthy()
+
+    await user.click(within(dialog).getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+    expect(
+      screen.getByRole("list", { name: "Models for this computer" })
+    ).toBeTruthy()
+  })
+
+  it("opens a new server's models once it is saved", async () => {
+    vi.stubGlobal("fetch", backend())
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    const server = screen.getByRole("region", { name: "Use a server" })
+    await user.click(within(server).getByRole("button", { name: "Connect" }))
+    const dialog = screen.getByRole("dialog", { name: "Connect a server" })
+    await user.type(within(dialog).getByLabelText("Name"), "My vLLM")
+    await user.type(
+      within(dialog).getByLabelText("Base URL"),
+      "http://10.0.0.4:8000/v1"
+    )
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save server" })
+    )
+
+    // The server page, with the new server already open on its models.
+    expect(
+      await screen.findByLabelText("Search models from My vLLM")
+    ).toBeTruthy()
+  })
+
+  it("names a server connected earlier instead of asking again", async () => {
+    vi.stubGlobal(
+      "fetch",
+      backend({ selections: { ...chatChosen }, connections: [openRouter] })
+    )
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+
+    const server = await screen.findByRole("region", { name: "Use a server" })
+    expect(server.textContent).toContain("Connected: OpenRouter")
+    expect(
+      within(server).getByRole("button", { name: "Show servers" })
+    ).toBeTruthy()
+  })
+
+  it("edits and disconnects a server with Settings' own actions", async () => {
+    const fetchMock = backend({
+      selections: { ...chatChosen },
+      connections: [openRouter],
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Show servers" })
+    )
+    await user.click(screen.getByRole("button", { name: "Edit OpenRouter" }))
+    const form = screen.getByRole("dialog", { name: "Edit OpenRouter" })
+    expect(
+      (within(form).getByLabelText("Name") as HTMLInputElement).value
+    ).toBe("OpenRouter")
+    await user.click(within(form).getByRole("button", { name: "Cancel" }))
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull())
+
+    await user.click(
+      screen.getByRole("button", { name: "Disconnect OpenRouter" })
+    )
+    expect(
+      await screen.findByText("No model in use comes from OpenRouter.")
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Disconnect" }))
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/llm/connections/4" && init?.method === "DELETE"
+        )
+      ).toBe(true)
+    )
+  })
+
+  it("says which model it will use, and from where", async () => {
+    vi.stubGlobal(
+      "fetch",
+      backend({
+        connections: [openRouter],
+        selections: {
+          text_gen: {
+            model_type: "text_gen",
+            provider: "openai_compatible",
+            connection_id: 4,
+            name: "aion-labs/aion-2.0",
+            updated_at: "2026-09-24T00:00:00Z",
+          },
+        },
+      })
+    )
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+
+    // The maker prefix is dropped: the server already says whose it is.
+    await waitFor(() =>
+      expect(
+        screen.getByRole("region", { name: "Model ready" }).textContent
+      ).toBe("Usingaion-2.0via OpenRouter")
+    )
+  })
+
+  it("says when image models cannot run here", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toChatStep(user)
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+
+    expect(
+      await screen.findByText(/Image models cannot run on this computer/)
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: "Finish" }).hasAttribute("disabled")
     ).toBe(true)
+  })
+
+  it("finishes without an image model when skipped", async () => {
+    const fetchMock = backend({ selections: { ...chatChosen } })
+    vi.stubGlobal("fetch", fetchMock)
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toChatStep(user)
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+
+    await user.click(await screen.findByRole("button", { name: "Skip" }))
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(onComplete.mock.calls[0]?.[0]).toMatchObject({ name: "qwen3-4b" })
+    expect(
+      fetchMock.mock.calls.some(
+        ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
+      )
+    ).toBe(true)
+  })
+
+  it("finishes once an image model is downloaded", async () => {
+    const fetchMock = backend({
+      selections: { ...chatChosen },
+      rows: [
+        row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
+        row("sdcpp", "SDXL Turbo", "sdxl-turbo"),
+      ],
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toChatStep(user)
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+
+    await user.click(
+      await screen.findByRole("button", { name: "Download SDXL Turbo Q4_K_M" })
+    )
+    await expectReady("SDXL Turbo")
+    const finish = screen.getByRole("button", { name: "Finish" })
+    await waitFor(() => expect(finish.hasAttribute("disabled")).toBe(false))
+    await user.click(finish)
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+  })
+
+  it("never finishes onboarding from the chat step", async () => {
+    const fetchMock = backend({ selections: { ...chatChosen } })
+    vi.stubGlobal("fetch", fetchMock)
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toChatStep(user)
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", { name: "Add an image model" })
+
     expect(onComplete).not.toHaveBeenCalled()
     expect(
       fetchMock.mock.calls.some(
         ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
       )
     ).toBe(false)
-  })
-
-  it("posts onboarding completion when Start chatting is pressed", async () => {
-    const fetchMock = installApi()
-    vi.stubGlobal("fetch", fetchMock)
-    const user = userEvent.setup()
-    const onComplete = vi.fn()
-    render(<OnboardingPage onComplete={onComplete} />)
-    await user.click(screen.getByRole("button", { name: "Start setting up" }))
-    await user.click(
-      await screen.findByRole("button", { name: "Start chatting" })
-    )
-    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
-    expect(
-      fetchMock.mock.calls.some(
-        ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
-      )
-    ).toBe(true)
   })
 })

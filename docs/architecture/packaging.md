@@ -118,7 +118,7 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 
 ## Known gaps
 
-- Release CI never runs `fetch-sdcpp.mjs`, although `electron-builder.yml` packages an `sdcpp` folder, and `sdcpp/` is not in git, so installers are built without `sd-server`. The app would still offer local image models there, since `offered()` checks the image models directory, which Electron sets for every packaged build, not the binary.
+- Release CI never runs `fetch-sdcpp.mjs`, although `electron-builder.yml` packages an `sdcpp` folder, and `sdcpp/` is not in git, so installers are built without `sd-server` and offer no local image models.
 - No tagged release has built the llama.cpp runtime: the v2.0.2 run staged Ollama and llmfit instead.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
 - No release has built or packaged audio.cpp yet, and nothing has staged its macOS archive on a Mac.

@@ -226,7 +226,6 @@ export function ChatComposer({
                 model={model}
                 onModelSetup={onModelSetup}
                 onModelSelected={onModelSelected}
-                className="h-9 rounded-xl px-3 text-sm"
               />
               <ComposerAction isRunning={isRunning} />
             </div>

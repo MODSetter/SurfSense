@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
@@ -144,7 +144,7 @@ describe("chat model settings", () => {
     ).toBeTruthy()
   })
 
-  it("returns to the list with a new server's models open", async () => {
+  it("opens a new server's models once it is saved", async () => {
     let saved = false
     const server = {
       id: 7,
@@ -178,13 +178,23 @@ describe("chat model settings", () => {
 
     await user.click(await screen.findByRole("button", { name: "Add model" }))
     await user.click(screen.getByRole("button", { name: "Connect" }))
-    await user.type(screen.getByLabelText("Connection label"), "My vLLM")
+    const dialog = screen.getByRole("dialog", { name: "Connect a server" })
+    await user.type(within(dialog).getByLabelText("Name"), "My vLLM")
     await user.type(
-      screen.getByLabelText("Base URL"),
+      within(dialog).getByLabelText("Base URL"),
       "http://10.0.0.4:8000/v1"
     )
-    await user.click(screen.getByRole("button", { name: "Save server" }))
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save server" })
+    )
 
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("dialog", { name: "Connect a server" })
+      ).toBeNull()
+    )
+    // Back on the list with the new server open: its models are what the
+    // user added it for.
     expect(
       await screen.findByRole("heading", { name: "Text generation models" })
     ).toBeTruthy()

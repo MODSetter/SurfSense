@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query"
-import { useState } from "react"
+import { useId, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -13,7 +13,8 @@ import {
   ComboboxLabel,
   ComboboxList,
 } from "@/components/ui/combobox"
-import { Field, FieldLabel } from "@/components/ui/field"
+import { DialogFooter } from "@/components/ui/dialog"
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ApiError } from "@/lib/api"
@@ -50,8 +51,9 @@ function messageFrom(error: unknown) {
 }
 
 /**
- * Adds a server, or edits one when `connection` is given. Inline, not a
- * dialog: it sits on a settings page, the same as downloading a model.
+ * Adds a server, or edits one when `connection` is given. The body of
+ * `ConnectionDialog`, laid out like the app's other form dialogs: labelled
+ * fields, then the actions in the dialog's footer.
  */
 export function ConnectionForm({
   connection,
@@ -62,6 +64,7 @@ export function ConnectionForm({
   onCancel: () => void
   onSaved: (connection: Connection) => void
 }) {
+  const fieldId = useId()
   const [label, setLabel] = useState(connection?.label ?? "")
   const [baseUrl, setBaseUrl] = useState(connection?.base_url ?? "")
   const [providerId, setProviderId] = useState(
@@ -145,111 +148,132 @@ export function ConnectionForm({
   }
 
   return (
-    <div className="relative flex flex-col gap-4">
-      <div className="space-y-3">
+    <>
+      <FieldGroup className="relative">
         <div ref={setPopupHost} className="absolute" />
-        <Input
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          placeholder="Engineering vLLM"
-          aria-label="Connection label"
-          disabled={busy}
-        />
-        <Combobox
-          value={chosen?.name ?? CUSTOM_LABEL}
-          onValueChange={choose}
-          inputValue={providerQuery ?? chosen?.name ?? CUSTOM_LABEL}
-          onInputValueChange={setProviderQuery}
-          // Opening shows every provider; only what the user types narrows it.
-          filter={providerQuery === null ? showAll : undefined}
-          disabled={busy}
-        >
-          <ComboboxInput placeholder="Search providers" aria-label="Provider" />
-          <ComboboxContent container={popupHost}>
-            <ComboboxEmpty>No provider found</ComboboxEmpty>
-            <ComboboxList>
-              <ComboboxItem value={CUSTOM_LABEL} keywords={["local", "custom"]}>
-                <span className="min-w-0 flex-1 truncate">
-                  {CUSTOM_LABEL}
-                  <span className="ml-1.5 text-muted-foreground">
-                    Any OpenAI-compatible URL
-                  </span>
-                </span>
-              </ComboboxItem>
-              <ComboboxGroup>
-                <ComboboxLabel>Providers</ComboboxLabel>
-                {sortedProviders.map((entry) => (
-                  <ComboboxItem
-                    key={entry.id}
-                    value={entry.name}
-                    keywords={[entry.id]}
-                    disabled={entry.connect.status === "unreachable"}
-                  >
-                    <span className="min-w-0 flex-1 truncate">
-                      {entry.name}
-                      <span className="ml-1.5 text-muted-foreground">
-                        {urlHint(entry)}
-                      </span>
-                    </span>
-                  </ComboboxItem>
-                ))}
-              </ComboboxGroup>
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
-        {chosen?.connect.status === "needs_account_details"
-          ? chosen.connect.account_fields.map((field) => (
-              <Input
-                key={field.name}
-                value={accountValues[field.name] ?? ""}
-                onChange={(event) =>
-                  setAccountValue(field.name, event.target.value)
-                }
-                placeholder={field.label}
-                aria-label={field.label}
-                disabled={busy}
-              />
-            ))
-          : null}
-        <Input
-          value={baseUrl}
-          onChange={(event) => setBaseUrl(event.target.value)}
-          placeholder={
-            chosen ? `${chosen.name} API URL` : `e.g. ${CUSTOM_PLACEHOLDER}`
-          }
-          aria-label="Base URL"
-          disabled={busy}
-        />
-        {chosen?.connect.key === "none" ? null : (
+        <Field>
+          <FieldLabel htmlFor={`${fieldId}-name`}>Name</FieldLabel>
           <Input
-            type="password"
-            autoComplete="off"
-            value={apiKey}
-            onChange={(event) => setApiKey(event.target.value)}
-            placeholder={
-              connection?.has_api_key
-                ? "Leave blank to keep the saved key"
-                : "API key (optional)"
-            }
-            aria-label="API key"
+            id={`${fieldId}-name`}
+            value={label}
+            onChange={(event) => setLabel(event.target.value)}
+            placeholder="Engineering vLLM"
             disabled={busy}
           />
+        </Field>
+        <Field>
+          <FieldLabel htmlFor={`${fieldId}-provider`}>Provider</FieldLabel>
+          <Combobox
+            value={chosen?.name ?? CUSTOM_LABEL}
+            onValueChange={choose}
+            inputValue={providerQuery ?? chosen?.name ?? CUSTOM_LABEL}
+            onInputValueChange={setProviderQuery}
+            // Opening shows every provider; only what the user types narrows it.
+            filter={providerQuery === null ? showAll : undefined}
+            disabled={busy}
+          >
+            <ComboboxInput
+              id={`${fieldId}-provider`}
+              placeholder="Search providers"
+            />
+            <ComboboxContent container={popupHost}>
+              <ComboboxEmpty>No provider found</ComboboxEmpty>
+              <ComboboxList>
+                <ComboboxItem
+                  value={CUSTOM_LABEL}
+                  keywords={["local", "custom"]}
+                >
+                  <span className="min-w-0 flex-1 truncate">
+                    {CUSTOM_LABEL}
+                    <span className="ml-1.5 text-muted-foreground">
+                      Any OpenAI-compatible URL
+                    </span>
+                  </span>
+                </ComboboxItem>
+                <ComboboxGroup>
+                  <ComboboxLabel>Providers</ComboboxLabel>
+                  {sortedProviders.map((entry) => (
+                    <ComboboxItem
+                      key={entry.id}
+                      value={entry.name}
+                      keywords={[entry.id]}
+                      disabled={entry.connect.status === "unreachable"}
+                    >
+                      <span className="min-w-0 flex-1 truncate">
+                        {entry.name}
+                        <span className="ml-1.5 text-muted-foreground">
+                          {urlHint(entry)}
+                        </span>
+                      </span>
+                    </ComboboxItem>
+                  ))}
+                </ComboboxGroup>
+              </ComboboxList>
+            </ComboboxContent>
+          </Combobox>
+        </Field>
+        {chosen?.connect.status === "needs_account_details"
+          ? chosen.connect.account_fields.map((field) => (
+              <Field key={field.name}>
+                <FieldLabel htmlFor={`${fieldId}-${field.name}`}>
+                  {field.label}
+                </FieldLabel>
+                <Input
+                  id={`${fieldId}-${field.name}`}
+                  value={accountValues[field.name] ?? ""}
+                  onChange={(event) =>
+                    setAccountValue(field.name, event.target.value)
+                  }
+                  disabled={busy}
+                />
+              </Field>
+            ))
+          : null}
+        <Field>
+          <FieldLabel htmlFor={`${fieldId}-url`}>Base URL</FieldLabel>
+          <Input
+            id={`${fieldId}-url`}
+            value={baseUrl}
+            onChange={(event) => setBaseUrl(event.target.value)}
+            placeholder={
+              chosen ? `${chosen.name} API URL` : `e.g. ${CUSTOM_PLACEHOLDER}`
+            }
+            disabled={busy}
+          />
+        </Field>
+        {chosen?.connect.key === "none" ? null : (
+          <Field>
+            <FieldLabel htmlFor={`${fieldId}-key`}>API key</FieldLabel>
+            <Input
+              id={`${fieldId}-key`}
+              type="password"
+              autoComplete="off"
+              value={apiKey}
+              onChange={(event) => setApiKey(event.target.value)}
+              placeholder={
+                connection?.has_api_key
+                  ? "Leave blank to keep the saved key"
+                  : "Optional"
+              }
+              disabled={busy}
+            />
+          </Field>
         )}
         {connection?.has_api_key ? (
           <Field orientation="horizontal">
             <Checkbox
-              id={`clear-key-${connection.id}`}
+              id={`${fieldId}-clear-key`}
               checked={clearKey}
               onCheckedChange={(checked) => setClearKey(checked === true)}
               disabled={busy || Boolean(apiKey)}
             />
-            <FieldLabel htmlFor={`clear-key-${connection.id}`}>
+            <FieldLabel htmlFor={`${fieldId}-clear-key`}>
               Remove saved API key
             </FieldLabel>
           </Field>
         ) : null}
         {verificationError ? (
-          <div className="space-y-2 text-sm" role="alert">
+          <div className="flex flex-col gap-2 text-sm" role="alert">
             <p className="text-destructive">{verificationError}</p>
             {canSaveAnyway ? (
               <>
@@ -260,6 +284,7 @@ export function ConnectionForm({
                 <Button
                   type="button"
                   variant="outline"
+                  className="self-start"
                   disabled={busy}
                   onClick={() => void save(true)}
                 >
@@ -269,8 +294,8 @@ export function ConnectionForm({
             ) : null}
           </div>
         ) : null}
-      </div>
-      <div className="flex justify-end gap-2">
+      </FieldGroup>
+      <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
@@ -282,7 +307,7 @@ export function ConnectionForm({
           {busy ? <Spinner data-icon="inline-start" /> : null}
           {connection ? "Save changes" : "Save server"}
         </Button>
-      </div>
-    </div>
+      </DialogFooter>
+    </>
   )
 }

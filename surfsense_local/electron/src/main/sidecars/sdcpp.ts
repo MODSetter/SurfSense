@@ -1,7 +1,7 @@
 /**
- * stable-diffusion.cpp's sd-server: local image generation. Packaged only, like
- * llama-server, and unlike it this holds exactly one model, named by -m at startup
- * and never switchable at runtime. So the process follows the chosen model: the
+ * stable-diffusion.cpp's sd-server: local image generation. Runs in dev and
+ * packaged, like llama-server, and unlike it this holds exactly one model,
+ * named by -m at startup and never switchable at runtime. So the process follows the chosen model: the
  * API says which weights and which flags, and index.ts restarts it on a change.
  *
  * It serves POST /v1/images/generations, the route the image provider already
@@ -22,15 +22,19 @@ export interface ImageRuntime {
 }
 
 export function binaryPath(ctx: SidecarContext): string {
-  return join(ctx.binariesDir, "sdcpp", exe("sd-server"))
+  return join(ctx.sdcppBinariesDir ?? "", exe("sd-server"))
 }
 
-/** Null whenever sd-server cannot run: dev, an unbuilt host, or no model. */
+/** Null whenever sd-server cannot run: an unbuilt host, or no model. */
 export function sdcppSpec(
   ctx: SidecarContext,
   runtime: ImageRuntime
 ): SidecarSpec | null {
-  if (!ctx.packaged || ctx.imagePort == null || ctx.imageModelsDir == null) {
+  if (
+    ctx.imagePort == null ||
+    ctx.imageModelsDir == null ||
+    ctx.sdcppBinariesDir == null
+  ) {
     return null
   }
   if (runtime.file === null) return null
@@ -52,7 +56,7 @@ export function sdcppSpec(
       "--diffusion-fa",
       ...runtime.args,
     ],
-    cwd: join(ctx.binariesDir, "sdcpp"),
+    cwd: ctx.sdcppBinariesDir,
     env: {},
   }
 }

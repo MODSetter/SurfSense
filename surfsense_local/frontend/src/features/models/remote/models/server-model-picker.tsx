@@ -25,7 +25,7 @@ export function ServerModelPicker({
 }: {
   modelType: ModelType
   disabled?: boolean
-  /** A server just added, whose models are the next thing to pick from. */
+  /** A server just added, whose group opens on its models. */
   openServerId?: number | null
   onEdit: (connection: Connection) => void
   onSelected?: (selection: ModelSelection) => void

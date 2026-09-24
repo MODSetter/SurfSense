@@ -12,9 +12,8 @@ import {
 import { CircleAlertIcon } from "@/components/ui/icons"
 import { AddModelOptions } from "@/features/models/add-model/add-model-options"
 import type { ModelType } from "@/features/models/model-type"
-import { useRefreshModels } from "@/features/models/models-query"
 import type { Connection } from "@/features/models/remote/connections/api"
-import { ConnectionForm } from "@/features/models/remote/connections/connection-form"
+import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
 import type { ModelSelection } from "@/features/models/selection/api"
@@ -27,8 +26,7 @@ import type {
 
 import { SettingsSection } from "../settings-section"
 
-type Page =
-  { kind: "list" } | { kind: "add" } | { kind: "edit"; connection: Connection }
+type Page = "list" | "add"
 
 /**
  * One slot's settings: the model in use, then every source as a group. Adding
@@ -60,18 +58,19 @@ export function ModelSlotSettings({
   onChatCleared?: () => void
 }) {
   const connections = useConnections()
-  const refresh = useRefreshModels()
-  const [page, setPage] = useState<Page>({ kind: "list" })
+  const [page, setPage] = useState<Page>("list")
+  // Edited in a dialog over the list; saving leaves the list as it was.
+  const [editing, setEditing] = useState<Connection | null>(null)
+  // A server just added: back on the list with its models open, since
+  // choosing one of them is why it was added.
   const [openServerId, setOpenServerId] = useState<number | null>(null)
-  const back = { label: title, onClick: () => setPage({ kind: "list" }) }
-  // Back on the list with the server's group open: its models are next.
-  const showServer = (connection: Connection) => {
-    void refresh()
+  const showNewServer = (connection: Connection) => {
     setOpenServerId(connection.id)
-    setPage({ kind: "list" })
+    setPage("list")
   }
+  const back = { label: title, onClick: () => setPage("list") }
 
-  if (page.kind === "add") {
+  if (page === "add") {
     return (
       <SettingsSection
         title={`Add ${/^[aeiou]/.test(slot) ? "an" : "a"} ${slot} model`}
@@ -79,24 +78,7 @@ export function ModelSlotSettings({
         back={back}
         scrollable="all"
       >
-        <AddModelOptions download={download} onConnected={showServer} />
-      </SettingsSection>
-    )
-  }
-
-  if (page.kind === "edit") {
-    return (
-      <SettingsSection
-        title={`Edit ${page.connection.label}`}
-        description="Servers are shared by every model type, so a change here applies to all of them."
-        back={back}
-        scrollable="all"
-      >
-        <ConnectionForm
-          connection={page.connection}
-          onCancel={back.onClick}
-          onSaved={showServer}
-        />
+        <AddModelOptions download={download} onConnected={showNewServer} />
       </SettingsSection>
     )
   }
@@ -108,7 +90,7 @@ export function ModelSlotSettings({
     !pending &&
     models.inUse === null
   const add = (
-    <Button type="button" size="sm" onClick={() => setPage({ kind: "add" })}>
+    <Button type="button" size="sm" onClick={() => setPage("add")}>
       Add model
     </Button>
   )
@@ -144,7 +126,7 @@ export function ModelSlotSettings({
             <LocalModelsGroup
               rows={models.local}
               pending={pending}
-              onDownload={() => setPage({ kind: "add" })}
+              onDownload={() => setPage("add")}
               onUse={onUse}
               onDelete={onDelete}
             />
@@ -153,12 +135,19 @@ export function ModelSlotSettings({
           <ServerModelPicker
             modelType={modelType}
             openServerId={openServerId}
-            onEdit={(connection) => setPage({ kind: "edit", connection })}
+            onEdit={setEditing}
             onSelected={onSelected}
             onChatCleared={onChatCleared}
           />
         </div>
       )}
+      <ConnectionDialog
+        open={editing !== null}
+        connection={editing ?? undefined}
+        onOpenChange={(open) => {
+          if (!open) setEditing(null)
+        }}
+      />
     </SettingsSection>
   )
 }

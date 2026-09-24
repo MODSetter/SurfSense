@@ -43,7 +43,12 @@ export interface SidecarContext {
    * else. Unset, every machine badges as having no GPU and nothing says why.
    */
   llamacppBinariesDir?: string
-  /** Packaged: the bundled sd-server's port, model dir, and URL for API + worker. */
+  /** Where the staged sd-server build lives: `fetch-sdcpp.mjs` writes it. */
+  sdcppBinariesDir?: string
+  /**
+   * sd-server's port, model dir, and URL for API + worker. Unset when no build
+   * is staged for this host, so the API offers no image models it cannot run.
+   */
   imagePort?: number
   imageModelsDir?: string
   imageUrl?: string

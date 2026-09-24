@@ -321,7 +321,7 @@ export function ChatsDialog({
               })}
             </div>
           </ScrollShadow>
-          <DialogFooter>
+          <DialogFooter className="-mt-4">
             <Button
               type="button"
               variant="ghost"

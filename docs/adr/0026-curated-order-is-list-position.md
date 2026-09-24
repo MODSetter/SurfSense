@@ -20,4 +20,4 @@ Each curated build carried `rank`, an integer inside its variant, and `rank_basi
 
 - Moving a model up or down the ladder is a one-line reorder that shows in review, with no second field to keep in step with it.
 - The order still means good at this app's job, answering from the user's documents with citations that resolve, and a person sets it. Nothing measures it.
-- The code was `catalog/rows.py` and `catalog/recommendation.py`; it is now [`catalog/local/catalog.py`](../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/rows/catalog.py) and [`catalog/local/recommendation.py`](../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/rows/recommendation.py).
+- The code was `catalog/rows.py` and `catalog/recommendation.py`; it is now [`catalog/local/engines/llamacpp/rows/catalog.py`](../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/rows/catalog.py) and [`catalog/local/engines/llamacpp/rows/recommendation.py`](../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/rows/recommendation.py).

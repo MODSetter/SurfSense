@@ -38,9 +38,10 @@ of them.
 
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's and audio.cpp's.
 sd.cpp's are the three curated image models, only when Electron handed the API an
-images folder, which it does when it staged sd-server. audio.cpp's are the three
-curated audio models, only when Electron handed the API an audio folder, which it
-does when it staged audio.cpp's server.
+images folder, which it does only when it staged sd-server, in dev or packaged
+([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
+audio.cpp's are the three curated audio models, only when Electron handed the API
+an audio folder, which it does only when it staged audio.cpp's server.
 
 ## One slice per engine
 
@@ -197,7 +198,7 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
   header 38.6 MB and Supertonic's 57 MB. The entry names the model's folder in
   the shared repo, its builds most preferred first, and the reviewed `audio` block.
 - **It pins every chat build in the quantization preference order**
-  ([`build_choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
+  ([`builds/choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
   and nothing outside it: no imatrix files, drafters, big endian builds, or
   quantizations such as `TQ1_0` that the order does not rank.
 - **It refuses to write** a build without a hash or size, a projector that does not
@@ -215,7 +216,7 @@ The script's assembly is tested over recorded input, with no network
 
 ## Which files make a build
 
-[`repo_builds.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/in_repo.py)
+llama.cpp's [`builds/in_repo.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/in_repo.py)
 turns a listing into builds, for the refresh script and for search alike, so a
 curated repo and a searched one never disagree about which file is the model and
 which is its projector:
@@ -230,10 +231,10 @@ which is its projector:
 
 ## Which build a row shows
 
-For each curated model, in [`build_choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/):
+For each curated chat model, in llama.cpp's [`builds/choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/):
 
 1. **The default**, blind to hardware: the first build in the preference order,
-   `UD-Q4_K_XL` for every shipped model.
+   `UD-Q4_K_XL` for every shipped chat model.
 2. **The recommended build** on this machine: the default when its speed tier is
    `FULL` or `LIGHT_SPILL`, else the largest smaller build that is, never one
    above the default and never one below four bits (`RECOMMENDABLE`). Else none.
@@ -342,7 +343,7 @@ GET /api/models/{repo}/tree/main?recursive=true
 Sorted by downloads, the only sort usable as a default; the count is popularity,
 never endorsement. A hit is described, not judged: downloads, licence, whether it
 is gated, and **Vision** when its file names include a projector, by the same rule
-`repo_builds.py` uses. `full=true` returns every repo's file names, so this costs no
+`builds/in_repo.py` uses. `full=true` returns every repo's file names, so this costs no
 request of its own. Each hit also carries `quantized_from`, from its
 `base_model:quantized:` tag, which the API returns and the row does not show. The
 screen searches once a query has two characters and keeps results for 300 s.
@@ -465,14 +466,17 @@ one page with both ways in, laid out alike, no card or border around either:
 short, then **On this computer**, the catalog below. Both sections read the
 one `GET /llm/catalog/local`: chat takes llama.cpp's rows, image takes only
 sd.cpp's and audio takes only audio.cpp's, each curated model with its size and a
-Download. An audio row reads on one line: its build, its size, the memory it
+Download. Once a chat or image model is on disk its row offers Delete after
+confirmation, the same as **This computer**'s list; an audio row reads
+Downloaded. An audio row reads on one line: its build, its size, the memory it
 takes while voicing, its voice count and its languages, counted, or named when
-there is one ("orig · 302 MB · 1 GB while voicing · 8 voices · English"), from
+there is one ("orig · 302 MB · 1.9 GB while voicing · 8 voices · English"), from
 the row's `voicing`. The catalog carries sd.cpp's rows only when the API has an
 images folder, and audio.cpp's only when it has an audio folder, which Electron
-hands it with each staged server ([`../packaging.md`](../packaging.md));
-otherwise that section's part of the page says those models cannot run on this
-computer, and the layout stays the same.
+hands it only when that server is staged, in dev or packaged
+([`../packaging.md`](../packaging.md)); otherwise that section's part of the
+page says those models cannot run on this computer, and the layout stays the
+same.
 
 The chat catalog, from the top:
 
@@ -499,9 +503,13 @@ Rules the screen holds:
 - An install belongs to the app, not the page that started it: leaving the
   Add model page or closing Settings does not cancel it, and the section's list
   shows its progress until it ends.
-- The image and audio sections download without selecting: a model is chosen
-  with Use once it is on disk, and the one in use has no Delete, because its
-  server holds the file.
+- The image section uses the same cards, install states and progress as chat;
+  it only downloads without selecting, so a model is chosen with Use once it is
+  on disk. Every downloaded model has Delete, the one in use included: the API
+  clears the image slot, and Electron stops sd-server on its next poll.
+- The audio section downloads without selecting too, and a model is chosen with
+  Use once it is on disk; the one in use has no Delete, because its server may
+  hold the file.
 
 ## How it is tested
 
@@ -520,6 +528,7 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 - Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Chat sends text only, so a model that reads images never receives one.
+- Deleting the image model in use removes its file while sd-server still has it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until sd-server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
