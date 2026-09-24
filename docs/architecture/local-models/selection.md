@@ -148,11 +148,25 @@ choosing, and it is the one thing that must not become true early.
 
 Two invariants, both easy to break from the frontend: selecting or clearing a
 model never writes or resets the marker, and Settings' Use actions never call the
-route. Only the onboarding page's "Start chatting" does, once a chat model is
+route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
-missing selection is fixed from Settings' Chat models section. Onboarding's model
-step reads the same hooks in `frontend/src/features/models/`; its content is not
-built yet (Known gaps).
+missing selection is fixed from Settings' Chat section.
+
+The onboarding page has three steps: welcome, chat model, image model. The two
+model steps are one component for either slot
+([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
+built on the same hooks as Settings but with its own screens. Each lists every
+model this computer can run at once, the catalog's starred row first, with
+Download, Use and Delete as in Settings; a download's progress shows under its
+row and never moves the page. The chat step also offers Settings' Hugging Face
+search, closed until asked for; the image step has none, since sd.cpp's models
+are the few the catalog ships. A server sits one line below the list and names
+any connected earlier. Once the slot has a model, the footer names it beside
+Continue. Onboarding installs with `select: true`, so a download is also the
+choice; Settings installs with `select: false`. The chat step's Continue is
+enabled only once a chat model is selected, local or from a server. The image
+step is optional: Skip and Finish both post the marker, and Finish is enabled
+only once an image model is selected.
 
 ## Resolution: local and remote
 
@@ -225,4 +239,3 @@ over HTTP.
 - No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
 - Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.
-- Onboarding's model step is an empty frame: it shows no way to choose a model, so "Start chatting" stays disabled on a fresh install until a chat model is selected some other way.
