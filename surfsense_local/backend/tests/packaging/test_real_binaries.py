@@ -68,6 +68,23 @@ def _assert_capability_catalogue_shipped(binary: Path) -> None:
     assert json.loads(manifest.read_text())["providers"]
 
 
+def _assert_curated_manifest_shipped(binary: Path) -> None:
+    """Studio finds its chosen image and audio models through the curated list;
+    without it the frozen worker calls an installed model "not installed"."""
+    manifest = (
+        binary.parent
+        / "_internal"
+        / "modules"
+        / "llm"
+        / "catalog"
+        / "local"
+        / "manifest"
+        / "models.json"
+    )
+    assert manifest.is_file(), f"local model manifest missing from {binary.parent}"
+    assert json.loads(manifest.read_text())["models"]
+
+
 def _free_port() -> int:
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
@@ -130,6 +147,7 @@ def test_worker_binary_starts(tmp_path: Path) -> None:
     """Freeze the worker and assert its lazy vision imports and consumer boot."""
     binary = _freeze("worker.spec", tmp_path)
     _assert_capability_catalogue_shipped(binary)
+    _assert_curated_manifest_shipped(binary)
     vision = subprocess.run(
         [str(binary), "--check-vision-runtime"],
         env=_env(tmp_path),

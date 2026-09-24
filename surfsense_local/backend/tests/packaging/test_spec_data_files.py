@@ -47,7 +47,8 @@ def literal_data_paths(spec: Path) -> list[str]:
                     parts.insert(0, str(current.right.value))
                 current = current.left
             if parts and getattr(current, "id", None) == "BACKEND":
-                found.append(str(Path(*parts)))
+                # Forward slashes on every platform, as the specs' targets are.
+                found.append(Path(*parts).as_posix())
     return found
 
 
@@ -59,9 +60,11 @@ def test_every_bundled_data_path_exists(spec: Path) -> None:
     assert missing == [], f"{spec.name} bundles paths that do not exist: {missing}"
 
 
-def test_the_curated_manifest_is_one_of_them() -> None:
-    """The file that was missed. Without it a frozen build has no curated list,
-    and the model screen is empty on the machine that most needs it."""
-    bundled = {rel for spec in SPECS for rel in literal_data_paths(spec)}
+@pytest.mark.parametrize("name", ["api.spec", "worker.spec"])
+def test_every_binary_that_reads_the_curated_manifest_ships_it(name: str) -> None:
+    """Without it the catalog falls back to an empty list: the API shows no
+    curated models, and the Studio worker calls an installed, chosen image or
+    audio model "not installed"."""
+    bundled = literal_data_paths(BACKEND / "bundling" / name)
 
     assert "modules/llm/catalog/local/manifest/models.json" in bundled
