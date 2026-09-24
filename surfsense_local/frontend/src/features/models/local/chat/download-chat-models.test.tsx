@@ -209,11 +209,18 @@ describe("model catalog", () => {
       )
     )
 
+    const user = userEvent.setup()
     render(<DownloadChatModels />)
 
     expect(await screen.findByText("Most of it runs on the GPU.")).toBeTruthy()
-    expect(screen.getByLabelText("Recommended for this computer")).toBeTruthy()
     expect(screen.queryByText("Reduced speed")).toBeNull()
+    // The star says why on hover, not only to a screen reader.
+    await user.hover(screen.getByLabelText("Recommended for your computer"))
+    expect(
+      await screen.findByRole("tooltip", {
+        name: "Recommended for your computer",
+      })
+    ).toBeTruthy()
   })
 
   it("says the card was not detected rather than calling the machine CPU only", async () => {
@@ -420,7 +427,7 @@ describe("model catalog", () => {
     render(<DownloadChatModels />)
 
     expect(
-      await screen.findByLabelText("Recommended for this computer")
+      await screen.findByLabelText("Recommended for your computer")
     ).toBeTruthy()
     expect(screen.queryByText(/rank/i)).toBeNull()
   })
@@ -636,7 +643,7 @@ describe("model catalog", () => {
       screen.getByText(/Fit is estimated and checked before download/)
     ).toBeTruthy()
     expect(
-      within(builds).queryByText("Recommended for this computer")
+      within(builds).queryByText("Recommended for your computer")
     ).toBeNull()
   })
 

@@ -157,12 +157,24 @@ describe("audio model settings", () => {
 
     await user.click(await screen.findByRole("button", { name: "Add model" }))
 
-    const kokoro = await screen.findByText(/46 voices/)
-    expect(kokoro.textContent).toMatch(/^Q8_0 · 190 MB · 1\.4 GB while voicing/)
-    expect(kokoro.textContent).toMatch(/46 voices · 8 languages$/)
+    // Separated by the icon set's dot, as chat's cards are, not a typed "·".
+    const facts = (text: string) => {
+      const line = screen.getByText(text).parentElement
+      expect(line?.textContent).not.toContain("·")
+      return [...(line?.querySelectorAll(":scope > span") ?? [])].map(
+        (part) => part.textContent
+      )
+    }
+    await screen.findByText("46 voices")
+    expect(facts("46 voices")).toEqual([
+      "Q8_0",
+      "190 MB",
+      "1.4 GB while voicing",
+      "46 voices",
+      "8 languages",
+    ])
     // One language is named rather than counted.
-    const kitten = screen.getByText(/8 voices/)
-    expect(kitten.textContent).toMatch(/8 voices · English$/)
+    expect(facts("8 voices").at(-1)).toBe("English")
   })
 
   it("uses a downloaded audio model through audio.cpp", async () => {
@@ -192,19 +204,158 @@ describe("audio model settings", () => {
     expect(screen.queryByText(/Qwen3 8B/)).toBeNull()
   })
 
-  it("will not delete the audio model podcasts voice with", async () => {
+  it("deletes the audio model podcasts voice with, after a warning", async () => {
+    const fetchMock = serving(
+      [audioRow({}, { installed_as: "kokoro-82m-q8_0", selected: true })],
+      (path, init) =>
+        path === "/llm/models/kokoro-82m-q8_0" && init?.method === "DELETE"
+          ? Response.json({
+              name: "kokoro-82m-q8_0",
+              selection_cleared: true,
+            })
+          : null
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Kokoro 82M" })
+    )
+    expect(await screen.findByText(/This is your current model/)).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Delete model" }))
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/llm/models/kokoro-82m-q8_0" && init?.method === "DELETE"
+        )
+      ).toBe(true)
+    )
+  })
+
+  it("marks the audio model in use on the Add model page, as chat and image do", async () => {
     vi.stubGlobal(
       "fetch",
       serving([
         audioRow({}, { installed_as: "kokoro-82m-q8_0", selected: true }),
       ])
     )
+    const user = userEvent.setup()
     render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
 
-    expect(await screen.findByText("Kokoro 82M")).toBeTruthy()
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+
+    const inUse = await screen.findByRole("button", { name: "In use" })
+    expect(inUse.hasAttribute("disabled")).toBe(true)
     expect(
-      screen.queryByRole("button", { name: "Delete Kokoro 82M" })
-    ).toBeNull()
+      screen.getByRole("button", { name: "Delete Kokoro 82M" })
+    ).toBeTruthy()
+  })
+
+  it("uses a downloaded audio model from the Add model page", async () => {
+    const fetchMock = serving([
+      audioRow({}, { installed_as: "kokoro-82m-q8_0" }),
+    ])
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Use Kokoro 82M Q8_0" })
+    )
+
+    await waitFor(() => {
+      const write = fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/llm/selection/audio_gen" && init?.method === "PUT"
+      )
+      expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+        provider: "audiocpp",
+        connection_id: null,
+        name: "kokoro-82m-q8_0",
+      })
+    })
+  })
+
+  it("deletes a downloaded audio model from the Add model page", async () => {
+    const fetchMock = serving(
+      [audioRow({}, { installed_as: "kokoro-82m-q8_0" })],
+      (path, init) =>
+        path === "/llm/models/kokoro-82m-q8_0" && init?.method === "DELETE"
+          ? Response.json({
+              name: "kokoro-82m-q8_0",
+              selection_cleared: false,
+            })
+          : null
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Kokoro 82M" })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete model" })
+    )
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/llm/models/kokoro-82m-q8_0" && init?.method === "DELETE"
+        )
+      ).toBe(true)
+    )
+  })
+
+  it("names the phase while it downloads, as chat and image do", async () => {
+    // Left open so the download is still under way when the row is read.
+    let finish = () => {}
+    const open = new ReadableStream<Uint8Array>({
+      start(controller) {
+        finish = () => {
+          controller.enqueue(
+            new TextEncoder().encode(
+              '{"type":"complete","message":"Model is ready","selection":null}\n'
+            )
+          )
+          controller.close()
+        }
+        controller.enqueue(
+          new TextEncoder().encode(
+            '{"type":"downloading","message":"Downloading","completed":95000000,"total":190000000}\n'
+          )
+        )
+      },
+    })
+    vi.stubGlobal(
+      "fetch",
+      serving([audioRow()], (path) =>
+        path === "/llm/install" ? new Response(open) : null
+      )
+    )
+    const user = userEvent.setup()
+    render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Download Kokoro 82M Q8_0" })
+    )
+
+    const button = await screen.findByRole("button", {
+      name: "Download Kokoro 82M Q8_0",
+    })
+    await waitFor(() => expect(button.textContent).toBe("Downloading…"))
+    expect(screen.getAllByText("50%").length).toBeGreaterThan(0)
+
+    // Install state outlives the view, so the next test must not inherit it.
+    finish()
+    await waitFor(() => expect(button.textContent).toBe("Download"))
   })
 
   it("downloads through the catalog without selecting", async () => {
@@ -224,7 +375,7 @@ describe("audio model settings", () => {
 
     await user.click(await screen.findByRole("button", { name: "Add model" }))
     await user.click(
-      await screen.findByRole("button", { name: "Download Kokoro 82M" })
+      await screen.findByRole("button", { name: "Download Kokoro 82M Q8_0" })
     )
 
     await waitFor(() => {

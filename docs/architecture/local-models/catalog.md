@@ -507,10 +507,13 @@ Rules the screen holds:
   it only downloads without selecting, so a model is chosen with Use once it is
   on disk. Every downloaded model has Delete, the one in use included: the API
   clears the image slot, and Electron stops sd-server on its next poll.
-- The audio section downloads without selecting too, and a model is chosen with
-  Use once it is on disk; the one in use has no Delete, because its server may
-  hold the file. The voice the app ships reads **Included** and has no Delete
-  either.
+- The audio section has the same install states, Use, In use and Delete as
+  image, and its rows add what voicing takes. Every downloaded model has Delete,
+  the one in use included: the API refuses while Studio is generating, otherwise
+  it clears the audio slot and rewrites `server.json`, and Electron restarts
+  audiocpp_server on its next poll. The voice the app ships is the exception:
+  it is part of the install, read in place from the models pack, so it has no
+  Delete, and the API refuses one.
 
 ## How it is tested
 
@@ -529,7 +532,7 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 - Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Chat sends text only, so a model that reads images never receives one.
-- Deleting the image model in use removes its file while sd-server still has it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until sd-server is stopped first.
+- Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.

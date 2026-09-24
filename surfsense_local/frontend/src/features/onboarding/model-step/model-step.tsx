@@ -47,16 +47,24 @@ const COPY: Record<
   text_gen: {
     title: "Choose a chat model",
     description:
-      "The model that answers you. One that runs on this computer keeps everything you ask on it.",
+      "Answers you in chat. Run one on this computer so your chats stay private, or use one from a server.",
     noLocal: "No tested model can run on this computer.",
     searchable: true,
   },
   image_gen: {
-    title: "Add an image model",
+    title: "Choose an image model",
     description:
-      "Lets Studio create images. You can skip this and add one later in Settings.",
+      "Lets Studio create images. Run one on this computer, or use one from a server.",
     noLocal: "Image models cannot run on this computer.",
     // sd.cpp has no search: its models are the few the catalog ships.
+    searchable: false,
+  },
+  audio_gen: {
+    title: "Choose an audio model",
+    description:
+      "Lets Studio create podcasts. Run one on this computer, or use one from a server.",
+    noLocal: "Audio models cannot run on this computer.",
+    // Nor has audio.cpp.
     searchable: false,
   },
 }
