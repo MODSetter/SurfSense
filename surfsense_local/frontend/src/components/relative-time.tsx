@@ -25,7 +25,7 @@ const compactUnits: [number, (count: number) => string][] = [
       intl.formatMessage(
         {
           id: "app_relative_time_compact_minutes_label",
-          defaultMessage: "{count}m",
+          defaultMessage: "{count, number}m",
         },
         { count }
       ),
@@ -36,7 +36,7 @@ const compactUnits: [number, (count: number) => string][] = [
       intl.formatMessage(
         {
           id: "app_relative_time_compact_hours_label",
-          defaultMessage: "{count}h",
+          defaultMessage: "{count, number}h",
         },
         { count }
       ),
@@ -47,7 +47,7 @@ const compactUnits: [number, (count: number) => string][] = [
       intl.formatMessage(
         {
           id: "app_relative_time_compact_days_label",
-          defaultMessage: "{count}d",
+          defaultMessage: "{count, number}d",
         },
         { count }
       ),
@@ -58,7 +58,7 @@ const compactUnits: [number, (count: number) => string][] = [
       intl.formatMessage(
         {
           id: "app_relative_time_compact_weeks_label",
-          defaultMessage: "{count}w",
+          defaultMessage: "{count, number}w",
         },
         { count }
       ),
@@ -69,7 +69,7 @@ const compactUnits: [number, (count: number) => string][] = [
       intl.formatMessage(
         {
           id: "app_relative_time_compact_months_label",
-          defaultMessage: "{count}mo",
+          defaultMessage: "{count, number}mo",
         },
         { count }
       ),
@@ -80,7 +80,7 @@ const compactUnits: [number, (count: number) => string][] = [
       intl.formatMessage(
         {
           id: "app_relative_time_compact_years_label",
-          defaultMessage: "{count}y",
+          defaultMessage: "{count, number}y",
         },
         { count }
       ),

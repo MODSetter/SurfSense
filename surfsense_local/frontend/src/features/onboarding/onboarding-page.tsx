@@ -45,7 +45,7 @@ function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
       aria-label={intl.formatMessage(
         {
           id: "onboarding_progress_aria",
-          defaultMessage: "Onboarding step {step} of {total}",
+          defaultMessage: "Onboarding step {step, number} of {total, number}",
         },
         {
           step,
@@ -64,7 +64,7 @@ function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
               {intl.formatMessage(
                 {
                   id: "onboarding_progress_step_aria",
-                  defaultMessage: "Step {step}",
+                  defaultMessage: "Step {step, number}",
                 },
                 { step: index + 1 }
               )}

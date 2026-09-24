@@ -43,14 +43,6 @@ function planLabel(plan: string) {
   )
 }
 
-function dateLabel(iso: string) {
-  return intl.formatDate(new Date(iso), {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  })
-}
-
 function notice(
   status: LicenseStatus
 ): { title: string; description: string } | null {
@@ -334,19 +326,19 @@ export function LicenseSettings() {
                     ? intl.formatMessage(
                         {
                           id: "license_status_expires_label",
-                          defaultMessage: "Expires {date}",
+                          defaultMessage: "Expires {date, date, ::yyyyMMMd}",
                         },
                         {
-                          date: dateLabel(status.expiry),
+                          date: new Date(status.expiry),
                         }
                       )
                     : intl.formatMessage(
                         {
                           id: "license_status_ended_label",
-                          defaultMessage: "Ended {date}",
+                          defaultMessage: "Ended {date, date, ::yyyyMMMd}",
                         },
                         {
-                          date: dateLabel(status.expiry),
+                          date: new Date(status.expiry),
                         }
                       )}
                 </span>

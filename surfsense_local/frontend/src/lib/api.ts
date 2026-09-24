@@ -126,12 +126,12 @@ async function responseError(response: Response): Promise<ErrorDetails> {
                   {
                     id: "app_api_insufficient_space_error",
                     defaultMessage:
-                      "{message} ({required} GB required, {available} GB available)",
+                      "{message} ({required, number, ::unit/gigabyte .#} required, {available, number, ::unit/gigabyte .#} available)",
                   },
                   {
                     message: body.detail.message,
-                    required: (required / 1e9).toFixed(1),
-                    available: (available / 1e9).toFixed(1),
+                    required: required / 1e9,
+                    available: available / 1e9,
                   }
                 )
               : body.detail.message,
