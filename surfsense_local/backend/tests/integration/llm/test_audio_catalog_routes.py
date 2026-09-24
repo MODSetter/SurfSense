@@ -222,3 +222,94 @@ async def test_a_voicing_refusal_names_a_lighter_curated_model(
         voice.check_memory()
 
     assert str(refused.value).endswith("Supertonic 3 needs about 1.6 GB.")
+
+
+def kokoro_q8(body: dict) -> dict:
+    """Kokoro's default build as the catalog lists it."""
+    builds = audio_rows(body)["kokoro-82m"]["builds"]
+    return next(b for b in builds if b["quantization"] == "Q8_0")
+
+
+async def test_the_voice_the_app_ships_reads_installed_and_bundled(
+    client: AsyncClient, audio_dir, bundled_voice
+) -> None:
+    """Kokoro comes in the installer, so it is on this computer from the first
+    start, with nothing downloaded into the audio folder."""
+    body = (await client.get("/llm/catalog/local")).json()
+
+    build = kokoro_q8(body)
+    assert (build["installed_as"], build["bundled"]) == ("kokoro-82m-q8_0", True)
+    assert not (audio_dir / "kokoro-82m-q8_0.gguf").exists()
+
+
+async def test_the_voice_the_app_ships_cannot_be_deleted(
+    client: AsyncClient, audio_dir, bundled_voice
+) -> None:
+    """It is part of the install, as the embedding model is; a delete would
+    otherwise find no file of its own and clear the podcast's voice."""
+    await client.put(
+        "/llm/selection/audio_gen",
+        json={"provider": "audiocpp", "name": "kokoro-82m-q8_0"},
+    )
+
+    reply = await client.delete("/llm/models/kokoro-82m-q8_0")
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"] == (
+        "kokoro-82m-q8_0 comes with SurfSense and cannot be deleted"
+    )
+    assert (bundled_voice / "kokoro-82m-q8_0.gguf").exists()
+    chosen = (await client.get("/llm/selection/audio_gen")).json()
+    assert chosen["name"] == "kokoro-82m-q8_0"
+
+
+async def test_the_config_names_the_shipped_voice_where_it_lies(
+    audio_dir, bundled_voice
+) -> None:
+    """Read in place from the models pack, so the server starts at the first
+    launch with nothing copied into the audio folder."""
+    from modules.llm.catalog.local.dependencies import get_local_catalog
+
+    get_local_catalog().audiocpp.on_startup()
+
+    config = json.loads((audio_dir / "server.json").read_text())
+    assert config["models"] == [
+        {
+            "id": "kokoro-82m-q8_0",
+            "family": "kokoro_tts",
+            "path": (bundled_voice / "kokoro-82m-q8_0.gguf").as_posix(),
+            "task": "tts",
+            "mode": "offline",
+        }
+    ]
+
+
+async def test_startup_gives_podcasts_the_shipped_voice_when_none_is_chosen(
+    client: AsyncClient, audio_dir, bundled_voice, engine
+) -> None:
+    """A fresh install, or an upgrade from the Python Kokoro, voices podcasts
+    without a trip to Settings."""
+    from modules.llm.default_voice import choose_default_voice
+    from shared.db import create_session_factory
+
+    with create_session_factory(engine)() as session:
+        await choose_default_voice(session)
+
+    chosen = (await client.get("/llm/selection/audio_gen")).json()
+    assert (chosen["provider"], chosen["name"]) == ("audiocpp", "kokoro-82m-q8_0")
+
+
+async def test_startup_leaves_a_chosen_voice_alone(
+    client: AsyncClient, audio_dir, bundled_voice, fake_hub, engine
+) -> None:
+    """The shipped voice only fills an empty slot; it never overrides a choice."""
+    from modules.llm.default_voice import choose_default_voice
+    from shared.db import create_session_factory
+
+    await install(client, "supertonic-3", "F16", select=True)
+
+    with create_session_factory(engine)() as session:
+        await choose_default_voice(session)
+
+    chosen = (await client.get("/llm/selection/audio_gen")).json()
+    assert chosen["name"] == "supertonic-3-f16"

@@ -28,7 +28,7 @@ def write_server_config(folder: Path, installed: Sequence[InstalledAudio]) -> No
                 "id": model.model_id,
                 "family": model.family,
                 # Forward slashes: what audio.cpp was voiced with on Windows.
-                "path": (folder / model.file).as_posix(),
+                "path": model.path.as_posix(),
                 "task": "tts",
                 "mode": "offline",
             }

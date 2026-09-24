@@ -57,6 +57,7 @@ class LocalCatalogService:
         *,
         images_dir: Path | None = None,
         audio_dir: Path | None = None,
+        audio_bundled_dir: Path | None = None,
         probe: Probe = probe_devices,
         os_gpu: OsGpu = os_reports_gpu,
     ) -> None:
@@ -74,7 +75,9 @@ class LocalCatalogService:
         self._install_lock = asyncio.Lock()
         self.llamacpp = LlamaCppEngine(models_dir, runtime_url, self.budget)
         self.sdcpp = SdCppEngine(images_dir, manifest.models)
-        self.audiocpp = AudioCppEngine(audio_dir, manifest.models)
+        self.audiocpp = AudioCppEngine(
+            audio_dir, manifest.models, bundled_dir=audio_bundled_dir
+        )
         self._engines: tuple[LocalEngine, ...] = (
             self.llamacpp,
             self.sdcpp,

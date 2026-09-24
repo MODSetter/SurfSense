@@ -1,6 +1,6 @@
 # Packaging
 
-One build per platform (Linux ships two packages) carries everything the desktop app needs to run offline: the API and the worker frozen into PyInstaller binaries, the renderer, the embedding and parser model packs, and the llama.cpp and audio.cpp runtimes. PyInstaller follows only `import` statements, so anything the app reaches by a path or a string must be named in a spec, and each omission shows up only in a frozen build on a clean machine; the specs name those files, and packaging tests freeze real binaries to catch the ones that slip. Generation weights are never bundled; the app downloads them when the user asks ([egress](egress.md)).
+One build per platform (Linux ships two packages) carries everything the desktop app needs to run offline: the API and the worker frozen into PyInstaller binaries, the renderer, the embedding, voice and parser model packs, and the llama.cpp and audio.cpp runtimes. PyInstaller follows only `import` statements, so anything the app reaches by a path or a string must be named in a spec, and each omission shows up only in a frozen build on a clean machine; the specs name those files, and packaging tests freeze real binaries to catch the ones that slip. Generation weights are never bundled; the app downloads them when the user asks ([egress](egress.md)).
 
 **Code:** [`surfsense_local/backend/bundling/`](../../surfsense_local/backend/bundling/), [`surfsense_local/backend/scripts/build_binaries.py`](../../surfsense_local/backend/scripts/build_binaries.py), [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`surfsense_local/electron/scripts/`](../../surfsense_local/electron/scripts/), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/backend/tests/packaging/`](../../surfsense_local/backend/tests/packaging/)
 **Decisions:** [ADR 0021](../adr/0021-no-intel-mac-build.md), [ADR 0012](../adr/0012-vulkan-only-gpu-backend.md)
@@ -46,14 +46,15 @@ What else each spec names, and why the analyser cannot find it on its own:
 
 ## Model packs
 
-Two packs are staged into `backend/models` before packaging and ship as `resources/models`, so the first PDF parses and the first query embeds with no network. Voices are not bundled: an audio model is downloaded like any other ([`local-models/catalog.md`](local-models/catalog.md)).
+Three packs are staged into `backend/models` before packaging and ship as `resources/models`, so the first PDF parses, the first query embeds and the first podcast voices with no network. Every other audio model is downloaded like any other model ([`local-models/catalog.md`](local-models/catalog.md)).
 
 | Pack | Staged by | Holds |
 |---|---|---|
 | Embedding | `build:model`, `scripts/fetch_embedding_model.py` | `bge-small-en-v1.5`: the ONNX model, tokenizer and config |
+| Voice | `build:voice`, `scripts/fetch_bundled_voice.py` | `audio/`: the manifest's first audio model in its default build, Kokoro 82M `Q8_0` (190 MB), with its install record, fetched as a catalog install is: from its pinned commit, sha256-checked |
 | Parser | `build:parser`, `scripts/fetch_docling_models.py` | Docling's layout, table and RapidOCR weights, pruned of the variants ingest never loads |
 
-The release workflow runs the two scripts directly. Without the parser pack, Docling downloads its weights on first use and RapidOCR writes into `site-packages`, which is read-only inside a frozen bundle, so the first PDF would fail rather than merely be slow. `worker/ingestion/parsing.py` points `HF_HOME` at the models directory before Docling loads and, once the parser pack is complete, sets `HF_HUB_OFFLINE=1`.
+The release workflow runs the three scripts directly. Without the parser pack, Docling downloads its weights on first use and RapidOCR writes into `site-packages`, which is read-only inside a frozen bundle, so the first PDF would fail rather than merely be slow. `worker/ingestion/parsing.py` points `HF_HOME` at the models directory before Docling loads and, once the parser pack is complete, sets `HF_HUB_OFFLINE=1`.
 
 ## Native runtimes
 

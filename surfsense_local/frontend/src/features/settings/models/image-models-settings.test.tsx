@@ -63,6 +63,7 @@ const imageRow = (build: Record<string, unknown> = {}) => ({
       recommended: false,
       reads_images: false,
       projector_checked: false,
+      bundled: false,
       ...build,
     },
   ],

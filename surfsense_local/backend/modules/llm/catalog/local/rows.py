@@ -71,6 +71,8 @@ class BuildRow:
     # The projector's header was read and matched the model. A listing alone
     # names a projector; only its header says it can see.
     projector_checked: bool
+    # Shipped with the app, read-only: installed, and never deleted.
+    bundled: bool = False
 
     @property
     def can_install(self) -> bool:

@@ -60,7 +60,7 @@ export function DownloadAudioModels() {
                 </div>
                 {model.installed_as !== null ? (
                   <Button type="button" size="sm" variant="outline" disabled>
-                    Downloaded
+                    {model.bundled ? "Included" : "Downloaded"}
                   </Button>
                 ) : (
                   <Button

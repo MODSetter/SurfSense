@@ -46,6 +46,7 @@ const build = (overrides: Partial<LocalBuild> = {}): LocalBuild => ({
   recommended: false,
   reads_images: false,
   projector_checked: true,
+  bundled: false,
   ...overrides,
 })
 
@@ -603,6 +604,7 @@ describe("model catalog", () => {
                   fit: fit({ approximate: true }),
                   reads_images: true,
                   projector_checked: false,
+                  bundled: false,
                 }),
               ]
             ),

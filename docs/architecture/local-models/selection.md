@@ -50,7 +50,8 @@ fingerprints and stores:
   ([`catalog.md`](catalog.md)).
 - **Local audio** (`audiocpp`): the type must be `audio_gen`, there is no
   connection, and the name must be a curated audio build installed in the
-  audio folder, named by its weights file as a chat build is.
+  audio folder or shipped in the models pack, named by its weights file as a
+  chat build is.
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
@@ -71,7 +72,11 @@ Installing with `select: true` goes through the same `choose_model()`
 ([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen`,
 `image_gen` or `audio_gen` row that named it, by the engine that held it, and reports
 `selection_cleared`; nothing chooses another
-model in its place. Revision `0012`, which replaced Ollama with llama.cpp,
+model in its place, except that at the next start an empty `audio_gen` row takes
+the voice the app ships ([`default_voice.py`](../../../surfsense_local/backend/modules/llm/default_voice.py)).
+That runs at every start, after the catalog settles, so a fresh install and an
+upgrade from the Python Kokoro voice podcasts without a trip to Settings; a
+model already chosen is left alone. Revision `0012`, which replaced Ollama with llama.cpp,
 cleared any generation selection pointing at Ollama rather than remapping it,
 because its weights live in a blob format the app no longer manages.
 

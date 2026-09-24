@@ -286,6 +286,7 @@ def _build(build: BuildRow, in_use: set[str]) -> dict:
         "recommended": build.recommended,
         "reads_images": build.reads_images,
         "projector_checked": build.projector_checked,
+        "bundled": build.bundled,
     }
 
 

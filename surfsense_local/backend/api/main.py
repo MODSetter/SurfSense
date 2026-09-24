@@ -21,6 +21,7 @@ from modules.events.router import router as events_router
 from modules.health.router import router as health_router
 from modules.license.router import router as license_router
 from modules.llm.catalog.local.dependencies import get_local_catalog
+from modules.llm.default_voice import choose_default_voice
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
@@ -103,6 +104,12 @@ def _warm_catalog(session_factory: sessionmaker[Session]) -> None:
     except Exception:
         logger.exception("could not warm the model catalog at startup")
         return
+
+    try:
+        with session_factory() as session:
+            asyncio.run(choose_default_voice(session))
+    except Exception:
+        logger.exception("could not choose the shipped voice at startup")
 
     # Then the model itself, in that order: pricing the preset first is what
     # decides the window the load will use, and a load started before it would

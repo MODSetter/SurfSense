@@ -78,6 +78,8 @@ class BuildRead(BaseModel):
     recommended: bool
     reads_images: bool
     projector_checked: bool
+    # Comes with the app: installed from the first start, with no Delete.
+    bundled: bool
 
 
 class LeadRead(BaseModel):

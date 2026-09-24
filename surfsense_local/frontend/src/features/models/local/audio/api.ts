@@ -21,6 +21,8 @@ export type LocalAudioModel = {
   /** What selection and deletion name; null until it is on disk. */
   installed_as: string | null
   selected: boolean
+  /** The voice the app ships, read in place: it has no Delete. */
+  bundled: boolean
 }
 
 /** Empty where no audio.cpp shipped: the API then offers no audio rows. */
@@ -52,6 +54,7 @@ function toAudioModel(row: LocalRow): LocalAudioModel | null {
     catalog_id: build.catalog_id,
     installed_as: build.installed_as,
     selected: build.selected,
+    bundled: build.bundled,
   }
 }
 

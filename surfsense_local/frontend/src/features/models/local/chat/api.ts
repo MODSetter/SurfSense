@@ -66,6 +66,8 @@ export type LocalBuild = {
   /** The projector's header was read. Until then a searched build's image
    *  support is what its listing names, not what its header says. */
   projector_checked: boolean
+  /** Comes with the app: installed from the first start, never deleted. */
+  bundled: boolean
 }
 
 export type LocalSupport = {

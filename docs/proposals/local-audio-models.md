@@ -23,7 +23,7 @@ This extends the local catalog ([`catalog.md`](../architecture/local-models/cata
 | | Today | With this |
 |---|---|---|
 | Voice runtime | `kokoro-onnx` in the worker, on onnxruntime, eSpeak through `phonemizer` | `audiocpp_server`, a sidecar Electron starts, like `llama-server` and `sd-server` |
-| Voice model | Kokoro-82M ONNX, 340 MB, bundled in the installer | curated models downloaded from the catalog, Kokoro first |
+| Voice model | Kokoro-82M ONNX, 340 MB, bundled in the installer | Kokoro 82M `Q8_0`, 190 MB, bundled and chosen by default; the other curated models downloaded from the catalog |
 | Choosing one | not possible: `resolve_text_to_speech()` always returns Kokoro | the `audio_gen` selection, provider `audiocpp` |
 | Podcast gate | `requires_voice`, "Needs a voice model" | `audio_gen` among the format's required model types, "Needs an audio model" |
 | Voices | a list hard-coded in `providers/kokoro/provider.py` | each model's roster, committed in the manifest |
@@ -214,11 +214,12 @@ Supertonic has no chunk setting, so it commits a peak and no steps; Kitten's ste
 - **A selection.** `audio_gen` takes provider `audiocpp`, with no connection. A hand-written revision rebuilds `selected_models`' checks, as [`0013`](../../surfsense_local/backend/alembic/versions/0013_selection_by_model_type.py) did, so `audiocpp` is allowed only for `audio_gen`. Onboarding does not ask for one, as it does not ask for an image model.
 - **The screen.** A third section, **Audio**, headed **Audio generation models**, beside Chat and Image ([`features/models/`](../../surfsense_local/frontend/src/features/models/)): the model in use, the ones on this computer with Use and Delete, and Add model with the curated rows, each showing its size, the memory it takes while voicing, its voice count and its languages. It shows the catalog only when the API reports the audio folder, which Electron sets when it staged the server.
 - **The podcast.** Its required model types become `text_gen` and `audio_gen`, in place of the `requires_voice` flag. `resolve_text_to_speech()` reads the `audio_gen` selection and returns an adapter in `providers/audiocpp/`: its `voices()` are the installed model's roster, `synthesize()` asks the server for each turn and joins the WAVs with the 0.35 s gap used today, and the job unloads the model when it ends. The brief's language list and voice picker come from the roster; a remembered brief whose voices the new model lacks falls back to the proposed one, as it does today.
+- **The default voice.** `build:voice` (`scripts/fetch_bundled_voice.py`) stages the manifest's first audio model in its default build, Kokoro `Q8_0`, into the models pack's `audio/`, as a catalog install lands: from its pinned commit, sha256-checked, with its record. The audio engine reads it in place beside the audio folder's downloads, `server.json` names it where it lies, a delete of it is refused, and at every start the API chooses it when `audio_gen` is empty. The installer stays smaller than 2.0.2's, whose ONNX Kokoro was 340 MB.
 - **Remote audio stays out.** A connection's model can already be selected for `audio_gen`, but nothing here calls a remote speech endpoint, so the podcast says so and stays unavailable until a remote speech client exists.
 
 ## What goes
 
-`providers/kokoro/`, `scripts/fetch_kokoro_model.py`, the `build:voice` script, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from [`worker.spec`](../../surfsense_local/backend/bundling/worker.spec). onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
+`providers/kokoro/`, `scripts/fetch_kokoro_model.py`, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from [`worker.spec`](../../surfsense_local/backend/bundling/worker.spec). onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
 
 ## Order of work
 
@@ -249,7 +250,7 @@ And for the timeout, beyond audio.cpp: Ollama keeps a model 5 minutes after its 
 ## Decided here
 
 - audio.cpp's server is the one local audio runtime. The app compiles it, CPU-only, on Windows and Linux from a pinned commit, and takes upstream's archive on macOS, pinned by sha256. Nothing is published as a release of this repository.
-- Audio models are downloaded, not bundled; nothing voices a podcast until one is installed and chosen.
+- Kokoro 82M's default build ships in the models pack, read in place and never deleted, and is chosen at every start when no audio model is, so podcasts voice from the first start as they did with the Python Kokoro. Every other audio model is downloaded.
 - Kokoro-82M, Supertonic 3 and KittenTTS Mini are curated, in that order. A curated audio model has packaged voices, at least two, commercial-use weights, and runs on a CPU at about real time.
 - A model's voices and the memory it takes while voicing are committed in the manifest, because the server lists neither.
 - One audio model is resident at a time, loaded on first use, unloaded by the podcast job when it ends, and unloaded after 5 idle minutes otherwise.

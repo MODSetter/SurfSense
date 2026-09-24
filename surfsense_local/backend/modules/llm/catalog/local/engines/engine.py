@@ -43,6 +43,10 @@ class LocalEngine(Protocol):
 
     def holds(self, model_id: str) -> bool: ...
 
+    def bundled(self, model_id: str) -> bool:
+        """Shipped with the app, so it cannot be deleted."""
+        ...
+
     async def check(self, plan: InstallPlan) -> InstallPlan:
         """The plan as it may install, or InstallRefusedError."""
         ...

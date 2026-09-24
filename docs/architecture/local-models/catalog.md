@@ -509,7 +509,8 @@ Rules the screen holds:
   clears the image slot, and Electron stops sd-server on its next poll.
 - The audio section downloads without selecting too, and a model is chosen with
   Use once it is on disk; the one in use has no Delete, because its server may
-  hold the file.
+  hold the file. The voice the app ships reads **Included** and has no Delete
+  either.
 
 ## How it is tested
 
