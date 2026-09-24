@@ -5,12 +5,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
-const formatter = new Intl.RelativeTimeFormat(undefined, {
-  numeric: "auto",
-  style: "long",
-})
 const units: [number, Intl.RelativeTimeFormatUnit][] = [
   [60, "minute"],
   [24, "hour"],
@@ -21,13 +18,55 @@ const units: [number, Intl.RelativeTimeFormatUnit][] = [
 ]
 
 // Sidebar rows: "5m", "2h", "3d", "2w", "4mo", "1y"; the tooltip has the date.
-const compactUnits: [number, string][] = [
-  [60, "m"],
-  [24, "h"],
-  [7, "d"],
-  [4.345, "w"],
-  [12, "mo"],
-  [Number.POSITIVE_INFINITY, "y"],
+const compactUnits: [number, (count: number) => string][] = [
+  [
+    60,
+    (count) =>
+      intl.formatMessage(
+        { id: "app_relative_time_compact_minutes_label" },
+        { count }
+      ),
+  ],
+  [
+    24,
+    (count) =>
+      intl.formatMessage(
+        { id: "app_relative_time_compact_hours_label" },
+        { count }
+      ),
+  ],
+  [
+    7,
+    (count) =>
+      intl.formatMessage(
+        { id: "app_relative_time_compact_days_label" },
+        { count }
+      ),
+  ],
+  [
+    4.345,
+    (count) =>
+      intl.formatMessage(
+        { id: "app_relative_time_compact_weeks_label" },
+        { count }
+      ),
+  ],
+  [
+    12,
+    (count) =>
+      intl.formatMessage(
+        { id: "app_relative_time_compact_months_label" },
+        { count }
+      ),
+  ],
+  [
+    Number.POSITIVE_INFINITY,
+    (count) =>
+      intl.formatMessage(
+        { id: "app_relative_time_compact_years_label" },
+        { count }
+      ),
+  ],
 ]
 
 // Only triggers re-renders every 10s; never caches the time itself.
@@ -61,13 +100,16 @@ function getSnapshot() {
 function formatRelativeTime(date: Date, currentTime: number) {
   const seconds = (date.getTime() - currentTime) / 1000
   if (Math.abs(seconds) < 60) {
-    return "just now"
+    return intl.formatMessage({ id: "app_relative_time_just_now_label" })
   }
 
   let value = seconds / 60
   for (const [limit, unit] of units) {
     if (Math.abs(value) < limit) {
-      return formatter.format(Math.round(value), unit)
+      return intl.formatRelativeTime(Math.round(value), unit, {
+        numeric: "auto",
+        style: "long",
+      })
     }
     value /= limit
   }
@@ -76,12 +118,12 @@ function formatRelativeTime(date: Date, currentTime: number) {
 function formatCompactTime(date: Date, currentTime: number) {
   const seconds = Math.max(0, (currentTime - date.getTime()) / 1000)
   if (seconds < 60) {
-    return "now"
+    return intl.formatMessage({ id: "app_relative_time_compact_now_label" })
   }
 
   let value = seconds / 60
-  for (const [limit, unit] of compactUnits) {
-    if (value < limit) return `${Math.max(1, Math.floor(value))}${unit}`
+  for (const [limit, label] of compactUnits) {
+    if (value < limit) return label(Math.max(1, Math.floor(value)))
     value /= limit
   }
 }
@@ -99,13 +141,12 @@ export function RelativeTime({
 }) {
   const currentTime =
     useSyncExternalStore(subscribe, getSnapshot, getSnapshot) * 1000
-  const exactTime = date.toLocaleString("en-US", {
+  const exactTime = intl.formatDate(date, {
     month: "short",
     day: "numeric",
     year: "numeric",
     hour: "numeric",
     minute: "2-digit",
-    hour12: true,
   })
 
   const time = (

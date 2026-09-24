@@ -3,6 +3,7 @@ import type * as React from "react"
 
 import { Button } from "@/components/ui/button"
 import { XIcon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 function Dialog({
@@ -73,7 +74,9 @@ function DialogContent({
               size="icon-sm"
             >
               <XIcon />
-              <span className="sr-only">Close</span>
+              <span className="sr-only">
+                {intl.formatMessage({ id: "app_dialog_close_aria" })}
+              </span>
             </Button>
           </DialogPrimitive.Close>
         )}
@@ -112,7 +115,9 @@ function DialogFooter({
       {children}
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
-          <Button variant="outline">Close</Button>
+          <Button variant="outline">
+            {intl.formatMessage({ id: "app_dialog_footer_close_button" })}
+          </Button>
         </DialogPrimitive.Close>
       )}
     </div>

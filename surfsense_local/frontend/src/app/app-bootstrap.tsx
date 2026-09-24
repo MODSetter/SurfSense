@@ -11,6 +11,7 @@ import {
 } from "@/features/models/selection/api"
 import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import { intl } from "@/i18n/intl"
 
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
@@ -31,7 +32,9 @@ type BootstrapState =
   | { status: "error"; message: string }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({ id: "app_bootstrap_unexpected_error" })
 }
 
 async function fetchBootstrapState(): Promise<BootstrapState> {
@@ -86,7 +89,7 @@ function GlobalLoader() {
     <main
       className="flex h-full items-center justify-center bg-app-shell select-none"
       role="status"
-      aria-label="Starting SurfSense"
+      aria-label={intl.formatMessage({ id: "app_bootstrap_loader_aria" })}
     >
       <LogoFillLoader />
     </main>
@@ -138,7 +141,9 @@ export function AppBootstrap() {
       <main className="flex min-h-full items-center justify-center bg-muted/30 p-8">
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
-          <AlertTitle>SurfSense could not start</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({ id: "app_bootstrap_start_failed_title" })}
+          </AlertTitle>
           <AlertDescription>
             <p>{state.message}</p>
             <Button
@@ -149,7 +154,7 @@ export function AppBootstrap() {
                 void fetchBootstrapState().then(setState)
               }}
             >
-              Retry
+              {intl.formatMessage({ id: "app_bootstrap_retry_button" })}
             </Button>
           </AlertDescription>
         </Alert>

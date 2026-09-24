@@ -1,3 +1,5 @@
+import { intl } from "@/i18n/intl"
+
 export type Health = {
   status: "ok"
 }
@@ -25,6 +27,13 @@ declare global {
         symbolColor: string
       }) => Promise<void>
       openExternal?: (url: string) => Promise<void>
+      // Mirrors electron/src/preload/index.ts; main resolves and owns the locale.
+      locale?: {
+        get: () => string
+        preference: () => Promise<string>
+        set: (preference: string) => Promise<void>
+        onChange: (listener: (locale: string) => void) => () => void
+      }
       theme?: {
         set: (theme: "dark" | "light" | "system") => Promise<void>
         getSystemTheme: () => "dark" | "light"
@@ -113,7 +122,14 @@ async function responseError(response: Response): Promise<ErrorDetails> {
         return {
           message:
             required !== null && available !== null
-              ? `${body.detail.message} (${(required / 1e9).toFixed(1)} GB required, ${(available / 1e9).toFixed(1)} GB available)`
+              ? intl.formatMessage(
+                  { id: "app_api_insufficient_space_error" },
+                  {
+                    message: body.detail.message,
+                    required: (required / 1e9).toFixed(1),
+                    available: (available / 1e9).toFixed(1),
+                  }
+                )
               : body.detail.message,
           code:
             "code" in body.detail && typeof body.detail.code === "string"
@@ -129,7 +145,13 @@ async function responseError(response: Response): Promise<ErrorDetails> {
 
   return {
     message:
-      response.statusText || `Request failed with status ${response.status}`,
+      response.statusText ||
+      intl.formatMessage(
+        { id: "app_api_request_failed_error" },
+        {
+          status: String(response.status),
+        }
+      ),
     code: null,
   }
 }
