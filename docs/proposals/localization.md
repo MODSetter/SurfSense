@@ -7,6 +7,7 @@ code:
   - surfsense_local/frontend/src/i18n/
   - surfsense_local/electron/src/main/i18n/
   - .agents/skills/translate/
+  - scripts/check_translations.py
 ---
 
 # Localization
@@ -114,7 +115,7 @@ const chatErrorMessage: Record<ChatErrorKind, () => string> = {
 }
 ```
 
-**Sorted.** Keys in each file sorted, two-space indent, one key per line, the same order in every language. A feature's keys sit together, diffs stay small, and two pull requests adding keys to different features rarely conflict. A formatter writes it; the check fails on an unsorted file.
+**Sorted.** Keys in each file sorted, tab-indented, one key per line, the same order in every language. A feature's keys sit together, diffs stay small, and two pull requests adding keys to different features rarely conflict. Tabs because the ICU plugin writes tabs, so an inlang tool that saves a file does not reformat all of it. A formatter writes it; the check fails on an unsorted file.
 
 **Other languages** hold exactly the keys of `en.json`: none missing, none extra. A missing key shows English, never the key name.
 
@@ -153,7 +154,8 @@ The backend returns some English prose the UI shows as is: the chat's error mess
 1. **Developers write English only.** A new string is one line in `en.json` and a `messages.*()` call.
 2. **An agent translates.** The `translate` skill below fills in Japanese and German for every key that is new or whose English changed.
 3. **Review is open.** Anyone who reads the language can correct a translation in a pull request; no release waits on it.
-4. **CI checks the files.** A script fails the build on anything [Shape of `en.json`](#shape-of-enjson) forbids: a key missing from or extra to a language, placeholders or select branches that differ from the English, plural categories that do not match the language's CLDR rules, a value with markup or a leading or trailing space, a key prefix that is not a feature, a key no code in the frontend or in Electron main calls, a key that needs context and has none, an unsorted file.
+4. **A file check guards the files.** `scripts/check_translations.py`, a pre-commit hook scoped to `surfsense_local/frontend/translations/` and `translation-context.json`, the way `check_docs.py` guards `docs/`. There is no pull request CI for `surfsense_local` yet, but [`code-quality.yml`](../../.github/workflows/code-quality.yml) runs every pre-commit hook on a non-draft pull request's changed files, so this one runs there too. Python, because that job sets up Python and not Node. It fails on anything [Shape of `en.json`](#shape-of-enjson) forbids: a key missing from or extra to a language, placeholders or select branches that differ from the English, plural categories that do not match the language's CLDR rules, a value with markup or a leading or trailing space, a key prefix that is not a feature, a key no code in the frontend or in Electron main calls, a key that needs context and has none, an unsorted file.
+5. **The build guards the compile.** `pnpm build` fails when the compiler emits zero messages or Rollup warns that a name `is not exported by` the compiled messages: a wrong plugin key or `pathPattern` otherwise compiles nothing, exits 0, and the app fails at run time with `(void 0) is not a function` ([globalize-skills#82](https://github.com/globalize-now/globalize-skills/pull/82)). That runs on every local build and in [`release-local.yml`](../../.github/workflows/release-local.yml), and on pull requests once the desktop CI in the [roadmap](../ROADMAP.md) exists.
 
 `pnpx @inlang/cli machine translate` is not used: it sends every string to an outside translation service. The strings are not user data, but the app's position is that nothing leaves without a decision ([ADR 0017](../adr/0017-egress-off-by-default.md)), and a skill run by a developer is that decision.
 
@@ -172,8 +174,8 @@ A sentence with a link or bold span is where libraries differ most, and the ICU 
 
 ## Build order
 
-1. **Spike.** Confirm the ICU plugin compiles under Paraglide 2 with the Vite 8 plugin and under the CLI for main, and that `modules` in `settings.json` can point at a local copy of the plugin instead of jsDelivr, so a build needs no network. If either fails, fall back to inlang's JSON plugin with simple `{placeholder}` messages and keep plurals out until it is fixed.
-2. **Seam.** `src/i18n/`, `translations/en.json`, `translation-context.json`, the lint rule, the file check and formatter, the preload bridge and the Language setting, with one feature moved to prove the path.
+1. **Smoke test.** Paraglide 2 lists the ICU plugin as a supported format, and inlang loads a plugin from `./node_modules/@inlang/plugin-icu1/dist/index.js`, so a build needs no network. The settings key is `plugin.inlang.icu-messageformat-1`. Pin `@inlang/paraglide-js` 2.25.4 and `@inlang/plugin-icu1` 1.1.0. What is left to prove: one plural and one placeholder compile and render, in the renderer through the Vite 8 plugin and in main through the CLI.
+2. **Seam.** `src/i18n/`, `translations/en.json`, `translation-context.json`, the lint rule, the file check hook, the formatter, the build guard, the preload bridge and the Language setting, with one feature moved to prove the path.
 3. **Extract.** Move the remaining strings feature by feature, one pull request per feature under `src/features/`. The frontend has about 120 component files.
 4. **Translate.** The skill, then `ja.json` and `de.json`.
 5. **Ship.** Fold what is true into `docs/architecture/localization.md`, record the library choice and the ICU file format as ADRs, delete this proposal.
