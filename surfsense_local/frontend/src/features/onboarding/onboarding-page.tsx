@@ -110,7 +110,7 @@ function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="text-center">
-      <h1 className="text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
+      <h1 className="relative -top-10 text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
         Air-gapped, open source{" "}
         <span className="text-primary">NotebookLM alternative</span>
       </h1>
