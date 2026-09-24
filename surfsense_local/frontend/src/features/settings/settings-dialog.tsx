@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  AudioWave01Icon,
+  AudioWaveformIcon,
   Chat01Icon,
   ComputerEthernetIcon,
   Image01Icon,
@@ -147,7 +147,7 @@ const SETTINGS_SECTIONS = [
   {
     id: "audio-models",
     label: "Audio",
-    icon: AudioWave01Icon,
+    icon: AudioWaveformIcon,
   },
   {
     id: "network",

@@ -2,12 +2,17 @@ import { useId, useState } from "react"
 import {
   ChevronDownIcon,
   DotIcon,
-  SparklesIcon,
+  StarAward02Icon,
   Trash2Icon,
 } from "@/components/ui/icons"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import type { LocalBuild, LocalRow } from "./api"
 import { BuildAction } from "./build-action"
@@ -56,10 +61,24 @@ export function ModelCard({
         <div className="flex min-w-0 flex-col gap-0.5">
           <div className="flex min-w-0 items-center gap-2">
             {row.recommended ? (
-              <SparklesIcon
-                aria-label="Recommended for this computer"
-                className="size-3.5 shrink-0 text-notice"
-              />
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  {/* A button, so the tooltip also opens from the keyboard. */}
+                  <button
+                    type="button"
+                    aria-label="Recommended for your computer"
+                    className="inline-flex shrink-0 cursor-default rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <StarAward02Icon
+                      aria-hidden="true"
+                      className="size-5 text-recommended"
+                    />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  Recommended for your computer
+                </TooltipContent>
+              </Tooltip>
             ) : null}
             <p className="truncate text-sm font-medium">{row.name}</p>
             <FitBadge fit={lead.fit} copy={lead.badge} />

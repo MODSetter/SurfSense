@@ -2,6 +2,7 @@ import type { LocalRow } from "@/features/models/local/chat/api"
 import { describeHardware } from "@/features/models/local/chat/describe-hardware"
 import { useLocalChatCatalog } from "@/features/models/local/chat/use-local-chat-catalog"
 import { useLocalImageCatalog } from "@/features/models/local/image/use-local-image-catalog"
+import { useAudioModels } from "@/features/models/your-models/use-audio-models"
 import { useChatModels } from "@/features/models/your-models/use-chat-models"
 import { useImageModels } from "@/features/models/your-models/use-image-models"
 import type { InUse } from "@/features/models/your-models/your-model-row"
@@ -22,7 +23,7 @@ function useChatSlot(): SlotModels {
   const models = useChatModels()
   const catalog = useLocalChatCatalog()
   return {
-    rows: (catalog.data?.rows ?? []).filter((row) => row.engine !== "sdcpp"),
+    rows: (catalog.data?.rows ?? []).filter((row) => row.engine === "llamacpp"),
     hardware: catalog.data?.budget
       ? describeHardware(catalog.data.budget, catalog.data.gpu_status)
       : null,
@@ -45,8 +46,26 @@ function useImageSlot(): SlotModels {
   }
 }
 
+function useAudioSlot(): SlotModels {
+  const models = useAudioModels()
+  // The whole catalog, not audio's own view of it: the list reads chat's rows.
+  const catalog = useLocalChatCatalog()
+  return {
+    // Without voicing figures Settings lists no row either, so neither does this.
+    rows: (catalog.data?.rows ?? []).filter(
+      (row) => row.engine === "audiocpp" && row.voicing
+    ),
+    // audio.cpp has no fit estimate either.
+    hardware: null,
+    inUse: models.inUse,
+    isPending: models.isPending,
+    error: models.error,
+  }
+}
+
 /** One hook per slot, picked once per step, so the settings hooks stay the source. */
 export const slotModels: Record<OnboardingSlot, () => SlotModels> = {
   text_gen: useChatSlot,
   image_gen: useImageSlot,
+  audio_gen: useAudioSlot,
 }

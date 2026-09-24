@@ -10,13 +10,13 @@ import { ModelStep } from "./model-step/model-step"
 import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
-type Screen = "welcome" | "chat" | "image"
+type Screen = "welcome" | "chat" | "image" | "audio"
 
 /**
  * The steps the dots count. The welcome is still onboarding, and still gated by
  * the same marker, but it is an introduction, not a step to complete.
  */
-const STEPS = ["chat", "image"] as const
+const STEPS = ["chat", "image", "audio"] as const
 
 function OnboardingBrand() {
   return (
@@ -42,8 +42,7 @@ function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
     <Stepper
       value={step}
       aria-label={`Onboarding step ${step} of ${STEPS.length}`}
-      // Two bars as wide as three were, so each bar keeps its size.
-      className="mx-auto max-w-18 gap-1.5"
+      className="mx-auto max-w-28 gap-1.5"
     >
       {STEPS.map((item, index) => (
         <StepperItem key={item} step={index + 1} className="flex-1">
@@ -129,8 +128,8 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   )
 }
 
-/** Step 3 ends onboarding either way: the image model is optional. */
-function ImageStep({
+/** The last step ends onboarding either way: the audio model is optional. */
+function AudioStep({
   onBack,
   onComplete,
 }: {
@@ -140,7 +139,7 @@ function ImageStep({
   const { finish, finishing, error } = useFinishOnboarding(onComplete)
   return (
     <ModelStep
-      modelType="image_gen"
+      modelType="audio_gen"
       nextLabel="Finish"
       finishing={finishing}
       error={error}
@@ -184,8 +183,18 @@ export function OnboardingPage({
             />
           ) : null}
           {screen === "image" ? (
-            <ImageStep
+            // Optional, and not the last step: Skip moves on, as Continue does.
+            <ModelStep
+              modelType="image_gen"
+              nextLabel="Continue"
               onBack={() => setScreen("chat")}
+              onNext={() => setScreen("audio")}
+              onSkip={() => setScreen("audio")}
+            />
+          ) : null}
+          {screen === "audio" ? (
+            <AudioStep
+              onBack={() => setScreen("image")}
               onComplete={onComplete}
             />
           ) : null}

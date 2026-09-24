@@ -1,4 +1,4 @@
-import { AudioDownloadProgress } from "@/features/models/local/audio/audio-download-progress"
+import { InstallProgress } from "@/features/models/local/chat/install-progress"
 import { DownloadAudioModels } from "@/features/models/local/audio/download-audio-models"
 import { useAudioInstall } from "@/features/models/local/audio/use-audio-install"
 import { useDeleteLocalAudioModel } from "@/features/models/local/audio/use-delete-local-audio-model"
@@ -29,9 +29,8 @@ export function AudioModelsSettings({
         installState.status === "installing" ? (
           <div className="flex flex-col gap-2">
             <p className="truncate text-sm font-medium">{installState.label}</p>
-            <AudioDownloadProgress
-              label={installState.label}
-              step={installState.step}
+            <InstallProgress
+              event={installState.event}
               onCancel={cancelInstall}
             />
           </div>

@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DotIcon, SparklesIcon, Trash2Icon } from "@/components/ui/icons"
+import { DotIcon, Trash2Icon } from "@/components/ui/icons"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import type { LocalRow } from "@/features/models/local/chat/api"
 import { BuildAction } from "@/features/models/local/chat/build-action"
@@ -54,12 +54,6 @@ export function LocalModelList({
               <div className="flex items-center justify-between gap-3">
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <div className="flex min-w-0 items-center gap-2">
-                    {row.recommended ? (
-                      <SparklesIcon
-                        aria-hidden="true"
-                        className="size-3.5 shrink-0 text-notice"
-                      />
-                    ) : null}
                     <span className="truncate text-sm font-medium">
                       {row.name}
                     </span>

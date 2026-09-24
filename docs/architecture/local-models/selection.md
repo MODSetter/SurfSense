@@ -148,7 +148,7 @@ three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
 `GET /llm/onboarding` returns `{"completed": bool}`, true once the singleton
 `onboarding_completion` row exists. `POST /llm/onboarding` writes that row and
 requires a persisted `text_gen` selection, answering `422 chat model required`
-otherwise; an image model is optional. The marker means the user finished
+otherwise; image and audio models are optional. The marker means the user finished
 choosing, and it is the one thing that must not become true early.
 
 Two invariants, both easy to break from the frontend: selecting or clearing a
@@ -157,21 +157,22 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then two steps: chat model and image model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The two
-model steps are one component for either slot
+The onboarding page opens on a welcome screen, then three steps: chat, image and audio model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The three
+model steps are one component for any slot
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
 built on the same hooks as Settings but with its own screens. Each lists every
 model this computer can run at once, the catalog's starred row first, with
 Download, Use and Delete as in Settings; a download's progress shows under its
 row and never moves the page. The chat step also offers Settings' Hugging Face
-search, closed until asked for; the image step has none, since sd.cpp's models
-are the few the catalog ships. A server sits one line below the list and names
+search, closed until asked for; the image and audio steps have none, since
+sd.cpp's and audio.cpp's models are the few the catalog ships. A server sits one line below the list and names
 any connected earlier. Once the slot has a model, the footer names it beside
 Continue. Onboarding installs with `select: true`, so a download is also the
 choice; Settings installs with `select: false`. The chat step's Continue is
 enabled only once a chat model is selected, local or from a server. The image
-step is optional: Skip and Finish both post the marker, and Finish is enabled
-only once an image model is selected.
+and audio steps are optional, and each enables its Continue or Finish only once
+its slot has a model. The image step's Skip and Continue both move on to the
+audio step; the audio step's Skip and Finish both post the marker.
 
 ## Resolution: local and remote
 
