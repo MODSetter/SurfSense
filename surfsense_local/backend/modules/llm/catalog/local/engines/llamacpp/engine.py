@@ -75,6 +75,9 @@ class LlamaCppEngine:
     def holds(self, model_id: str) -> bool:
         return any(m.model_id == model_id for m in self.installed())
 
+    def bundled(self, model_id: str) -> bool:
+        return False  # every chat model is a download
+
     def reprice(self) -> None:
         """Rewrite the preset for everything on disk."""
         write_preset(

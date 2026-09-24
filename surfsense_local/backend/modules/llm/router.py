@@ -112,6 +112,11 @@ async def delete_model(
     engine = service.engine_holding(model_name)
     if engine is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"model not found: {model_name}")
+    if engine.bundled(model_name):
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"{model_name} comes with SurfSense and cannot be deleted",
+        )
     if await transact(session, _studio_running):
         raise HTTPException(
             status.HTTP_409_CONFLICT,

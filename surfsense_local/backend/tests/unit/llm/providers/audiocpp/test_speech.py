@@ -14,6 +14,7 @@ from modules.llm.providers.audiocpp.speech import (
     NotEnoughMemoryError,
     OtherModel,
     VoicedModel,
+    VoicingError,
 )
 from modules.llm.providers.protocols import SpokenTurn
 
@@ -52,6 +53,10 @@ def wav(frames: int, rate: int = 24000) -> bytes:
     return out.getvalue()
 
 
+# How audio.cpp's server answers a request it failed.
+SERVER_ERROR = {"error": {"message": "phonemizer failed", "type": "server_error"}}
+
+
 class StubServer:
     """audio.cpp's routes as the adapter calls them, recording each request."""
 
@@ -65,7 +70,7 @@ class StubServer:
         self.requests.append((request.url.path, body))
         if request.url.path == "/v1/audio/speech":
             if len(self.speech()) == self.fail_on:
-                return httpx.Response(500, json={"error": "voicing failed"})
+                return httpx.Response(500, json=SERVER_ERROR)
             return httpx.Response(200, content=wav(self.frames))
         return httpx.Response(200, json={"unloaded": []})
 
@@ -137,10 +142,25 @@ def test_the_model_is_unloaded_when_voicing_ends(fail_on: int | None) -> None:
     if fail_on is None:
         speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), server, turns)
     else:
-        with pytest.raises(httpx.HTTPStatusError):
+        with pytest.raises(VoicingError):
             speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), server, turns)
 
     assert server.requests[-1][0] == "/v1/tasks/unload_all_models"
+
+
+def test_a_failed_turn_carries_the_servers_own_words() -> None:
+    """The podcast's error names the turn and what the server said, not a
+    status code; the server was reached, so it is not a connection error."""
+    server = StubServer(fail_on=2)
+    turns = [SpokenTurn("Leo", "One."), SpokenTurn("Bella", "Two.")]
+
+    with pytest.raises(VoicingError) as failed:
+        speak(voiced("kitten-tts-mini-0.8", "kitten-tts-mini-0.8-orig"), server, turns)
+
+    assert str(failed.value) == (
+        "audio.cpp could not voice turn 2 of 2: phonemizer failed"
+    )
+    assert not isinstance(failed.value, httpx.HTTPError)
 
 
 def test_voicing_refuses_before_loading_when_memory_is_short() -> None:

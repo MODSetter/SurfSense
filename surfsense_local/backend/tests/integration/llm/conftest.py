@@ -132,6 +132,33 @@ def audio_dir(
 
 
 @pytest.fixture
+def bundled_voice(audio_dir, data_dir):
+    """The models pack as the build script leaves it: Kokoro's default build and
+    its install record under `audio/`, read-only beside the embedding model."""
+    from modules.llm.catalog.local.installs import InstalledBuild, record_install
+    from modules.llm.catalog.local.manifest import load_local_manifest
+
+    (kokoro,) = [m for m in load_local_manifest().models if m.id == "kokoro-82m"]
+    pinned = kokoro.builds[0].files[0]
+    pack = data_dir / "models" / "audio"
+    pack.mkdir(parents=True)
+    (pack / "kokoro-82m-q8_0.gguf").write_bytes(b"GGUF")
+    record_install(
+        pack,
+        InstalledBuild(
+            model_id="kokoro-82m-q8_0",
+            repo=pinned.repo,
+            revision=pinned.revision,
+            quantization="Q8_0",
+            weights=("kokoro-82m-q8_0.gguf",),
+        ),
+    )
+    get_local_catalog.cache_clear()
+    yield pack
+    get_local_catalog.cache_clear()
+
+
+@pytest.fixture
 def fake_hub(monkeypatch: pytest.MonkeyPatch):
     """Hugging Face as a downloader that writes a few bytes and says it is done."""
     from modules.llm.catalog.local.install import download as download_module

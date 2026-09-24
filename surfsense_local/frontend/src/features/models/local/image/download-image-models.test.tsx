@@ -30,6 +30,7 @@ const build = (overrides: Partial<LocalBuild> = {}): LocalBuild => ({
   recommended: false,
   reads_images: false,
   projector_checked: false,
+  bundled: false,
   ...overrides,
 })
 

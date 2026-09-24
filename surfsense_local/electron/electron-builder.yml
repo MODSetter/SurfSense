@@ -36,7 +36,8 @@ extraResources:
   - from: sdcpp
     to: sdcpp
   # audio.cpp's server for podcast voices, with the eSpeak-ng it phonemises
-  # through (scripts/audiocpp/). Voice models are downloaded, never bundled.
+  # through (scripts/audiocpp/). The default voice rides in the models pack
+  # above (build:voice); every other voice model is downloaded.
   - from: audiocpp
     to: audiocpp
 

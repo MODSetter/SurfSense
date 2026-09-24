@@ -30,7 +30,8 @@ export function useAudioModels(): YourModels {
               connection_id: null,
               name: model.installed_as,
             },
-            removeId: model.installed_as,
+            // The app's own voice is part of the install: it has no Delete.
+            removeId: model.build.bundled ? null : model.installed_as,
           },
         ]
   )

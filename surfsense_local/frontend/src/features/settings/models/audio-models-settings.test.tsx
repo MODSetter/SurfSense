@@ -71,6 +71,7 @@ const audioRow = (
       recommended: false,
       reads_images: false,
       projector_checked: false,
+      bundled: false,
       ...build,
     },
   ],

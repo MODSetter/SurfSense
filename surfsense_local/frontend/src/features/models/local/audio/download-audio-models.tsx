@@ -131,7 +131,8 @@ export function DownloadAudioModels() {
                     runtimeAvailable
                     onAction={() => act(model)}
                   />
-                  {model.installed_as ? (
+                  {/* The app's own voice is part of the install. */}
+                  {model.installed_as && !model.build.bundled ? (
                     <Button
                       type="button"
                       size="icon-sm"

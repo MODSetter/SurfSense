@@ -83,6 +83,10 @@ class LLMSettings(BaseSettings):
     # audio.cpp build, and local audio models are not offered.
     audio_base_url: str = "http://127.0.0.1:8082"
     audio_models_dir: Path | None = None
+    # The eSpeak-ng staged beside the server, which the API names in server.json
+    # for the families that do not read it from the server's environment.
+    audio_espeak_library: Path | None = None
+    audio_espeak_data: Path | None = None
 
 
 @lru_cache

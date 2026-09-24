@@ -16,12 +16,22 @@ from modules.llm.providers.audiocpp.memory import (
 )
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
 
-__all__ = ["AudioCppSpeech", "NotEnoughMemoryError", "OtherModel", "VoicedModel"]
+__all__ = [
+    "AudioCppSpeech",
+    "NotEnoughMemoryError",
+    "OtherModel",
+    "VoicedModel",
+    "VoicingError",
+]
 
 logger = logging.getLogger(__name__)
 
 # A turn voices in seconds on the CPU; a load adds a second or two.
 _TURN_TIMEOUT = httpx.Timeout(600, connect=10)
+
+
+class VoicingError(Exception):
+    """The server was reached and failed a turn; the message is its own."""
 
 
 @dataclass(frozen=True)
@@ -103,9 +113,21 @@ class AudioCppSpeech:
             if len(speaks.get(turn.voice, ())) > 1:
                 request["language"] = language
             reply = await client.post("/v1/audio/speech", json=request)
-            reply.raise_for_status()
+            if reply.is_error:
+                raise VoicingError(
+                    f"audio.cpp could not voice turn {index} of {len(turns)}: "
+                    f"{_server_message(reply)}"
+                )
             voiced.append(reply.content)
         return voiced
+
+
+def _server_message(reply: httpx.Response) -> str:
+    """audio.cpp answers a failure with {"error": {"message": ...}}."""
+    try:
+        return str(reply.json()["error"]["message"])
+    except (ValueError, KeyError, TypeError):
+        return f"HTTP {reply.status_code}"
 
 
 async def _unload(client: httpx.AsyncClient) -> None:

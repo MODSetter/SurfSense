@@ -68,6 +68,9 @@ class SdCppEngine:
     def holds(self, model_id: str) -> bool:
         return self.installed_image(model_id) is not None
 
+    def bundled(self, model_id: str) -> bool:
+        return False  # every image model is a download
+
     async def check(self, plan: InstallPlan) -> InstallPlan:
         return plan  # curated only: read when the manifest was refreshed
 

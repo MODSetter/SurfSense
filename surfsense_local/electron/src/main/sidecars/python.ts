@@ -6,7 +6,7 @@
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 
-import { binaryPath as audiocppBinary } from "./audiocpp.ts"
+import { binaryPath as audiocppBinary, espeakPaths } from "./audiocpp.ts"
 import { exe } from "./platform.ts"
 import type { SidecarContext, SidecarSpec } from "./types.ts"
 
@@ -34,12 +34,16 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
       SURFSENSE_LOCAL_IMAGE_MODELS_DIR: ctx.imageModelsDir,
     }),
     // Only where audio.cpp is staged: without it the API offers no audio models,
-    // and the Studio worker voices podcasts at the URL.
+    // and the Studio worker voices podcasts at the URL. The API names eSpeak in
+    // server.json for Kitten, which does not read the server's environment.
     ...(ctx.audioModelsDir &&
       ctx.audioUrl &&
+      ctx.audioBinariesDir &&
       existsSync(audiocppBinary(ctx)) && {
         SURFSENSE_LOCAL_AUDIO_MODELS_DIR: ctx.audioModelsDir,
         SURFSENSE_LOCAL_AUDIO_BASE_URL: ctx.audioUrl,
+        SURFSENSE_LOCAL_AUDIO_ESPEAK_LIBRARY: espeakPaths(ctx.audioBinariesDir).library,
+        SURFSENSE_LOCAL_AUDIO_ESPEAK_DATA: espeakPaths(ctx.audioBinariesDir).data,
       }),
   }
 }

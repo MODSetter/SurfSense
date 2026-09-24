@@ -73,6 +73,7 @@ function row(
         recommended: false,
         reads_images: false,
         projector_checked: true,
+        bundled: false,
       },
     ],
     ...overrides,

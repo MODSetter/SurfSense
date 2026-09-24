@@ -27,7 +27,9 @@ def audio_catalog(
     catalog_id: Callable[[Build], str],
     *,
     selected: str | None = None,
+    bundled: Collection[str] = (),
 ) -> list[LocalRow]:
+    """`bundled` names the installed models the app ships."""
     rows = []
     for model in models:
         classification = classify(
@@ -37,18 +39,20 @@ def audio_catalog(
         if engine is None or engine.name != ENGINE:
             continue
         builds = model.as_builds()
+        installed = [_installed_as(build, installs, files) for build in builds]
         build_rows = tuple(
             BuildRow(
                 catalog_id=catalog_id(build),
                 build=build,
                 fit=None,
                 badge=None,
-                installed_as=_installed_as(build, installs, files),
+                installed_as=installed_as,
                 recommended=False,
                 reads_images=False,
                 projector_checked=False,
+                bundled=installed_as is not None and installed_as in bundled,
             )
-            for build in builds
+            for build, installed_as in zip(builds, installed, strict=True)
         )
         default = default_build(builds)
         default_quantization = default.quantization if default else None
