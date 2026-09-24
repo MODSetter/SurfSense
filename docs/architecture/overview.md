@@ -10,7 +10,7 @@ SurfSense is a desktop app for research over your own documents: add files, ask 
 A file is uploaded, parsed to markdown, cut into passages and embedded. A chat turn retrieves the passages nearest the question, and a model answers from them, citing each one. A Studio job hands the selected documents' text to a model and stores the result as a document, with a file for ten of its twelve formats. Every design choice follows from who this is for:
 
 - **One user.** There are no accounts, no auth and no users table. The API binds to `127.0.0.1` and accepts any origin, because the packaged renderer loads from `file://`.
-- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and Kokoro speaks, all on this machine. Remote destinations (Hugging Face for model search and downloads, and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no telemetry or analytics code.
+- **Offline.** Docling parses, bge-small embeds on onnxruntime, llama-server generates text, sd-server generates images and audio.cpp's server voices podcasts, all on this machine. Remote destinations (Hugging Face for model search and downloads, and each remote host a connection points at) stay off until the user allows them ([`egress.md`](egress.md)). The app carries no telemetry or analytics code.
 - **SQLite.** `surfsense.db` holds every table, the search index included: FTS5 for keywords, sqlite-vec for vectors. `huey.db` holds the job queues. Next to the hosted stack there is no Postgres or Zero, no Celery or Redis, no LangGraph and no Docker.
 
 ## Processes
@@ -20,7 +20,8 @@ Electron main ─┬─ api            FastAPI on 127.0.0.1, free port    ─┐
                ├─ worker-ingest  Huey consumer, "ingest", 1 thread   ├─ surfsense.db, huey.db
                ├─ worker-studio  Huey consumer, "studio", 4 threads ─┘
                ├─ llamacpp       llama-server in router mode
-               └─ sdcpp          sd-server, started once an image model is chosen
+               ├─ sdcpp          sd-server, started once an image model is chosen
+               └─ audiocpp       audiocpp_server, started once the API names an audio model
 
 BrowserWindow (Vite SPA) ── HTTP ──> api
 api, worker-studio ── HTTP ──> llama-server, sd-server, remote OpenAI-compatible endpoints
@@ -30,9 +31,10 @@ worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE
 - Electron's main process starts four sidecars at boot and supervises them ([`index.ts`](../../surfsense_local/electron/src/main/index.ts), [`sidecars/`](../../surfsense_local/electron/src/main/sidecars/)): the API, one Huey worker per queue, and llama-server. Packaged builds run frozen binaries from the app's resources; `pnpm dev` runs `uv run main.py` and `uv run worker.py <queue>`.
 - llama-server starts whenever its pinned build is staged, in dev too (`pnpm build:llamacpp`, which `predev` runs). It reads per-model arguments from a preset file once at startup, so Electron restarts it when the API rewrites that file ([`local-models/runtime.md`](local-models/runtime.md)).
 - sd-server takes its model as a startup argument, so it cannot start at boot. Whenever its pinned build is staged, in dev too (`pnpm build:sdcpp`, which `predev` runs), `watchImageModel` asks the API every 5 seconds which weights are chosen and starts or restarts it on a change.
+- audiocpp_server refuses an empty model list, so it starts only once the API has written `audio/server.json` under the data directory, in dev too (`pnpm build:audiocpp`, which `predev` runs). On Windows and Linux that script compiles audio.cpp, and without a C++ toolchain the app runs without local audio ([packaging](packaging.md)). Electron checks that file every 5 seconds and restarts the server when it changes. Electron sets the machine-wide flags: the CPU backend, half the logical cores up to 8, one loaded model, and an unload after 5 idle minutes. The API writes that file whenever an audio model is installed or deleted, and at startup ([`local-models/catalog.md`](local-models/catalog.md)). The Studio worker voices podcasts there, at `SURFSENSE_LOCAL_AUDIO_BASE_URL`, and unloads the model when a podcast ends ([`studio.md`](studio.md)).
 - Only the API gates the window. Electron waits up to 60 seconds for `/health` and gives up at once if the API exits. llama-server is best-effort; its state shows through `/llm/providers`.
 - On macOS and Linux each child runs in its own process group. On quit Electron sends SIGTERM and, after 5 seconds, SIGKILL; on Windows it kills the process tree. A single-instance lock hands a second launch to the first window, because two sets of sidecars would fight over the SQLite file.
-- The Python sidecars are configured through `SURFSENSE_LOCAL_*` variables: the API's host and port, the data and models directories, the llama-server and sd-server addresses, and `SURFSENSE_LOCAL_SECRET`, the key that encrypts stored API keys ([`connections.md`](connections.md)). No other sidecar receives the secret.
+- The Python sidecars are configured through `SURFSENSE_LOCAL_*` variables: the API's host and port, the data and models directories, the llama-server and sd-server addresses, the images folder, audio.cpp's address and folder where it is staged, and `SURFSENSE_LOCAL_SECRET`, the key that encrypts stored API keys ([`connections.md`](connections.md)). No other sidecar receives the secret.
 
 ## Layer boundary
 

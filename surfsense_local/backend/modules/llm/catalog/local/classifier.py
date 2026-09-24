@@ -57,6 +57,10 @@ _SPEECH_OUT = (
     "acestep-lm",
     "acestep-vae",
     "mm3-cond",
+    # audio.cpp's voice families, which a curated entry names as its architecture
+    "kokoro_tts",
+    "supertonic",
+    "kitten_tts",
     "text-to-speech",
     "text-to-audio",
 )
@@ -76,7 +80,6 @@ _SPEECH_IN = (
     "sortformer",
     "funasr_nano",
     "sensevoice-small",
-    "audiocpp",
     "ced",
     "automatic-speech-recognition",
     "audio-classification",
@@ -90,6 +93,9 @@ _LABELLERS = (
     "image-segmentation",
     "image-to-3d",
 )
+# Every audio.cpp file declares this, whichever way its audio goes; a curated
+# entry names its family instead.
+_AUDIO_CPP = ("audiocpp",)
 _OCR = ("paddleocr", "deepseek2-ocr")
 _DRAFTERS = ("eagle3", "dflash")
 _PROJECTORS = ("clip",)
@@ -157,6 +163,15 @@ GROUPS: dict[str, Group] = {
             _NONE,
             (
                 "This model writes down what it hears in audio. It cannot answer questions."
+            ),
+        ),
+    ),
+    **dict.fromkeys(
+        _AUDIO_CPP,
+        Group(
+            _NONE,
+            (
+                "This model runs on audio.cpp. SurfSense runs only the voices in its list."
             ),
         ),
     ),

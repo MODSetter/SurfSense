@@ -75,7 +75,7 @@ Escolha alguns documentos e um formato. O aplicativo escreve o resultado a parti
 | **Planilha** | Um `.xlsx` com as tabelas extraídas das fontes | modelo de geração |
 | **Página web** | Uma página HTML autocontida | modelo de geração |
 | **PDF** | Um PDF já diagramado | modelo de geração |
-| **Podcast** | Uma conversa em áudio com dois apresentadores, narrada offline pelo Kokoro-82M | modelo de geração + voz incluída |
+| **Podcast** | Uma conversa em áudio com dois apresentadores, narrada offline pelo Kokoro-82M | modelo de geração + modelo de áudio |
 | **Imagem** | Uma ilustração para o material | modelo de imagem + modelo de geração |
 | **Infográfico** | Um resumo visual em um único painel | modelo de imagem + modelo de geração |
 

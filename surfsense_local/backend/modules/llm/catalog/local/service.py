@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
@@ -55,6 +56,7 @@ class LocalCatalogService:
         runtime_url: str = "http://127.0.0.1:8080",
         *,
         images_dir: Path | None = None,
+        audio_dir: Path | None = None,
         probe: Probe = probe_devices,
         os_gpu: OsGpu = os_reports_gpu,
     ) -> None:
@@ -72,7 +74,12 @@ class LocalCatalogService:
         self._install_lock = asyncio.Lock()
         self.llamacpp = LlamaCppEngine(models_dir, runtime_url, self.budget)
         self.sdcpp = SdCppEngine(images_dir, manifest.models)
-        self._engines: tuple[LocalEngine, ...] = (self.llamacpp, self.sdcpp)
+        self.audiocpp = AudioCppEngine(audio_dir, manifest.models)
+        self._engines: tuple[LocalEngine, ...] = (
+            self.llamacpp,
+            self.sdcpp,
+            self.audiocpp,
+        )
 
     def install_lock(self) -> asyncio.Lock:
         return self._install_lock

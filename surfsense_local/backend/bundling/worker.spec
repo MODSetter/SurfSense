@@ -50,12 +50,6 @@ for package in (
     "pptx",
     "xlsxwriter",
     "reportlab",
-    # Studio podcast: kokoro-onnx loads its ONNX model by path and phonemises
-    # through espeak data shipped as package files, neither visible to the
-    # analyser. espeakng_loader carries the espeak-ng-data; phonemizer is its g2p.
-    "kokoro_onnx",
-    "espeakng_loader",
-    "phonemizer",
 ):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas

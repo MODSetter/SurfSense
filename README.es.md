@@ -75,7 +75,7 @@ Elige unos cuantos documentos y un formato. La aplicación lo redacta a partir d
 | **Hoja de cálculo** | Un `.xlsx` con las tablas extraídas de las fuentes | modelo de generación |
 | **Página web** | Una página HTML autónoma | modelo de generación |
 | **PDF** | Un PDF ya maquetado | modelo de generación |
-| **Pódcast** | Una conversación de audio entre dos presentadores, con voz generada sin conexión por Kokoro-82M | modelo de generación + voz incluida |
+| **Pódcast** | Una conversación de audio entre dos presentadores, con voz generada sin conexión por Kokoro-82M | modelo de generación + modelo de audio |
 | **Imagen** | Una ilustración para el material | modelo de imagen + modelo de generación |
 | **Infografía** | Un resumen visual de un solo panel | modelo de imagen + modelo de generación |
 

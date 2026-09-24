@@ -28,17 +28,20 @@ Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/
 its types, to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
 (`context`, `reads_images`, `tools`, `reasoning`), whether the bundled runtime can
 run it and why not, the `engine` that offered it, its builds, the build it leads
-with and why, and the star. Each build is a set of files with roles, and carries
+with and why, and the star. An audio row adds `voicing`: the memory measured while
+voicing, the voice count and the languages, from its manifest entry. Each build is a set of files with roles, and carries
 its fit, badge, whether it is installed, whether it is recommended, and whether it
-reads images. An image build's `fit` and `badge` are `null`: sd.cpp has no fit
-estimate, so the row states the download size and nothing about this machine,
-and nothing blocks its install. The screen renders these fields and computes none
+reads images. An image or audio build's `fit` and `badge` are `null`: neither
+sd.cpp nor audio.cpp has a fit estimate, so the row states the download size and
+nothing about this machine, and nothing blocks its install. The screen renders these fields and computes none
 of them.
 
-`GET /llm/catalog/local` returns llama.cpp's rows and then sd.cpp's, the three
-curated image models, only when Electron handed the API an images folder.
-Electron does that only when it staged sd-server, in dev or packaged
+`GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's and audio.cpp's.
+sd.cpp's are the three curated image models, only when Electron handed the API an
+images folder, which it does only when it staged sd-server, in dev or packaged
 ([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
+audio.cpp's are the three curated audio models, only when Electron handed the API
+an audio folder, which it does only when it staged audio.cpp's server.
 
 ## One slice per engine
 
@@ -57,6 +60,8 @@ catalog/local/
                             builds/, rows/, models_folder/, search/
     sdcpp/                  engine.py, manifest_fields.py, evidence.py,
                             builds/, rows/, images_folder/
+    audiocpp/               engine.py, manifest_fields.py, evidence.py,
+                            builds/, rows/, audio_folder/
   service.py  router.py  schemas.py  dependencies.py
 ```
 
@@ -64,19 +69,20 @@ catalog/local/
 speak to. Each engine answers where its files land (`folder`), its rows,
 whether it `holds` an installed model, the `check` before a download, the steps
 `after_install` (llama.cpp rewrites the preset, waits for the router and warms
-the model; sd.cpp has nothing to do, since sd-server takes its model at launch),
-what to settle `after_remove`, and what to do `on_startup` (llama.cpp writes the
-preset; sd.cpp records legacy downloads). The selection an install fills is the
+the model; sd.cpp has nothing to do, since sd-server takes its model at launch;
+audio.cpp rewrites `server.json`), what to settle `after_remove` (audio.cpp
+rewrites `server.json`), and what to do `on_startup` (llama.cpp writes the
+preset; sd.cpp records legacy downloads; audio.cpp writes `server.json`). The selection an install fills is the
 engine's `model_type` and `provider`.
 
-| | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) |
-|---|---|---|
-| Evidence | GGUF metadata keys | tensor names (`evidence.py`) |
-| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults (required) |
-| Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | every GGUF at the repo's root, alone (`builds/in_repo.py`) |
-| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | `Q4_0`, the only build pinned (`builds/choice.py`) |
-| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, legacy downloads, the installed image |
-| Also | support, pricing, the recommended build, the lead build, the star, search | |
+| | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) |
+|---|---|---|---|
+| Evidence | GGUF metadata keys | tensor names (`evidence.py`) | the family key, read from the header's front (`evidence.py`) |
+| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults (required) | `audio`: voices, languages, sample rate, measured memory (required) |
+| Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | every GGUF at the repo's root, alone (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) |
+| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | `Q4_0`, the only build pinned (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) |
+| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, legacy downloads, the installed image | `audio_folder/`: its files, the installed models, `server.json` |
+| Also | support, pricing, the recommended build, the lead build, the star, search | | |
 
 A slice holds what the catalog knows about a runtime. Running it stays outside
 `catalog/`: the clients in `providers/`, and `fit/`, which prices llama.cpp.
@@ -134,23 +140,36 @@ preferred first, and nothing in it is a score.
 - **An entry carries its engine's fields and no others.** The classifier reads
   `evidence`, the registry names the engine, and the engine names the fields it
   reads and the ones it needs. A text model needs `context`; an image model
-  needs `image` defaults and carries no `context`, `shape`, `template` or
-  `sampling`, because sd.cpp reads none of them. A field no engine reads would be
-  reviewed and trusted while doing nothing. `validated` records `llama_cpp` or
-  `sd_cpp`, the runtime build a person ran the build on.
+  needs `image` defaults and an audio model needs `audio`, and neither carries
+  `context`, `shape`, `template` or `sampling`, because sd.cpp and audio.cpp read
+  none of them. A field no engine reads would be reviewed and trusted while doing
+  nothing. `validated` records `llama_cpp`, `sd_cpp` or `audio_cpp`, the runtime
+  build a person ran the build on.
+- **An audio model commits its voices and its memory**, because audio.cpp's server
+  reports neither. `audio` holds the voices, each with an id, a label and a
+  language (none for a voice that speaks every listed language), the languages,
+  the sample rate, and `peak_mb` measured while voicing at the server's default
+  chunk size with every chunk full, since audio.cpp sizes its working memory for
+  a request's longest chunk, with `chunk_steps`, smaller chunk sizes and their
+  peaks, where one was measured. A model needs at least two voices, since a podcast has two
+  speakers; ids do not repeat, and a voice speaks only listed languages.
 - **`aliases` fold a download into its curated row.** A downloaded file shows as
   a curated build when its install record names the model's `source_repo`, an
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped ten, none validated, most preferred first within each type. Seven
+The shipped thirteen, most preferred first within each type. Seven
 chat models, all from `unsloth/*-GGUF` with 18 builds each: Qwen3 32B, 14B, 8B,
 4B, Gemma 3 4B (reads images), Qwen3 1.7B and 0.6B. Three image models, one
 self-contained `Q4_0` file each, the same files and hashes the hard-coded list
 they replace downloaded: Stable Diffusion 1.5 and XL from `kostakoff/*-GGUF`,
 and SDXL Turbo from `gpustack/stable-diffusion-xl-1.0-turbo-GGUF`, whose licence,
 `sai-nc-community`, allows non-commercial use only without a Stability AI
-membership. llama.cpp's catalog skips the image entries; sd.cpp's offers them. `LocalManifest` rejects a wrong version, a repeated id or
+membership. Three audio models, one file per build from their folders of
+`audio-cpp/audio.cpp-gguf`: Kokoro 82M (`Q8_0`, then `BF16`), Supertonic 3 (`F16`,
+then `orig`; its `q8_0` file is the `orig` file under another name) and KittenTTS
+Mini 0.8 (`orig`). Only the three audio defaults are validated, each voiced on
+audio.cpp v0.8.2. Each engine's catalog offers its own entries and skips the rest. `LocalManifest` rejects a wrong version, a repeated id or
 quantization, an unpinned or unhashed file, a build without weights or with two
 projectors, an entry no bundled engine runs, and any field it does not declare. A manifest that fails is replaced
 at startup by an empty one, so downloaded models and search still work.
@@ -158,20 +177,26 @@ at startup by an empty one, so downloaded models and search still work.
 ## Authoring
 
 `scripts/refresh_local_manifest.py`, run by hand; never in CI, at packaging or
-on a request path. `local_manifest/entries.py` is the hand-authored input:
+on a request path. `--only ID …` refreshes the named entries and keeps every other
+one exactly as written, so adding a model does not re-pin the rest. `local_manifest/entries.py` is the hand-authored input:
 which models, in which order, from which repo; `VALIDATED`, one in each
 engine's `refresh.py`, is the other. For each repo the script reads the
 commit sha, the file listing at that commit (sizes and `lfs.oid` hashes) and the
 repo's `params` file, then the default build's header and its projector's header
 over HTTP range requests. No weights are downloaded. Each engine reads its own
-entries: `local_manifest/llamacpp/` and `local_manifest/sdcpp/` each hold a
-`refresh.py` (the network) and an `assemble.py` (pure, the written entry).
+entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
+`local_manifest/audiocpp/` each hold a `refresh.py` (the network) and an
+`assemble.py` (pure, the written entry).
 
 - **An image entry's evidence comes from its tensors**, the only thing an sd.cpp
   file states, and what a person reviews comes from the entry: the `image`
   defaults, each with the source it was read from, and sd-server's `run.args`.
   Only what the publisher's card or report states is filled; the rest is left to
   sd-server's defaults.
+- **An audio entry's evidence is its family**, read from the default build's first
+  64 KiB: audio.cpp writes it before the files it embeds, which make Kokoro's
+  header 38.6 MB and Supertonic's 57 MB. The entry names the model's folder in
+  the shared repo, its builds most preferred first, and the reviewed `audio` block.
 - **It pins every chat build in the quantization preference order**
   ([`builds/choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
   and nothing outside it: no imatrix files, drafters, big endian builds, or
@@ -181,11 +206,13 @@ entries: `local_manifest/llamacpp/` and `local_manifest/sdcpp/` each hold a
   a build, listing what would go, unless it is rerun with `--accept-loss`.
 - **`VALIDATED`**, one in each engine's `refresh.py`, names builds somebody ran,
   with the runtime build they ran it on: a chat build downloaded, chatted with
-  and its citations confirmed to resolve. Both are empty.
+  and its citations confirmed to resolve. llama.cpp's and sd.cpp's are empty;
+  audio.cpp's names the three default builds.
 
 The script's assembly is tested over recorded input, with no network
 ([`test_local_manifest.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest.py),
-[`test_local_manifest_sdcpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_sdcpp.py)).
+[`test_local_manifest_sdcpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_sdcpp.py),
+[`test_local_manifest_audiocpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_audiocpp.py)).
 
 ## Which files make a build
 
@@ -226,6 +253,12 @@ leads with the build in use, then an installed one, then its default (`default`,
 is installed when the images folder's `installs.json` names its repo and
 quantization, or when its own file is in the folder.
 
+An audio row leads the same way, with the first build its entry pins as the
+default. Its builds are installed only by the record: the audio folder's
+`installs.json` must name the build's own file, still on disk. All three audio
+models share one repo, and Supertonic and Kitten both have an `orig` build, so a
+repo and a label would mark the wrong model installed.
+
 **The star** goes to the first curated model, in manifest order, with a
 recommended build, so a machine short of the preferred model's default gets a
 smaller build of it before a smaller model. Curated rows sort by the fit of the
@@ -250,7 +283,11 @@ model and calls everything else `TEXT_GEN`, because llama.cpp gains
 architectures faster than any list is updated: embedders, rerankers, speech
 recognisers, labellers, OCR, drafters and projectors are known and typeless;
 diffusion architectures are `IMAGE_GEN`, video `VIDEO_GEN`, text to speech
-`AUDIO_GEN`. The tag only refuses or refines, never admits, and the tags that
+`AUDIO_GEN`, audio.cpp's voice families among them (`kokoro_tts`, `supertonic`,
+`kitten_tts`). Every audio.cpp file declares `general.architecture = audiocpp`,
+speech recognisers included, so that name alone has its own typeless group,
+"This model runs on audio.cpp. SurfSense runs only the voices in its list.", even
+beside a text-to-speech tag. The tag only refuses or refines, never admits, and the tags that
 mean chat are never keys. An unreadable header fails open to `TEXT_GEN`, marked
 approximate. Each group keeps its own sentence, which becomes a row's reason for
 not running here. A row is runnable when the engine that offered it is the one
@@ -264,6 +301,13 @@ names, as sd.cpp does
 a second text encoder (`conditioner.embedders.1.`, or `cond_stage_model.1.` from the converter SDXL Turbo's file came from) is `sdxl`, an SD 1 text
 encoder (`cond_stage_model.transformer.text_model.`) is `sd1`. Nothing reads it
 yet at runtime; the refresh script writes it into each image entry's evidence.
+
+An audio.cpp GGUF's family is `audiocpp.model_spec.family`, and its header
+embeds the model's voices and vocabulary, tens of megabytes past what the shared
+header reader widens to. The audio.cpp slice walks the keys in order and stops at
+the family, the seventh key in every curated file
+([`engines/audiocpp/evidence.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/evidence.py)).
+The refresh script writes it into each audio entry's evidence.
 
 ## Vision
 
@@ -369,11 +413,20 @@ its model at launch, from the selection, so there is no router to restart and
 nothing to warm. With `select` it becomes the `image_gen` selection, and
 Electron starts sd-server on it ([`../studio.md`](../studio.md)).
 
+An audio build takes the same stream into the audio folder, with its record in
+that folder's `installs.json`, and skips both `preparing` phases too. The install
+rewrites `server.json`, which names every installed audio model with its family
+and path; Electron restarts audio.cpp's server when the file changes, and a model
+loads on its first request, so there is nothing to wait for.
+
 Deleting a model removes every file its install record names, every part of a
 split build and its projector, and forgets it. A file with no record, one copied
 in by hand, loses only `<id>.gguf` and `mmproj-<id>.gguf`. `DELETE /llm/models/{name}`
-finds the name in either folder, and clears the `text_gen` or `image_gen`
-selection that named it.
+finds the name in any engine's folder, and clears the selection of that engine's
+type that named it. Deleting an audio model rewrites `server.json`; deleting the
+last removes the file, since the server refuses an empty model list, and Electron
+stops the server. At startup `warm()` rewrites `server.json` from the install
+records, so a stale or missing file heals.
 
 **Image models the hard-coded list downloaded** were saved as `sd15-q4_0.gguf`,
 `sdxl-base-q4_0.gguf` and `sdxl-turbo-q4_0.gguf`, each verified against the
@@ -403,7 +456,7 @@ on search and repo reads, and the stream's generic error during an install.
 
 ## On the screen
 
-Settings has one section per model type, **Chat** and **Image** in the nav, each headed **Text generation models** / **Image generation models** on its own page.
+Settings has one section per model type, **Chat**, **Image** and **Audio** in the nav, each headed **Text generation models**, **Image generation models** or **Audio generation models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per
@@ -411,14 +464,19 @@ connected server ([`../connections.md`](../connections.md)). **Add model** opens
 one page with both ways in, laid out alike, no card or border around either:
 **Use a server**, collapsed to a Connect button until opened, because it is
 short, then **On this computer**, the catalog below. Both sections read the
-one `GET /llm/catalog/local`: chat takes every row but sd.cpp's, and image takes
-only sd.cpp's, each curated model with its size, a Download, and, once it is on
-disk, Delete after confirmation, the same as **This computer**'s list. The
-catalog carries sd.cpp's rows only when the API has an images folder, which Electron
-hands it only when `sd-server` is staged, in dev or packaged
-([`../packaging.md`](../packaging.md));
-otherwise the image section's part of the page says image models cannot run on
-this computer, and the layout stays the same.
+one `GET /llm/catalog/local`: chat takes llama.cpp's rows, image takes only
+sd.cpp's and audio takes only audio.cpp's, each curated model with its size and a
+Download. Once a chat or image model is on disk its row offers Delete after
+confirmation, the same as **This computer**'s list; an audio row reads
+Downloaded. An audio row reads on one line: its build, its size, the memory it
+takes while voicing, its voice count and its languages, counted, or named when
+there is one ("orig · 302 MB · 1.9 GB while voicing · 8 voices · English"), from
+the row's `voicing`. The catalog carries sd.cpp's rows only when the API has an
+images folder, and audio.cpp's only when it has an audio folder, which Electron
+hands it only when that server is staged, in dev or packaged
+([`../packaging.md`](../packaging.md)); otherwise that section's part of the
+page says those models cannot run on this computer, and the layout stays the
+same.
 
 The chat catalog, from the top:
 
@@ -449,6 +507,11 @@ Rules the screen holds:
   it only downloads without selecting, so a model is chosen with Use once it is
   on disk. Every downloaded model has Delete, the one in use included: the API
   clears the image slot, and Electron stops sd-server on its next poll.
+- The audio section has the same install states, Use, In use and Delete as
+  image, and its rows add what voicing takes. Every downloaded model has Delete,
+  the one in use included: the API refuses while Studio is generating, otherwise
+  it clears the audio slot and rewrites `server.json`, and Electron restarts
+  audiocpp_server on its next poll.
 
 ## How it is tested
 
@@ -457,19 +520,21 @@ Unit tests in
 cover the manifest, builds, the build choice and lead, the classifier, support,
 pricing through the catalog (the badge matches the load on every budget shape; a
 recommended build never warns), reprice, search against mocked transports, and
-the service's installs; the routes are covered in
+the service's installs, the audio.cpp slice's evidence and rows, and each
+engine's refresh assembly; the routes, audio's `server.json` included, are
+covered in
 [`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/),
-and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and the settings sections' `chat-models-settings.test.tsx` and `image-models-settings.test.tsx`.
+and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx` and `audio-models-settings.test.tsx`.
 
 ## Known gaps
 
 - Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Chat sends text only, so a model that reads images never receives one.
-- Deleting the image model in use removes its file while sd-server still has it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until sd-server is stopped first.
+- Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
-- No build is validated: `validated` is empty on all 129.
+- Only the three audio defaults are validated; `validated` is empty on the other 131 builds.
 - `sampling`, `template.system_role`, the `image` defaults and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet and sd-server runs at its own defaults. Only sd.cpp's `run.args` reach a runtime. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
 - `POST /llm/install` does not refuse a curated build that will not fit; only the screen's disabled Download does.
@@ -479,4 +544,5 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
 - Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it a few seconds later. The hard-coded list's route reported that, and went with it.
 - Nothing checks free disk space before a download starts.
+- The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.

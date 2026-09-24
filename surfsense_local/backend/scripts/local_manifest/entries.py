@@ -7,6 +7,7 @@ documents with citations that resolve), not general capability. Everything else
 in the written manifest is read from the files.
 """
 
+from local_manifest.audiocpp.entry import AudioEntry
 from local_manifest.entry import Entry
 from local_manifest.sdcpp.entry import ImageEntry
 
@@ -27,6 +28,47 @@ def _qwen3(size: str, description: str) -> Entry:
             f"bartowski/Qwen_Qwen3-{size}-GGUF",
         ),
     )
+
+
+# Kokoro's packaged voices, `<language><gender>_<name>`. Its Japanese voices
+# need a dictionary the release GGUF leaves out, and its `*_santa` voices are
+# novelty voices, so neither is listed.
+_KOKORO_LANGUAGES = {
+    "a": "en-US",
+    "b": "en-GB",
+    "e": "es",
+    "f": "fr",
+    "h": "hi",
+    "i": "it",
+    "p": "pt-BR",
+    "z": "zh",
+}
+# fmt: off
+_KOKORO_VOICES = (
+    "af_heart", "af_bella", "af_nicole", "af_nova", "af_sarah", "af_sky", "af_alloy",
+    "af_aoede", "af_jessica", "af_kore", "af_river",
+    "am_adam", "am_echo", "am_eric", "am_liam", "am_michael", "am_onyx", "am_puck",
+    "am_fenrir",
+    "bf_alice", "bf_emma", "bf_isabella", "bf_lily",
+    "bm_daniel", "bm_fable", "bm_george", "bm_lewis",
+    "ef_dora", "em_alex",
+    "ff_siwis",
+    "hf_alpha", "hf_beta", "hm_omega", "hm_psi",
+    "if_sara", "im_nicola",
+    "pf_dora", "pm_alex",
+    "zf_xiaobei", "zf_xiaoni", "zf_xiaoxiao", "zf_xiaoyi",
+    "zm_yunjian", "zm_yunxi", "zm_yunxia", "zm_yunyang",
+)
+# Supertonic 3's languages, from audio.cpp's model spec; every voice speaks all.
+_SUPERTONIC_LANGUAGES = [
+    "en", "ko", "ja", "ar", "bg", "cs", "da", "de", "el", "es", "et", "fi", "fr",
+    "hi", "hr", "hu", "id", "it", "lt", "lv", "nl", "pl", "pt", "ro", "ru", "sk",
+    "sl", "sv", "tr", "uk", "vi",
+]
+# fmt: on
+# Measured while voicing through audio.cpp v0.8.2's server on an i5-1235U,
+# 24 Sep 2026 (docs/proposals/local-audio-models.md, Measurements).
+_MEASURED = "memory measured on audio.cpp v0.8.2, 24 Sep 2026"
 
 
 ENTRIES: tuple[Entry, ...] = (
@@ -105,5 +147,101 @@ ENTRIES: tuple[Entry, ...] = (
             "cfg": 0.0,
         },
         run_args=("--backend", "vae=cpu"),
+    ),
+    # Audio models: podcast voices, from audio.cpp's own conversions. Kokoro
+    # leads: the most voices, and the voice ids podcast briefs store today.
+    AudioEntry(
+        id="kokoro-82m",
+        name="Kokoro 82M",
+        family="Kokoro",
+        publisher="hexgrad",
+        description="46 natural voices in eight languages.",
+        license="apache-2.0",
+        source_repo="hexgrad/Kokoro-82M",
+        repo="audio-cpp/audio.cpp-gguf",
+        aliases=("hexgrad/Kokoro-82M",),
+        folder="Kokoro-82M-GGUF",
+        builds=("Q8_0", "BF16"),
+        audio={
+            "origin": f"hexgrad/Kokoro-82M model card; {_MEASURED}",
+            "sample_rate": 24000,
+            "peak_mb": 2347,
+            "chunk_steps": [
+                {"text_chunk_size": 120, "peak_mb": 1442},
+                {"text_chunk_size": 60, "peak_mb": 956},
+            ],
+            "languages": sorted(set(_KOKORO_LANGUAGES.values())),
+            "voices": [
+                {
+                    "id": voice,
+                    "label": voice.split("_")[1].title(),
+                    "language": _KOKORO_LANGUAGES[voice[0]],
+                }
+                for voice in _KOKORO_VOICES
+            ],
+        },
+    ),
+    AudioEntry(
+        id="supertonic-3",
+        name="Supertonic 3",
+        family="Supertonic",
+        publisher="Supertone",
+        description="Ten voices, each in 31 languages, in the least memory.",
+        # BigScience OpenRAIL-M: its use restrictions pass on to the user.
+        license="openrail",
+        source_repo="Supertone/supertonic-3",
+        repo="audio-cpp/audio.cpp-gguf",
+        aliases=("Supertone/supertonic-3",),
+        folder="Supertonic-3-GGUF",
+        # Its q8_0 file is the orig file under another name, same hash.
+        builds=("F16", "orig"),
+        audio={
+            "origin": f"Supertone/supertonic-3 model card; {_MEASURED}",
+            "sample_rate": 44100,
+            "peak_mb": 486,
+            "languages": _SUPERTONIC_LANGUAGES,
+            "voices": [
+                {"id": f"{gender}{n}", "label": f"{gender}{n}"}
+                for gender in ("M", "F")
+                for n in range(1, 6)
+            ],
+        },
+    ),
+    AudioEntry(
+        id="kitten-tts-mini-0.8",
+        name="KittenTTS Mini 0.8",
+        family="KittenTTS",
+        publisher="KittenML",
+        description="Eight English voices.",
+        license="apache-2.0",
+        source_repo="KittenML/kitten-tts-mini-0.8",
+        repo="audio-cpp/audio.cpp-gguf",
+        aliases=("KittenML/kitten-tts-mini-0.8",),
+        folder="KittenTTS-GGUF",
+        builds=("orig",),
+        audio={
+            "origin": f"KittenML/kitten-tts-mini-0.8 model card; {_MEASURED}",
+            "sample_rate": 24000,
+            "peak_mb": 1863,
+            "chunk_steps": [
+                {"text_chunk_size": 240, "peak_mb": 1414},
+                {"text_chunk_size": 120, "peak_mb": 1060},
+                {"text_chunk_size": 60, "peak_mb": 852},
+            ],
+            "languages": ["en"],
+            "voices": [
+                {"id": name, "label": name, "language": "en"}
+                for name in (
+                    "Bella",
+                    "Jasper",
+                    "Luna",
+                    "Bruno",
+                    "Rosie",
+                    "Hugo",
+                    "Kiki",
+                    "Leo",
+                )
+            ],
+        },
     ),
 )

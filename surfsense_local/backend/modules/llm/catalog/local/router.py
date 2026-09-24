@@ -66,7 +66,7 @@ def read_local_catalog(service: LocalCatalogDep, session: SessionDep) -> dict:
     """No network call of any kind."""
     selected = {
         model_type: name
-        for model_type in (ModelType.TEXT_GEN, ModelType.IMAGE_GEN)
+        for model_type in (ModelType.TEXT_GEN, ModelType.IMAGE_GEN, ModelType.AUDIO_GEN)
         if (name := _selected_local(session, model_type))
     }
     catalog = service.catalog(selected)
@@ -236,6 +236,15 @@ def _row(row: LocalRow, in_use: set[str]) -> dict:
         "lead": (
             {"quantization": row.lead.quantization, "why": row.lead.why.value}
             if row.lead
+            else None
+        ),
+        "voicing": (
+            {
+                "peak_mb": row.voicing.peak_mb,
+                "voice_count": row.voicing.voice_count,
+                "languages": list(row.voicing.languages),
+            }
+            if row.voicing
             else None
         ),
     }

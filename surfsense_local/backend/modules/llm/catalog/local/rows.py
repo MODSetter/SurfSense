@@ -40,6 +40,16 @@ class LocalSupport:
     reasoning: bool | None
 
 
+@dataclass(frozen=True)
+class Voicing:
+    """What an audio model takes and speaks, from its reviewed entry."""
+
+    # Measured while voicing at the server's default chunk size.
+    peak_mb: int
+    voice_count: int
+    languages: tuple[str, ...]
+
+
 class Origin(StrEnum):
     CURATED = "curated"
     DOWNLOADED = "downloaded"
@@ -88,6 +98,8 @@ class LocalRow:
     # The build the row shows and its Download fetches, and why. None for a
     # searched repo, which lists every build and leads with none.
     lead: Lead | None = None
+    # An audio model's only.
+    voicing: Voicing | None = None
 
     @property
     def runnable(self) -> bool:

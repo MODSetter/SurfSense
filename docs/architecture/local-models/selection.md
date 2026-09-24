@@ -21,7 +21,8 @@ choosing or clearing a model never touches.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `image_edit`, `video_gen`, `audio_gen` | none | `openai_compatible`, with a `connection_id` | nothing yet |
+| `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id`, which nothing reads yet | Studio's `podcast` |
+| `image_edit`, `video_gen` | none | `openai_compatible`, with a `connection_id` | nothing yet |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
@@ -29,7 +30,8 @@ brings the client that calls it.
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
 when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
-`llamacpp` hold only `text_gen` and `sdcpp` only `image_gen`, and deleting a
+`llamacpp` hold only `text_gen`, `sdcpp` only `image_gen` and `audiocpp` only
+`audio_gen`, and deleting a
 connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
@@ -46,6 +48,9 @@ fingerprints and stores:
   connection, and the name must be a curated image build installed in the
   images folder, named by its first weights file as a chat build is
   ([`catalog.md`](catalog.md)).
+- **Local audio** (`audiocpp`): the type must be `audio_gen`, there is no
+  connection, and the name must be a curated audio build installed in the
+  audio folder, named by its weights file as a chat build is.
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
@@ -63,8 +68,8 @@ and choosing a model is when the user has said they are about to use it
 loads nothing.
 
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen` or
-`image_gen` row that named it, by the engine that held it, and reports
+([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen`,
+`image_gen` or `audio_gen` row that named it, by the engine that held it, and reports
 `selection_cleared`; nothing chooses another
 model in its place. Revision `0012`, which replaced Ollama with llama.cpp,
 cleared any generation selection pointing at Ollama rather than remapping it,
@@ -143,7 +148,7 @@ three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
 `GET /llm/onboarding` returns `{"completed": bool}`, true once the singleton
 `onboarding_completion` row exists. `POST /llm/onboarding` writes that row and
 requires a persisted `text_gen` selection, answering `422 chat model required`
-otherwise; an image model is optional. The marker means the user finished
+otherwise; image and audio models are optional. The marker means the user finished
 choosing, and it is the one thing that must not become true early.
 
 Two invariants, both easy to break from the frontend: selecting or clearing a
@@ -152,21 +157,22 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then two steps: chat model and image model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The two
-model steps are one component for either slot
+The onboarding page opens on a welcome screen, then three steps: chat, image and audio model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The three
+model steps are one component for any slot
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
 built on the same hooks as Settings but with its own screens. Each lists every
 model this computer can run at once, the catalog's starred row first, with
 Download, Use and Delete as in Settings; a download's progress shows under its
 row and never moves the page. The chat step also offers Settings' Hugging Face
-search, closed until asked for; the image step has none, since sd.cpp's models
-are the few the catalog ships. A server sits one line below the list and names
+search, closed until asked for; the image and audio steps have none, since
+sd.cpp's and audio.cpp's models are the few the catalog ships. A server sits one line below the list and names
 any connected earlier. Once the slot has a model, the footer names it beside
 Continue. Onboarding installs with `select: true`, so a download is also the
 choice; Settings installs with `select: false`. The chat step's Continue is
 enabled only once a chat model is selected, local or from a server. The image
-step is optional: Skip and Finish both post the marker, and Finish is enabled
-only once an image model is selected.
+and audio steps are optional, and each enables its Continue or Finish only once
+its slot has a model. The image step's Skip and Continue both move on to the
+audio step; the audio step's Skip and Finish both post the marker.
 
 ## Resolution: local and remote
 

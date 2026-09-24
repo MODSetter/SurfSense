@@ -8,6 +8,7 @@ import {
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
   ArrowUp02Icon as ArrowUp02IconData,
+  AudioWaveformIcon as AudioWaveformIconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
@@ -57,7 +58,8 @@ import {
   SidebarRight01Icon as SidebarRight01IconData,
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
-  SparklesIcon as SparklesIconData,
+  AiSparklesIcon as AiSparklesIconData,
+  StarAward02Icon as StarAward02IconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
@@ -140,6 +142,7 @@ export const FileTextIcon = createIcon(FileTextIconData)
 export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
+export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
@@ -163,7 +166,8 @@ export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
 export const SidebarRightIcon = createIcon(SidebarRight01IconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
-export const SparklesIcon = createIcon(SparklesIconData)
+export const AiSparklesIcon = createIcon(AiSparklesIconData)
+export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
 export const Upload01Icon = createIcon(Upload01IconData)

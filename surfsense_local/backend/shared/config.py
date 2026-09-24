@@ -78,6 +78,11 @@ class LLMSettings(BaseSettings):
     image_base_url: str = "http://127.0.0.1:1234"
     image_models_dir: Path | None = None
 
+    # The bundled audio.cpp server's folder, where its models and the
+    # `server.json` Electron starts it from live. Absent means the host has no
+    # audio.cpp build, and local audio models are not offered.
+    audio_base_url: str = "http://127.0.0.1:8082"
+    audio_models_dir: Path | None = None
 
 
 @lru_cache

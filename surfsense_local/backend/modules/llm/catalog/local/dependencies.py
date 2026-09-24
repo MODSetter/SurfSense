@@ -26,6 +26,7 @@ def get_local_catalog() -> LocalCatalogService:
         settings.llamacpp_library_dir or Path("."),
         settings.llamacpp_base_url,
         images_dir=settings.image_models_dir,
+        audio_dir=settings.audio_models_dir,
     )
 
 

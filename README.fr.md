@@ -74,7 +74,7 @@ Choisissez quelques documents et un format. L'application le rédige à partir d
 | **Tableur** | Un `.xlsx` des tableaux extraits des sources | modèle de génération |
 | **Page web** | Une page HTML autonome | modèle de génération |
 | **PDF** | Un PDF mis en page | modèle de génération |
-| **Podcast** | Une conversation audio à deux voix, lue hors ligne par Kokoro-82M | modèle de génération + voix fournie |
+| **Podcast** | Une conversation audio à deux voix, lue hors ligne par Kokoro-82M | modèle de génération + modèle audio |
 | **Image** | Une illustration pour le contenu | modèle d'image + modèle de génération |
 | **Infographie** | Un résumé visuel sur un seul panneau | modèle d'image + modèle de génération |
 

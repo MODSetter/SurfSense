@@ -95,6 +95,12 @@ class SupportRead(BaseModel):
     reasoning: bool | None
 
 
+class VoicingRead(BaseModel):
+    peak_mb: int
+    voice_count: int
+    languages: list[str]
+
+
 class LocalRowRead(BaseModel):
     id: str
     source: str = "local"
@@ -111,10 +117,12 @@ class LocalRowRead(BaseModel):
     builds: list[BuildRead]
     default_quantization: str | None
     recommended: bool
-    # The engine that offered the row and would run it: llamacpp or sdcpp.
+    # The engine that offered the row and would run it: llamacpp, sdcpp or audiocpp.
     engine: str
     # Absent for a searched repo, which lists every build and leads with none.
     lead: LeadRead | None
+    # An audio model's memory while voicing, voices and languages; null otherwise.
+    voicing: VoicingRead | None = None
 
 
 class LocalCatalogRead(BaseModel):

@@ -4,7 +4,7 @@ import {
   CheckIcon,
   ChevronRightIcon,
   FileIcon,
-  SparklesIcon,
+  AiSparklesIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -191,7 +191,7 @@ function Composer({
             {isCreating ? (
               <Spinner />
             ) : (
-              <SparklesIcon data-icon="inline-start" />
+              <AiSparklesIcon data-icon="inline-start" />
             )}
             Generate
           </Button>

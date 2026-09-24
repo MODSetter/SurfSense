@@ -120,7 +120,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen` or `audio_gen` |
 | `onboarding_completion` | `id`, `completed_at` | a singleton (`CHECK id = 1`) whose presence means onboarding is done |
 
-- A CHECK on `selected_models` allows `llamacpp` and `sdcpp` only without a connection and `openai_compatible` only with one, and a second, `local_runtime_type`, lets `llamacpp` hold only `text_gen` and `sdcpp` only `image_gen`. `connection_id` cascades, so deleting a connection clears exactly the selections that used it.
+- A CHECK on `selected_models` allows `llamacpp`, `sdcpp` and `audiocpp` only without a connection and `openai_compatible` only with one, and a second, `local_runtime_type`, lets `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen` and `audiocpp` only `audio_gen`. `connection_id` cascades, so deleting a connection clears exactly the selections that used it.
 - `params_b`, `vendor` and `line` (`flagship` or `small`) are the model's fingerprint, recorded when it is chosen. They feed the prompt tier, which is computed on read, so retuning a threshold needs no migration.
 - Choosing a model never writes `onboarding_completion`; `POST /llm/onboarding` does, once a `text_gen` selection exists.
 - Remote `/models` answers, the local catalog, hardware profiles and fit estimates are not stored; they are recomputed or fetched live.
@@ -301,6 +301,7 @@ erDiagram
 | `0013` | `0013_selection_by_model_type.py` | `selected_models` rebuilt keyed by `model_type`: `generation` becomes `text_gen` and `image_generation` becomes `image_gen`, and the `local_runtime_type` CHECK is added; downgrading drops a selection in the three types the old key cannot hold |
 | `0014` | `0014_connection_catalog_provider.py` | `provider_connections.catalog_provider`, `custom` for every existing connection; downgrading drops the column in place, because a table rebuild would cascade into `selected_models` |
 | `0015` | `0015_image_selection_by_build.py` | a local `image_gen` selection is renamed from the old list's name to its curated build's id (`stable-diffusion-1.5` to `v1-5-pruned_Q4_0`, and the two SDXL models); the map is frozen in the migration, and downgrading reverses it |
+| `0016` | `0016_local_audio_provider.py` | `selected_models` rebuilt so `audiocpp` may hold `audio_gen`, and only that, without a connection; downgrading drops an `audiocpp` selection |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.

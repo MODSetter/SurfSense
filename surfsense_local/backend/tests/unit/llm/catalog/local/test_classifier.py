@@ -118,3 +118,20 @@ def test_the_copy_keeps_the_house_style() -> None:
     for name in GROUPS:
         reason = classify(name).reason
         assert "—" not in reason and "-" not in reason, reason
+
+
+def test_audio_cpps_voice_families_read_text_aloud() -> None:
+    """A curated audio.cpp entry's architecture is its family, which is what
+    audio.cpp dispatches on."""
+    for family in ("kokoro_tts", "supertonic", "kitten_tts"):
+        assert classify(family).types == (ModelType.AUDIO_GEN,), family
+
+
+def test_a_bare_audio_cpp_file_is_not_offered_from_search() -> None:
+    """Every audio.cpp file declares `audiocpp`, speech recognisers included, so
+    the architecture alone says neither direction, even beside a TTS tag."""
+    classification = classify("audiocpp", "text-to-speech")
+    assert classification.types == ()
+    assert classification.reason == (
+        "This model runs on audio.cpp. SurfSense runs only the voices in its list."
+    )

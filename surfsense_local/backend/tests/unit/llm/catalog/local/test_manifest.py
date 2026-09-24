@@ -212,6 +212,51 @@ def image_entry(**overrides) -> dict:
     return {**base, **overrides}
 
 
+def audio_entry(**overrides) -> dict:
+    """Kokoro as audio.cpp runs it: one file, its voices and its measured memory."""
+    base = {
+        "id": "kokoro-82m",
+        "name": "Kokoro 82M",
+        "family": "Kokoro",
+        "publisher": "hexgrad",
+        "description": "Natural voices in eight languages.",
+        "license": "apache-2.0",
+        "source_repo": "hexgrad/Kokoro-82M",
+        "evidence": {"architecture": "kokoro_tts", "pipeline_tag": "text-to-speech"},
+        "audio": {
+            "origin": "hexgrad/Kokoro-82M model card",
+            "sample_rate": 24000,
+            "peak_mb": 1421,
+            "chunk_steps": [
+                {"text_chunk_size": 120, "peak_mb": 1215},
+                {"text_chunk_size": 60, "peak_mb": 871},
+            ],
+            "languages": ["en-US", "en-GB"],
+            "voices": [
+                {"id": "af_heart", "label": "Heart", "language": "en-US"},
+                {"id": "bm_fable", "label": "Fable", "language": "en-GB"},
+            ],
+        },
+        "builds": [
+            {
+                "quantization": "Q8_0",
+                "files": [
+                    {
+                        **file(
+                            "weights",
+                            "Kokoro-82M-GGUF/kokoro-82m-q8_0.gguf",
+                            189_523_648,
+                        ),
+                        "repo": "audio-cpp/audio.cpp-gguf",
+                    }
+                ],
+                "validated": {"audio_cpp": "v0.8.2"},
+            }
+        ],
+    }
+    return {**base, **overrides}
+
+
 def test_an_image_model_needs_no_chat_fields() -> None:
     """No context window, template, sampling or fit shape: sd.cpp reads none."""
     (model,) = LocalManifest.model_validate(manifest(image_entry())).models
@@ -234,6 +279,17 @@ def test_an_image_model_needs_no_chat_fields() -> None:
             image_entry(shape=entry()["shape"]), id="an image model with a fit shape"
         ),
         pytest.param(image_entry(context=4096), id="an image model with a window"),
+        pytest.param(audio_entry(audio=None), id="an audio model without its voices"),
+        pytest.param(
+            entry(audio=audio_entry()["audio"]), id="a chat model with voices"
+        ),
+        pytest.param(
+            audio_entry(image=image_entry()["image"]),
+            id="an audio model with image defaults",
+        ),
+        pytest.param(
+            audio_entry(shape=entry()["shape"]), id="an audio model with a fit shape"
+        ),
     ],
 )
 def test_a_model_carries_its_own_engines_fields_and_no_others(broken: dict) -> None:
@@ -242,3 +298,38 @@ def test_a_model_carries_its_own_engines_fields_and_no_others(broken: dict) -> N
     trusted while doing nothing."""
     with pytest.raises(ValidationError):
         LocalManifest.model_validate(manifest(broken))
+
+
+def test_an_audio_model_carries_its_voices_and_memory() -> None:
+    """The server lists neither, so the manifest commits both."""
+    (model,) = LocalManifest.model_validate(manifest(audio_entry())).models
+
+    assert model.audio is not None
+    assert [v.id for v in model.audio.voices] == ["af_heart", "bm_fable"]
+    assert model.audio.peak_mb == 1421
+    assert [s.text_chunk_size for s in model.audio.chunk_steps] == [120, 60]
+    assert model.builds[0].validated.audio_cpp == "v0.8.2"
+
+
+def _voices(*voices: dict) -> dict:
+    return {**audio_entry()["audio"], "voices": list(voices)}
+
+
+HEART = {"id": "af_heart", "label": "Heart", "language": "en-US"}
+
+
+@pytest.mark.parametrize(
+    "audio",
+    [
+        pytest.param(_voices(HEART), id="one voice, and a podcast has two speakers"),
+        pytest.param(_voices(HEART, HEART), id="a voice listed twice"),
+        pytest.param(
+            _voices(HEART, {"id": "ff_siwis", "label": "Siwis", "language": "fr"}),
+            id="a voice in a language the model does not list",
+        ),
+    ],
+)
+def test_an_audio_models_voices_hold_together(audio: dict) -> None:
+    """Checked here, before review: every voice is one a podcast speaker can use."""
+    with pytest.raises(ValidationError):
+        LocalManifest.model_validate(manifest(audio_entry(audio=audio)))

@@ -4,7 +4,10 @@ manifest entry."""
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from modules.llm.catalog.local.engines import sdcpp
+from modules.llm.catalog.local.engines import audiocpp, sdcpp
+from modules.llm.catalog.local.engines.audiocpp import (
+    manifest_fields as audiocpp_fields,
+)
 from modules.llm.catalog.local.engines.llamacpp import (
     manifest_fields as llamacpp_fields,
 )
@@ -32,6 +35,12 @@ ENGINES = (
         ModelType.IMAGE_GEN,
         sdcpp_fields.ENTRY_OWNS,
         sdcpp_fields.ENTRY_REQUIRES,
+    ),
+    Engine(
+        audiocpp.ENGINE,
+        ModelType.AUDIO_GEN,
+        audiocpp_fields.ENTRY_OWNS,
+        audiocpp_fields.ENTRY_REQUIRES,
     ),
 )
 
