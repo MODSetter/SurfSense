@@ -43,6 +43,7 @@ export function ServerModels({
   connection: Connection
   modelType: ModelType
   disabled: boolean
+  /** Opens on its models when it first appears: a server just added. */
   defaultOpen?: boolean
   onEdit: () => void
   onSelected?: (selection: ModelSelection) => void
@@ -124,8 +125,8 @@ export function ServerModels({
       </div>
 
       <div className="overflow-hidden rounded-xl border bg-card">
-        {current && !open ? (
-          // Its row is inside the closed list, so the model in use is said here.
+        {current ? (
+          // Kept while the list is open too, so opening it only adds below.
           <div className="flex items-center justify-between gap-3 border-b px-3 py-2.5">
             <span className="truncate text-sm font-medium">{current}</span>
             <Button type="button" size="sm" variant="outline" disabled>
