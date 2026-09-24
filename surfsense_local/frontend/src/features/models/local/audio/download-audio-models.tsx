@@ -1,4 +1,6 @@
-import { CircleAlertIcon, DownloadIcon } from "@/components/ui/icons"
+import { Fragment } from "react"
+
+import { CircleAlertIcon, DotIcon, DownloadIcon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
@@ -57,8 +59,18 @@ export function DownloadAudioModels() {
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{model.label}</p>
-                  <p className="text-xs text-muted-foreground tabular-nums">
-                    {describeAudioModel(model)}
+                  <p className="flex flex-wrap items-center text-xs text-muted-foreground tabular-nums">
+                    {describeAudioModel(model).map((fact, index) => (
+                      <Fragment key={fact}>
+                        {index > 0 ? (
+                          <DotIcon
+                            aria-hidden="true"
+                            className="size-3 shrink-0"
+                          />
+                        ) : null}
+                        <span>{fact}</span>
+                      </Fragment>
+                    ))}
                   </p>
                 </div>
                 {model.installed_as !== null ? (

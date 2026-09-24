@@ -19,13 +19,13 @@ function languages(codes: string[]): string {
   return names.of(codes[0]) ?? codes[0]
 }
 
-/** One line: build, download, memory while voicing, voices, languages. */
-export function describeAudioModel(model: LocalAudioModel): string {
+/** Build, download, memory while voicing, voices, languages; the row dots them. */
+export function describeAudioModel(model: LocalAudioModel): string[] {
   return [
     model.quantization,
     bytes(model.size_bytes),
     `${bytes(model.peak_mb * 1e6)} while voicing`,
     `${model.voice_count} voices`,
     languages(model.languages),
-  ].join(" · ")
+  ]
 }

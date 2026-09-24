@@ -156,12 +156,24 @@ describe("audio model settings", () => {
 
     await user.click(await screen.findByRole("button", { name: "Add model" }))
 
-    const kokoro = await screen.findByText(/46 voices/)
-    expect(kokoro.textContent).toMatch(/^Q8_0 · 190 MB · 1\.4 GB while voicing/)
-    expect(kokoro.textContent).toMatch(/46 voices · 8 languages$/)
+    // Separated by the icon set's dot, as chat's cards are, not a typed "·".
+    const facts = (text: string) => {
+      const line = screen.getByText(text).parentElement
+      expect(line?.textContent).not.toContain("·")
+      return [...(line?.querySelectorAll(":scope > span") ?? [])].map(
+        (part) => part.textContent
+      )
+    }
+    await screen.findByText("46 voices")
+    expect(facts("46 voices")).toEqual([
+      "Q8_0",
+      "190 MB",
+      "1.4 GB while voicing",
+      "46 voices",
+      "8 languages",
+    ])
     // One language is named rather than counted.
-    const kitten = screen.getByText(/8 voices/)
-    expect(kitten.textContent).toMatch(/8 voices · English$/)
+    expect(facts("8 voices").at(-1)).toBe("English")
   })
 
   it("uses a downloaded audio model through audio.cpp", async () => {
