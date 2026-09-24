@@ -20,6 +20,7 @@ Version is `VERSION`. `scripts/bump-version.sh` writes it through the desktop pa
 - React UI, colors, polish, motion in `frontend/`: `frontend-workflow` skill.
 - shadcn components (`frontend/components.json`): `shadcn` skill after `frontend-workflow`, not instead of it — separate, and it inspects the project live.
 - New behavior: `tdd` skill.
+- Interface text in `frontend/` or a main-process menu: `translate` skill.
 
 ## Do not
 
