@@ -3,7 +3,7 @@ import { join } from "node:path"
 
 import { app } from "electron"
 
-import { isLocale } from "./locales.ts"
+import { isLocale, PSEUDO_LOCALE } from "./locales.ts"
 import type { LocalePreference } from "./resolve-locale.ts"
 
 function prefsPath(): string {
@@ -11,6 +11,7 @@ function prefsPath(): string {
 }
 
 export function isLocalePreference(value: unknown): value is LocalePreference {
+  if (value === PSEUDO_LOCALE) return !app.isPackaged
   return value === "system" || (typeof value === "string" && isLocale(value))
 }
 

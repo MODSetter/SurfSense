@@ -1,6 +1,11 @@
-import { BASE_LOCALE, isLocale, type Locale } from "./locales.ts"
+import {
+  BASE_LOCALE,
+  isLocale,
+  type AppLocale,
+  type Locale,
+} from "./locales.ts"
 
-export type LocalePreference = Locale | "system"
+export type LocalePreference = AppLocale | "system"
 
 // "system" takes the first OS language the app ships, matched on its base
 // language, so ja-JP and de-AT resolve without listing every region.
