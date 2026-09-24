@@ -6,7 +6,9 @@ import { app } from "electron"
 // would show Electron's name and icon. A "DEV" icon also keeps it apart from
 // an installed SurfSense. Packaged builds get all of this from electron-builder.
 const DEV_ICONS = join(__dirname, "../../build/icons/dev")
+// Windows and Linux fill the canvas; the macOS Dock expects Apple's margin.
 const DEV_ICON_PNG = join(DEV_ICONS, "icon.png")
+const DEV_ICON_MACOS = join(DEV_ICONS, "icon-macos.png")
 const DEV_NAME = "SurfSense Dev"
 
 // safeStorage names its keychain item after the app, so dev must not share
@@ -19,7 +21,7 @@ export function nameDevBuild(): void {
 export function applyDevAppIdentity(): void {
   if (app.isPackaged) return
   if (process.platform === "darwin") {
-    app.dock?.setIcon(DEV_ICON_PNG)
+    app.dock?.setIcon(DEV_ICON_MACOS)
   }
   if (process.platform === "win32") {
     // Its own taskbar group, not electron.exe's or the installed app's.
