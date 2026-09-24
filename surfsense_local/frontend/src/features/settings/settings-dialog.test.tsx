@@ -117,6 +117,15 @@ describe("SettingsDialog", () => {
             updated_at: "2026-09-09T00:00:00Z",
           })
         }
+        if (path === "/llm/selection/audio_gen") {
+          return Response.json({
+            model_type: "audio_gen",
+            provider: "openai_compatible",
+            connection_id: 9,
+            name: "tts-1",
+            updated_at: "2026-09-09T00:00:00Z",
+          })
+        }
         if (path === "/llm/connections") {
           return Response.json([
             {
@@ -175,6 +184,16 @@ describe("SettingsDialog", () => {
     })
     await waitFor(() => expect(image.textContent).toContain("flux"))
     expect(image.textContent).toContain("openrouter test")
+
+    await user.click(screen.getByRole("button", { name: "Audio" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Audio generation models" })
+    ).toBeTruthy()
+    const audio = await screen.findByRole("region", {
+      name: "audio model in use",
+    })
+    await waitFor(() => expect(audio.textContent).toContain("tts-1"))
   })
 
   it("shows nothing half-loaded while model data loads", async () => {

@@ -8,6 +8,7 @@ import {
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
   ArrowUp02Icon as ArrowUp02IconData,
+  AudioWave01Icon as AudioWave01IconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
@@ -140,6 +141,7 @@ export const FileTextIcon = createIcon(FileTextIconData)
 export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
+export const AudioWave01Icon = createIcon(AudioWave01IconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
