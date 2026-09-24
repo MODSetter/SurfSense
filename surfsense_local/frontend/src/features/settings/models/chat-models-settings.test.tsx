@@ -71,6 +71,7 @@ function row(overrides: Record<string, unknown> = {}, builds = [build()]) {
     builds,
     default_quantization: "Q4_K_M",
     recommended: false,
+    engine: "llamacpp",
     lead: { quantization: "Q4_K_M", why: "recommended" },
     ...overrides,
   }

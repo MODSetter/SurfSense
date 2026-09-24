@@ -94,7 +94,7 @@ export type LocalRow = {
   /** The one model starred for this computer. Curated models only. */
   recommended: boolean
   /** The engine that offered the row and would run it. */
-  engine: "llamacpp" | "sdcpp"
+  engine: "llamacpp" | "sdcpp" | "audiocpp"
   /**
    * The build the row shows and its Download fetches, and why the server chose
    * it. Absent for a searched repo, which lists every build and leads with none.

@@ -120,6 +120,18 @@ def images_dir(
 
 
 @pytest.fixture
+def audio_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+):
+    """A build that ships audio.cpp: Electron hands the API an audio folder."""
+    audio = tmp_path_factory.mktemp("audio")
+    monkeypatch.setattr(get_llm_settings(), "audio_models_dir", audio)
+    get_local_catalog.cache_clear()
+    yield audio
+    get_local_catalog.cache_clear()
+
+
+@pytest.fixture
 def fake_hub(monkeypatch: pytest.MonkeyPatch):
     """Hugging Face as a downloader that writes a few bytes and says it is done."""
     from modules.llm.catalog.local.install import download as download_module

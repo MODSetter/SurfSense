@@ -14,9 +14,9 @@ export function useChatModels(): YourModels {
   const connections = useConnections()
 
   // Curated or not: for a model installed from search this is the only place
-  // it appears. sd.cpp's image rows are the image page's.
+  // it appears. Image and audio rows are not chat models.
   const rows = (catalog.data?.rows ?? []).filter(
-    (row) => row.engine !== "sdcpp"
+    (row) => row.engine === "llamacpp"
   )
   const local: YourModelRow[] = rows.flatMap((row) =>
     row.builds.flatMap((build) =>

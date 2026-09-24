@@ -52,9 +52,9 @@ export function DownloadChatModels({
     )
   }
 
-  // The catalog also carries sd.cpp's image rows; they belong to the image page.
+  // The catalog also carries image and audio rows; only llama.cpp's are chat.
   const curated = catalog.data.rows.filter(
-    (row) => row.origin === "curated" && row.engine !== "sdcpp"
+    (row) => row.origin === "curated" && row.engine === "llamacpp"
   )
   const busy = installState.status === "installing" || select.isPending
 

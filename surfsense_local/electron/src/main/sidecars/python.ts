@@ -3,8 +3,10 @@
  * frozen onedir binary when packaged, `uv run` in dev, same SURFSENSE_LOCAL_*
  * env. Both reach llama-server, so both need the bundled address.
  */
+import { existsSync } from "node:fs"
 import { join } from "node:path"
 
+import { binaryPath as audiocppBinary } from "./audiocpp.ts"
 import { exe } from "./platform.ts"
 import type { SidecarContext, SidecarSpec } from "./types.ts"
 
@@ -31,6 +33,11 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     ...(ctx.imageModelsDir && {
       SURFSENSE_LOCAL_IMAGE_MODELS_DIR: ctx.imageModelsDir,
     }),
+    // Only where audio.cpp is staged: without it the API offers no audio models.
+    ...(ctx.audioModelsDir &&
+      existsSync(audiocppBinary(ctx)) && {
+        SURFSENSE_LOCAL_AUDIO_MODELS_DIR: ctx.audioModelsDir,
+      }),
   }
 }
 
