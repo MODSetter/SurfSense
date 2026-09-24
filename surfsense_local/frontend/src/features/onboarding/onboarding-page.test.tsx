@@ -272,13 +272,13 @@ async function toChatStep(user: ReturnType<typeof userEvent.setup>) {
 async function toImageStep(user: ReturnType<typeof userEvent.setup>) {
   await toChatStep(user)
   await user.click(await screen.findByRole("button", { name: "Continue" }))
-  await screen.findByRole("heading", { name: "Add an image model" })
+  await screen.findByRole("heading", { name: "Choose an image model" })
 }
 
 async function toAudioStep(user: ReturnType<typeof userEvent.setup>) {
   await toImageStep(user)
   await user.click(screen.getByRole("button", { name: "Skip" }))
-  await screen.findByRole("heading", { name: "Add an audio model" })
+  await screen.findByRole("heading", { name: "Choose an audio model" })
 }
 
 const openRouter = {
@@ -307,7 +307,7 @@ describe("onboarding", () => {
 
     await user.click(await screen.findByRole("button", { name: "Continue" }))
     expect(
-      await screen.findByRole("heading", { name: "Add an image model" })
+      await screen.findByRole("heading", { name: "Choose an image model" })
     ).toBeTruthy()
     expect(screen.getByLabelText("Onboarding step 2 of 3")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
@@ -315,7 +315,7 @@ describe("onboarding", () => {
     // Skipping the image model moves on; it does not end onboarding.
     await user.click(screen.getByRole("button", { name: "Skip" }))
     expect(
-      await screen.findByRole("heading", { name: "Add an audio model" })
+      await screen.findByRole("heading", { name: "Choose an audio model" })
     ).toBeTruthy()
     expect(screen.getByLabelText("Onboarding step 3 of 3")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
@@ -323,7 +323,7 @@ describe("onboarding", () => {
 
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
-      await screen.findByRole("heading", { name: "Add an image model" })
+      await screen.findByRole("heading", { name: "Choose an image model" })
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
@@ -543,7 +543,7 @@ describe("onboarding", () => {
     await toImageStep(user)
     expect(search()).toBeNull()
     await user.click(screen.getByRole("button", { name: "Skip" }))
-    await screen.findByRole("heading", { name: "Add an audio model" })
+    await screen.findByRole("heading", { name: "Choose an audio model" })
     expect(search()).toBeNull()
   })
 
@@ -745,7 +745,7 @@ describe("onboarding", () => {
     await user.click(next)
 
     expect(
-      await screen.findByRole("heading", { name: "Add an audio model" })
+      await screen.findByRole("heading", { name: "Choose an audio model" })
     ).toBeTruthy()
     expect(onComplete).not.toHaveBeenCalled()
   })
