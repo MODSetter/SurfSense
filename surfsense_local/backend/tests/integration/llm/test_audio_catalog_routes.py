@@ -200,3 +200,25 @@ async def test_deleting_the_chosen_audio_model_clears_the_audio_selection(
     assert reply.status_code == 200, reply.text
     assert reply.json()["selection_cleared"] is True
     assert (await client.get("/llm/selection/audio_gen")).status_code == 404
+
+
+async def test_a_voicing_refusal_names_a_lighter_curated_model(
+    client: AsyncClient, audio_dir, fake_hub, engine, monkeypatch
+) -> None:
+    """The resolver hands the adapter every other curated audio model, in the
+    manifest's order, so a refusal can point at one that would fit."""
+    from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
+    from modules.llm.resolution import resolve_text_to_speech
+    from shared.db import create_session_factory
+
+    await install(client, "kokoro-82m", "Q8_0", select=True)
+    monkeypatch.setattr(
+        "modules.llm.hardware.system_memory.available_bytes", lambda: 1_800_000_000
+    )
+
+    with create_session_factory(engine)() as session:
+        voice = resolve_text_to_speech(session)
+    with pytest.raises(NotEnoughMemoryError) as refused:
+        voice.check_memory()
+
+    assert str(refused.value).endswith("Supertonic 3 needs about 1.5 GB.")

@@ -12,6 +12,7 @@ from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.audiocpp.speech import (
     AudioCppSpeech,
     NotEnoughMemoryError,
+    OtherModel,
     VoicedModel,
 )
 from modules.llm.providers.protocols import SpokenTurn
@@ -159,3 +160,24 @@ def test_voicing_refuses_before_loading_when_memory_is_short() -> None:
         "Voicing needs about 2.6 GB free; this computer has 1.1 GB."
     )
     assert server.speech() == []
+
+
+def test_a_refusal_names_the_first_lighter_model_that_would_fit() -> None:
+    """Supertonic voices at full quality in 1.5 GB, less than any smaller
+    Kokoro chunk saves; Kitten, at 2.1 GB, would not fit either."""
+    audio = MODELS["kokoro-82m"].audio
+    assert audio is not None
+    others = (OtherModel("Supertonic 3", 454), OtherModel("KittenTTS Mini 0.8", 1023))
+    speech = AudioCppSpeech(
+        VoicedModel("kokoro-82m-q8_0", audio, others),
+        base_url="http://audio",
+        available=lambda: 1_800_000_000,
+    )
+
+    with pytest.raises(NotEnoughMemoryError) as refused:
+        speech.check_memory()
+
+    assert str(refused.value) == (
+        "Voicing needs about 2.6 GB free; this computer has 1.8 GB. "
+        "Supertonic 3 needs about 1.5 GB."
+    )

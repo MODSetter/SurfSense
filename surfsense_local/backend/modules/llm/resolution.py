@@ -88,12 +88,14 @@ def resolve_text_to_speech(session: Session) -> TextToSpeech:
         raise VoiceNotLocalError(
             "podcasts are voiced by an audio model on this computer"
         )
-    installed = get_local_catalog().audiocpp.installed_model(selected.name)
+    engine = get_local_catalog().audiocpp
+    installed = engine.installed_model(selected.name)
     if installed is None:
         raise ModelResolutionError("the local audio model is not installed")
-    return AudioCppSpeech(
-        VoicedModel(installed.model_id, installed.audio), base_url=audiocpp.base_url()
+    voiced = VoicedModel(
+        installed.model_id, installed.audio, engine.others_than(installed)
     )
+    return AudioCppSpeech(voiced, base_url=audiocpp.base_url())
 
 
 def _connection(session: Session, selected: SelectedModel) -> ProviderConnection:

@@ -7,15 +7,16 @@ from dataclasses import dataclass
 import httpx
 
 from modules.llm.catalog.local.engines.audiocpp.manifest_fields import AudioDefaults
-from modules.llm.hardware.system_memory import available_bytes
+from modules.llm.hardware import system_memory
 from modules.llm.providers.audiocpp.joined_wav import joined_wav
 from modules.llm.providers.audiocpp.memory import (
     NotEnoughMemoryError,
+    OtherModel,
     check_voicing_memory,
 )
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
 
-__all__ = ["AudioCppSpeech", "NotEnoughMemoryError", "VoicedModel"]
+__all__ = ["AudioCppSpeech", "NotEnoughMemoryError", "OtherModel", "VoicedModel"]
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ class VoicedModel:
 
     model_id: str
     audio: AudioDefaults
+    # The other curated audio models, most preferred first, for a refusal to name.
+    others: tuple[OtherModel, ...] = ()
 
 
 class AudioCppSpeech:
@@ -38,12 +41,13 @@ class AudioCppSpeech:
         *,
         base_url: str,
         transport: httpx.AsyncBaseTransport | None = None,
-        available: Callable[[], int] = available_bytes,
+        available: Callable[[], int] | None = None,
     ) -> None:
         self._model = model
         self._base_url = base_url
         self._transport = transport
-        self._available = available
+        # Read when checked, not when built: memory moves while a job drafts.
+        self._available = available or (lambda: system_memory.available_bytes())
 
     def voices(self) -> list[Voice]:
         """The model's roster. A voice with no language speaks all the model's."""
@@ -55,7 +59,9 @@ class AudioCppSpeech:
 
     def check_memory(self) -> None:
         """Before anything loads: once loaded, the model takes its peak."""
-        check_voicing_memory(self._model.audio.peak_mb, self._available())
+        check_voicing_memory(
+            self._model.audio.peak_mb, self._available(), self._model.others
+        )
 
     async def synthesize(
         self, turns: list[SpokenTurn], language: str

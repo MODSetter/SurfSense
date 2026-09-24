@@ -14,6 +14,8 @@ from modules.llm.catalog.local.manifest import CuratedModel
 @dataclass(frozen=True)
 class InstalledAudio:
     model_id: str
+    # The manifest entry it is a build of.
+    entry: str
     family: str
     file: str
     # Its voices, languages and measured memory, from the manifest entry.
@@ -30,6 +32,7 @@ def installed_audio(
     return [
         InstalledAudio(
             build.installed_as,
+            row.id,
             by_id[row.id].evidence.architecture,
             installs[build.installed_as].weights[0],
             by_id[row.id].audio,  # type: ignore[arg-type]  # an audio row's entry has one

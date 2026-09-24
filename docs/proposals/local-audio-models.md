@@ -119,13 +119,12 @@ A loaded model's memory is mostly working space sized for one chunk of text, not
 
 Nothing else moved it. Its graph arenas at a half, a quarter and an eighth of their defaults, `graph_capacity_mode` in all four values, `max_input_tokens` at 256, and glibc's `MALLOC_ARENA_MAX` at 2 and 1 each left the peak where it was, and the allocator limits made voicing 14 to 57% slower. A smaller chunk changes the audio, because each chunk is timed on its own.
 
-So chunk size is the lever, and the app pulls it only when it must:
+So chunk size is the lever, but the app does not pull it yet: a smaller chunk changes the audio, and a lighter curated model voices at full quality in less memory than a smaller Kokoro chunk saves.
 
 - **Before voicing, the app checks memory itself.** The server's `min_free_memory_mb` compares free memory with the bytes it will read from the file, 190 MB for Kokoro, not the 1.4 GB the model takes. The podcast job reads the operating system's available memory, as [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py) already does for fit, and compares it with the model's measured peak from the manifest plus 1 GiB of headroom.
-- **Short of that, it steps the chunk down** (240, then 120, then 60), the way the chat catalog steps down to a smaller build before it refuses one.
-- **Short even at the smallest chunk, it refuses**, with one sentence: "Voicing needs about 1.4 GB free; this computer has 0.9 GB." Only physics refuses, as for chat models ([ADR 0013](../adr/0013-fit-from-the-allocator.md)).
+- **Short of that, it refuses, and names the first lighter curated model that would fit**: "Voicing needs about 2.6 GB free; this computer has 1.8 GB. Supertonic 3 needs about 1.5 GB." Only physics refuses, as for chat models ([ADR 0013](../adr/0013-fit-from-the-allocator.md)).
 - **The server's `min_free_memory_mb` of 1024** stays as the backstop for a load the app did not check.
-- **The adapter splits a long turn at sentence ends** before it asks, so a smaller chunk falls where a pause already is. A smaller chunk ships only after a listening test says it sounds right.
+- **Stepping the chunk down comes later.** The manifest carries each measured step (`chunk_steps`), so the check can step down before it refuses, the way the chat catalog steps down to a smaller build. The adapter would first split a long turn at sentence ends, so a smaller chunk falls where a pause already is, and a smaller chunk ships only after a listening test says it sounds right.
 
 Kitten shares Kokoro's decoder design and likely the same dial; Supertonic takes 454 MB and does not need one. The upstream issue is narrow: memory grows by about 3 MB per chunk character, so could the decoder's buffers be sized to the chunk actually given?
 
@@ -252,7 +251,7 @@ And for the timeout, beyond audio.cpp: Ollama keeps a model 5 minutes after its 
 - A model's voices and the memory it takes while voicing are committed in the manifest, because the server lists neither.
 - One audio model is resident at a time, loaded on first use, unloaded by the podcast job when it ends, and unloaded after 5 idle minutes otherwise.
 - The server runs on the CPU with half the logical cores, at most 8, and without OpenMP; Metal on macOS only on the rule under [Backend](#backend).
-- The podcast checks memory against the model's measured peak before voicing, steps Kokoro's chunk size down before it refuses, and refuses only when the smallest chunk will not fit. The server's `min_free_memory_mb` of 1024 is a backstop.
+- The podcast checks memory against the model's measured peak before voicing, and a refusal names the first lighter curated model that would fit. Stepping the chunk size down waits for a listening test. The server's `min_free_memory_mb` of 1024 is a backstop.
 - The Python Kokoro and its packages leave the worker.
 - The podcast reads local audio models only until a remote speech client exists.
 

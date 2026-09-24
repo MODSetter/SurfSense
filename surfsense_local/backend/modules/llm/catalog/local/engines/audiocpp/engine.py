@@ -21,6 +21,7 @@ from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.rows import LocalRow
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp import PROVIDER
+from modules.llm.providers.audiocpp.memory import OtherModel
 
 
 class AudioCppEngine:
@@ -68,6 +69,14 @@ class AudioCppEngine:
 
     def installed_model(self, model_id: str) -> InstalledAudio | None:
         return next((m for m in self.installed() if m.model_id == model_id), None)
+
+    def others_than(self, model: InstalledAudio) -> tuple[OtherModel, ...]:
+        """Every other curated audio model, most preferred first."""
+        return tuple(
+            OtherModel(m.name, m.audio.peak_mb)
+            for m in self._models
+            if m.audio is not None and m.id != model.entry
+        )
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
         return plan  # curated only: read when the manifest was refreshed
