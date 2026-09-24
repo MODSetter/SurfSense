@@ -58,7 +58,8 @@ import {
   SidebarRight01Icon as SidebarRight01IconData,
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
-  SparklesIcon as SparklesIconData,
+  AiSparklesIcon as AiSparklesIconData,
+  StarAward02Icon as StarAward02IconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
@@ -165,7 +166,8 @@ export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
 export const SidebarRightIcon = createIcon(SidebarRight01IconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
-export const SparklesIcon = createIcon(SparklesIconData)
+export const AiSparklesIcon = createIcon(AiSparklesIconData)
+export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
 export const Upload01Icon = createIcon(Upload01IconData)
