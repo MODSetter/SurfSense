@@ -1,6 +1,6 @@
 # ADR 0010: Studio models emit structured content and trusted builders render it, so no model-written code runs
 
-- **Status:** Accepted
+- **Status:** Accepted; the rule that no model-written code runs is superseded by [ADR 0028](0028-model-written-code-runs-with-approval.md)
 - **Date:** 2026-09-07
 - **Source:** [Studio worker plan L8–43](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/worker/04-studio.md#L8-L43), [Pivot plan L261](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L261), [Pivot plan L53](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L53), [Pivot plan L62–63](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00d-pivot-plan.md#L62-L63)
 

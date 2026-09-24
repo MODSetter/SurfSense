@@ -217,7 +217,7 @@ over HTTP.
 ## Known gaps
 
 - The tier fallback keys on the provider name, not on loopback: `Fingerprint.local` is `provider == "llamacpp"`, so a local endpoint reached through a connection falls to `capable` when nothing else is known; the decision is to key on `host_destination()`, which already computes loopback.
-- A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts.
+- A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts. Featherless lists every model this way (`"owned_by": "Feather"`, no `hugging_face_id`), so every model there, Qwen3 0.6B included, gets frontier prompts.
 - Local fingerprints come from the filename only: `LlamaCppProvider` has no `inspect()`, so `from_llamacpp()`, which reads `general.parameter_count` from `/props`, is never called.
 - No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
 - Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.

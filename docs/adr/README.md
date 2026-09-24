@@ -44,7 +44,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0007 | [Embeddings come from a bundled bge-small model run in process on the CPU](0007-bundled-embeddings.md) | Accepted |
 | 0008 | [Ingest and Studio jobs run on separate Huey queues, each drained by its own worker](0008-two-job-queues.md) | Accepted |
 | 0009 | [The UI stays fresh by invalidating queries on server-sent events, with no sync engine](0009-freshness-by-invalidation.md) | Accepted |
-| 0010 | [Studio models emit structured content and trusted builders render it, so no model-written code runs](0010-studio-builders-not-sandboxes.md) | Accepted |
+| 0010 | [Studio models emit structured content and trusted builders render it, so no model-written code runs](0010-studio-builders-not-sandboxes.md) | Accepted, in part superseded by 0028 |
 | 0011 | [llama-server in router mode is the one local model runtime](0011-llama-cpp-local-runtime.md) | Accepted, in part superseded by 0026 and the model catalog proposal |
 | 0012 | [The GPU backend is Vulkan everywhere off Apple Silicon, with no CUDA payload](0012-vulkan-only-gpu-backend.md) | Accepted |
 | 0013 | [Model fit comes from the allocator's view of one device, and only physics refuses an install](0013-fit-from-the-allocator.md) | Accepted |
@@ -62,3 +62,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0025 | [The hosted scraper API client ships as a paid plugin whose source lives in this repo](0025-scraper-client-as-paid-plugin.md) | Accepted |
 | 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal |
 | 0027 | [Egress consent is per host, so model search and downloads share one](0027-egress-consent-per-host.md) | Accepted |
+| 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted |
