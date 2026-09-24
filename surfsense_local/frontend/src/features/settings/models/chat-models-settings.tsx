@@ -38,7 +38,12 @@ export function ChatModelsSettings({
           </div>
         ) : null
       }
-      download={<DownloadChatModels onSelected={onSelected} />}
+      download={
+        <DownloadChatModels
+          onSelected={onSelected}
+          onModelUnavailable={onModelUnavailable}
+        />
+      }
       onSelected={onSelected}
       onChatCleared={onModelUnavailable}
       onUse={async (row) => {

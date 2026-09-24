@@ -145,11 +145,15 @@ export function ModelSearch({
   onCancel,
   installState,
   disabled,
+  autoFocus = false,
 }: {
   onInstall: (build: LocalBuild, label: string) => void
   onCancel: () => void
   installState: InstallState
   disabled: boolean
+  /** Only where the search was just asked for; a page that merely lists it
+   *  must not focus it, since focusing raises the egress question. */
+  autoFocus?: boolean
 }) {
   const headingId = useId()
   const [query, setQuery] = useState("")
@@ -205,6 +209,7 @@ export function ModelSearch({
           <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <Input
             type="search"
+            autoFocus={autoFocus}
             value={query}
             placeholder="Search all models"
             aria-label="Search all models"
@@ -239,9 +244,11 @@ export function ModelSearch({
             No models match &ldquo;{trimmed}&rdquo;.
           </p>
         ) : (
+          // The cap is the reserved height less the 1px border top and
+          // bottom, so a full list fills the space exactly and moves nothing.
           <ScrollShadow
             className="overflow-hidden rounded-xl border bg-card"
-            viewportClassName="max-h-80"
+            viewportClassName="max-h-[calc(20rem-2px)]"
           >
             <ul className="divide-y" aria-label="Search results">
               {results.data.results.map((hit) => {

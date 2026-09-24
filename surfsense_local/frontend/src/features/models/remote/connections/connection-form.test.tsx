@@ -96,9 +96,9 @@ describe("connection form", () => {
     await pick(user, "OpenAI")
     const url = screen.getByLabelText("Base URL") as HTMLInputElement
     expect(url.value).toBe("https://api.openai.com/v1")
-    expect(
-      (screen.getByLabelText("Connection label") as HTMLInputElement).value
-    ).toBe("OpenAI")
+    expect((screen.getByLabelText("Name") as HTMLInputElement).value).toBe(
+      "OpenAI"
+    )
 
     // A company proxy in front of OpenAI is still an OpenAI connection.
     await user.clear(url)
@@ -162,7 +162,7 @@ describe("connection form", () => {
     const user = userEvent.setup()
     render(<ConnectionForm onCancel={vi.fn()} onSaved={vi.fn()} />)
 
-    await user.type(screen.getByLabelText("Connection label"), "Ollama")
+    await user.type(screen.getByLabelText("Name"), "Ollama")
     await user.type(
       screen.getByLabelText("Base URL"),
       "http://localhost:11500/v1"

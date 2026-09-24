@@ -16,7 +16,12 @@ export type YourModelRow = {
 }
 
 /** The model filling a slot, named the way the list names it. */
-export type InUse = { name: string; source: string }
+export type InUse = {
+  name: string
+  source: string
+  /** Where it runs, for copy that phrases the source rather than naming it. */
+  where: "local" | "server" | "missing"
+}
 
 export type YourModels = {
   /** Models on this computer. Server models are listed per server instead. */
@@ -40,10 +45,18 @@ export function describeInUse(
   if (!selection) return null
   if (selection.provider === "openai_compatible") {
     const server = connections?.find(({ id }) => id === selection.connection_id)
-    return { name: selection.name, source: server?.label ?? "A server" }
+    return {
+      name: selection.name,
+      source: server?.label ?? "A server",
+      where: "server",
+    }
   }
   const row = local.find((candidate) => candidate.selected)
   return row
-    ? { name: row.name, source: "This computer" }
-    : { name: selection.name, source: "Not found on this computer" }
+    ? { name: row.name, source: "This computer", where: "local" }
+    : {
+        name: selection.name,
+        source: "Not found on this computer",
+        where: "missing",
+      }
 }

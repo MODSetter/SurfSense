@@ -201,9 +201,17 @@ describe("choosing a model from a server", () => {
       // Listed by the server, so the server's own check still applies.
       allow_unlisted: false,
     })
-    const row = (await screen.findByText("whisper-1")).closest("li")
+    const list = screen.getByRole("list", {
+      name: "chat models on Chat gateway",
+    })
+    const row = within(list).getByText("whisper-1").closest("li")
     await waitFor(() =>
       expect(within(row as HTMLElement).getByText("In use")).toBeTruthy()
+    )
+    // The model in use also stays pinned above the open list, so opening
+    // the group only ever adds rows below it.
+    await waitFor(() =>
+      expect(screen.getAllByText("whisper-1")).toHaveLength(2)
     )
   })
 
@@ -371,7 +379,7 @@ describe("choosing a model from a server", () => {
     render(
       <ConnectionForm onCancel={() => undefined} onSaved={() => undefined} />
     )
-    await user.type(screen.getByLabelText("Connection label"), "Images")
+    await user.type(screen.getByLabelText("Name"), "Images")
     await user.type(
       screen.getByLabelText("Base URL"),
       "https://images.example/v1"

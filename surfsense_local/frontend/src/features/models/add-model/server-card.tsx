@@ -1,28 +1,28 @@
-import { useId, useState } from "react"
+import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ServerIcon } from "@/components/ui/icons"
 
 import type { Connection } from "../remote/connections/api"
-import { ConnectionForm } from "../remote/connections/connection-form"
+import { ConnectionDialog } from "../remote/connections/connection-dialog"
 
 /**
  * The server option, laid out like the "On this computer" section beside it.
- * Closed by default: it is short and the catalog under it is long.
+ * Connecting happens in a dialog; a new server is handed up, so the page
+ * can show its models.
  */
 export function ServerCard({
   onConnected,
 }: {
   onConnected: (connection: Connection) => void
 }) {
-  const formId = useId()
-  const [open, setOpen] = useState(false)
+  const [connecting, setConnecting] = useState(false)
 
   return (
     <section className="flex flex-col gap-3" aria-label="Use a server">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-sm font-medium">
+          <h3 className="flex items-center gap-2 text-base font-medium">
             <ServerIcon
               aria-hidden="true"
               className="size-4 text-muted-foreground"
@@ -34,27 +34,20 @@ export function ServerCard({
             vLLM, LM Studio, OpenRouter or any OpenAI-compatible API.
           </p>
         </div>
-        {open ? null : (
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-expanded={false}
-            aria-controls={formId}
-            onClick={() => setOpen(true)}
-          >
-            Connect
-          </Button>
-        )}
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={() => setConnecting(true)}
+        >
+          Connect
+        </Button>
       </div>
-      {open ? (
-        <div id={formId}>
-          <ConnectionForm
-            onCancel={() => setOpen(false)}
-            onSaved={onConnected}
-          />
-        </div>
-      ) : null}
+      <ConnectionDialog
+        open={connecting}
+        onOpenChange={setConnecting}
+        onCreated={onConnected}
+      />
     </section>
   )
 }

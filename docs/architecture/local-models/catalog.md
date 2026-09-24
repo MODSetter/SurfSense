@@ -412,8 +412,9 @@ one page with both ways in, laid out alike, no card or border around either:
 **Use a server**, collapsed to a Connect button until opened, because it is
 short, then **On this computer**, the catalog below. Both sections read the
 one `GET /llm/catalog/local`: chat takes every row but sd.cpp's, and image takes
-only sd.cpp's, each curated model with its size and a Download. The catalog
-carries sd.cpp's rows only when the API has an images folder, which Electron
+only sd.cpp's, each curated model with its size, a Download, and, once it is on
+disk, Delete after confirmation, the same as **This computer**'s list. The
+catalog carries sd.cpp's rows only when the API has an images folder, which Electron
 hands it only when `sd-server` is staged, in dev or packaged
 ([`../packaging.md`](../packaging.md));
 otherwise the image section's part of the page says image models cannot run on

@@ -1,4 +1,4 @@
-import { useId } from "react"
+import { useId, useState } from "react"
 
 import { CircleAlertIcon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -6,16 +6,33 @@ import { Separator } from "@/components/ui/separator"
 
 import type { ModelSelection } from "../../selection/api"
 import { useSelect } from "../../selection/use-selection"
+import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
+import type { YourModelRow } from "../../your-models/your-model-row"
 import type { LocalBuild, LocalRow } from "./api"
 import { HardwareSummary } from "./hardware-summary"
 import { ModelCard } from "./model-card"
 import { ModelFamilyGroup } from "./model-family-group"
 import { ModelSearch } from "./model-search"
 import { useChatInstall } from "./use-chat-install"
+import { useDeleteLocalChatModel } from "./use-delete-local-chat-model"
 import { useLocalChatCatalog } from "./use-local-chat-catalog"
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
+}
+
+/** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
+function deletableRow(build: LocalBuild, label: string): YourModelRow | null {
+  if (!build.installed_as) return null
+  return {
+    key: build.installed_as,
+    name: label,
+    selected: build.selected,
+    badges: [],
+    note: null,
+    target: null,
+    removeId: build.installed_as,
+  }
 }
 
 function byFamily(rows: LocalRow[]) {
@@ -30,13 +47,23 @@ function byFamily(rows: LocalRow[]) {
 /** Chat models to put on this computer: tested ones first, then all of Hugging Face. */
 export function DownloadChatModels({
   onSelected,
+  onModelUnavailable,
 }: {
   onSelected?: (selection: ModelSelection) => void
+  /** The model just deleted was the one in use; the page around this screen
+   *  reports it, since it holds the app's model. */
+  onModelUnavailable?: () => void
 }) {
   const headingId = useId()
   const catalog = useLocalChatCatalog()
   const { installState, install, cancelInstall } = useChatInstall(onSelected)
   const select = useSelect("text_gen")
+  const remove = useDeleteLocalChatModel(onModelUnavailable)
+  const [deleting, setDeleting] = useState<{
+    removeId: string
+    row: YourModelRow
+  } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // No skeleton: the catalog resolves as fast as any page fetch, so a loading
   // state would only ever flash.
@@ -56,7 +83,8 @@ export function DownloadChatModels({
   const curated = catalog.data.rows.filter(
     (row) => row.origin === "curated" && row.engine !== "sdcpp"
   )
-  const busy = installState.status === "installing" || select.isPending
+  const busy =
+    installState.status === "installing" || select.isPending || remove.isPending
 
   // No confirmation for a partial fit: it runs, slower, and llama.cpp places
   // the layers. Only physics blocks, and that is already `can_install`.
@@ -76,6 +104,15 @@ export function DownloadChatModels({
     } else {
       void install(build.catalog_id, label)
     }
+  }
+
+  const confirmDelete = () => {
+    if (!deleting) return
+    setDeleteError(null)
+    remove
+      .mutateAsync(deleting.removeId)
+      .then(() => setDeleting(null))
+      .catch((cause: unknown) => setDeleteError(messageFrom(cause)))
   }
 
   return (
@@ -110,6 +147,15 @@ export function DownloadChatModels({
                       act(build, `${row.name} ${build.quantization}`)
                     }
                     onCancel={cancelInstall}
+                    onDelete={(build) => {
+                      const target = deletableRow(
+                        build,
+                        `${row.name} ${build.quantization}`
+                      )
+                      if (!target?.removeId) return
+                      setDeleteError(null)
+                      setDeleting({ removeId: target.removeId, row: target })
+                    }}
                   />
                 </li>
               ))}
@@ -138,6 +184,14 @@ export function DownloadChatModels({
       {select.isError ? (
         <p className="text-sm text-destructive">{messageFrom(select.error)}</p>
       ) : null}
+
+      <DeleteModelDialog
+        row={deleting?.row ?? null}
+        pending={remove.isPending}
+        error={deleteError}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   )
 }

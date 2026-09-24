@@ -1,27 +1,22 @@
 import { useState } from "react"
 
-import { ArrowRightIcon, CircleAlertIcon } from "@/components/ui/icons"
+import { ArrowRightIcon } from "@/components/ui/icons"
 import surfSenseLogo from "@/surfsense-logo.svg"
 
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import { Spinner } from "@/components/ui/spinner"
 import { Stepper, StepperIndicator, StepperItem } from "@/components/ui/stepper"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { useSelection } from "@/features/models/selection/use-selection"
 
-import { completeOnboarding } from "./api"
+import { ModelStep } from "./model-step/model-step"
 import { OnboardingDither } from "./onboarding-dither"
+import { useFinishOnboarding } from "./use-finish-onboarding"
 
-const ONBOARDING_STEPS = [1, 2] as const
+type Screen = "welcome" | "chat" | "image"
+
+/**
+ * The steps the dots count. The welcome is still onboarding, and still gated by
+ * the same marker, but it is an introduction, not a step to complete.
+ */
+const STEPS = ["chat", "image"] as const
 
 function OnboardingBrand() {
   return (
@@ -41,20 +36,22 @@ function OnboardingBrand() {
   )
 }
 
-function OnboardingProgress({ step }: { step: number }) {
+function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
+  const step = STEPS.indexOf(screen) + 1
   return (
     <Stepper
       value={step}
-      aria-label={`Onboarding step ${step} of ${ONBOARDING_STEPS.length}`}
-      className="mx-auto max-w-28 gap-1.5"
+      aria-label={`Onboarding step ${step} of ${STEPS.length}`}
+      // Two bars as wide as three were, so each bar keeps its size.
+      className="mx-auto max-w-18 gap-1.5"
     >
-      {ONBOARDING_STEPS.map((item) => (
-        <StepperItem key={item} step={item} className="flex-1">
+      {STEPS.map((item, index) => (
+        <StepperItem key={item} step={index + 1} className="flex-1">
           <StepperIndicator
             asChild
             className="h-1 w-full rounded-full bg-border"
           >
-            <span className="sr-only">Step {item}</span>
+            <span className="sr-only">Step {index + 1}</span>
           </StepperIndicator>
         </StepperItem>
       ))}
@@ -63,32 +60,39 @@ function OnboardingProgress({ step }: { step: number }) {
 }
 
 /**
- * The hero's call to action, ported from the site's `FlowButton`
- * (`surfsense_web/components/ui/flow-button.tsx`): two arrows trade places
- * while a disc of `--primary` floods the pill from its centre and the corners
- * tighten. Ported rather than shared -- the original is a Next.js `Link` --
- * and cut down to the one shape this screen needs.
- *
- * The arrows carry no colour of their own so they ride the button's
- * `currentColor` from `--primary` to `--primary-foreground` as the disc
- * arrives underneath them.
+ * The hero's call to action. A disc of `--primary` grows from the trailing
+ * arrow's circle to flood the whole pill on hover, revealing a second copy of
+ * the label clipped to that disc so the text itself switches from
+ * `--primary` to `--primary-foreground` as the fill arrives underneath it.
  */
 function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex cursor-pointer items-center gap-1 overflow-hidden rounded-[100px] border-[1.5px] border-primary/40 bg-transparent px-8 py-3 text-sm font-semibold text-primary transition-all duration-[600ms] ease-[cubic-bezier(0.23,1,0.32,1)] hover:rounded-[12px] hover:border-transparent hover:text-primary-foreground active:scale-[0.95]"
+      className="group relative inline-flex h-11 cursor-pointer items-center overflow-hidden rounded-full border-[1.5px] border-primary/40 bg-transparent pr-11 pl-6 text-sm font-semibold text-primary [--circle-inset-y:calc((100%-var(--icon-circle))/2)] [--icon-circle:2rem] [--icon-right:0.375rem]"
     >
-      <ArrowRightIcon className="absolute left-[-25%] z-[9] size-4 transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:left-4" />
-      <span className="relative z-[1] -translate-x-3 transition-all duration-[800ms] ease-out group-hover:translate-x-3">
-        {text}
-      </span>
+      <span className="relative z-1 pb-px">{text}</span>
+
       <span
         aria-hidden="true"
-        className="absolute top-1/2 left-1/2 size-4 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary opacity-0 transition-all duration-[800ms] ease-[cubic-bezier(0.19,1,0.22,1)] group-hover:size-[220px] group-hover:opacity-100"
+        className="pointer-events-none absolute inset-[var(--circle-inset-y)_var(--icon-right)_var(--circle-inset-y)_calc(100%-var(--icon-right)-var(--icon-circle))] z-2 rounded-full bg-primary transition-all duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:inset-0 motion-reduce:transition-none"
       />
-      <ArrowRightIcon className="absolute right-4 z-[9] size-4 transition-all duration-[800ms] ease-[cubic-bezier(0.34,1.56,0.64,1)] group-hover:right-[-25%]" />
+
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-2 flex items-center pr-11 pl-6 text-primary-foreground transition-all duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] [clip-path:inset(var(--circle-inset-y)_var(--icon-right)_var(--circle-inset-y)_calc(100%-var(--icon-right)-var(--icon-circle)))] group-hover:[clip-path:inset(0_0_0_0)] motion-reduce:transition-none"
+      >
+        <span className="relative z-1 pb-px whitespace-nowrap">{text}</span>
+      </span>
+
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-1/2 right-(--icon-right) z-3 inline-flex size-(--icon-circle) -translate-y-1/2 items-center justify-center overflow-hidden rounded-full bg-primary text-primary-foreground"
+      >
+        <ArrowRightIcon className="absolute top-1/2 left-1/2 size-4 origin-center translate-x-[-170%] -translate-y-1/2 scale-0 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:-translate-x-1/2 group-hover:scale-100 motion-reduce:transition-none" />
+        <ArrowRightIcon className="absolute top-1/2 left-1/2 size-4 origin-center -translate-x-1/2 -translate-y-1/2 transition-transform duration-450 ease-[cubic-bezier(0.785,0.135,0.15,0.86)] group-hover:translate-x-[70%] group-hover:scale-0 motion-reduce:transition-none" />
+      </span>
     </button>
   )
 }
@@ -110,7 +114,7 @@ function FlowButton({ text, onClick }: { text: string; onClick: () => void }) {
 function WelcomeStep({ onNext }: { onNext: () => void }) {
   return (
     <div className="text-center">
-      <h1 className="text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
+      <h1 className="relative -top-10 text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
         Air-gapped, open source{" "}
         <span className="text-primary">NotebookLM alternative</span>
       </h1>
@@ -125,84 +129,25 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   )
 }
 
-function OfflineState({ message }: { message: string }) {
-  return (
-    <Alert variant="destructive">
-      <CircleAlertIcon />
-      <AlertTitle>Local backend unavailable</AlertTitle>
-      <AlertDescription>
-        <p>{message}</p>
-        <p>
-          Start it with <code>uv run main.py</code>.
-        </p>
-      </AlertDescription>
-    </Alert>
-  )
-}
-
-/**
- * The model step's frame. Its content is still to be designed; it will be
- * built on the same hooks as the settings pages in `features/models`.
- */
-function ModelSetupStep({
+/** Step 3 ends onboarding either way: the image model is optional. */
+function ImageStep({
+  onBack,
   onComplete,
 }: {
+  onBack: () => void
   onComplete: (selection: ModelSelection) => void
 }) {
-  const chat = useSelection("text_gen")
-  const [completing, setCompleting] = useState(false)
-  const [completeError, setCompleteError] = useState<string | null>(null)
-  const selection = chat.data ?? null
-
-  const finish = async () => {
-    if (selection === null) return
-    setCompleting(true)
-    setCompleteError(null)
-    try {
-      await completeOnboarding()
-      onComplete(selection)
-    } catch (error) {
-      setCompleteError(
-        error instanceof Error ? error.message : "Could not finish setup"
-      )
-    } finally {
-      setCompleting(false)
-    }
-  }
-
+  const { finish, finishing, error } = useFinishOnboarding(onComplete)
   return (
-    <Card className="h-full max-h-full min-h-0 w-full gap-0">
-      <CardHeader className="mb-(--card-spacing)">
-        <CardTitle>
-          <h1 className="text-lg text-balance">Choose your AI model</h1>
-        </CardTitle>
-        <CardDescription className="max-w-lg text-pretty">
-          Run a local model for full privacy, or connect an OpenAI-compatible
-          endpoint.
-        </CardDescription>
-      </CardHeader>
-
-      <CardContent className="flex min-h-0 flex-1 flex-col gap-3">
-        {chat.isError ? <OfflineState message={chat.error.message} /> : null}
-        {completeError ? (
-          <p className="text-sm text-destructive" aria-live="polite">
-            {completeError}
-          </p>
-        ) : null}
-      </CardContent>
-
-      <CardFooter className="justify-end gap-3">
-        <Button
-          type="button"
-          className="min-h-10"
-          disabled={selection === null || completing}
-          onClick={() => void finish()}
-        >
-          {completing ? <Spinner data-icon="inline-start" /> : null}
-          Start chatting
-        </Button>
-      </CardFooter>
-    </Card>
+    <ModelStep
+      modelType="image_gen"
+      nextLabel="Finish"
+      finishing={finishing}
+      error={error}
+      onBack={onBack}
+      onNext={() => void finish()}
+      onSkip={() => void finish()}
+    />
   )
 }
 
@@ -211,23 +156,39 @@ export function OnboardingPage({
 }: {
   onComplete: (selection: ModelSelection) => void
 }) {
-  const [step, setStep] = useState<(typeof ONBOARDING_STEPS)[number]>(1)
+  const [screen, setScreen] = useState<Screen>("welcome")
 
   return (
     <main
       data-onboarding-page
       className="relative isolate flex h-full min-h-0 items-center overflow-hidden bg-muted/30 p-3 select-none sm:p-6"
     >
-      {step === 1 ? <OnboardingDither /> : null}
+      <OnboardingDither visible={screen === "welcome"} />
       <div className="mx-auto flex h-full max-h-[760px] min-h-0 w-full max-w-3xl flex-col gap-3">
         <OnboardingBrand />
-        <OnboardingProgress step={step} />
+        {screen === "welcome" ? (
+          // The dots' height, kept so the hero sits exactly where it did.
+          <div aria-hidden="true" className="h-1" />
+        ) : (
+          <OnboardingProgress screen={screen} />
+        )}
         <div className="flex min-h-0 flex-1 items-center justify-center">
-          {step === 1 ? (
-            <WelcomeStep onNext={() => setStep(2)} />
-          ) : (
-            <ModelSetupStep onComplete={onComplete} />
-          )}
+          {screen === "welcome" ? (
+            <WelcomeStep onNext={() => setScreen("chat")} />
+          ) : null}
+          {screen === "chat" ? (
+            <ModelStep
+              modelType="text_gen"
+              nextLabel="Continue"
+              onNext={() => setScreen("image")}
+            />
+          ) : null}
+          {screen === "image" ? (
+            <ImageStep
+              onBack={() => setScreen("chat")}
+              onComplete={onComplete}
+            />
+          ) : null}
         </div>
       </div>
     </main>
