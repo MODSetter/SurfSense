@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import (
     GeneratedImage,
@@ -409,6 +410,9 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
                 Voice("am_adam", "Adam", ("en-US",)),
             ]
 
+        def check_memory(self) -> None:
+            pass
+
         async def synthesize(
             self, turns: list[SpokenTurn], language: str
         ) -> SynthesizedAudio:
@@ -444,6 +448,83 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
     assert [turn.voice for turn in spoken] == ["am_adam", "af_heart"]
     assert languages == ["en-US"]
     assert "**Bea:** Remarkable." in artifact.document.content
+
+
+SHORT = "Voicing needs about 2.6 GB free; this computer has 1.1 GB."
+BRIEF = {
+    "language": "en-US",
+    "speakers": [
+        {"name": "Ada", "role": "host", "voice": "am_adam"},
+        {"name": "Bea", "role": "expert", "voice": "af_heart"},
+    ],
+}
+
+
+class ShortOfMemory:
+    """A voice engine on a machine that cannot hold the model while voicing."""
+
+    def voices(self) -> list[Voice]:
+        return [
+            Voice("af_heart", "Heart", ("en-US",)),
+            Voice("am_adam", "Adam", ("en-US",)),
+        ]
+
+    def check_memory(self) -> None:
+        raise NotEnoughMemoryError(SHORT)
+
+    async def synthesize(self, turns: list[SpokenTurn], language: str):
+        raise AssertionError("voicing was reached")
+
+
+def test_a_podcast_short_of_memory_refuses_before_any_drafting(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Drafting takes minutes of the chat model; a machine that cannot voice
+    the result hears so first."""
+    seen = _capture_model(monkeypatch, '{"title": "T", "segments": []}')
+    monkeypatch.setattr(
+        "worker.studio.job.resolve_text_to_speech", lambda _session: ShortOfMemory()
+    )
+    artifact = make_artifact(session, fmt="podcast", options=BRIEF)
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == SHORT
+    assert seen == []
+
+
+class ShortOfMemoryAtVoicing(ShortOfMemory):
+    """Memory that was there before drafting and is gone by voicing."""
+
+    def check_memory(self) -> None:
+        pass
+
+    async def synthesize(self, turns: list[SpokenTurn], language: str):
+        raise NotEnoughMemoryError(SHORT)
+
+
+def test_a_memory_refusal_is_not_retried(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retry would draft the whole episode again and refuse again."""
+    _capture_model(
+        monkeypatch,
+        '{"title": "T", "segments": [{"title": "One"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Hello."}]}',
+    )
+    monkeypatch.setattr(
+        "worker.studio.job.resolve_text_to_speech",
+        lambda _session: ShortOfMemoryAtVoicing(),
+    )
+    artifact = make_artifact(session, fmt="podcast", options=BRIEF)
+
+    run(artifact.id)  # returning, not raising, is what spares a Huey retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == SHORT
 
 
 def test_a_podcast_without_an_audio_model_never_calls_the_chat_model(

@@ -24,6 +24,8 @@ def render(
     options: dict,
 ) -> Built:
     """Plan the episode, draft it segment by segment, then voice every line."""
+    # Drafting takes minutes; a machine that cannot voice the result hears so first.
+    voice.check_memory()
     brief = PodcastBrief.model_validate(options)
 
     plan = outline.parse(

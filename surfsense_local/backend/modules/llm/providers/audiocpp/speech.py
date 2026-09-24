@@ -53,11 +53,15 @@ class AudioCppSpeech:
             for v in self._model.audio.voices
         ]
 
+    def check_memory(self) -> None:
+        """Before anything loads: once loaded, the model takes its peak."""
+        check_voicing_memory(self._model.audio.peak_mb, self._available())
+
     async def synthesize(
         self, turns: list[SpokenTurn], language: str
     ) -> SynthesizedAudio:
-        # Before anything loads: past this point the model takes its peak.
-        check_voicing_memory(self._model.audio.peak_mb, self._available())
+        # Again at voicing: the chat model's own memory may have moved since.
+        self.check_memory()
         speaks = {voice.id: voice.languages for voice in self.voices()}
         async with httpx.AsyncClient(
             base_url=self._base_url, timeout=_TURN_TIMEOUT, transport=self._transport

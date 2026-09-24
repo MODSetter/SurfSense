@@ -82,6 +82,10 @@ class TextToSpeech(Protocol):
 
     def voices(self) -> list[Voice]: ...
 
+    def check_memory(self) -> None:
+        """Raise, with the sentence a person reads, when voicing cannot fit."""
+        ...
+
     async def synthesize(
         self, turns: list[SpokenTurn], language: str
     ) -> SynthesizedAudio: ...

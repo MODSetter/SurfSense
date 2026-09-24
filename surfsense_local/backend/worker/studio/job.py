@@ -8,6 +8,7 @@ from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
+from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import TextToSpeech
 from modules.llm.resolution import (
@@ -121,7 +122,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
             document.error_message,
         )
-        if isinstance(failure, NonRetryableImageError):
+        # A retry would repeat minutes of drafting and fail the same way.
+        if isinstance(failure, NonRetryableImageError | NotEnoughMemoryError):
             return
         raise  # Huey retries; a later success clears the message.
 

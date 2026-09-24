@@ -156,6 +156,9 @@ class FakeVoice:
             Voice("pf_dora", "Dora", ("pt-BR",)),
         ]
 
+    def check_memory(self) -> None:
+        pass
+
     async def synthesize(
         self, turns: list[SpokenTurn], language: str
     ) -> SynthesizedAudio:
