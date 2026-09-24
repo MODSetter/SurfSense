@@ -63,3 +63,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0026 | [Curated models are ordered by their position in the manifest, with no score](0026-curated-order-is-list-position.md) | Accepted, in part revised by the model catalog proposal |
 | 0027 | [Egress consent is per host, so model search and downloads share one](0027-egress-consent-per-host.md) | Accepted |
 | 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted |
+| 0029 | [Interface text lives in ICU MessageFormat catalogs, one flat JSON file per language](0029-icu-translation-catalogs.md) | Accepted |
+| 0030 | [FormatJS renders interface text from precompiled, bundled catalogs, with no network at build or run time](0030-formatjs-renders-interface-text.md) | Accepted |
