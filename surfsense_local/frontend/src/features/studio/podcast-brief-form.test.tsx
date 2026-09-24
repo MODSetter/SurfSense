@@ -7,11 +7,11 @@ import type { PodcastBrief, Voice } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
 
 const voices: Voice[] = [
-  { id: "af_heart", label: "Heart", language: "en-US" },
-  { id: "am_adam", label: "Adam", language: "en-US" },
-  { id: "bf_emma", label: "Emma", language: "en-GB" },
-  { id: "pf_dora", label: "Dora", language: "pt-BR" },
-  { id: "pm_alex", label: "Alex", language: "pt-BR" },
+  { id: "af_heart", label: "Heart", languages: ["en-US"] },
+  { id: "am_adam", label: "Adam", languages: ["en-US"] },
+  { id: "bf_emma", label: "Emma", languages: ["en-GB"] },
+  { id: "pf_dora", label: "Dora", languages: ["pt-BR"] },
+  { id: "pm_alex", label: "Alex", languages: ["pt-BR"] },
 ]
 
 const brief: PodcastBrief = {
@@ -37,6 +37,12 @@ afterEach(cleanup)
 
 const value = (element: HTMLElement) =>
   (element as HTMLInputElement | HTMLSelectElement).value
+
+// Supertonic's voices each speak every language the model does.
+const multilingual: Voice[] = [
+  { id: "M1", label: "M1", languages: ["en", "fr"] },
+  { id: "F1", label: "F1", languages: ["en", "fr"] },
+]
 
 describe("podcast brief form", () => {
   it("opens prefilled with the proposed brief", () => {
@@ -114,5 +120,33 @@ describe("podcast brief form", () => {
     await user.clear(name)
     await user.type(name, "Ada")
     expect(value(name)).toBe("Ada")
+  })
+
+  it("offers a voice under every language it speaks", async () => {
+    const user = userEvent.setup()
+    function Multilingual() {
+      const [value, setValue] = useState<PodcastBrief>({
+        ...brief,
+        language: "en",
+        speakers: [
+          { name: "Host", role: "host", voice: "M1" },
+          { name: "Guest", role: "guest", voice: "F1" },
+        ],
+      })
+      return (
+        <PodcastBriefForm
+          brief={value}
+          voices={multilingual}
+          onChange={setValue}
+        />
+      )
+    }
+    render(<Multilingual />)
+
+    await user.selectOptions(screen.getByLabelText("Language"), "fr")
+
+    const rows = screen.getAllByRole("group", { name: /Speaker \d/ })
+    expect(value(within(rows[0]).getByLabelText("Voice"))).toBe("M1")
+    expect(value(within(rows[1]).getByLabelText("Voice"))).toBe("F1")
   })
 })

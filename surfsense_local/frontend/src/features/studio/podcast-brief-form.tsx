@@ -32,22 +32,35 @@ export function PodcastBriefForm({
   onChange: (brief: PodcastBrief) => void
 }) {
   const id = useId()
-  const languages = [...new Set(voices.map((voice) => voice.language))]
-  const spoken = voices.filter((voice) => voice.language === brief.language)
+  const languages = [...new Set(voices.flatMap((voice) => voice.languages))]
+  const spoken = voices.filter((voice) =>
+    voice.languages.includes(brief.language)
+  )
   const taken = new Set(brief.speakers.map((speaker) => speaker.voice))
   const free = spoken.find((voice) => !taken.has(voice.id))
 
   const update = (patch: Partial<PodcastBrief>) =>
     onChange({ ...brief, ...patch })
 
-  // Every speaker moves to the new language: voices are per language.
+  // A speaker keeps a voice that speaks the new language, as a Supertonic
+  // voice speaks all of them; the rest take that language's free voices.
   const changeLanguage = (language: string) => {
-    const next = voices.filter((voice) => voice.language === language)
+    const next = voices.filter((voice) => voice.languages.includes(language))
+    const kept = new Set(
+      brief.speakers
+        .map((speaker) => speaker.voice)
+        .filter((voice) => next.some((candidate) => candidate.id === voice))
+    )
+    const free = next.filter((voice) => !kept.has(voice.id))
     update({
       language,
       speakers: brief.speakers
         .slice(0, next.length)
-        .map((speaker, index) => ({ ...speaker, voice: next[index].id })),
+        .map((speaker) =>
+          kept.has(speaker.voice)
+            ? speaker
+            : { ...speaker, voice: free.shift()?.id ?? speaker.voice }
+        ),
     })
   }
 
