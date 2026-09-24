@@ -36,8 +36,9 @@ and nothing blocks its install. The screen renders these fields and computes non
 of them.
 
 `GET /llm/catalog/local` returns llama.cpp's rows and then sd.cpp's, the three
-curated image models, only when Electron handed the API an images folder, which
-it does when it staged sd-server.
+curated image models, only when Electron handed the API an images folder.
+Electron does that only when it staged sd-server, in dev or packaged
+([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
 
 ## One slice per engine
 
@@ -172,7 +173,7 @@ entries: `local_manifest/llamacpp/` and `local_manifest/sdcpp/` each hold a
   Only what the publisher's card or report states is filled; the rest is left to
   sd-server's defaults.
 - **It pins every chat build in the quantization preference order**
-  ([`build_choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
+  ([`builds/choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
   and nothing outside it: no imatrix files, drafters, big endian builds, or
   quantizations such as `TQ1_0` that the order does not rank.
 - **It refuses to write** a build without a hash or size, a projector that does not
@@ -188,7 +189,7 @@ The script's assembly is tested over recorded input, with no network
 
 ## Which files make a build
 
-[`repo_builds.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/in_repo.py)
+llama.cpp's [`builds/in_repo.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/in_repo.py)
 turns a listing into builds, for the refresh script and for search alike, so a
 curated repo and a searched one never disagree about which file is the model and
 which is its projector:
@@ -203,10 +204,10 @@ which is its projector:
 
 ## Which build a row shows
 
-For each curated model, in [`build_choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/):
+For each curated chat model, in llama.cpp's [`builds/choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/):
 
 1. **The default**, blind to hardware: the first build in the preference order,
-   `UD-Q4_K_XL` for every shipped model.
+   `UD-Q4_K_XL` for every shipped chat model.
 2. **The recommended build** on this machine: the default when its speed tier is
    `FULL` or `LIGHT_SPILL`, else the largest smaller build that is, never one
    above the default and never one below four bits (`RECOMMENDABLE`). Else none.
@@ -298,7 +299,7 @@ GET /api/models/{repo}/tree/main?recursive=true
 Sorted by downloads, the only sort usable as a default; the count is popularity,
 never endorsement. A hit is described, not judged: downloads, licence, whether it
 is gated, and **Vision** when its file names include a projector, by the same rule
-`repo_builds.py` uses. `full=true` returns every repo's file names, so this costs no
+`builds/in_repo.py` uses. `full=true` returns every repo's file names, so this costs no
 request of its own. Each hit also carries `quantized_from`, from its
 `base_model:quantized:` tag, which the API returns and the row does not show. The
 screen searches once a query has two characters and keeps results for 300 s.

@@ -7,7 +7,7 @@
 - llama.cpp's parser rewrite, [PR #18675](https://github.com/ggml-org/llama.cpp/pull/18675) (merged 6 Mar 2026), removed the fallback that let any model emit tool calls. Its description says "a functional template with tool calling is required if someone wants tool calling".
 - At `b11050`, llama-server reports a template's capabilities in `GET /props` under `chat_template_caps`. The keys include `supports_tools` and `supports_tool_calls` ([`common/jinja/caps.cpp`](https://github.com/ggml-org/llama.cpp/blob/b11050/common/jinja/caps.cpp)). Tool calls are parsed only when `supports_tool_calls` is true ([`common/chat-auto-parser-generator.cpp`](https://github.com/ggml-org/llama.cpp/blob/b11050/common/chat-auto-parser-generator.cpp)). The app reads `supports_tools` ([`capabilities.py`](../../../surfsense_local/backend/modules/llm/providers/llamacpp/capabilities.py)); the engine check needs `supports_tool_calls`.
 - A request that carries `tools` to a model whose template has no tool support still succeeds, and the tools are dropped without a warning ([llama.cpp#27129](https://github.com/ggml-org/llama.cpp/issues/27129), open, reported against `b10423`).
-- In the curated manifest, `template.tools` is `true` for the six Qwen3 models and `false` for `gemma-3-4b` ([`models.json`](../../../surfsense_local/backend/modules/llm/catalog/local/manifest/models.json)).
+- Among the curated manifest's seven chat models, `template.tools` is `true` for the six Qwen3 models and `false` for `gemma-3-4b`. Its three image models carry no `template` ([`models.json`](../../../surfsense_local/backend/modules/llm/catalog/local/manifest/models.json)).
 
 ## Structured output on the local runtime
 

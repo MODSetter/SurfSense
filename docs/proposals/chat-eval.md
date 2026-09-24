@@ -6,7 +6,7 @@ code:
 
 # Chat eval
 
-> Scores the local chat's answers on every curated model, so a change to the prompts or the pipeline is measured before it ships. Models up to 8B run on the real files on our own machines. 8B, 14B and 32B run on Featherless, with every request built the way the local app builds it. 8B runs in both places, which measures how far Featherless scores sit from the real app.
+> Scores the local chat's answers on every curated chat model, so a change to the prompts or the pipeline is measured before it ships. Models up to 8B run on the real files on our own machines. 8B, 14B and 32B run on Featherless, with every request built the way the local app builds it. 8B runs in both places, which measures how far Featherless scores sit from the real app.
 
 ## Why Featherless, and where it differs
 
