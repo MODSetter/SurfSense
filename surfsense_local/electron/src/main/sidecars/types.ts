@@ -47,4 +47,8 @@ export interface SidecarContext {
   imagePort?: number
   imageModelsDir?: string
   imageUrl?: string
+  /** audio.cpp's server: its port, the audio models folder, and its staged build. */
+  audioPort?: number
+  audioModelsDir?: string
+  audioBinariesDir?: string
 }
