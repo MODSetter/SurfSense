@@ -206,6 +206,51 @@ describe("audio model settings", () => {
     ).toBeNull()
   })
 
+  it("names the phase while it downloads, as chat and image do", async () => {
+    // Left open so the download is still under way when the row is read.
+    let finish = () => {}
+    const open = new ReadableStream<Uint8Array>({
+      start(controller) {
+        finish = () => {
+          controller.enqueue(
+            new TextEncoder().encode(
+              '{"type":"complete","message":"Model is ready","selection":null}\n'
+            )
+          )
+          controller.close()
+        }
+        controller.enqueue(
+          new TextEncoder().encode(
+            '{"type":"downloading","message":"Downloading","completed":95000000,"total":190000000}\n'
+          )
+        )
+      },
+    })
+    vi.stubGlobal(
+      "fetch",
+      serving([audioRow()], (path) =>
+        path === "/llm/install" ? new Response(open) : null
+      )
+    )
+    const user = userEvent.setup()
+    render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
+
+    await user.click(await screen.findByRole("button", { name: "Add model" }))
+    await user.click(
+      await screen.findByRole("button", { name: "Download Kokoro 82M" })
+    )
+
+    const button = await screen.findByRole("button", {
+      name: "Download Kokoro 82M",
+    })
+    await waitFor(() => expect(button.textContent).toBe("Downloading…"))
+    expect(screen.getAllByText("50%").length).toBeGreaterThan(0)
+
+    // Install state outlives the view, so the next test must not inherit it.
+    finish()
+    await waitFor(() => expect(button.textContent).toBe("Download"))
+  })
+
   it("downloads through the catalog without selecting", async () => {
     const fetchMock = serving([audioRow()], (path) =>
       path === "/llm/install"

@@ -3,7 +3,8 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 
-import { AudioDownloadProgress } from "./audio-download-progress"
+import { InstallProgress } from "../chat/install-progress"
+import { installView } from "../chat/install-view"
 import { describeAudioModel } from "./describe-audio-model"
 import { useAudioInstall } from "./use-audio-install"
 import { useLocalAudioCatalog } from "./use-local-audio-catalog"
@@ -48,7 +49,9 @@ export function DownloadAudioModels() {
     <div className="flex flex-col gap-3">
       <ul className="divide-y overflow-hidden rounded-xl border bg-card">
         {models.map((model) => {
-          const active = installing && installState.id === model.id
+          const active =
+            installState.status === "installing" &&
+            installState.catalogId === model.catalog_id
           return (
             <li key={model.id} className="flex flex-col gap-2 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
@@ -68,21 +71,29 @@ export function DownloadAudioModels() {
                     size="sm"
                     disabled={installing}
                     aria-label={`Download ${model.label}`}
-                    onClick={() => void install(model)}
+                    onClick={() => void install(model.catalog_id, model.label)}
                   >
+                    {/* Names the phase, as chat and image do, so a disabled
+                        button over a filling bar reads as busy. */}
                     {active ? (
-                      <Spinner data-icon="inline-start" />
+                      <>
+                        <span className="animate-spin" data-icon="inline-start">
+                          <Spinner className="size-3.5" />
+                        </span>
+                        {installView(installState.event).short}
+                      </>
                     ) : (
-                      <DownloadIcon data-icon="inline-start" />
+                      <>
+                        <DownloadIcon data-icon="inline-start" />
+                        Download
+                      </>
                     )}
-                    Download
                   </Button>
                 )}
               </div>
               {active ? (
-                <AudioDownloadProgress
-                  label={model.label}
-                  step={installState.step}
+                <InstallProgress
+                  event={installState.event}
                   onCancel={cancelInstall}
                 />
               ) : null}
@@ -90,11 +101,6 @@ export function DownloadAudioModels() {
           )
         })}
       </ul>
-      {installState.status === "idle" && installState.error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {installState.error}
-        </p>
-      ) : null}
     </div>
   )
 }

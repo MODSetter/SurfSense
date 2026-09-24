@@ -1,10 +1,4 @@
-import {
-  deleteLocalModel,
-  getModelCatalog,
-  installCatalogModel,
-  type InstallEvent,
-  type LocalRow,
-} from "../chat/api"
+import { deleteLocalModel, getModelCatalog, type LocalRow } from "../chat/api"
 
 /** One curated audio model, as audio.cpp's catalog row offers it. */
 export type LocalAudioModel = {
@@ -27,12 +21,6 @@ export type LocalAudioModel = {
 export type LocalAudioCatalog = {
   provider: "audiocpp"
   models: LocalAudioModel[]
-}
-
-export type DownloadStep = {
-  status: string
-  completed: number
-  total: number
 }
 
 function toAudioModel(row: LocalRow): LocalAudioModel | null {
@@ -72,22 +60,4 @@ export async function deleteLocalAudioModel(
   installedAs: string
 ): Promise<void> {
   await deleteLocalModel(installedAs)
-}
-
-/** Downloads without selecting: an audio model is picked once it is on disk. */
-export async function installLocalAudioModel(
-  catalogId: string,
-  onStep: (step: DownloadStep) => void,
-  signal?: AbortSignal
-): Promise<void> {
-  // Only `downloading` carries byte counts; other phases keep the last ones.
-  let last: DownloadStep = { status: "starting", completed: 0, total: 0 }
-  const onEvent = (event: InstallEvent) => {
-    last =
-      event.type === "downloading"
-        ? { status: event.type, completed: event.completed, total: event.total }
-        : { ...last, status: event.type }
-    onStep(last)
-  }
-  await installCatalogModel(catalogId, onEvent, signal, false)
 }
