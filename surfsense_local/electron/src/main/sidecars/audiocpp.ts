@@ -4,7 +4,7 @@
  * index.ts restarts it whenever the API rewrites that file.
  */
 import { existsSync } from "node:fs"
-import { availableParallelism } from "node:os"
+import os from "node:os"
 import { join } from "node:path"
 
 import { exe } from "./platform.ts"
@@ -65,7 +65,7 @@ export function audiocppSpec(ctx: SidecarContext): SidecarSpec | null {
       "--backend",
       "cpu",
       "--threads",
-      String(audioThreads(availableParallelism())),
+      String(audioThreads(os.availableParallelism())),
       // One voice model at a time; the podcast job unloads it when it ends, and
       // five idle minutes are the backstop for a job that dies first.
       "--max-loaded-models",

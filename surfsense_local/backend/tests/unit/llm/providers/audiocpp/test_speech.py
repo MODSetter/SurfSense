@@ -100,7 +100,8 @@ def test_each_turn_is_one_request_and_the_turns_join_with_a_pause() -> None:
     ]
     with wave.open(io.BytesIO(audio.content)) as joined:
         assert joined.getframerate() == 24000
-        assert joined.getnframes() == 1000 + round(0.35 * 24000) + 1000
+        # Two turns of 1,000 frames around 8,400 frames of silence.
+        assert joined.getnframes() == 10_400
 
 
 def test_the_language_is_sent_only_where_the_voice_speaks_several() -> None:

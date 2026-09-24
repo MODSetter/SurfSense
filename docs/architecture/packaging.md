@@ -104,7 +104,7 @@ The installer's version is the one the workflow resolved, passed as `-c.extraMet
 
 ## Packaging tests
 
-All four carry the `packaging` marker, which `pyproject.toml` excludes by default because two of them freeze a binary:
+All five carry the `packaging` marker, which `pyproject.toml` excludes by default because two of them freeze a binary and one runs audio.cpp's server on real models:
 
 | Test | Proves |
 |---|---|
@@ -112,6 +112,7 @@ All four carry the `packaging` marker, which `pyproject.toml` excludes by defaul
 | `test_real_binaries.py` | the real API binary passes its retrieval import check and answers `/health`; the real worker passes its vision import check and both queue consumers stay up; both binaries ship the remote manifest, and the frozen API serves a curated row |
 | `test_spec_data_files.py` | every literal `datas` path in the specs exists, so a renamed file cannot ship missing |
 | `test_license_key.py` | the compiled license keys exclude the fixture key |
+| `test_audiocpp_voicing.py` | the staged audio.cpp server, started with the sidecar's flags from the `server.json` the app writes, voices two turns of each curated model through the app's adapter, at the sample rate its entry names, then holds no model loaded; it runs only when `SURFSENSE_TEST_AUDIO_MODELS` names a folder of the pinned files, each checked against its sha256 |
 
 Only `test_license_key.py` runs in CI, inside the release workflow.
 

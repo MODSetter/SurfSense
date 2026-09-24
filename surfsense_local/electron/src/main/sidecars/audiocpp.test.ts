@@ -1,6 +1,6 @@
 import assert from "node:assert/strict"
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs"
-import { availableParallelism, tmpdir } from "node:os"
+import os, { tmpdir } from "node:os"
 import { join } from "node:path"
 import test from "node:test"
 
@@ -91,11 +91,16 @@ test("uses half the logical cores, at most 8 and at least 1", () => {
   assert.deepEqual([1, 2, 3, 4, 12, 16, 32].map(audioThreads), [1, 1, 1, 2, 6, 8, 8])
 })
 
-test("passes this machine's thread count", () => {
+test("passes half of this machine's logical cores, capped at 8", (t) => {
   const { ctx } = staged()
-  const spec = audiocppSpec(ctx)
-  assert.ok(spec)
-  assert.equal(flag(spec.args, "--threads"), String(audioThreads(availableParallelism())))
+  const threads = (cores: number) => {
+    t.mock.method(os, "availableParallelism", () => cores)
+    const spec = audiocppSpec(ctx)
+    assert.ok(spec)
+    return flag(spec.args, "--threads")
+  }
+  assert.equal(threads(12), "6")
+  assert.equal(threads(32), "8")
 })
 
 test("points audio.cpp at the eSpeak staged beside it", () => {

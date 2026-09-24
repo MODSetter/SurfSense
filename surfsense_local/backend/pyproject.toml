@@ -110,5 +110,5 @@ addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib -m 'not pa
 markers = [
     "unit: pure logic tests, no database or external services",
     "integration: tests that run against a real SQLite database built by migrations",
-    "packaging: freezes a binary to prove the packaged app boots; slow, opt-in",
+    "packaging: freezes or runs the binaries the app ships; slow, opt-in",
 ]
