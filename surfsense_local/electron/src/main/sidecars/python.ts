@@ -33,10 +33,13 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     ...(ctx.imageModelsDir && {
       SURFSENSE_LOCAL_IMAGE_MODELS_DIR: ctx.imageModelsDir,
     }),
-    // Only where audio.cpp is staged: without it the API offers no audio models.
+    // Only where audio.cpp is staged: without it the API offers no audio models,
+    // and the Studio worker voices podcasts at the URL.
     ...(ctx.audioModelsDir &&
+      ctx.audioUrl &&
       existsSync(audiocppBinary(ctx)) && {
         SURFSENSE_LOCAL_AUDIO_MODELS_DIR: ctx.audioModelsDir,
+        SURFSENSE_LOCAL_AUDIO_BASE_URL: ctx.audioUrl,
       }),
   }
 }

@@ -248,6 +248,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
 
   // Dev too, as for llama.cpp: podcasts are voiced by the binary that ships.
   ctx.audioPort = await getFreePort(host)
+  ctx.audioUrl = `http://${host}:${ctx.audioPort}`
   ctx.audioModelsDir = join(dataDir, "audio")
   mkdirSync(ctx.audioModelsDir, { recursive: true })
 
