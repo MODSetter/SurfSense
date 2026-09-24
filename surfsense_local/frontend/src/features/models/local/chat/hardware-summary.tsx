@@ -1,6 +1,7 @@
 import { Fragment } from "react"
 
 import { DotIcon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 
 import type { Budget, GpuStatus } from "./api"
 import { describeHardware } from "./describe-hardware"
@@ -15,7 +16,7 @@ export function HardwareSummary({
 }) {
   const parts = budget
     ? describeHardware(budget, gpuStatus ?? "unknown")
-    : ["Checking this computer"]
+    : [intl.formatMessage({ id: "models_hardware_checking_status" })]
   return (
     <div className="rounded-lg bg-muted/50 p-3">
       <p className="flex items-center text-sm font-medium">
@@ -32,7 +33,7 @@ export function HardwareSummary({
         ))}
       </p>
       <p className="text-xs text-muted-foreground">
-        Every model below is priced against this computer.
+        {intl.formatMessage({ id: "models_hardware_summary_body" })}
       </p>
     </div>
   )

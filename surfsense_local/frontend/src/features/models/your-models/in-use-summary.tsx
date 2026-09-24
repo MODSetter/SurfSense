@@ -1,4 +1,5 @@
 import { DotIcon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 
 import type { InUse } from "./your-model-row"
 
@@ -15,10 +16,15 @@ export function InUseSummary({
 }) {
   return (
     <section
-      aria-label={`${slot} model in use`}
+      aria-label={intl.formatMessage(
+        { id: "models_in_use_summary_aria" },
+        { slot }
+      )}
       className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-muted/50 px-3 py-2.5 text-sm"
     >
-      <span className="shrink-0 text-muted-foreground">In use:</span>
+      <span className="shrink-0 text-muted-foreground">
+        {intl.formatMessage({ id: "models_in_use_summary_label" })}
+      </span>
       {inUse ? (
         <>
           <span className="min-w-0 truncate font-medium">{inUse.name}</span>
@@ -29,7 +35,9 @@ export function InUseSummary({
           <span className="shrink-0 text-muted-foreground">{inUse.source}</span>
         </>
       ) : (
-        <span className="text-muted-foreground">No {slot} model chosen</span>
+        <span className="text-muted-foreground">
+          {intl.formatMessage({ id: "models_in_use_summary_empty" }, { slot })}
+        </span>
       )}
     </section>
   )

@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
-import { SLOT_NAMES, type ModelType } from "../../model-type"
+import type { ModelType } from "../../model-type"
 import type { ModelSelection } from "../../selection/api"
 import { useSelection } from "../../selection/use-selection"
 import type { Connection } from "../connections/api"
@@ -18,16 +19,23 @@ import type { ConnectionModel } from "./api"
 import { TryModelDialog } from "./try-model-dialog"
 import { useConnectionModels } from "./use-connection-models"
 
-const TYPE_LABELS: Record<ModelType, string> = {
-  text_gen: "Text generation",
-  image_gen: "Image generation",
-  image_edit: "Image editing",
-  video_gen: "Video generation",
-  audio_gen: "Audio generation",
+const TYPE_LABELS: Record<ModelType, () => string> = {
+  text_gen: () =>
+    intl.formatMessage({ id: "models_server_models_type_text_gen_label" }),
+  image_gen: () =>
+    intl.formatMessage({ id: "models_server_models_type_image_gen_label" }),
+  image_edit: () =>
+    intl.formatMessage({ id: "models_server_models_type_image_edit_label" }),
+  video_gen: () =>
+    intl.formatMessage({ id: "models_server_models_type_video_gen_label" }),
+  audio_gen: () =>
+    intl.formatMessage({ id: "models_server_models_type_audio_gen_label" }),
 }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "Could not list models"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({ id: "models_server_models_list_error" })
 }
 
 /** One server, and the models on it that can fill this section's slot. */
@@ -61,7 +69,6 @@ export function ServerModels({
   } | null>(null)
   const models = useConnectionModels(connection.id, open)
   const selection = useSelection(modelType)
-  const slot = SLOT_NAMES[modelType]
 
   const inUse = (name: string) =>
     selection.data?.connection_id === connection.id &&
@@ -111,10 +118,15 @@ export function ServerModels({
             size="sm"
             variant="ghost"
             disabled={disabled}
-            aria-label={`Edit ${connection.label}`}
+            aria-label={intl.formatMessage(
+              { id: "models_server_models_edit_aria" },
+              {
+                server: connection.label,
+              }
+            )}
             onClick={onEdit}
           >
-            Edit
+            {intl.formatMessage({ id: "models_server_models_edit_button" })}
           </Button>
           <DisconnectButton
             connection={connection}
@@ -130,7 +142,9 @@ export function ServerModels({
           <div className="flex items-center justify-between gap-3 border-b px-3 py-2.5">
             <span className="truncate text-sm font-medium">{current}</span>
             <Button type="button" size="sm" variant="outline" disabled>
-              In use
+              {intl.formatMessage({
+                id: "models_server_models_current_in_use_button",
+              })}
             </Button>
           </div>
         ) : null}
@@ -149,7 +163,15 @@ export function ServerModels({
               open && "rotate-90"
             )}
           />
-          {open ? `Hide ${slot} models` : `Show ${slot} models`}
+          {open
+            ? intl.formatMessage(
+                { id: "models_server_models_hide_button" },
+                { slot: modelType }
+              )
+            : intl.formatMessage(
+                { id: "models_server_models_show_button" },
+                { slot: modelType }
+              )}
         </button>
 
         {open ? (
@@ -160,8 +182,18 @@ export function ServerModels({
                 autoFocus
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder={`Search ${slot} models`}
-                aria-label={`Search models from ${connection.label}`}
+                placeholder={intl.formatMessage(
+                  { id: "models_server_models_search_placeholder" },
+                  {
+                    slot: modelType,
+                  }
+                )}
+                aria-label={intl.formatMessage(
+                  { id: "models_server_models_search_aria" },
+                  {
+                    server: connection.label,
+                  }
+                )}
                 className="pl-9"
               />
             </div>
@@ -170,9 +202,14 @@ export function ServerModels({
               <p
                 className="flex items-center gap-2 py-4 text-sm text-muted-foreground"
                 role="status"
-                aria-label="Loading models"
+                aria-label={intl.formatMessage({
+                  id: "models_server_models_loading_aria",
+                })}
               >
-                <Spinner /> Loading models…
+                <Spinner />{" "}
+                {intl.formatMessage({
+                  id: "models_server_models_loading_status",
+                })}
               </p>
             ) : models.isError ? (
               <div className="flex flex-col items-start gap-2 py-2 text-sm">
@@ -185,7 +222,9 @@ export function ServerModels({
                   variant="outline"
                   onClick={() => void models.refetch()}
                 >
-                  Retry
+                  {intl.formatMessage({
+                    id: "models_server_models_retry_button",
+                  })}
                 </Button>
               </div>
             ) : candidates.length ? (
@@ -195,7 +234,13 @@ export function ServerModels({
               >
                 <ul
                   className="divide-y"
-                  aria-label={`${slot} models on ${connection.label}`}
+                  aria-label={intl.formatMessage(
+                    { id: "models_server_models_list_aria" },
+                    {
+                      slot: modelType,
+                      server: connection.label,
+                    }
+                  )}
                 >
                   {candidates.map((model) => (
                     <li
@@ -208,11 +253,15 @@ export function ServerModels({
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {model.capability_source === "unknown" ? (
-                            <Badge variant="outline">Capability unknown</Badge>
+                            <Badge variant="outline">
+                              {intl.formatMessage({
+                                id: "models_server_models_capability_unknown_label",
+                              })}
+                            </Badge>
                           ) : (
                             model.types.map((type) => (
                               <Badge key={type} variant="secondary">
-                                {TYPE_LABELS[type]}
+                                {TYPE_LABELS[type]()}
                               </Badge>
                             ))
                           )}
@@ -225,17 +274,26 @@ export function ServerModels({
                           variant="outline"
                           disabled
                         >
-                          In use
+                          {intl.formatMessage({
+                            id: "models_server_models_list_in_use_button",
+                          })}
                         </Button>
                       ) : (
                         <Button
                           type="button"
                           size="sm"
                           disabled={disabled}
-                          aria-label={`Use ${model.name}`}
+                          aria-label={intl.formatMessage(
+                            { id: "models_server_models_use_aria" },
+                            {
+                              model: model.name,
+                            }
+                          )}
                           onClick={() => setTrying({ model, unlisted: false })}
                         >
-                          Use
+                          {intl.formatMessage({
+                            id: "models_server_models_use_button",
+                          })}
                         </Button>
                       )}
                     </li>
@@ -245,13 +303,24 @@ export function ServerModels({
             ) : (
               <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 {models.data?.length
-                  ? `No ${slot} models match. Try another search, or type an exact ID below.`
-                  : "This server listed no models. Type an exact ID below."}
+                  ? intl.formatMessage(
+                      { id: "models_server_models_no_match_empty" },
+                      {
+                        slot: modelType,
+                      }
+                    )
+                  : intl.formatMessage({
+                      id: "models_server_models_none_listed_empty",
+                    })}
               </p>
             )}
 
             <Field>
-              <FieldLabel htmlFor={manualId}>Exact model ID</FieldLabel>
+              <FieldLabel htmlFor={manualId}>
+                {intl.formatMessage({
+                  id: "models_server_models_manual_id_label",
+                })}
+              </FieldLabel>
               <div className="flex gap-2">
                 <Input
                   id={manualId}
@@ -267,11 +336,18 @@ export function ServerModels({
                   disabled={disabled || !manualName.trim()}
                   onClick={tryManual}
                 >
-                  Use for {slot}
+                  {intl.formatMessage(
+                    { id: "models_server_models_manual_use_button" },
+                    {
+                      slot: modelType,
+                    }
+                  )}
                 </Button>
               </div>
               <FieldDescription>
-                For a model this server does not list.
+                {intl.formatMessage({
+                  id: "models_server_models_manual_id_body",
+                })}
               </FieldDescription>
             </Field>
           </div>

@@ -2,6 +2,7 @@ import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ServerIcon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 
 import type { Connection } from "../remote/connections/api"
 import { ConnectionDialog } from "../remote/connections/connection-dialog"
@@ -19,7 +20,10 @@ export function ServerCard({
   const [connecting, setConnecting] = useState(false)
 
   return (
-    <section className="flex flex-col gap-3" aria-label="Use a server">
+    <section
+      className="flex flex-col gap-3"
+      aria-label={intl.formatMessage({ id: "models_server_card_aria" })}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <h3 className="flex items-center gap-2 text-base font-medium">
@@ -27,11 +31,11 @@ export function ServerCard({
               aria-hidden="true"
               className="size-4 text-muted-foreground"
             />
-            Use a server
+            {intl.formatMessage({ id: "models_server_card_title" })}
           </h3>
           {/* pl-6: the icon's 16px plus the 8px gap, so it lines up with the heading text. */}
           <p className="pl-6 text-xs text-pretty text-muted-foreground">
-            vLLM, LM Studio, OpenRouter or any OpenAI-compatible API.
+            {intl.formatMessage({ id: "models_server_card_body" })}
           </p>
         </div>
         <Button
@@ -40,7 +44,7 @@ export function ServerCard({
           variant="outline"
           onClick={() => setConnecting(true)}
         >
-          Connect
+          {intl.formatMessage({ id: "models_server_card_connect_button" })}
         </Button>
       </div>
       <ConnectionDialog

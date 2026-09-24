@@ -1,11 +1,35 @@
+import { intl } from "@/i18n/intl"
+
 import type { InstallEvent } from "./api"
 
 const bytes = (value: number) =>
-  new Intl.NumberFormat(undefined, {
+  intl.formatNumber(value / 1e9, {
     style: "unit",
     unit: "gigabyte",
     maximumFractionDigits: 1,
-  }).format(value / 1e9)
+  })
+
+type Phase = "starting" | "verifying" | "selecting" | "complete"
+
+const PHASE_SHORT: Record<Phase, () => string> = {
+  starting: () =>
+    intl.formatMessage({ id: "models_install_starting_short_status" }),
+  verifying: () =>
+    intl.formatMessage({ id: "models_install_verifying_short_status" }),
+  selecting: () =>
+    intl.formatMessage({ id: "models_install_selecting_short_status" }),
+  complete: () =>
+    intl.formatMessage({ id: "models_install_complete_short_status" }),
+}
+
+const PHASE_LABEL: Record<Phase, () => string> = {
+  starting: () => intl.formatMessage({ id: "models_install_starting_status" }),
+  verifying: () =>
+    intl.formatMessage({ id: "models_install_verifying_status" }),
+  selecting: () =>
+    intl.formatMessage({ id: "models_install_selecting_status" }),
+  complete: () => intl.formatMessage({ id: "models_install_complete_status" }),
+}
 
 export type InstallView = {
   /** One word, for somewhere with no room. A phase still under way trails an
@@ -27,11 +51,21 @@ export type InstallView = {
 export function installView(event: InstallEvent): InstallView {
   if (event.type === "downloading") {
     return {
-      short: "Downloading…",
-      label: event.message || "Downloading",
+      short: intl.formatMessage({
+        id: "models_install_downloading_short_status",
+      }),
+      label:
+        event.message ||
+        intl.formatMessage({ id: "models_install_downloading_status" }),
       detail:
         event.total > 0
-          ? `${bytes(event.completed)} of ${bytes(event.total)}`
+          ? intl.formatMessage(
+              { id: "models_install_downloaded_status" },
+              {
+                completed: bytes(event.completed),
+                total: bytes(event.total),
+              }
+            )
           : null,
       percent:
         event.total > 0
@@ -44,8 +78,12 @@ export function installView(event: InstallEvent): InstallView {
     // The runtime reports its own load progress, so this wait moves for the
     // same reason the download did instead of sitting still for half a minute.
     return {
-      short: "Preparing…",
-      label: event.message || "Preparing",
+      short: intl.formatMessage({
+        id: "models_install_preparing_short_status",
+      }),
+      label:
+        event.message ||
+        intl.formatMessage({ id: "models_install_preparing_status" }),
       detail: null,
       percent:
         typeof event.progress === "number"
@@ -54,17 +92,20 @@ export function installView(event: InstallEvent): InstallView {
     }
   }
 
-  const message = "message" in event ? event.message : undefined
-  const rest: Record<string, string> = {
-    starting: "Starting",
-    verifying: "Verifying",
-    selecting: "Selecting",
-    complete: "Done",
+  if (event.type === "error") {
+    return {
+      short: intl.formatMessage({ id: "models_install_failed_short_status" }),
+      label:
+        event.message ||
+        intl.formatMessage({ id: "models_install_failed_status" }),
+      detail: null,
+      percent: null,
+    }
   }
-  const underway = event.type !== "complete" && event.type !== "error"
+
   return {
-    short: underway ? `${rest[event.type]}…` : (rest[event.type] ?? "Failed"),
-    label: message || rest[event.type] || "Install failed",
+    short: PHASE_SHORT[event.type](),
+    label: event.message || PHASE_LABEL[event.type](),
     detail: null,
     percent: event.type === "complete" ? 100 : null,
   }

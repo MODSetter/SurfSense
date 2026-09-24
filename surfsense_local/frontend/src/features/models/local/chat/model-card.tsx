@@ -14,6 +14,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 import type { LocalBuild, LocalRow } from "./api"
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
@@ -21,7 +22,7 @@ import { InstallProgress } from "./install-progress"
 import type { InstallState } from "./use-chat-install"
 
 const formatSize = (bytes: number) =>
-  `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
+  `${intl.formatNumber(bytes / 1e9, { maximumFractionDigits: 1 })} GB`
 
 export function ModelCard({
   row,
@@ -66,7 +67,9 @@ export function ModelCard({
                   {/* A button, so the tooltip also opens from the keyboard. */}
                   <button
                     type="button"
-                    aria-label="Recommended for your computer"
+                    aria-label={intl.formatMessage({
+                      id: "models_model_card_recommended_aria",
+                    })}
                     className="inline-flex shrink-0 cursor-default rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     <StarAward02Icon
@@ -76,14 +79,18 @@ export function ModelCard({
                   </button>
                 </TooltipTrigger>
                 <TooltipContent side="top">
-                  Recommended for your computer
+                  {intl.formatMessage({
+                    id: "models_model_card_recommended_tooltip",
+                  })}
                 </TooltipContent>
               </Tooltip>
             ) : null}
             <p className="truncate text-sm font-medium">{row.name}</p>
             <FitBadge fit={lead.fit} copy={lead.badge} />
             {row.support.reads_images ? (
-              <Badge variant="secondary">Vision</Badge>
+              <Badge variant="secondary">
+                {intl.formatMessage({ id: "models_model_card_vision_label" })}
+              </Badge>
             ) : null}
             <span className="flex shrink-0 items-center text-xs text-muted-foreground">
               {lead.quantization}
@@ -118,7 +125,12 @@ export function ModelCard({
               size="icon-sm"
               variant="destructive"
               disabled={actionsDisabled}
-              aria-label={`Delete ${row.name}`}
+              aria-label={intl.formatMessage(
+                { id: "models_model_card_delete_aria" },
+                {
+                  model: row.name,
+                }
+              )}
               onClick={() => onDelete(lead)}
             >
               <Trash2Icon />
@@ -149,13 +161,27 @@ export function ModelCard({
                 expanded && "rotate-180"
               )}
             />
-            {expanded ? "Hide other builds" : `${others.length} other builds`}
+            {expanded
+              ? intl.formatMessage({
+                  id: "models_model_card_hide_builds_button",
+                })
+              : intl.formatMessage(
+                  { id: "models_model_card_show_builds_button" },
+                  {
+                    count: others.length,
+                  }
+                )}
           </button>
           {expanded ? (
             <ul
               id={buildsId}
               className="mt-1 flex flex-col divide-y rounded-lg border"
-              aria-label={`Builds of ${row.name}`}
+              aria-label={intl.formatMessage(
+                { id: "models_model_card_builds_aria" },
+                {
+                  model: row.name,
+                }
+              )}
             >
               {others.map((build) => (
                 <li
@@ -196,7 +222,9 @@ export function ModelCard({
 
       {!runtimeAvailable ? (
         <p className="mt-2 text-xs text-destructive">
-          The local runtime is unavailable.
+          {intl.formatMessage({
+            id: "models_model_card_runtime_unavailable_error",
+          })}
         </p>
       ) : null}
     </article>

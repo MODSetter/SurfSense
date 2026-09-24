@@ -2,6 +2,7 @@ import { DownloadIcon } from "@/components/ui/icons"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import type { LocalBuild } from "./api"
 import { installView } from "./install-view"
 import type { InstallState } from "./use-chat-install"
@@ -36,7 +37,7 @@ export function BuildAction({
   if (build.selected) {
     return (
       <Button type="button" size="sm" variant="outline" disabled>
-        In use
+        {intl.formatMessage({ id: "models_build_action_in_use_button" })}
       </Button>
     )
   }
@@ -46,7 +47,23 @@ export function BuildAction({
       size="sm"
       className="whitespace-nowrap"
       disabled={disabled || cannotInstall}
-      aria-label={`${installed ? "Use" : "Download"} ${label} ${build.quantization}`}
+      aria-label={
+        installed
+          ? intl.formatMessage(
+              { id: "models_build_action_use_aria" },
+              {
+                model: label,
+                quantization: build.quantization,
+              }
+            )
+          : intl.formatMessage(
+              { id: "models_build_action_download_aria" },
+              {
+                model: label,
+                quantization: build.quantization,
+              }
+            )
+      }
       onClick={() => onAction(build)}
     >
       {/* A disabled button still reading "Download" while its own bar fills
@@ -61,7 +78,9 @@ export function BuildAction({
       ) : (
         <>
           {!installed ? <DownloadIcon data-icon="inline-start" /> : null}
-          {installed ? "Use" : "Download"}
+          {installed
+            ? intl.formatMessage({ id: "models_build_action_use_button" })
+            : intl.formatMessage({ id: "models_build_action_download_button" })}
         </>
       )}
     </Button>

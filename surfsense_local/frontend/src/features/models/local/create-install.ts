@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react"
 import { toast } from "sonner"
 
+import { intl } from "@/i18n/intl"
+
 import { useRefreshModels } from "../models-query"
 import type { ModelSelection } from "../selection/api"
 import { installCatalogModel, type InstallEvent } from "./chat/api"
@@ -22,7 +24,9 @@ function isAbort(error: unknown) {
 }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "Could not install this model"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({ id: "models_install_error" })
 }
 
 /**
@@ -59,7 +63,12 @@ export function createInstall({ select }: { select: boolean }) {
         status: "installing",
         catalogId,
         label,
-        event: { type: "starting", message: "Preparing download" },
+        event: {
+          type: "starting",
+          message: intl.formatMessage({
+            id: "models_install_preparing_download_status",
+          }),
+        },
       })
       try {
         const selection = await installCatalogModel(
@@ -72,9 +81,12 @@ export function createInstall({ select }: { select: boolean }) {
         if (selection) onSelected?.(selection)
       } catch (error) {
         if (isAbort(error)) {
-          toast.info("Installation cancelled. You can retry.", {
-            id: "model-install-cancelled",
-          })
+          toast.info(
+            intl.formatMessage({ id: "models_install_cancelled_toast" }),
+            {
+              id: "model-install-cancelled",
+            }
+          )
         } else {
           toast.error(messageFrom(error), { id: "model-install-error" })
         }

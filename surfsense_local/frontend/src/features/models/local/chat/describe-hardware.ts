@@ -1,7 +1,9 @@
+import { intl } from "@/i18n/intl"
+
 import type { Budget, GpuStatus } from "./api"
 
 const gb = (bytes: number) =>
-  `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
+  `${intl.formatNumber(bytes / 1e9, { maximumFractionDigits: 1 })} GB`
 
 /**
  * The status is read before the budget: a machine whose card the runtime cannot
@@ -11,18 +13,35 @@ const gb = (bytes: number) =>
 export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
   if (gpuStatus === "broken_install") {
     return [
-      "Graphics card not detected by the runtime. Reinstall to fix",
-      `${gb(budget.ram_available_bytes)} memory`,
+      intl.formatMessage({ id: "models_hardware_broken_install_label" }),
+      intl.formatMessage(
+        { id: "models_hardware_memory_label" },
+        {
+          size: gb(budget.ram_available_bytes),
+        }
+      ),
     ]
   }
   if (!budget.has_gpu) {
     return [
-      "Runs on your processor",
-      `${gb(budget.ram_available_bytes)} memory`,
+      intl.formatMessage({ id: "models_hardware_cpu_label" }),
+      intl.formatMessage(
+        { id: "models_hardware_memory_label" },
+        {
+          size: gb(budget.ram_available_bytes),
+        }
+      ),
     ]
   }
   return [
-    budget.uma ? "Apple Silicon GPU" : "Graphics card",
-    `${gb(budget.device_total_bytes)} memory`,
+    budget.uma
+      ? intl.formatMessage({ id: "models_hardware_apple_gpu_label" })
+      : intl.formatMessage({ id: "models_hardware_gpu_label" }),
+    intl.formatMessage(
+      { id: "models_hardware_memory_label" },
+      {
+        size: gb(budget.device_total_bytes),
+      }
+    ),
   ]
 }

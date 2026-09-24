@@ -1,3 +1,5 @@
+import { intl } from "@/i18n/intl"
+
 import type { Connection } from "../remote/connections/api"
 import type { ModelSelection, SelectionTarget } from "../selection/api"
 
@@ -47,16 +49,22 @@ export function describeInUse(
     const server = connections?.find(({ id }) => id === selection.connection_id)
     return {
       name: selection.name,
-      source: server?.label ?? "A server",
+      source:
+        server?.label ??
+        intl.formatMessage({ id: "models_in_use_unknown_server_label" }),
       where: "server",
     }
   }
   const row = local.find((candidate) => candidate.selected)
   return row
-    ? { name: row.name, source: "This computer", where: "local" }
+    ? {
+        name: row.name,
+        source: intl.formatMessage({ id: "models_in_use_local_label" }),
+        where: "local",
+      }
     : {
         name: selection.name,
-        source: "Not found on this computer",
+        source: intl.formatMessage({ id: "models_in_use_missing_label" }),
         where: "missing",
       }
 }
