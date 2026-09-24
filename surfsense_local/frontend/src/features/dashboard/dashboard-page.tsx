@@ -22,6 +22,17 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
+import {
+  asksOnSend,
+  blockedPlaceholder,
+  isIssueFor,
+  issueAsksOnSend,
+  modelIssueFrom,
+  type ModelIssue,
+} from "@/features/chat/model-issue"
+import { askEgress } from "@/features/egress/ask-egress"
+import { setDestinationEnabled } from "@/features/egress/api"
+import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import type { ImportAccepted } from "@/features/migration/api"
@@ -66,6 +77,9 @@ function WorkspaceDashboard({
   workspace,
   selection,
   providerAvailable,
+  modelIssue,
+  onModelIssueSettings,
+  onAllowModelIssue,
   onModelRequired,
   onModelSelected,
   onOpenLicense,
@@ -74,6 +88,9 @@ function WorkspaceDashboard({
   workspace: Workspace
   selection: ModelSelection | null
   providerAvailable: boolean
+  modelIssue: ModelIssue | null
+  onModelIssueSettings: () => void
+  onAllowModelIssue: () => void
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
@@ -96,6 +113,20 @@ function WorkspaceDashboard({
     selectedDocumentIds: sources.includedDocumentIds,
     onModelRequired,
   })
+
+  // Egress belongs to the selected model's host, so its notice shows only for
+  // that model; any other issue shows while no model is chosen.
+  const shownIssue =
+    modelIssue !== null &&
+    (issueAsksOnSend(modelIssue)
+      ? isIssueFor(modelIssue, selection)
+      : selection === null)
+      ? modelIssue
+      : null
+  const composerHold =
+    shownIssue && issueAsksOnSend(shownIssue)
+      ? blockedPlaceholder(shownIssue)
+      : undefined
 
   const closeInspect = () => setInspect(null)
   const toggleRightPanel = () => {
@@ -251,6 +282,18 @@ function WorkspaceDashboard({
             isUploading={sources.isUploading}
             animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
             providerAvailable={providerAvailable}
+            notice={
+              shownIssue ? (
+                <ModelIssueNotice
+                  issue={shownIssue}
+                  onAllow={
+                    issueAsksOnSend(shownIssue) ? onAllowModelIssue : undefined
+                  }
+                  onOpenSettings={onModelIssueSettings}
+                />
+              ) : null
+            }
+            blockedPlaceholder={composerHold}
             onCitation={(chunkId) => {
               openRightPanel()
               setInspect({ kind: "citation", chunkId })
@@ -388,12 +431,14 @@ type ProviderStatus = "checking" | "available" | "unavailable"
 export function DashboardPage({
   selection,
   initialProviderAvailable,
+  initialModelIssue = null,
   initialWorkspaces,
   onModelUnavailable = () => undefined,
   onModelSelected,
 }: {
   selection: ModelSelection | null
   initialProviderAvailable: boolean
+  initialModelIssue?: ModelIssue | null
   initialWorkspaces: Workspace[]
   onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
@@ -409,6 +454,11 @@ export function DashboardPage({
   const [modelsVisited, setModelsVisited] = useState(0)
   const [settingsSection, setSettingsSection] =
     useState<SettingsSectionId>("general")
+  // Why the selected model can't be used, from its last check. Launch supplies
+  // the first one, so there is no flash before this screen checks again.
+  const [modelIssue, setModelIssue] = useState(initialModelIssue)
+  // Bumped after egress is allowed from the notice, to check the model again.
+  const [consents, setConsents] = useState(0)
 
   const openSettings = (section: SettingsSectionId) => {
     setSettingsSection(section)
@@ -436,13 +486,31 @@ export function DashboardPage({
       .then((available) => {
         if (controller.signal.aborted) return
         setProviderStatus(available ? "available" : "unavailable")
+        setModelIssue(null)
       })
-      .catch(() => {
+      .catch((error: unknown) => {
         if (controller.signal.aborted) return
-        setProviderStatus("unavailable")
+        // Egress off keeps the model: the notice asks, the composer waits.
+        const consent = asksOnSend(error)
+        setProviderStatus(consent ? "available" : "unavailable")
+        setModelIssue(consent ? modelIssueFrom(selection, error) : null)
       })
     return () => controller.abort()
-  }, [selection])
+    // Checked again when settings close, where egress may have changed, and
+    // after egress is allowed from the notice.
+  }, [selection, modelsVisited, consents])
+
+  const allowModelIssue = () => {
+    const destination = modelIssue?.destination
+    if (!destination) return
+    void askEgress({
+      destination,
+      host: modelIssue.host ?? "",
+      allow: () => setDestinationEnabled(destination, true),
+    }).then((allowed) => {
+      if (allowed) setConsents((count) => count + 1)
+    })
+  }
 
   const providerAvailable =
     selection !== null && providerStatus !== "unavailable"
@@ -479,6 +547,15 @@ export function DashboardPage({
         workspace={workspaces.activeWorkspace}
         selection={selection}
         providerAvailable={providerAvailable}
+        modelIssue={modelIssue}
+        onAllowModelIssue={allowModelIssue}
+        onModelIssueSettings={() =>
+          openSettings(
+            modelIssue && issueAsksOnSend(modelIssue)
+              ? "network"
+              : "chat-models"
+          )
+        }
         onModelRequired={() => openSettings("chat-models")}
         onModelSelected={onModelSelected}
         onOpenLicense={() => openSettings("license")}

@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent } from "react"
+import { useRef, type ChangeEvent, type ReactNode } from "react"
 import { ComposerPrimitive } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
@@ -183,6 +183,8 @@ export function ChatComposer({
   isRunning,
   isUploading,
   providerAvailable,
+  notice,
+  blockedPlaceholder,
   onModelSetup,
   onModelSelected,
   onUpload,
@@ -193,15 +195,24 @@ export function ChatComposer({
   isRunning: boolean
   isUploading: boolean
   providerAvailable: boolean
+  // Above the composer: why the saved model could not be used at startup.
+  notice?: ReactNode
+  // Set while something outside the model holds sending, such as egress.
+  blockedPlaceholder?: string
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
 }) {
   return (
     <div
-      className="mx-auto w-full max-w-xl"
+      className="relative mx-auto w-full max-w-xl"
       data-composer-placement={placement}
     >
+      {notice ? (
+        // Tucked behind the composer, which paints over its lower edge: out of
+        // flow, so the composer keeps its place and its own shape.
+        <div className="absolute inset-x-0 bottom-full -mb-4">{notice}</div>
+      ) : null}
       <ComposerPrimitive.Root
         className={cn(
           "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
@@ -218,7 +229,7 @@ export function ChatComposer({
         <ComposerPrimitive.Input
           autoFocus
           unstable_focusOnThreadSwitched
-          disabled={!model}
+          disabled={!model || blockedPlaceholder !== undefined}
           className={cn(
             "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
             placement === "center"
@@ -226,20 +237,22 @@ export function ChatComposer({
               : "min-h-10 flex-1"
           )}
           placeholder={
-            !model || providerAvailable
-              ? placement === "center"
-                ? intl.formatMessage({
-                    id: "chat_composer_start_placeholder",
-                    defaultMessage: "Turn your sources into answers",
-                  })
+            blockedPlaceholder !== undefined
+              ? blockedPlaceholder
+              : !model || providerAvailable
+                ? placement === "center"
+                  ? intl.formatMessage({
+                      id: "chat_composer_start_placeholder",
+                      defaultMessage: "Turn your sources into answers",
+                    })
+                  : intl.formatMessage({
+                      id: "chat_composer_follow_up_placeholder",
+                      defaultMessage: "Follow up on this answer",
+                    })
                 : intl.formatMessage({
-                    id: "chat_composer_follow_up_placeholder",
-                    defaultMessage: "Follow up on this answer",
+                    id: "chat_composer_provider_offline_placeholder",
+                    defaultMessage: "Reconnect your model provider to send",
                   })
-              : intl.formatMessage({
-                  id: "chat_composer_provider_offline_placeholder",
-                  defaultMessage: "Reconnect your model provider to send",
-                })
           }
           submitMode="enter"
           rows={1}

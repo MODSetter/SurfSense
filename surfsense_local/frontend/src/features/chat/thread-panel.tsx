@@ -80,6 +80,8 @@ export function ThreadPanel({
   isUploading,
   animateTitle,
   providerAvailable,
+  notice,
+  blockedPlaceholder,
   onCitation,
   onModelSetup,
   onModelSelected,
@@ -100,6 +102,8 @@ export function ThreadPanel({
   isUploading: boolean
   animateTitle: boolean
   providerAvailable: boolean
+  notice?: ReactNode
+  blockedPlaceholder?: string
   sourceCount: number
   onCitation: (chunkId: number) => void
   onModelSetup: () => void
@@ -135,6 +139,8 @@ export function ThreadPanel({
       isRunning={isRunning}
       isUploading={isUploading}
       providerAvailable={providerAvailable}
+      notice={notice}
+      blockedPlaceholder={blockedPlaceholder}
       onModelSetup={onModelSetup}
       onModelSelected={onModelSelected}
       onUpload={onUpload}
@@ -290,7 +296,7 @@ export function ThreadPanel({
         </header>
 
         <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">
-          <ChatViewport footer={bottomFooter}>
+          <ChatViewport footer={bottomFooter} footerHasNotice={notice != null}>
             {isLoading ? (
               <div className="mx-auto flex w-full max-w-xl flex-col">
                 <div className="flex flex-col items-end px-6 py-3">

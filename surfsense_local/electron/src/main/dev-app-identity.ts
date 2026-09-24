@@ -7,6 +7,14 @@ import { app } from "electron"
 // an installed SurfSense. Packaged builds get all of this from electron-builder.
 const DEV_ICONS = join(__dirname, "../../build/icons/dev")
 const DEV_ICON_PNG = join(DEV_ICONS, "icon.png")
+const DEV_NAME = "SurfSense Dev"
+
+// safeStorage names its keychain item after the app, so dev must not share
+// "SurfSense": it would read, or recreate, the installed app's key. Call
+// before anything touches safeStorage.
+export function nameDevBuild(): void {
+  if (!app.isPackaged) app.setName(DEV_NAME)
+}
 
 export function applyDevAppIdentity(): void {
   if (app.isPackaged) return
@@ -21,7 +29,7 @@ export function applyDevAppIdentity(): void {
   // bundle, so it stays Electron's in dev. `version` replaces Electron's build
   // number in the parentheses.
   app.setAboutPanelOptions({
-    applicationName: "SurfSense (dev)",
+    applicationName: DEV_NAME,
     applicationVersion: app.getVersion(),
     version: app.getVersion(),
     iconPath: DEV_ICON_PNG,

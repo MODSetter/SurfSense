@@ -15,7 +15,11 @@ import {
 // undefined). require() honours it, and the getter is lazy so dev pays nothing.
 import { autoUpdater } from "electron-updater"
 
-import { applyDevAppIdentity, devWindowIcon } from "./dev-app-identity.ts"
+import {
+  applyDevAppIdentity,
+  devWindowIcon,
+  nameDevBuild,
+} from "./dev-app-identity.ts"
 import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
@@ -83,6 +87,8 @@ function openAllowedExternal(url: string): void {
   const allowed = allowedExternalUrl(url)
   if (allowed) void shell.openExternal(allowed)
 }
+
+nameDevBuild()
 
 // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
 const DATA_DIR = join(

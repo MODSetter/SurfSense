@@ -11,6 +11,11 @@ import {
 } from "@/features/models/selection/api"
 import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import {
+  asksOnSend,
+  modelIssueFrom,
+  type ModelIssue,
+} from "@/features/chat/model-issue"
 import { intl } from "@/i18n/intl"
 
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
@@ -27,6 +32,7 @@ type BootstrapState =
       Dashboard: DashboardComponent
       selection: ModelSelection | null
       providerAvailable: boolean
+      modelIssue: ModelIssue | null
       workspaces: Workspace[]
     }
   | { status: "error"; message: string }
@@ -38,6 +44,53 @@ function messageFrom(error: unknown) {
         id: "app_bootstrap_unexpected_error",
         defaultMessage: "An unexpected error occurred",
       })
+}
+
+type Availability = {
+  selection: ModelSelection | null
+  issue: ModelIssue | null
+}
+
+// A model that cannot be confirmed, because its key is unreadable or its
+// endpoint is offline, opens the app without it rather than blocking startup,
+// and keeps the API's reason so the dashboard can say why. Egress off keeps
+// the model: sending asks for it.
+async function stillAvailable(
+  selection: ModelSelection | null
+): Promise<Availability> {
+  if (!selection) return { selection: null, issue: null }
+  try {
+    return { selection: await confirmed(selection), issue: null }
+  } catch (error) {
+    return {
+      selection: asksOnSend(error) ? selection : null,
+      issue: modelIssueFrom(selection, error),
+    }
+  }
+}
+
+// Null when the model is simply gone from its list: nothing to explain there.
+async function confirmed(
+  selection: ModelSelection
+): Promise<ModelSelection | null> {
+  if (selection.provider === "openai_compatible") {
+    const models =
+      selection.connection_id === null
+        ? []
+        : await getConnectionModels(selection.connection_id)
+    return models.some((model) => model.name === selection.name)
+      ? selection
+      : null
+  }
+  const models = await getProviderModels(selection.provider)
+  return models.some(
+    (model) =>
+      model.installed &&
+      model.selectable_for.includes("text_gen") &&
+      model.name === selection.name
+  )
+    ? selection
+    : null
 }
 
 async function fetchBootstrapState(): Promise<BootstrapState> {
@@ -55,31 +108,14 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
       getGenerationSelection(),
       listWorkspaces(),
     ])
-    let currentSelection: ModelSelection | null = null
-    if (selection?.provider === "openai_compatible") {
-      const models =
-        selection.connection_id === null
-          ? []
-          : await getConnectionModels(selection.connection_id)
-      currentSelection = models.some((model) => model.name === selection.name)
-        ? selection
-        : null
-    } else if (selection) {
-      const models = await getProviderModels(selection.provider)
-      currentSelection = models.some(
-        (model) =>
-          model.installed &&
-          model.selectable_for.includes("text_gen") &&
-          model.name === selection.name
-      )
-        ? selection
-        : null
-    }
+    const { selection: currentSelection, issue } =
+      await stillAvailable(selection)
     return {
       status: "ready",
       Dashboard: await dashboard,
       selection: currentSelection,
       providerAvailable: currentSelection !== null,
+      modelIssue: issue,
       workspaces,
     }
   } catch (error) {
@@ -131,6 +167,7 @@ export function AppBootstrap() {
                 Dashboard,
                 selection,
                 providerAvailable: true,
+                modelIssue: null,
                 workspaces,
               })
             )
@@ -181,6 +218,7 @@ export function AppBootstrap() {
     <Dashboard
       selection={state.selection}
       initialProviderAvailable={state.providerAvailable}
+      initialModelIssue={state.modelIssue}
       initialWorkspaces={state.workspaces}
       onModelUnavailable={() =>
         setState((current) =>

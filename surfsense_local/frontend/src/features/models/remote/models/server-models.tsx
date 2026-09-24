@@ -254,14 +254,18 @@ export function ServerModels({
                 })}
               </p>
             ) : models.isError ? (
-              <div className="flex flex-col items-start gap-2 py-2 text-sm">
-                <p className="text-destructive" role="alert">
+              <div className="flex items-center justify-between gap-3 py-2 text-sm">
+                <p
+                  className="min-w-0 text-pretty text-destructive"
+                  role="alert"
+                >
                   {messageFrom(models.error)}
                 </p>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="shrink-0"
                   onClick={() => void models.refetch()}
                 >
                   {intl.formatMessage({

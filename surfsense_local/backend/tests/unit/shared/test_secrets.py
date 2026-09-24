@@ -3,6 +3,8 @@ import pytest
 from modules.llm.models import ProviderConnection
 from shared.secrets import UnreadableSecretError, decrypt, encrypt
 
+pytestmark = pytest.mark.unit
+
 
 def test_api_key_round_trips_and_is_not_stored_in_clear() -> None:
     """The column holds ciphertext; the attribute still reads the key back."""
@@ -33,8 +35,10 @@ def test_unreadable_ciphertext_fails_closed_as_a_named_condition() -> None:
         decrypt(bytes(token))
 
 
-def test_rotated_secret_reads_as_no_key(monkeypatch: pytest.MonkeyPatch) -> None:
-    """secret.bin reminted: the old ciphertext is gone, not a 500."""
+def test_a_key_saved_under_a_lost_secret_is_named_not_dropped(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """secret.bin reminted: the key says why it is unreadable and stays stored."""
     connection = ProviderConnection(
         label="x", provider="openai_compatible", base_url="http://h", api_key="sk-1"
     )
@@ -47,5 +51,6 @@ def test_rotated_secret_reads_as_no_key(monkeypatch: pytest.MonkeyPatch) -> None
         label="y", provider="openai_compatible", base_url="http://h"
     )
     stale.api_key_ciphertext = token
-    assert stale.api_key is None
-    assert stale.api_key_ciphertext is None
+    with pytest.raises(UnreadableSecretError):
+        _ = stale.api_key
+    assert stale.api_key_ciphertext == token

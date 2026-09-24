@@ -161,6 +161,9 @@ CHAT_DELTAS = ["Hel", "lo"]
 REASONING_DELTAS = ["Okay, "] * 200
 REMOTE_THINKS = False
 REMOTE_REQUESTS: list[tuple[str, str]] = []
+# Set to an HTTP status to make /models refuse, as a provider rejecting the key
+# or rate-limiting would; the fixture resets it.
+MODELS_STATUS: int | None = None
 
 
 class StubOpenAICompatible(BaseHTTPRequestHandler):
@@ -168,7 +171,9 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
-        if parsed.path == "/models":
+        if parsed.path == "/models" and MODELS_STATUS is not None:
+            self.send_error(MODELS_STATUS)
+        elif parsed.path == "/models":
             image_only = parse_qs(parsed.query).get("output_modalities") == ["image"]
             models = REMOTE_MODELS[1:] if image_only else REMOTE_MODELS[:1]
             self._json({"object": "list", "data": models})
@@ -213,7 +218,9 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
 @pytest.fixture
 def openai_server() -> Iterator[str]:
     """A real OpenAI-compatible endpoint on a real port."""
+    global MODELS_STATUS
     REMOTE_REQUESTS.clear()
+    MODELS_STATUS = None
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubOpenAICompatible)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
