@@ -5,7 +5,7 @@ import pytest
 from modules.artifacts.podcast.brief import Duration, PodcastBrief, Speaker, Style
 from modules.llm.profile import Tier
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
-from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
+from modules.llm.resolution import ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline, pipeline
 from worker.studio.shared import generate
 
@@ -148,21 +148,24 @@ class FakeVoice:
 
     def __init__(self) -> None:
         self.turns: list[SpokenTurn] = []
+        self.language: str | None = None
 
     def voices(self) -> list[Voice]:
-        return [Voice("pm_alex", "Alex", "pt-BR"), Voice("pf_dora", "Dora", "pt-BR")]
+        return [
+            Voice("pm_alex", "Alex", ("pt-BR",)),
+            Voice("pf_dora", "Dora", ("pt-BR",)),
+        ]
 
-    async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+    async def synthesize(
+        self, turns: list[SpokenTurn], language: str
+    ) -> SynthesizedAudio:
         self.turns = turns
+        self.language = language
         return SynthesizedAudio(b"RIFFfake", "audio/wav")
 
 
 def _episode(monkeypatch: pytest.MonkeyPatch, *replies: str) -> tuple[FakeVoice, list]:
     voice = FakeVoice()
-    monkeypatch.setattr(
-        "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech",
-        lambda: voice,
-    )
     queue = iter(replies)
     prompts: list[str] = []
 
@@ -186,13 +189,16 @@ def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
         '{"turns": [{"speaker": 2, "text": "Goodbye."}]}',
     )
 
-    built = pipeline.render(MODEL, [], "the risks", BRIEF.model_dump(mode="json"))
+    built = pipeline.render(
+        MODEL, voice, [], "the risks", BRIEF.model_dump(mode="json")
+    )
 
     assert len(prompts) == 3 and "the risks" in prompts[0]
     assert [(t.voice, t.text) for t in voice.turns] == [
         ("pm_alex", "Welcome."),
         ("pf_dora", "Goodbye."),
     ]
+    assert voice.language == "pt-BR"
     assert built.title == "Saturn Rings"
     assert built.primary == b"RIFFfake"
     assert built.primary_filename == "saturn-rings.wav"
@@ -211,22 +217,5 @@ def test_an_episode_too_short_to_voice_fails_before_synthesis(
     )
 
     with pytest.raises(ValueError, match="too short"):
-        pipeline.render(MODEL, [], None, BRIEF.model_dump(mode="json"))
+        pipeline.render(MODEL, voice, [], None, BRIEF.model_dump(mode="json"))
     assert voice.turns == []
-
-
-def test_without_a_voice_engine_the_text_model_is_never_called(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A missing voice engine fails before any model tokens are spent."""
-    monkeypatch.setattr(
-        "modules.llm.providers.kokoro.provider.missing_files",
-        lambda: ["kokoro-v1.0.onnx"],
-    )
-    monkeypatch.setattr(
-        "worker.studio.shared.generate.run_model",
-        lambda *a: pytest.fail("the text model was called"),
-    )
-
-    with pytest.raises(ModelResolutionError, match="Kokoro"):
-        pipeline.render(None, [], None, BRIEF.model_dump(mode="json"))

@@ -64,7 +64,10 @@ class AudioCppEngine:
         )
 
     def holds(self, model_id: str) -> bool:
-        return any(model.model_id == model_id for model in self.installed())
+        return self.installed_model(model_id) is not None
+
+    def installed_model(self, model_id: str) -> InstalledAudio | None:
+        return next((m for m in self.installed() if m.model_id == model_id), None)
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
         return plan  # curated only: read when the manifest was refreshed

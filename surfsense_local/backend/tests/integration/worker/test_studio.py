@@ -400,20 +400,25 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
         '{"turns": [{"speaker": 2, "text": "Remarkable."}]}',
     )
     spoken: list[SpokenTurn] = []
+    languages: list[str] = []
 
     class FakeVoice:
         def voices(self) -> list[Voice]:
             return [
-                Voice("af_heart", "Heart", "en-US"),
-                Voice("am_adam", "Adam", "en-US"),
+                Voice("af_heart", "Heart", ("en-US",)),
+                Voice("am_adam", "Adam", ("en-US",)),
             ]
 
-        async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+        async def synthesize(
+            self, turns: list[SpokenTurn], language: str
+        ) -> SynthesizedAudio:
             spoken.extend(turns)
+            languages.append(language)
             return SynthesizedAudio(b"RIFF" + b"\x00" * 40, "audio/wav")
 
+    # The audio model is resolved by the job, like every type a format declares.
     monkeypatch.setattr(
-        "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech", FakeVoice
+        "worker.studio.job.resolve_text_to_speech", lambda _session: FakeVoice()
     )
     brief = {
         "language": "en-US",
@@ -437,7 +442,29 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
     _one_file(artifact, "audio/wav", b"RIFF")
     assert len(seen) == 3 and "keep it short" in seen[0] and "Ada (host)" in seen[1]
     assert [turn.voice for turn in spoken] == ["am_adam", "af_heart"]
+    assert languages == ["en-US"]
     assert "**Bea:** Remarkable." in artifact.document.content
+
+
+def test_a_podcast_without_an_audio_model_never_calls_the_chat_model(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every model a format declares is resolved first, so a missing voice
+    fails before any chat tokens are spent."""
+    seen = _capture_model(monkeypatch, '{"title": "T", "segments": []}')
+    brief = {
+        "language": "en-US",
+        "speakers": [{"name": "Ada", "role": "host", "voice": "af_heart"}],
+    }
+    artifact = make_artifact(session, fmt="podcast", options=brief)
+
+    with pytest.raises(RuntimeError, match="no audio model selected"):
+        run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == "no audio model selected"
+    assert seen == []
 
 
 def test_image_draws_a_png_over_the_selected_connection(

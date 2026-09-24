@@ -2,6 +2,7 @@ from enum import StrEnum
 from typing import Annotated
 
 from pydantic import BaseModel, Field, StringConstraints, ValidationError
+from sqlalchemy.orm import Session
 
 from modules.llm.providers.protocols import Voice
 from modules.llm.resolution import resolve_text_to_speech
@@ -58,9 +59,20 @@ class PodcastBrief(BaseModel):
     speakers: list[Speaker] = Field(min_length=1, max_length=MAX_SPEAKERS)
 
 
-def proposed(voices: list[Voice], language: str = DEFAULT_LANGUAGE) -> PodcastBrief:
-    """The defaults the form opens with: two speakers in the given language."""
-    spoken = [voice for voice in voices if voice.language == language][:2]
+def default_language(voices: list[Voice]) -> str:
+    """American English where a voice speaks it, else any English, else the
+    first language the model's roster names: Kitten lists English as `en`."""
+    spoken = [language for voice in voices for language in voice.languages]
+    if DEFAULT_LANGUAGE in spoken:
+        return DEFAULT_LANGUAGE
+    english = [language for language in spoken if language.split("-")[0] == "en"]
+    return (english or spoken or [DEFAULT_LANGUAGE])[0]
+
+
+def proposed(voices: list[Voice], language: str | None = None) -> PodcastBrief:
+    """The defaults the form opens with: two speakers in a language they speak."""
+    language = language or default_language(voices)
+    spoken = [voice for voice in voices if language in voice.languages][:2]
     return PodcastBrief(
         language=language,
         speakers=[
@@ -70,9 +82,11 @@ def proposed(voices: list[Voice], language: str = DEFAULT_LANGUAGE) -> PodcastBr
     )
 
 
-def validate_options(raw: dict | None) -> dict:
-    """The Format hook: the brief, checked against the voices the engine offers."""
-    return validated(resolve_text_to_speech().voices(), raw).model_dump(mode="json")
+def validate_options(session: Session, raw: dict | None) -> dict:
+    """The Format hook: the brief, checked against the chosen model's voices."""
+    return validated(resolve_text_to_speech(session).voices(), raw).model_dump(
+        mode="json"
+    )
 
 
 def validated(voices: list[Voice], raw: dict | None) -> PodcastBrief:
@@ -89,7 +103,7 @@ def validated(voices: list[Voice], raw: dict | None) -> PodcastBrief:
     by_id = {voice.id: voice for voice in voices}
     for speaker in brief.speakers:
         voice = by_id.get(speaker.voice)
-        if voice is None or voice.language != brief.language:
+        if voice is None or brief.language not in voice.languages:
             raise ValueError(f"{speaker.name}: pick a {brief.language} voice")
     if len({speaker.voice for speaker in brief.speakers}) < len(brief.speakers):
         raise ValueError("each speaker needs their own voice")

@@ -15,9 +15,6 @@ dependencies = [
     "gguf==0.19.0",
     "httpx>=0.28.1",
     "huey>=3.3.4",
-    # The offline podcast voice (Studio). Rides the bundled onnxruntime; its ~340MB
-    # model is staged by scripts/fetch_kokoro_model.py, not carried in the wheel.
-    "kokoro-onnx>=0.4.9",
     "onnxruntime>=1.20",
     "pydantic-settings>=2.7.0",
     "python-docx>=1.2.0",

@@ -4,9 +4,9 @@ from modules.artifacts.podcast import brief
 from modules.llm.providers.protocols import Voice
 
 VOICES = [
-    Voice("af_heart", "Heart", "en-US"),
-    Voice("am_adam", "Adam", "en-US"),
-    Voice("pf_dora", "Dora", "pt-BR"),
+    Voice("af_heart", "Heart", ("en-US",)),
+    Voice("am_adam", "Adam", ("en-US",)),
+    Voice("pf_dora", "Dora", ("pt-BR",)),
 ]
 
 

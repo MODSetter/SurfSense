@@ -179,11 +179,10 @@ jobs:
           echo "::error::frozen API never became healthy"
           exit 1
 
-      - name: Stage embedding, voice, and Docling parser packs
+      - name: Stage embedding and Docling parser packs
         working-directory: surfsense_local/backend
         run: |
           uv run scripts/fetch_embedding_model.py models
-          uv run scripts/fetch_kokoro_model.py models
           uv run scripts/fetch_docling_models.py models
 
       - name: Build frontend SPA

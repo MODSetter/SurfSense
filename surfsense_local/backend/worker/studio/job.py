@@ -9,12 +9,14 @@ from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
 from modules.llm.providers.openai_compatible import NonRetryableImageError
+from modules.llm.providers.protocols import TextToSpeech
 from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     ResolvedImageGeneration,
     resolve_generation,
     resolve_image_generation,
+    resolve_text_to_speech,
 )
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
@@ -134,11 +136,13 @@ def _reason(failure: Exception) -> str:
 
 def _choose_model(
     session: Session, model_type: ModelType
-) -> ResolvedGeneration | ResolvedImageGeneration:
+) -> ResolvedGeneration | ResolvedImageGeneration | TextToSpeech:
     """The model the user selected for one of the types a format declares."""
     try:
         if model_type is ModelType.IMAGE_GEN:
             return resolve_image_generation(session)
+        if model_type is ModelType.AUDIO_GEN:
+            return resolve_text_to_speech(session)
         return resolve_generation(session)
     except ModelResolutionError as error:
         raise NoModelSelectedError(str(error)) from error

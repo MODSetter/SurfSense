@@ -11,7 +11,11 @@ from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
-from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
+from modules.llm.resolution import (
+    ModelResolutionError,
+    VoiceNotLocalError,
+    resolve_text_to_speech,
+)
 from modules.workspaces.models import Workspace
 from worker.jobs import cancel_studio_job
 
@@ -57,7 +61,7 @@ def create_artifact_job(
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
     documents = _resolve_sources(session, workspace.id, payload.document_ids)
-    options = _resolve_options(fmt, payload.options)
+    options = _resolve_options(session, fmt, payload.options)
 
     document = Document(
         workspace_id=workspace.id,
@@ -133,11 +137,11 @@ def _resolve_sources(
     return load_selected_sources(session, workspace_id, document_ids)
 
 
-def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:
+def _resolve_options(session: Session, fmt: Format, raw: dict | None) -> dict | None:
     if fmt.validate_options is None:
         return raw
     try:
-        return fmt.validate_options(raw)
+        return fmt.validate_options(session, raw)
     except ValueError as error:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
@@ -151,6 +155,7 @@ def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:
 _TYPE_PHRASES: dict[ModelType, str] = {
     ModelType.TEXT_GEN: "a chat model",
     ModelType.IMAGE_GEN: "an image model",
+    ModelType.AUDIO_GEN: "an audio model",
 }
 
 # Sentence order, which is not the order a format lists its types in: the
@@ -159,6 +164,7 @@ _TYPE_PHRASES: dict[ModelType, str] = {
 _TYPE_ORDER: tuple[ModelType, ...] = (
     ModelType.TEXT_GEN,
     ModelType.IMAGE_GEN,
+    ModelType.AUDIO_GEN,
 )
 
 
@@ -177,11 +183,13 @@ def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
     ]
     if missing:
         return False, _required(missing)
-    if fmt.requires_voice:
+    if ModelType.AUDIO_GEN in fmt.requires_model_types:
         try:
-            resolve_text_to_speech()
+            resolve_text_to_speech(session)
+        except VoiceNotLocalError:
+            return False, "Needs an audio model on this computer"
         except ModelResolutionError:
-            return False, "Needs a voice model"
+            return False, _required([ModelType.AUDIO_GEN])
     return True, None
 
 
