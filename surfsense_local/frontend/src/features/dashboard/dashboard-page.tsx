@@ -45,6 +45,7 @@ import { useStudio } from "@/features/studio/use-studio"
 import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { intl } from "@/i18n/intl"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import { readRightPanelOpen, writeRightPanelOpen } from "./chrome-prefs"
 import { LeftSidebar } from "./left-sidebar"
@@ -123,7 +124,13 @@ function WorkspaceDashboard({
                 aria-expanded={rightPanelOpen}
                 aria-controls="workspace-right-panel"
                 aria-label={
-                  rightPanelOpen ? "Hide right panel" : "Show right panel"
+                  rightPanelOpen
+                    ? intl.formatMessage({
+                        id: "dashboard_right_panel_hide_aria",
+                      })
+                    : intl.formatMessage({
+                        id: "dashboard_right_panel_show_aria",
+                      })
                 }
                 onClick={toggleRightPanel}
               >
@@ -131,7 +138,13 @@ function WorkspaceDashboard({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" collisionPadding={8}>
-              {rightPanelOpen ? "Hide right panel" : "Show right panel"}
+              {rightPanelOpen
+                ? intl.formatMessage({
+                    id: "dashboard_right_panel_hide_tooltip",
+                  })
+                : intl.formatMessage({
+                    id: "dashboard_right_panel_show_tooltip",
+                  })}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -161,21 +174,31 @@ function WorkspaceDashboard({
             actions={[
               {
                 key: "plugins",
-                label: "Plugins",
+                label: intl.formatMessage({
+                  id: "dashboard_sidebar_plugins_button",
+                }),
                 icon: UnplugIcon,
-                badge: "Coming soon",
+                badge: intl.formatMessage({
+                  id: "dashboard_sidebar_plugins_soon_label",
+                }),
                 // TODO: open the plugins panel once it exists.
                 onClick: () =>
-                  toast.info("Plugins are coming soon", {
-                    description:
-                      "Connect external tools to extend what SurfSense can do. We're still polishing this.",
-                  }),
+                  toast.info(
+                    intl.formatMessage({ id: "dashboard_plugins_soon_toast" }),
+                    {
+                      description: intl.formatMessage({
+                        id: "dashboard_plugins_soon_body",
+                      }),
+                    }
+                  ),
               },
             ]}
             sources={
               <aside
                 id={LEFT_SOURCES_ID}
-                aria-label="Workspace sources"
+                aria-label={intl.formatMessage({
+                  id: "dashboard_sources_aria",
+                })}
                 className="flex h-full min-h-0 min-w-0 flex-col"
               >
                 <SourcesPanel
@@ -309,17 +332,25 @@ function WorkspacesEmpty({
         <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
           <LayoutGridIcon className="size-5" />
         </div>
-        <h1 className="font-heading text-xl font-medium">No workspaces</h1>
+        <h1 className="font-heading text-xl font-medium">
+          {intl.formatMessage({ id: "dashboard_workspaces_empty" })}
+        </h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          A workspace keeps a source library and its chats together.
+          {intl.formatMessage({ id: "dashboard_workspaces_empty_body" })}
         </p>
         <Button
           className="mt-5"
           disabled={isMutating}
-          onClick={() => void onCreate("My Workspace")}
+          onClick={() =>
+            void onCreate(
+              intl.formatMessage({
+                id: "dashboard_workspaces_default_name_label",
+              })
+            )
+          }
         >
           <PlusIcon />
-          Create workspace
+          {intl.formatMessage({ id: "dashboard_workspaces_create_button" })}
         </Button>
         <div className="mt-3">
           <ImportBundleButton onImported={onImported} />
@@ -450,13 +481,17 @@ export function DashboardPage({
           className="absolute top-4 left-1/2 z-40 w-auto max-w-lg -translate-x-1/2 shadow-lg"
         >
           <CircleAlertIcon />
-          <AlertTitle>Workspace action failed</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({ id: "dashboard_workspace_error_title" })}
+          </AlertTitle>
           <AlertDescription>{workspaces.error}</AlertDescription>
           <Button
             variant="ghost"
             size="icon-sm"
             className="absolute top-1 right-1"
-            aria-label="Dismiss workspace error"
+            aria-label={intl.formatMessage({
+              id: "dashboard_workspace_error_dismiss_aria",
+            })}
             onClick={workspaces.clearError}
           >
             <XIcon />

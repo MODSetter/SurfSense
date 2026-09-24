@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { intl } from "@/i18n/intl"
+
 import {
   cancelDocument,
   deleteDocument,
@@ -16,7 +18,9 @@ function isAbort(error: unknown) {
 }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({ id: "sources_unexpected_error" })
 }
 
 function wait(milliseconds: number, signal: AbortSignal) {
@@ -150,7 +154,7 @@ export function useSources(workspaceId: number) {
     try {
       const error = action
         ? await action()
-        : "Native file access is unavailable."
+        : intl.formatMessage({ id: "sources_native_access_unavailable_error" })
       if (error) throw new Error(error)
     } catch (cause) {
       toast.error(title, { description: messageFrom(cause) })
@@ -160,7 +164,7 @@ export function useSources(workspaceId: number) {
   const openOriginal = (documentId: number) => {
     const bridge = window.surfsense
     return runNativeDocumentAction(
-      "Couldn’t open source",
+      intl.formatMessage({ id: "sources_open_original_error" }),
       bridge ? () => bridge.openDocument(workspaceId, documentId) : undefined
     )
   }
@@ -168,7 +172,7 @@ export function useSources(workspaceId: number) {
   const revealOriginal = (documentId: number) => {
     const bridge = window.surfsense
     return runNativeDocumentAction(
-      "Couldn’t locate source",
+      intl.formatMessage({ id: "sources_reveal_original_error" }),
       bridge ? () => bridge.revealDocument(workspaceId, documentId) : undefined
     )
   }
@@ -208,12 +212,21 @@ export function useSources(workspaceId: number) {
     const supported = files.filter(isSupportedSourceFile)
     const unsupported = files.filter((file) => !isSupportedSourceFile(file))
     if (supported.length === 0) {
-      toast.error(`Couldn’t add your source${files.length === 1 ? "" : "s"}`, {
-        id: "source-upload-error",
-        description: `Unsupported file type: ${unsupported
-          .map((file) => file.name)
-          .join(", ")}`,
-      })
+      toast.error(
+        intl.formatMessage(
+          { id: "sources_upload_failed_toast" },
+          { count: files.length }
+        ),
+        {
+          id: "source-upload-error",
+          description: intl.formatMessage(
+            { id: "sources_upload_unsupported_error" },
+            {
+              files: unsupported.map((file) => file.name).join(", "),
+            }
+          ),
+        }
+      )
       return
     }
     uploadController.current?.abort()
@@ -242,22 +255,47 @@ export function useSources(workspaceId: number) {
       const count = outcome.created.length
       const title =
         count > 0
-          ? `${count} source${count === 1 ? "" : "s"} added`
-          : "No new sources added"
+          ? intl.formatMessage({ id: "sources_upload_added_toast" }, { count })
+          : intl.formatMessage({ id: "sources_upload_none_added_toast" })
       const description = [
-        count > 0 ? "Ingestion is running in the background." : null,
+        count > 0
+          ? intl.formatMessage({ id: "sources_upload_ingesting_body" })
+          : null,
         outcome.duplicates.length > 0
-          ? `Already present: ${outcome.duplicates
-              .map((duplicate) => duplicate.filename)
-              .join(", ")}`
+          ? intl.formatMessage(
+              { id: "sources_upload_duplicates_body" },
+              {
+                files: outcome.duplicates
+                  .map((duplicate) => duplicate.filename)
+                  .join(", "),
+              }
+            )
           : null,
         unsupported.length > 0
-          ? `Not supported: ${unsupported.map((file) => file.name).join(", ")}`
+          ? intl.formatMessage(
+              { id: "sources_upload_unsupported_body" },
+              {
+                files: unsupported.map((file) => file.name).join(", "),
+              }
+            )
           : null,
         outcome.rejected.length > 0
-          ? `Rejected: ${outcome.rejected
-              .map((rejection) => `${rejection.filename} (${rejection.reason})`)
-              .join(", ")}`
+          ? intl.formatMessage(
+              { id: "sources_upload_rejected_body" },
+              {
+                files: outcome.rejected
+                  .map((rejection) =>
+                    intl.formatMessage(
+                      { id: "sources_upload_rejected_file_label" },
+                      {
+                        filename: rejection.filename,
+                        reason: rejection.reason,
+                      }
+                    )
+                  )
+                  .join(", "),
+              }
+            )
           : null,
       ]
         .filter(Boolean)
@@ -274,7 +312,10 @@ export function useSources(workspaceId: number) {
     } catch (cause) {
       if (!isAbort(cause) && uploadController.current === controller) {
         toast.error(
-          `Couldn’t add your source${files.length === 1 ? "" : "s"}`,
+          intl.formatMessage(
+            { id: "sources_upload_failed_toast" },
+            { count: files.length }
+          ),
           {
             id: "source-upload-error",
             description: messageFrom(cause),
@@ -380,7 +421,10 @@ export function useSources(workspaceId: number) {
     const failedCount = results.length - deletedIds.size
     if (failedCount > 0) {
       setError(
-        `${failedCount} selected source${failedCount === 1 ? "" : "s"} could not be deleted.`
+        intl.formatMessage(
+          { id: "sources_delete_selected_error" },
+          { count: failedCount }
+        )
       )
     }
     setIsDeleting(false)

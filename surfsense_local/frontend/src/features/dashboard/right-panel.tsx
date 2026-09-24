@@ -1,5 +1,7 @@
 import type { ReactNode } from "react"
 
+import { intl } from "@/i18n/intl"
+
 // The right column: Studio's generate control sits above the artifact
 // list, and an inspected citation or artifact swaps out for the whole panel.
 // There used to be a Sources tab here too — sources now live in the left
@@ -18,7 +20,7 @@ export function RightPanel({
   return (
     <aside
       className="flex h-full min-h-0 min-w-0 flex-col gap-5 overflow-hidden border-l bg-background select-none"
-      aria-label="Workspace artifacts"
+      aria-label={intl.formatMessage({ id: "dashboard_right_panel_aria" })}
     >
       {/* Same heading, spacing and placement as the left sidebar's
           "SurfSense" header — Studio's format cards start exactly where

@@ -10,6 +10,7 @@ import {
   useUpdatePrefs,
   useUpdateState,
 } from "@/features/updates/use-update-state"
+import { intl } from "@/i18n/intl"
 import type { UpdateState } from "@/lib/api"
 import { cn } from "@/lib/utils"
 
@@ -57,27 +58,83 @@ function FooterRow({
 // The row answers "is my license working?" at a glance, so it reads as a status
 // light: green only when plugins are actually unlocked, red for every state
 // that leaves them locked, whatever the reason.
-const LICENSE_ROWS: Record<LicenseState, Row> = {
-  active: { label: "License active", tone: "good" },
-  none: { label: "No license", tone: "bad" },
-  license_expired: { label: "License expired", tone: "bad" },
-  clock_untrusted: { label: "Clock is off", tone: "bad" },
+const LICENSE_ROWS: Record<
+  LicenseState,
+  { label: () => string; tone: Row["tone"] }
+> = {
+  active: {
+    label: () =>
+      intl.formatMessage({ id: "dashboard_footer_license_active_status" }),
+    tone: "good",
+  },
+  none: {
+    label: () =>
+      intl.formatMessage({ id: "dashboard_footer_license_none_status" }),
+    tone: "bad",
+  },
+  license_expired: {
+    label: () =>
+      intl.formatMessage({ id: "dashboard_footer_license_expired_status" }),
+    tone: "bad",
+  },
+  clock_untrusted: {
+    label: () =>
+      intl.formatMessage({ id: "dashboard_footer_license_clock_status" }),
+    tone: "bad",
+  },
+}
+
+function licenseRow(state: LicenseState): Row {
+  const { label, tone } = LICENSE_ROWS[state]
+  return { label: label(), tone }
 }
 
 function updateRow(state: UpdateState): Row {
   switch (state.status) {
     case "checking":
-      return { label: "Checking…", tone: "quiet", busy: true }
+      return {
+        label: intl.formatMessage({
+          id: "dashboard_footer_update_checking_status",
+        }),
+        tone: "quiet",
+        busy: true,
+      }
     case "downloading":
-      return { label: "Downloading…", tone: "quiet", busy: true }
+      return {
+        label: intl.formatMessage({
+          id: "dashboard_footer_update_downloading_status",
+        }),
+        tone: "quiet",
+        busy: true,
+      }
     case "ready":
-      return { label: "Restart to update", tone: "offer" }
+      return {
+        label: intl.formatMessage({
+          id: "dashboard_footer_update_restart_button",
+        }),
+        tone: "offer",
+      }
     case "up-to-date":
-      return { label: "Up to date", tone: "quiet" }
+      return {
+        label: intl.formatMessage({
+          id: "dashboard_footer_update_current_status",
+        }),
+        tone: "quiet",
+      }
     case "error":
-      return { label: "Update check failed", tone: "wrong" }
+      return {
+        label: intl.formatMessage({
+          id: "dashboard_footer_update_failed_status",
+        }),
+        tone: "wrong",
+      }
     default:
-      return { label: "Check for updates", tone: "quiet" }
+      return {
+        label: intl.formatMessage({
+          id: "dashboard_footer_update_check_button",
+        }),
+        tone: "quiet",
+      }
   }
 }
 
@@ -99,9 +156,9 @@ export function SidebarFooter({
   const state = useUpdateState()
   const { prefs, setAutomatic } = useUpdatePrefs()
 
-  const licenseRow = license ? LICENSE_ROWS[license.state] : null
+  const currentLicenseRow = license ? licenseRow(license.state) : null
 
-  if (!licenseRow && !updates) return null
+  if (!currentLicenseRow && !updates) return null
 
   // Installing is local and needs no permission. Checking asks github.com, and
   // Settings > Network promises that call is refused until allowed -- so the
@@ -120,10 +177,10 @@ export function SidebarFooter({
 
   return (
     <div className="flex flex-col gap-0.5 border-t p-2">
-      {licenseRow ? (
+      {currentLicenseRow ? (
         <FooterRow
           icon={LicenseIcon}
-          row={licenseRow}
+          row={currentLicenseRow}
           onClick={onOpenLicense}
         />
       ) : null}
