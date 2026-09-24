@@ -181,16 +181,20 @@ This is a stopgap. Step 1 opens an issue upstream asking for a Windows archive w
 | `audio_folder/` | its files, the installed model, and `server.json` |
 | `engine.py` | the adapter: `after_install` and `after_remove` rewrite `server.json`, `on_startup` writes it |
 
-**Evidence.** Every audio.cpp GGUF declares `general.architecture = audiocpp`; the family is `audiocpp.model_spec.family` (`kokoro_tts`, `supertonic`, `kitten_tts`). The classifier lists `audiocpp` among speech recognisers today, so a searched text-to-speech repo reads "writes down what it hears". The family becomes the evidence's architecture, and the voice families join the text-to-speech group, `AUDIO_GEN`. Kokoro's header embeds its voice packs, 38.5 MB of metadata, past the 24 MiB the header reader widens to, so the refresh script reads the keys in order and stops at the family, which audio.cpp's writer puts before the embedded files.
+**Evidence.** Every audio.cpp GGUF declares `general.architecture = audiocpp`; the family is `audiocpp.model_spec.family` (`kokoro_tts`, `supertonic`, `kitten_tts`). The classifier listed `audiocpp` among speech recognisers, so a searched text-to-speech repo read "writes down what it hears". The family becomes the evidence's architecture, and the voice families join the text-to-speech group, `AUDIO_GEN`. A bare `audiocpp`, which speech recognisers declare too, gets its own typeless group: "This model runs on audio.cpp. SurfSense runs only the voices in its list." Kokoro's header embeds its voice packs, 38.6 MB of metadata, and Supertonic's runs to 57 MB, past the 24 MiB the header reader widens to, so the refresh script reads the first 64 KiB and walks the keys in order to the family, the seventh key in all three files.
 
 **The `audio` block**, reviewed like `image`:
 
 ```jsonc
 "audio": {
-  "origin": "hexgrad/Kokoro-82M model card",
+  "origin": "hexgrad/Kokoro-82M model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
   "sample_rate": 24000,
-  "peak_mb": { "240": 1421, "120": 1215, "60": 871 },   // measured per text_chunk_size; the screen states the first
-  "languages": ["en-US", "en-GB", "es", "fr", "hi", "it", "pt-BR", "zh"],
+  "peak_mb": 1421,                                   // at the server's default text_chunk_size; the screen states it
+  "chunk_steps": [                                   // smaller chunks and their peaks, where one was measured
+    { "text_chunk_size": 120, "peak_mb": 1215 },
+    { "text_chunk_size": 60, "peak_mb": 871 }
+  ],
+  "languages": ["en-GB", "en-US", "es", "fr", "hi", "it", "pt-BR", "zh"],
   "voices": [
     { "id": "af_heart", "label": "Heart", "language": "en-US" },
     { "id": "bm_fable", "label": "Fable", "language": "en-GB" }
@@ -199,7 +203,9 @@ This is a stopgap. Step 1 opens an issue upstream asking for a Windows archive w
 }
 ```
 
-**Builds.** One GGUF each, pinned like every build. The defaults are Kokoro `Q8_0` (190 MB; `BF16` is the other build), Supertonic `F16` (313 MB; its `Q8_0` is no smaller) and Kitten's only build (302 MB). LocalAI reports Supertonic's F16 file aborting inside ggml and uses the 454 MB full-precision one; F16 ran here on the CPU, so it is checked on every platform before it ships, with the full-precision file as the fallback. Audio rows carry no fit estimate, as image rows do not; they state the memory measured while voicing instead, and the podcast checks it before it starts ([Memory](#memory)).
+Supertonic has no chunk setting, so it commits a peak and no steps; Kitten commits its peak until its chunk sweep is measured. The schema refuses a model with fewer than two voices, a repeated voice id, and a voice in a language the model does not list. Kokoro's Mandarin voices are listed: audio.cpp phonemises Mandarin with its own Jieba and pinyin front end, not eSpeak, the reason the worker's Kokoro left them out.
+
+**Builds.** One GGUF each, from the model's own folder of `audio-cpp/audio.cpp-gguf`, pinned like every build; the entry lists them most preferred first, and the first is the default. The defaults are Kokoro `Q8_0` (190 MB; `BF16` is the other build), Supertonic `F16` (313 MB; its `q8_0` file has the `orig` file's hash, so only `orig` is pinned beside it) and Kitten's only build, `orig` (302 MB). `orig` is audio.cpp's name for source precision. All three models share the repo, and two have an `orig` build, so an install is matched by its recorded file, not by repo and label. `refresh_local_manifest.py --only` adds them without re-pinning the other entries. LocalAI reports Supertonic's F16 file aborting inside ggml and uses the 454 MB full-precision one; F16 ran here on the CPU, so it is checked on every platform before it ships, with the full-precision file as the fallback. Audio rows carry no fit estimate, as image rows do not; they state the memory measured while voicing instead, and the podcast checks it before it starts ([Memory](#memory)).
 
 ## Selection and Studio
 
