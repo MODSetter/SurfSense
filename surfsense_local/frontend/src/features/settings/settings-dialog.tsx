@@ -198,12 +198,12 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
   "chat-models": () =>
     intl.formatMessage({
       id: "settings_nav_chat_label",
-      defaultMessage: "Chat",
+      defaultMessage: "Text gen",
     }),
   "image-models": () =>
     intl.formatMessage({
       id: "settings_nav_image_label",
-      defaultMessage: "Image",
+      defaultMessage: "Image gen",
     }),
   "audio-models": () =>
     intl.formatMessage({

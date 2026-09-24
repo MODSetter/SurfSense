@@ -49,7 +49,7 @@ const COPY: Record<
     title: () =>
       intl.formatMessage({
         id: "onboarding_chat_step_title",
-        defaultMessage: "Choose a chat model",
+        defaultMessage: "Choose a text generation model",
       }),
     description: () =>
       intl.formatMessage({
@@ -69,13 +69,13 @@ const COPY: Record<
     title: () =>
       intl.formatMessage({
         id: "onboarding_image_step_title",
-        defaultMessage: "Choose an image model",
+        defaultMessage: "Choose an image generation model",
       }),
     description: () =>
       intl.formatMessage({
         id: "onboarding_image_step_body",
         defaultMessage:
-          "Lets Studio create images. Run one on this computer, or use one from a server.",
+          "Creates images for you. Run one on this computer, or use one from a server.",
       }),
     noLocal: () =>
       intl.formatMessage({
@@ -96,7 +96,7 @@ const COPY: Record<
       intl.formatMessage({
         id: "onboarding_audio_step_body",
         defaultMessage:
-          "Lets Studio create podcasts. Run one on this computer, or use one from a server.",
+          "Creates podcasts for you. Run one on this computer, or use one from a server.",
       }),
     noLocal: () =>
       intl.formatMessage({
