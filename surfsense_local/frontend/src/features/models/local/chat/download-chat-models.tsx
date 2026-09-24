@@ -52,7 +52,10 @@ export function DownloadChatModels({
     )
   }
 
-  const curated = catalog.data.rows.filter((row) => row.origin === "curated")
+  // The catalog also carries sd.cpp's image rows; they belong to the image page.
+  const curated = catalog.data.rows.filter(
+    (row) => row.origin === "curated" && row.engine !== "sdcpp"
+  )
   const busy = installState.status === "installing" || select.isPending
 
   // No confirmation for a partial fit: it runs, slower, and llama.cpp places

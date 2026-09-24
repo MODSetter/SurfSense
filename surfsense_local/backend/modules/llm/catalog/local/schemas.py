@@ -67,8 +67,10 @@ class BuildRead(BaseModel):
     quantization: str
     footprint_bytes: int
     files: list[FileRead]
-    fit: FitRead
-    badge: BadgeRead
+    # Null where the engine has no fit estimate (image models): the row states
+    # the download size and nothing about this machine.
+    fit: FitRead | None
+    badge: BadgeRead | None
     can_install: bool
     # What the runtime calls this build on disk, which Use and Delete act on.
     installed_as: str | None
@@ -109,6 +111,8 @@ class LocalRowRead(BaseModel):
     builds: list[BuildRead]
     default_quantization: str | None
     recommended: bool
+    # The engine that offered the row and would run it: llamacpp or sdcpp.
+    engine: str
     # Absent for a searched repo, which lists every build and leads with none.
     lead: LeadRead | None
 

@@ -6,8 +6,8 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.models import ProviderConnection
-from modules.llm.providers.sdcpp import provider as sdcpp
 from shared.config import get_llm_settings
 from shared.db import create_session_factory
 
@@ -79,13 +79,17 @@ async def test_one_grant_covers_everything_sent_to_huggingface(
     question the user is asked is about the host and is asked once.
     """
     monkeypatch.setattr(get_llm_settings(), "image_models_dir", tmp_path)
-    catalog_id = (await client.get("/llm/catalog/local")).json()["rows"][0]["builds"][0]["catalog_id"]
-    image_model = sdcpp.CATALOG[0].name
+    get_local_catalog.cache_clear()
+    rows = (await client.get("/llm/catalog/local")).json()["rows"]
+    catalog_id = rows[0]["builds"][0]["catalog_id"]
+    image_id = next(r for r in rows if r["engine"] == "sdcpp")["builds"][0][
+        "catalog_id"
+    ]
 
     refusals = [
         await client.get("/llm/catalog/local/search", params={"q": "qwen"}),
         await client.post("/llm/install", json={"catalog_id": catalog_id}),
-        await client.post(f"/llm/image/local/{image_model}/install"),
+        await client.post("/llm/install", json={"catalog_id": image_id}),
     ]
 
     assert [refused.status_code for refused in refusals] == [403, 403, 403]

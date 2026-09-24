@@ -32,7 +32,7 @@ The plugins proposal adds a consent for each host a plugin declares, asked befor
 | Chat and Studio generation, text or image, through a remote connection | `_connection()` in `modules/llm/resolution.py` | `host:` |
 | Downloading a GGUF | `POST /llm/install` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in the same file | `host:huggingface.co` |
-| Downloading sd-server weights | `POST /llm/image/local/{name}/install` in `modules/llm/router.py` | `host:huggingface.co` |
+| Downloading sd-server weights | `POST /llm/install`, the same stream as chat models | `host:huggingface.co` |
 
 The GGUF download runs inside the API (`modules/llm/providers/llamacpp/download.py`) instead of through llama-server's own fetch. llama-server is a second process the app does not proxy, so an in-process fetch is the only place the check can hold.
 

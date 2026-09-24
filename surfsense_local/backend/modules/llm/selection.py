@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections import discover_models
 from modules.llm.connections.router import allowed_connection
 from modules.llm.model_type import ModelType
@@ -50,7 +51,13 @@ async def choose_model(
 
     fingerprint = await _collect(session, provider_name, model_name, connection_id)
     selected = await transact(
-        session, _store, model_type, provider_name, connection_id, model_name, fingerprint
+        session,
+        _store,
+        model_type,
+        provider_name,
+        connection_id,
+        model_name,
+        fingerprint,
     )
     logger.info(
         "llm: %s model %s/%s gets the %s prompt (params_b=%s vendor=%s line=%s)",
@@ -139,16 +146,10 @@ def _validate_local_image(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "local selections must not include a connection",
         )
-    model = sdcpp.find(model_name)
-    if model is None:
+    if get_local_catalog().sdcpp.installed_image(model_name) is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"unknown local image model: {model_name}",
-        )
-    if not sdcpp.installed(model):
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"{model.label} is not installed",
+            f"image model is not installed: {model_name}",
         )
 
 

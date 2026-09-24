@@ -3220,6 +3220,143 @@
           }
         }
       ]
+    },
+    {
+      "id": "stable-diffusion-1.5",
+      "name": "Stable Diffusion 1.5",
+      "family": "Stable Diffusion",
+      "publisher": "Runway",
+      "description": "Fastest, lowest memory. 512x512.",
+      "license": "creativeml-openrail-m",
+      "source_repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+      "aliases": [
+        "stable-diffusion-v1-5/stable-diffusion-v1-5"
+      ],
+      "evidence": {
+        "architecture": "sd1",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 1.07
+      },
+      "image": {
+        "origin": "stable-diffusion-v1-5/stable-diffusion-v1-5 model card",
+        "resolution": 512
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "kostakoff/stable-diffusion-v1-5-GGUF",
+              "upstream_repo": null,
+              "revision": "101ff06c98bea9ac8affe6a2c867e9762958d219",
+              "path": "v1-5-pruned_Q4_0.gguf",
+              "size_bytes": 3051366272,
+              "sha256": "24bcd54c1d1f0354a1cd19d07ad9a20771d43fde8318d505d71bcd84b078f20a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "sdxl-base-1.0",
+      "name": "Stable Diffusion XL",
+      "family": "Stable Diffusion",
+      "publisher": "Stability AI",
+      "description": "Higher detail at 1024x1024, and slower.",
+      "license": "openrail++",
+      "source_repo": "stabilityai/stable-diffusion-xl-base-1.0",
+      "aliases": [
+        "stabilityai/stable-diffusion-xl-base-1.0"
+      ],
+      "evidence": {
+        "architecture": "sdxl",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 3.47
+      },
+      "image": {
+        "origin": "SDXL report, arXiv:2307.01952",
+        "resolution": 1024
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "kostakoff/stable-diffusion-xl-base-1.0-GGUF",
+              "upstream_repo": null,
+              "revision": "ca58fb3aced770f3dffddabf01725b29207305ef",
+              "path": "sd_xl_base_1.0_0_Q4_0.gguf",
+              "size_bytes": 2709379488,
+              "sha256": "1f64d77cbd8aee3ee1a0ae6e58ea64ba39308721150f38cfaa5ee57e9d4fd106"
+            }
+          ],
+          "run": {
+            "args": [
+              "--backend",
+              "vae=cpu"
+            ]
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "sdxl-turbo",
+      "name": "SDXL Turbo",
+      "family": "Stable Diffusion",
+      "publisher": "Stability AI",
+      "description": "XL quality in one step, for quick drafts. Non-commercial licence.",
+      "license": "sai-nc-community",
+      "source_repo": "stabilityai/sdxl-turbo",
+      "aliases": [
+        "stabilityai/sdxl-turbo"
+      ],
+      "evidence": {
+        "architecture": "sdxl",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 3.47
+      },
+      "image": {
+        "origin": "stabilityai/sdxl-turbo model card",
+        "resolution": 512,
+        "steps": 1,
+        "cfg": 0.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "gpustack/stable-diffusion-xl-1.0-turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "632cbcdd425c03a01667b9b5cdd7396b14f8cab8",
+              "path": "stable-diffusion-xl-1.0-turbo-Q4_0.gguf",
+              "size_bytes": 3940010720,
+              "sha256": "5282eec23430ca46de87de984521fbf04e3cf78fa4152b05610089bc71d8a535"
+            }
+          ],
+          "run": {
+            "args": [
+              "--backend",
+              "vae=cpu"
+            ]
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
     }
   ]
 }

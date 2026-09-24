@@ -73,6 +73,7 @@ const row = (
   builds,
   default_quantization: "Q4_K_M",
   recommended: false,
+  engine: "llamacpp",
   lead: { quantization: builds[0]?.quantization ?? "", why: "recommended" },
   ...overrides,
 })
@@ -152,6 +153,38 @@ describe("model catalog", () => {
     expect(screen.queryByRole("button", { name: /scan/i })).toBeNull()
   })
 
+  it("leaves sd.cpp's image models to the image page", async () => {
+    // The catalog carries both engines' rows; this page offers chat models.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(),
+            row(
+              {
+                id: "stable-diffusion-1.5",
+                name: "Stable Diffusion 1.5",
+                family: "Stable Diffusion",
+                types: ["image_gen"],
+                selectable_for: ["image_gen"],
+                engine: "sdcpp",
+                default_quantization: "Q4_0",
+                lead: { quantization: "Q4_0", why: "default" },
+              },
+              [build({ quantization: "Q4_0", fit: null, badge: null })]
+            ),
+          ],
+        })
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(await screen.findByText("Qwen3 8B")).toBeTruthy()
+    expect(screen.queryByText("Stable Diffusion 1.5")).toBeNull()
+  })
+
   it("explains a light spill without flagging it", async () => {
     // Recommended on purpose, so it must not wear a warning beside the star.
     vi.stubGlobal(
@@ -213,7 +246,7 @@ describe("model catalog", () => {
         ? new Response(
             stream([
               '{"type":"downloading","completed":5,"total":10}\n',
-              '{"type":"complete","selection":{"role":"generation","provider":"llamacpp","name":"Qwen3-8B-Q4_K_M","updated_at":"2026-09-07T00:00:00Z"}}\n',
+              '{"type":"complete","selection":{"model_type":"text_gen","provider":"llamacpp","connection_id":null,"name":"Qwen3-8B-Q4_K_M","updated_at":"2026-09-07T00:00:00Z"}}\n',
             ])
           )
         : null

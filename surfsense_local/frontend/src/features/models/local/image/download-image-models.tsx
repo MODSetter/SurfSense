@@ -35,7 +35,7 @@ export function DownloadImageModels() {
     )
   }
 
-  const models = catalog.data.offered ? (catalog.data.models ?? []) : []
+  const models = catalog.data.models
   if (models.length === 0) {
     return (
       <Alert>
@@ -54,9 +54,9 @@ export function DownloadImageModels() {
     <div className="flex flex-col gap-3">
       <ul className="divide-y overflow-hidden rounded-xl border bg-card">
         {models.map((model) => {
-          const active = installing && installState.name === model.name
+          const active = installing && installState.id === model.id
           return (
-            <li key={model.name} className="flex flex-col gap-2 px-3 py-2.5">
+            <li key={model.id} className="flex flex-col gap-2 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium">{model.label}</p>
@@ -67,7 +67,7 @@ export function DownloadImageModels() {
                     </span>
                   </p>
                 </div>
-                {model.installed ? (
+                {model.installed_as !== null ? (
                   <Button type="button" size="sm" variant="outline" disabled>
                     Downloaded
                   </Button>

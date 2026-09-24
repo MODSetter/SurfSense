@@ -7,12 +7,37 @@ position or a score; the manifest's order chooses the star and is never sent.
 from dataclasses import dataclass
 from enum import StrEnum
 
-from modules.llm.catalog.local.builds import Build
+from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.classifier import Classification
-from modules.llm.catalog.local.lead_build import Lead
-from modules.llm.catalog.local.support import LocalSupport
+from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.fit import Badge, FitVerdict
-from modules.llm.model_type import ModelType
+
+
+class LeadReason(StrEnum):
+    IN_USE = "in_use"
+    INSTALLED = "installed"
+    RECOMMENDED = "recommended"
+    FITS_SLOWER = "fits_slower"
+    NOTHING_FITS = "nothing_fits"
+    # An engine with no fit estimate leads with its default build.
+    DEFAULT = "default"
+
+
+@dataclass(frozen=True)
+class Lead:
+    quantization: str
+    why: LeadReason
+
+
+@dataclass(frozen=True)
+class LocalSupport:
+    """What a request to this build may carry. Images only: nothing in the app
+    sends audio, so an audio projector earns nothing here."""
+
+    context: int | None
+    reads_images: bool
+    tools: bool | None
+    reasoning: bool | None
 
 
 class Origin(StrEnum):
@@ -25,8 +50,10 @@ class Origin(StrEnum):
 class BuildRow:
     catalog_id: str
     build: Build
-    fit: FitVerdict
-    badge: Badge
+    # None where the engine has no fit estimate: the row states the download
+    # size and nothing about this machine.
+    fit: FitVerdict | None
+    badge: Badge | None
     # What the runtime calls the installed file, when it is on disk.
     installed_as: str | None
     recommended: bool
@@ -40,7 +67,9 @@ class BuildRow:
         """Only physics refuses, and only an exact figure can. An estimate
         over-charges on purpose, so it never blocks: the exact check before the
         download does."""
-        return bool(self.catalog_id) and (self.fit.can_install or self.fit.approximate)
+        if not self.catalog_id:
+            return False
+        return self.fit is None or self.fit.can_install or self.fit.approximate
 
 
 @dataclass(frozen=True)
@@ -54,14 +83,18 @@ class LocalRow:
     builds: tuple[BuildRow, ...]
     default_quantization: str | None
     recommended: bool
+    # The engine whose catalog offered this row, which is what would run it.
+    engine: str
     # The build the row shows and its Download fetches, and why. None for a
     # searched repo, which lists every build and leads with none.
     lead: Lead | None = None
 
     @property
     def runnable(self) -> bool:
-        """The bundled runtime chats, so only a text model runs here."""
-        return ModelType.TEXT_GEN in self.classification.types
+        """The offering engine is the one that runs this type: an image model
+        found through llama.cpp's search is not one sd.cpp's catalog offered."""
+        engine = engine_for(self.classification.types)
+        return engine is not None and engine.name == self.engine
 
     @property
     def not_runnable_reason(self) -> str | None:

@@ -5,7 +5,7 @@ import { installLocalImageModel, type DownloadStep } from "./api"
 
 export type ImageInstallState =
   | { status: "idle"; error: string | null }
-  | { status: "installing"; name: string; label: string; step: DownloadStep }
+  | { status: "installing"; id: string; label: string; step: DownloadStep }
 
 // Module state, as with chat installs: a download outlives the view that
 // started it.
@@ -33,7 +33,8 @@ export function useImageInstall() {
   const refresh = useRefreshModels()
 
   const install = async (model: {
-    name: string
+    id: string
+    catalog_id: string
     label: string
     size_bytes: number
   }) => {
@@ -43,14 +44,14 @@ export function useImageInstall() {
     const progress = (step: DownloadStep) =>
       publish({
         status: "installing",
-        name: model.name,
+        id: model.id,
         label: model.label,
         step,
       })
     progress({ status: "starting", completed: 0, total: model.size_bytes })
     let error: string | null = null
     try {
-      await installLocalImageModel(model.name, progress, next.signal)
+      await installLocalImageModel(model.catalog_id, progress, next.signal)
     } catch (cause) {
       if (!next.signal.aborted) error = messageFrom(cause)
     } finally {

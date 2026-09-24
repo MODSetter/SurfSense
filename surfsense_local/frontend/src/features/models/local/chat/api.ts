@@ -52,8 +52,10 @@ export type LocalBuild = {
   /** Everything that lands on disk and loads together, projector included. */
   footprint_bytes: number
   files: BuildFile[]
-  fit: Fit
-  badge: Badge
+  /** Null where the engine has no fit estimate (image models): the row states
+   *  the download size and nothing about this machine. */
+  fit: Fit | null
+  badge: Badge | null
   can_install: boolean
   /** What the runtime calls this build on disk, which Use and Delete act on. */
   installed_as: string | null
@@ -91,13 +93,21 @@ export type LocalRow = {
   default_quantization: string | null
   /** The one model starred for this computer. Curated models only. */
   recommended: boolean
+  /** The engine that offered the row and would run it. */
+  engine: "llamacpp" | "sdcpp"
   /**
    * The build the row shows and its Download fetches, and why the server chose
    * it. Absent for a searched repo, which lists every build and leads with none.
    */
   lead: {
     quantization: string
-    why: "in_use" | "installed" | "recommended" | "fits_slower" | "nothing_fits"
+    why:
+      | "in_use"
+      | "installed"
+      | "recommended"
+      | "fits_slower"
+      | "nothing_fits"
+      | "default"
   } | null
 }
 
@@ -182,7 +192,8 @@ export type InstallEvent =
       completed: number
       total: number
     }
-  | { type: "complete"; message?: string; selection: ModelSelection }
+  // `selection` is null when the install was asked not to select.
+  | { type: "complete"; message?: string; selection: ModelSelection | null }
   | { type: "error"; message: string }
 
 export type DeleteModelResult = {
@@ -217,15 +228,17 @@ export function getRepoDetail(
   })
 }
 
+/** Resolves to the new selection, or null when `select` is false. */
 export async function installCatalogModel(
   catalogId: string,
   onEvent: (event: InstallEvent) => void,
-  signal?: AbortSignal
-): Promise<ModelSelection> {
+  signal?: AbortSignal,
+  select = true
+): Promise<ModelSelection | null> {
   const response = await request("/llm/install", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ catalog_id: catalogId, select: true }),
+    body: JSON.stringify({ catalog_id: catalogId, select }),
     signal,
   })
   if (!response.body) {

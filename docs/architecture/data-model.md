@@ -300,6 +300,7 @@ erDiagram
 | `0012` | `0012_llamacpp_provider.py` | `selected_models` rebuilt with `llamacpp` in place of `ollama`, clearing Ollama selections rather than remapping them; an `ollama_pull` egress grant becomes `model_download` |
 | `0013` | `0013_selection_by_model_type.py` | `selected_models` rebuilt keyed by `model_type`: `generation` becomes `text_gen` and `image_generation` becomes `image_gen`, and the `local_runtime_type` CHECK is added; downgrading drops a selection in the three types the old key cannot hold |
 | `0014` | `0014_connection_catalog_provider.py` | `provider_connections.catalog_provider`, `custom` for every existing connection; downgrading drops the column in place, because a table rebuild would cascade into `selected_models` |
+| `0015` | `0015_image_selection_by_build.py` | a local `image_gen` selection is renamed from the old list's name to its curated build's id (`stable-diffusion-1.5` to `v1-5-pruned_Q4_0`, and the two SDXL models); the map is frozen in the migration, and downgrading reverses it |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.

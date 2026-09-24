@@ -1,29 +1,21 @@
-import json
-from collections.abc import AsyncIterator
-
-import httpx
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.egress import service as egress
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
 from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
 from modules.llm.connections.router import router as connections_router
-from modules.llm.dependencies import LocalRuntimeDep, ProviderDep
+from modules.llm.dependencies import ProviderDep
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, llamacpp, provider_names
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.residency import warm_selected
 from modules.llm.schemas import (
-    LocalImageCatalogRead,
-    LocalImageModelRead,
     LocalImageRuntimeRead,
     ModelDeleteRead,
     ModelRead,
@@ -110,7 +102,6 @@ async def list_models(provider: ProviderDep) -> list[ModelRead]:
 )
 async def delete_model(
     model_name: str,
-    store: LocalRuntimeDep,
     service: LocalCatalogDep,
     session: SessionDep,
 ) -> ModelDeleteRead:
@@ -118,10 +109,8 @@ async def delete_model(
     # dead router made models undeletable, which is backwards: one reason to
     # delete a model is that things are broken, and removing a file needs
     # nothing running.
-    installed = next(
-        (row for row in service.installed() if row.model_id == model_name), None
-    )
-    if installed is None:
+    engine = service.engine_holding(model_name)
+    if engine is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"model not found: {model_name}")
     if await transact(session, _studio_running):
         raise HTTPException(
@@ -138,25 +127,25 @@ async def delete_model(
 
     try:
         try:
-            async with model_activity.deleting(model_key(store.name, model_name)):
+            async with model_activity.deleting(model_key(engine.provider, model_name)):
                 # Every part of a split build and its projector, from the
-                # install record, not only the file the runtime is pointed at.
-                service.remove(model_name)
+                # install record, and whatever the engine settles after.
+                service.remove(model_name, engine=engine.name)
         except ModelBusyError as error:
             raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
         except FileNotFoundError as error:
             raise HTTPException(
                 status.HTTP_404_NOT_FOUND, f"model not found: {model_name}"
             ) from error
-        # Rewrite the preset so the router drops it on the next restart, and so
-        # it never advertises a model whose file is gone: a stale section is
-        # served as a real entry, `source: preset`, and fails when chosen.
-        service.reprice()
     finally:
         install_lock.release()
 
     selection_cleared = await transact(
-        session, _clear_selection, store.name, model_name
+        session,
+        _clear_selection,
+        engine.provider,
+        model_name,
+        engine.model_type,
     )
     return ModelDeleteRead(name=model_name, selection_cleared=selection_cleared)
 
@@ -177,9 +166,14 @@ def _studio_running(session: Session) -> bool:
     )
 
 
-def _clear_selection(session: Session, provider: str, model_name: str) -> bool:
-    """Drop the generation selection if it named the model just deleted."""
-    selected = session.get(SelectedModel, ModelType.TEXT_GEN)
+def _clear_selection(
+    session: Session,
+    provider: str,
+    model_name: str,
+    model_type: ModelType = ModelType.TEXT_GEN,
+) -> bool:
+    """Drop the selection if it named the model just deleted."""
+    selected = session.get(SelectedModel, model_type)
     cleared = (
         selected is not None
         and selected.provider == provider
@@ -191,109 +185,26 @@ def _clear_selection(session: Session, provider: str, model_name: str) -> bool:
 
 
 @router.get(
-    "/image/local",
-    response_model=LocalImageCatalogRead,
-    summary="The bundled image models and their state",
-)
-async def read_local_image_models(session: SessionDep) -> LocalImageCatalogRead:
-    chosen = await transact(session, _chosen_image_model)
-    selected = chosen.name if chosen and chosen.provider == sdcpp.PROVIDER else None
-    return LocalImageCatalogRead(
-        provider=sdcpp.PROVIDER,
-        offered=sdcpp.offered(),
-        # Electron starts sd-server once weights land, so a model reads as
-        # installed a few seconds before it is ready to answer.
-        ready=selected is not None and await _image_server_healthy(),
-        models=[
-            LocalImageModelRead(
-                name=model.name,
-                label=model.label,
-                detail=model.detail,
-                size_bytes=model.size_bytes,
-                installed=sdcpp.installed(model),
-                selected=model.name == selected,
-            )
-            for model in sdcpp.CATALOG
-        ],
-    )
-
-
-@router.get(
     "/image/local/runtime",
     response_model=LocalImageRuntimeRead,
     summary="The image model sd-server should be running",
 )
-def read_local_image_runtime(session: SessionDep) -> LocalImageRuntimeRead:
+def read_local_image_runtime(
+    session: SessionDep, service: LocalCatalogDep
+) -> LocalImageRuntimeRead:
     chosen = _chosen_image_model(session)
-    model = (
-        sdcpp.find(chosen.name)
+    image = (
+        service.sdcpp.installed_image(chosen.name)
         if chosen is not None and chosen.provider == sdcpp.PROVIDER
         else None
     )
-    if model is None or not sdcpp.installed(model):
+    if image is None:
         return LocalImageRuntimeRead(file=None, args=[])
-    return LocalImageRuntimeRead(file=model.file, args=list(model.args))
-
-
-@router.delete(
-    "/image/local/{name}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    summary="Delete one downloaded image model",
-)
-async def delete_local_image_model(name: str, session: SessionDep) -> Response:
-    model = sdcpp.find(name)
-    if model is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown image model: {name}")
-    chosen = await transact(session, _chosen_image_model)
-    if chosen is not None and chosen.provider == sdcpp.PROVIDER and chosen.name == name:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            f"{model.label} is in use; choose another image model first",
-        )
-    sdcpp.remove(model)
-    return Response(status_code=status.HTTP_204_NO_CONTENT)
-
-
-@router.post(
-    "/image/local/{name}/install",
-    summary="Download one bundled image model, streaming progress",
-)
-async def install_local_image_model(
-    name: str, session: SessionDep
-) -> StreamingResponse:
-    if not sdcpp.offered():
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "this build has no local image support",
-        )
-    model = sdcpp.find(name)
-    if model is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, f"unknown image model: {name}")
-    await transact(session, egress.require, egress.HUGGINGFACE)
-
-    async def progress() -> AsyncIterator[bytes]:
-        async for step in sdcpp.install(model):
-            line = {
-                "status": step.status,
-                "completed": step.completed,
-                "total": step.total,
-            }
-            yield (json.dumps(line) + "\n").encode()
-
-    return StreamingResponse(progress(), media_type="application/x-ndjson")
+    return LocalImageRuntimeRead(file=image.file, args=list(image.args))
 
 
 def _chosen_image_model(session: Session) -> SelectedModel | None:
     return session.get(SelectedModel, ModelType.IMAGE_GEN)
-
-
-async def _image_server_healthy() -> bool:
-    try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            reply = await client.get(f"{sdcpp.base_url()}/models")
-            return reply.status_code == 200
-    except httpx.HTTPError:
-        return False
 
 
 @router.get(

@@ -14,8 +14,11 @@ export function useChatModels(): YourModels {
   const connections = useConnections()
 
   // Curated or not: for a model installed from search this is the only place
-  // it appears.
-  const local: YourModelRow[] = (catalog.data?.rows ?? []).flatMap((row) =>
+  // it appears. sd.cpp's image rows are the image page's.
+  const rows = (catalog.data?.rows ?? []).filter(
+    (row) => row.engine !== "sdcpp"
+  )
+  const local: YourModelRow[] = rows.flatMap((row) =>
     row.builds.flatMap((build) =>
       build.installed_as === null
         ? []

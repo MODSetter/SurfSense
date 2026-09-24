@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Any
 
-from modules.llm.catalog.local.builds import ListedFile
+from modules.llm.catalog.local.listed_file import ListedFile
 
 
 @dataclass(frozen=True)

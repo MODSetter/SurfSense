@@ -228,6 +228,33 @@ describe("chat model settings", () => {
     })
   })
 
+  it("leaves an image model on disk to the image page", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving({
+        rows: [
+          row({}, [build({ installed_as: "Qwen3-8B-Q4_K_M" })]),
+          row(
+            {
+              id: "sdxl-turbo",
+              name: "SDXL Turbo",
+              family: "Stable Diffusion",
+              types: ["image_gen"],
+              selectable_for: ["image_gen"],
+              engine: "sdcpp",
+            },
+            [build({ installed_as: "sdxl-turbo-q4_0", fit: null, badge: null })]
+          ),
+        ],
+      })
+    )
+
+    renderSettings()
+
+    expect(await screen.findByText("Qwen3 8B Q4_K_M")).toBeTruthy()
+    expect(screen.queryByText(/SDXL Turbo/)).toBeNull()
+  })
+
   it("reports the chat slot cleared when the model in use is deleted", async () => {
     vi.stubGlobal(
       "fetch",

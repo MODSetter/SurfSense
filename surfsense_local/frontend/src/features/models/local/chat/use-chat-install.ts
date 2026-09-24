@@ -69,7 +69,7 @@ export function useChatInstall(
         next.signal
       )
       await refresh()
-      onSelected?.(selection)
+      if (selection) onSelected?.(selection)
     } catch (error) {
       if (isAbort(error)) {
         toast.info("Installation cancelled. You can retry.", {

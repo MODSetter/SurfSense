@@ -196,7 +196,7 @@ The three image models hard-coded in `providers/sdcpp/` become entries like any 
 `scripts/refresh_local_manifest.py`, run by hand, output reviewed in a pull request. Six steps, each owned by a person or the script:
 
 1. **A person chooses the models.** Their order, `name`, `description`, `aliases`, and which repo each build comes from, preferring an ungated mirror of a gated vendor repo and recording the vendor as `upstream_repo`.
-2. **The script resolves builds.** For each model it pins every build whose quantization is in the preference order ([Which build of a model](#which-build-of-a-model)), not only the default, so a machine that cannot run the default has a smaller build of the same model to step down to. It uses the same file-picking rules search uses (`catalog/local/builds.py`): skip imatrix files and big-endian builds; take the first shard of a split set and list every part; count weights at the root and in folders named after a quantization (`BF16/`), the root winning a quantization both hold, and nothing in any other folder; leave out drafters (`mtp`, `draft`, `dflash`, `eagle`), which nothing runs yet; attach the repo's projector, preferring F16, to every build, and confirm it by its header (`general.type` is `mmproj`, it sees images, and it is as wide as the model).
+2. **The script resolves builds.** For each model it pins every build whose quantization is in the preference order ([Which build of a model](#which-build-of-a-model)), not only the default, so a machine that cannot run the default has a smaller build of the same model to step down to. It uses the same file-picking rules search uses (`catalog/local/engines/llamacpp/builds/in_repo.py`): skip imatrix files and big-endian builds; take the first shard of a split set and list every part; count weights at the root and in folders named after a quantization (`BF16/`), the root winning a quantization both hold, and nothing in any other folder; leave out drafters (`mtp`, `draft`, `dflash`, `eagle`), which nothing runs yet; attach the repo's projector, preferring F16, to every build, and confirm it by its header (`general.type` is `mmproj`, it sees images, and it is as wide as the model).
 3. **The script reads evidence** from each chosen file's own header over HTTP range requests, never from the repo-level `gguf` metadata Hugging Face serves, which describes one arbitrary file in the repo. `revision`, `size_bytes` and `sha256` come from the repo's file listing (`lfs.oid`) at a pinned commit. No weights are downloaded.
 4. **The script proposes run defaults; a person reviews them.** Sampling comes from the repo's machine-readable `params` file where one exists, with its source in `origin`, because published settings disagree with each other between a model card, its docs and its example commands. Image settings are proposed per family and reviewed the same way.
 5. **The script guards itself.** It refuses to write a build it could not read completely, so nothing unknown can be recommended; refuses a refresh that drops models or builds without the person naming them; and flags a chat template that differs between the pinned revision and `main`, which is how a quantizer ships a fix.
@@ -309,7 +309,7 @@ Two answers the old code gave as one refusal. The classifier says a FLUX GGUF is
 
 ### Support, and reading images
 
-`catalog/local/support.py` says what a build can do, for every local row, curated or not:
+`catalog/local/engines/llamacpp/support.py` says what a build can do, for every local row, curated or not:
 
 ```python
 LocalSupport(
@@ -336,7 +336,7 @@ Sending an image to a local model in a chat is not part of this work: chat sends
 
 ### Catalog
 
-`catalog/local/catalog.py` is a pure function: the manifest and the list of downloaded files in, rows out.
+`catalog/local/engines/llamacpp/rows/catalog.py` is a pure function: the manifest and the list of downloaded files in, rows out.
 
 | Input | What it is | Network |
 |---|---|---|
@@ -411,11 +411,11 @@ The backend decides, the screen renders. A curated row carries every build with 
 
 ### Search
 
-`catalog/local/search/` is the one live part of either catalog: 200,000 GGUF repos cannot be packaged. It is opt-in and asks egress consent for `huggingface.co`. Search results rank by downloads and are described, never judged: downloads, licence, gated, and Vision when the repo's file names include a projector, by the same projector rule `builds.py` uses; the listing's `full=true` already carries every repo's file names, so this costs no request. A hit also keeps its `base_model:quantized:` tag as `quantized_from`, returned by the API and not shown. Nothing from search is written to a manifest.
+`catalog/local/engines/llamacpp/search/` is the one live part of either catalog: 200,000 GGUF repos cannot be packaged. It is opt-in and asks egress consent for `huggingface.co`. Search results rank by downloads and are described, never judged: downloads, licence, gated, and Vision when the repo's file names include a projector, by the same projector rule `repo_builds.py` uses; the listing's `full=true` already carries every repo's file names, so this costs no request. A hit also keeps its `base_model:quantized:` tag as `quantized_from`, returned by the API and not shown. Nothing from search is written to a manifest.
 
 **Opening a repo reads its listing, never a file.** The repo summary and file tree come back in about a second; each build shows its exact size and a fit estimated from sizes, marked `~`, which over-charges on purpose (weights plus 15% and a gibibyte) so it never calls a spill resident, and never refuses. The type comes from the repo's tag and Hugging Face's parsed architecture, ignored when it names a projector, marked approximate. **Installing a build reads it exactly:** before any bytes move, the weights' and projector's headers are read, the build is refused if it is not a model, not a type the runtime runs, or too big, and a projector that does not see or belongs to another model is dropped. Reading a header costs about 50 ms because a vocabulary is counted, not decoded.
 
-Opening a repo picks its builds with `catalog/local/builds.py`, the same file-picking rules the refresh script uses, so a searched repo and a curated one can never disagree about which file is the model and which is the projector. The builds are listed smallest first, each with its size and fit badge, and each shows the same install button and progress as a curated build. Search has no default build and no recommendation, of a build or of a model: SurfSense recommends only what a person curated and reviewed.
+Opening a repo picks its builds with `catalog/local/engines/llamacpp/builds/in_repo.py`, the same file-picking rules the refresh script uses, so a searched repo and a curated one can never disagree about which file is the model and which is the projector. The builds are listed smallest first, each with its size and fit badge, and each shows the same install button and progress as a curated build. Search has no default build and no recommendation, of a build or of a model: SurfSense recommends only what a person curated and reviewed.
 
 ## Remote
 
@@ -454,28 +454,28 @@ modules/llm/model_type.py  ModelType: the one primitive local, remote, selection
 modules/llm/selectable.py  the one rule for which slots a model fills
 modules/llm/catalog/
   source.py                Source: the catalog's source filter
-  local/
-    manifest/              models.json, schema, loader
-    classifier.py          GGUF evidence → type
-    support.py             context, reads images, tools
-    catalog.py             manifest + downloaded files → rows
-    recommendation.py      the model-level star: the first model with a recommended build
-    lead_build.py          the build a row leads with, and why
-    pricing.py             one price for a build: exact from a shape, else estimated from sizes
-    downloaded.py          reads the models folder, cached on path, size and mtime
+  local/                   only what every engine shares
+    manifest/              models.json, schema, loader, strict config
+    build.py               a build: files with roles
+    listed_file.py         one row of a Hugging Face repo listing
+    classifier.py          evidence → type
     installs.py            the install record: which files each install put on disk
     quantization.py        a build's quantization label, prefix kept
-    builds.py              which files make a build, and the repo's projector: used by search and the refresh script
-    build_choice/          which build of a model to recommend
-      preference.py        the quantization preference order
-      default_build.py     the first build in that order, blind to hardware
-      recommended_build.py the default, or the largest smaller build fast enough here
-    search/                hits.py, listing.py, repo_row.py, exact_check.py, tickets.py
-    rows.py                the local row
-    service.py             the side effects: the machine, the models folder, the network
+    rows.py                the local row, its support and its lead
+    install/               plan.py, download.py (one path for every engine), tickets.py
+    service.py             the machine, install ids, and the engines behind one seam
     schemas.py             what the local routes return
     dependencies.py        wiring the service once per process
     router.py              the local routes, `/llm/system` and `/llm/install`
+    engines/
+      engine.py            the seam every engine answers at
+      registry.py          which engine runs which type, and the entry fields each reads
+      llamacpp/            engine.py, manifest_fields.py, support.py, pricing.py,
+                           builds/ (in_repo.py, choice/), rows/ (catalog, lead_build,
+                           recommendation), models_folder/ (scan, preset, readiness), search/
+      sdcpp/               engine.py, manifest_fields.py, evidence.py, builds/ (in_repo,
+                           choice), rows/ (catalog, lead_build), images_folder/ (files,
+                           legacy, installed)
   remote/
     manifest/              models.json, schema, loader, lookup
     classifier.py          modalities → type, over a manifest entry
@@ -486,6 +486,8 @@ modules/llm/catalog/
     schemas.py             what the remote routes return
     router.py              the remote routes
 
+scripts/refresh_local_manifest.py    one entry per engine's refresh, guarded, validated, written
+scripts/local_manifest/              entries.py (the reviewed list), entry.py, hub.py, guard.py, {llamacpp,sdcpp}/ (refresh.py, assemble.py)
 scripts/refresh_remote_manifest.py   fetch, translate, guard, validate, write
 scripts/remote_manifest/             translate.py, endpoints.py (the reviewed table), guard.py, render.py
 scripts/refresh_local_manifest.py    read each repo at a pinned commit, assemble, guard, write
@@ -494,7 +496,7 @@ scripts/local_manifest/              entries.py (the hand-authored list), hub.py
 
 The remote router mounts under `/llm/catalog/remote`; the local one under `/llm`, where it serves `/llm/catalog/local`, `/llm/system` and `/llm/install`. Downloading, fit, hardware and the runtimes stay outside `catalog/`: they are about running a model, not knowing what it is. Connection CRUD, keys and live discovery stay in `connections/`: discovery calls a connection's `/models`, reads declared modalities first, and otherwise asks the manifest lookup, scoped by the connection's `catalog_provider`.
 
-Adding a type is an enum value in `model_type.py`, the classifier groups that emit it, and a CHECK migration. Adding a remote provider is a manifest refresh. Adding a kind of source is a new side under `catalog/` with the same four files.
+Adding a local runtime is a new slice under `catalog/local/engines/`, beside its client in `providers/`. Adding a type is an enum value in `model_type.py`, the classifier groups that emit it, and a CHECK migration. Adding a remote provider is a manifest refresh. Adding a kind of source is a new side under `catalog/` with the same four files.
 
 ## HTTP
 
@@ -510,7 +512,7 @@ Adding a type is an enum value in `model_type.py`, the classifier groups that em
 
 All 8,116 remote rows in one response would be several megabytes, one provider holding 586 of them, so the providers come first and a provider's rows when it is opened.
 
-The screen paints local and remote rows from the two offline routes at once, then each connection's check fills in on its own, so a slow endpoint never holds the page. `/llm/image/local/*` and `/llm/connections/{id}/models` go in step 6, with the screen that replaces their readers.
+The screen paints local and remote rows from the two offline routes at once, then each connection's check fills in on its own, so a slow endpoint never holds the page. `/llm/connections/{id}/models` goes in step 6, with the screen that replaces its readers. The image routes went in step 5, all but `/llm/image/local/runtime`, which Electron reads to start sd-server.
 
 ## The screen
 
@@ -532,7 +534,7 @@ Each step ships alone and leaves the app working.
    - **3d.** The three remote routes, and the connection form's presets from the manifest.
 4. **Local classifier.** Replaces `not_chat.py`; downloaded files and search results classified; diffusion GGUFs become `IMAGE_GEN`, not runnable. Local selection reads `selectable_for` over the classifier's types, as remote does, and the llama.cpp provider stops declaring `completion` for every file on disk, which let a downloaded embedder fill the `text_gen` slot. `support.py` reads `reads_images` from a projector's header.
 5. **Local manifest.** The new schema, `builds.py`, and the refresh script with its recorded-response tests and its guards; sd.cpp's models move in; the downloader fetches a build's file set, pinned by revision and verified by sha256, in one stream for text and image; each curated model recommends a build by its default and the step-down, priced at its whole footprint. The manifest's list is reversed once, from the old smallest first to most preferred first. The old `catalog/` root files move under `catalog/local/`, and the local routes move to `/llm/catalog/local`.
-6. **The screen.** One list, both filters; connections become a settings panel. `/llm/connections/{id}/models` and `/llm/image/local/*` go with the cards and pickers that still read them.
+6. **The screen.** One list, both filters; connections become a settings panel. `/llm/connections/{id}/models` goes with the cards and pickers that still read it.
 7. **Searched image models.** Single-file SD 1.5 and SDXL from search become runnable.
 
 ## Decided here

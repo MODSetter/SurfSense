@@ -6,7 +6,7 @@ import { deleteLocalImageModel } from "./api"
 export function useDeleteLocalImageModel() {
   const refresh = useRefreshModels()
   return useMutation({
-    mutationFn: (name: string) => deleteLocalImageModel(name),
+    mutationFn: (installedAs: string) => deleteLocalImageModel(installedAs),
     onSuccess: () => refresh(),
   })
 }

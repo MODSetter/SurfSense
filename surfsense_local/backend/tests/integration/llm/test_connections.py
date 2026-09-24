@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 from httpx import AsyncClient
 
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections.router import CHAT_TEST_MAX_TOKENS
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.sdcpp import provider as sdcpp
@@ -41,9 +42,7 @@ async def test_connection_secret_is_redacted_and_models_merge(
     assert listed.json()[0]["has_api_key"] is True
     assert "secret" not in listed.text
 
-    models = (
-        await client.get(f"/llm/connections/{connection['id']}/models")
-    ).json()
+    models = (await client.get(f"/llm/connections/{connection['id']}/models")).json()
     assert {model["name"] for model in models} == {
         "anthropic/claude-3.5-sonnet",
         "black-forest-labs/flux",
@@ -86,7 +85,11 @@ async def test_a_model_nothing_recognises_can_fill_every_slot(
     assert mystery["types"] == []
     assert mystery["capability_source"] == "unknown"
     assert mystery["selectable_for"] == [
-        "text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"
+        "text_gen",
+        "image_gen",
+        "image_edit",
+        "video_gen",
+        "audio_gen",
     ]
 
 
@@ -148,7 +151,10 @@ async def test_a_connection_names_the_manifest_provider_it_reaches(
 
     assert named.json()["catalog_provider"] == "neon"
     assert plain.json()["catalog_provider"] == "custom"
-    listed = {c["label"]: c["catalog_provider"] for c in (await client.get("/llm/connections")).json()}
+    listed = {
+        c["label"]: c["catalog_provider"]
+        for c in (await client.get("/llm/connections")).json()
+    }
     assert listed == {"Neon": "neon", "Mine": "custom"}
 
 
@@ -185,10 +191,14 @@ async def test_a_connection_reads_its_own_providers_entry(
             json={**body, "label": "Neon", "catalog_provider": "neon"},
         )
     ).json()
-    custom = (await client.post("/llm/connections", json={**body, "label": "Mine"})).json()
+    custom = (
+        await client.post("/llm/connections", json={**body, "label": "Mine"})
+    ).json()
 
     async def types(connection: dict) -> list[str]:
-        listed = (await client.get(f"/llm/connections/{connection['id']}/models")).json()
+        listed = (
+            await client.get(f"/llm/connections/{connection['id']}/models")
+        ).json()
         return next(m["types"] for m in listed if m["name"] == "gpt-5-5")
 
     assert await types(neon) == ["text_gen", "image_gen", "image_edit"]
@@ -356,113 +366,73 @@ async def test_a_thinking_model_on_a_connection_is_not_called_broken(
     assert tested.json() == {"reply": "Hello"}
 
 
-def _stage(
-    directory: Path, monkeypatch: pytest.MonkeyPatch
-) -> sdcpp.ImageModel:
-    """Point the catalogue at a temp dir and download its first entry, small."""
-    from dataclasses import replace
+SD15 = "v1-5-pruned_Q4_0"
+SDXL = "sd_xl_base_1.0_0_Q4_0"
 
+
+def _stage(directory: Path, monkeypatch: pytest.MonkeyPatch, *ids: str) -> None:
+    """A build that ships sd-server, with these curated builds on disk under
+    their own names, as a file copied in by hand would be."""
     monkeypatch.setattr(get_llm_settings(), "image_models_dir", directory)
-    monkeypatch.setattr(
-        sdcpp,
-        "CATALOG",
-        tuple(replace(model, size_bytes=2048) for model in sdcpp.CATALOG),
-    )
-    model = sdcpp.CATALOG[0]
-    (directory / model.file).write_bytes(b"\0" * model.size_bytes)
-    return model
+    get_local_catalog.cache_clear()
+    for model_id in ids:
+        (directory / f"{model_id}.gguf").write_bytes(b"GGUF")
 
 
 async def test_the_local_image_model_can_take_the_image_role(
     client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """It carries no connection, which selected_models must permit."""
-    model = _stage(tmp_path, monkeypatch)
+    _stage(tmp_path, monkeypatch, SDXL)
 
     chosen = await client.put(
         "/llm/selection/image_gen",
-        json={
-            "provider": sdcpp.PROVIDER,
-            "connection_id": None,
-            "name": model.name,
-        },
+        json={"provider": sdcpp.PROVIDER, "connection_id": None, "name": SDXL},
     )
     assert chosen.status_code == 200, chosen.text
     assert chosen.json()["provider"] == sdcpp.PROVIDER
 
     read = await client.get("/llm/selection/image_gen")
-    assert read.json()["name"] == model.name
+    assert read.json()["name"] == SDXL
 
     # Electron reconciles sd-server against this, so it must name the weights
-    # and the flags the chosen model needs.
+    # and the flags the manifest pins for the chosen build.
     runtime = (await client.get("/llm/image/local/runtime")).json()
-    assert runtime["file"] == model.file
-    assert runtime["args"] == list(model.args)
+    assert runtime == {
+        "file": "sd_xl_base_1.0_0_Q4_0.gguf",
+        "args": ["--backend", "vae=cpu"],
+    }
 
 
-async def test_an_image_model_in_use_cannot_be_deleted_out_from_under_itself(
+async def test_an_image_model_that_is_not_installed_cannot_be_chosen(
     client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Deleting the chosen weights would leave sd-server pointed at nothing."""
-    model = _stage(tmp_path, monkeypatch)
-    spare = sdcpp.CATALOG[1]
-    (tmp_path / spare.file).write_bytes(b"\0" * spare.size_bytes)
+    """sd-server would be started pointing at nothing."""
+    _stage(tmp_path, monkeypatch)
 
-    await client.put(
+    refused = await client.put(
         "/llm/selection/image_gen",
-        json={
-            "provider": sdcpp.PROVIDER,
-            "connection_id": None,
-            "name": model.name,
-        },
+        json={"provider": sdcpp.PROVIDER, "connection_id": None, "name": SD15},
     )
 
-    refused = await client.delete(f"/llm/image/local/{model.name}")
-    assert refused.status_code == 409
-    assert (tmp_path / model.file).is_file()
-
-    # One that holds no role goes without argument.
-    removed = await client.delete(f"/llm/image/local/{spare.name}")
-    assert removed.status_code == 204
-    assert not (tmp_path / spare.file).exists()
-
-    listed = (await client.get("/llm/image/local")).json()["models"]
-    assert {m["name"]: m["installed"] for m in listed}[spare.name] is False
-
-
-async def test_local_image_model_is_silent_on_a_host_without_sd_server(
-    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    """No staged binary means no models dir: say so, and refuse the download."""
-    monkeypatch.setattr(get_llm_settings(), "image_models_dir", None)
-
-    read = await client.get("/llm/image/local")
-    assert read.status_code == 200
-    body = read.json()
-    assert body["offered"] is False
-    assert body["ready"] is False
-    assert body["provider"] == "sdcpp"
-    assert all(model["installed"] is False for model in body["models"])
-
-    refused = await client.post(
-        f"/llm/image/local/{sdcpp.CATALOG[0].name}/install"
-    )
-    assert refused.status_code == 409
+    assert refused.status_code == 422
 
 
 async def test_image_model_downloads_are_listed_and_refusable_too(
     client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Weights come from huggingface.co, so Network must name it and hold it off."""
-    monkeypatch.setattr(get_llm_settings(), "image_models_dir", tmp_path)
+    _stage(tmp_path, monkeypatch)
 
     listed = (await client.get("/egress")).json()
     row = next(d for d in listed if d["destination"] == "host:huggingface.co")
     assert row["host"] == "huggingface.co"
     assert row["enabled"] is False
 
+    rows = (await client.get("/llm/catalog/local")).json()["rows"]
+    sd15 = next(r for r in rows if r["id"] == "stable-diffusion-1.5")
     denied = await client.post(
-        f"/llm/image/local/{sdcpp.CATALOG[0].name}/install"
+        "/llm/install", json={"catalog_id": sd15["builds"][0]["catalog_id"]}
     )
     assert denied.status_code == 403
     assert denied.json()["detail"]["destination"] == "host:huggingface.co"
@@ -508,14 +478,12 @@ async def test_deleting_connection_cascades_only_its_selections(
         await client.delete(f"/llm/connections/{connection['id']}")
     ).status_code == 204
     assert (await client.get("/llm/selection/text_gen")).status_code == 404
-    assert (
-        await client.get("/llm/selection/image_gen")
-    ).status_code == 404
+    assert (await client.get("/llm/selection/image_gen")).status_code == 404
     assert (await client.get("/llm/onboarding")).json() == {"completed": True}
 
 
 async def test_unverified_and_unlisted_paths_require_explicit_confirmation(
-    client: AsyncClient
+    client: AsyncClient,
 ) -> None:
     """Network and catalogue bypasses never happen from an ordinary save."""
     body = {

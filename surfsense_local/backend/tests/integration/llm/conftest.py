@@ -40,7 +40,9 @@ class StubRouter(BaseHTTPRequestHandler):
         if self.path in ("/models/load", "/models/unload"):
             self._json({"success": True})
         elif self.path == "/v1/chat/completions":
-            self._send(b'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n')
+            self._send(
+                b'data: {"choices":[{"delta":{"content":"Hi"}}]}\n\ndata: [DONE]\n\n'
+            )
         else:
             self.send_error(404)
         del body
@@ -66,6 +68,14 @@ class StubRouter(BaseHTTPRequestHandler):
 
     def log_message(self, *args: object) -> None:
         """Keep the request log out of the test output."""
+
+
+@pytest.fixture(autouse=True)
+def fresh_local_catalog() -> Iterator[None]:
+    """The catalog service is cached per process and holds the folders it was
+    built with; a test that repoints them must not leak its service onward."""
+    yield
+    get_local_catalog.cache_clear()
 
 
 @pytest.fixture
@@ -95,6 +105,33 @@ def llamacpp_server(
     server.shutdown()
     server.server_close()
     get_local_catalog.cache_clear()
+
+
+@pytest.fixture
+def images_dir(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+):
+    """A build that ships sd-server: Electron hands the API an images folder."""
+    images = tmp_path_factory.mktemp("images")
+    monkeypatch.setattr(get_llm_settings(), "image_models_dir", images)
+    get_local_catalog.cache_clear()
+    yield images
+    get_local_catalog.cache_clear()
+
+
+@pytest.fixture
+def fake_hub(monkeypatch: pytest.MonkeyPatch):
+    """Hugging Face as a downloader that writes a few bytes and says it is done."""
+    from modules.llm.catalog.local.install import download as download_module
+    from modules.llm.providers.types import DownloadProgress
+
+    async def download(url, destination, *, sha256=None, transport=None):
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(b"GGUF")
+        yield DownloadProgress("complete", 4, 4)
+
+    monkeypatch.setattr(download_module, "download_gguf", download)
+    monkeypatch.setattr("modules.egress.service.require", lambda *a, **k: None)
 
 
 REMOTE_MODELS = [

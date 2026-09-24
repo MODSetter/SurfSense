@@ -1,6 +1,6 @@
 # The local model catalog
 
-> **Partly built.** This page describes the local catalog as the code stands. The [model catalog proposal](../../proposals/model-catalog.md) is in progress: image models in the manifest, the one screen with Source and Capability filters, and searched image models are still to come, and this page moves to `model-catalog/local.md` when that work ships.
+> **Partly built.** This page describes the local catalog as the code stands. The [model catalog proposal](../../proposals/model-catalog.md) is in progress: the one screen with Source and Capability filters and searched image models are still to come, and this page moves to `model-catalog/local.md` when that work ships.
 
 The model screen offers local models from three origins, all as one row shape:
 curated models from a packaged manifest of pinned builds, priced offline; files
@@ -27,10 +27,58 @@ on an opaque id the server mints, so the renderer can never name a download.
 Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/llm/catalog/local/rows.py)):
 its types, to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
 (`context`, `reads_images`, `tools`, `reasoning`), whether the bundled runtime can
-run it and why not, its builds, the build it leads with and why, and the star.
-Each build is a set of files with roles, and carries its fit, badge, whether it is
-installed, whether it is recommended, and whether it reads images. The screen
-renders these fields and computes none of them.
+run it and why not, the `engine` that offered it, its builds, the build it leads
+with and why, and the star. Each build is a set of files with roles, and carries
+its fit, badge, whether it is installed, whether it is recommended, and whether it
+reads images. An image build's `fit` and `badge` are `null`: sd.cpp has no fit
+estimate, so the row states the download size and nothing about this machine,
+and nothing blocks its install. The screen renders these fields and computes none
+of them.
+
+`GET /llm/catalog/local` returns llama.cpp's rows and then sd.cpp's, the three
+curated image models, only when Electron handed the API an images folder, which
+it does when it staged sd-server.
+
+## One slice per engine
+
+Only what every engine shares lives at `catalog/local/`. Each engine is a slice
+under [`engines/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/), with its sub-parts grouped into folders:
+
+```text
+catalog/local/
+  build.py  listed_file.py  quantization.py  classifier.py  installs.py  rows.py
+  manifest/                 the entry envelope, strict config, loader, models.json
+  install/                  plan.py, download.py (one path for every engine), tickets.py
+  engines/
+    engine.py               the seam: what every engine answers
+    registry.py             which engine runs which type, and the entry fields each reads
+    llamacpp/               engine.py, manifest_fields.py, support.py, pricing.py,
+                            builds/, rows/, models_folder/, search/
+    sdcpp/                  engine.py, manifest_fields.py, evidence.py,
+                            builds/, rows/, images_folder/
+  service.py  router.py  schemas.py  dependencies.py
+```
+
+[`engine.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/engine.py) is the one seam the service and the routes
+speak to. Each engine answers where its files land (`folder`), its rows,
+whether it `holds` an installed model, the `check` before a download, the steps
+`after_install` (llama.cpp rewrites the preset, waits for the router and warms
+the model; sd.cpp has nothing to do, since sd-server takes its model at launch),
+what to settle `after_remove`, and what to do `on_startup` (llama.cpp writes the
+preset; sd.cpp records legacy downloads). The selection an install fills is the
+engine's `model_type` and `provider`.
+
+| | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) |
+|---|---|---|
+| Evidence | GGUF metadata keys | tensor names (`evidence.py`) |
+| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults (required) |
+| Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | every GGUF at the repo's root, alone (`builds/in_repo.py`) |
+| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | `Q4_0`, the only build pinned (`builds/choice.py`) |
+| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, legacy downloads, the installed image |
+| Also | support, pricing, the recommended build, the lead build, the star, search | |
+
+A slice holds what the catalog knows about a runtime. Running it stays outside
+`catalog/`: the clients in `providers/`, and `fit/`, which prices llama.cpp.
 
 ## The manifest
 
@@ -82,44 +130,65 @@ preferred first, and nothing in it is a score.
   ([below](#which-files-make-a-build)) and give the quantization label, which
   keeps a quantizer's prefix (`UD-Q4_K_XL`) because the preference order ranks it.
 - **`shape` is optional** for a model the llama.cpp estimator does not price.
+- **An entry carries its engine's fields and no others.** The classifier reads
+  `evidence`, the registry names the engine, and the engine names the fields it
+  reads and the ones it needs. A text model needs `context`; an image model
+  needs `image` defaults and carries no `context`, `shape`, `template` or
+  `sampling`, because sd.cpp reads none of them. A field no engine reads would be
+  reviewed and trusted while doing nothing. `validated` records `llama_cpp` or
+  `sd_cpp`, the runtime build a person ran the build on.
 - **`aliases` fold a download into its curated row.** A downloaded file shows as
   a curated build when its install record names the model's `source_repo`, an
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped seven, all from `unsloth/*-GGUF`, 18 builds each, none validated,
-most preferred first: Qwen3 32B, 14B, 8B, 4B, Gemma 3 4B (reads images), Qwen3
-1.7B and 0.6B. `LocalManifest` rejects a wrong version, a repeated id or
+The shipped ten, none validated, most preferred first within each type. Seven
+chat models, all from `unsloth/*-GGUF` with 18 builds each: Qwen3 32B, 14B, 8B,
+4B, Gemma 3 4B (reads images), Qwen3 1.7B and 0.6B. Three image models, one
+self-contained `Q4_0` file each, the same files and hashes the hard-coded list
+they replace downloaded: Stable Diffusion 1.5 and XL from `kostakoff/*-GGUF`,
+and SDXL Turbo from `gpustack/stable-diffusion-xl-1.0-turbo-GGUF`, whose licence,
+`sai-nc-community`, allows non-commercial use only without a Stability AI
+membership. llama.cpp's catalog skips the image entries; sd.cpp's offers them. `LocalManifest` rejects a wrong version, a repeated id or
 quantization, an unpinned or unhashed file, a build without weights or with two
-projectors, and any field it does not declare. A manifest that fails is replaced
+projectors, an entry no bundled engine runs, and any field it does not declare. A manifest that fails is replaced
 at startup by an empty one, so downloaded models and search still work.
 
 ## Authoring
 
 `scripts/refresh_local_manifest.py`, run by hand; never in CI, at packaging or
 on a request path. `local_manifest/entries.py` is the hand-authored input:
-which models, in which order, from which repo; `VALIDATED`, in the script
-itself, is the other. For each repo the script reads the
+which models, in which order, from which repo; `VALIDATED`, one in each
+engine's `refresh.py`, is the other. For each repo the script reads the
 commit sha, the file listing at that commit (sizes and `lfs.oid` hashes) and the
 repo's `params` file, then the default build's header and its projector's header
-over HTTP range requests. No weights are downloaded.
+over HTTP range requests. No weights are downloaded. Each engine reads its own
+entries: `local_manifest/llamacpp/` and `local_manifest/sdcpp/` each hold a
+`refresh.py` (the network) and an `assemble.py` (pure, the written entry).
 
-- **It pins every build in the quantization preference order**
-  ([`build_choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/build_choice/preference.py)),
+- **An image entry's evidence comes from its tensors**, the only thing an sd.cpp
+  file states, and what a person reviews comes from the entry: the `image`
+  defaults, each with the source it was read from, and sd-server's `run.args`.
+  Only what the publisher's card or report states is filled; the rest is left to
+  sd-server's defaults.
+- **It pins every chat build in the quantization preference order**
+  ([`build_choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
   and nothing outside it: no imatrix files, drafters, big endian builds, or
   quantizations such as `TQ1_0` that the order does not rank.
 - **It refuses to write** a build without a hash or size, a projector that does not
   see images or is not as wide as the model, and a refresh that drops a model or
   a build, listing what would go, unless it is rerun with `--accept-loss`.
-- **`VALIDATED`** names builds somebody downloaded, chatted with and confirmed
-  citations resolve on, with the llama.cpp build they ran it on. It is empty.
+- **`VALIDATED`**, one in each engine's `refresh.py`, names builds somebody ran,
+  with the runtime build they ran it on: a chat build downloaded, chatted with
+  and its citations confirmed to resolve. Both are empty.
 
 The script's assembly is tested over recorded input, with no network
-([`test_local_manifest.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest.py)).
+([`test_local_manifest.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest.py),
+[`test_local_manifest_sdcpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_sdcpp.py)).
 
 ## Which files make a build
 
-[`builds.py`](../../../surfsense_local/backend/modules/llm/catalog/local/builds.py)
+[`repo_builds.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/in_repo.py)
 turns a listing into builds, for the refresh script and for search alike, so a
 curated repo and a searched one never disagree about which file is the model and
 which is its projector:
@@ -134,7 +203,7 @@ which is its projector:
 
 ## Which build a row shows
 
-For each curated model, in [`build_choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/build_choice/):
+For each curated model, in [`build_choice/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/):
 
 1. **The default**, blind to hardware: the first build in the preference order,
    `UD-Q4_K_XL` for every shipped model.
@@ -142,12 +211,19 @@ For each curated model, in [`build_choice/`](../../../surfsense_local/backend/mo
    `FULL` or `LIGHT_SPILL`, else the largest smaller build that is, never one
    above the default and never one below four bits (`RECOMMENDABLE`). Else none.
 
-[`lead_build.py`](../../../surfsense_local/backend/modules/llm/catalog/local/lead_build.py)
+[`lead_build.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/rows/lead_build.py)
 then names the build each row leads with, which is what its Download fetches, and
 why: `in_use`, then `installed`, then `recommended`, then `fits_slower` (the
 largest four bit or better build that installs), then `nothing_fits` (the default,
 when no build of four bits or more installs, to say how big the model is). A
 searched row leads with nothing; it lists every build.
+
+An image row, in sd.cpp's
+[`lead_build.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/rows/lead_build.py),
+leads with the build in use, then an installed one, then its default (`default`,
+`Q4_0`). With no fit there is nothing to recommend or to fall back from. A build
+is installed when the images folder's `installs.json` names its repo and
+quantization, or when its own file is in the folder.
 
 **The star** goes to the first curated model, in manifest order, with a
 recommended build, so a machine short of the preferred model's default gets a
@@ -176,11 +252,21 @@ diffusion architectures are `IMAGE_GEN`, video `VIDEO_GEN`, text to speech
 `AUDIO_GEN`. The tag only refuses or refines, never admits, and the tags that
 mean chat are never keys. An unreadable header fails open to `TEXT_GEN`, marked
 approximate. Each group keeps its own sentence, which becomes a row's reason for
-not running here: the bundled runtime runs `TEXT_GEN` only.
+not running here. A row is runnable when the engine that offered it is the one
+the registry gives its type: sd.cpp's image rows run, while the same image model
+found through llama.cpp's search does not, and keeps its sentence.
+
+A diffusion GGUF from sd.cpp's converter carries no metadata at all, not even
+`general.architecture`, so the sd.cpp slice reads its architecture from tensor
+names, as sd.cpp does
+([`engines/sdcpp/evidence.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/evidence.py)):
+a second text encoder (`conditioner.embedders.1.`, or `cond_stage_model.1.` from the converter SDXL Turbo's file came from) is `sdxl`, an SD 1 text
+encoder (`cond_stage_model.transformer.text_model.`) is `sd1`. Nothing reads it
+yet at runtime; the refresh script writes it into each image entry's evidence.
 
 ## Vision
 
-[`support.py`](../../../surfsense_local/backend/modules/llm/catalog/local/support.py)
+[`support.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/support.py)
 reads image support from GGUF keys under llama.cpp's own names: a projector
 (`general.type` is `mmproj`, or the older `clip` architecture) with
 `clip.has_vision_encoder`, whose `clip.vision.projection_dim` matches the model's
@@ -212,7 +298,7 @@ GET /api/models/{repo}/tree/main?recursive=true
 Sorted by downloads, the only sort usable as a default; the count is popularity,
 never endorsement. A hit is described, not judged: downloads, licence, whether it
 is gated, and **Vision** when its file names include a projector, by the same rule
-`builds.py` uses. `full=true` returns every repo's file names, so this costs no
+`repo_builds.py` uses. `full=true` returns every repo's file names, so this costs no
 request of its own. Each hit also carries `quantized_from`, from its
 `base_model:quantized:` tag, which the API returns and the row does not show. The
 screen searches once a query has two characters and keeps results for 300 s.
@@ -221,7 +307,7 @@ screen searches once a query has two characters and keeps results for 300 s.
 the file tree, fetched together. Every build is listed smallest first with its
 exact size and an estimated fit, whose badge is marked `~`, which over-charges
 on purpose (the weights plus 15% and a gibibyte, in
-[`pricing.py`](../../../surfsense_local/backend/modules/llm/catalog/local/pricing.py))
+[`pricing.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/pricing.py))
 so it never calls a spill resident. The type comes from the repo's tag and
 Hugging Face's parsed architecture, ignored when it names a projector, and is
 marked approximate. An estimated fit never refuses, because the exact answer
@@ -229,11 +315,11 @@ comes before any bytes move. A repo whose type is not `TEXT_GEN` gets no install
 ids, so none of its builds can be downloaded.
 
 **Installing a searched build reads it exactly.**
-[`exact_check.py`](../../../surfsense_local/backend/modules/llm/catalog/local/search/exact_check.py)
+[`exact_check.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/search/exact_check.py)
 reads the weights' header and the projector's, and drops a projector that does
-not see or belongs to another model. The service then refuses a file that is not
-a model, a type the runtime cannot run, or a build too big for the machine, with
-the sentence a person reads. A header parses in about 50 ms, because a vocabulary is
+not see or belongs to another model. llama.cpp's engine then refuses a file that
+is not a model, a type the runtime cannot run, or a build too big for the
+machine, with the sentence a person reads. A header parses in about 50 ms, because a vocabulary is
 counted rather than decoded
 ([`header_prefix.py`](../../../surfsense_local/backend/modules/llm/gguf/header_prefix.py)).
 
@@ -276,9 +362,24 @@ request, and one install runs at a time. Then the install record is written,
 model and forwards its load progress, and with `select` the model becomes the
 `text_gen` selection ([`runtime.md`](runtime.md)).
 
+An image build takes the same stream into the images folder, with its record in
+that folder's `installs.json`. It skips both `preparing` phases: sd-server takes
+its model at launch, from the selection, so there is no router to restart and
+nothing to warm. With `select` it becomes the `image_gen` selection, and
+Electron starts sd-server on it ([`../studio.md`](../studio.md)).
+
 Deleting a model removes every file its install record names, every part of a
 split build and its projector, and forgets it. A file with no record, one copied
-in by hand, loses only `<id>.gguf` and `mmproj-<id>.gguf`.
+in by hand, loses only `<id>.gguf` and `mmproj-<id>.gguf`. `DELETE /llm/models/{name}`
+finds the name in either folder, and clears the `text_gen` or `image_gen`
+selection that named it.
+
+**Image models the hard-coded list downloaded** were saved as `sd15-q4_0.gguf`,
+`sdxl-base-q4_0.gguf` and `sdxl-turbo-q4_0.gguf`, each verified against the
+sha256 the manifest now pins. At startup `warm()` records each one as its curated
+build ([`engines/sdcpp/legacy.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/images_folder/legacy.py)),
+in place rather than renamed, since sd-server may hold it open, and revision
+`0015` renames the selection that named it to the build's id.
 
 ## HTTP routes
 
@@ -308,12 +409,13 @@ can fill the slot) or In use and Delete after confirmation; then one group per
 connected server ([`../connections.md`](../connections.md)). **Add model** opens
 one page with both ways in, laid out alike, no card or border around either:
 **Use a server**, collapsed to a Connect button until opened, because it is
-short, then **On this computer**, the catalog below. The image section shows
-the catalog only when the API reports the sd.cpp models
-([`../studio.md`](../studio.md)) `offered`, which it decides from the image
-models directory rather than the `sd-server` binary
-([`../packaging.md`](../packaging.md)); otherwise that part of the page says
-image models cannot run on this computer, and the layout stays the same.
+short, then **On this computer**, the catalog below. Both sections read the
+one `GET /llm/catalog/local`: chat takes every row but sd.cpp's, and image takes
+only sd.cpp's, each curated model with its size and a Download. The catalog
+carries sd.cpp's rows only when the API has an images folder, which Electron
+hands it with the staged `sd-server` ([`../packaging.md`](../packaging.md));
+otherwise the image section's part of the page says image models cannot run on
+this computer, and the layout stays the same.
 
 The chat catalog, from the top:
 
@@ -340,6 +442,9 @@ Rules the screen holds:
 - An install belongs to the app, not the page that started it: leaving the
   Add model page or closing Settings does not cancel it, and the section's list
   shows its progress until it ends.
+- The image section downloads without selecting: a model is chosen with Use
+  once it is on disk, and the one in use has no Delete, because sd-server holds
+  its file.
 
 ## How it is tested
 
@@ -356,17 +461,17 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 - Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Chat sends text only, so a model that reads images never receives one.
-- Image models are not in the manifest: the three sd.cpp models are still a hard-coded list in `providers/sdcpp/`, with their own routes and one file each ([`../studio.md`](../studio.md)).
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
-- No build is validated: `validated.llama_cpp` is empty on all 126.
-- `sampling`, `template.system_role` and `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
+- No build is validated: `validated` is empty on all 129.
+- `sampling`, `template.system_role`, the `image` defaults and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet and sd-server runs at its own defaults. Only sd.cpp's `run.args` reach a runtime. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
 - `POST /llm/install` does not refuse a curated build that will not fit; only the screen's disabled Download does.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
 - The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
+- Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it a few seconds later. The hard-coded list's route reported that, and went with it.
 - Nothing checks free disk space before a download starts.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.

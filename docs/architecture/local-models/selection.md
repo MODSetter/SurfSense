@@ -42,8 +42,10 @@ fingerprints and stores:
   connection, the router must list the model as installed, and its own header
   must make it `text_gen` ([`catalog.md`](catalog.md)). The provider drops a
   file whose header is not a model, and an unreadable header counts as `text_gen`.
-- **Local image** (`sdcpp`): the type must be `image_gen`, and the model must be
-  one of the bundled image models and downloaded.
+- **Local image** (`sdcpp`): the type must be `image_gen`, there is no
+  connection, and the name must be a curated image build installed in the
+  images folder, named by its first weights file as a chat build is
+  ([`catalog.md`](catalog.md)).
 - **Remote** (`openai_compatible`): a connection is required, and the model is
   checked against the endpoint's live `/models`. When the listing cannot be read
   or does not include the id, `allow_unlisted` is what lets a user save an exact
@@ -61,8 +63,9 @@ and choosing a model is when the user has said they are about to use it
 loads nothing.
 
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen` row
-if it named that model and reports `selection_cleared`; nothing chooses another
+([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen` or
+`image_gen` row that named it, by the engine that held it, and reports
+`selection_cleared`; nothing chooses another
 model in its place. Revision `0012`, which replaced Ollama with llama.cpp,
 cleared any generation selection pointing at Ollama rather than remapping it,
 because its weights live in a blob format the app no longer manages.

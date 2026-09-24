@@ -10,7 +10,7 @@ import json
 import httpx
 
 from local_manifest.recorded import RepoAtRevision
-from modules.llm.catalog.local.builds import ListedFile
+from modules.llm.catalog.local.listed_file import ListedFile
 from modules.llm.gguf import GgufHeader, header_from_url
 
 API = "https://huggingface.co/api/models"

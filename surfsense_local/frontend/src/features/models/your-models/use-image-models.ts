@@ -12,25 +12,29 @@ export function useImageModels(): YourModels {
   const catalog = useLocalImageCatalog()
   const selection = useSelection("image_gen")
   const connections = useConnections()
-  const data = catalog.data
-  const offered = data?.offered ?? false
+  const models = catalog.data?.models ?? []
 
-  const local: YourModelRow[] = (offered ? (data?.models ?? []) : [])
-    .filter((model) => model.installed)
-    .map((model) => ({
-      key: model.name,
-      name: model.label,
-      selected: model.selected,
-      badges: [],
-      note: model.selected && !data?.ready ? "Starting…" : null,
-      target: {
-        provider: data?.provider ?? "",
-        connection_id: null,
-        name: model.name,
-      },
-      // The server is running it; removing the file under it is refused.
-      removeId: model.selected ? null : model.name,
-    }))
+  const local: YourModelRow[] = models.flatMap((model) =>
+    model.installed_as === null
+      ? []
+      : [
+          {
+            key: model.installed_as,
+            name: model.label,
+            selected: model.selected,
+            badges: [],
+            // Nothing reports whether sd-server is up yet, so no "Starting…".
+            note: null,
+            target: {
+              provider: "sdcpp",
+              connection_id: null,
+              name: model.installed_as,
+            },
+            // The server is running it; removing the file under it is refused.
+            removeId: model.selected ? null : model.installed_as,
+          },
+        ]
+  )
 
   return {
     local,
@@ -38,6 +42,6 @@ export function useImageModels(): YourModels {
     // A failed local catalog still leaves servers usable, so it is not an error.
     isPending: catalog.isPending || selection.isPending,
     error: selection.error,
-    canDownload: offered && (data?.models?.length ?? 0) > 0,
+    canDownload: models.length > 0,
   }
 }
