@@ -29,7 +29,9 @@ export function CitationProvider({
   )
 
   return (
-    <CitationContext.Provider value={value}>{children}</CitationContext.Provider>
+    <CitationContext.Provider value={value}>
+      {children}
+    </CitationContext.Provider>
   )
 }
 

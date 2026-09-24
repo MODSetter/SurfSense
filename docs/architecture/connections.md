@@ -1,10 +1,10 @@
 # OpenAI-compatible connections
 
-> **Being redesigned.** The [model catalog proposal](../proposals/model-catalog.md) replaces how a connection lists and classifies its models, and where the form's presets come from; connection storage, keys and the runtime stay. This page describes the code as it is until that work ships.
+> **Partly built.** Classification from the remote manifest and the form's providers have shipped, and this page describes them. The [model catalog proposal](../proposals/model-catalog.md) still moves the model lists the cards and pickers read onto the remote catalog routes, and connections into a settings panel; connection storage, keys and the runtime stay.
 
 A connection is one named remote endpoint that speaks the OpenAI API: a hosted provider, an organization's gateway, a vLLM server, or a local server such as Ollama or LM Studio. The user adds as many as they need, each with its own URL and optional key, and assigns a model from any of them to a model type, such as `text_gen` for chat or `image_gen` for images. SurfSense configures and selects endpoints; it does not load-balance them, and it never copies an endpoint's model list into the database. The keys are encrypted with a per-install secret that Electron keeps in the OS keychain.
 
-**Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/model-selection/`](../../surfsense_local/frontend/src/features/model-selection/)
+**Code:** [`modules/llm/connections/`](../../surfsense_local/backend/modules/llm/connections/), [`modules/llm/providers/openai_compatible/`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/), [`modules/llm/resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py), [`modules/llm/selection.py`](../../surfsense_local/backend/modules/llm/selection.py), [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py), [`electron/src/main/secret.ts`](../../surfsense_local/electron/src/main/secret.ts), [`frontend/src/features/models/remote/`](../../surfsense_local/frontend/src/features/models/remote/)
 **Decisions:** [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0017](../adr/0017-egress-off-by-default.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
 
 ## Terms
@@ -88,7 +88,7 @@ Each model's `types` come from the first of three sources that knows it, and not
 2. `catalog`: the remote model manifest, [`catalog/remote/manifest/models.json`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/models.json). `scripts/refresh_remote_manifest.py` builds it offline from models.dev, keyed provider then model, with the evidence the classifier reads rather than a verdict; a person reviews the diff and commits it, and nothing fetches models.dev at runtime. A connection with a `catalog_provider` reads that provider's entry first. Otherwise, and for an id its provider does not carry, the lookup reads the maker's own entry when the id's prefix names one, otherwise the types every provider carrying the id agrees on, trying the full id and then its last path segment ([`lookup.py`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/lookup.py)). A model found with no types, such as an embedder, is known to fill no slot.
 3. `unknown`: neither source knows the id.
 
-Each listed model also carries `selectable_for`, the slots it can fill, decided by the one rule in [`selectable.py`](../../surfsense_local/backend/modules/llm/selectable.py): the types it is, or every type when it is unknown. The pickers read that field rather than deciding, and choosing a model applies the same rule, so a model is selectable everywhere or nowhere. A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.
+Each listed model also carries `selectable_for`, the slots it can fill, decided by the one rule in [`selectable.py`](../../surfsense_local/backend/modules/llm/selectable.py): the types it is, or every type when it is unknown. The pickers read that field rather than deciding, and choosing a model applies the same rule. Neither reads the manifest's `call` or `connect.status`, so a model the remote catalog marks `unusable` is still offered here (Known gaps). A model the listing does not contain, or a connection whose listing fails, needs the choice repeated with `allow_unlisted: true`. The remote model list is fetched every time and never stored.
 
 ## The remote catalog
 
@@ -105,7 +105,7 @@ Each listed model also carries `selectable_for`, the slots it can fill, decided 
 - A listed id the provider's manifest entry lacks, one newer than the last refresh, is added as `available`. A `custom` connection's rows are its listing and nothing else.
 - An endpoint that is down leaves the manifest rows `could_not_check` with a `200`, not a `502`: an endpoint being down is not its models disappearing.
 - Deprecated models are left out unless `include_deprecated=true`.
-- `GET /llm/connections/{connection_id}/models` still backs the connection cards and the chat picker; it goes when the model screen moves onto these routes.
+- `GET /llm/connections/{connection_id}/models` still backs the server groups, the pickers, and the checks at boot and on the dashboard that the selected remote model is still listed. Nothing in the frontend reads the two row routes yet.
 
 ## Runtime
 
@@ -134,13 +134,13 @@ image_gen         sdcpp                      → the image provider at sd-server
                   openai_compatible + id     → load the connection → image provider
 ```
 
-Loading a connection runs the egress check for its host. The bundled sd-server speaks `/images/generations`, so it is a new selection target rather than a new protocol; being loopback, it needs no key and takes no egress decision. Chat, thread titles and every step where Studio's generation model writes use the generation resolver; `image` and `infographic` also use the image resolver ([`studio.md`](studio.md)).
+Loading a connection runs the egress check for its host. The bundled sd-server speaks `/images/generations`, so it is a new selection target rather than a new protocol; being loopback, it needs no key and takes no egress decision. Chat, thread titles and every step where Studio's `text_gen` model writes use the generation resolver; `image` and `infographic` also use the image resolver ([`studio.md`](studio.md)).
 
 ## Trying a model before assigning it
 
 - `chat-test` streams one answer from the chosen model, by default to a prompt asking for one short sentence, capped at 1,024 tokens and 600 characters, so a model whose capability is `unknown` can be seen answering before it becomes the chat model. An empty reply is a `502`, which is what a reasoning model returns when it spends the whole budget thinking.
 - `image-test` generates one image, by default a blue circle on white, through the real image client and returns the bytes with `Cache-Control: no-store`. It creates no artifact.
-- Selecting a model never runs inference. The connection card offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
+- Selecting a model never runs inference. The server group offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
 
 ## Where keys live
 
@@ -156,10 +156,12 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 
 ## Frontend
 
-- The model settings list connection cards. Each card loads its own models, so a slow or failed endpoint does not hold up the others, and a model can be assigned to chat or to image after an optional test.
-- The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. A local or custom server's URL is always typed, since its port is whatever its owner set; the examples are placeholder text only. The save sends `catalog_provider`.
+- Each model section in Settings, Chat and Image, shows every connection as a group under the local models. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; while closed it shows only the model in use, if that comes from it. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page, and saving it returns to the list with its group open.
+- Edit and Disconnect sit on each group. Edit opens the same form as a page, not a dialog. A connection serves every slot, so Disconnect names each model it will clear, Chat, Image or both, whichever section it is disconnected from.
+- The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. "Local or custom server" leaves the URL to the user, since its port is whatever its owner set, with `http://localhost:11434/v1` as placeholder text only; a loopback server the manifest lists, such as LM Studio, fills the manifest's URL like any ready provider. The save sends `catalog_provider`.
 
 ## Known gaps
 
 - `ProviderConnection.api_key` still catches `InvalidToken` to treat a rotated secret as "no key", but `decrypt()` now raises `UnreadableSecretError`, so the catch never fires and `tests/unit/shared/test_secrets.py::test_rotated_secret_reads_as_no_key` fails.
 - An image returned as a URL is downloaded from whatever host the endpoint names, with no egress decision for that host; the endpoint's key is withheld from the download.
+- A model the remote catalog marks `unusable`, from an unreachable provider or served only on `/responses` or through another protocol, is still offered by `GET /llm/connections/{id}/models` and accepted by `choose_model()`, which ignore `call` and `connect.status`.

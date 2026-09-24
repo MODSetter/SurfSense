@@ -55,8 +55,7 @@ function cellText(cell: ExcelJS.Cell): string {
   }
   if (typeof value === "object" && value !== null && "formula" in value) {
     const formula = value as
-      | ExcelJS.CellFormulaValue
-      | ExcelJS.CellSharedFormulaValue
+      ExcelJS.CellFormulaValue | ExcelJS.CellSharedFormulaValue
     const result = "result" in formula ? formula.result : undefined
     if (result == null || result === "") return ""
     return formatValue(result, cell.numFmt)

@@ -8,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import type { ModelSelection } from "@/features/model-selection/api"
+import type { ModelSelection } from "@/features/models/selection/api"
 import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 
@@ -97,7 +97,7 @@ function SourceCount({
   return (
     <span
       className={cn(
-        "select-none px-1.5 py-1 text-[11px] font-normal tabular-nums text-muted-foreground",
+        "px-1.5 py-1 text-[11px] font-normal text-muted-foreground tabular-nums select-none",
         className
       )}
     >
@@ -181,7 +181,7 @@ export function ChatComposer({
     >
       <ComposerPrimitive.Root
         className={cn(
-          "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors hover:border-ring/40 focus-within:border-ring/40",
+          "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
           placement === "bottom" && "flex items-end gap-2"
         )}
       >
@@ -240,7 +240,7 @@ export function ChatComposer({
       </ComposerPrimitive.Root>
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
-          <p className="min-w-0 select-none text-left text-[11px] text-muted-foreground">
+          <p className="min-w-0 text-left text-[11px] text-muted-foreground select-none">
             {!model || providerAvailable
               ? "SurfSense can make mistakes. Check important answers."
               : "Historical chats remain available while the provider is offline."}

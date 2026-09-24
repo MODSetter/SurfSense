@@ -50,7 +50,10 @@ const ARTIFACT_VIEWERS: Record<string, ComponentType<ArtifactViewerProps>> = {
     />
   ),
   quiz: ({ artifact }) => (
-    <QuizViewer key={`${artifact.id}:${artifact.generation}`} artifact={artifact} />
+    <QuizViewer
+      key={`${artifact.id}:${artifact.generation}`}
+      artifact={artifact}
+    />
   ),
   image: MediaViewer,
   infographic: MediaViewer,

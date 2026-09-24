@@ -4,7 +4,7 @@ Nearest `AGENTS.md` wins. Edit this file, not `CLAUDE.md` (`CLAUDE.md` is a syml
 
 ## Overview
 
-Desktop app plus scraper API. Five trees:
+Desktop app plus scraper API. Four trees, and a fifth planned:
 
 | Tree | Role |
 |------|------|
@@ -12,7 +12,7 @@ Desktop app plus scraper API. Five trees:
 | `surfsense_web` | Next.js hosted UI |
 | `surfsense_local` | Electron desktop |
 | `surfsense_mcp` | MCP server over the REST API |
-| `plugins` | The plugin SDK, and every plugin — ours and contributed |
+| `plugins` | Planned, not in the repo yet: the plugin SDK, and every plugin — ours and contributed ([proposal](docs/proposals/plugins/README.md)) |
 
 The hosted service has been export-only since the 2.0.0 launch on 18 Sep 2026, and its user data is purged on 18 Oct 2026 ([sunset](docs/architecture/sunset.md)). Product direction is local + API.
 
@@ -66,10 +66,6 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
-# plugin SDK
-cd plugins/sdk && uv sync
-cd plugins/sdk && uv run ruff check .
-
 # compose (dev and self-host, not production)
 docker compose -f docker/docker-compose.yml
 
@@ -87,8 +83,6 @@ pre-commit run --all-files
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
-| Plugin SDK | `cd plugins/sdk && uv run pytest` |
-
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 
 ## Pull requests

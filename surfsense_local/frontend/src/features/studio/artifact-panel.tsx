@@ -19,7 +19,8 @@ export function ArtifactPanel({
     queryKey: ["artifact-panel", artifactId],
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
-  const [actionsContainer, setActionsContainer] = useState<HTMLDivElement | null>(null)
+  const [actionsContainer, setActionsContainer] =
+    useState<HTMLDivElement | null>(null)
 
   return (
     <DetailPanel

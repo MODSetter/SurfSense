@@ -28,8 +28,9 @@ brings the client that calls it.
 
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
-when the provider is `openai_compatible`, and deleting a connection cascades to
-the rows that name it. `provider` is the SurfSense inference provider, never the
+when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
+`llamacpp` hold only `text_gen` and `sdcpp` only `image_gen`, and deleting a
+connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
 `GET /llm/selection/{model_type}` returns the row with its computed `tier`, or
@@ -38,8 +39,9 @@ model's publisher.
 fingerprints and stores:
 
 - **Local text** (`llamacpp`): the type must be `text_gen`, there is no
-  connection, and the router must list the model as installed with the
-  `completion` capability.
+  connection, the router must list the model as installed, and its own header
+  must make it `text_gen` ([`catalog.md`](catalog.md)). The provider drops a
+  file whose header is not a model, and an unreadable header counts as `text_gen`.
 - **Local image** (`sdcpp`): the type must be `image_gen`, there is no
   connection, and the name must be a curated image build installed in the
   images folder, named by its first weights file as a chat build is
@@ -61,8 +63,9 @@ and choosing a model is when the user has said they are about to use it
 loads nothing.
 
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears the generation row
-if it named that model and reports `selection_cleared`; nothing chooses another
+([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen` or
+`image_gen` row that named it, by the engine that held it, and reports
+`selection_cleared`; nothing chooses another
 model in its place. Revision `0012`, which replaced Ollama with llama.cpp,
 cleared any generation selection pointing at Ollama rather than remapping it,
 because its weights live in a blob format the app no longer manages.
@@ -139,7 +142,7 @@ three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
 
 `GET /llm/onboarding` returns `{"completed": bool}`, true once the singleton
 `onboarding_completion` row exists. `POST /llm/onboarding` writes that row and
-requires a persisted generation selection, answering `422 chat model required`
+requires a persisted `text_gen` selection, answering `422 chat model required`
 otherwise; an image model is optional. The marker means the user finished
 choosing, and it is the one thing that must not become true early.
 
@@ -147,11 +150,13 @@ Two invariants, both easy to break from the frontend: selecting or clearing a
 model never writes or resets the marker, and Settings' Use actions never call the
 route. Only the onboarding page's "Start chatting" does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
-missing selection is fixed from Settings, which renders the same model screen.
+missing selection is fixed from Settings' Chat models section. Onboarding's model
+step reads the same hooks in `frontend/src/features/models/`; its content is not
+built yet (Known gaps).
 
 ## Resolution: local and remote
 
-`resolve_generation()` reads the generation row. A `llamacpp` row resolves to the
+`resolve_generation()` reads the `text_gen` row. A `llamacpp` row resolves to the
 bundled runtime ([`runtime.md`](runtime.md)). An `openai_compatible` row resolves
 to its connection, and `egress.require()` checks the connection's host, which is
 a no-op for a loopback host, so a local LM Studio or Ollama endpoint never
@@ -215,8 +220,9 @@ over HTTP.
 ## Known gaps
 
 - The tier fallback keys on the provider name, not on loopback: `Fingerprint.local` is `provider == "llamacpp"`, so a local endpoint reached through a connection falls to `capable` when nothing else is known; the decision is to key on `host_destination()`, which already computes loopback.
-- A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts.
+- A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts. Featherless lists every model this way (`"owned_by": "Feather"`, no `hugging_face_id`), so every model there, Qwen3 0.6B included, gets frontier prompts.
 - Local fingerprints come from the filename only: `LlamaCppProvider` has no `inspect()`, so `from_llamacpp()`, which reads `general.parameter_count` from `/props`, is never called.
 - No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
 - Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.
+- Onboarding's model step is an empty frame: it shows no way to choose a model, so "Start chatting" stays disabled on a fresh install until a chat model is selected some other way.

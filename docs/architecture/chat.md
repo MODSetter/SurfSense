@@ -127,3 +127,4 @@ The list handed to the generator is `[system, *history within budget, user]`.
 - The frontend's copy of the error kinds in `sse.ts` lacks `model_cannot_run` and `context_too_long`, so both offer Retry, which cannot fix either.
 - No live region announces streamed text, and focus does not move to the conversation heading after a thread switch; the dashboard design asks for both.
 - No test covers a client disconnecting mid-reply. The assistant's text is written only when generation ends, inside the stream, so whether a disconnected reply is kept is unverified.
+- A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. How often is unmeasured.

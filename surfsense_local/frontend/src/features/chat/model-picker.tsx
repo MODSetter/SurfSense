@@ -19,15 +19,20 @@ import {
 } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { getAvailableGenerationModels } from "@/features/models/chat-candidates/api"
+import { MODELS_QUERY_KEY } from "@/features/models/models-query"
 import {
-  getAvailableGenerationModels,
   modelKey,
   setGenerationSelection,
   type ModelSelection,
-} from "@/features/model-selection/api"
+} from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
 
-const installedModelsQueryKey = ["installed-generation-models"] as const
+// Under the shared models key, so a change made in settings reaches this list.
+const installedModelsQueryKey = [
+  ...MODELS_QUERY_KEY,
+  "chat-candidates",
+] as const
 export const modelControlButtonClassName =
   "flex shrink-0 cursor-pointer select-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-[11px] font-normal text-muted-foreground hover:bg-accent hover:text-foreground aria-expanded:bg-accent aria-expanded:text-foreground focus-visible:ring-2 focus-visible:ring-ring/20 focus-visible:outline-none"
 
@@ -61,7 +66,7 @@ export function ModelPicker({
       return setGenerationSelection(selected)
     },
     onSuccess: async (selection) => {
-      await queryClient.invalidateQueries({ queryKey: ["model-catalog"] })
+      await queryClient.invalidateQueries({ queryKey: MODELS_QUERY_KEY })
       onModelSelected(selection)
     },
   })

@@ -153,6 +153,6 @@ def search(query: str) -> None:
 
 `entry` names a function the app can run. `secret` reads its variable and raises when it is absent. `data()` returns the `--data` directory. The rest is the facade, and it reaches the app over loopback like any other HTTP call.
 
-A verb returns what it created, which is what the file never could: an id a plugin can use in the next call.
+A verb returns what it created, which a results file never could: an id a plugin can use in the next call.
 
 The harness is `python -m surfsense_plugin.harness <plugin-dir> <entry> --input query=plugins`. It lays down the same files, spawns the same command, and exits with the run's code. Verbs need the app running — see [`sdk/01-library-and-harness.md`](sdk/01-library-and-harness.md) for how it finds the port.

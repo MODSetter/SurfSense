@@ -28,7 +28,7 @@ that carries the load plan to llama.cpp is [`runtime.md`](runtime.md).
   estimate ─── itemise() -> weights + mmproj + KV(window) + compute
      │         FITS | PARTIAL | TOO_BIG, plus an offload fraction in layers
      │             └─ speed_tier() ─┬─ badge()               what the row says
-     │                              └─ RECOMMENDABLE_TIERS   whether it is starred
+     │                              └─ RECOMMENDABLE_TIERS   whether it can be starred
      ▼
   plan_load() ── window and cache precision, written to models.ini
      ▼
@@ -53,17 +53,19 @@ slicing each tensor's data at an offset inside the weights. A prefix has no
 weights, and numpy shortens a slice that runs past the end rather than raising,
 so a short read would surface later as a confidently wrong shape instead of a
 retry. `gguf/header_prefix.py` is the adapter: it writes the prefix to a
-temporary file for the reader to map, and overrides exactly two private methods.
+temporary file for the reader to map, and overrides three private methods.
 
 - `_get` bounds-checks every read and raises `TruncatedHeaderError` when the
   prefix is short.
+- `_build_fields` keeps only the length of an array past 4,096 items
+  (`ElidedArray`), so a vocabulary is counted rather than decoded.
 - `_build_tensors` keeps names, dimensions and raw type ids without touching data.
 
 `TruncatedHeaderError` subclasses `ValueError` on purpose: a caller that can widen
 the read catches it by name and retries, while a caller that only needs to skip an
 unusable file catches `ValueError` and gets both this and a file that was never a
-GGUF. Because both overridden methods are private upstream, `test_header_prefix.py`
-asserts the installed version is `0.19.0` beside the two behaviours, so a bump
+GGUF. Because the overridden methods are private upstream, `test_header_prefix.py`
+asserts the installed version is `0.19.0` beside the three behaviours, so a bump
 cannot pass silently. The reader closes its memory map explicitly, because
 Windows refuses to unlink a mapped file and this runs once per searched model.
 
@@ -128,7 +130,7 @@ measured reasons, each sufficient alone:
 - **The first Metal device query compiles 20 shader libraries.** On an M2,
   `ggml_backend_load_all()` takes 2.3 ms and the compile happens inside the first
   `ggml_backend_dev_count()`, at 19.0 s cold and 43 to 49 ms warm.
-  `CatalogService.warm()` enumerates the devices on a daemon thread at API
+  `LocalCatalogService.warm()` enumerates the devices on a daemon thread at API
   startup, so `/health` does not wait on it, and a request arriving meanwhile
   waits on the same lock instead of starting a second probe.
 - **A GPU driver that faults takes its process with it.** A child is a probe that
@@ -341,8 +343,8 @@ separate terms let a test assert that the weights do not move when the window
 does; and the offload calculation needs to know which terms llama.cpp can move.
 The projector is its own term because `--fit` does not count it, so a vision
 model the sum calls resident can still fail to allocate, and because the fitter
-cannot move it. No install fetches a projector yet, so in practice the term is
-zero ([`catalog.md`](catalog.md)).
+cannot move it. A vision build installs with its projector, and its price
+counts it ([`catalog.md`](catalog.md)).
 
 ### The KV cache
 
@@ -527,8 +529,9 @@ and "This PC" becomes "This Mac". With no GPU, `PARTIAL` is unreachable, so a
 build either shows nothing or "Won't fit".
 
 - **No badge where a build can be recommended.** `FULL` and `LIGHT_SPILL` carry
-  none, so the star and a warning can never sit on one row. A light spill is
-  still described, quietly, in the reason line.
+  none, so a recommended build never warns. A row that leads with another build,
+  one in use or installed, can still show the star beside that build's warning.
+  A light spill is still described, quietly, in the reason line.
 - **A notice is amber, a refusal red.** The screen draws `notice` with the
   `warning` color token and `refuse` with `destructive`: reduced speed installs
   like any other build, and styling it as a failure would discourage a setup that
@@ -562,7 +565,8 @@ to 4,096 tokens is not asked for 8,192.
   allocate while `q8_0` runs (see Measurements).
 - **One precision rule for every caller.** `planned_precision()` is the same rule
   with the `f16` fallback, and the curated rows, the recommendation and a searched
-  repo's builds all call it. Before it existed the badge priced `f16` while the
+  build's exact check all call it; a searched repo's listed builds are priced
+  from their sizes and do not. Before it existed the badge priced `f16` while the
   loader chose `q8_0`, so a row read "Reduced speed" for a model the runtime then
   placed entirely on the device.
 - **A fixed set of candidates rather than a continuous search**, so every window

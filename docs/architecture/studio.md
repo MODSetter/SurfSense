@@ -3,7 +3,7 @@
 Studio turns a selection of sources into a deliverable: a summary, a Word document, slides, a spreadsheet, a web page, a PDF, a mind map, flashcards, a quiz, a podcast, an image or an infographic. The user picks a format and sources and may add a prompt; a background job has the selected model write the content, and the app renders it, as a file for ten of the twelve formats. DOCX, PPTX, XLSX and PDF are rendered by model-written code instead (Known gaps). Each result is an ordinary `ARTIFACT` document, searchable and citable like any source, with a sidecar row for the format and the bytes.
 
 **Code:** [`modules/artifacts/`](../../surfsense_local/backend/modules/artifacts/), [`worker/studio/`](../../surfsense_local/backend/worker/studio/), [`frontend/src/features/studio/`](../../surfsense_local/frontend/src/features/studio/)
-**Decisions:** [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0010](../adr/0010-studio-builders-not-sandboxes.md)
+**Decisions:** [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0008](../adr/0008-two-job-queues.md), [ADR 0010](../adr/0010-studio-builders-not-sandboxes.md), [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md)
 
 The tables, `artifacts` and `artifact_files`, are in [`data-model.md`](data-model.md#artifacts-and-artifact_files).
 
@@ -46,7 +46,7 @@ The catalog is a tuple of twelve `Format` rows in [`formats.py`](../../surfsense
 
 ## The builder rule, and where it is broken
 
-The rule ([ADR 0010](../adr/0010-studio-builders-not-sandboxes.md)): the model writes structured content, and a committed builder for that format renders it. Nothing the model wrote executes on the user's machine, so a bad reply is malformed JSON rather than arbitrary code, and there is no sandbox, no Docker and no receipt to verify. That is what lets Studio fit an offline app with weak local models.
+The rule ([ADR 0010](../adr/0010-studio-builders-not-sandboxes.md)): the model writes structured content, and a committed builder for that format renders it. Nothing the model wrote executes on the user's machine, so a bad reply is malformed JSON rather than arbitrary code, and there is no sandbox, no Docker and no receipt to verify. That is what lets Studio fit an offline app with weak local models. [ADR 0028](../adr/0028-model-written-code-runs-with-approval.md) has since allowed model-written code to run on the user's machine without a sandbox; the builder rule still describes the eight formats below.
 
 Eight formats follow it:
 
@@ -151,11 +151,11 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 - `image` and `infographic` resolve the `image_gen` selection. A remote selection loads its connection, which runs the egress check and decrypts the key. An `sdcpp` selection points the same client at the bundled sd-server's loopback URL, with no key and no egress decision, which is what makes an image possible on an offline machine.
 - The client posts `{model, prompt}` to `/images/generations`, falls back once to `/images` only on `404` or `405`, and remembers the route that worked for the life of the process. It accepts `b64_json`, a data URL or a URL, caps the sizes, and checks the bytes against the claimed MIME type ([`connections.md`](connections.md)).
-- The generation model writes first in both formats. The markdown body is the image prompt or the brief, so an image can be found by what it shows.
+- The `text_gen` model writes first in both formats. The markdown body is the image prompt or the brief, so an image can be found by what it shows.
 
 ## Known gaps
 
-- DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed, against ADR 0010's builder rule; the 120-second limit cannot stop a runaway thread.
+- DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed and without asking the user; the 120-second limit cannot stop a runaway thread.
 - Grounding is the first 24,000 characters of the selected documents in selection order, not retrieval over them, so a large selection is cut off.
 - A podcast is WAV. The design encodes MP3 with a bundled ffmpeg, which is not built.
 - Deleting an artifact through `DELETE /workspaces/{id}/documents/{doc}` removes its rows but leaves `artifacts/<id>/` on disk; only `DELETE /artifacts/{id}` removes the folder.

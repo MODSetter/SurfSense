@@ -54,9 +54,14 @@ export function FlashcardsViewer({
   artifact: ArtifactDetail
   actionsContainer: HTMLElement | null
 }) {
-  const { data: deck, isLoading, error } = useQuery({
+  const {
+    data: deck,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["artifact-file", artifact.id],
-    queryFn: ({ signal }) => readArtifactFile<FlashcardDeck>(artifact.id, signal),
+    queryFn: ({ signal }) =>
+      readArtifactFile<FlashcardDeck>(artifact.id, signal),
   })
 
   if (isLoading) {
@@ -68,7 +73,7 @@ export function FlashcardsViewer({
   }
   if (error || !deck) {
     return (
-      <p className={`${VIEWER_PADDING} text-destructive text-sm`}>
+      <p className={`${VIEWER_PADDING} text-sm text-destructive`}>
         {error instanceof Error
           ? error.message
           : "Failed to load this flashcard deck"}
@@ -111,7 +116,8 @@ function FlashcardRunner({
       markFlashcard(artifact.id, body),
   })
   const reorder = useMutation({
-    mutationFn: (body: { order: number[] }) => reorderFlashcards(artifact.id, body),
+    mutationFn: (body: { order: number[] }) =>
+      reorderFlashcards(artifact.id, body),
   })
   const reset = useMutation({
     mutationFn: () => resetFlashcardProgress(artifact.id),
@@ -154,7 +160,9 @@ function FlashcardRunner({
         setRevealed(false)
       }
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Progress could not be saved")
+      setMessage(
+        err instanceof Error ? err.message : "Progress could not be saved"
+      )
     }
   }
 
@@ -168,7 +176,9 @@ function FlashcardRunner({
       setCurrentIndex(0)
       setRevealed(false)
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Shuffle could not be saved")
+      setMessage(
+        err instanceof Error ? err.message : "Shuffle could not be saved"
+      )
     }
   }
 
@@ -178,12 +188,15 @@ function FlashcardRunner({
     try {
       applyState(await reset.mutateAsync())
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Progress could not be reset")
+      setMessage(
+        err instanceof Error ? err.message : "Progress could not be reset"
+      )
     }
   }
 
   const progressValue = ((currentIndex + 1) / deck.cards.length) * 100
-  const faceClass = "relative mx-auto flex h-full max-w-md flex-col justify-center"
+  const faceClass =
+    "relative mx-auto flex h-full max-w-md flex-col justify-center"
   const hasProgress = Object.keys(state.marks).length > 0
 
   return (
@@ -206,8 +219,8 @@ function FlashcardRunner({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Reset flashcard progress?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This clears every "Needs review" and "Got it" mark for
-                    this deck.
+                    This clears every "Needs review" and "Got it" mark for this
+                    deck.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -221,7 +234,7 @@ function FlashcardRunner({
             actionsContainer
           )
         : null}
-      <div className="flex flex-wrap items-center justify-between gap-2 text-muted-foreground text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <p className="truncate">{deck.title}</p>
         <p className="shrink-0 tabular-nums">{counts.unseen} remaining</p>
       </div>
@@ -232,10 +245,10 @@ function FlashcardRunner({
           onFlip={() => setRevealed((current) => !current)}
           front={
             <div className={faceClass}>
-              <p className="absolute top-0 left-0 text-muted-foreground text-xs tabular-nums">
+              <p className="absolute top-0 left-0 text-xs text-muted-foreground tabular-nums">
                 {currentIndex + 1} / {deck.cards.length}
               </p>
-              <p className="mb-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+              <p className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 Question
               </p>
               <StudyText
@@ -244,7 +257,7 @@ function FlashcardRunner({
               />
               <p
                 aria-hidden="true"
-                className="-bottom-5 absolute inset-x-0 text-center text-muted-foreground text-xs"
+                className="absolute inset-x-0 -bottom-5 text-center text-xs text-muted-foreground"
               >
                 See answer
               </p>
@@ -252,10 +265,10 @@ function FlashcardRunner({
           }
           back={
             <div className={faceClass}>
-              <p className="absolute top-0 left-0 text-muted-foreground text-xs tabular-nums">
+              <p className="absolute top-0 left-0 text-xs text-muted-foreground tabular-nums">
                 {currentIndex + 1} / {deck.cards.length}
               </p>
-              <p className="mb-4 font-medium text-muted-foreground text-xs uppercase tracking-wider">
+              <p className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 Answer
               </p>
               <StudyText
@@ -263,8 +276,9 @@ function FlashcardRunner({
                 className="text-sm sm:text-base lg:text-lg"
               />
               {currentMark ? (
-                <p className="mt-6 text-muted-foreground text-xs font-medium">
-                  Current mark: {currentMark === "good" ? "Got it" : "Needs review"}
+                <p className="mt-6 text-xs font-medium text-muted-foreground">
+                  Current mark:{" "}
+                  {currentMark === "good" ? "Got it" : "Needs review"}
                 </p>
               ) : null}
             </div>
@@ -337,7 +351,7 @@ function FlashcardRunner({
         </Button>
       </div>
       {message ? (
-        <p role="alert" className="text-center text-destructive text-sm">
+        <p role="alert" className="text-center text-sm text-destructive">
           {message}
         </p>
       ) : null}

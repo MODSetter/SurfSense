@@ -92,7 +92,7 @@ All four carry the `packaging` marker, which `pyproject.toml` excludes by defaul
 | Test | Proves |
 |---|---|
 | `test_frozen_boot.py` | a minimal frozen entry, `sys.frozen` true, migrates a real database from the bundled revisions, loads `vec0` and round-trips a vector through `chunk_vectors` |
-| `test_real_binaries.py` | the real API binary passes its retrieval import check and answers `/health`; the real worker passes its vision import check and both queue consumers stay up; the API half is broken today (Known gaps) |
+| `test_real_binaries.py` | the real API binary passes its retrieval import check and answers `/health`; the real worker passes its vision import check and both queue consumers stay up; both binaries ship the remote manifest, and the frozen API serves a curated row |
 | `test_spec_data_files.py` | every literal `datas` path in the specs exists, so a renamed file cannot ship missing |
 | `test_license_key.py` | the compiled license keys exclude the fixture key |
 
@@ -104,3 +104,4 @@ Only `test_license_key.py` runs in CI, inside the release workflow.
 - No tagged release has built the llama.cpp runtime: the v2.0.2 run staged Ollama and llmfit instead.
 - No workflow runs the `surfsense_local` tests on pull requests; only the license-key test runs, inside the release workflow.
 - No test ingests a PDF with networking disabled.
+- `test_the_curated_manifest_is_one_of_them` fails on Windows: `literal_data_paths()` joins the spec's path with `Path`, which gives backslashes there, and the test looks for a forward-slash string.

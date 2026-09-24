@@ -26,12 +26,9 @@ import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
-import {
-  getConnectionModels,
-  getProviders,
-  type ModelSelection,
-  modelKey,
-} from "@/features/model-selection/api"
+import { getProviders } from "@/features/models/chat-candidates/api"
+import { getConnectionModels } from "@/features/models/remote/models/api"
+import { modelKey, type ModelSelection } from "@/features/models/selection/api"
 import {
   SettingsDialog,
   type SettingsSectionId,
@@ -428,7 +425,7 @@ export function DashboardPage({
         workspace={workspaces.activeWorkspace}
         selection={selection}
         providerAvailable={providerAvailable}
-        onModelRequired={() => openSettings("models")}
+        onModelRequired={() => openSettings("chat-models")}
         onModelSelected={onModelSelected}
         onOpenLicense={() => openSettings("license")}
         modelsVisited={modelsVisited}

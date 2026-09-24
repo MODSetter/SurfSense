@@ -1,9 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import {
-  ChevronDownIcon,
-  PencilIcon,
-  Trash2Icon,
-} from "@/components/ui/icons"
+import { ChevronDownIcon, PencilIcon, Trash2Icon } from "@/components/ui/icons"
 
 import {
   AssistantRuntimeProvider,
@@ -24,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
-import type { ModelSelection } from "@/features/model-selection/api"
+import type { ModelSelection } from "@/features/models/selection/api"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
@@ -203,7 +199,7 @@ export function ThreadPanel({
                 type="button"
                 variant="ghost"
                 disabled={!canRename}
-                className="h-auto min-w-0 max-w-full px-1.5 py-0 font-heading text-base font-medium active:translate-y-0"
+                className="h-auto max-w-full min-w-0 px-1.5 py-0 font-heading text-base font-medium active:translate-y-0"
                 onClick={startEditing}
               >
                 <span className="sidebar-row-title-fade min-w-0 overflow-hidden whitespace-nowrap">
