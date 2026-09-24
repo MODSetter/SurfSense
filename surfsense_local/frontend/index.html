@@ -24,6 +24,9 @@
           const root = document.documentElement
           root.classList.add(theme)
           root.style.colorScheme = theme
+          // followMainLocale() in main.tsx sets it again; this covers the first frame.
+          const locale = window.surfsense?.locale?.get?.()
+          if (locale) root.lang = locale
         } catch {
           // no-op: fall back to the CSS defaults if storage/matchMedia throws
         }
