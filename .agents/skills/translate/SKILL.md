@@ -17,7 +17,7 @@ Only fixed text in the app's code is translated. Never user content, model outpu
 
 ## Adding English
 
-- Key: `<feature>_<surface>_<purpose>`, snake_case. `<feature>` is a folder under `frontend/src/features/`, or `app` for the shell, `menu` for Electron main. `<purpose>` is one of `_title`, `_body`, `_label`, `_placeholder`, `_button`, `_tooltip`, `_empty`, `_error`, `_toast`, `_aria`, `_link`, `_status`.
+- Key: `<feature>_<surface>_<purpose>`, snake_case. `<feature>` is a folder under `frontend/src/features/`, or `app` for the shell. `<purpose>` is one of `_title`, `_body`, `_label`, `_placeholder`, `_button`, `_tooltip`, `_empty`, `_error`, `_toast`, `_aria`, `_link`, `_status`.
 - Name the meaning, not the words: `sources_delete_confirm_title`, not `are_you_sure`.
 - A backend error code maps to `<feature>_error_<code>`.
 - One key per place. Never reuse another feature's "Cancel"; never add a `common` key.
@@ -56,7 +56,7 @@ New UI text, step by step:
 ## Adding a language
 
 1. Add the code to `LOCALES` in `frontend/src/i18n/locales.ts`, `electron/src/main/i18n/locales.ts` and `scripts/check_translations.mjs`.
-2. Import its catalog into `catalogs` in `frontend/src/i18n/intl.ts` (from `./compiled/`) and `electron/src/main/i18n/app-locale.ts` (from `translations/`), and add it to the cases in `plural-categories.test.ts`.
+2. Import its catalog into `catalogs` in `frontend/src/i18n/intl.ts` (from `./compiled/`), and add it to the cases in `plural-categories.test.ts`.
 3. For a region code such as `pt-BR`, make `resolve-locale.ts` match the full tag; it matches the base language only.
 4. Add a column to [`glossary.md`](glossary.md) and a line under **Tone**.
 5. Create `translations/<code>.json` by translating every key in `en.json` with the steps above.

@@ -7,9 +7,9 @@ The desktop app's interface is in English, Japanese and German, chosen from the 
 
 ## What is translated
 
-Only text written into the app's own code: labels, buttons, headings, menus, tooltips, placeholders, empty states, toasts, dialogs, `aria-label`, `title` and `alt`, fixed sentences with a value inserted, the frontend's text for a backend error code, and main's menu labels.
+Only text written into the app's own code: labels, buttons, headings, in-app menus, tooltips, placeholders, empty states, toasts, dialogs, `aria-label`, `title` and `alt`, fixed sentences with a value inserted, and the frontend's text for a backend error code.
 
-Not translated: user content (workspace, document and thread names, file contents, chat messages), model output, backend and manifest data (model names and descriptions, provider names, file paths), product and technical names used alone (SurfSense, Studio, llama.cpp, GGUF), and logs. The language a chat answer or a Studio output is written in is set elsewhere ([chat](chat.md), [Studio](studio.md)).
+Not translated: user content (workspace, document and thread names, file contents, chat messages), model output, backend and manifest data (model names and descriptions, provider names, file paths), the application menu, product and technical names used alone (SurfSense, Studio, llama.cpp, GGUF), and logs. The language a chat answer or a Studio output is written in is set elsewhere ([chat](chat.md), [Studio](studio.md)).
 
 English is the source. Japanese and German came first, in the order [`03-international.md`](../../plans/community-local/seo/03-international.md) set for the website.
 
@@ -24,7 +24,7 @@ One flat JSON file per language, `{"id": "ICU string"}`, keys sorted with a two-
 }
 ```
 
-- An id is `<feature>_<surface>_<purpose>`. `<feature>` is a folder under `src/features/`, or `app` for the shell and `menu` for main. `<purpose>` is one of `title`, `body`, `label`, `placeholder`, `button`, `tooltip`, `empty`, `error`, `toast`, `aria`, `link`, `status`. A backend code is `<feature>_error_<code>`.
+- An id is `<feature>_<surface>_<purpose>`. `<feature>` is a folder under `src/features/`, or `app` for the shell. `<purpose>` is one of `title`, `body`, `label`, `placeholder`, `button`, `tooltip`, `empty`, `error`, `toast`, `aria`, `link`, `status`. A backend code is `<feature>_error_<code>`.
 - Each place has its own id, even where the English repeats. There is no `common` block.
 - A value is a whole sentence with named placeholders. Plurals are ICU `plural` with the language's CLDR categories and `#`; Japanese writes only `other`. Styled parts of a sentence are tags.
 - Visible apostrophes are `’`: ICU uses `'` as its escape character.
@@ -47,12 +47,12 @@ One flat JSON file per language, `{"id": "ICU string"}`, keys sorted with a two-
 - Main resolves it: a saved choice, else the first entry of `app.getPreferredSystemLanguages()` whose base language ships (`ja-JP` → `ja`), else English ([`resolve-locale.ts`](../../surfsense_local/electron/src/main/i18n/resolve-locale.ts)).
 - Settings › General has a Language select beside Appearance: Match system, then each language in its own name. The choice is `locale-prefs.json` in `userData`.
 - Preload reads the locale synchronously before first paint and exposes `locale.get()`, `preference()`, `set()` and `onChange()`. `index.html` sets `<html lang>` in the first frame, and [`locale.ts`](../../surfsense_local/frontend/src/i18n/locale.ts) keeps it.
-- A change saves the choice, rebuilds the menu, and reloads the window, which builds its `IntlShape` in the new language. In-memory state, such as an open dialog, resets.
-- Development also lists FormatJS's pseudo-locale `en-XA`: accented English, about 40% longer and bracketed, so overflow, clipping and text outside a message show up without a translation. The renderer lists it only under Vite dev, and main accepts it only when the app is not packaged; a production bundle does not contain it. Main's menu labels stay English under it.
+- A change saves the choice and reloads the window, which builds its `IntlShape` in the new language. In-memory state, such as an open dialog, resets.
+- Development also lists FormatJS's pseudo-locale `en-XA`: accented English, about 40% longer and bracketed, so overflow, clipping and text outside a message show up without a translation. The renderer lists it only under Vite dev, and main accepts it only when the app is not packaged; a production bundle does not contain it.
 
 ## Main process
 
-[`app-locale.ts`](../../surfsense_local/electron/src/main/i18n/app-locale.ts) builds an `IntlShape` with `@formatjs/intl` from the same catalogs, imported directly and parsed at run time, for the View menu's three labels. The `role` menus take their labels from Electron and the OS; on macOS only for languages whose `.lproj` ships, so `mac.electronLanguages` in [`electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml) must keep `en`, `ja` and `de` if it is ever narrowed ([electron#26231](https://github.com/electron/electron/issues/26231)).
+Main resolves the language ([`app-locale.ts`](../../surfsense_local/electron/src/main/i18n/app-locale.ts)) but translates nothing. The application menu is the same in dev and packaged builds, built only from Electron `role`s, with Developer Tools added while unpackaged. Its labels come from Electron and the OS, never from the in-app choice; on macOS a per-app language is set in System Settings › Language & Region. Translating the few labels main wrote itself left one menu in two languages. The OS localizes role labels on macOS only for languages whose `.lproj` ships, so `mac.electronLanguages` in [`electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml) must keep `en`, `ja` and `de` if it is ever narrowed ([electron#26231](https://github.com/electron/electron/issues/26231)).
 
 ## Backend text
 
@@ -62,7 +62,7 @@ The backend stays English. Where it sends a code with its prose, the frontend sh
 
 `pnpm translations` runs before `dev`, `build`, `typecheck` and `test`:
 
-1. `formatjs extract` writes `translations/en.json` from every `defaultMessage` in `frontend/src` and `electron/src/main`.
+1. `formatjs extract` writes `translations/en.json` from every `defaultMessage` in `frontend/src`.
 2. `formatjs compile-folder translations src/i18n/compiled --format simple --ast` precompiles the catalogs, failing on a malformed message.
 
 Each step is also its own script, `pnpm translations:extract` and `pnpm translations:compile`. `dev` alone also runs `pnpm translations:pseudo`, `formatjs compile translations/en.json --ast --pseudo-locale en-XA`, which writes the pseudo-locale's catalog; `intl.ts` reads it through `import.meta.glob`, so a build without it still compiles.
@@ -74,7 +74,7 @@ Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since 
 - ESLint, with FormatJS's plugin: `enforce-default-message` (every call carries its English), `enforce-placeholders` (every placeholder gets a value), and `enforce-id` (ids match `<feature>_<surface>_<purpose>`).
 - `formatjs-extract`, a pre-commit hook: re-runs extraction, so a commit whose `en.json` does not match the code fails as a modified file.
 - `formatjs-verify`, a pre-commit hook: `formatjs verify --missing-keys --extra-keys --structural-equality` over the three catalogs.
-- `check-translations`, a pre-commit hook: [`check_translations.mjs`](../../scripts/check_translations.mjs) for the rules FormatJS does not know: an id prefix that is not a feature folder, `app` or `menu`, a leading or trailing space, a straight apostrophe, an unsorted file.
+- `check-translations`, a pre-commit hook: [`check_translations.mjs`](../../scripts/check_translations.mjs) for the rules FormatJS does not know: an id prefix that is not a feature folder or `app`, a leading or trailing space, a straight apostrophe, an unsorted file.
 - [`plural-categories.test.ts`](../../surfsense_local/frontend/src/i18n/plural-categories.test.ts), in `pnpm test`: every plural writes exactly the categories `Intl.PluralRules` gives its language.
 
 [`code-quality.yml`](../../.github/workflows/code-quality.yml) runs the hooks on a non-draft pull request's changed files.

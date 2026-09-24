@@ -37,7 +37,6 @@
     "wait-on": "^9"
   },
   "dependencies": {
-    "@formatjs/intl": "6.1.2",
     "electron-updater": "^6.8.9"
   }
 }

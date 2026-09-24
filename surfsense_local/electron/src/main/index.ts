@@ -56,7 +56,7 @@ import {
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
-import { applyLocalePreference, mainIntl } from "./i18n/app-locale.ts"
+import { applyLocalePreference } from "./i18n/app-locale.ts"
 import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 
@@ -455,33 +455,21 @@ function applyBackgroundColorToAllWindows(theme: ThemePreference): void {
   for (const win of currentWindows()) win.setBackgroundColor(color)
 }
 
-// Packaged only. Dev keeps Electron's default View menu (reload + DevTools).
+// One menu in dev and packaged builds, all Electron roles: labels come from
+// Electron and the OS, never the in-app language. DevTools only unpackaged.
 // https://www.electronjs.org/docs/latest/tutorial/application-menu
-function installProductionMenu(): void {
-  if (!app.isPackaged) return
-
+function installMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
       { role: "fileMenu" },
       { role: "editMenu" },
       {
-        label: mainIntl().formatMessage({ id: "menu_view_label", defaultMessage: "View" }),
+        role: "viewMenu",
         submenu: [
-          {
-            label: mainIntl().formatMessage({ id: "menu_view_reload_label", defaultMessage: "Reload" }),
-            click: (_item, win) => {
-              if (win instanceof BrowserWindow) win.reload()
-            },
-          },
-          {
-            label: mainIntl().formatMessage({ id: "menu_view_force_reload_label", defaultMessage: "Force Reload" }),
-            click: (_item, win) => {
-              if (win instanceof BrowserWindow) {
-                win.webContents.reloadIgnoringCache()
-              }
-            },
-          },
+          { role: "reload" },
+          { role: "forceReload" },
+          ...(app.isPackaged ? [] : [{ role: "toggleDevTools" as const }]),
           { type: "separator" },
           { role: "resetZoom" },
           { role: "zoomIn" },
@@ -585,9 +573,8 @@ function main(): void {
       registerLocaleHandlers({
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
-        onChange: installProductionMenu,
       })
-      installProductionMenu()
+      installMenu()
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()
       app.on("activate", () => {

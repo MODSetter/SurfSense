@@ -94,10 +94,10 @@ repos:
     hooks:
       - id: formatjs-extract
         name: formatjs-extract
-        entry: formatjs extract "surfsense_local/frontend/src/**/*.{ts,tsx}" "surfsense_local/electron/src/main/**/*.ts" --ignore "**/*.test.*" --format simple --out-file surfsense_local/frontend/translations/en.json
+        entry: formatjs extract "surfsense_local/frontend/src/**/*.{ts,tsx}" --ignore "**/*.test.*" --format simple --out-file surfsense_local/frontend/translations/en.json
         language: node
         additional_dependencies: ["@formatjs/cli@6.16.32"]
-        files: ^surfsense_local/(frontend/(src/|translations/en\.json)|electron/src/main/)
+        files: ^surfsense_local/frontend/(src/|translations/en\.json)
         pass_filenames: false
         stages: [pre-commit]
       - id: formatjs-verify

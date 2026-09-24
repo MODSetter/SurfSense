@@ -10,7 +10,8 @@ The app is air-gapped, so no translation may be fetched at run time, and a relea
 
 ## Decision
 
-- `react-intl` renders the frontend, `@formatjs/intl` Electron main's menu, and `@formatjs/cli` compiles and checks the catalogs. All three come from npm, pinned by the lockfile.
+- `react-intl` renders the frontend and `@formatjs/cli` compiles and checks the catalogs. Both come from npm, pinned by the lockfile.
+- Electron main translates nothing. Its application menu is Electron roles only, labelled by Electron and the OS; translating the few labels main writes itself mixed two languages in one menu.
 - `formatjs compile-folder --ast` precompiles the catalogs before every build, and Vite aliases the ICU parser to its no-parser build.
 - All three languages are bundled. One `createIntl` instance serves the page, given to React through `RawIntlProvider`, and a language change reloads the window.
 - Messages are declared inline with their usage, as the FormatJS docs recommend: `intl.formatMessage({ id, defaultMessage }, values)`, with an explicit id and no wrapper. `formatjs extract` generates `en.json` from them, and `@formatjs/unplugin` strips `defaultMessage` from the bundle.

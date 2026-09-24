@@ -35,7 +35,9 @@ describe("the page's language", () => {
     followMainLocale(() => {})
     expect(intl.locale).toBe("ja")
     expect(document.documentElement.lang).toBe("ja")
-    expect(intl.formatMessage({ id: "menu_view_label" })).toBe("表示")
+    expect(intl.formatMessage({ id: "app_bootstrap_retry_button" })).toBe(
+      "再試行"
+    )
   })
 
   it("falls back to English for a language the app does not ship", async () => {
@@ -46,7 +48,9 @@ describe("the page's language", () => {
 
   it("stays in English without the Electron bridge", async () => {
     const { intl } = await loadPage()
-    expect(intl.formatMessage({ id: "menu_view_label" })).toBe("View")
+    expect(intl.formatMessage({ id: "app_bootstrap_retry_button" })).toBe(
+      "Retry"
+    )
   })
 
   it("reloads the window when main switches to another language", async () => {

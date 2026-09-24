@@ -16,8 +16,8 @@ const FRONTEND = join(ROOT, "surfsense_local", "frontend")
 const TRANSLATIONS = join(FRONTEND, "translations")
 const FEATURES = join(FRONTEND, "src", "features")
 const LOCALES = ["en", "ja", "de"]
-// Prefixes that are not a feature folder: the app shell and Electron main's menu.
-const EXTRA_PREFIXES = ["app", "menu"]
+// The one prefix that is not a feature folder: the app shell.
+const EXTRA_PREFIXES = ["app"]
 
 const problems = []
 const fail = (where, message) => problems.push(`${where}: ${message}`)
@@ -67,7 +67,7 @@ const features = new Set([
 // A deleted feature folder leaves its ids behind with a prefix nothing owns.
 for (const key of Object.keys(catalogs.en)) {
   if (!features.has(key.split("_")[0])) {
-    fail("translations/en.json", `${key} does not start with a feature folder, app or menu`)
+    fail("translations/en.json", `${key} does not start with a feature folder or app`)
   }
 }
 

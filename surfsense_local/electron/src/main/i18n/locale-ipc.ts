@@ -11,7 +11,6 @@ import {
 // the same way it reads the system theme.
 export function registerLocaleHandlers(options: {
   isTrusted: (sender: Electron.WebContents) => boolean
-  onChange: () => void
 }): void {
   ipcMain.on("locale:get", (event) => {
     event.returnValue = currentLocale()
@@ -24,7 +23,6 @@ export function registerLocaleHandlers(options: {
     if (!isLocalePreference(preference)) return
     saveLocalePreference(preference)
     const locale = applyLocalePreference(preference)
-    options.onChange()
     for (const win of BrowserWindow.getAllWindows()) {
       win.webContents.send("locale:changed", locale)
     }
