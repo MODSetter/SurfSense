@@ -1,24 +1,46 @@
-import { Fragment } from "react"
+import { Fragment, useState } from "react"
 
-import { CircleAlertIcon, DotIcon, DownloadIcon } from "@/components/ui/icons"
+import { CircleAlertIcon, DotIcon, Trash2Icon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 
+import { useSelect } from "../../selection/use-selection"
+import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
+import type { YourModelRow } from "../../your-models/your-model-row"
+import { BuildAction } from "../chat/build-action"
 import { InstallProgress } from "../chat/install-progress"
-import { installView } from "../chat/install-view"
+import type { LocalAudioModel } from "./api"
 import { describeAudioModel } from "./describe-audio-model"
 import { useAudioInstall } from "./use-audio-install"
+import { useDeleteLocalAudioModel } from "./use-delete-local-audio-model"
 import { useLocalAudioCatalog } from "./use-local-audio-catalog"
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "The request failed"
 }
 
-/** Audio models audio.cpp can run on this computer. */
+/** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
+function deletableRow(model: LocalAudioModel): YourModelRow | null {
+  if (!model.installed_as) return null
+  return {
+    key: model.installed_as,
+    name: model.label,
+    selected: model.selected,
+    badges: [],
+    note: null,
+    target: null,
+    removeId: model.installed_as,
+  }
+}
+
+/** Audio models audio.cpp can run on this computer, with chat's and image's actions. */
 export function DownloadAudioModels() {
   const catalog = useLocalAudioCatalog()
   const { installState, install, cancelInstall } = useAudioInstall()
+  const select = useSelect("audio_gen")
+  const remove = useDeleteLocalAudioModel()
+  const [deleting, setDeleting] = useState<YourModelRow | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   if (catalog.isPending) return null
 
@@ -45,7 +67,34 @@ export function DownloadAudioModels() {
     )
   }
 
-  const installing = installState.status === "installing"
+  const busy =
+    installState.status === "installing" || select.isPending || remove.isPending
+
+  const act = (model: LocalAudioModel) => {
+    if (busy) return
+    if (model.installed_as) {
+      void select
+        .mutateAsync({
+          target: {
+            provider: "audiocpp",
+            connection_id: null,
+            name: model.installed_as,
+          },
+        })
+        .catch(() => undefined)
+    } else {
+      void install(model.catalog_id, model.label)
+    }
+  }
+
+  const confirmDelete = () => {
+    if (!deleting?.removeId) return
+    setDeleteError(null)
+    remove
+      .mutateAsync(deleting.removeId)
+      .then(() => setDeleting(null))
+      .catch((cause: unknown) => setDeleteError(messageFrom(cause)))
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -73,35 +122,31 @@ export function DownloadAudioModels() {
                     ))}
                   </p>
                 </div>
-                {model.installed_as !== null ? (
-                  <Button type="button" size="sm" variant="outline" disabled>
-                    Downloaded
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={installing}
-                    aria-label={`Download ${model.label}`}
-                    onClick={() => void install(model.catalog_id, model.label)}
-                  >
-                    {/* Names the phase, as chat and image do, so a disabled
-                        button over a filling bar reads as busy. */}
-                    {active ? (
-                      <>
-                        <span className="animate-spin" data-icon="inline-start">
-                          <Spinner className="size-3.5" />
-                        </span>
-                        {installView(installState.event).short}
-                      </>
-                    ) : (
-                      <>
-                        <DownloadIcon data-icon="inline-start" />
-                        Download
-                      </>
-                    )}
-                  </Button>
-                )}
+                <div className="flex shrink-0 items-center gap-1">
+                  <BuildAction
+                    build={model.build}
+                    label={model.label}
+                    installState={installState}
+                    disabled={busy}
+                    runtimeAvailable
+                    onAction={() => act(model)}
+                  />
+                  {model.installed_as ? (
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="destructive"
+                      disabled={busy}
+                      aria-label={`Delete ${model.label}`}
+                      onClick={() => {
+                        setDeleteError(null)
+                        setDeleting(deletableRow(model))
+                      }}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  ) : null}
+                </div>
               </div>
               {active ? (
                 <InstallProgress
@@ -113,6 +158,18 @@ export function DownloadAudioModels() {
           )
         })}
       </ul>
+
+      {select.isError ? (
+        <p className="text-sm text-destructive">{messageFrom(select.error)}</p>
+      ) : null}
+
+      <DeleteModelDialog
+        row={deleting}
+        pending={remove.isPending}
+        error={deleteError}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   )
 }

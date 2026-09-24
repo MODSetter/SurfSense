@@ -1,4 +1,9 @@
-import { deleteLocalModel, getModelCatalog, type LocalRow } from "../chat/api"
+import {
+  deleteLocalModel,
+  getModelCatalog,
+  type LocalBuild,
+  type LocalRow,
+} from "../chat/api"
 
 /** One curated audio model, as audio.cpp's catalog row offers it. */
 export type LocalAudioModel = {
@@ -15,6 +20,8 @@ export type LocalAudioModel = {
   /** What selection and deletion name; null until it is on disk. */
   installed_as: string | null
   selected: boolean
+  /** What the row's action button reads, the same as chat's and image's. */
+  build: LocalBuild
 }
 
 /** Empty where no audio.cpp shipped: the API then offers no audio rows. */
@@ -40,6 +47,7 @@ function toAudioModel(row: LocalRow): LocalAudioModel | null {
     catalog_id: build.catalog_id,
     installed_as: build.installed_as,
     selected: build.selected,
+    build,
   }
 }
 

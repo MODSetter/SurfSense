@@ -30,8 +30,7 @@ export function useAudioModels(): YourModels {
               connection_id: null,
               name: model.installed_as,
             },
-            // The server may hold it loaded; removing the file under it is refused.
-            removeId: model.selected ? null : model.installed_as,
+            removeId: model.installed_as,
           },
         ]
   )
