@@ -3,19 +3,16 @@ import { useEffect, useState } from "react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
-import { getProviderModels } from "@/features/models/chat-candidates/api"
-import { getConnectionModels } from "@/features/models/remote/models/api"
 import {
   getGenerationSelection,
   type ModelSelection,
 } from "@/features/models/selection/api"
+import {
+  checkAvailability,
+  type Availability,
+} from "@/features/models/selection/availability"
 import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
-import {
-  asksOnSend,
-  modelIssueFrom,
-  type ModelIssue,
-} from "@/features/chat/model-issue"
 import { intl } from "@/i18n/intl"
 
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
@@ -30,9 +27,10 @@ type BootstrapState =
       status: "ready"
       /** Loaded before the state turns ready, so it renders without suspending. */
       Dashboard: DashboardComponent
+      // The saved choice, kept whatever its status: clearing it to say it
+      // can't be used would leave nothing to check again once it can.
       selection: ModelSelection | null
-      providerAvailable: boolean
-      modelIssue: ModelIssue | null
+      availability: Availability
       workspaces: Workspace[]
     }
   | { status: "error"; message: string }
@@ -44,53 +42,6 @@ function messageFrom(error: unknown) {
         id: "app_bootstrap_unexpected_error",
         defaultMessage: "An unexpected error occurred",
       })
-}
-
-type Availability = {
-  selection: ModelSelection | null
-  issue: ModelIssue | null
-}
-
-// A model that cannot be confirmed, because its key is unreadable or its
-// endpoint is offline, opens the app without it rather than blocking startup,
-// and keeps the API's reason so the dashboard can say why. Egress off keeps
-// the model: sending asks for it.
-async function stillAvailable(
-  selection: ModelSelection | null
-): Promise<Availability> {
-  if (!selection) return { selection: null, issue: null }
-  try {
-    return { selection: await confirmed(selection), issue: null }
-  } catch (error) {
-    return {
-      selection: asksOnSend(error) ? selection : null,
-      issue: modelIssueFrom(selection, error),
-    }
-  }
-}
-
-// Null when the model is simply gone from its list: nothing to explain there.
-async function confirmed(
-  selection: ModelSelection
-): Promise<ModelSelection | null> {
-  if (selection.provider === "openai_compatible") {
-    const models =
-      selection.connection_id === null
-        ? []
-        : await getConnectionModels(selection.connection_id)
-    return models.some((model) => model.name === selection.name)
-      ? selection
-      : null
-  }
-  const models = await getProviderModels(selection.provider)
-  return models.some(
-    (model) =>
-      model.installed &&
-      model.selectable_for.includes("text_gen") &&
-      model.name === selection.name
-  )
-    ? selection
-    : null
 }
 
 async function fetchBootstrapState(): Promise<BootstrapState> {
@@ -108,14 +59,16 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
       getGenerationSelection(),
       listWorkspaces(),
     ])
-    const { selection: currentSelection, issue } =
-      await stillAvailable(selection)
+    // Never fails startup: a model that can't be used opens the app without
+    // it, and the dashboard says why.
+    const availability: Availability = selection
+      ? await checkAvailability(selection)
+      : { status: "gone" }
     return {
       status: "ready",
       Dashboard: await dashboard,
-      selection: currentSelection,
-      providerAvailable: currentSelection !== null,
-      modelIssue: issue,
+      selection,
+      availability,
       workspaces,
     }
   } catch (error) {
@@ -166,8 +119,7 @@ export function AppBootstrap() {
                 status: "ready",
                 Dashboard,
                 selection,
-                providerAvailable: true,
-                modelIssue: null,
+                availability: { status: "available" },
                 workspaces,
               })
             )
@@ -217,8 +169,7 @@ export function AppBootstrap() {
   return (
     <Dashboard
       selection={state.selection}
-      initialProviderAvailable={state.providerAvailable}
-      initialModelIssue={state.modelIssue}
+      initialAvailability={state.availability}
       initialWorkspaces={state.workspaces}
       onModelUnavailable={() =>
         setState((current) =>

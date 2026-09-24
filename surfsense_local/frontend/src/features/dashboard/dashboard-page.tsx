@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   CircleAlertIcon,
@@ -22,14 +22,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
-import {
-  asksOnSend,
-  blockedPlaceholder,
-  isIssueFor,
-  issueAsksOnSend,
-  modelIssueFrom,
-  type ModelIssue,
-} from "@/features/chat/model-issue"
+import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
@@ -37,9 +30,12 @@ import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
-import { getProviders } from "@/features/models/chat-candidates/api"
-import { getConnectionModels } from "@/features/models/remote/models/api"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
+import {
+  checkAvailability,
+  type Availability,
+  type ModelIssue,
+} from "@/features/models/selection/availability"
 import {
   SettingsDialog,
   type SettingsSectionId,
@@ -78,6 +74,7 @@ function WorkspaceDashboard({
   selection,
   providerAvailable,
   modelIssue,
+  needsConsent,
   onModelIssueSettings,
   onAllowModelIssue,
   onModelRequired,
@@ -89,6 +86,7 @@ function WorkspaceDashboard({
   selection: ModelSelection | null
   providerAvailable: boolean
   modelIssue: ModelIssue | null
+  needsConsent: boolean
   onModelIssueSettings: () => void
   onAllowModelIssue: () => void
   onModelRequired: () => void
@@ -114,19 +112,8 @@ function WorkspaceDashboard({
     onModelRequired,
   })
 
-  // Egress belongs to the selected model's host, so its notice shows only for
-  // that model; any other issue shows while no model is chosen.
-  const shownIssue =
-    modelIssue !== null &&
-    (issueAsksOnSend(modelIssue)
-      ? isIssueFor(modelIssue, selection)
-      : selection === null)
-      ? modelIssue
-      : null
   const composerHold =
-    shownIssue && issueAsksOnSend(shownIssue)
-      ? blockedPlaceholder(shownIssue)
-      : undefined
+    modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
 
   const closeInspect = () => setInspect(null)
   const toggleRightPanel = () => {
@@ -283,12 +270,10 @@ function WorkspaceDashboard({
             animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
             providerAvailable={providerAvailable}
             notice={
-              shownIssue ? (
+              modelIssue ? (
                 <ModelIssueNotice
-                  issue={shownIssue}
-                  onAllow={
-                    issueAsksOnSend(shownIssue) ? onAllowModelIssue : undefined
-                  }
+                  issue={modelIssue}
+                  onAllow={needsConsent ? onAllowModelIssue : undefined}
                   onOpenSettings={onModelIssueSettings}
                 />
               ) : null
@@ -426,27 +411,40 @@ function WorkspacesEmpty({
   )
 }
 
-type ProviderStatus = "checking" | "available" | "unavailable"
-
 export function DashboardPage({
   selection,
-  initialProviderAvailable,
-  initialModelIssue = null,
+  initialProviderAvailable = false,
+  initialAvailability,
   initialWorkspaces,
   onModelUnavailable = () => undefined,
   onModelSelected,
 }: {
   selection: ModelSelection | null
-  initialProviderAvailable: boolean
-  initialModelIssue?: ModelIssue | null
+  // Shorthand for an `available` or unchecked initial status.
+  initialProviderAvailable?: boolean
+  // What startup found, so this screen need not check the same model again.
+  initialAvailability?: Availability
   initialWorkspaces: Workspace[]
   onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
   const workspaces = useWorkspaces(initialWorkspaces)
-  const [providerStatus, setProviderStatus] = useState<ProviderStatus>(() =>
-    initialProviderAvailable ? "available" : "checking"
-  )
+  const initial: Availability =
+    initialAvailability ??
+    (initialProviderAvailable
+      ? { status: "available" }
+      : { status: "checking" })
+  // Tagged with the model it describes, so a newly chosen model reads as
+  // checking until its own answer arrives, never as the last one's.
+  const [checked, setChecked] = useState<{
+    key: string | null
+    availability: Availability
+  }>(() => ({
+    key: selection ? modelKey(selection) : null,
+    availability: initial,
+  }))
+  // Startup already checked this model; the first run here would repeat it.
+  const skipFirstCheck = useRef(initial.status !== "checking")
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Bumped when the settings dialog closes, because a model can be chosen in
   // there without anything on this screen hearing about it: the image model is
@@ -454,9 +452,6 @@ export function DashboardPage({
   const [modelsVisited, setModelsVisited] = useState(0)
   const [settingsSection, setSettingsSection] =
     useState<SettingsSectionId>("general")
-  // Why the selected model can't be used, from its last check. Launch supplies
-  // the first one, so there is no flash before this screen checks again.
-  const [modelIssue, setModelIssue] = useState(initialModelIssue)
   // Bumped after egress is allowed from the notice, to check the model again.
   const [consents, setConsents] = useState(0)
 
@@ -465,55 +460,49 @@ export function DashboardPage({
     setSettingsOpen(true)
   }
 
+  // Checked when the model changes, when settings close (a key entered again,
+  // egress switched, a connection edited) and after egress is allowed.
   useEffect(() => {
-    if (!selection) {
+    if (!selection) return
+    if (skipFirstCheck.current) {
+      skipFirstCheck.current = false
       return
     }
+    const key = modelKey(selection)
     const controller = new AbortController()
-    const availability =
-      selection.provider === "openai_compatible" &&
-      selection.connection_id !== null
-        ? getConnectionModels(selection.connection_id, controller.signal).then(
-            (models) => models.some((model) => model.name === selection.name)
-          )
-        : getProviders(controller.signal).then((providers) =>
-            providers.some(
-              (provider) =>
-                provider.name === selection.provider && provider.healthy
-            )
-          )
-    void availability
-      .then((available) => {
-        if (controller.signal.aborted) return
-        setProviderStatus(available ? "available" : "unavailable")
-        setModelIssue(null)
-      })
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return
-        // Egress off keeps the model: the notice asks, the composer waits.
-        const consent = asksOnSend(error)
-        setProviderStatus(consent ? "available" : "unavailable")
-        setModelIssue(consent ? modelIssueFrom(selection, error) : null)
-      })
+    void checkAvailability(selection, controller.signal).then(
+      (availability) => {
+        if (!controller.signal.aborted) setChecked({ key, availability })
+      }
+    )
     return () => controller.abort()
-    // Checked again when settings close, where egress may have changed, and
-    // after egress is allowed from the notice.
   }, [selection, modelsVisited, consents])
 
+  const availability: Availability =
+    selection && checked.key === modelKey(selection)
+      ? checked.availability
+      : { status: "checking" }
+  const issue =
+    availability.status === "needs-consent" ||
+    availability.status === "unusable"
+      ? availability.issue
+      : null
+  // A model gone from its list is set up again from scratch.
+  const usableSelection = availability.status === "gone" ? null : selection
+  const providerAvailable =
+    usableSelection !== null && availability.status !== "unusable"
+
   const allowModelIssue = () => {
-    const destination = modelIssue?.destination
+    const destination = issue?.destination
     if (!destination) return
     void askEgress({
       destination,
-      host: modelIssue.host ?? "",
+      host: issue.host ?? "",
       allow: () => setDestinationEnabled(destination, true),
     }).then((allowed) => {
       if (allowed) setConsents((count) => count + 1)
     })
   }
-
-  const providerAvailable =
-    selection !== null && providerStatus !== "unavailable"
 
   const onImported = async (accepted: ImportAccepted) => {
     const first = accepted.workspaces[0]
@@ -545,15 +534,14 @@ export function DashboardPage({
       <WorkspaceDashboard
         key={workspaces.activeWorkspace.id}
         workspace={workspaces.activeWorkspace}
-        selection={selection}
+        selection={usableSelection}
         providerAvailable={providerAvailable}
-        modelIssue={modelIssue}
+        modelIssue={issue}
+        needsConsent={availability.status === "needs-consent"}
         onAllowModelIssue={allowModelIssue}
         onModelIssueSettings={() =>
           openSettings(
-            modelIssue && issueAsksOnSend(modelIssue)
-              ? "network"
-              : "chat-models"
+            availability.status === "needs-consent" ? "network" : "chat-models"
           )
         }
         onModelRequired={() => openSettings("chat-models")}

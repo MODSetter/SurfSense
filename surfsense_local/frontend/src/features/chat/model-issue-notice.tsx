@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button"
 import { CircleAlertIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
-import type { ModelIssue } from "./model-issue"
+import type { ModelIssue } from "@/features/models/selection/availability"
 
 function reason({ model, code, host }: ModelIssue): string {
   switch (code) {

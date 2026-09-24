@@ -1,19 +1,10 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react"
+import { useContext, useMemo, type ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { intl } from "@/i18n/intl"
+
+import { CitationContext } from "./citation-context"
 import type { Citation } from "./sse"
-
-type CitationContextValue = {
-  citations: Citation[]
-  onCitation: (chunkId: number) => void
-}
-
-const CitationContext = createContext<CitationContextValue | null>(null)
-
-export function useCitationContext() {
-  return useContext(CitationContext)
-}
 
 export function CitationProvider({
   citations,

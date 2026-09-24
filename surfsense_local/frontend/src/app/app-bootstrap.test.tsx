@@ -156,10 +156,10 @@ describe("app bootstrap", () => {
     expect(setup.className).toContain("text-white")
     const message = screen.getByRole("textbox", { name: "Message" })
     expect((message as HTMLTextAreaElement).disabled).toBe(true)
-    expect(message.getAttribute("placeholder")).toBe("Follow up on this answer")
-    expect(
-      screen.getByText("SurfSense can make mistakes. Check important answers.")
-    ).toBeTruthy()
+    // No chat remembered from before, so launch opens a new one, centered.
+    expect(message.getAttribute("placeholder")).toBe(
+      "Turn your sources into answers"
+    )
     expect(screen.queryByText("No chat model is available")).toBeNull()
     expect(screen.queryByText("Choose your AI model")).toBeNull()
   }, 15_000)
@@ -240,23 +240,27 @@ describe("app bootstrap", () => {
       reason: "Couldn’t reach the server for anthropic/claude-fable-5.",
     },
   ])(
-    "opens without the chosen model and says why when its check fails with $code",
+    "keeps the saved model, holds the composer and says why when its check fails with $code",
     async ({ status, code, reason }) => {
       // A key saved under a lost keychain secret, or a remote endpoint that is
-      // offline, must cost the user that model, not the whole app.
+      // offline, must hold that model, not the whole app, and keep it saved so
+      // it can be checked again once fixed.
       launchWithSavedModel(() =>
         Response.json({ detail: { code, message: "failed" } }, { status })
       )
 
+      const reasonText = await screen.findByText(
+        reason,
+        {},
+        { timeout: 10_000 }
+      )
+      expect(screen.queryByRole("button", { name: "Set up model" })).toBeNull()
+      expect(screen.getByText("anthropic/claude-fable-5")).toBeTruthy()
       expect(
-        await screen.findByRole(
-          "button",
-          { name: "Set up model" },
-          { timeout: 10_000 }
-        )
-      ).toBeTruthy()
-      const notice = screen.getByRole("status")
-      expect(notice.textContent).toContain(reason)
+        screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+          .disabled
+      ).toBe(true)
+      const notice = reasonText.closest<HTMLElement>("[role=status]")!
       expect(
         within(notice).getByRole("button", { name: "Open settings" })
       ).toBeTruthy()
@@ -368,5 +372,45 @@ describe("app bootstrap", () => {
     expect(
       within(settings).getByRole("heading", { name: "Network" })
     ).toBeTruthy()
+  }, 15_000)
+  it("clears the notice once the key is fixed in Settings, without a reload", async () => {
+    // Settings is where a key is entered again; closing it must be enough.
+    let keyReadable = false
+    launchWithSavedModel(() =>
+      keyReadable
+        ? Response.json([
+            {
+              connection_id: 1,
+              connection_label: "OpenRouter",
+              name: "anthropic/claude-fable-5",
+              types: ["text_gen"],
+              capability_source: "catalog",
+              selectable_for: ["text_gen"],
+            },
+          ])
+        : Response.json(
+            { detail: { code: "unreadable_secret", message: "failed" } },
+            { status: 409 }
+          )
+    )
+    const unreadable =
+      "Couldn’t use anthropic/claude-fable-5, its saved key has to be entered again."
+
+    const reason = await screen.findByText(unreadable, {}, { timeout: 10_000 })
+    await userEvent.click(
+      within(reason.closest<HTMLElement>("[role=status]")!).getByRole(
+        "button",
+        { name: "Open settings" }
+      )
+    )
+    await screen.findByRole("dialog")
+    keyReadable = true
+    await userEvent.keyboard("{Escape}")
+
+    await waitFor(() => expect(screen.queryByText(unreadable)).toBeNull())
+    const message = screen.getByRole<HTMLTextAreaElement>("textbox", {
+      name: "Message",
+    })
+    expect(message.disabled).toBe(false)
   }, 15_000)
 })

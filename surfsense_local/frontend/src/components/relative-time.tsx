@@ -153,11 +153,13 @@ function formatCompactTime(date: Date, currentTime: number) {
 }
 
 export function RelativeTime({
+  id,
   date,
   compact = false,
   showTooltip = true,
   className,
 }: {
+  id?: string
   date: Date
   compact?: boolean
   showTooltip?: boolean
@@ -175,6 +177,7 @@ export function RelativeTime({
 
   const time = (
     <time
+      id={id}
       dateTime={date.toISOString()}
       className={cn(
         "inline-flex h-7 cursor-default items-center text-xs select-none",

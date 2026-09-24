@@ -97,7 +97,9 @@ const LICENSE_ROWS: Record<
 }
 
 function licenseRow(state: LicenseState): Row {
-  const { label, tone } = LICENSE_ROWS[state]
+  // A state this build does not know reads as locked, not as a crash of the
+  // whole dashboard.
+  const { label, tone } = LICENSE_ROWS[state] ?? LICENSE_ROWS.none
   return { label: label(), tone }
 }
 

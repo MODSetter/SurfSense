@@ -289,6 +289,11 @@ export function ChatsDialog({
                           "bg-muted dark:bg-muted/50"
                       )}
                       aria-current={selected ? "page" : undefined}
+                      // Named by the title alone: read as content, the time
+                      // runs into it ("Q3 rollup2 weeks ago"). It stays a
+                      // description, so a screen reader still hears it.
+                      aria-label={title}
+                      aria-describedby={`chat-row-time-${thread.id}`}
                       onClick={() => {
                         onSelect(thread.id)
                         onOpenChange(false)
@@ -310,6 +315,7 @@ export function ChatsDialog({
                         />
                       </span>
                       <RelativeTime
+                        id={`chat-row-time-${thread.id}`}
                         date={new Date(thread.updated_at)}
                         showTooltip={false}
                         className={cn(

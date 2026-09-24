@@ -23,11 +23,8 @@ import { intl } from "@/i18n/intl"
 
 import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
-import {
-  CitationProvider,
-  InlineCitation,
-  useCitationContext,
-} from "./inline-citation"
+import { useCitationContext } from "./citation-context"
+import { CitationProvider, InlineCitation } from "./inline-citation"
 import type { Citation } from "./sse"
 
 const streamdownPlugins = {

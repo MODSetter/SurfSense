@@ -229,7 +229,11 @@ export function ChatComposer({
         <ComposerPrimitive.Input
           autoFocus
           unstable_focusOnThreadSwitched
-          disabled={!model || blockedPlaceholder !== undefined}
+          // Held whenever a send could not go anywhere: no model, a model that
+          // can't be used, or egress to it still off.
+          disabled={
+            !model || !providerAvailable || blockedPlaceholder !== undefined
+          }
           className={cn(
             "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
             placement === "center"
