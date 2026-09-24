@@ -1,27 +1,31 @@
-import { CircleAlertIcon, DownloadIcon } from "@/components/ui/icons"
+import { CircleAlertIcon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Spinner } from "@/components/ui/spinner"
 
-import { ImageDownloadProgress } from "./image-download-progress"
+import { useSelect } from "../../selection/use-selection"
+import type { LocalBuild, LocalRow } from "../chat/api"
+import { ModelCard } from "../chat/model-card"
+import { ModelFamilyGroup } from "../chat/model-family-group"
 import { useImageInstall } from "./use-image-install"
 import { useLocalImageCatalog } from "./use-local-image-catalog"
 
-const gigabytes = (value: number) =>
-  new Intl.NumberFormat(undefined, {
-    style: "unit",
-    unit: "gigabyte",
-    maximumFractionDigits: 1,
-  }).format(value / 1e9)
-
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "The request failed"
+  return error instanceof Error ? error.message : "An unexpected error occurred"
 }
 
-/** Image models sd-server can run on this computer. */
+function byFamily(rows: LocalRow[]) {
+  const result = new Map<string, LocalRow[]>()
+  for (const row of rows) {
+    const family = row.family || "Other"
+    result.set(family, [...(result.get(family) ?? []), row])
+  }
+  return result
+}
+
+/** Image models sd-server can run on this computer, listed as chat's are. */
 export function DownloadImageModels() {
   const catalog = useLocalImageCatalog()
   const { installState, install, cancelInstall } = useImageInstall()
+  const select = useSelect("image_gen")
 
   if (catalog.isPending) return null
 
@@ -35,8 +39,7 @@ export function DownloadImageModels() {
     )
   }
 
-  const models = catalog.data.models
-  if (models.length === 0) {
+  if (catalog.data.length === 0) {
     return (
       <Alert>
         <CircleAlertIcon />
@@ -48,61 +51,48 @@ export function DownloadImageModels() {
     )
   }
 
-  const installing = installState.status === "installing"
+  const busy = installState.status === "installing" || select.isPending
+
+  const act = (build: LocalBuild, label: string) => {
+    if (busy) return
+    if (build.installed_as) {
+      void select
+        .mutateAsync({
+          target: {
+            provider: "sdcpp",
+            connection_id: null,
+            name: build.installed_as,
+          },
+        })
+        .catch(() => undefined)
+    } else {
+      void install(build.catalog_id, label)
+    }
+  }
 
   return (
-    <div className="flex flex-col gap-3">
-      <ul className="divide-y overflow-hidden rounded-xl border bg-card">
-        {models.map((model) => {
-          const active = installing && installState.id === model.id
-          return (
-            <li key={model.id} className="flex flex-col gap-2 px-3 py-2.5">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{model.label}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {model.detail}{" "}
-                    <span className="tabular-nums">
-                      {gigabytes(model.size_bytes)}
-                    </span>
-                  </p>
-                </div>
-                {model.installed_as !== null ? (
-                  <Button type="button" size="sm" variant="outline" disabled>
-                    Downloaded
-                  </Button>
-                ) : (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={installing}
-                    aria-label={`Download ${model.label}`}
-                    onClick={() => void install(model)}
-                  >
-                    {active ? (
-                      <Spinner data-icon="inline-start" />
-                    ) : (
-                      <DownloadIcon data-icon="inline-start" />
-                    )}
-                    Download
-                  </Button>
-                )}
-              </div>
-              {active ? (
-                <ImageDownloadProgress
-                  label={model.label}
-                  step={installState.step}
-                  onCancel={cancelInstall}
-                />
-              ) : null}
+    <div className="flex flex-col gap-5">
+      {[...byFamily(catalog.data)].map(([family, rows]) => (
+        <ModelFamilyGroup key={family} family={family}>
+          {rows.map((row) => (
+            <li key={row.id}>
+              <ModelCard
+                row={row}
+                installState={installState}
+                actionsDisabled={busy}
+                runtimeAvailable
+                onAction={(build) =>
+                  act(build, `${row.name} ${build.quantization}`)
+                }
+                onCancel={cancelInstall}
+              />
             </li>
-          )
-        })}
-      </ul>
-      {installState.status === "idle" && installState.error ? (
-        <p className="text-sm text-destructive" role="alert">
-          {installState.error}
-        </p>
+          ))}
+        </ModelFamilyGroup>
+      ))}
+
+      {select.isError ? (
+        <p className="text-sm text-destructive">{messageFrom(select.error)}</p>
       ) : null}
     </div>
   )

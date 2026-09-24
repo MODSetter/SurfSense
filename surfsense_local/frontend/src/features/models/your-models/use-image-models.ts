@@ -12,28 +12,31 @@ export function useImageModels(): YourModels {
   const catalog = useLocalImageCatalog()
   const selection = useSelection("image_gen")
   const connections = useConnections()
-  const models = catalog.data?.models ?? []
+  const rows = catalog.data ?? []
 
-  const local: YourModelRow[] = models.flatMap((model) =>
-    model.installed_as === null
-      ? []
-      : [
-          {
-            key: model.installed_as,
-            name: model.label,
-            selected: model.selected,
-            badges: [],
-            // Nothing reports whether sd-server is up yet, so no "Starting…".
-            note: null,
-            target: {
-              provider: "sdcpp",
-              connection_id: null,
-              name: model.installed_as,
+  const local: YourModelRow[] = rows.flatMap((row) =>
+    row.builds.flatMap((build) =>
+      build.installed_as === null
+        ? []
+        : [
+            {
+              key: build.installed_as,
+              name: row.name,
+              selected: build.selected,
+              badges: [],
+              // Nothing reports whether sd-server is up yet, so no "Starting…".
+              note: row.runnable ? null : row.not_runnable_reason,
+              target: {
+                provider: "sdcpp",
+                connection_id: null,
+                name: build.installed_as,
+              },
+              // As with chat: deleting the one in use clears the image slot,
+              // and sd-server stops once the API reports no model.
+              removeId: build.installed_as,
             },
-            // The server is running it; removing the file under it is refused.
-            removeId: model.selected ? null : model.installed_as,
-          },
-        ]
+          ]
+    )
   )
 
   return {
@@ -42,6 +45,6 @@ export function useImageModels(): YourModels {
     // A failed local catalog still leaves servers usable, so it is not an error.
     isPending: catalog.isPending || selection.isPending,
     error: selection.error,
-    canDownload: models.length > 0,
+    canDownload: rows.length > 0,
   }
 }

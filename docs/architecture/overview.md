@@ -29,7 +29,7 @@ worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE
 
 - Electron's main process starts four sidecars at boot and supervises them ([`index.ts`](../../surfsense_local/electron/src/main/index.ts), [`sidecars/`](../../surfsense_local/electron/src/main/sidecars/)): the API, one Huey worker per queue, and llama-server. Packaged builds run frozen binaries from the app's resources; `pnpm dev` runs `uv run main.py` and `uv run worker.py <queue>`.
 - llama-server starts whenever its pinned build is staged, in dev too (`pnpm build:llamacpp`, which `predev` runs). It reads per-model arguments from a preset file once at startup, so Electron restarts it when the API rewrites that file ([`local-models/runtime.md`](local-models/runtime.md)).
-- sd-server takes its model as a startup argument, so it cannot start at boot. In packaged builds `watchImageModel` asks the API every 5 seconds which weights are chosen and starts or restarts it on a change.
+- sd-server takes its model as a startup argument, so it cannot start at boot. Whenever its pinned build is staged, in dev too (`pnpm build:sdcpp`, which `predev` runs), `watchImageModel` asks the API every 5 seconds which weights are chosen and starts or restarts it on a change.
 - Only the API gates the window. Electron waits up to 60 seconds for `/health` and gives up at once if the API exits. llama-server is best-effort; its state shows through `/llm/providers`.
 - On macOS and Linux each child runs in its own process group. On quit Electron sends SIGTERM and, after 5 seconds, SIGKILL; on Windows it kills the process tree. A single-instance lock hands a second launch to the first window, because two sets of sidecars would fight over the SQLite file.
 - The Python sidecars are configured through `SURFSENSE_LOCAL_*` variables: the API's host and port, the data and models directories, the llama-server and sd-server addresses, and `SURFSENSE_LOCAL_SECRET`, the key that encrypts stored API keys ([`connections.md`](connections.md)). No other sidecar receives the secret.
@@ -69,7 +69,7 @@ The rules that keep the processes out of each other's way:
 ├── surfsense.db              every table and the search index
 ├── huey.db                   the ingest and studio queues
 ├── models/                   GGUF weights and llama-server's models.ini
-├── images/                   sd-server weights (packaged builds)
+├── images/                   sd-server weights (hosts with sd-server staged)
 ├── electron/                 Electron's userData: secret.bin, updates.json, window and theme prefs
 └── data/workspaces/<id>/
     ├── documents/<id>/       original.<ext>, extracted.md

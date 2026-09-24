@@ -1,4 +1,4 @@
-import { mkdirSync, statSync } from "node:fs"
+import { existsSync, mkdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -25,6 +25,7 @@ import {
 } from "./sidecars/llamacpp.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import {
+  binaryPath as sdcppBinaryPath,
   sdcppSpec,
   SDCPP_SIDECAR,
   type ImageRuntime,
@@ -104,7 +105,7 @@ function onSidecarCrash(name: string, code: number | null): void {
 // needs no IPC channel of its own; a change is user-initiated and rare, so the
 // few seconds of lag are not felt.
 function watchImageModel(ctx: SidecarContext): void {
-  if (!ctx.packaged || ctx.imageModelsDir == null) return
+  if (ctx.imageModelsDir == null) return
   const endpoint = `http://${ctx.host}:${ctx.apiPort}/llm/image/local/runtime`
   let current: string | null = null
 
@@ -210,7 +211,14 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   // '<path>' does not exist or is not a directory".
   mkdirSync(ctx.llamacppModelsDir, { recursive: true })
 
-  if (packaged) {
+  // Same staging in both modes, like llama.cpp. Only a host with a staged
+  // sd-server gets an images dir: without one the API offers no image models,
+  // rather than downloads that can never run.
+  const sdcppBinariesDir = packaged
+    ? join(process.resourcesPath, "sdcpp")
+    : join(app.getAppPath(), "sdcpp")
+  if (existsSync(sdcppBinaryPath({ ...ctx, sdcppBinariesDir }))) {
+    ctx.sdcppBinariesDir = sdcppBinariesDir
     ctx.imagePort = await getFreePort(host)
     ctx.imageModelsDir = join(dataDir, "images")
     ctx.imageUrl = `http://${host}:${ctx.imagePort}`
