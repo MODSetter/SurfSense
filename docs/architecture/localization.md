@@ -75,7 +75,7 @@ Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since 
 - `formatjs-extract`, a pre-commit hook: re-runs extraction, so a commit whose `en.json` does not match the code fails as a modified file.
 - `formatjs-verify`, a pre-commit hook: `formatjs verify --missing-keys --extra-keys --structural-equality` over the three catalogs.
 - `check-translations`, a pre-commit hook: [`check_translations.mjs`](../../scripts/check_translations.mjs) for the rules FormatJS does not know: an id prefix that is not a feature folder or `app`, a leading or trailing space, a straight apostrophe, an unsorted file.
-- [`plural-categories.test.ts`](../../surfsense_local/frontend/src/i18n/plural-categories.test.ts), in `pnpm test`: every plural writes exactly the categories `Intl.PluralRules` gives its language.
+- [`plural-categories.test.ts`](../../surfsense_local/frontend/src/i18n/plural-categories.test.ts), in `pnpm test`, which [`desktop-tests.yml`](../../.github/workflows/desktop-tests.yml) runs on pull requests: every plural writes exactly the categories `Intl.PluralRules` gives its language.
 
 [`code-quality.yml`](../../.github/workflows/code-quality.yml) runs the hooks on a non-draft pull request's changed files.
 
@@ -86,7 +86,6 @@ Developers write English only, inline in the `formatMessage` call; `pnpm transla
 ## Known gaps
 
 - `enforce-placeholders` checks values only when they are passed as an object literal; a call that passes a variable, as `model-ready.tsx` does, is not checked.
-- `plural-categories.test.ts` runs only in `pnpm test`, and no workflow runs the desktop tests on pull requests.
 - Backend prose without a code stays English in every language: model install messages, fit verdicts, `not_runnable_reason`, a Studio format's `unavailable_reason`, and the disk-space `detail` that `lib/api.ts` wraps in a translated sentence.
 - Studio's fallback "Needs {models}" joins translated noun phrases with `formatList`, so German case agreement is not guaranteed. It shows only when a format lacks the backend's `unavailable_reason`.
 - A chat failure caught before the stream starts shows the `unknown` kind's text, not the error's own detail.
