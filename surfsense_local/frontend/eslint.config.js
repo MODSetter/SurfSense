@@ -23,4 +23,15 @@ export default defineConfig([
     files: ['src/components/ui/**'],
     rules: { 'react-refresh/only-export-components': 'off' },
   },
+  {
+    // The compiled catalogs are an implementation detail of src/i18n/intl.ts.
+    files: ['src/**/*.{ts,tsx}'],
+    ignores: ['src/i18n/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { patterns: ['**/i18n/compiled/*', '**/translations/*.json'] },
+      ],
+    },
+  },
 ])

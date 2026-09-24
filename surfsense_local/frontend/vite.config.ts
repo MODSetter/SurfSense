@@ -11,6 +11,10 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Every message is precompiled to AST by `pnpm translations`, so the ICU
+      // parser is dead weight at run time (FormatJS performance guide).
+      "@formatjs/icu-messageformat-parser":
+        "@formatjs/icu-messageformat-parser/no-parser.js",
     },
   },
   server: {
