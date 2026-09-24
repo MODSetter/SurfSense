@@ -71,6 +71,13 @@ The release workflow runs the three scripts directly. Without the parser pack, D
 
 [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles the Windows and Linux builds with `stage.mjs --strict`, checks them, and hands each staged folder on as an artifact. `release-local.yml` calls it, and its packaging jobs unpack the artifact before `stage.mjs`, which then finds the server already staged. A pull request that changes `scripts/audiocpp/`, the audio.cpp adapter or engine, the manifest or the voicing test runs it too. It caches the staged folder by the scripts' contents, so a release that does not change them reuses the last checked build, and voices with it again.
 
+Why it compiles rather than downloads, in plain words: upstream's ready-made programs for Linux and Windows do not run on many of the computers the app supports, for a different reason on each.
+
+- **Linux: the age of the system.** Upstream's program needs a recent Linux, Ubuntu 24.04 or later (glibc 2.38). The app's build also runs on older ones, such as Ubuntu 22.04 and RHEL 9.
+- **Windows: the processor, not the Windows version.** Upstream's program uses AVX-512 instructions that many common processors lack, so it crashes on them, recent ones included: Intel's 12th to 14th generation, and AMD's before Zen 4. The app's build picks the right code for the processor it runs on.
+
+macOS needs neither, so the app ships upstream's program there. The app's builds are upstream's own code at a pinned commit; only the build settings differ.
+
 It is a stopgap. Once upstream publishes archives that meet both floors, the app downloads those as it does llama.cpp's, and the compile path and the workflow go.
 
 - Linux builds on `ubuntu-22.04`, the release's own runner, with GCC 13 from the toolchain PPA. The PPA replaces the runner's libstdc++ with a newer one, so the build runs in its own job, and the frozen Python binaries never bundle it.
