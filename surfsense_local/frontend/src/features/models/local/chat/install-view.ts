@@ -2,13 +2,6 @@ import { intl } from "@/i18n/intl"
 
 import type { InstallEvent } from "./api"
 
-const bytes = (value: number) =>
-  intl.formatNumber(value / 1e9, {
-    style: "unit",
-    unit: "gigabyte",
-    maximumFractionDigits: 1,
-  })
-
 type Phase = "starting" | "verifying" | "selecting" | "complete"
 
 const PHASE_SHORT: Record<Phase, () => string> = {
@@ -92,11 +85,12 @@ export function installView(event: InstallEvent): InstallView {
           ? intl.formatMessage(
               {
                 id: "models_install_downloaded_status",
-                defaultMessage: "{completed} of {total}",
+                defaultMessage:
+                  "{completed, number, ::unit/gigabyte .#} of {total, number, ::unit/gigabyte .#}",
               },
               {
-                completed: bytes(event.completed),
-                total: bytes(event.total),
+                completed: event.completed / 1e9,
+                total: event.total / 1e9,
               }
             )
           : null,

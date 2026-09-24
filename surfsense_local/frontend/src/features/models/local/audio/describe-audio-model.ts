@@ -32,15 +32,21 @@ export function describeAudioModel(model: LocalAudioModel): string[] {
   return [
     model.quantization,
     bytes(model.size_bytes),
-    intl.formatMessage(
-      {
-        id: "models_audio_model_peak_memory_label",
-        defaultMessage: "{size} while voicing",
-      },
-      {
-        size: bytes(model.peak_mb * 1e6),
-      }
-    ),
+    model.peak_mb >= 1000
+      ? intl.formatMessage(
+          {
+            id: "models_audio_model_peak_memory_gigabytes_label",
+            defaultMessage: "{size, number, ::unit/gigabyte .#} while voicing",
+          },
+          { size: model.peak_mb / 1000 }
+        )
+      : intl.formatMessage(
+          {
+            id: "models_audio_model_peak_memory_megabytes_label",
+            defaultMessage: "{size, number, ::unit/megabyte .} while voicing",
+          },
+          { size: model.peak_mb }
+        ),
     intl.formatMessage(
       {
         id: "models_audio_model_voices_label",

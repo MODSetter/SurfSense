@@ -2,9 +2,6 @@ import { intl } from "@/i18n/intl"
 
 import type { Budget, GpuStatus } from "./api"
 
-const gb = (bytes: number) =>
-  `${intl.formatNumber(bytes / 1e9, { maximumFractionDigits: 1 })} GB`
-
 /**
  * The status is read before the budget: a machine whose card the runtime cannot
  * reach is priced against its processor, and calling it a machine with no card
@@ -19,9 +16,12 @@ export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
           "Graphics card not detected by the runtime. Reinstall to fix",
       }),
       intl.formatMessage(
-        { id: "models_hardware_memory_label", defaultMessage: "{size} memory" },
         {
-          size: gb(budget.ram_available_bytes),
+          id: "models_hardware_memory_label",
+          defaultMessage: "{size, number, ::unit/gigabyte .#} memory",
+        },
+        {
+          size: budget.ram_available_bytes / 1e9,
         }
       ),
     ]
@@ -33,9 +33,12 @@ export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
         defaultMessage: "Runs on your processor",
       }),
       intl.formatMessage(
-        { id: "models_hardware_memory_label", defaultMessage: "{size} memory" },
         {
-          size: gb(budget.ram_available_bytes),
+          id: "models_hardware_memory_label",
+          defaultMessage: "{size, number, ::unit/gigabyte .#} memory",
+        },
+        {
+          size: budget.ram_available_bytes / 1e9,
         }
       ),
     ]
@@ -51,9 +54,12 @@ export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
           defaultMessage: "Graphics card",
         }),
     intl.formatMessage(
-      { id: "models_hardware_memory_label", defaultMessage: "{size} memory" },
       {
-        size: gb(budget.device_total_bytes),
+        id: "models_hardware_memory_label",
+        defaultMessage: "{size, number, ::unit/gigabyte .#} memory",
+      },
+      {
+        size: budget.device_total_bytes / 1e9,
       }
     ),
   ]

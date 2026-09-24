@@ -22,7 +22,11 @@ import { InstallProgress } from "./install-progress"
 import type { InstallState } from "./use-chat-install"
 
 const formatSize = (bytes: number) =>
-  `${intl.formatNumber(bytes / 1e9, { maximumFractionDigits: 1 })} GB`
+  intl.formatNumber(bytes / 1e9, {
+    style: "unit",
+    unit: "gigabyte",
+    maximumFractionDigits: 1,
+  })
 
 export function ModelCard({
   row,

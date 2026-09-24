@@ -35,21 +35,21 @@ const RESERVED = "min-h-80"
 const STALE_MS = 300_000
 
 const formatSize = (bytes: number) =>
-  `${intl.formatNumber(bytes / 1e9, { maximumFractionDigits: 1 })} GB`
-
-const formatDownloads = (count: number) =>
-  intl.formatNumber(count, { notation: "compact" })
+  intl.formatNumber(bytes / 1e9, {
+    style: "unit",
+    unit: "gigabyte",
+    maximumFractionDigits: 1,
+  })
 
 /** What a row says about a repo, in the order it is said. */
 const describe = (hit: SearchRow) => [
   intl.formatMessage(
     {
       id: "models_search_downloads_label",
-      defaultMessage: "{downloads} downloads",
+      defaultMessage:
+        "{downloads, plural, one {{downloads, number, ::compact-short} download} other {{downloads, number, ::compact-short} downloads}}",
     },
-    {
-      downloads: formatDownloads(hit.downloads),
-    }
+    { downloads: hit.downloads }
   ),
   ...(hit.license ? [hit.license] : []),
 ]

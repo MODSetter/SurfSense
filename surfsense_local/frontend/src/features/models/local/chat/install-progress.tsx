@@ -21,11 +21,11 @@ export function InstallProgress({
       : intl.formatMessage(
           {
             id: "models_install_progress_announcement_status",
-            defaultMessage: "{label} {percent}%",
+            defaultMessage: "{label} {percent, number, ::percent}",
           },
           {
             label: view.label,
-            percent: view.percent,
+            percent: view.percent / 100,
           }
         )
 
@@ -52,10 +52,10 @@ export function InstallProgress({
             {intl.formatMessage(
               {
                 id: "models_install_progress_percent_status",
-                defaultMessage: "{percent}%",
+                defaultMessage: "{percent, number, ::percent}",
               },
               {
-                percent: view.percent,
+                percent: view.percent / 100,
               }
             )}
           </span>
