@@ -29,6 +29,16 @@ datas.append(
     )
 )
 
+# Studio resolves its chosen image and audio models through the local catalog,
+# which knows a curated model only from this manifest; without it an installed,
+# chosen model reads as "not installed".
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "catalog" / "local" / "manifest" / "models.json"),
+        "modules/llm/catalog/local/manifest",
+    )
+)
+
 for package in (
     "onnxruntime",
     "docling",
