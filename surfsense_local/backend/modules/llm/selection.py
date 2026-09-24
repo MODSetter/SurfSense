@@ -11,7 +11,7 @@ from modules.llm.connections.router import allowed_connection
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.profile import Fingerprint, from_name
-from modules.llm.providers import get_provider, llamacpp
+from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.selectable import selectable_for
@@ -39,6 +39,8 @@ async def choose_model(
         await _validate_local(model_type, model_name, connection_id)
     elif provider_name == sdcpp.PROVIDER:
         _validate_local_image(model_type, model_name, connection_id)
+    elif provider_name == audiocpp.PROVIDER:
+        _validate_local_audio(model_type, model_name, connection_id)
     elif provider_name == "openai_compatible":
         await _validate_remote(
             session, model_type, model_name, connection_id, allow_unlisted
@@ -150,6 +152,28 @@ def _validate_local_image(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"image model is not installed: {model_name}",
+        )
+
+
+def _validate_local_audio(
+    model_type: ModelType, model_name: str, connection_id: int | None
+) -> None:
+    """The bundled audio.cpp server fills the audio_gen slot, and only once
+    downloaded: Electron starts it on what `server.json` names."""
+    if model_type is not ModelType.AUDIO_GEN:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"the local audio runtime does not serve {model_type}",
+        )
+    if connection_id is not None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            "local selections must not include a connection",
+        )
+    if not get_local_catalog().audiocpp.holds(model_name):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"audio model is not installed: {model_name}",
         )
 
 

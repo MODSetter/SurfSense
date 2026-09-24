@@ -24,16 +24,18 @@ class SelectedModel(Base):
     __table_args__ = (
         CheckConstraint(
             # A connection is required exactly when the runtime is remote;
-            # The local text runtime and the bundled sd-server both answer
-            # on this machine, so neither carries a connection.
-            "(provider IN ('llamacpp', 'sdcpp') AND connection_id IS NULL) OR "
+            # the local text runtime and the bundled sd-server and audio.cpp
+            # all answer on this machine, so none carries a connection.
+            "(provider IN ('llamacpp', 'sdcpp', 'audiocpp') AND connection_id IS NULL) OR "
             "(provider = 'openai_compatible' AND connection_id IS NOT NULL)",
             name="provider_connection",
         ),
         CheckConstraint(
-            # A local runtime serves one type: llama.cpp answers text, sd-server draws.
+            # A local runtime serves one type: llama.cpp answers text,
+            # sd-server draws, audio.cpp speaks.
             "(provider <> 'llamacpp' OR model_type = 'text_gen') AND "
-            "(provider <> 'sdcpp' OR model_type = 'image_gen')",
+            "(provider <> 'sdcpp' OR model_type = 'image_gen') AND "
+            "(provider <> 'audiocpp' OR model_type = 'audio_gen')",
             name="local_runtime_type",
         ),
     )

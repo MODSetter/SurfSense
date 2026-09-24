@@ -11,7 +11,13 @@ from modules.llm.catalog.local.engines.audiocpp.rows.lead_build import lead_buil
 from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.catalog.local.installs import InstalledBuild
 from modules.llm.catalog.local.manifest import CuratedModel
-from modules.llm.catalog.local.rows import BuildRow, LocalRow, LocalSupport, Origin
+from modules.llm.catalog.local.rows import (
+    BuildRow,
+    LocalRow,
+    LocalSupport,
+    Origin,
+    Voicing,
+)
 
 
 def audio_catalog(
@@ -61,6 +67,7 @@ def audio_catalog(
                 recommended=False,
                 engine=ENGINE,
                 lead=lead_build(build_rows, default_quantization, selected=selected),
+                voicing=_voicing(model),
             )
         )
     return rows
@@ -76,3 +83,10 @@ def _installed_as(
         if record.repo == build.weights.repo and name in record.weights:
             return record.model_id if name in files else None
     return None
+
+
+def _voicing(model: CuratedModel) -> Voicing | None:
+    audio = model.audio
+    if audio is None:
+        return None
+    return Voicing(audio.peak_mb, len(audio.voices), tuple(audio.languages))

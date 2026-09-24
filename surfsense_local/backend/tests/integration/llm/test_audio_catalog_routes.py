@@ -40,7 +40,9 @@ async def test_a_build_with_no_audio_cpp_offers_no_audio_rows(
     assert not audio_rows(body)
 
 
-async def install(client: AsyncClient, model: str, quantization: str) -> list[dict]:
+async def install(
+    client: AsyncClient, model: str, quantization: str, *, select: bool = False
+) -> list[dict]:
     """Install one curated audio build through the one install stream."""
     body = (await client.get("/llm/catalog/local")).json()
     (build,) = [
@@ -49,7 +51,7 @@ async def install(client: AsyncClient, model: str, quantization: str) -> list[di
         if b["quantization"] == quantization
     ]
     reply = await client.post(
-        "/llm/install", json={"catalog_id": build["catalog_id"], "select": False}
+        "/llm/install", json={"catalog_id": build["catalog_id"], "select": select}
     )
     return [json.loads(line) for line in reply.text.splitlines()]
 
@@ -97,3 +99,104 @@ async def test_deleting_audio_models_rewrites_the_config_and_the_last_removes_it
 
     assert reply.status_code == 200, reply.text
     assert not (audio_dir / "server.json").exists()
+
+
+async def test_an_installed_audio_model_can_take_the_audio_slot(
+    client: AsyncClient, audio_dir, fake_hub
+) -> None:
+    """It carries no connection, which selected_models must permit."""
+    await install(client, "kokoro-82m", "Q8_0")
+
+    chosen = await client.put(
+        "/llm/selection/audio_gen",
+        json={"provider": "audiocpp", "connection_id": None, "name": "kokoro-82m-q8_0"},
+    )
+
+    assert chosen.status_code == 200, chosen.text
+    read = (await client.get("/llm/selection/audio_gen")).json()
+    assert (read["provider"], read["name"]) == ("audiocpp", "kokoro-82m-q8_0")
+
+
+@pytest.mark.parametrize(
+    ("model_type", "name", "connection_id"),
+    [
+        pytest.param("audio_gen", "supertonic-3-f16", None, id="not installed"),
+        pytest.param("text_gen", "kokoro-82m-q8_0", None, id="another type"),
+        pytest.param("audio_gen", "kokoro-82m-q8_0", 1, id="with a connection"),
+    ],
+)
+async def test_audio_cpp_takes_only_an_installed_model_for_the_audio_slot(
+    client: AsyncClient,
+    audio_dir,
+    fake_hub,
+    model_type: str,
+    name: str,
+    connection_id: int | None,
+) -> None:
+    """Electron would start the server on nothing, or a slot would name a
+    runtime that cannot fill it."""
+    await install(client, "kokoro-82m", "Q8_0")
+
+    refused = await client.put(
+        f"/llm/selection/{model_type}",
+        json={"provider": "audiocpp", "connection_id": connection_id, "name": name},
+    )
+
+    assert refused.status_code == 422, refused.text
+
+
+async def test_an_audio_row_says_what_voicing_takes_and_what_it_speaks(
+    client: AsyncClient, audio_dir
+) -> None:
+    """The Audio section shows each model's memory while voicing, its voices
+    and its languages; the server reports none of them."""
+    rows = audio_rows((await client.get("/llm/catalog/local")).json())
+
+    kokoro = rows["kokoro-82m"]["voicing"]
+    assert (kokoro["peak_mb"], kokoro["voice_count"]) == (1421, 46)
+    assert "en-GB" in kokoro["languages"] and len(kokoro["languages"]) == 8
+    assert rows["kitten-tts-mini-0.8"]["voicing"]["languages"] == ["en"]
+
+
+async def test_the_chosen_audio_model_leads_its_row_as_in_use(
+    client: AsyncClient, audio_dir, fake_hub
+) -> None:
+    """The Audio section marks the model podcasts will voice with."""
+    await install(client, "kokoro-82m", "Q8_0")
+    await client.put(
+        "/llm/selection/audio_gen",
+        json={"provider": "audiocpp", "connection_id": None, "name": "kokoro-82m-q8_0"},
+    )
+
+    kokoro = audio_rows((await client.get("/llm/catalog/local")).json())["kokoro-82m"]
+
+    assert kokoro["lead"] == {"quantization": "Q8_0", "why": "in_use"}
+    assert [b["selected"] for b in kokoro["builds"]] == [True, False]
+
+
+async def test_an_audio_build_installed_with_select_becomes_the_audio_selection(
+    client: AsyncClient, audio_dir, fake_hub
+) -> None:
+    """The one install stream fills the engine's own slot."""
+    events = await install(client, "supertonic-3", "F16", select=True)
+
+    assert events[-1]["type"] == "complete", events[-1]
+    selection = events[-1]["selection"]
+    assert (selection["model_type"], selection["provider"], selection["name"]) == (
+        "audio_gen",
+        "audiocpp",
+        "supertonic-3-f16",
+    )
+
+
+async def test_deleting_the_chosen_audio_model_clears_the_audio_selection(
+    client: AsyncClient, audio_dir, fake_hub
+) -> None:
+    """A selection must never name a model that is no longer on disk."""
+    await install(client, "kokoro-82m", "Q8_0", select=True)
+
+    reply = await client.delete("/llm/models/kokoro-82m-q8_0")
+
+    assert reply.status_code == 200, reply.text
+    assert reply.json()["selection_cleared"] is True
+    assert (await client.get("/llm/selection/audio_gen")).status_code == 404
