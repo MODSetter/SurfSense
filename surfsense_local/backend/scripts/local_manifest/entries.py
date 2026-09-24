@@ -165,10 +165,10 @@ ENTRIES: tuple[Entry, ...] = (
         audio={
             "origin": f"hexgrad/Kokoro-82M model card; {_MEASURED}",
             "sample_rate": 24000,
-            "peak_mb": 1421,
+            "peak_mb": 2347,
             "chunk_steps": [
-                {"text_chunk_size": 120, "peak_mb": 1215},
-                {"text_chunk_size": 60, "peak_mb": 871},
+                {"text_chunk_size": 120, "peak_mb": 1442},
+                {"text_chunk_size": 60, "peak_mb": 956},
             ],
             "languages": sorted(set(_KOKORO_LANGUAGES.values())),
             "voices": [
@@ -198,7 +198,7 @@ ENTRIES: tuple[Entry, ...] = (
         audio={
             "origin": f"Supertone/supertonic-3 model card; {_MEASURED}",
             "sample_rate": 44100,
-            "peak_mb": 454,
+            "peak_mb": 486,
             "languages": _SUPERTONIC_LANGUAGES,
             "voices": [
                 {"id": f"{gender}{n}", "label": f"{gender}{n}"}
@@ -222,7 +222,12 @@ ENTRIES: tuple[Entry, ...] = (
         audio={
             "origin": f"KittenML/kitten-tts-mini-0.8 model card; {_MEASURED}",
             "sample_rate": 24000,
-            "peak_mb": 1023,
+            "peak_mb": 1863,
+            "chunk_steps": [
+                {"text_chunk_size": 240, "peak_mb": 1414},
+                {"text_chunk_size": 120, "peak_mb": 1060},
+                {"text_chunk_size": 60, "peak_mb": 852},
+            ],
             "languages": ["en"],
             "voices": [
                 {"id": name, "label": name, "language": "en"}

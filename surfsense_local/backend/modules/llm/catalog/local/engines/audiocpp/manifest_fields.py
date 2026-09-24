@@ -29,7 +29,8 @@ class AudioDefaults(BaseModel):
 
     origin: str = Field(min_length=1)
     sample_rate: int = Field(gt=0)
-    # Measured while voicing, at the server's default chunk size.
+    # Measured on the server with every chunk full, at its default chunk size:
+    # the working memory is sized for a request's longest chunk.
     peak_mb: int = Field(gt=0)
     chunk_steps: list[ChunkStep] = Field(default_factory=list)
     languages: list[str] = Field(min_length=1)

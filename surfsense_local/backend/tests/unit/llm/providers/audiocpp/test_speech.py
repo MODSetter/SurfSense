@@ -144,7 +144,7 @@ def test_the_model_is_unloaded_when_voicing_ends(fail_on: int | None) -> None:
 
 
 def test_voicing_refuses_before_loading_when_memory_is_short() -> None:
-    """The server's own guard counts the 190 MB file, not the 1.4 GB Kokoro
+    """The server's own guard counts the 190 MB file, not the 2.3 GB Kokoro
     takes while voicing, so the app checks the measured peak plus 1 GiB."""
     server = StubServer()
 
@@ -157,17 +157,17 @@ def test_voicing_refuses_before_loading_when_memory_is_short() -> None:
         )
 
     assert str(refused.value) == (
-        "Voicing needs about 2.6 GB free; this computer has 1.1 GB."
+        "Voicing needs about 3.5 GB free; this computer has 1.1 GB."
     )
     assert server.speech() == []
 
 
 def test_a_refusal_names_the_first_lighter_model_that_would_fit() -> None:
-    """Supertonic voices at full quality in 1.5 GB, less than any smaller
-    Kokoro chunk saves; Kitten, at 2.1 GB, would not fit either."""
+    """Supertonic, at 1.6 GB, fits where even Kokoro's smallest chunk, at
+    2.1 GB, would not; Kitten, at 3.0 GB, would not fit either."""
     audio = MODELS["kokoro-82m"].audio
     assert audio is not None
-    others = (OtherModel("Supertonic 3", 454), OtherModel("KittenTTS Mini 0.8", 1023))
+    others = (OtherModel("Supertonic 3", 486), OtherModel("KittenTTS Mini 0.8", 1863))
     speech = AudioCppSpeech(
         VoicedModel("kokoro-82m-q8_0", audio, others),
         base_url="http://audio",
@@ -178,6 +178,6 @@ def test_a_refusal_names_the_first_lighter_model_that_would_fit() -> None:
         speech.check_memory()
 
     assert str(refused.value) == (
-        "Voicing needs about 2.6 GB free; this computer has 1.8 GB. "
-        "Supertonic 3 needs about 1.5 GB."
+        "Voicing needs about 3.5 GB free; this computer has 1.8 GB. "
+        "Supertonic 3 needs about 1.6 GB."
     )

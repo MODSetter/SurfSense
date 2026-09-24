@@ -153,7 +153,7 @@ async def test_an_audio_row_says_what_voicing_takes_and_what_it_speaks(
     rows = audio_rows((await client.get("/llm/catalog/local")).json())
 
     kokoro = rows["kokoro-82m"]["voicing"]
-    assert (kokoro["peak_mb"], kokoro["voice_count"]) == (1421, 46)
+    assert (kokoro["peak_mb"], kokoro["voice_count"]) == (2347, 46)
     assert "en-GB" in kokoro["languages"] and len(kokoro["languages"]) == 8
     assert rows["kitten-tts-mini-0.8"]["voicing"]["languages"] == ["en"]
 
@@ -221,4 +221,4 @@ async def test_a_voicing_refusal_names_a_lighter_curated_model(
     with pytest.raises(NotEnoughMemoryError) as refused:
         voice.check_memory()
 
-    assert str(refused.value).endswith("Supertonic 3 needs about 1.5 GB.")
+    assert str(refused.value).endswith("Supertonic 3 needs about 1.6 GB.")

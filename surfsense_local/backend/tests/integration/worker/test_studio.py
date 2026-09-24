@@ -450,7 +450,7 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
     assert "**Bea:** Remarkable." in artifact.document.content
 
 
-SHORT = "Voicing needs about 2.6 GB free; this computer has 1.1 GB."
+SHORT = "Voicing needs about 3.5 GB free; this computer has 1.1 GB."
 BRIEF = {
     "language": "en-US",
     "speakers": [

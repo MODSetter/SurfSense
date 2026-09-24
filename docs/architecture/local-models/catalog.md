@@ -148,8 +148,9 @@ preferred first, and nothing in it is a score.
   reports neither. `audio` holds the voices, each with an id, a label and a
   language (none for a voice that speaks every listed language), the languages,
   the sample rate, and `peak_mb` measured while voicing at the server's default
-  chunk size, with `chunk_steps`, smaller chunk sizes and their peaks, where one
-  was measured. A model needs at least two voices, since a podcast has two
+  chunk size with every chunk full, since audio.cpp sizes its working memory for
+  a request's longest chunk, with `chunk_steps`, smaller chunk sizes and their
+  peaks, where one was measured. A model needs at least two voices, since a podcast has two
   speakers; ids do not repeat, and a voice speaks only listed languages.
 - **`aliases` fold a download into its curated row.** A downloaded file shows as
   a curated build when its install record names the model's `source_repo`, an

@@ -44,7 +44,7 @@ Measured on a 12th-gen Core i5-1235U laptop, CPU, 6 threads, one model resident 
 | Supertonic 3, F16 | 313 MB | 44.1 kHz | 4.3 s | 454 MB |
 | KittenTTS Mini 0.8 | 302 MB | 24 kHz | about 5 s per 9.6 s | 1.02 GB |
 
-All three voice faster than real time on a laptop CPU. A 15-minute podcast, the longest preset, takes roughly 8 to 12 minutes on this machine.
+Resident memory follows the longest chunk of text in a request: with every chunk full, Kokoro peaks at 2.35 GB, Kitten at 1.86 GB and Supertonic at 486 MB ([Memory](#memory)). All three voice faster than real time on a laptop CPU. A 15-minute podcast, the longest preset, takes roughly 8 to 12 minutes on this machine.
 
 ## Which models
 
@@ -109,24 +109,27 @@ How much a model takes while it is loaded, and what the app does when that does 
 
 ### Memory
 
-A loaded model's memory is mostly working space sized for one chunk of text, not its weights. Kokoro splits text into chunks of at most `text_chunk_size` characters, 240 by default, and its peak follows the chunk (measured, same passage, 6 threads):
+A loaded model's memory is mostly working space sized for the longest chunk of text in a request, not its weights. Kokoro and Kitten split text into chunks of at most `text_chunk_size` characters, 240 and 400 by default, and their peak follows the chunk (measured through the server, a fresh server per size, 6 threads, a passage long enough that every chunk is full):
 
-| `text_chunk_size` | Kokoro's peak |
-|---|---|
-| 240, the default | 1,421 MB |
-| 120 | 1,215 MB |
-| 60 | 871 MB |
+| `text_chunk_size` | Kokoro's peak | Kitten's peak |
+|---|---|---|
+| 400, Kitten's default | | 1,863 MB |
+| 240, Kokoro's default | 2,347 MB | 1,414 MB |
+| 120 | 1,442 MB | 1,060 MB |
+| 60 | 956 MB | 852 MB |
+
+Supertonic has no chunk setting and peaks at 486 MB. A shorter request peaks lower, Kokoro at 688 MB for 25 characters and 1,440 MB for 125, so the manifest commits the peak with every chunk full, the most one podcast turn can take.
 
 Nothing else moved it. Its graph arenas at a half, a quarter and an eighth of their defaults, `graph_capacity_mode` in all four values, `max_input_tokens` at 256, and glibc's `MALLOC_ARENA_MAX` at 2 and 1 each left the peak where it was, and the allocator limits made voicing 14 to 57% slower. A smaller chunk changes the audio, because each chunk is timed on its own.
 
 So chunk size is the lever, but the app does not pull it yet: a smaller chunk changes the audio, and a lighter curated model voices at full quality in less memory than a smaller Kokoro chunk saves.
 
-- **Before voicing, the app checks memory itself.** The server's `min_free_memory_mb` compares free memory with the bytes it will read from the file, 190 MB for Kokoro, not the 1.4 GB the model takes. The podcast job reads the operating system's available memory, as [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py) already does for fit, and compares it with the model's measured peak from the manifest plus 1 GiB of headroom.
-- **Short of that, it refuses, and names the first lighter curated model that would fit**: "Voicing needs about 2.6 GB free; this computer has 1.8 GB. Supertonic 3 needs about 1.5 GB." Only physics refuses, as for chat models ([ADR 0013](../adr/0013-fit-from-the-allocator.md)).
+- **Before voicing, the app checks memory itself.** The server's `min_free_memory_mb` compares free memory with the bytes it will read from the file, 190 MB for Kokoro, not the 2.3 GB the model takes. The podcast job reads the operating system's available memory, as [`system_memory.available_bytes()`](../../surfsense_local/backend/modules/llm/hardware/system_memory.py) already does for fit, and compares it with the model's measured peak from the manifest plus 1 GiB of headroom.
+- **Short of that, it refuses, and names the first lighter curated model that would fit**: "Voicing needs about 3.5 GB free; this computer has 1.8 GB. Supertonic 3 needs about 1.6 GB." Only physics refuses, as for chat models ([ADR 0013](../adr/0013-fit-from-the-allocator.md)).
 - **The server's `min_free_memory_mb` of 1024** stays as the backstop for a load the app did not check.
 - **Stepping the chunk down comes later.** The manifest carries each measured step (`chunk_steps`), so the check can step down before it refuses, the way the chat catalog steps down to a smaller build. The adapter would first split a long turn at sentence ends, so a smaller chunk falls where a pause already is, and a smaller chunk ships only after a listening test says it sounds right.
 
-Kitten shares Kokoro's decoder design and likely the same dial; Supertonic takes 454 MB and does not need one. The upstream issue is narrow: memory grows by about 3 MB per chunk character, so could the decoder's buffers be sized to the chunk actually given?
+Kitten has the same dial; Supertonic, at 486 MB, does not need one. The upstream issue is narrow: the graph is sized for the longest chunk, and grows by about 8 MB per chunk character for Kokoro and 3 MB for Kitten, so could the decoder run in slices that do not grow with the chunk?
 
 ### Threads
 
@@ -188,10 +191,10 @@ This is a stopgap. Step 1 opens an issue upstream asking for a Windows archive w
 "audio": {
   "origin": "hexgrad/Kokoro-82M model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
   "sample_rate": 24000,
-  "peak_mb": 1421,                                   // at the server's default text_chunk_size; the screen states it
+  "peak_mb": 2347,                                   // every chunk full, at the server's default text_chunk_size; the screen states it
   "chunk_steps": [                                   // smaller chunks and their peaks, where one was measured
-    { "text_chunk_size": 120, "peak_mb": 1215 },
-    { "text_chunk_size": 60, "peak_mb": 871 }
+    { "text_chunk_size": 120, "peak_mb": 1442 },
+    { "text_chunk_size": 60, "peak_mb": 956 }
   ],
   "languages": ["en-GB", "en-US", "es", "fr", "hi", "it", "pt-BR", "zh"],
   "voices": [
@@ -202,7 +205,7 @@ This is a stopgap. Step 1 opens an issue upstream asking for a Windows archive w
 }
 ```
 
-Supertonic has no chunk setting, so it commits a peak and no steps; Kitten commits its peak until its chunk sweep is measured. The schema refuses a model with fewer than two voices, a repeated voice id, and a voice in a language the model does not list. Kokoro's Mandarin voices are listed: audio.cpp phonemises Mandarin with its own Jieba and pinyin front end, not eSpeak, the reason the worker's Kokoro left them out.
+Supertonic has no chunk setting, so it commits a peak and no steps; Kitten's steps are 240, 120 and 60, below its default of 400. The schema refuses a model with fewer than two voices, a repeated voice id, and a voice in a language the model does not list. Kokoro's Mandarin voices are listed: audio.cpp phonemises Mandarin with its own Jieba and pinyin front end, not eSpeak, the reason the worker's Kokoro left them out.
 
 **Builds.** One GGUF each, from the model's own folder of `audio-cpp/audio.cpp-gguf`, pinned like every build; the entry lists them most preferred first, and the first is the default. The defaults are Kokoro `Q8_0` (190 MB; `BF16` is the other build), Supertonic `F16` (313 MB; its `q8_0` file has the `orig` file's hash, so only `orig` is pinned beside it) and Kitten's only build, `orig` (302 MB). `orig` is audio.cpp's name for source precision. All three models share the repo, and two have an `orig` build, so an install is matched by its recorded file, not by repo and label. `refresh_local_manifest.py --only` adds them without re-pinning the other entries. LocalAI reports Supertonic's F16 file aborting inside ggml and uses the 454 MB full-precision one; F16 ran here on the CPU, so it is checked on every platform before it ships, with the full-precision file as the fallback. Audio rows carry no fit estimate, as image rows do not; they state the memory measured while voicing instead, and the podcast checks it before it starts ([Memory](#memory)).
 
@@ -261,7 +264,6 @@ Each is a measurement with its rule already set above:
 
 - **Metal on an Apple Silicon Mac**: warm and cold for the three models, and a chat answer's time while a podcast voices. Metal if it clears the bar under [Backend](#backend); the CPU otherwise.
 - **Kokoro at chunk 120 and 60**: a listening test on podcast turns split at sentence ends. A size that fails it is not stepped down to.
-- **Kitten's chunk size**: the same sweep as Kokoro's, to see whether it has the same dial.
 
 ## Measurements
 
@@ -300,6 +302,21 @@ Memory against settings, Kokoro through the CLI, 6 threads, `--seed 7`, peak res
 | `text_chunk_size` 60 | 871 MB | differs |
 
 And through the server, peak after three requests: Kokoro 1,449 MB, Kitten 1,011 MB, Supertonic 368 MB with glibc's defaults; within 2% of those with `MALLOC_ARENA_MAX` at 2 or 1, and 14 to 57% slower.
+
+Both series above used passages whose chunks fell short of the limit, so their peaks sit below those under [Memory](#memory); the comparisons between settings stand. Those come from one 864-character English passage through the server, a fresh server per row, 6 threads:
+
+| Model | `text_chunk_size` | Peak | Audio | Time |
+|---|---|---|---|---|
+| Kokoro Q8_0, `af_heart` | 240 | 2,347 MB | 52.5 s | 31.5 s |
+| Kokoro Q8_0, `af_heart` | 120 | 1,442 MB | 55.1 s | 43.7 s |
+| Kokoro Q8_0, `af_heart` | 60 | 956 MB | 59.5 s | 46.8 s |
+| Kitten, `Leo` | 400 | 1,863 MB | 66.4 s | 37.1 s |
+| Kitten, `Leo` | 240 | 1,414 MB | 68.1 s | 39.8 s |
+| Kitten, `Leo` | 120 | 1,060 MB | 73.0 s | 48.1 s |
+| Kitten, `Leo` | 60 | 852 MB | 76.9 s | 57.8 s |
+| Supertonic 3 F16, `M1`, `en` | none | 486 MB | 54.6 s | 31.6 s |
+
+Growing one request on one Kokoro server, the peak was 688 MB at 25 characters, 1,440 MB at 125 and 2,344 MB at 221, one chunk each; it stayed there for longer requests.
 
 The CPU numbers vary from run to run on this laptop, by as much as 50% for the same request; read them as the order of magnitude, not a benchmark.
 

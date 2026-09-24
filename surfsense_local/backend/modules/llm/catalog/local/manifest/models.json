@@ -3376,15 +3376,15 @@
       "audio": {
         "origin": "hexgrad/Kokoro-82M model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
         "sample_rate": 24000,
-        "peak_mb": 1421,
+        "peak_mb": 2347,
         "chunk_steps": [
           {
             "text_chunk_size": 120,
-            "peak_mb": 1215
+            "peak_mb": 1442
           },
           {
             "text_chunk_size": 60,
-            "peak_mb": 871
+            "peak_mb": 956
           }
         ],
         "languages": [
@@ -3685,7 +3685,7 @@
       "audio": {
         "origin": "Supertone/supertonic-3 model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
         "sample_rate": 44100,
-        "peak_mb": 454,
+        "peak_mb": 486,
         "languages": [
           "en",
           "ko",
@@ -3817,7 +3817,21 @@
       "audio": {
         "origin": "KittenML/kitten-tts-mini-0.8 model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
         "sample_rate": 24000,
-        "peak_mb": 1023,
+        "peak_mb": 1863,
+        "chunk_steps": [
+          {
+            "text_chunk_size": 240,
+            "peak_mb": 1414
+          },
+          {
+            "text_chunk_size": 120,
+            "peak_mb": 1060
+          },
+          {
+            "text_chunk_size": 60,
+            "peak_mb": 852
+          }
+        ],
         "languages": [
           "en"
         ],

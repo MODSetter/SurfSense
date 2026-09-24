@@ -1,7 +1,7 @@
 """Whether this computer has the memory a model takes while voicing.
 
 audio.cpp's own guard compares free memory with the bytes it reads from the
-file, 190 MB for Kokoro, not the 1.4 GB it takes while voicing, so the app
+file, 190 MB for Kokoro, not the 2.3 GB it takes while voicing, so the app
 checks the peak its entry measured, plus headroom for everything else.
 """
 
