@@ -17,6 +17,7 @@ Local-first desktop app for research over your own documents. Runs fully offline
 | Node.js | 22.12+ (Electron 44 engine floor) |
 | Python | 3.12+ |
 | Local LLM | `llama.cpp` (`llama-server`, router mode) on `127.0.0.1` |
+| C++ toolchain | Podcast voices in development on Linux or Windows only: CMake with GCC 13+ (`sudo apt install build-essential cmake` on Ubuntu 24.04), or Visual Studio 2022 Build Tools. Without it the app runs without local audio. |
 
 ## Development
 
