@@ -332,7 +332,7 @@ function TypeFilter({
               ? intl.formatMessage(
                   {
                     id: "studio_type_filter_active_aria",
-                    defaultMessage: "Filter artifacts ({count} active)",
+                    defaultMessage: "Filter artifacts ({count, number} active)",
                   },
                   {
                     count: selected.length,
@@ -379,7 +379,9 @@ function TypeFilter({
                     key: format,
                     label: labels.get(format) ?? format,
                   })}{" "}
-                  <span className="text-muted-foreground">({count})</span>
+                  <span className="text-muted-foreground">
+                    ({intl.formatNumber(count)})
+                  </span>
                 </span>
               </DropdownMenuCheckboxItem>
             )

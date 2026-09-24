@@ -251,7 +251,8 @@ function QuizRunner({
           })}
         </p>
         <p className="shrink-0 tabular-nums">
-          {position + 1} / {state.active_question_indices.length}
+          {intl.formatNumber(position + 1)} /{" "}
+          {intl.formatNumber(state.active_question_indices.length)}
         </p>
       </div>
       <Progress
@@ -285,10 +286,10 @@ function QuizRunner({
         aria-label={intl.formatMessage(
           {
             id: "studio_quiz_viewer_options_aria",
-            defaultMessage: "Question {number} options",
+            defaultMessage: "Question {number, number} options",
           },
           {
-            number: String(questionIndex + 1),
+            number: questionIndex + 1,
           }
         )}
         className="gap-3"

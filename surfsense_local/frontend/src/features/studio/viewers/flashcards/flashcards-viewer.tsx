@@ -295,7 +295,8 @@ function FlashcardRunner({
           front={
             <div className={faceClass}>
               <p className="absolute top-0 left-0 text-xs text-muted-foreground tabular-nums">
-                {currentIndex + 1} / {deck.cards.length}
+                {intl.formatNumber(currentIndex + 1)} /{" "}
+                {intl.formatNumber(deck.cards.length)}
               </p>
               <p className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 {intl.formatMessage({
@@ -321,7 +322,8 @@ function FlashcardRunner({
           back={
             <div className={faceClass}>
               <p className="absolute top-0 left-0 text-xs text-muted-foreground tabular-nums">
-                {currentIndex + 1} / {deck.cards.length}
+                {intl.formatNumber(currentIndex + 1)} /{" "}
+                {intl.formatNumber(deck.cards.length)}
               </p>
               <p className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 {intl.formatMessage({
@@ -393,7 +395,9 @@ function FlashcardRunner({
               }
             )}
           >
-            <span className="tabular-nums">{counts.missed}</span>
+            <span className="tabular-nums">
+              {intl.formatNumber(counts.missed)}
+            </span>
             <span className="hidden sm:inline">
               {intl.formatMessage({
                 id: "studio_flashcards_viewer_again_button",
@@ -418,7 +422,9 @@ function FlashcardRunner({
               }
             )}
           >
-            <span className="tabular-nums">{counts.remembered}</span>
+            <span className="tabular-nums">
+              {intl.formatNumber(counts.remembered)}
+            </span>
             <span className="hidden sm:inline">
               {intl.formatMessage({
                 id: "studio_flashcards_viewer_good_button",

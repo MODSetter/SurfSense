@@ -50,10 +50,10 @@ export function DocxViewer({
               {
                 id: "studio_docx_viewer_oversize_error",
                 defaultMessage:
-                  "Document is too large to preview ({size} bytes)",
+                  "Document is too large to preview ({size, number, ::unit/megabyte .#})",
               },
               {
-                size: String(primary.size_bytes),
+                size: primary.size_bytes / 1e6,
               }
             )
           )

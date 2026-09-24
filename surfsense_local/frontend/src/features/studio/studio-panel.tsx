@@ -333,7 +333,7 @@ function Composer({
             {intl.formatMessage(
               {
                 id: "studio_source_picker_back_button",
-                defaultMessage: "Sources ({count} selected)",
+                defaultMessage: "Sources ({count, number} selected)",
               },
               {
                 count: selected.size,

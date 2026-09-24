@@ -285,10 +285,10 @@ export function PodcastBriefForm({
             aria-label={intl.formatMessage(
               {
                 id: "studio_podcast_brief_speaker_aria",
-                defaultMessage: "Speaker {number}",
+                defaultMessage: "Speaker {number, number}",
               },
               {
-                number: String(index + 1),
+                number: index + 1,
               }
             )}
             className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1.5"
@@ -351,10 +351,10 @@ export function PodcastBriefForm({
                 aria-label={intl.formatMessage(
                   {
                     id: "studio_podcast_brief_remove_speaker_aria",
-                    defaultMessage: "Remove speaker {number}",
+                    defaultMessage: "Remove speaker {number, number}",
                   },
                   {
-                    number: String(index + 1),
+                    number: index + 1,
                   }
                 )}
                 onClick={() => removeSpeaker(index)}

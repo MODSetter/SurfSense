@@ -45,16 +45,16 @@ function QuestionSection({
                 aria-label={intl.formatMessage(
                   {
                     id: "studio_quiz_score_review_question_aria",
-                    defaultMessage: "Review question {number}",
+                    defaultMessage: "Review question {number, number}",
                   },
                   {
-                    number: String(index + 1),
+                    number: index + 1,
                   }
                 )}
                 className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <span className="font-medium text-foreground">
-                  {index + 1}.
+                  {intl.formatNumber(index + 1)}.
                 </span>
                 <span className="min-w-0 flex-1">
                   <StudyText content={quiz.questions[index].question_text} />
@@ -122,8 +122,11 @@ export function QuizScoreScreen({
             tabIndex={-1}
             className="mt-1 text-4xl font-semibold tracking-tight outline-none"
           >
-            {correct}/{quiz.questions.length}{" "}
-            <span className="text-muted-foreground">({percentage}%)</span>
+            {intl.formatNumber(correct)}/
+            {intl.formatNumber(quiz.questions.length)}{" "}
+            <span className="text-muted-foreground">
+              ({intl.formatNumber(percentage / 100, { style: "percent" })})
+            </span>
           </h2>
         </div>
         <Button
@@ -216,7 +219,7 @@ export function QuizScoreScreen({
             {intl.formatMessage(
               {
                 id: "studio_quiz_score_correct_tab_label",
-                defaultMessage: "{count} correct",
+                defaultMessage: "{count, number} correct",
               },
               { count: correct }
             )}
@@ -229,7 +232,7 @@ export function QuizScoreScreen({
             {intl.formatMessage(
               {
                 id: "studio_quiz_score_missed_tab_label",
-                defaultMessage: "{count} missed",
+                defaultMessage: "{count, number} missed",
               },
               {
                 count: missed.length,
@@ -244,7 +247,7 @@ export function QuizScoreScreen({
             {intl.formatMessage(
               {
                 id: "studio_quiz_score_skipped_tab_label",
-                defaultMessage: "{count} skipped",
+                defaultMessage: "{count, number} skipped",
               },
               {
                 count: skipped.length,
@@ -258,7 +261,7 @@ export function QuizScoreScreen({
               title={intl.formatMessage(
                 {
                   id: "studio_quiz_score_correct_section_title",
-                  defaultMessage: "Correct ({count})",
+                  defaultMessage: "Correct ({count, number})",
                 },
                 {
                   count: correctIndices.length,
@@ -274,7 +277,7 @@ export function QuizScoreScreen({
               title={intl.formatMessage(
                 {
                   id: "studio_quiz_score_missed_section_title",
-                  defaultMessage: "Missed ({count})",
+                  defaultMessage: "Missed ({count, number})",
                 },
                 {
                   count: missed.length,
@@ -290,7 +293,7 @@ export function QuizScoreScreen({
               title={intl.formatMessage(
                 {
                   id: "studio_quiz_score_skipped_section_title",
-                  defaultMessage: "Skipped ({count})",
+                  defaultMessage: "Skipped ({count, number})",
                 },
                 {
                   count: skipped.length,

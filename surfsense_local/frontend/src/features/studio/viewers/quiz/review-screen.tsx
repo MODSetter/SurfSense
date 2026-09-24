@@ -53,11 +53,11 @@ export function QuizReviewScreen({
             {intl.formatMessage(
               {
                 id: "studio_quiz_review_position_label",
-                defaultMessage: "Question {number} of {total}",
+                defaultMessage: "Question {number, number} of {total, number}",
               },
               {
-                number: String(index + 1),
-                total: String(quiz.questions.length),
+                number: index + 1,
+                total: quiz.questions.length,
               }
             )}
           </p>
