@@ -921,4 +921,69 @@ describe("installing a curated build", () => {
     install.release()
     await waitForInstallToSettle()
   })
+
+  it("deletes a downloaded model from the Add model page, like the settings list", async () => {
+    const fetchMock = serving(
+      catalog({
+        rows: [row({}, [build({ installed_as: "Qwen3-8B-Q4_K_M" })])],
+      }),
+      (path, init) =>
+        path === "/llm/models/Qwen3-8B-Q4_K_M" && init?.method === "DELETE"
+          ? Response.json({ name: "Qwen3-8B-Q4_K_M", selection_cleared: false })
+          : null
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Qwen3 8B" })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete model" })
+    )
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/llm/models/Qwen3-8B-Q4_K_M" && init?.method === "DELETE"
+        )
+      ).toBe(true)
+    )
+  })
+
+  it("reports the model in use becoming unavailable when its deletion clears the slot", async () => {
+    const onModelUnavailable = vi.fn()
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row({}, [
+              build({ installed_as: "Qwen3-8B-Q4_K_M", selected: true }),
+            ]),
+          ],
+        }),
+        (path, init) =>
+          path === "/llm/models/Qwen3-8B-Q4_K_M" && init?.method === "DELETE"
+            ? Response.json({
+                name: "Qwen3-8B-Q4_K_M",
+                selection_cleared: true,
+              })
+            : null
+      )
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels onModelUnavailable={onModelUnavailable} />)
+    await user.click(
+      await screen.findByRole("button", { name: "Delete Qwen3 8B" })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: "Delete model" })
+    )
+
+    await waitFor(() => expect(onModelUnavailable).toHaveBeenCalled())
+  })
 })

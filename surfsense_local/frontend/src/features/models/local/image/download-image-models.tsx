@@ -1,15 +1,34 @@
+import { useState } from "react"
+
 import { CircleAlertIcon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 
 import { useSelect } from "../../selection/use-selection"
+import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
+import type { YourModelRow } from "../../your-models/your-model-row"
 import type { LocalBuild, LocalRow } from "../chat/api"
 import { ModelCard } from "../chat/model-card"
 import { ModelFamilyGroup } from "../chat/model-family-group"
+import { useDeleteLocalImageModel } from "./use-delete-local-image-model"
 import { useImageInstall } from "./use-image-install"
 import { useLocalImageCatalog } from "./use-local-image-catalog"
 
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
+}
+
+/** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
+function deletableRow(build: LocalBuild, label: string): YourModelRow | null {
+  if (!build.installed_as) return null
+  return {
+    key: build.installed_as,
+    name: label,
+    selected: build.selected,
+    badges: [],
+    note: null,
+    target: null,
+    removeId: build.installed_as,
+  }
 }
 
 function byFamily(rows: LocalRow[]) {
@@ -26,6 +45,12 @@ export function DownloadImageModels() {
   const catalog = useLocalImageCatalog()
   const { installState, install, cancelInstall } = useImageInstall()
   const select = useSelect("image_gen")
+  const remove = useDeleteLocalImageModel()
+  const [deleting, setDeleting] = useState<{
+    removeId: string
+    row: YourModelRow
+  } | null>(null)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   if (catalog.isPending) return null
 
@@ -51,7 +76,8 @@ export function DownloadImageModels() {
     )
   }
 
-  const busy = installState.status === "installing" || select.isPending
+  const busy =
+    installState.status === "installing" || select.isPending || remove.isPending
 
   const act = (build: LocalBuild, label: string) => {
     if (busy) return
@@ -70,6 +96,15 @@ export function DownloadImageModels() {
     }
   }
 
+  const confirmDelete = () => {
+    if (!deleting) return
+    setDeleteError(null)
+    remove
+      .mutateAsync(deleting.removeId)
+      .then(() => setDeleting(null))
+      .catch((cause: unknown) => setDeleteError(messageFrom(cause)))
+  }
+
   return (
     <div className="flex flex-col gap-5">
       {[...byFamily(catalog.data)].map(([family, rows]) => (
@@ -85,6 +120,15 @@ export function DownloadImageModels() {
                   act(build, `${row.name} ${build.quantization}`)
                 }
                 onCancel={cancelInstall}
+                onDelete={(build) => {
+                  const target = deletableRow(
+                    build,
+                    `${row.name} ${build.quantization}`
+                  )
+                  if (!target?.removeId) return
+                  setDeleteError(null)
+                  setDeleting({ removeId: target.removeId, row: target })
+                }}
               />
             </li>
           ))}
@@ -94,6 +138,14 @@ export function DownloadImageModels() {
       {select.isError ? (
         <p className="text-sm text-destructive">{messageFrom(select.error)}</p>
       ) : null}
+
+      <DeleteModelDialog
+        row={deleting?.row ?? null}
+        pending={remove.isPending}
+        error={deleteError}
+        onConfirm={confirmDelete}
+        onCancel={() => setDeleting(null)}
+      />
     </div>
   )
 }
