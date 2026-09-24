@@ -11,6 +11,8 @@ import {
 } from "@/features/models/selection/api"
 import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+
+import { LogoFillLoader } from "./logo-fill-loader"
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
 const DashboardPage = lazy(() =>
@@ -33,9 +35,6 @@ type BootstrapState =
 function messageFrom(error: unknown) {
   return error instanceof Error ? error.message : "An unexpected error occurred"
 }
-
-const ASCII_FRAMES = ["|", "/", "-", "\\"] as const
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
 
 async function fetchBootstrapState(): Promise<BootstrapState> {
   try {
@@ -79,30 +78,13 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
 }
 
 function GlobalLoader() {
-  const [frame, setFrame] = useState(0)
-
-  useEffect(() => {
-    if (window.matchMedia?.(REDUCED_MOTION_QUERY).matches) return
-
-    const interval = window.setInterval(
-      () => setFrame((current) => (current + 1) % ASCII_FRAMES.length),
-      120
-    )
-    return () => window.clearInterval(interval)
-  }, [])
-
   return (
     <main
       className="flex h-full items-center justify-center bg-app-shell select-none"
       role="status"
       aria-label="Starting SurfSense"
     >
-      <span
-        aria-hidden="true"
-        className="font-mono text-2xl text-foreground tabular-nums"
-      >
-        [{ASCII_FRAMES[frame]}]
-      </span>
+      <LogoFillLoader />
     </main>
   )
 }

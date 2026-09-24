@@ -1,4 +1,4 @@
-import { act, cleanup, screen } from "@testing-library/react"
+import { cleanup, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { TooltipProvider } from "@/components/ui/tooltip"
@@ -24,8 +24,7 @@ afterEach(() => {
 })
 
 describe("app bootstrap", () => {
-  it("shows an animated ASCII loader while startup is pending", () => {
-    vi.useFakeTimers()
+  it("shows the filling logo while startup is pending", () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(() => new Promise<Response>(() => {}))
@@ -37,11 +36,10 @@ describe("app bootstrap", () => {
       </TooltipProvider>
     )
 
-    expect(
-      screen.getByRole("status", { name: "Starting SurfSense" }).textContent
-    ).toBe("[|]")
-    act(() => vi.advanceTimersByTime(120))
-    expect(screen.getByRole("status").textContent).toBe("[/]")
+    // Named for assistive tech; the logo itself is decoration and says nothing.
+    const loader = screen.getByRole("status", { name: "Starting SurfSense" })
+    expect(loader.textContent).toBe("")
+    expect(loader.querySelector(".ss-logo-fill-liquid")).toBeTruthy()
   })
 
   it("shows onboarding only before it has been completed", async () => {

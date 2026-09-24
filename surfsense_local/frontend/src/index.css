@@ -354,6 +354,51 @@
  * page rather than a hero section — see OnboardingDither. Needs
  * `[data-onboarding-page]` to be `position: relative; isolation: isolate`, so
  * this fills it edge to edge without a z-index on the step content above it. */
+/* The startup loader: the logo fills with a rising, rippling tide
+ * (`app/logo-fill-loader.tsx`). Transforms and opacity only, so the
+ * compositor runs it however busy the first load keeps the page. It fills,
+ * holds, fades back to faint while full, and rises again. */
+@keyframes ss-logo-fill-rise {
+  0% {
+    transform: translateY(100%);
+    opacity: 1;
+  }
+  70%,
+  85% {
+    transform: translateY(-0.5rem);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-0.5rem);
+    opacity: 0;
+  }
+}
+
+@keyframes ss-logo-fill-wave {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.ss-logo-fill-liquid {
+  animation: ss-logo-fill-rise 2.2s cubic-bezier(0.45, 0, 0.2, 1) infinite;
+}
+
+.ss-logo-fill-wave {
+  animation: ss-logo-fill-wave 1.1s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-logo-fill-liquid {
+    animation: none;
+    transform: translateY(-0.5rem);
+  }
+
+  .ss-logo-fill-wave {
+    animation: none;
+  }
+}
+
 .ss-onboarding-dither {
   pointer-events: none;
   user-select: none;
