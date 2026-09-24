@@ -1,0 +1,139 @@
+# Compile audio.cpp's server for Windows and Linux with the recipe in
+# surfsense_local/electron/scripts/audiocpp/, check it against the app's
+# floors, and hand the staged folder to the desktop release as an artifact.
+# A pull request that changes the recipe runs it too.
+#
+# TODO: ask upstream (0xShug0/audio.cpp) to publish Linux archives built on
+# Ubuntu 22.04 and Windows ones with per-CPU ggml libraries, as llama.cpp does.
+# Once a release does, download those and delete this workflow.
+name: Build audio.cpp
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - surfsense_local/electron/scripts/audiocpp/**
+      - .github/workflows/build-audiocpp.yml
+
+permissions:
+  contents: read
+
+env:
+  # The smoke test voices one passage with the model the manifest puts first.
+  SMOKE_MODEL_URL: https://huggingface.co/audio-cpp/audio.cpp-gguf/resolve/0a104324546d2622985e3c676a4b5550cc772127/Kokoro-82M-GGUF/kokoro-82m-q8_0.gguf
+  SMOKE_MODEL_SHA256: 5d800fd204029302c10313daeafdb31c875c7c29ae31974d0d156cc7f512d1d0 # pragma: allowlist secret
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The release's Linux runner: its glibc is the AppImage's floor.
+          - os: ubuntu-22.04
+            name: Linux x64
+          - os: windows-latest
+            name: Windows x64
+    defaults:
+      run:
+        shell: bash
+        working-directory: surfsense_local/electron
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          # The scripts need Node only, not the app's pnpm install.
+          package-manager-cache: false
+
+      # A release that does not change the recipe reuses the last checked build.
+      - id: cache
+        uses: actions/cache@v5
+        with:
+          path: surfsense_local/electron/audiocpp
+          key: audiocpp-${{ runner.os }}-${{ hashFiles('surfsense_local/electron/scripts/audiocpp/*.mjs') }}
+
+      - name: Install GCC 13
+        # audio.cpp requires it, and 22.04 has GCC 11. This job, not the
+        # release's, takes the PPA's newer libstdc++, so the frozen Python
+        # binaries never bundle it.
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13 ninja-build
+          echo "CC=gcc-13" >> "$GITHUB_ENV"
+          echo "CXX=g++-13" >> "$GITHUB_ENV"
+
+      - name: Compile and stage
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: node scripts/audiocpp/stage.mjs --strict
+
+      - name: Gate on the app's Linux floor
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_local/electron/audiocpp
+        # The floor is glibc 2.34, RHEL 9, whose libgcc_s is GCC 11's: nothing
+        # after GCC_7.0.0. The runner's libstdc++ is the PPA's, newer than a
+        # user's, so only this gate, not the smoke test, catches a dynamic one.
+        run: |
+          files=$(for f in audiocpp_server *.so*; do [ -L "$f" ] || echo "$f"; done)
+          too_new=$(for f in $files; do objdump -T "$f"; done | grep -oE '(GLIBC|GCC)_[0-9.]+[0-9]' | sort -Vu | while read -r v; do
+            case "$v" in GLIBC_*) floor=GLIBC_2.34 ;; GCC_*) floor=GCC_7.0.0 ;; esac
+            [ "$(printf '%s\n%s\n' "$v" "$floor" | sort -V | tail -1)" = "$floor" ] || echo "$v"
+          done)
+          if [ -n "$too_new" ]; then
+            for f in $files; do objdump -T "$f" | grep -wF "$too_new" | sed "s|^|$f: |"; done
+            exit 1
+          fi
+          needs=$(for f in $files; do objdump -p "$f" | awk -v f="$f" '$1 == "NEEDED" && $2 ~ /^lib(stdc\+\+|gomp|vulkan)/ {print f ": " $2}'; done)
+          if [ -n "$needs" ]; then echo "$needs"; exit 1; fi
+          ls libggml-cpu-*.so | tee /dev/stderr | grep -q haswell
+
+      - name: Gate on one voiced passage (Linux)
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_local/electron/audiocpp
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/kokoro.gguf" "$SMOKE_MODEL_URL"
+          echo "$SMOKE_MODEL_SHA256  $RUNNER_TEMP/kokoro.gguf" | sha256sum -c -
+          printf '{"lazy_load":true,"models":[{"id":"kokoro","family":"kokoro_tts","path":"%s","task":"tts","mode":"offline"}]}' "$RUNNER_TEMP/kokoro.gguf" > "$RUNNER_TEMP/server.json"
+          # The environment and flags the sidecar gives it.
+          AUDIOCPP_ESPEAK_LIBRARY="$PWD/espeak/libespeak-ng.so" AUDIOCPP_ESPEAK_DATA="$PWD/espeak/espeak-ng-data" \
+            ./audiocpp_server --config "$RUNNER_TEMP/server.json" --host 127.0.0.1 --port 18080 --backend cpu --threads 2 --no-ui &
+          server=$!
+          for i in $(seq 1 60); do curl -fs http://127.0.0.1:18080/health && break; sleep 1; done
+          curl -fsS -o "$RUNNER_TEMP/smoke.wav" -H 'Content-Type: application/json' http://127.0.0.1:18080/v1/audio/speech \
+            -d '{"model":"kokoro","input":"This build voices a podcast.","voice":"af_heart"}'
+          kill "$server"
+          python3 -c "import wave,sys; w=wave.open(sys.argv[1]); d=w.getnframes()/w.getframerate(); print(f'{d:.2f}s at {w.getframerate()} Hz'); assert d > 1" "$RUNNER_TEMP/smoke.wav"
+
+      - name: Gate on CPU variants and one voiced passage (Windows)
+        if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
+        shell: pwsh
+        working-directory: surfsense_local/electron/audiocpp
+        run: |
+          if (-not (Get-ChildItem ggml-cpu-*.dll | Where-Object Name -match 'haswell')) { throw "no per-CPU ggml libraries" }
+          curl.exe -fsSL --retry 3 -o "$env:RUNNER_TEMP\kokoro.gguf" $env:SMOKE_MODEL_URL
+          if ((Get-FileHash "$env:RUNNER_TEMP\kokoro.gguf" -Algorithm SHA256).Hash.ToLower() -ne $env:SMOKE_MODEL_SHA256) { throw "smoke model hash" }
+          $model = "$env:RUNNER_TEMP\kokoro.gguf".Replace('\','/')
+          Set-Content "$env:RUNNER_TEMP\server.json" "{`"lazy_load`":true,`"models`":[{`"id`":`"kokoro`",`"family`":`"kokoro_tts`",`"path`":`"$model`",`"task`":`"tts`",`"mode`":`"offline`"}]}"
+          # The environment and flags the sidecar gives it.
+          $env:AUDIOCPP_ESPEAK_LIBRARY = "$PWD\espeak\espeak-ng.dll"
+          $env:AUDIOCPP_ESPEAK_DATA = "$PWD\espeak\espeak-ng-data"
+          $server = Start-Process .\audiocpp_server.exe -ArgumentList "--config","$env:RUNNER_TEMP\server.json","--host","127.0.0.1","--port","18080","--backend","cpu","--threads","2","--no-ui" -PassThru -NoNewWindow
+          foreach ($i in 1..60) { try { Invoke-RestMethod http://127.0.0.1:18080/health | Out-Null; break } catch { Start-Sleep 1 } }
+          Invoke-WebRequest http://127.0.0.1:18080/v1/audio/speech -Method Post -ContentType 'application/json' -Body '{"model":"kokoro","input":"This build voices a podcast.","voice":"af_heart"}' -OutFile "$env:RUNNER_TEMP\smoke.wav"
+          Stop-Process $server.Id
+          python -c "import wave,sys; w=wave.open(sys.argv[1]); d=w.getnframes()/w.getframerate(); print(f'{d:.2f}s at {w.getframerate()} Hz'); assert d > 1" "$env:RUNNER_TEMP\smoke.wav"
+
+      # An artifact drops symlinks and file modes; a tar keeps both.
+      - name: Pack
+        run: tar -cf audiocpp.tar audiocpp
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audiocpp-${{ runner.os }}
+          path: surfsense_local/electron/audiocpp.tar
+          retention-days: 7
