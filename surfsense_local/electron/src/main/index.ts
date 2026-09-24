@@ -15,6 +15,7 @@ import {
 // undefined). require() honours it, and the getter is lazy so dev pays nothing.
 import { autoUpdater } from "electron-updater"
 
+import { applyDevAppIdentity, devWindowIcon } from "./dev-app-identity.ts"
 import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
@@ -487,6 +488,7 @@ function createWindow(apiUrl: string): void {
   const savedState = app.isPackaged ? loadWindowState() : null
   const win = new BrowserWindow({
     ...(savedState?.bounds ?? { width: 1280, height: 800 }),
+    ...devWindowIcon(),
     backgroundColor: resolveBackgroundColor(loadThemePreference()),
     show: false,
     // https://www.electronjs.org/docs/latest/tutorial/custom-title-bar
@@ -568,6 +570,7 @@ function main(): void {
     .whenReady()
     .then(async () => {
       applyLocalePreference(loadLocalePreference())
+      applyDevAppIdentity()
       const boot = await bootSidecars()
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({

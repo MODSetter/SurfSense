@@ -1,0 +1,37 @@
+import { join } from "node:path"
+
+import { app } from "electron"
+
+// Dev runs inside Electron's own bundle, so the Dock, taskbar and About panel
+// would show Electron's name and icon. A "DEV" icon also keeps it apart from
+// an installed SurfSense. Packaged builds get all of this from electron-builder.
+const DEV_ICONS = join(__dirname, "../../build/icons/dev")
+const DEV_ICON_PNG = join(DEV_ICONS, "icon.png")
+
+export function applyDevAppIdentity(): void {
+  if (app.isPackaged) return
+  if (process.platform === "darwin") {
+    app.dock?.setIcon(DEV_ICON_PNG)
+  }
+  if (process.platform === "win32") {
+    // Its own taskbar group, not electron.exe's or the installed app's.
+    app.setAppUserModelId("com.surfsense.app.dev")
+  }
+  // iconPath is Linux and Windows only: macOS takes the panel's icon from the
+  // bundle, so it stays Electron's in dev. `version` replaces Electron's build
+  // number in the parentheses.
+  app.setAboutPanelOptions({
+    applicationName: "SurfSense (dev)",
+    applicationVersion: app.getVersion(),
+    version: app.getVersion(),
+    iconPath: DEV_ICON_PNG,
+  })
+}
+
+// Windows takes the taskbar icon from the window; Linux takes the window icon.
+export function devWindowIcon(): { icon?: string } {
+  if (app.isPackaged || process.platform === "darwin") return {}
+  return {
+    icon: process.platform === "win32" ? join(DEV_ICONS, "icon.ico") : DEV_ICON_PNG,
+  }
+}
