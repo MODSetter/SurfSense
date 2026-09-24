@@ -46,7 +46,10 @@ export function RenameChatDialog({
   const inputRef = useRef<HTMLInputElement>(null)
   const [title, setTitle] = useState(
     thread.title ||
-      intl.formatMessage({ id: "chat_rename_dialog_untitled_label" })
+      intl.formatMessage({
+        id: "chat_rename_dialog_untitled_label",
+        defaultMessage: "New chat",
+      })
   )
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -75,10 +78,17 @@ export function RenameChatDialog({
         <form onSubmit={(event) => void submit(event)}>
           <DialogHeader>
             <DialogTitle>
-              {intl.formatMessage({ id: "chat_rename_dialog_title" })}
+              {intl.formatMessage({
+                id: "chat_rename_dialog_title",
+                defaultMessage: "Rename chat",
+              })}
             </DialogTitle>
             <DialogDescription>
-              {intl.formatMessage({ id: "chat_rename_dialog_body" })}
+              {intl.formatMessage({
+                id: "chat_rename_dialog_body",
+                defaultMessage:
+                  "Choose a short name that identifies this conversation.",
+              })}
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -88,18 +98,26 @@ export function RenameChatDialog({
             onChange={(event) => setTitle(event.target.value)}
             aria-label={intl.formatMessage({
               id: "chat_rename_dialog_name_aria",
+              defaultMessage: "Chat name",
             })}
             maxLength={200}
           />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={onClose}>
-              {intl.formatMessage({ id: "chat_rename_dialog_cancel_button" })}
+              {intl.formatMessage({
+                id: "chat_rename_dialog_cancel_button",
+                defaultMessage: "Cancel",
+              })}
             </Button>
             <Button type="submit" disabled={!title.trim() || isSubmitting}>
               {isSubmitting
-                ? intl.formatMessage({ id: "chat_rename_dialog_saving_status" })
+                ? intl.formatMessage({
+                    id: "chat_rename_dialog_saving_status",
+                    defaultMessage: "Saving...",
+                  })
                 : intl.formatMessage({
                     id: "chat_rename_dialog_rename_button",
+                    defaultMessage: "Rename",
                   })}
             </Button>
           </DialogFooter>
@@ -154,6 +172,7 @@ export function ChatsDialog({
   const needle = query.trim().toLowerCase()
   const untitled = intl.formatMessage({
     id: "chat_chats_dialog_untitled_label",
+    defaultMessage: "New chat",
   })
   const visibleThreads = needle
     ? threads.filter((thread) =>
@@ -179,10 +198,16 @@ export function ChatsDialog({
         >
           <DialogHeader>
             <DialogTitle className="text-xl">
-              {intl.formatMessage({ id: "chat_chats_dialog_title" })}
+              {intl.formatMessage({
+                id: "chat_chats_dialog_title",
+                defaultMessage: "Chats",
+              })}
             </DialogTitle>
             <DialogDescription className="sr-only">
-              {intl.formatMessage({ id: "chat_chats_dialog_body" })}
+              {intl.formatMessage({
+                id: "chat_chats_dialog_body",
+                defaultMessage: "Every chat in this workspace.",
+              })}
             </DialogDescription>
           </DialogHeader>
           <div className="relative mt-4">
@@ -193,9 +218,11 @@ export function ChatsDialog({
               value={query}
               placeholder={intl.formatMessage({
                 id: "chat_chats_dialog_search_placeholder",
+                defaultMessage: "Search chats",
               })}
               aria-label={intl.formatMessage({
                 id: "chat_chats_dialog_search_aria",
+                defaultMessage: "Search chats",
               })}
               className="h-10 border-0 bg-secondary pl-9 focus-visible:border-0 dark:bg-secondary"
               onChange={(event) => setQuery(event.target.value)}
@@ -212,8 +239,12 @@ export function ChatsDialog({
                   {needle
                     ? intl.formatMessage({
                         id: "chat_chats_dialog_no_match_empty",
+                        defaultMessage: "No chats match your search",
                       })
-                    : intl.formatMessage({ id: "chat_chats_dialog_empty" })}
+                    : intl.formatMessage({
+                        id: "chat_chats_dialog_empty",
+                        defaultMessage: "Start a conversation to see it here",
+                      })}
                 </p>
               ) : null}
               {visibleThreads.map((thread, index) => {
@@ -302,7 +333,10 @@ export function ChatsDialog({
                             size="icon-sm"
                             className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
                             aria-label={intl.formatMessage(
-                              { id: "chat_chats_dialog_row_actions_aria" },
+                              {
+                                id: "chat_chats_dialog_row_actions_aria",
+                                defaultMessage: "Actions for {title}",
+                              },
                               {
                                 title,
                               }
@@ -330,6 +364,7 @@ export function ChatsDialog({
                               <PencilIcon />
                               {intl.formatMessage({
                                 id: "chat_chats_dialog_rename_label",
+                                defaultMessage: "Rename",
                               })}
                             </DropdownMenuItem>
                             <DropdownMenuItem
@@ -342,6 +377,7 @@ export function ChatsDialog({
                               <Trash2Icon />
                               {intl.formatMessage({
                                 id: "chat_chats_dialog_delete_label",
+                                defaultMessage: "Delete chat",
                               })}
                             </DropdownMenuItem>
                           </DropdownMenuGroup>
@@ -364,7 +400,10 @@ export function ChatsDialog({
               }}
             >
               <PencilEdit02Icon />
-              {intl.formatMessage({ id: "chat_chats_dialog_new_chat_button" })}
+              {intl.formatMessage({
+                id: "chat_chats_dialog_new_chat_button",
+                defaultMessage: "New chat",
+              })}
             </Button>
           </DialogFooter>
         </DialogContent>

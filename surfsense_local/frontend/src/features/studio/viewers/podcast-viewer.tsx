@@ -21,6 +21,7 @@ export function PodcastViewer({ artifact }: { artifact: ArtifactDetail }) {
           <p className="text-xs font-medium text-muted-foreground">
             {intl.formatMessage({
               id: "studio_podcast_viewer_transcript_title",
+              defaultMessage: "Transcript",
             })}
           </p>
           <Streamdown

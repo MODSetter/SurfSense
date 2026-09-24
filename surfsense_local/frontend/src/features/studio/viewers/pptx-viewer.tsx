@@ -52,7 +52,11 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
         if (!response.ok) {
           throw new Error(
             intl.formatMessage(
-              { id: "studio_pptx_viewer_load_error" },
+              {
+                id: "studio_pptx_viewer_load_error",
+                defaultMessage:
+                  "Server returned {status} while retrieving the presentation",
+              },
               {
                 status: String(response.status),
               }
@@ -79,7 +83,10 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
         setLoadError(
           error instanceof Error
             ? error.message
-            : intl.formatMessage({ id: "studio_pptx_viewer_unknown_error" })
+            : intl.formatMessage({
+                id: "studio_pptx_viewer_unknown_error",
+                defaultMessage: "Failed to load presentation",
+              })
         )
         setLoading(false)
       }
@@ -98,7 +105,10 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-sm font-medium">
-          {intl.formatMessage({ id: "studio_pptx_viewer_error_title" })}
+          {intl.formatMessage({
+            id: "studio_pptx_viewer_error_title",
+            defaultMessage: "Failed to load presentation",
+          })}
         </p>
         <p className="text-xs text-muted-foreground">{loadError}</p>
         <Button
@@ -107,7 +117,10 @@ export function PptxViewer({ artifact }: { artifact: ArtifactDetail }) {
           size="sm"
           onClick={() => setRetryKey((key) => key + 1)}
         >
-          {intl.formatMessage({ id: "studio_pptx_viewer_retry_button" })}
+          {intl.formatMessage({
+            id: "studio_pptx_viewer_retry_button",
+            defaultMessage: "Try again",
+          })}
         </Button>
       </div>
     )

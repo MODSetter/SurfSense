@@ -16,7 +16,12 @@ export function HardwareSummary({
 }) {
   const parts = budget
     ? describeHardware(budget, gpuStatus ?? "unknown")
-    : [intl.formatMessage({ id: "models_hardware_checking_status" })]
+    : [
+        intl.formatMessage({
+          id: "models_hardware_checking_status",
+          defaultMessage: "Checking this computer",
+        }),
+      ]
   return (
     <div className="rounded-lg bg-muted/50 p-3">
       <p className="flex items-center text-sm font-medium">
@@ -33,7 +38,10 @@ export function HardwareSummary({
         ))}
       </p>
       <p className="text-xs text-muted-foreground">
-        {intl.formatMessage({ id: "models_hardware_summary_body" })}
+        {intl.formatMessage({
+          id: "models_hardware_summary_body",
+          defaultMessage: "Every model below is priced against this computer.",
+        })}
       </p>
     </div>
   )

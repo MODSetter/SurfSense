@@ -68,7 +68,10 @@ export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
       <p className={`${VIEWER_PADDING} text-sm text-destructive`}>
         {error instanceof Error
           ? error.message
-          : intl.formatMessage({ id: "studio_quiz_viewer_load_error" })}
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_load_error",
+              defaultMessage: "Failed to load this quiz",
+            })}
       </p>
     )
   }
@@ -146,7 +149,10 @@ function QuizRunner({
       setMessage(
         err instanceof Error
           ? err.message
-          : intl.formatMessage({ id: "studio_quiz_viewer_answer_error" })
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_answer_error",
+              defaultMessage: "Answer could not be saved",
+            })
       )
     }
   }
@@ -172,7 +178,10 @@ function QuizRunner({
       setMessage(
         err instanceof Error
           ? err.message
-          : intl.formatMessage({ id: "studio_quiz_viewer_skip_error" })
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_skip_error",
+              defaultMessage: "Question could not be skipped",
+            })
       )
     }
   }
@@ -191,7 +200,10 @@ function QuizRunner({
       setMessage(
         err instanceof Error
           ? err.message
-          : intl.formatMessage({ id: "studio_quiz_viewer_retake_error" })
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_retake_error",
+              defaultMessage: "Quiz could not be restarted",
+            })
       )
     }
   }
@@ -233,7 +245,10 @@ function QuizRunner({
     <section aria-labelledby={headingId} className={VIEWER_PADDING}>
       <div className="mb-6 flex items-center justify-between gap-4 text-sm text-muted-foreground">
         <p className="truncate">
-          {intl.formatMessage({ id: "studio_quiz_viewer_title" })}
+          {intl.formatMessage({
+            id: "studio_quiz_viewer_title",
+            defaultMessage: "Attempt your quiz",
+          })}
         </p>
         <p className="shrink-0 tabular-nums">
           {position + 1} / {state.active_question_indices.length}
@@ -249,6 +264,7 @@ function QuizRunner({
         role="progressbar"
         aria-label={intl.formatMessage({
           id: "studio_quiz_viewer_progress_aria",
+          defaultMessage: "Quiz progress",
         })}
       />
       <h2
@@ -267,7 +283,10 @@ function QuizRunner({
         }}
         disabled={answerRevealed || saving}
         aria-label={intl.formatMessage(
-          { id: "studio_quiz_viewer_options_aria" },
+          {
+            id: "studio_quiz_viewer_options_aria",
+            defaultMessage: "Question {number} options",
+          },
           {
             number: String(questionIndex + 1),
           }
@@ -308,6 +327,7 @@ function QuizRunner({
                   <span className="sr-only">
                     {intl.formatMessage({
                       id: "studio_quiz_viewer_correct_aria",
+                      defaultMessage: "Correct answer",
                     })}
                   </span>
                 </span>
@@ -317,6 +337,7 @@ function QuizRunner({
                   <span className="sr-only">
                     {intl.formatMessage({
                       id: "studio_quiz_viewer_incorrect_aria",
+                      defaultMessage: "Incorrect answer",
                     })}
                   </span>
                 </span>
@@ -333,9 +354,18 @@ function QuizRunner({
         >
           {answerRevealed
             ? isLastQuestion
-              ? intl.formatMessage({ id: "studio_quiz_viewer_finish_button" })
-              : intl.formatMessage({ id: "studio_quiz_viewer_next_button" })
-            : intl.formatMessage({ id: "studio_quiz_viewer_skip_button" })}
+              ? intl.formatMessage({
+                  id: "studio_quiz_viewer_finish_button",
+                  defaultMessage: "Finish",
+                })
+              : intl.formatMessage({
+                  id: "studio_quiz_viewer_next_button",
+                  defaultMessage: "Next",
+                })
+            : intl.formatMessage({
+                id: "studio_quiz_viewer_skip_button",
+                defaultMessage: "Skip",
+              })}
         </Button>
       </div>
       {message ? (

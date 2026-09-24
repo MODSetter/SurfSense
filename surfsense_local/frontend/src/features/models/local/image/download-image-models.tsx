@@ -17,7 +17,10 @@ import { useLocalImageCatalog } from "./use-local-image-catalog"
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_download_image_unexpected_error" })
+    : intl.formatMessage({
+        id: "models_download_image_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 /** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
@@ -62,7 +65,10 @@ export function DownloadImageModels() {
       <Alert variant="destructive">
         <CircleAlertIcon />
         <AlertTitle>
-          {intl.formatMessage({ id: "models_download_image_load_error" })}
+          {intl.formatMessage({
+            id: "models_download_image_load_error",
+            defaultMessage: "Could not load local image models",
+          })}
         </AlertTitle>
         <AlertDescription>{messageFrom(catalog.error)}</AlertDescription>
       </Alert>
@@ -76,10 +82,15 @@ export function DownloadImageModels() {
         <AlertTitle>
           {intl.formatMessage({
             id: "models_download_image_unsupported_title",
+            defaultMessage: "Image models cannot run on this computer",
           })}
         </AlertTitle>
         <AlertDescription>
-          {intl.formatMessage({ id: "models_download_image_unsupported_body" })}
+          {intl.formatMessage({
+            id: "models_download_image_unsupported_body",
+            defaultMessage:
+              "This build has no local image runtime. Use a server above instead.",
+          })}
         </AlertDescription>
       </Alert>
     )

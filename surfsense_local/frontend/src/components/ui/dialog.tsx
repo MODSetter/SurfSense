@@ -75,7 +75,10 @@ function DialogContent({
             >
               <XIcon />
               <span className="sr-only">
-                {intl.formatMessage({ id: "app_dialog_close_aria" })}
+                {intl.formatMessage({
+                  id: "app_dialog_close_aria",
+                  defaultMessage: "Close",
+                })}
               </span>
             </Button>
           </DialogPrimitive.Close>
@@ -116,7 +119,10 @@ function DialogFooter({
       {showCloseButton && (
         <DialogPrimitive.Close asChild>
           <Button variant="outline">
-            {intl.formatMessage({ id: "app_dialog_footer_close_button" })}
+            {intl.formatMessage({
+              id: "app_dialog_footer_close_button",
+              defaultMessage: "Close",
+            })}
           </Button>
         </DialogPrimitive.Close>
       )}

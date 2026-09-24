@@ -21,21 +21,39 @@ import { useConnectionModels } from "./use-connection-models"
 
 const TYPE_LABELS: Record<ModelType, () => string> = {
   text_gen: () =>
-    intl.formatMessage({ id: "models_server_models_type_text_gen_label" }),
+    intl.formatMessage({
+      id: "models_server_models_type_text_gen_label",
+      defaultMessage: "Text generation",
+    }),
   image_gen: () =>
-    intl.formatMessage({ id: "models_server_models_type_image_gen_label" }),
+    intl.formatMessage({
+      id: "models_server_models_type_image_gen_label",
+      defaultMessage: "Image generation",
+    }),
   image_edit: () =>
-    intl.formatMessage({ id: "models_server_models_type_image_edit_label" }),
+    intl.formatMessage({
+      id: "models_server_models_type_image_edit_label",
+      defaultMessage: "Image editing",
+    }),
   video_gen: () =>
-    intl.formatMessage({ id: "models_server_models_type_video_gen_label" }),
+    intl.formatMessage({
+      id: "models_server_models_type_video_gen_label",
+      defaultMessage: "Video generation",
+    }),
   audio_gen: () =>
-    intl.formatMessage({ id: "models_server_models_type_audio_gen_label" }),
+    intl.formatMessage({
+      id: "models_server_models_type_audio_gen_label",
+      defaultMessage: "Audio generation",
+    }),
 }
 
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_server_models_list_error" })
+    : intl.formatMessage({
+        id: "models_server_models_list_error",
+        defaultMessage: "Could not list models",
+      })
 }
 
 /** One server, and the models on it that can fill this section's slot. */
@@ -119,14 +137,20 @@ export function ServerModels({
             variant="ghost"
             disabled={disabled}
             aria-label={intl.formatMessage(
-              { id: "models_server_models_edit_aria" },
+              {
+                id: "models_server_models_edit_aria",
+                defaultMessage: "Edit {server}",
+              },
               {
                 server: connection.label,
               }
             )}
             onClick={onEdit}
           >
-            {intl.formatMessage({ id: "models_server_models_edit_button" })}
+            {intl.formatMessage({
+              id: "models_server_models_edit_button",
+              defaultMessage: "Edit",
+            })}
           </Button>
           <DisconnectButton
             connection={connection}
@@ -144,6 +168,7 @@ export function ServerModels({
             <Button type="button" size="sm" variant="outline" disabled>
               {intl.formatMessage({
                 id: "models_server_models_current_in_use_button",
+                defaultMessage: "In use",
               })}
             </Button>
           </div>
@@ -165,11 +190,19 @@ export function ServerModels({
           />
           {open
             ? intl.formatMessage(
-                { id: "models_server_models_hide_button" },
+                {
+                  id: "models_server_models_hide_button",
+                  defaultMessage:
+                    "{slot, select, text_gen {Hide chat models} image_gen {Hide image models} image_edit {Hide image editing models} video_gen {Hide video models} audio_gen {Hide audio models} other {Hide models}}",
+                },
                 { slot: modelType }
               )
             : intl.formatMessage(
-                { id: "models_server_models_show_button" },
+                {
+                  id: "models_server_models_show_button",
+                  defaultMessage:
+                    "{slot, select, text_gen {Show chat models} image_gen {Show image models} image_edit {Show image editing models} video_gen {Show video models} audio_gen {Show audio models} other {Show models}}",
+                },
                 { slot: modelType }
               )}
         </button>
@@ -183,13 +216,20 @@ export function ServerModels({
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder={intl.formatMessage(
-                  { id: "models_server_models_search_placeholder" },
+                  {
+                    id: "models_server_models_search_placeholder",
+                    defaultMessage:
+                      "{slot, select, text_gen {Search chat models} image_gen {Search image models} image_edit {Search image editing models} video_gen {Search video models} audio_gen {Search audio models} other {Search models}}",
+                  },
                   {
                     slot: modelType,
                   }
                 )}
                 aria-label={intl.formatMessage(
-                  { id: "models_server_models_search_aria" },
+                  {
+                    id: "models_server_models_search_aria",
+                    defaultMessage: "Search models from {server}",
+                  },
                   {
                     server: connection.label,
                   }
@@ -204,11 +244,13 @@ export function ServerModels({
                 role="status"
                 aria-label={intl.formatMessage({
                   id: "models_server_models_loading_aria",
+                  defaultMessage: "Loading models",
                 })}
               >
                 <Spinner />{" "}
                 {intl.formatMessage({
                   id: "models_server_models_loading_status",
+                  defaultMessage: "Loading models…",
                 })}
               </p>
             ) : models.isError ? (
@@ -224,6 +266,7 @@ export function ServerModels({
                 >
                   {intl.formatMessage({
                     id: "models_server_models_retry_button",
+                    defaultMessage: "Retry",
                   })}
                 </Button>
               </div>
@@ -235,7 +278,11 @@ export function ServerModels({
                 <ul
                   className="divide-y"
                   aria-label={intl.formatMessage(
-                    { id: "models_server_models_list_aria" },
+                    {
+                      id: "models_server_models_list_aria",
+                      defaultMessage:
+                        "{slot, select, text_gen {chat models on {server}} image_gen {image models on {server}} image_edit {image editing models on {server}} video_gen {video models on {server}} audio_gen {audio models on {server}} other {models on {server}}}",
+                    },
                     {
                       slot: modelType,
                       server: connection.label,
@@ -256,6 +303,7 @@ export function ServerModels({
                             <Badge variant="outline">
                               {intl.formatMessage({
                                 id: "models_server_models_capability_unknown_label",
+                                defaultMessage: "Capability unknown",
                               })}
                             </Badge>
                           ) : (
@@ -276,6 +324,7 @@ export function ServerModels({
                         >
                           {intl.formatMessage({
                             id: "models_server_models_list_in_use_button",
+                            defaultMessage: "In use",
                           })}
                         </Button>
                       ) : (
@@ -284,7 +333,10 @@ export function ServerModels({
                           size="sm"
                           disabled={disabled}
                           aria-label={intl.formatMessage(
-                            { id: "models_server_models_use_aria" },
+                            {
+                              id: "models_server_models_use_aria",
+                              defaultMessage: "Use {model}",
+                            },
                             {
                               model: model.name,
                             }
@@ -293,6 +345,7 @@ export function ServerModels({
                         >
                           {intl.formatMessage({
                             id: "models_server_models_use_button",
+                            defaultMessage: "Use",
                           })}
                         </Button>
                       )}
@@ -304,13 +357,19 @@ export function ServerModels({
               <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 {models.data?.length
                   ? intl.formatMessage(
-                      { id: "models_server_models_no_match_empty" },
+                      {
+                        id: "models_server_models_no_match_empty",
+                        defaultMessage:
+                          "{slot, select, text_gen {No chat models match. Try another search, or type an exact ID below.} image_gen {No image models match. Try another search, or type an exact ID below.} image_edit {No image editing models match. Try another search, or type an exact ID below.} video_gen {No video models match. Try another search, or type an exact ID below.} audio_gen {No audio models match. Try another search, or type an exact ID below.} other {No models match. Try another search, or type an exact ID below.}}",
+                      },
                       {
                         slot: modelType,
                       }
                     )
                   : intl.formatMessage({
                       id: "models_server_models_none_listed_empty",
+                      defaultMessage:
+                        "This server listed no models. Type an exact ID below.",
                     })}
               </p>
             )}
@@ -319,6 +378,7 @@ export function ServerModels({
               <FieldLabel htmlFor={manualId}>
                 {intl.formatMessage({
                   id: "models_server_models_manual_id_label",
+                  defaultMessage: "Exact model ID",
                 })}
               </FieldLabel>
               <div className="flex gap-2">
@@ -337,7 +397,11 @@ export function ServerModels({
                   onClick={tryManual}
                 >
                   {intl.formatMessage(
-                    { id: "models_server_models_manual_use_button" },
+                    {
+                      id: "models_server_models_manual_use_button",
+                      defaultMessage:
+                        "{slot, select, text_gen {Use for chat} image_gen {Use for image} image_edit {Use for image editing} video_gen {Use for video} audio_gen {Use for audio} other {Use}}",
+                    },
                     {
                       slot: modelType,
                     }
@@ -347,6 +411,7 @@ export function ServerModels({
               <FieldDescription>
                 {intl.formatMessage({
                   id: "models_server_models_manual_id_body",
+                  defaultMessage: "For a model this server does not list.",
                 })}
               </FieldDescription>
             </Field>

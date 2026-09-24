@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "pnpm translations && vite",
-    "translations": "formatjs compile-folder translations src/i18n/compiled --format simple --ast",
+    "translations": "formatjs extract \"src/**/*.{ts,tsx}\" \"../electron/src/main/**/*.ts\" --ignore \"**/*.test.*\" --ignore \"**/*.d.ts\" --ignore \"src/i18n/compiled/**\" --format simple --out-file translations/en.json && formatjs compile-folder translations src/i18n/compiled --format simple --ast",
     "build": "pnpm translations && tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write \"**/*.{ts,tsx}\"",
@@ -51,6 +51,7 @@
   "devDependencies": {
     "@eslint/js": "^10",
     "@formatjs/cli": "6.16.32",
+    "@formatjs/unplugin": "1.2.12",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
     "@types/node": "^24",
@@ -58,6 +59,7 @@
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6",
     "eslint": "^10",
+    "eslint-plugin-formatjs": "8.1.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17",

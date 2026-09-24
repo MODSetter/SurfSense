@@ -26,7 +26,10 @@ function isAbort(error: unknown) {
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_install_error" })
+    : intl.formatMessage({
+        id: "models_install_error",
+        defaultMessage: "Could not install this model",
+      })
 }
 
 /**
@@ -67,6 +70,7 @@ export function createInstall({ select }: { select: boolean }) {
           type: "starting",
           message: intl.formatMessage({
             id: "models_install_preparing_download_status",
+            defaultMessage: "Preparing download",
           }),
         },
       })
@@ -82,7 +86,10 @@ export function createInstall({ select }: { select: boolean }) {
       } catch (error) {
         if (isAbort(error)) {
           toast.info(
-            intl.formatMessage({ id: "models_install_cancelled_toast" }),
+            intl.formatMessage({
+              id: "models_install_cancelled_toast",
+              defaultMessage: "Installation cancelled. You can retry.",
+            }),
             {
               id: "model-install-cancelled",
             }

@@ -35,20 +35,67 @@ import { FORMAT_ICONS, formatLabel, studioCatalog } from "./studio-formats"
 import { usePodcastBrief } from "./use-podcast-brief"
 
 const FORMAT_HINTS: Record<string, () => string> = {
-  summary: () => intl.formatMessage({ id: "studio_format_summary_tooltip" }),
-  docx: () => intl.formatMessage({ id: "studio_format_docx_tooltip" }),
-  pptx: () => intl.formatMessage({ id: "studio_format_pptx_tooltip" }),
-  xlsx: () => intl.formatMessage({ id: "studio_format_xlsx_tooltip" }),
-  html: () => intl.formatMessage({ id: "studio_format_html_tooltip" }),
-  pdf: () => intl.formatMessage({ id: "studio_format_pdf_tooltip" }),
-  mindmap: () => intl.formatMessage({ id: "studio_format_mindmap_tooltip" }),
+  summary: () =>
+    intl.formatMessage({
+      id: "studio_format_summary_tooltip",
+      defaultMessage: "Generate an AI summary based on your sources",
+    }),
+  docx: () =>
+    intl.formatMessage({
+      id: "studio_format_docx_tooltip",
+      defaultMessage: "Generate an AI Word document based on your sources",
+    }),
+  pptx: () =>
+    intl.formatMessage({
+      id: "studio_format_pptx_tooltip",
+      defaultMessage: "Generate an AI slide deck based on your sources",
+    }),
+  xlsx: () =>
+    intl.formatMessage({
+      id: "studio_format_xlsx_tooltip",
+      defaultMessage: "Generate an AI spreadsheet based on your sources",
+    }),
+  html: () =>
+    intl.formatMessage({
+      id: "studio_format_html_tooltip",
+      defaultMessage:
+        "Generate an AI interactive web page based on your sources",
+    }),
+  pdf: () =>
+    intl.formatMessage({
+      id: "studio_format_pdf_tooltip",
+      defaultMessage: "Generate an AI PDF based on your sources",
+    }),
+  mindmap: () =>
+    intl.formatMessage({
+      id: "studio_format_mindmap_tooltip",
+      defaultMessage: "Generate an AI mind map based on your sources",
+    }),
   flashcards: () =>
-    intl.formatMessage({ id: "studio_format_flashcards_tooltip" }),
-  quiz: () => intl.formatMessage({ id: "studio_format_quiz_tooltip" }),
-  podcast: () => intl.formatMessage({ id: "studio_format_podcast_tooltip" }),
-  image: () => intl.formatMessage({ id: "studio_format_image_tooltip" }),
+    intl.formatMessage({
+      id: "studio_format_flashcards_tooltip",
+      defaultMessage: "Generate AI flashcards based on your sources",
+    }),
+  quiz: () =>
+    intl.formatMessage({
+      id: "studio_format_quiz_tooltip",
+      defaultMessage: "Generate an AI interactive quiz based on your sources",
+    }),
+  podcast: () =>
+    intl.formatMessage({
+      id: "studio_format_podcast_tooltip",
+      defaultMessage: "Generate an AI podcast based on your sources",
+    }),
+  image: () =>
+    intl.formatMessage({
+      id: "studio_format_image_tooltip",
+      defaultMessage: "Generate an AI image based on your sources",
+    }),
   infographic: () =>
-    intl.formatMessage({ id: "studio_format_infographic_tooltip" }),
+    intl.formatMessage({
+      id: "studio_format_infographic_tooltip",
+      defaultMessage: "Generate an AI infographic based on your sources",
+    }),
 }
 
 function catalogFormats(formats: StudioFormat[]) {
@@ -62,15 +109,30 @@ function catalogFormats(formats: StudioFormat[]) {
 // reason replaces it.
 const NEEDED_MODEL: Record<ModelType, () => string> = {
   text_gen: () =>
-    intl.formatMessage({ id: "studio_format_needs_chat_model_label" }),
+    intl.formatMessage({
+      id: "studio_format_needs_chat_model_label",
+      defaultMessage: "a chat model",
+    }),
   image_gen: () =>
-    intl.formatMessage({ id: "studio_format_needs_image_model_label" }),
+    intl.formatMessage({
+      id: "studio_format_needs_image_model_label",
+      defaultMessage: "an image model",
+    }),
   image_edit: () =>
-    intl.formatMessage({ id: "studio_format_needs_image_edit_model_label" }),
+    intl.formatMessage({
+      id: "studio_format_needs_image_edit_model_label",
+      defaultMessage: "an image editing model",
+    }),
   video_gen: () =>
-    intl.formatMessage({ id: "studio_format_needs_video_model_label" }),
+    intl.formatMessage({
+      id: "studio_format_needs_video_model_label",
+      defaultMessage: "a video model",
+    }),
   audio_gen: () =>
-    intl.formatMessage({ id: "studio_format_needs_audio_model_label" }),
+    intl.formatMessage({
+      id: "studio_format_needs_audio_model_label",
+      defaultMessage: "an audio model",
+    }),
 }
 
 function unavailableReason(entry: StudioFormat) {
@@ -80,7 +142,10 @@ function unavailableReason(entry: StudioFormat) {
     { type: "conjunction" }
   )
   return intl.formatMessage(
-    { id: "studio_format_unavailable_tooltip" },
+    {
+      id: "studio_format_unavailable_tooltip",
+      defaultMessage: "Needs {models}",
+    },
     { models }
   )
 }
@@ -92,7 +157,10 @@ function formatHint(entry: StudioFormat) {
   return (
     FORMAT_HINTS[entry.key]?.() ??
     intl.formatMessage(
-      { id: "studio_format_generic_tooltip" },
+      {
+        id: "studio_format_generic_tooltip",
+        defaultMessage: "Generate a {format} based on your sources",
+      },
       {
         format: entry.label.toLowerCase(),
       }
@@ -154,7 +222,10 @@ function Composer({
             ) : (
               <p className="text-sm text-muted-foreground">
                 {podcast.error ??
-                  intl.formatMessage({ id: "studio_composer_brief_status" })}
+                  intl.formatMessage({
+                    id: "studio_composer_brief_status",
+                    defaultMessage: "Preparing the brief…",
+                  })}
               </p>
             )
           ) : null}
@@ -162,10 +233,17 @@ function Composer({
           {ready.length === 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">
-                {intl.formatMessage({ id: "studio_composer_sources_label" })}
+                {intl.formatMessage({
+                  id: "studio_composer_sources_label",
+                  defaultMessage: "Sources",
+                })}
               </p>
               <p className="text-sm text-muted-foreground">
-                {intl.formatMessage({ id: "studio_composer_sources_empty" })}
+                {intl.formatMessage({
+                  id: "studio_composer_sources_empty",
+                  defaultMessage:
+                    "Add and index a source first — only ready documents can be used.",
+                })}
               </p>
             </div>
           ) : (
@@ -177,7 +255,11 @@ function Composer({
             >
               <span className="min-w-0 flex-1 truncate text-left">
                 {intl.formatMessage(
-                  { id: "studio_composer_sources_button" },
+                  {
+                    id: "studio_composer_sources_button",
+                    defaultMessage:
+                      "{count, plural, one {# source} other {# sources}}",
+                  },
                   {
                     count: selected.size,
                   }
@@ -189,13 +271,17 @@ function Composer({
 
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">
-              {intl.formatMessage({ id: "studio_composer_prompt_label" })}
+              {intl.formatMessage({
+                id: "studio_composer_prompt_label",
+                defaultMessage: "Prompt (optional)",
+              })}
             </p>
             <Input
               className="select-text"
               value={prompt}
               placeholder={intl.formatMessage({
                 id: "studio_composer_prompt_placeholder",
+                defaultMessage: "Steer the focus, e.g. emphasise the risks",
               })}
               onChange={(event) => setPrompt(event.target.value)}
             />
@@ -220,7 +306,10 @@ function Composer({
             ) : (
               <AiSparklesIcon data-icon="inline-start" />
             )}
-            {intl.formatMessage({ id: "studio_composer_generate_button" })}
+            {intl.formatMessage({
+              id: "studio_composer_generate_button",
+              defaultMessage: "Generate",
+            })}
           </Button>
         </div>
       </div>
@@ -242,7 +331,10 @@ function Composer({
           >
             <ArrowLeftIcon className="size-3.5" />
             {intl.formatMessage(
-              { id: "studio_source_picker_back_button" },
+              {
+                id: "studio_source_picker_back_button",
+                defaultMessage: "Sources ({count} selected)",
+              },
               {
                 count: selected.size,
               }
@@ -259,9 +351,11 @@ function Composer({
               {allSelected
                 ? intl.formatMessage({
                     id: "studio_source_picker_deselect_all_button",
+                    defaultMessage: "Deselect all",
                   })
                 : intl.formatMessage({
                     id: "studio_source_picker_select_all_button",
+                    defaultMessage: "Select all",
                   })}
             </Button>
           ) : null}
@@ -370,7 +464,10 @@ export function StudioPanel({
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>
-            {intl.formatMessage({ id: "studio_panel_error_title" })}
+            {intl.formatMessage({
+              id: "studio_panel_error_title",
+              defaultMessage: "Studio action failed",
+            })}
           </AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -378,7 +475,10 @@ export function StudioPanel({
 
       <section
         className="space-y-2"
-        aria-label={intl.formatMessage({ id: "studio_panel_formats_aria" })}
+        aria-label={intl.formatMessage({
+          id: "studio_panel_formats_aria",
+          defaultMessage: "Studio formats",
+        })}
       >
         <div className="grid grid-cols-3 gap-1.5">
           {catalog.map((entry) => (

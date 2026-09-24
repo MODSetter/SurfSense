@@ -36,6 +36,7 @@ export function useChatModels(): YourModels {
                 ? [
                     intl.formatMessage({
                       id: "models_your_models_vision_label",
+                      defaultMessage: "Vision",
                     }),
                   ]
                 : [],

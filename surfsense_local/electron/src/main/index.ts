@@ -466,16 +466,16 @@ function installProductionMenu(): void {
       { role: "fileMenu" },
       { role: "editMenu" },
       {
-        label: mainIntl().formatMessage({ id: "menu_view_label" }),
+        label: mainIntl().formatMessage({ id: "menu_view_label", defaultMessage: "View" }),
         submenu: [
           {
-            label: mainIntl().formatMessage({ id: "menu_view_reload_label" }),
+            label: mainIntl().formatMessage({ id: "menu_view_reload_label", defaultMessage: "Reload" }),
             click: (_item, win) => {
               if (win instanceof BrowserWindow) win.reload()
             },
           },
           {
-            label: mainIntl().formatMessage({ id: "menu_view_force_reload_label" }),
+            label: mainIntl().formatMessage({ id: "menu_view_force_reload_label", defaultMessage: "Force Reload" }),
             click: (_item, win) => {
               if (win instanceof BrowserWindow) {
                 win.webContents.reloadIgnoringCache()

@@ -19,7 +19,10 @@ import { useDeleteConnection } from "./use-connections"
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_disconnect_error" })
+    : intl.formatMessage({
+        id: "models_disconnect_error",
+        defaultMessage: "Could not disconnect",
+      })
 }
 
 /**
@@ -42,17 +45,25 @@ export function DisconnectButton({
   const clearsImageSlot = image.data?.connection_id === connection.id
   const clearedBody =
     clearsChatSlot && clearsImageSlot
-      ? intl.formatMessage({ id: "models_disconnect_dialog_clears_both_body" })
+      ? intl.formatMessage({
+          id: "models_disconnect_dialog_clears_both_body",
+          defaultMessage: "Your Chat and Image models will be cleared.",
+        })
       : clearsChatSlot
         ? intl.formatMessage({
             id: "models_disconnect_dialog_clears_chat_body",
+            defaultMessage: "Your Chat model will be cleared.",
           })
         : clearsImageSlot
           ? intl.formatMessage({
               id: "models_disconnect_dialog_clears_image_body",
+              defaultMessage: "Your Image model will be cleared.",
             })
           : intl.formatMessage(
-              { id: "models_disconnect_dialog_clears_none_body" },
+              {
+                id: "models_disconnect_dialog_clears_none_body",
+                defaultMessage: "No model in use comes from {server}.",
+              },
               {
                 server: connection.label,
               }
@@ -67,20 +78,29 @@ export function DisconnectButton({
           variant="destructive"
           disabled={disabled}
           aria-label={intl.formatMessage(
-            { id: "models_disconnect_trigger_aria" },
+            {
+              id: "models_disconnect_trigger_aria",
+              defaultMessage: "Disconnect {server}",
+            },
             {
               server: connection.label,
             }
           )}
         >
-          {intl.formatMessage({ id: "models_disconnect_trigger_button" })}
+          {intl.formatMessage({
+            id: "models_disconnect_trigger_button",
+            defaultMessage: "Disconnect",
+          })}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
           <AlertDialogTitle>
             {intl.formatMessage(
-              { id: "models_disconnect_dialog_title" },
+              {
+                id: "models_disconnect_dialog_title",
+                defaultMessage: "Disconnect {server}?",
+              },
               {
                 server: connection.label,
               }
@@ -97,6 +117,7 @@ export function DisconnectButton({
           <AlertDialogCancel>
             {intl.formatMessage({
               id: "models_disconnect_dialog_cancel_button",
+              defaultMessage: "Cancel",
             })}
           </AlertDialogCancel>
           <AlertDialogAction
@@ -115,6 +136,7 @@ export function DisconnectButton({
           >
             {intl.formatMessage({
               id: "models_disconnect_dialog_confirm_button",
+              defaultMessage: "Disconnect",
             })}
           </AlertDialogAction>
         </AlertDialogFooter>

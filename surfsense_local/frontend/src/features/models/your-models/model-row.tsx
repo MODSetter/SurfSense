@@ -34,7 +34,10 @@ export function ModelRow({
       <div className="flex shrink-0 items-center gap-1">
         {row.selected ? (
           <Button type="button" size="sm" variant="outline" disabled>
-            {intl.formatMessage({ id: "models_model_row_in_use_button" })}
+            {intl.formatMessage({
+              id: "models_model_row_in_use_button",
+              defaultMessage: "In use",
+            })}
           </Button>
         ) : row.target ? (
           <Button
@@ -42,12 +45,18 @@ export function ModelRow({
             size="sm"
             disabled={disabled}
             aria-label={intl.formatMessage(
-              { id: "models_model_row_use_aria" },
+              {
+                id: "models_model_row_use_aria",
+                defaultMessage: "Use {model}",
+              },
               { model: row.name }
             )}
             onClick={onUse}
           >
-            {intl.formatMessage({ id: "models_model_row_use_button" })}
+            {intl.formatMessage({
+              id: "models_model_row_use_button",
+              defaultMessage: "Use",
+            })}
           </Button>
         ) : null}
         {row.removeId ? (
@@ -57,7 +66,10 @@ export function ModelRow({
             variant="destructive"
             disabled={disabled}
             aria-label={intl.formatMessage(
-              { id: "models_model_row_delete_aria" },
+              {
+                id: "models_model_row_delete_aria",
+                defaultMessage: "Delete {model}",
+              },
               {
                 model: row.name,
               }

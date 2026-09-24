@@ -14,11 +14,20 @@ const SWITCH_TO_THEME_ARIA: Record<
   () => string
 > = {
   system: () =>
-    intl.formatMessage({ id: "settings_appearance_switch_to_system_aria" }),
+    intl.formatMessage({
+      id: "settings_appearance_switch_to_system_aria",
+      defaultMessage: "Switch to system theme",
+    }),
   light: () =>
-    intl.formatMessage({ id: "settings_appearance_switch_to_light_aria" }),
+    intl.formatMessage({
+      id: "settings_appearance_switch_to_light_aria",
+      defaultMessage: "Switch to light theme",
+    }),
   dark: () =>
-    intl.formatMessage({ id: "settings_appearance_switch_to_dark_aria" }),
+    intl.formatMessage({
+      id: "settings_appearance_switch_to_dark_aria",
+      defaultMessage: "Switch to dark theme",
+    }),
 }
 
 export function AppearanceToggle() {
@@ -32,7 +41,10 @@ export function AppearanceToggle() {
       count={THEME_OPTIONS.length}
       selectedIndex={selectedIndex}
       role="radiogroup"
-      aria-label={intl.formatMessage({ id: "settings_appearance_toggle_aria" })}
+      aria-label={intl.formatMessage({
+        id: "settings_appearance_toggle_aria",
+        defaultMessage: "Appearance",
+      })}
     >
       {THEME_OPTIONS.map((option) => {
         const Icon = option.icon

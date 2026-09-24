@@ -48,7 +48,10 @@ export function LocalModelList({
     >
       <ul
         className="divide-y"
-        aria-label={intl.formatMessage({ id: "onboarding_model_list_aria" })}
+        aria-label={intl.formatMessage({
+          id: "onboarding_model_list_aria",
+          defaultMessage: "Models for this computer",
+        })}
       >
         {rows.map((row) => {
           const build = leadBuild(row)
@@ -69,6 +72,7 @@ export function LocalModelList({
                       <Badge variant="secondary">
                         {intl.formatMessage({
                           id: "onboarding_model_list_recommended_label",
+                          defaultMessage: "Recommended",
                         })}
                       </Badge>
                     ) : null}
@@ -76,6 +80,7 @@ export function LocalModelList({
                       <Badge variant="secondary">
                         {intl.formatMessage({
                           id: "onboarding_model_list_vision_label",
+                          defaultMessage: "Vision",
                         })}
                       </Badge>
                     ) : null}
@@ -93,6 +98,7 @@ export function LocalModelList({
                         <span>
                           {intl.formatMessage({
                             id: "onboarding_model_list_installed_label",
+                            defaultMessage: "On this computer",
                           })}
                         </span>
                       </>
@@ -115,7 +121,10 @@ export function LocalModelList({
                       variant="destructive"
                       disabled={disabled}
                       aria-label={intl.formatMessage(
-                        { id: "onboarding_model_list_delete_aria" },
+                        {
+                          id: "onboarding_model_list_delete_aria",
+                          defaultMessage: "Delete {name}",
+                        },
                         {
                           name: row.name,
                         }

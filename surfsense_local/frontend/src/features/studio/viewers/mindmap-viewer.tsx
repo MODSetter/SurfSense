@@ -86,7 +86,10 @@ export function MindmapViewer({
       type="button"
       variant="ghost"
       size="icon-sm"
-      aria-label={intl.formatMessage({ id: "studio_mindmap_viewer_fit_aria" })}
+      aria-label={intl.formatMessage({
+        id: "studio_mindmap_viewer_fit_aria",
+        defaultMessage: "Fit mind map",
+      })}
       className="text-muted-foreground"
       onClick={() => void markmapRef.current?.fit()}
     >
@@ -108,6 +111,7 @@ export function MindmapViewer({
           className="sr-only"
           aria-label={intl.formatMessage({
             id: "studio_mindmap_viewer_tree_aria",
+            defaultMessage: "Mind map",
           })}
         >
           <TreeItem node={tree} />

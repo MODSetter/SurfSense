@@ -127,9 +127,11 @@ function WorkspaceDashboard({
                   rightPanelOpen
                     ? intl.formatMessage({
                         id: "dashboard_right_panel_hide_aria",
+                        defaultMessage: "Hide right panel",
                       })
                     : intl.formatMessage({
                         id: "dashboard_right_panel_show_aria",
+                        defaultMessage: "Show right panel",
                       })
                 }
                 onClick={toggleRightPanel}
@@ -141,9 +143,11 @@ function WorkspaceDashboard({
               {rightPanelOpen
                 ? intl.formatMessage({
                     id: "dashboard_right_panel_hide_tooltip",
+                    defaultMessage: "Hide right panel",
                   })
                 : intl.formatMessage({
                     id: "dashboard_right_panel_show_tooltip",
+                    defaultMessage: "Show right panel",
                   })}
             </TooltipContent>
           </Tooltip>
@@ -176,18 +180,25 @@ function WorkspaceDashboard({
                 key: "plugins",
                 label: intl.formatMessage({
                   id: "dashboard_sidebar_plugins_button",
+                  defaultMessage: "Plugins",
                 }),
                 icon: UnplugIcon,
                 badge: intl.formatMessage({
                   id: "dashboard_sidebar_plugins_soon_label",
+                  defaultMessage: "Coming soon",
                 }),
                 // TODO: open the plugins panel once it exists.
                 onClick: () =>
                   toast.info(
-                    intl.formatMessage({ id: "dashboard_plugins_soon_toast" }),
+                    intl.formatMessage({
+                      id: "dashboard_plugins_soon_toast",
+                      defaultMessage: "Plugins are coming soon",
+                    }),
                     {
                       description: intl.formatMessage({
                         id: "dashboard_plugins_soon_body",
+                        defaultMessage:
+                          "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
                       }),
                     }
                   ),
@@ -198,6 +209,7 @@ function WorkspaceDashboard({
                 id={LEFT_SOURCES_ID}
                 aria-label={intl.formatMessage({
                   id: "dashboard_sources_aria",
+                  defaultMessage: "Workspace sources",
                 })}
                 className="flex h-full min-h-0 min-w-0 flex-col"
               >
@@ -333,10 +345,17 @@ function WorkspacesEmpty({
           <LayoutGridIcon className="size-5" />
         </div>
         <h1 className="font-heading text-xl font-medium">
-          {intl.formatMessage({ id: "dashboard_workspaces_empty" })}
+          {intl.formatMessage({
+            id: "dashboard_workspaces_empty",
+            defaultMessage: "No workspaces",
+          })}
         </h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          {intl.formatMessage({ id: "dashboard_workspaces_empty_body" })}
+          {intl.formatMessage({
+            id: "dashboard_workspaces_empty_body",
+            defaultMessage:
+              "A workspace keeps a source library and its chats together.",
+          })}
         </p>
         <Button
           className="mt-5"
@@ -345,12 +364,16 @@ function WorkspacesEmpty({
             void onCreate(
               intl.formatMessage({
                 id: "dashboard_workspaces_default_name_label",
+                defaultMessage: "My Workspace",
               })
             )
           }
         >
           <PlusIcon />
-          {intl.formatMessage({ id: "dashboard_workspaces_create_button" })}
+          {intl.formatMessage({
+            id: "dashboard_workspaces_create_button",
+            defaultMessage: "Create workspace",
+          })}
         </Button>
         <div className="mt-3">
           <ImportBundleButton onImported={onImported} />
@@ -482,7 +505,10 @@ export function DashboardPage({
         >
           <CircleAlertIcon />
           <AlertTitle>
-            {intl.formatMessage({ id: "dashboard_workspace_error_title" })}
+            {intl.formatMessage({
+              id: "dashboard_workspace_error_title",
+              defaultMessage: "Workspace action failed",
+            })}
           </AlertTitle>
           <AlertDescription>{workspaces.error}</AlertDescription>
           <Button
@@ -491,6 +517,7 @@ export function DashboardPage({
             className="absolute top-1 right-1"
             aria-label={intl.formatMessage({
               id: "dashboard_workspace_error_dismiss_aria",
+              defaultMessage: "Dismiss workspace error",
             })}
             onClick={workspaces.clearError}
           >

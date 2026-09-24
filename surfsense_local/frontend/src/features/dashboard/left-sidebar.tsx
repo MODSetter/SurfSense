@@ -89,12 +89,16 @@ export function LeftSidebar({
           <SidebarNavButton
             label={intl.formatMessage({
               id: "dashboard_sidebar_new_chat_button",
+              defaultMessage: "New chat",
             })}
             icon={PencilEdit02Icon}
             onClick={onNewChat}
           />
           <SidebarNavButton
-            label={intl.formatMessage({ id: "dashboard_sidebar_chats_button" })}
+            label={intl.formatMessage({
+              id: "dashboard_sidebar_chats_button",
+              defaultMessage: "Chats",
+            })}
             icon={Chat01Icon}
             onClick={() => setChatsOpen(true)}
           />

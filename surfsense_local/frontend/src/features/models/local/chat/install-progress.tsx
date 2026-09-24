@@ -19,7 +19,10 @@ export function InstallProgress({
     view.percent === null
       ? view.label
       : intl.formatMessage(
-          { id: "models_install_progress_announcement_status" },
+          {
+            id: "models_install_progress_announcement_status",
+            defaultMessage: "{label} {percent}%",
+          },
           {
             label: view.label,
             percent: view.percent,
@@ -47,7 +50,10 @@ export function InstallProgress({
         {view.percent === null ? null : (
           <span className="ml-auto tabular-nums">
             {intl.formatMessage(
-              { id: "models_install_progress_percent_status" },
+              {
+                id: "models_install_progress_percent_status",
+                defaultMessage: "{percent}%",
+              },
               {
                 percent: view.percent,
               }
@@ -58,7 +64,10 @@ export function InstallProgress({
       <div
         className="h-1.5 overflow-hidden rounded-full bg-muted"
         role="progressbar"
-        aria-label={intl.formatMessage({ id: "models_install_progress_aria" })}
+        aria-label={intl.formatMessage({
+          id: "models_install_progress_aria",
+          defaultMessage: "Model installation",
+        })}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={view.percent ?? undefined}
@@ -86,7 +95,10 @@ export function InstallProgress({
         className="self-start"
         onClick={onCancel}
       >
-        {intl.formatMessage({ id: "models_install_progress_cancel_button" })}
+        {intl.formatMessage({
+          id: "models_install_progress_cancel_button",
+          defaultMessage: "Cancel",
+        })}
       </Button>
       <span className="sr-only" aria-live="polite">
         {announcement}

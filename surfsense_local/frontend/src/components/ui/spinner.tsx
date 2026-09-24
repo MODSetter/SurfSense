@@ -10,7 +10,10 @@ function Spinner({
     <Loader2Icon
       data-slot="spinner"
       role="status"
-      aria-label={intl.formatMessage({ id: "app_spinner_aria" })}
+      aria-label={intl.formatMessage({
+        id: "app_spinner_aria",
+        defaultMessage: "Loading",
+      })}
       className={cn("size-4 animate-spin", className)}
       {...props}
     />

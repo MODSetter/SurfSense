@@ -51,7 +51,10 @@ export function describeInUse(
       name: selection.name,
       source:
         server?.label ??
-        intl.formatMessage({ id: "models_in_use_unknown_server_label" }),
+        intl.formatMessage({
+          id: "models_in_use_unknown_server_label",
+          defaultMessage: "A server",
+        }),
       where: "server",
     }
   }
@@ -59,12 +62,18 @@ export function describeInUse(
   return row
     ? {
         name: row.name,
-        source: intl.formatMessage({ id: "models_in_use_local_label" }),
+        source: intl.formatMessage({
+          id: "models_in_use_local_label",
+          defaultMessage: "This computer",
+        }),
         where: "local",
       }
     : {
         name: selection.name,
-        source: intl.formatMessage({ id: "models_in_use_missing_label" }),
+        source: intl.formatMessage({
+          id: "models_in_use_missing_label",
+          defaultMessage: "Not found on this computer",
+        }),
         where: "missing",
       }
 }

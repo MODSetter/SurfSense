@@ -17,7 +17,10 @@ export function ServerOption({
   const connected = connections.map((connection) => connection.label)
   return (
     <section
-      aria-label={intl.formatMessage({ id: "onboarding_server_option_aria" })}
+      aria-label={intl.formatMessage({
+        id: "onboarding_server_option_aria",
+        defaultMessage: "Use a server",
+      })}
       className="flex items-center justify-between gap-4 pb-1"
     >
       <div className="min-w-0">
@@ -26,13 +29,19 @@ export function ServerOption({
             aria-hidden="true"
             className="size-4 text-muted-foreground"
           />
-          {intl.formatMessage({ id: "onboarding_server_option_title" })}
+          {intl.formatMessage({
+            id: "onboarding_server_option_title",
+            defaultMessage: "Use a server",
+          })}
         </h3>
         {/* pl-6: the icon's 16px plus the 8px gap, so it lines up with the heading text. */}
         <p className="truncate pl-6 text-xs text-muted-foreground">
           {connected.length
             ? intl.formatMessage(
-                { id: "onboarding_server_option_connected_body" },
+                {
+                  id: "onboarding_server_option_connected_body",
+                  defaultMessage: "Connected: {servers}",
+                },
                 {
                   servers: intl.formatList(connected, {
                     type: "unit",
@@ -40,14 +49,22 @@ export function ServerOption({
                   }),
                 }
               )
-            : intl.formatMessage({ id: "onboarding_server_option_body" })}
+            : intl.formatMessage({
+                id: "onboarding_server_option_body",
+                defaultMessage:
+                  "vLLM, LM Studio, OpenRouter or any OpenAI-compatible API.",
+              })}
         </p>
       </div>
       <Button type="button" variant="outline" onClick={onOpen}>
         {connected.length
-          ? intl.formatMessage({ id: "onboarding_server_option_show_button" })
+          ? intl.formatMessage({
+              id: "onboarding_server_option_show_button",
+              defaultMessage: "Show servers",
+            })
           : intl.formatMessage({
               id: "onboarding_server_option_connect_button",
+              defaultMessage: "Connect",
             })}
       </Button>
     </section>

@@ -10,7 +10,10 @@ import { importBundle, type ImportAccepted } from "./api"
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "migration_unexpected_error" })
+    : intl.formatMessage({
+        id: "migration_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 export function ImportBundleButton({
@@ -46,7 +49,10 @@ export function ImportBundleButton({
         type="file"
         accept=".zip"
         className="sr-only"
-        aria-label={intl.formatMessage({ id: "migration_import_file_aria" })}
+        aria-label={intl.formatMessage({
+          id: "migration_import_file_aria",
+          defaultMessage: "Import from SurfSense cloud",
+        })}
         disabled={isImporting}
         onChange={importSelected}
       />
@@ -58,8 +64,14 @@ export function ImportBundleButton({
       >
         <Upload01Icon />
         {isImporting
-          ? intl.formatMessage({ id: "migration_import_importing_status" })
-          : intl.formatMessage({ id: "migration_import_upload_button" })}
+          ? intl.formatMessage({
+              id: "migration_import_importing_status",
+              defaultMessage: "Importing…",
+            })
+          : intl.formatMessage({
+              id: "migration_import_upload_button",
+              defaultMessage: "Upload",
+            })}
       </Button>
       {error ? (
         <p role="alert" className="text-sm text-destructive">

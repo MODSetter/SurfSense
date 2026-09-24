@@ -23,8 +23,15 @@ export function ChatModelsSettings({
 
   return (
     <ModelSlotSettings
-      title={intl.formatMessage({ id: "settings_chat_models_title" })}
-      description={intl.formatMessage({ id: "settings_chat_models_body" })}
+      title={intl.formatMessage({
+        id: "settings_chat_models_title",
+        defaultMessage: "Text generation models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_chat_models_body",
+        defaultMessage:
+          "The model that answers in chat. Run one on this computer, or use one from a server.",
+      })}
       slot="chat"
       modelType="text_gen"
       models={models}

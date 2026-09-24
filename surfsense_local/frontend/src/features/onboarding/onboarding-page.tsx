@@ -43,7 +43,10 @@ function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
     <Stepper
       value={step}
       aria-label={intl.formatMessage(
-        { id: "onboarding_progress_aria" },
+        {
+          id: "onboarding_progress_aria",
+          defaultMessage: "Onboarding step {step} of {total}",
+        },
         {
           step,
           total: STEPS.length,
@@ -59,7 +62,10 @@ function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
           >
             <span className="sr-only">
               {intl.formatMessage(
-                { id: "onboarding_progress_step_aria" },
+                {
+                  id: "onboarding_progress_step_aria",
+                  defaultMessage: "Step {step}",
+                },
                 { step: index + 1 }
               )}
             </span>
@@ -128,18 +134,29 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
     <div className="text-center">
       <h1 className="relative -top-10 text-[clamp(2.25rem,6vw,3.75rem)] leading-[1.05] font-semibold tracking-[-0.03em] text-balance">
         {intl.formatMessage(
-          { id: "onboarding_welcome_title" },
+          {
+            id: "onboarding_welcome_title",
+            defaultMessage:
+              "Air-gapped, open source <accent>NotebookLM alternative</accent>",
+          },
           {
             accent: (chunks) => <span className="text-primary">{chunks}</span>,
           }
         )}
       </h1>
       <p className="mx-auto mt-8 max-w-2xl text-[clamp(1rem,1.6vw,1.25rem)] leading-[1.6] text-pretty text-muted-foreground">
-        {intl.formatMessage({ id: "onboarding_welcome_body" })}
+        {intl.formatMessage({
+          id: "onboarding_welcome_body",
+          defaultMessage:
+            "A private research notebook that runs entirely on your own machine. Your documents, your model keys, no cloud, no account.",
+        })}
       </p>
       <div className="mt-10 flex justify-center">
         <FlowButton
-          text={intl.formatMessage({ id: "onboarding_welcome_start_button" })}
+          text={intl.formatMessage({
+            id: "onboarding_welcome_start_button",
+            defaultMessage: "Start setting up",
+          })}
           onClick={onNext}
         />
       </div>
@@ -161,6 +178,7 @@ function AudioStep({
       modelType="audio_gen"
       nextLabel={intl.formatMessage({
         id: "onboarding_audio_step_finish_button",
+        defaultMessage: "Finish",
       })}
       finishing={finishing}
       error={error}
@@ -201,6 +219,7 @@ export function OnboardingPage({
               modelType="text_gen"
               nextLabel={intl.formatMessage({
                 id: "onboarding_chat_step_continue_button",
+                defaultMessage: "Continue",
               })}
               onNext={() => setScreen("image")}
             />
@@ -211,6 +230,7 @@ export function OnboardingPage({
               modelType="image_gen"
               nextLabel={intl.formatMessage({
                 id: "onboarding_image_step_continue_button",
+                defaultMessage: "Continue",
               })}
               onBack={() => setScreen("chat")}
               onNext={() => setScreen("audio")}

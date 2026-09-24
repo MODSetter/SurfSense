@@ -24,43 +24,89 @@ const STYLE_LABELS: Record<PodcastStyle, () => string> = {
   conversational: () =>
     intl.formatMessage({
       id: "studio_podcast_brief_style_conversational_label",
+      defaultMessage: "Conversational",
     }),
   interview: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_style_interview_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_interview_label",
+      defaultMessage: "Interview",
+    }),
   debate: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_style_debate_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_debate_label",
+      defaultMessage: "Debate",
+    }),
   monologue: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_style_monologue_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_monologue_label",
+      defaultMessage: "Monologue",
+    }),
   narrative: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_style_narrative_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_narrative_label",
+      defaultMessage: "Narrative",
+    }),
 }
 const DURATION_LABELS: Record<PodcastDuration, () => string> = {
   short: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_length_short_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_short_label",
+      defaultMessage: "Short",
+    }),
   standard: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_length_standard_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_standard_label",
+      defaultMessage: "Standard",
+    }),
   long: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_length_long_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_long_label",
+      defaultMessage: "Long",
+    }),
 }
 const DURATION_HINTS: Record<PodcastDuration, () => string> = {
   short: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_length_short_body" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_short_body",
+      defaultMessage: "~3 min",
+    }),
   standard: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_length_standard_body" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_standard_body",
+      defaultMessage: "~8 min",
+    }),
   long: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_length_long_body" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_long_body",
+      defaultMessage: "~15 min",
+    }),
 }
 const ROLE_LABELS: Record<PodcastRole, () => string> = {
   host: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_role_host_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_host_label",
+      defaultMessage: "Host",
+    }),
   cohost: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_role_cohost_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_cohost_label",
+      defaultMessage: "Co-host",
+    }),
   guest: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_role_guest_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_guest_label",
+      defaultMessage: "Guest",
+    }),
   expert: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_role_expert_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_expert_label",
+      defaultMessage: "Expert",
+    }),
   narrator: () =>
-    intl.formatMessage({ id: "studio_podcast_brief_role_narrator_label" }),
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_narrator_label",
+      defaultMessage: "Narrator",
+    }),
 }
 // Roles by slot when a speaker is added without a say from the user.
 const ROLE_BY_SLOT = ["host", "guest", "expert", "cohost", "narrator"] as const
@@ -143,6 +189,7 @@ export function PodcastBriefForm({
         <Field
           label={intl.formatMessage({
             id: "studio_podcast_brief_language_label",
+            defaultMessage: "Language",
           })}
           htmlFor={`${id}-language`}
         >
@@ -160,7 +207,10 @@ export function PodcastBriefForm({
           </Select>
         </Field>
         <Field
-          label={intl.formatMessage({ id: "studio_podcast_brief_style_label" })}
+          label={intl.formatMessage({
+            id: "studio_podcast_brief_style_label",
+            defaultMessage: "Style",
+          })}
           htmlFor={`${id}-style`}
         >
           <Select
@@ -181,7 +231,10 @@ export function PodcastBriefForm({
 
       <div className="space-y-1">
         <p className="text-xs font-medium text-muted-foreground">
-          {intl.formatMessage({ id: "studio_podcast_brief_length_label" })}
+          {intl.formatMessage({
+            id: "studio_podcast_brief_length_label",
+            defaultMessage: "Length",
+          })}
         </p>
         <div className="grid grid-cols-3 gap-1.5">
           {PODCAST_DURATIONS.map((duration) => (
@@ -207,7 +260,10 @@ export function PodcastBriefForm({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <p className="text-xs font-medium text-muted-foreground">
-            {intl.formatMessage({ id: "studio_podcast_brief_speakers_label" })}
+            {intl.formatMessage({
+              id: "studio_podcast_brief_speakers_label",
+              defaultMessage: "Speakers",
+            })}
           </p>
           <Button
             type="button"
@@ -219,6 +275,7 @@ export function PodcastBriefForm({
             <PlusIcon data-icon="inline-start" />
             {intl.formatMessage({
               id: "studio_podcast_brief_add_speaker_button",
+              defaultMessage: "Add speaker",
             })}
           </Button>
         </div>
@@ -226,7 +283,10 @@ export function PodcastBriefForm({
           <fieldset
             key={index}
             aria-label={intl.formatMessage(
-              { id: "studio_podcast_brief_speaker_aria" },
+              {
+                id: "studio_podcast_brief_speaker_aria",
+                defaultMessage: "Speaker {number}",
+              },
               {
                 number: String(index + 1),
               }
@@ -236,6 +296,7 @@ export function PodcastBriefForm({
             <Input
               aria-label={intl.formatMessage({
                 id: "studio_podcast_brief_speaker_name_aria",
+                defaultMessage: "Name",
               })}
               className="select-text"
               value={speaker.name}
@@ -247,6 +308,7 @@ export function PodcastBriefForm({
             <Select
               aria-label={intl.formatMessage({
                 id: "studio_podcast_brief_speaker_role_aria",
+                defaultMessage: "Role",
               })}
               value={speaker.role}
               onChange={(event) =>
@@ -264,6 +326,7 @@ export function PodcastBriefForm({
             <Select
               aria-label={intl.formatMessage({
                 id: "studio_podcast_brief_speaker_voice_aria",
+                defaultMessage: "Voice",
               })}
               value={speaker.voice}
               onChange={(event) =>
@@ -286,7 +349,10 @@ export function PodcastBriefForm({
                 variant="destructive"
                 size="icon-xs"
                 aria-label={intl.formatMessage(
-                  { id: "studio_podcast_brief_remove_speaker_aria" },
+                  {
+                    id: "studio_podcast_brief_remove_speaker_aria",
+                    defaultMessage: "Remove speaker {number}",
+                  },
                   {
                     number: String(index + 1),
                   }

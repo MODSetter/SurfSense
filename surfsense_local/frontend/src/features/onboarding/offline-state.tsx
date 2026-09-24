@@ -7,11 +7,19 @@ export function OfflineState({ message }: { message: string }) {
     <Alert variant="destructive">
       <CircleAlertIcon />
       <AlertTitle>
-        {intl.formatMessage({ id: "onboarding_offline_title" })}
+        {intl.formatMessage({
+          id: "onboarding_offline_title",
+          defaultMessage: "Local backend unavailable",
+        })}
       </AlertTitle>
       <AlertDescription>
         <p>{message}</p>
-        <p>{intl.formatMessage({ id: "onboarding_offline_start_body" })}</p>
+        <p>
+          {intl.formatMessage({
+            id: "onboarding_offline_start_body",
+            defaultMessage: "Start it with this command:",
+          })}
+        </p>
         <code>uv run main.py</code>
       </AlertDescription>
     </Alert>

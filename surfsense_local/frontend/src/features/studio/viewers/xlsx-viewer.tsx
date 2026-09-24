@@ -53,7 +53,10 @@ function SpreadsheetGrid({ sheet }: { sheet: SheetView }) {
   return (
     <DataGrid
       aria-label={intl.formatMessage(
-        { id: "studio_xlsx_viewer_sheet_aria" },
+        {
+          id: "studio_xlsx_viewer_sheet_aria",
+          defaultMessage: "{name} worksheet",
+        },
         { name: sheet.name }
       )}
       className="rdg-light h-full"
@@ -68,11 +71,23 @@ function SpreadsheetGrid({ sheet }: { sheet: SheetView }) {
 function fallbackMessage(error: unknown): string {
   if (error instanceof ParseWorkbookError) {
     if (error.code === "oversize") {
-      return intl.formatMessage({ id: "studio_xlsx_viewer_oversize_error" })
+      return intl.formatMessage({
+        id: "studio_xlsx_viewer_oversize_error",
+        defaultMessage:
+          "This workbook is too large to preview here. Download it to open it.",
+      })
     }
-    return intl.formatMessage({ id: "studio_xlsx_viewer_unreadable_error" })
+    return intl.formatMessage({
+      id: "studio_xlsx_viewer_unreadable_error",
+      defaultMessage:
+        "This workbook could not be opened. Download it to open it.",
+    })
   }
-  return intl.formatMessage({ id: "studio_xlsx_viewer_load_error" })
+  return intl.formatMessage({
+    id: "studio_xlsx_viewer_load_error",
+    defaultMessage:
+      "This spreadsheet can’t be previewed here. Download it to open it.",
+  })
 }
 
 export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
@@ -128,7 +143,10 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
         <FileIcon className="size-8 text-muted-foreground" />
         <div>
           <p className="text-sm font-medium">
-            {intl.formatMessage({ id: "studio_xlsx_viewer_error_title" })}
+            {intl.formatMessage({
+              id: "studio_xlsx_viewer_error_title",
+              defaultMessage: "Couldn’t open this spreadsheet",
+            })}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {fallbackMessage(error)}
@@ -142,7 +160,10 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
             size="sm"
             onClick={() => void refetch()}
           >
-            {intl.formatMessage({ id: "studio_xlsx_viewer_retry_button" })}
+            {intl.formatMessage({
+              id: "studio_xlsx_viewer_retry_button",
+              defaultMessage: "Try again",
+            })}
           </Button>
         ) : null}
       </div>
@@ -158,6 +179,7 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
           role="tablist"
           aria-label={intl.formatMessage({
             id: "studio_xlsx_viewer_tabs_aria",
+            defaultMessage: "Worksheets",
           })}
           className="flex shrink-0 gap-1 overflow-x-auto border-b border-neutral-200 px-2 py-1.5"
         >
@@ -183,7 +205,11 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
       {sheet.truncated ? (
         <p className="shrink-0 border-b border-neutral-200 px-3 py-1.5 text-xs text-neutral-500">
           {intl.formatMessage(
-            { id: "studio_xlsx_viewer_truncated_body" },
+            {
+              id: "studio_xlsx_viewer_truncated_body",
+              defaultMessage:
+                "Showing the first {count, plural, one {# row} other {# rows}}. Download the file for the full workbook.",
+            },
             {
               count: sheet.cells.length,
             }

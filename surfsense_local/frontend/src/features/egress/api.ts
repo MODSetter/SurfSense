@@ -31,10 +31,20 @@ export function setDestinationEnabled(
 export function describeDestination(destination: string, host: string) {
   if (destination === "app_updates") {
     return {
-      label: intl.formatMessage({ id: "egress_app_updates_label" }),
-      title: intl.formatMessage({ id: "egress_app_updates_prompt_title" }),
+      label: intl.formatMessage({
+        id: "egress_app_updates_label",
+        defaultMessage: "App updates",
+      }),
+      title: intl.formatMessage({
+        id: "egress_app_updates_prompt_title",
+        defaultMessage: "Allow SurfSense to check for updates?",
+      }),
       body: intl.formatMessage(
-        { id: "egress_app_updates_prompt_body" },
+        {
+          id: "egress_app_updates_prompt_body",
+          defaultMessage:
+            "Checking asks {host} for the latest release. SurfSense sends your IP address and the version you are running, nothing else. Allowing also turns on the check at launch, which you can switch off in Settings › Network.",
+        },
         { host }
       ),
     }
@@ -44,10 +54,20 @@ export function describeDestination(destination: string, host: string) {
   // widest of them and is stated first: it sends text as it is typed.
   if (destination === HUGGINGFACE) {
     return {
-      label: intl.formatMessage({ id: "egress_huggingface_label" }),
-      title: intl.formatMessage({ id: "egress_huggingface_prompt_title" }),
+      label: intl.formatMessage({
+        id: "egress_huggingface_label",
+        defaultMessage: "Model search and downloads",
+      }),
+      title: intl.formatMessage({
+        id: "egress_huggingface_prompt_title",
+        defaultMessage: "Allow searching and downloading models?",
+      }),
       body: intl.formatMessage(
-        { id: "egress_huggingface_prompt_body" },
+        {
+          id: "egress_huggingface_prompt_body",
+          defaultMessage:
+            "Searching sends what you type to {host} as you type it. Downloading sends the name of the model you chose. Both send your IP address, and neither sends your chats or your documents.",
+        },
         { host }
       ),
     }
@@ -55,9 +75,19 @@ export function describeDestination(destination: string, host: string) {
   return {
     label: host,
     title: intl.formatMessage(
-      { id: "egress_connection_prompt_title" },
+      {
+        id: "egress_connection_prompt_title",
+        defaultMessage: "Allow sending data to {host}?",
+      },
       { host }
     ),
-    body: intl.formatMessage({ id: "egress_connection_prompt_body" }, { host }),
+    body: intl.formatMessage(
+      {
+        id: "egress_connection_prompt_body",
+        defaultMessage:
+          "Chats using this connection send your prompts and excerpts of your documents to {host}. You can turn this off any time in Settings › Network.",
+      },
+      { host }
+    ),
   }
 }

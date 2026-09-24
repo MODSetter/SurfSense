@@ -50,10 +50,17 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
         <FileIcon className="size-8 text-muted-foreground" />
         <div>
           <p className="text-sm font-medium">
-            {intl.formatMessage({ id: "studio_html_viewer_error_title" })}
+            {intl.formatMessage({
+              id: "studio_html_viewer_error_title",
+              defaultMessage: "Couldn’t open this page",
+            })}
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            {intl.formatMessage({ id: "studio_html_viewer_error_body" })}
+            {intl.formatMessage({
+              id: "studio_html_viewer_error_body",
+              defaultMessage:
+                "This page can’t be previewed here. Download it to open it.",
+            })}
           </p>
         </div>
         <Button
@@ -62,7 +69,10 @@ export function HtmlViewer({ artifact }: { artifact: ArtifactDetail }) {
           size="sm"
           onClick={() => void refetch()}
         >
-          {intl.formatMessage({ id: "studio_html_viewer_retry_button" })}
+          {intl.formatMessage({
+            id: "studio_html_viewer_retry_button",
+            defaultMessage: "Try again",
+          })}
         </Button>
       </div>
     )

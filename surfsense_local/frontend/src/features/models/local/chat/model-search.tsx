@@ -43,7 +43,10 @@ const formatDownloads = (count: number) =>
 /** What a row says about a repo, in the order it is said. */
 const describe = (hit: SearchRow) => [
   intl.formatMessage(
-    { id: "models_search_downloads_label" },
+    {
+      id: "models_search_downloads_label",
+      defaultMessage: "{downloads} downloads",
+    },
     {
       downloads: formatDownloads(hit.downloads),
     }
@@ -79,14 +82,20 @@ function RepoBuilds({
     return (
       <p className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
         <Spinner className="size-3" />
-        {intl.formatMessage({ id: "models_search_builds_loading_status" })}
+        {intl.formatMessage({
+          id: "models_search_builds_loading_status",
+          defaultMessage: "Listing this model’s builds",
+        })}
       </p>
     )
   }
   if (detail.isError || !detail.data) {
     return (
       <p className="px-3 py-2 text-xs text-destructive">
-        {intl.formatMessage({ id: "models_search_builds_error" })}
+        {intl.formatMessage({
+          id: "models_search_builds_error",
+          defaultMessage: "Could not list this model’s builds.",
+        })}
       </p>
     )
   }
@@ -95,7 +104,10 @@ function RepoBuilds({
   if (row.builds.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-muted-foreground">
-        {intl.formatMessage({ id: "models_search_builds_empty" })}
+        {intl.formatMessage({
+          id: "models_search_builds_empty",
+          defaultMessage: "This repo has no build SurfSense can run.",
+        })}
       </p>
     )
   }
@@ -104,13 +116,20 @@ function RepoBuilds({
     <>
       <p className="px-3 pt-2 text-xs text-muted-foreground">
         {row.runnable
-          ? intl.formatMessage({ id: "models_search_builds_body" })
+          ? intl.formatMessage({
+              id: "models_search_builds_body",
+              defaultMessage:
+                "Sizes are exact. Fit is estimated and checked before download.",
+            })
           : row.not_runnable_reason}
       </p>
       <ul
         className="flex flex-col divide-y"
         aria-label={intl.formatMessage(
-          { id: "models_search_builds_aria" },
+          {
+            id: "models_search_builds_aria",
+            defaultMessage: "Builds in {repo}",
+          },
           { repo }
         )}
       >
@@ -210,10 +229,17 @@ export function ModelSearch({
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id={headingId} className="font-heading text-sm font-medium">
-            {intl.formatMessage({ id: "models_search_title" })}
+            {intl.formatMessage({
+              id: "models_search_title",
+              defaultMessage: "All models",
+            })}
           </h2>
           <p className="text-xs text-muted-foreground">
-            {intl.formatMessage({ id: "models_search_body" })}
+            {intl.formatMessage({
+              id: "models_search_body",
+              defaultMessage:
+                "The wider Hugging Face catalog, not reviewed by us. Ordered by downloads.",
+            })}
           </p>
         </div>
         <div className="relative w-full max-w-[14rem] sm:w-auto">
@@ -224,8 +250,12 @@ export function ModelSearch({
             value={query}
             placeholder={intl.formatMessage({
               id: "models_search_placeholder",
+              defaultMessage: "Search all models",
             })}
-            aria-label={intl.formatMessage({ id: "models_search_aria" })}
+            aria-label={intl.formatMessage({
+              id: "models_search_aria",
+              defaultMessage: "Search all models",
+            })}
             className="h-8 border-0 bg-secondary pl-8 text-sm focus-visible:border-0"
             onFocus={() => setReached(true)}
             onChange={(event) => setQuery(event.target.value)}
@@ -239,21 +269,34 @@ export function ModelSearch({
       <div data-slot="search-results" className={RESERVED}>
         {trimmed.length <= 1 ? (
           <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            {intl.formatMessage({ id: "models_search_prompt_empty" })}
+            {intl.formatMessage({
+              id: "models_search_prompt_empty",
+              defaultMessage: "Type to find a model on Hugging Face.",
+            })}
           </p>
         ) : results.isPending ? (
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
             <Spinner className="size-3" />
-            {intl.formatMessage({ id: "models_search_searching_status" })}
+            {intl.formatMessage({
+              id: "models_search_searching_status",
+              defaultMessage: "Searching",
+            })}
           </p>
         ) : results.isError ? (
           <p className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-            {intl.formatMessage({ id: "models_search_unreachable_error" })}
+            {intl.formatMessage({
+              id: "models_search_unreachable_error",
+              defaultMessage:
+                "Searching needs access to huggingface.co, which is turned off or unreachable. Tested models and anything already installed still work.",
+            })}
           </p>
         ) : results.data.results.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             {intl.formatMessage(
-              { id: "models_search_no_results_empty" },
+              {
+                id: "models_search_no_results_empty",
+                defaultMessage: "No models match “{query}”.",
+              },
               { query: trimmed }
             )}
           </p>
@@ -268,6 +311,7 @@ export function ModelSearch({
               className="divide-y"
               aria-label={intl.formatMessage({
                 id: "models_search_results_aria",
+                defaultMessage: "Search results",
               })}
             >
               {results.data.results.map((hit) => {
@@ -290,6 +334,7 @@ export function ModelSearch({
                             <Badge variant="secondary">
                               {intl.formatMessage({
                                 id: "models_search_vision_label",
+                                defaultMessage: "Vision",
                               })}
                             </Badge>
                           ) : null}
@@ -297,6 +342,7 @@ export function ModelSearch({
                             <Badge variant="outline">
                               {intl.formatMessage({
                                 id: "models_search_gated_label",
+                                defaultMessage: "Needs an account",
                               })}
                             </Badge>
                           ) : null}

@@ -117,7 +117,10 @@ function SelectableSourceRow({
               <Checkbox
                 checked={selected}
                 aria-label={intl.formatMessage(
-                  { id: "sources_row_select_aria" },
+                  {
+                    id: "sources_row_select_aria",
+                    defaultMessage: "Select {title}",
+                  },
                   {
                     title: document.title,
                   }
@@ -132,7 +135,10 @@ function SelectableSourceRow({
               <Spinner
                 className="size-4.5 text-muted-foreground"
                 aria-label={intl.formatMessage(
-                  { id: "sources_row_processing_aria" },
+                  {
+                    id: "sources_row_processing_aria",
+                    defaultMessage: "Processing {title}",
+                  },
                   {
                     title: document.title,
                   }
@@ -149,13 +155,19 @@ function SelectableSourceRow({
                     aria-label={
                       cancelled
                         ? intl.formatMessage(
-                            { id: "sources_row_retry_cancelled_aria" },
+                            {
+                              id: "sources_row_retry_cancelled_aria",
+                              defaultMessage: "Cancelled. Retry {title}",
+                            },
                             {
                               title: document.title,
                             }
                           )
                         : intl.formatMessage(
-                            { id: "sources_row_retry_failed_aria" },
+                            {
+                              id: "sources_row_retry_failed_aria",
+                              defaultMessage: "Ingestion failed. Retry {title}",
+                            },
                             {
                               title: document.title,
                             }
@@ -172,9 +184,11 @@ function SelectableSourceRow({
                   {cancelled
                     ? intl.formatMessage({
                         id: "sources_row_retry_cancelled_tooltip",
+                        defaultMessage: "Cancelled. Retry again.",
                       })
                     : intl.formatMessage({
                         id: "sources_row_retry_failed_tooltip",
+                        defaultMessage: "Ingestion failed. Retry again.",
                       })}
                 </TooltipContent>
               </Tooltip>
@@ -200,7 +214,10 @@ function SelectableSourceRow({
                   variant="ghost"
                   className="size-6 shrink-0 opacity-0 group-hover/source:opacity-100 hover:bg-transparent focus-visible:opacity-100 active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
                   aria-label={intl.formatMessage(
-                    { id: "sources_row_actions_aria" },
+                    {
+                      id: "sources_row_actions_aria",
+                      defaultMessage: "Actions for {title}",
+                    },
                     {
                       title: document.title,
                     }
@@ -221,12 +238,14 @@ function SelectableSourceRow({
                         <ViewIcon />
                         {intl.formatMessage({
                           id: "sources_row_menu_open_label",
+                          defaultMessage: "Open",
                         })}
                       </DropdownMenuItem>
                       <DropdownMenuItem onSelect={onReveal}>
                         <FolderOpenIcon />
                         {intl.formatMessage({
                           id: "sources_row_menu_reveal_label",
+                          defaultMessage: "Show in folder",
                         })}
                       </DropdownMenuItem>
                     </>
@@ -243,9 +262,11 @@ function SelectableSourceRow({
                       {selected
                         ? intl.formatMessage({
                             id: "sources_row_menu_deselect_label",
+                            defaultMessage: "Deselect",
                           })
                         : intl.formatMessage({
                             id: "sources_row_menu_select_label",
+                            defaultMessage: "Select",
                           })}
                     </DropdownMenuItem>
                   ) : null}
@@ -254,6 +275,7 @@ function SelectableSourceRow({
                       <RefreshCwIcon />
                       {intl.formatMessage({
                         id: "sources_row_menu_retry_label",
+                        defaultMessage: "Retry",
                       })}
                     </DropdownMenuItem>
                   ) : null}
@@ -262,6 +284,7 @@ function SelectableSourceRow({
                       <CancelCircleHalfDotIcon />
                       {intl.formatMessage({
                         id: "sources_row_menu_cancel_label",
+                        defaultMessage: "Cancel",
                       })}
                     </DropdownMenuItem>
                   ) : null}
@@ -273,6 +296,7 @@ function SelectableSourceRow({
                     <Trash2Icon />
                     {intl.formatMessage({
                       id: "sources_row_menu_delete_label",
+                      defaultMessage: "Delete",
                     })}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
@@ -284,8 +308,14 @@ function SelectableSourceRow({
       <TooltipContent side="top" collisionPadding={8}>
         {document.error_message ??
           (cancelled
-            ? intl.formatMessage({ id: "sources_row_cancelled_status" })
-            : intl.formatMessage({ id: "sources_row_failed_status" }))}
+            ? intl.formatMessage({
+                id: "sources_row_cancelled_status",
+                defaultMessage: "Cancelled",
+              })
+            : intl.formatMessage({
+                id: "sources_row_failed_status",
+                defaultMessage: "Ingestion failed",
+              }))}
       </TooltipContent>
     </Tooltip>
   )
@@ -313,7 +343,10 @@ export function SourcesAddButton({
         multiple
         accept={SOURCE_FILE_ACCEPT}
         className="sr-only"
-        aria-label={intl.formatMessage({ id: "sources_add_file_aria" })}
+        aria-label={intl.formatMessage({
+          id: "sources_add_file_aria",
+          defaultMessage: "Upload source files",
+        })}
         disabled={isUploading}
         onChange={uploadSelectedFiles}
       />
@@ -325,8 +358,14 @@ export function SourcesAddButton({
       >
         {isUploading ? <Spinner /> : <FilePlus2Icon />}
         {isUploading
-          ? intl.formatMessage({ id: "sources_add_uploading_status" })
-          : intl.formatMessage({ id: "sources_add_button" })}
+          ? intl.formatMessage({
+              id: "sources_add_uploading_status",
+              defaultMessage: "Uploading...",
+            })
+          : intl.formatMessage({
+              id: "sources_add_button",
+              defaultMessage: "Add",
+            })}
       </Button>
     </>
   )
@@ -394,7 +433,10 @@ export function SourcesPanel({
         id="all-sources"
         className="px-1 text-sm font-medium text-muted-foreground"
       >
-        {intl.formatMessage({ id: "sources_list_title" })}
+        {intl.formatMessage({
+          id: "sources_list_title",
+          defaultMessage: "Sources",
+        })}
       </h3>
       <div className="flex items-center gap-1">
         {readyCount > 0 ? (
@@ -406,8 +448,14 @@ export function SourcesPanel({
             onClick={onToggleAll}
           >
             {allSelected
-              ? intl.formatMessage({ id: "sources_list_deselect_all_button" })
-              : intl.formatMessage({ id: "sources_list_select_all_button" })}
+              ? intl.formatMessage({
+                  id: "sources_list_deselect_all_button",
+                  defaultMessage: "Deselect all",
+                })
+              : intl.formatMessage({
+                  id: "sources_list_select_all_button",
+                  defaultMessage: "Select all",
+                })}
           </Button>
         ) : null}
         {addAction}
@@ -420,7 +468,10 @@ export function SourcesPanel({
       {error ? (
         <Alert variant="destructive">
           <AlertTitle>
-            {intl.formatMessage({ id: "sources_action_failed_title" })}
+            {intl.formatMessage({
+              id: "sources_action_failed_title",
+              defaultMessage: "Source action failed",
+            })}
           </AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
@@ -464,10 +515,17 @@ export function SourcesPanel({
                   <FilePlus2Icon />
                 </EmptyMedia>
                 <EmptyTitle>
-                  {intl.formatMessage({ id: "sources_list_empty" })}
+                  {intl.formatMessage({
+                    id: "sources_list_empty",
+                    defaultMessage: "No sources yet",
+                  })}
                 </EmptyTitle>
                 <EmptyDescription>
-                  {intl.formatMessage({ id: "sources_list_empty_body" })}
+                  {intl.formatMessage({
+                    id: "sources_list_empty_body",
+                    defaultMessage:
+                      "Files and notes added to this workspace will appear here.",
+                  })}
                 </EmptyDescription>
               </EmptyHeader>
             </Empty>
@@ -484,7 +542,11 @@ export function SourcesPanel({
           <AlertDialogHeader>
             <AlertDialogTitle>
               {intl.formatMessage(
-                { id: "sources_delete_dialog_title" },
+                {
+                  id: "sources_delete_dialog_title",
+                  defaultMessage:
+                    "Delete {count, plural, one {# source} other {# sources}}?",
+                },
                 { count: deleteCount }
               )}
             </AlertDialogTitle>
@@ -492,16 +554,24 @@ export function SourcesPanel({
               {deleteTarget === "selected"
                 ? intl.formatMessage({
                     id: "sources_delete_dialog_selected_body",
+                    defaultMessage:
+                      "This permanently deletes the selected sources and their indexed data.",
                   })
                 : deleteTarget
                   ? intl.formatMessage(
-                      { id: "sources_delete_dialog_named_body" },
+                      {
+                        id: "sources_delete_dialog_named_body",
+                        defaultMessage:
+                          "This permanently deletes {title} and its indexed data.",
+                      },
                       {
                         title: deleteTarget.title,
                       }
                     )
                   : intl.formatMessage({
                       id: "sources_delete_dialog_unnamed_body",
+                      defaultMessage:
+                        "This permanently deletes this source and its indexed data.",
                     })}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -509,6 +579,7 @@ export function SourcesPanel({
             <AlertDialogCancel>
               {intl.formatMessage({
                 id: "sources_delete_dialog_cancel_button",
+                defaultMessage: "Cancel",
               })}
             </AlertDialogCancel>
             <AlertDialogAction
@@ -519,7 +590,11 @@ export function SourcesPanel({
               }}
             >
               {intl.formatMessage(
-                { id: "sources_delete_dialog_confirm_button" },
+                {
+                  id: "sources_delete_dialog_confirm_button",
+                  defaultMessage:
+                    "Delete {count, plural, one {source} other {sources}}",
+                },
                 {
                   count: deleteCount,
                 }

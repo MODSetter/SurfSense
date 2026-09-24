@@ -39,7 +39,10 @@ export function ServerPath({
         />
       ) : (
         <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
-          {intl.formatMessage({ id: "onboarding_server_path_empty" })}
+          {intl.formatMessage({
+            id: "onboarding_server_path_empty",
+            defaultMessage: "No servers connected yet.",
+          })}
         </p>
       )}
       <Button
@@ -52,8 +55,12 @@ export function ServerPath({
         {servers.length
           ? intl.formatMessage({
               id: "onboarding_server_path_connect_another_button",
+              defaultMessage: "Connect another server",
             })
-          : intl.formatMessage({ id: "onboarding_server_path_connect_button" })}
+          : intl.formatMessage({
+              id: "onboarding_server_path_connect_button",
+              defaultMessage: "Connect a server",
+            })}
       </Button>
       <ConnectionDialog
         open={dialog !== null}

@@ -47,7 +47,11 @@ export function DocxViewer({
         if (primary.size_bytes > MAX_VIEWER_BYTES) {
           throw new Error(
             intl.formatMessage(
-              { id: "studio_docx_viewer_oversize_error" },
+              {
+                id: "studio_docx_viewer_oversize_error",
+                defaultMessage:
+                  "Document is too large to preview ({size} bytes)",
+              },
               {
                 size: String(primary.size_bytes),
               }
@@ -58,7 +62,10 @@ export function DocxViewer({
         if (!response.ok) {
           throw new Error(
             intl.formatMessage(
-              { id: "studio_docx_viewer_load_error" },
+              {
+                id: "studio_docx_viewer_load_error",
+                defaultMessage: "Could not load document ({status})",
+              },
               {
                 status: String(response.status),
               }
@@ -149,6 +156,7 @@ export function DocxViewer({
         size="icon-sm"
         aria-label={intl.formatMessage({
           id: "studio_docx_viewer_zoom_out_aria",
+          defaultMessage: "Zoom out",
         })}
         onClick={zoomOut}
       >
@@ -160,6 +168,7 @@ export function DocxViewer({
         size="icon-sm"
         aria-label={intl.formatMessage({
           id: "studio_docx_viewer_zoom_in_aria",
+          defaultMessage: "Zoom in",
         })}
         onClick={zoomIn}
       >
@@ -184,12 +193,19 @@ export function DocxViewer({
           <FileIcon className="size-8 text-muted-foreground" />
           <div>
             <p className="text-sm font-medium">
-              {intl.formatMessage({ id: "studio_docx_viewer_error_title" })}
+              {intl.formatMessage({
+                id: "studio_docx_viewer_error_title",
+                defaultMessage: "Couldn’t open this document",
+              })}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {error instanceof Error
                 ? error.message
-                : intl.formatMessage({ id: "studio_docx_viewer_error_body" })}
+                : intl.formatMessage({
+                    id: "studio_docx_viewer_error_body",
+                    defaultMessage:
+                      "This document can’t be previewed here. Download it to open it.",
+                  })}
             </p>
           </div>
           <Button
@@ -198,7 +214,10 @@ export function DocxViewer({
             size="sm"
             onClick={() => setRetryKey((key) => key + 1)}
           >
-            {intl.formatMessage({ id: "studio_docx_viewer_retry_button" })}
+            {intl.formatMessage({
+              id: "studio_docx_viewer_retry_button",
+              defaultMessage: "Try again",
+            })}
           </Button>
         </div>
       ) : null}

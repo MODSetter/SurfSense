@@ -33,7 +33,10 @@ export type ChatTurnError = {
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "chat_runtime_unexpected_error" })
+    : intl.formatMessage({
+        id: "chat_runtime_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 function isAbort(error: unknown) {
@@ -264,9 +267,15 @@ export function useChatRuntime({
         }
       }
     } catch (cause) {
-      toast.error(intl.formatMessage({ id: "chat_runtime_delete_toast" }), {
-        description: messageFrom(cause),
-      })
+      toast.error(
+        intl.formatMessage({
+          id: "chat_runtime_delete_toast",
+          defaultMessage: "Couldn’t delete chat",
+        }),
+        {
+          description: messageFrom(cause),
+        }
+      )
     }
   }
 
@@ -284,9 +293,15 @@ export function useChatRuntime({
       )
       return true
     } catch (cause) {
-      toast.error(intl.formatMessage({ id: "chat_runtime_rename_toast" }), {
-        description: messageFrom(cause),
-      })
+      toast.error(
+        intl.formatMessage({
+          id: "chat_runtime_rename_toast",
+          defaultMessage: "Couldn’t rename chat",
+        }),
+        {
+          description: messageFrom(cause),
+        }
+      )
       return false
     }
   }
@@ -579,7 +594,10 @@ export function useChatRuntime({
   useEffect(() => {
     if (threadsQuery.error) {
       toast.error(
-        intl.formatMessage({ id: "chat_runtime_load_threads_toast" }),
+        intl.formatMessage({
+          id: "chat_runtime_load_threads_toast",
+          defaultMessage: "Couldn’t load your chats",
+        }),
         {
           description: messageFrom(threadsQuery.error),
         }
@@ -590,7 +608,10 @@ export function useChatRuntime({
   useEffect(() => {
     if (messagesQuery.error) {
       toast.error(
-        intl.formatMessage({ id: "chat_runtime_load_messages_toast" }),
+        intl.formatMessage({
+          id: "chat_runtime_load_messages_toast",
+          defaultMessage: "Couldn’t load this chat",
+        }),
         {
           description: messageFrom(messagesQuery.error),
         }

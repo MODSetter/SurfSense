@@ -37,7 +37,10 @@ export function LanguageSelect(
       }}
     >
       <option value="system">
-        {intl.formatMessage({ id: "settings_general_language_system_label" })}
+        {intl.formatMessage({
+          id: "settings_general_language_system_label",
+          defaultMessage: "Match system",
+        })}
       </option>
       {LOCALES.map((locale) => (
         <option key={locale} value={locale}>

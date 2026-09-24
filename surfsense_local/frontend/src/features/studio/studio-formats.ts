@@ -41,20 +41,66 @@ export const FORMAT_ICONS: Record<
 
 // The backend's catalog sends English labels; a known key shows its own.
 const FORMAT_LABELS: Record<string, () => string> = {
-  summary: () => intl.formatMessage({ id: "studio_format_summary_label" }),
-  docx: () => intl.formatMessage({ id: "studio_format_docx_label" }),
-  pptx: () => intl.formatMessage({ id: "studio_format_pptx_label" }),
-  xlsx: () => intl.formatMessage({ id: "studio_format_xlsx_label" }),
-  html: () => intl.formatMessage({ id: "studio_format_html_label" }),
-  pdf: () => intl.formatMessage({ id: "studio_format_pdf_label" }),
-  mindmap: () => intl.formatMessage({ id: "studio_format_mindmap_label" }),
+  summary: () =>
+    intl.formatMessage({
+      id: "studio_format_summary_label",
+      defaultMessage: "Summary",
+    }),
+  docx: () =>
+    intl.formatMessage({
+      id: "studio_format_docx_label",
+      defaultMessage: "Word",
+    }),
+  pptx: () =>
+    intl.formatMessage({
+      id: "studio_format_pptx_label",
+      defaultMessage: "Slides",
+    }),
+  xlsx: () =>
+    intl.formatMessage({
+      id: "studio_format_xlsx_label",
+      defaultMessage: "Spreadsheet",
+    }),
+  html: () =>
+    intl.formatMessage({
+      id: "studio_format_html_label",
+      defaultMessage: "Web page",
+    }),
+  pdf: () =>
+    intl.formatMessage({
+      id: "studio_format_pdf_label",
+      defaultMessage: "PDF",
+    }),
+  mindmap: () =>
+    intl.formatMessage({
+      id: "studio_format_mindmap_label",
+      defaultMessage: "Mind map",
+    }),
   flashcards: () =>
-    intl.formatMessage({ id: "studio_format_flashcards_label" }),
-  quiz: () => intl.formatMessage({ id: "studio_format_quiz_label" }),
-  podcast: () => intl.formatMessage({ id: "studio_format_podcast_label" }),
-  image: () => intl.formatMessage({ id: "studio_format_image_label" }),
+    intl.formatMessage({
+      id: "studio_format_flashcards_label",
+      defaultMessage: "Flashcards",
+    }),
+  quiz: () =>
+    intl.formatMessage({
+      id: "studio_format_quiz_label",
+      defaultMessage: "Quiz",
+    }),
+  podcast: () =>
+    intl.formatMessage({
+      id: "studio_format_podcast_label",
+      defaultMessage: "Podcast",
+    }),
+  image: () =>
+    intl.formatMessage({
+      id: "studio_format_image_label",
+      defaultMessage: "Image",
+    }),
   infographic: () =>
-    intl.formatMessage({ id: "studio_format_infographic_label" }),
+    intl.formatMessage({
+      id: "studio_format_infographic_label",
+      defaultMessage: "Infographic",
+    }),
 }
 
 export function formatLabel(entry: { key: string; label: string }): string {

@@ -66,16 +66,29 @@ function GeneralSettings({
 }) {
   return (
     <SettingsSection
-      title={intl.formatMessage({ id: "settings_general_title" })}
-      description={intl.formatMessage({ id: "settings_general_body" })}
+      title={intl.formatMessage({
+        id: "settings_general_title",
+        defaultMessage: "General",
+      })}
+      description={intl.formatMessage({
+        id: "settings_general_body",
+        defaultMessage:
+          "Manage how SurfSense looks and behaves on this device.",
+      })}
     >
       <div className="flex items-center justify-between gap-8">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-medium">
-            {intl.formatMessage({ id: "settings_general_appearance_title" })}
+            {intl.formatMessage({
+              id: "settings_general_appearance_title",
+              defaultMessage: "Appearance",
+            })}
           </h3>
           <p className="text-sm text-pretty text-muted-foreground">
-            {intl.formatMessage({ id: "settings_general_appearance_body" })}
+            {intl.formatMessage({
+              id: "settings_general_appearance_body",
+              defaultMessage: "Choose how SurfSense looks on this device.",
+            })}
           </p>
         </div>
         <AppearanceToggle />
@@ -83,10 +96,17 @@ function GeneralSettings({
       <div className="mt-8 flex items-center justify-between gap-8">
         <div className="flex flex-col gap-1">
           <h3 id="settings-general-language" className="text-sm font-medium">
-            {intl.formatMessage({ id: "settings_general_language_title" })}
+            {intl.formatMessage({
+              id: "settings_general_language_title",
+              defaultMessage: "Language",
+            })}
           </h3>
           <p className="text-sm text-pretty text-muted-foreground">
-            {intl.formatMessage({ id: "settings_general_language_body" })}
+            {intl.formatMessage({
+              id: "settings_general_language_body",
+              defaultMessage:
+                "Choose the language SurfSense uses on this device.",
+            })}
           </p>
         </div>
         <LanguageSelect
@@ -100,6 +120,7 @@ function GeneralSettings({
             <h3 className="text-sm font-medium text-balance">
               {intl.formatMessage({
                 id: "settings_general_cloud_import_title",
+                defaultMessage: "Import from SurfSense cloud",
               })}
             </h3>
             <Tooltip>
@@ -109,6 +130,7 @@ function GeneralSettings({
                   className="relative inline-flex size-5 items-center justify-center rounded-sm text-muted-foreground transition-colors duration-150 before:absolute before:inset-[-10px] hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
                   aria-label={intl.formatMessage({
                     id: "settings_general_cloud_import_info_aria",
+                    defaultMessage: "More about importing from SurfSense cloud",
                   })}
                 >
                   <InformationCircleIcon
@@ -124,12 +146,18 @@ function GeneralSettings({
               >
                 {intl.formatMessage({
                   id: "settings_general_cloud_import_tooltip",
+                  defaultMessage:
+                    "Your workspaces, folders, and chats come with it. Documents come in as text and get indexed after import. Original files and generated artifacts stay in the cloud.",
                 })}
               </TooltipContent>
             </Tooltip>
           </div>
           <p className="text-sm text-pretty text-muted-foreground">
-            {intl.formatMessage({ id: "settings_general_cloud_import_body" })}
+            {intl.formatMessage({
+              id: "settings_general_cloud_import_body",
+              defaultMessage:
+                "Upload the ZIP you exported from SurfSense cloud.",
+            })}
           </p>
           <a
             href={CLOUD_EXPORT_URL}
@@ -138,7 +166,10 @@ function GeneralSettings({
             onClick={openCloudExport}
             className="w-fit text-sm text-muted-foreground underline underline-offset-3 hover:text-foreground"
           >
-            {intl.formatMessage({ id: "settings_general_cloud_import_link" })}
+            {intl.formatMessage({
+              id: "settings_general_cloud_import_link",
+              defaultMessage: "Open SurfSense cloud",
+            })}
           </a>
         </div>
         <ImportBundleButton onImported={onImported} />
@@ -159,12 +190,36 @@ const SETTINGS_SECTIONS = [
 ] satisfies SettingsNavItem[]
 
 const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
-  general: () => intl.formatMessage({ id: "settings_nav_general_label" }),
-  "chat-models": () => intl.formatMessage({ id: "settings_nav_chat_label" }),
-  "image-models": () => intl.formatMessage({ id: "settings_nav_image_label" }),
-  "audio-models": () => intl.formatMessage({ id: "settings_nav_audio_label" }),
-  network: () => intl.formatMessage({ id: "settings_nav_network_label" }),
-  license: () => intl.formatMessage({ id: "settings_nav_license_label" }),
+  general: () =>
+    intl.formatMessage({
+      id: "settings_nav_general_label",
+      defaultMessage: "General",
+    }),
+  "chat-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_chat_label",
+      defaultMessage: "Chat",
+    }),
+  "image-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_image_label",
+      defaultMessage: "Image",
+    }),
+  "audio-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_audio_label",
+      defaultMessage: "Audio",
+    }),
+  network: () =>
+    intl.formatMessage({
+      id: "settings_nav_network_label",
+      defaultMessage: "Network",
+    }),
+  license: () =>
+    intl.formatMessage({
+      id: "settings_nav_license_label",
+      defaultMessage: "License",
+    }),
 }
 
 export function SettingsDialog({
@@ -193,21 +248,33 @@ export function SettingsDialog({
       <DialogContent className="h-[640px] min-h-0 w-[1000px] max-w-none gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-none">
         <DialogHeader className="sr-only">
           <DialogTitle>
-            {intl.formatMessage({ id: "settings_dialog_title" })}
+            {intl.formatMessage({
+              id: "settings_dialog_title",
+              defaultMessage: "Settings",
+            })}
           </DialogTitle>
           <DialogDescription>
-            {intl.formatMessage({ id: "settings_dialog_body" })}
+            {intl.formatMessage({
+              id: "settings_dialog_body",
+              defaultMessage: "Manage your SurfSense preferences.",
+            })}
           </DialogDescription>
         </DialogHeader>
 
         <div className="grid h-full min-h-0 grid-cols-[184px_minmax(0,1fr)]">
           <aside className="border-r bg-sidebar p-3 text-sidebar-foreground">
             <p className="px-2 pt-5 pb-3 text-xs font-medium text-muted-foreground">
-              {intl.formatMessage({ id: "settings_nav_title" })}
+              {intl.formatMessage({
+                id: "settings_nav_title",
+                defaultMessage: "Settings",
+              })}
             </p>
             <nav
               className="flex flex-col gap-1"
-              aria-label={intl.formatMessage({ id: "settings_nav_aria" })}
+              aria-label={intl.formatMessage({
+                id: "settings_nav_aria",
+                defaultMessage: "Settings sections",
+              })}
             >
               {SETTINGS_SECTIONS.map((section) => {
                 const Icon = section.icon

@@ -54,7 +54,10 @@ export function ChatErrorNotice({
             className="shrink-0 text-foreground"
             onClick={onModelSetup}
           >
-            {intl.formatMessage({ id: "chat_failed_reply_model_setup_button" })}
+            {intl.formatMessage({
+              id: "chat_failed_reply_model_setup_button",
+              defaultMessage: "Model setup",
+            })}
           </Button>
         ) : action === "retry" ? (
           <Button
@@ -63,7 +66,10 @@ export function ChatErrorNotice({
             className="shrink-0 text-foreground"
             onClick={() => onRetry(messageId)}
           >
-            {intl.formatMessage({ id: "chat_failed_reply_retry_button" })}
+            {intl.formatMessage({
+              id: "chat_failed_reply_retry_button",
+              defaultMessage: "Retry",
+            })}
           </Button>
         ) : null}
       </AlertDescription>

@@ -37,7 +37,10 @@ export function BuildAction({
   if (build.selected) {
     return (
       <Button type="button" size="sm" variant="outline" disabled>
-        {intl.formatMessage({ id: "models_build_action_in_use_button" })}
+        {intl.formatMessage({
+          id: "models_build_action_in_use_button",
+          defaultMessage: "In use",
+        })}
       </Button>
     )
   }
@@ -50,14 +53,20 @@ export function BuildAction({
       aria-label={
         installed
           ? intl.formatMessage(
-              { id: "models_build_action_use_aria" },
+              {
+                id: "models_build_action_use_aria",
+                defaultMessage: "Use {model} {quantization}",
+              },
               {
                 model: label,
                 quantization: build.quantization,
               }
             )
           : intl.formatMessage(
-              { id: "models_build_action_download_aria" },
+              {
+                id: "models_build_action_download_aria",
+                defaultMessage: "Download {model} {quantization}",
+              },
               {
                 model: label,
                 quantization: build.quantization,
@@ -79,8 +88,14 @@ export function BuildAction({
         <>
           {!installed ? <DownloadIcon data-icon="inline-start" /> : null}
           {installed
-            ? intl.formatMessage({ id: "models_build_action_use_button" })
-            : intl.formatMessage({ id: "models_build_action_download_button" })}
+            ? intl.formatMessage({
+                id: "models_build_action_use_button",
+                defaultMessage: "Use",
+              })
+            : intl.formatMessage({
+                id: "models_build_action_download_button",
+                defaultMessage: "Download",
+              })}
         </>
       )}
     </Button>

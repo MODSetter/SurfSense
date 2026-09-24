@@ -16,9 +16,15 @@ import { getArtifactViewer } from "./viewers/registry"
 
 const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
   primary: () =>
-    intl.formatMessage({ id: "studio_artifact_panel_download_aria" }),
+    intl.formatMessage({
+      id: "studio_artifact_panel_download_aria",
+      defaultMessage: "Download",
+    }),
   preview: () =>
-    intl.formatMessage({ id: "studio_artifact_panel_download_preview_aria" }),
+    intl.formatMessage({
+      id: "studio_artifact_panel_download_preview_aria",
+      defaultMessage: "Download preview",
+    }),
 }
 
 export function ArtifactPanel({
@@ -40,13 +46,23 @@ export function ArtifactPanel({
       title={
         data?.title ??
         (isLoading
-          ? intl.formatMessage({ id: "studio_artifact_panel_loading_status" })
-          : intl.formatMessage({ id: "studio_artifact_panel_title" }))
+          ? intl.formatMessage({
+              id: "studio_artifact_panel_loading_status",
+              defaultMessage: "Loading…",
+            })
+          : intl.formatMessage({
+              id: "studio_artifact_panel_title",
+              defaultMessage: "Artifact",
+            }))
       }
       titleClassName="select-none"
-      ariaLabel={intl.formatMessage({ id: "studio_artifact_panel_aria" })}
+      ariaLabel={intl.formatMessage({
+        id: "studio_artifact_panel_aria",
+        defaultMessage: "Artifact",
+      })}
       closeLabel={intl.formatMessage({
         id: "studio_artifact_panel_close_aria",
+        defaultMessage: "Close artifact",
       })}
       onClose={onClose}
       flush
@@ -98,6 +114,7 @@ export function ArtifactPanel({
                 ? error.message
                 : intl.formatMessage({
                     id: "studio_artifact_panel_load_error",
+                    defaultMessage: "Failed to load artifact",
                   })}
             </p>
           </div>

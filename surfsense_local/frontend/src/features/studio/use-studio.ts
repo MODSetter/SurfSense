@@ -22,7 +22,10 @@ function isAbort(error: unknown) {
 export function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "studio_request_unexpected_error" })
+    : intl.formatMessage({
+        id: "studio_request_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 function isRunning(artifact: Artifact) {
@@ -115,7 +118,10 @@ export function useStudio(workspaceId: number, selectionToken = "") {
             if (artifact.status === "ready") {
               toast.success(
                 intl.formatMessage(
-                  { id: "studio_artifact_ready_toast" },
+                  {
+                    id: "studio_artifact_ready_toast",
+                    defaultMessage: "{name} is ready",
+                  },
                   { name: artifact.title }
                 )
               )
@@ -124,12 +130,17 @@ export function useStudio(workspaceId: number, selectionToken = "") {
               // the row's own Ctrl/Cmd-hover tooltip, not a toast.
               toast.error(
                 intl.formatMessage(
-                  { id: "studio_artifact_failed_toast" },
+                  {
+                    id: "studio_artifact_failed_toast",
+                    defaultMessage: "{name} failed",
+                  },
                   { name: artifact.title }
                 ),
                 {
                   description: intl.formatMessage({
                     id: "studio_artifact_failed_toast_body",
+                    defaultMessage:
+                      "This artifact couldn’t be generated. Retry it from the artifacts tab.",
                   }),
                 }
               )

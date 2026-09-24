@@ -11,7 +11,10 @@ import { ServerModels } from "./server-models"
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_server_picker_load_error" })
+    : intl.formatMessage({
+        id: "models_server_picker_load_error",
+        defaultMessage: "Could not load servers",
+      })
 }
 
 /**
@@ -41,7 +44,10 @@ export function ServerModelPicker({
       <Alert variant="destructive">
         <CircleAlertIcon />
         <AlertTitle>
-          {intl.formatMessage({ id: "models_server_picker_load_error_title" })}
+          {intl.formatMessage({
+            id: "models_server_picker_load_error_title",
+            defaultMessage: "Could not load servers",
+          })}
         </AlertTitle>
         <AlertDescription>{messageFrom(connections.error)}</AlertDescription>
       </Alert>

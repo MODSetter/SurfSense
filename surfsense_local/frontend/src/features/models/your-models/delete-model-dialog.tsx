@@ -37,20 +37,34 @@ export function DeleteModelDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>
             {intl.formatMessage(
-              { id: "models_delete_dialog_title" },
+              {
+                id: "models_delete_dialog_title",
+                defaultMessage: "Delete {model}?",
+              },
               { model: row?.name ?? "" }
             )}
           </AlertDialogTitle>
           <AlertDialogDescription>
             {row?.selected
-              ? intl.formatMessage({ id: "models_delete_dialog_in_use_body" })
-              : intl.formatMessage({ id: "models_delete_dialog_body" })}
+              ? intl.formatMessage({
+                  id: "models_delete_dialog_in_use_body",
+                  defaultMessage:
+                    "This is your current model. Deleting it will require you to choose another model.",
+                })
+              : intl.formatMessage({
+                  id: "models_delete_dialog_body",
+                  defaultMessage:
+                    "This permanently removes the model and its downloaded data from this computer.",
+                })}
           </AlertDialogDescription>
         </AlertDialogHeader>
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>
-            {intl.formatMessage({ id: "models_delete_dialog_cancel_button" })}
+            {intl.formatMessage({
+              id: "models_delete_dialog_cancel_button",
+              defaultMessage: "Cancel",
+            })}
           </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
@@ -64,9 +78,11 @@ export function DeleteModelDialog({
             {pending
               ? intl.formatMessage({
                   id: "models_delete_dialog_deleting_status",
+                  defaultMessage: "Deleting…",
                 })
               : intl.formatMessage({
                   id: "models_delete_dialog_confirm_button",
+                  defaultMessage: "Delete model",
                 })}
           </AlertDialogAction>
         </AlertDialogFooter>

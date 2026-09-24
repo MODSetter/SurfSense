@@ -46,25 +46,64 @@ const COPY: Record<
   }
 > = {
   text_gen: {
-    title: () => intl.formatMessage({ id: "onboarding_chat_step_title" }),
-    description: () => intl.formatMessage({ id: "onboarding_chat_step_body" }),
+    title: () =>
+      intl.formatMessage({
+        id: "onboarding_chat_step_title",
+        defaultMessage: "Choose a chat model",
+      }),
+    description: () =>
+      intl.formatMessage({
+        id: "onboarding_chat_step_body",
+        defaultMessage:
+          "Answers you in chat. Run one on this computer so your chats stay private, or use one from a server.",
+      }),
     noLocal: () =>
-      intl.formatMessage({ id: "onboarding_chat_step_no_local_empty" }),
+      intl.formatMessage({
+        id: "onboarding_chat_step_no_local_empty",
+        defaultMessage:
+          "No tested model can run on this computer. Use a server instead.",
+      }),
     searchable: true,
   },
   image_gen: {
-    title: () => intl.formatMessage({ id: "onboarding_image_step_title" }),
-    description: () => intl.formatMessage({ id: "onboarding_image_step_body" }),
+    title: () =>
+      intl.formatMessage({
+        id: "onboarding_image_step_title",
+        defaultMessage: "Choose an image model",
+      }),
+    description: () =>
+      intl.formatMessage({
+        id: "onboarding_image_step_body",
+        defaultMessage:
+          "Lets Studio create images. Run one on this computer, or use one from a server.",
+      }),
     noLocal: () =>
-      intl.formatMessage({ id: "onboarding_image_step_no_local_empty" }),
+      intl.formatMessage({
+        id: "onboarding_image_step_no_local_empty",
+        defaultMessage:
+          "Image models cannot run on this computer. Use a server instead.",
+      }),
     // sd.cpp has no search: its models are the few the catalog ships.
     searchable: false,
   },
   audio_gen: {
-    title: () => intl.formatMessage({ id: "onboarding_audio_step_title" }),
-    description: () => intl.formatMessage({ id: "onboarding_audio_step_body" }),
+    title: () =>
+      intl.formatMessage({
+        id: "onboarding_audio_step_title",
+        defaultMessage: "Choose an audio model",
+      }),
+    description: () =>
+      intl.formatMessage({
+        id: "onboarding_audio_step_body",
+        defaultMessage:
+          "Lets Studio create podcasts. Run one on this computer, or use one from a server.",
+      }),
     noLocal: () =>
-      intl.formatMessage({ id: "onboarding_audio_step_no_local_empty" }),
+      intl.formatMessage({
+        id: "onboarding_audio_step_no_local_empty",
+        defaultMessage:
+          "Audio models cannot run on this computer. Use a server instead.",
+      }),
     // Nor has audio.cpp.
     searchable: false,
   },
@@ -171,7 +210,10 @@ export function ModelStep({
         setDeleteError(
           cause instanceof Error
             ? cause.message
-            : intl.formatMessage({ id: "onboarding_model_step_delete_error" })
+            : intl.formatMessage({
+                id: "onboarding_model_step_delete_error",
+                defaultMessage: "Could not delete the model",
+              })
         )
       )
   }
@@ -192,6 +234,7 @@ export function ModelStep({
           className="flex flex-col gap-3"
           aria-label={intl.formatMessage({
             id: "onboarding_model_step_local_aria",
+            defaultMessage: "On this computer",
           })}
         >
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
@@ -200,7 +243,10 @@ export function ModelStep({
                 aria-hidden="true"
                 className="size-4 text-muted-foreground"
               />
-              {intl.formatMessage({ id: "onboarding_model_step_local_title" })}
+              {intl.formatMessage({
+                id: "onboarding_model_step_local_title",
+                defaultMessage: "On this computer",
+              })}
             </h3>
             {models.hardware ? (
               <p className="flex items-center text-xs text-muted-foreground">
@@ -266,6 +312,7 @@ export function ModelStep({
             <Badge variant="secondary">
               {intl.formatMessage({
                 id: "onboarding_model_step_optional_label",
+                defaultMessage: "Optional",
               })}
             </Badge>
           </CardAction>
@@ -285,6 +332,7 @@ export function ModelStep({
               <ArrowLeftIcon data-icon="inline-start" />
               {intl.formatMessage({
                 id: "onboarding_model_step_back_to_models_button",
+                defaultMessage: "Back to models",
               })}
             </Button>
           </div>
@@ -313,7 +361,10 @@ export function ModelStep({
       <CardFooter className="justify-between gap-3 border-t py-4">
         {onBack ? (
           <Button type="button" variant="ghost" onClick={onBack}>
-            {intl.formatMessage({ id: "onboarding_model_step_back_button" })}
+            {intl.formatMessage({
+              id: "onboarding_model_step_back_button",
+              defaultMessage: "Back",
+            })}
           </Button>
         ) : null}
         <div className="ml-auto flex min-w-0 items-center gap-2">
@@ -330,7 +381,10 @@ export function ModelStep({
               disabled={finishing}
               onClick={onSkip}
             >
-              {intl.formatMessage({ id: "onboarding_model_step_skip_button" })}
+              {intl.formatMessage({
+                id: "onboarding_model_step_skip_button",
+                defaultMessage: "Skip",
+              })}
             </Button>
           ) : null}
           <Button

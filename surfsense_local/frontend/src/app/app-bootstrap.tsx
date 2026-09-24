@@ -34,7 +34,10 @@ type BootstrapState =
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "app_bootstrap_unexpected_error" })
+    : intl.formatMessage({
+        id: "app_bootstrap_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 async function fetchBootstrapState(): Promise<BootstrapState> {
@@ -89,7 +92,10 @@ function GlobalLoader() {
     <main
       className="flex h-full items-center justify-center bg-app-shell select-none"
       role="status"
-      aria-label={intl.formatMessage({ id: "app_bootstrap_loader_aria" })}
+      aria-label={intl.formatMessage({
+        id: "app_bootstrap_loader_aria",
+        defaultMessage: "Starting SurfSense",
+      })}
     >
       <LogoFillLoader />
     </main>
@@ -142,7 +148,10 @@ export function AppBootstrap() {
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
           <AlertTitle>
-            {intl.formatMessage({ id: "app_bootstrap_start_failed_title" })}
+            {intl.formatMessage({
+              id: "app_bootstrap_start_failed_title",
+              defaultMessage: "SurfSense could not start",
+            })}
           </AlertTitle>
           <AlertDescription>
             <p>{state.message}</p>
@@ -154,7 +163,10 @@ export function AppBootstrap() {
                 void fetchBootstrapState().then(setState)
               }}
             >
-              {intl.formatMessage({ id: "app_bootstrap_retry_button" })}
+              {intl.formatMessage({
+                id: "app_bootstrap_retry_button",
+                defaultMessage: "Retry",
+              })}
             </Button>
           </AlertDescription>
         </Alert>

@@ -21,7 +21,10 @@ import { useLocalChatCatalog } from "./use-local-chat-catalog"
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_download_chat_unexpected_error" })
+    : intl.formatMessage({
+        id: "models_download_chat_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 /** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
@@ -77,7 +80,10 @@ export function DownloadChatModels({
       <Alert variant="destructive">
         <CircleAlertIcon />
         <AlertTitle>
-          {intl.formatMessage({ id: "models_download_chat_load_error" })}
+          {intl.formatMessage({
+            id: "models_download_chat_load_error",
+            defaultMessage: "Could not load local models",
+          })}
         </AlertTitle>
         <AlertDescription>{messageFrom(catalog.error)}</AlertDescription>
       </Alert>
@@ -131,10 +137,17 @@ export function DownloadChatModels({
         <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>
           <div>
             <h2 id={headingId} className="font-heading text-sm font-medium">
-              {intl.formatMessage({ id: "models_download_chat_curated_title" })}
+              {intl.formatMessage({
+                id: "models_download_chat_curated_title",
+                defaultMessage: "Tested by SurfSense",
+              })}
             </h2>
             <p className="text-xs text-muted-foreground">
-              {intl.formatMessage({ id: "models_download_chat_curated_body" })}
+              {intl.formatMessage({
+                id: "models_download_chat_curated_body",
+                defaultMessage:
+                  "Models we have run, priced against this computer.",
+              })}
             </p>
           </div>
           {[...byFamily(curated)].map(([family, rows]) => (
@@ -171,11 +184,15 @@ export function DownloadChatModels({
         <Alert>
           <CircleAlertIcon />
           <AlertTitle>
-            {intl.formatMessage({ id: "models_download_chat_curated_empty" })}
+            {intl.formatMessage({
+              id: "models_download_chat_curated_empty",
+              defaultMessage: "No tested models could be read",
+            })}
           </AlertTitle>
           <AlertDescription>
             {intl.formatMessage({
               id: "models_download_chat_curated_empty_body",
+              defaultMessage: "You can still search Hugging Face below.",
             })}
           </AlertDescription>
         </Alert>

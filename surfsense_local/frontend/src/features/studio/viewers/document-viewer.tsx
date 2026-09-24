@@ -13,7 +13,10 @@ export function DocumentViewer({ artifact }: { artifact: ArtifactDetail }) {
       {primary ? <Preview artifact={artifact} primary={primary} /> : null}
       <p className="text-sm leading-6 whitespace-pre-wrap">
         {artifact.content ||
-          intl.formatMessage({ id: "studio_document_viewer_empty" })}
+          intl.formatMessage({
+            id: "studio_document_viewer_empty",
+            defaultMessage: "This artifact has no text body.",
+          })}
       </p>
     </div>
   )

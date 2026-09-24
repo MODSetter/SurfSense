@@ -43,7 +43,10 @@ function ModelControl({
       )}
       onClick={onModelSetup}
     >
-      {intl.formatMessage({ id: "chat_composer_set_up_model_button" })}
+      {intl.formatMessage({
+        id: "chat_composer_set_up_model_button",
+        defaultMessage: "Set up model",
+      })}
     </button>
   )
 }
@@ -61,7 +64,10 @@ function ComposerAction({
         <Button
           size="icon-lg"
           className={cn("rounded-xl", className)}
-          aria-label={intl.formatMessage({ id: "chat_composer_send_aria" })}
+          aria-label={intl.formatMessage({
+            id: "chat_composer_send_aria",
+            defaultMessage: "Send message",
+          })}
         >
           <ArrowUp02Icon />
         </Button>
@@ -75,7 +81,10 @@ function ComposerAction({
         size="icon-lg"
         variant="secondary"
         className={cn("rounded-xl", className)}
-        aria-label={intl.formatMessage({ id: "chat_composer_stop_aria" })}
+        aria-label={intl.formatMessage({
+          id: "chat_composer_stop_aria",
+          defaultMessage: "Stop generating",
+        })}
       >
         <CircleStopIcon />
       </Button>
@@ -91,7 +100,10 @@ function SourceCount({
   className?: string
 }) {
   const label = intl.formatMessage(
-    { id: "chat_composer_source_count_label" },
+    {
+      id: "chat_composer_source_count_label",
+      defaultMessage: "{count, plural, one {# source} other {# sources}}",
+    },
     { count }
   )
   return (
@@ -129,7 +141,10 @@ function AddSourcesButton({
         multiple
         accept={SOURCE_FILE_ACCEPT}
         className="sr-only"
-        aria-label={intl.formatMessage({ id: "chat_composer_add_files_aria" })}
+        aria-label={intl.formatMessage({
+          id: "chat_composer_add_files_aria",
+          defaultMessage: "Add source files",
+        })}
         disabled={isUploading}
         onChange={upload}
       />
@@ -143,6 +158,7 @@ function AddSourcesButton({
             disabled={isUploading}
             aria-label={intl.formatMessage({
               id: "chat_composer_add_sources_aria",
+              defaultMessage: "Add sources",
             })}
             onClick={() => inputRef.current?.click()}
           >
@@ -150,7 +166,10 @@ function AddSourcesButton({
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top">
-          {intl.formatMessage({ id: "chat_composer_add_sources_tooltip" })}
+          {intl.formatMessage({
+            id: "chat_composer_add_sources_tooltip",
+            defaultMessage: "Add sources",
+          })}
         </TooltipContent>
       </Tooltip>
     </>
@@ -209,17 +228,25 @@ export function ChatComposer({
           placeholder={
             !model || providerAvailable
               ? placement === "center"
-                ? intl.formatMessage({ id: "chat_composer_start_placeholder" })
+                ? intl.formatMessage({
+                    id: "chat_composer_start_placeholder",
+                    defaultMessage: "Turn your sources into answers",
+                  })
                 : intl.formatMessage({
                     id: "chat_composer_follow_up_placeholder",
+                    defaultMessage: "Follow up on this answer",
                   })
               : intl.formatMessage({
                   id: "chat_composer_provider_offline_placeholder",
+                  defaultMessage: "Reconnect your model provider to send",
                 })
           }
           submitMode="enter"
           rows={1}
-          aria-label={intl.formatMessage({ id: "chat_composer_message_aria" })}
+          aria-label={intl.formatMessage({
+            id: "chat_composer_message_aria",
+            defaultMessage: "Message",
+          })}
         />
         {placement === "center" ? (
           <>
@@ -249,9 +276,15 @@ export function ChatComposer({
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
           <p className="min-w-0 text-left text-[11px] text-muted-foreground select-none">
             {!model || providerAvailable
-              ? intl.formatMessage({ id: "chat_composer_disclaimer_body" })
+              ? intl.formatMessage({
+                  id: "chat_composer_disclaimer_body",
+                  defaultMessage:
+                    "SurfSense can make mistakes. Check important answers.",
+                })
               : intl.formatMessage({
                   id: "chat_composer_provider_offline_body",
+                  defaultMessage:
+                    "Historical chats remain available while the provider is offline.",
                 })}
           </p>
           <ModelControl

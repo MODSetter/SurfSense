@@ -13,9 +13,13 @@ const gb = (bytes: number) =>
 export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
   if (gpuStatus === "broken_install") {
     return [
-      intl.formatMessage({ id: "models_hardware_broken_install_label" }),
+      intl.formatMessage({
+        id: "models_hardware_broken_install_label",
+        defaultMessage:
+          "Graphics card not detected by the runtime. Reinstall to fix",
+      }),
       intl.formatMessage(
-        { id: "models_hardware_memory_label" },
+        { id: "models_hardware_memory_label", defaultMessage: "{size} memory" },
         {
           size: gb(budget.ram_available_bytes),
         }
@@ -24,9 +28,12 @@ export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
   }
   if (!budget.has_gpu) {
     return [
-      intl.formatMessage({ id: "models_hardware_cpu_label" }),
+      intl.formatMessage({
+        id: "models_hardware_cpu_label",
+        defaultMessage: "Runs on your processor",
+      }),
       intl.formatMessage(
-        { id: "models_hardware_memory_label" },
+        { id: "models_hardware_memory_label", defaultMessage: "{size} memory" },
         {
           size: gb(budget.ram_available_bytes),
         }
@@ -35,10 +42,16 @@ export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
   }
   return [
     budget.uma
-      ? intl.formatMessage({ id: "models_hardware_apple_gpu_label" })
-      : intl.formatMessage({ id: "models_hardware_gpu_label" }),
+      ? intl.formatMessage({
+          id: "models_hardware_apple_gpu_label",
+          defaultMessage: "Apple Silicon GPU",
+        })
+      : intl.formatMessage({
+          id: "models_hardware_gpu_label",
+          defaultMessage: "Graphics card",
+        }),
     intl.formatMessage(
-      { id: "models_hardware_memory_label" },
+      { id: "models_hardware_memory_label", defaultMessage: "{size} memory" },
       {
         size: gb(budget.device_total_bytes),
       }

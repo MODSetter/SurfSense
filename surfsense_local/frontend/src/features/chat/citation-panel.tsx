@@ -57,14 +57,26 @@ export function CitationPanel({
       title={
         data?.title ??
         (isLoading
-          ? intl.formatMessage({ id: "chat_citation_panel_loading_status" })
+          ? intl.formatMessage({
+              id: "chat_citation_panel_loading_status",
+              defaultMessage: "Loading…",
+            })
           : intl.formatMessage(
-              { id: "chat_citation_panel_chunk_title" },
+              {
+                id: "chat_citation_panel_chunk_title",
+                defaultMessage: "Chunk #{id}",
+              },
               { id: chunkId }
             ))
       }
-      ariaLabel={intl.formatMessage({ id: "chat_citation_panel_aria" })}
-      closeLabel={intl.formatMessage({ id: "chat_citation_panel_close_aria" })}
+      ariaLabel={intl.formatMessage({
+        id: "chat_citation_panel_aria",
+        defaultMessage: "Citation",
+      })}
+      closeLabel={intl.formatMessage({
+        id: "chat_citation_panel_close_aria",
+        defaultMessage: "Close citation",
+      })}
       onClose={onClose}
       bodyRef={scrollContainerRef}
       actions={
@@ -75,7 +87,10 @@ export function CitationPanel({
             className="h-6 px-1.5 text-[11px]"
             onClick={() => onOpen(data.id)}
           >
-            {intl.formatMessage({ id: "chat_citation_panel_open_file_button" })}
+            {intl.formatMessage({
+              id: "chat_citation_panel_open_file_button",
+              defaultMessage: "Open file",
+            })}
           </Button>
         ) : null
       }
@@ -90,7 +105,10 @@ export function CitationPanel({
           <p className="text-sm text-destructive">
             {error instanceof Error
               ? error.message
-              : intl.formatMessage({ id: "chat_citation_panel_load_error" })}
+              : intl.formatMessage({
+                  id: "chat_citation_panel_load_error",
+                  defaultMessage: "Failed to load citation",
+                })}
           </p>
         </div>
       ) : null}
@@ -99,7 +117,11 @@ export function CitationPanel({
           {hasMoreAbove ? (
             <p className="mb-3 text-center text-[11px] text-muted-foreground">
               {intl.formatMessage(
-                { id: "chat_citation_panel_earlier_chunks_body" },
+                {
+                  id: "chat_citation_panel_earlier_chunks_body",
+                  defaultMessage:
+                    "… {count, plural, one {# earlier chunk} other {# earlier chunks}} not shown",
+                },
                 {
                   count: startIndex,
                 }
@@ -122,7 +144,10 @@ export function CitationPanel({
                   <div className="mb-1.5 flex items-center justify-between">
                     <span className="text-[11px] text-muted-foreground">
                       {intl.formatMessage(
-                        { id: "chat_citation_panel_chunk_label" },
+                        {
+                          id: "chat_citation_panel_chunk_label",
+                          defaultMessage: "Chunk #{id}",
+                        },
                         {
                           id: chunk.id,
                         }
@@ -132,6 +157,7 @@ export function CitationPanel({
                       <span className="text-[11px] font-semibold text-primary">
                         {intl.formatMessage({
                           id: "chat_citation_panel_cited_label",
+                          defaultMessage: "Cited chunk",
                         })}
                       </span>
                     ) : null}
@@ -144,7 +170,11 @@ export function CitationPanel({
           {hasMoreBelow ? (
             <p className="mt-3 text-center text-[11px] text-muted-foreground">
               {intl.formatMessage(
-                { id: "chat_citation_panel_later_chunks_body" },
+                {
+                  id: "chat_citation_panel_later_chunks_body",
+                  defaultMessage:
+                    "… {count, plural, one {# later chunk} other {# later chunks}} not shown",
+                },
                 {
                   count: totalChunks - (startIndex + data.chunks.length),
                 }

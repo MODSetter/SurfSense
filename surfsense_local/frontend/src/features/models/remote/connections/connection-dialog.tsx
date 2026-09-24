@@ -37,19 +37,31 @@ export function ConnectionDialog({
           <DialogTitle>
             {connection
               ? intl.formatMessage(
-                  { id: "models_connection_dialog_edit_title" },
+                  {
+                    id: "models_connection_dialog_edit_title",
+                    defaultMessage: "Edit {server}",
+                  },
                   {
                     server: connection.label,
                   }
                 )
               : intl.formatMessage({
                   id: "models_connection_dialog_add_title",
+                  defaultMessage: "Connect a server",
                 })}
           </DialogTitle>
           <DialogDescription>
             {connection
-              ? intl.formatMessage({ id: "models_connection_dialog_edit_body" })
-              : intl.formatMessage({ id: "models_connection_dialog_add_body" })}
+              ? intl.formatMessage({
+                  id: "models_connection_dialog_edit_body",
+                  defaultMessage:
+                    "Servers are shared by every model type, so a change here applies to all of them.",
+                })
+              : intl.formatMessage({
+                  id: "models_connection_dialog_add_body",
+                  defaultMessage:
+                    "Any server that implements the OpenAI API, such as vLLM, LM Studio or OpenRouter.",
+                })}
           </DialogDescription>
         </DialogHeader>
         {/* Mounted per opening, so a closed dialog forgets what was typed. */}

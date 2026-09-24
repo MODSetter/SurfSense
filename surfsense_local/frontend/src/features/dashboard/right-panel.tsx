@@ -20,7 +20,10 @@ export function RightPanel({
   return (
     <aside
       className="flex h-full min-h-0 min-w-0 flex-col gap-5 overflow-hidden border-l bg-background select-none"
-      aria-label={intl.formatMessage({ id: "dashboard_right_panel_aria" })}
+      aria-label={intl.formatMessage({
+        id: "dashboard_right_panel_aria",
+        defaultMessage: "Workspace artifacts",
+      })}
     >
       {/* Same heading, spacing and placement as the left sidebar's
           "SurfSense" header — Studio's format cards start exactly where

@@ -20,7 +20,10 @@ export function SummaryViewer({ artifact }: { artifact: ArtifactDetail }) {
         linkSafety={{ enabled: true }}
       >
         {artifact.content ||
-          intl.formatMessage({ id: "studio_summary_viewer_empty" })}
+          intl.formatMessage({
+            id: "studio_summary_viewer_empty",
+            defaultMessage: "This artifact has no text body.",
+          })}
       </Streamdown>
     </div>
   )

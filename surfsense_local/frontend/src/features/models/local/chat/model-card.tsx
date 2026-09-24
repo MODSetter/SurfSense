@@ -69,6 +69,7 @@ export function ModelCard({
                     type="button"
                     aria-label={intl.formatMessage({
                       id: "models_model_card_recommended_aria",
+                      defaultMessage: "Recommended for your computer",
                     })}
                     className="inline-flex shrink-0 cursor-default rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
@@ -81,6 +82,7 @@ export function ModelCard({
                 <TooltipContent side="top">
                   {intl.formatMessage({
                     id: "models_model_card_recommended_tooltip",
+                    defaultMessage: "Recommended for your computer",
                   })}
                 </TooltipContent>
               </Tooltip>
@@ -89,7 +91,10 @@ export function ModelCard({
             <FitBadge fit={lead.fit} copy={lead.badge} />
             {row.support.reads_images ? (
               <Badge variant="secondary">
-                {intl.formatMessage({ id: "models_model_card_vision_label" })}
+                {intl.formatMessage({
+                  id: "models_model_card_vision_label",
+                  defaultMessage: "Vision",
+                })}
               </Badge>
             ) : null}
             <span className="flex shrink-0 items-center text-xs text-muted-foreground">
@@ -126,7 +131,10 @@ export function ModelCard({
               variant="destructive"
               disabled={actionsDisabled}
               aria-label={intl.formatMessage(
-                { id: "models_model_card_delete_aria" },
+                {
+                  id: "models_model_card_delete_aria",
+                  defaultMessage: "Delete {model}",
+                },
                 {
                   model: row.name,
                 }
@@ -164,9 +172,14 @@ export function ModelCard({
             {expanded
               ? intl.formatMessage({
                   id: "models_model_card_hide_builds_button",
+                  defaultMessage: "Hide other builds",
                 })
               : intl.formatMessage(
-                  { id: "models_model_card_show_builds_button" },
+                  {
+                    id: "models_model_card_show_builds_button",
+                    defaultMessage:
+                      "{count, plural, one {# other build} other {# other builds}}",
+                  },
                   {
                     count: others.length,
                   }
@@ -177,7 +190,10 @@ export function ModelCard({
               id={buildsId}
               className="mt-1 flex flex-col divide-y rounded-lg border"
               aria-label={intl.formatMessage(
-                { id: "models_model_card_builds_aria" },
+                {
+                  id: "models_model_card_builds_aria",
+                  defaultMessage: "Builds of {model}",
+                },
                 {
                   model: row.name,
                 }
@@ -224,6 +240,7 @@ export function ModelCard({
         <p className="mt-2 text-xs text-destructive">
           {intl.formatMessage({
             id: "models_model_card_runtime_unavailable_error",
+            defaultMessage: "The local runtime is unavailable.",
           })}
         </p>
       ) : null}

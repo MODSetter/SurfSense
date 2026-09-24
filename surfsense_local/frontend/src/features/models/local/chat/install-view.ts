@@ -13,22 +13,48 @@ type Phase = "starting" | "verifying" | "selecting" | "complete"
 
 const PHASE_SHORT: Record<Phase, () => string> = {
   starting: () =>
-    intl.formatMessage({ id: "models_install_starting_short_status" }),
+    intl.formatMessage({
+      id: "models_install_starting_short_status",
+      defaultMessage: "Starting…",
+    }),
   verifying: () =>
-    intl.formatMessage({ id: "models_install_verifying_short_status" }),
+    intl.formatMessage({
+      id: "models_install_verifying_short_status",
+      defaultMessage: "Verifying…",
+    }),
   selecting: () =>
-    intl.formatMessage({ id: "models_install_selecting_short_status" }),
+    intl.formatMessage({
+      id: "models_install_selecting_short_status",
+      defaultMessage: "Selecting…",
+    }),
   complete: () =>
-    intl.formatMessage({ id: "models_install_complete_short_status" }),
+    intl.formatMessage({
+      id: "models_install_complete_short_status",
+      defaultMessage: "Done",
+    }),
 }
 
 const PHASE_LABEL: Record<Phase, () => string> = {
-  starting: () => intl.formatMessage({ id: "models_install_starting_status" }),
+  starting: () =>
+    intl.formatMessage({
+      id: "models_install_starting_status",
+      defaultMessage: "Starting",
+    }),
   verifying: () =>
-    intl.formatMessage({ id: "models_install_verifying_status" }),
+    intl.formatMessage({
+      id: "models_install_verifying_status",
+      defaultMessage: "Verifying",
+    }),
   selecting: () =>
-    intl.formatMessage({ id: "models_install_selecting_status" }),
-  complete: () => intl.formatMessage({ id: "models_install_complete_status" }),
+    intl.formatMessage({
+      id: "models_install_selecting_status",
+      defaultMessage: "Selecting",
+    }),
+  complete: () =>
+    intl.formatMessage({
+      id: "models_install_complete_status",
+      defaultMessage: "Done",
+    }),
 }
 
 export type InstallView = {
@@ -53,14 +79,21 @@ export function installView(event: InstallEvent): InstallView {
     return {
       short: intl.formatMessage({
         id: "models_install_downloading_short_status",
+        defaultMessage: "Downloading…",
       }),
       label:
         event.message ||
-        intl.formatMessage({ id: "models_install_downloading_status" }),
+        intl.formatMessage({
+          id: "models_install_downloading_status",
+          defaultMessage: "Downloading",
+        }),
       detail:
         event.total > 0
           ? intl.formatMessage(
-              { id: "models_install_downloaded_status" },
+              {
+                id: "models_install_downloaded_status",
+                defaultMessage: "{completed} of {total}",
+              },
               {
                 completed: bytes(event.completed),
                 total: bytes(event.total),
@@ -80,10 +113,14 @@ export function installView(event: InstallEvent): InstallView {
     return {
       short: intl.formatMessage({
         id: "models_install_preparing_short_status",
+        defaultMessage: "Preparing…",
       }),
       label:
         event.message ||
-        intl.formatMessage({ id: "models_install_preparing_status" }),
+        intl.formatMessage({
+          id: "models_install_preparing_status",
+          defaultMessage: "Preparing",
+        }),
       detail: null,
       percent:
         typeof event.progress === "number"
@@ -94,10 +131,16 @@ export function installView(event: InstallEvent): InstallView {
 
   if (event.type === "error") {
     return {
-      short: intl.formatMessage({ id: "models_install_failed_short_status" }),
+      short: intl.formatMessage({
+        id: "models_install_failed_short_status",
+        defaultMessage: "Failed",
+      }),
       label:
         event.message ||
-        intl.formatMessage({ id: "models_install_failed_status" }),
+        intl.formatMessage({
+          id: "models_install_failed_status",
+          defaultMessage: "Install failed",
+        }),
       detail: null,
       percent: null,
     }

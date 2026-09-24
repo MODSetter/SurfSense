@@ -18,6 +18,7 @@ function ScrollToBottom() {
         className="absolute -top-10 left-1/2 -translate-x-1/2 rounded-full bg-card hover:bg-muted disabled:invisible dark:bg-card dark:hover:bg-muted"
         aria-label={intl.formatMessage({
           id: "chat_viewport_scroll_to_latest_aria",
+          defaultMessage: "Scroll to latest message",
         })}
       >
         <ArrowDownIcon />

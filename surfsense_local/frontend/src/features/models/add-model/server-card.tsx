@@ -22,7 +22,10 @@ export function ServerCard({
   return (
     <section
       className="flex flex-col gap-3"
-      aria-label={intl.formatMessage({ id: "models_server_card_aria" })}
+      aria-label={intl.formatMessage({
+        id: "models_server_card_aria",
+        defaultMessage: "Use a server",
+      })}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -31,11 +34,18 @@ export function ServerCard({
               aria-hidden="true"
               className="size-4 text-muted-foreground"
             />
-            {intl.formatMessage({ id: "models_server_card_title" })}
+            {intl.formatMessage({
+              id: "models_server_card_title",
+              defaultMessage: "Use a server",
+            })}
           </h3>
           {/* pl-6: the icon's 16px plus the 8px gap, so it lines up with the heading text. */}
           <p className="pl-6 text-xs text-pretty text-muted-foreground">
-            {intl.formatMessage({ id: "models_server_card_body" })}
+            {intl.formatMessage({
+              id: "models_server_card_body",
+              defaultMessage:
+                "vLLM, LM Studio, OpenRouter or any OpenAI-compatible API.",
+            })}
           </p>
         </div>
         <Button
@@ -44,7 +54,10 @@ export function ServerCard({
           variant="outline"
           onClick={() => setConnecting(true)}
         >
-          {intl.formatMessage({ id: "models_server_card_connect_button" })}
+          {intl.formatMessage({
+            id: "models_server_card_connect_button",
+            defaultMessage: "Connect",
+          })}
         </Button>
       </div>
       <ConnectionDialog

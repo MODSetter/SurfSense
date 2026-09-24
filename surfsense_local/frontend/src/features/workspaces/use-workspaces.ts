@@ -36,7 +36,10 @@ function rememberWorkspace(id: number) {
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "workspaces_unexpected_error" })
+    : intl.formatMessage({
+        id: "workspaces_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 export function useWorkspaces(initialWorkspaces: Workspace[]) {

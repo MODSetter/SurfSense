@@ -253,7 +253,10 @@ export async function installCatalogModel(
   })
   if (!response.body) {
     throw new Error(
-      intl.formatMessage({ id: "models_install_stream_ended_error" })
+      intl.formatMessage({
+        id: "models_install_stream_ended_error",
+        defaultMessage: "The install stream ended before completion",
+      })
     )
   }
 
@@ -267,7 +270,10 @@ export async function installCatalogModel(
     }
   }
   throw new Error(
-    intl.formatMessage({ id: "models_install_stream_ended_error" })
+    intl.formatMessage({
+      id: "models_install_stream_ended_error",
+      defaultMessage: "The install stream ended before completion",
+    })
   )
 }
 

@@ -77,7 +77,10 @@ export function FlashcardsViewer({
       <p className={`${VIEWER_PADDING} text-sm text-destructive`}>
         {error instanceof Error
           ? error.message
-          : intl.formatMessage({ id: "studio_flashcards_viewer_load_error" })}
+          : intl.formatMessage({
+              id: "studio_flashcards_viewer_load_error",
+              defaultMessage: "Failed to load this flashcard deck",
+            })}
       </p>
     )
   }
@@ -164,7 +167,10 @@ function FlashcardRunner({
       setMessage(
         err instanceof Error
           ? err.message
-          : intl.formatMessage({ id: "studio_flashcards_viewer_mark_error" })
+          : intl.formatMessage({
+              id: "studio_flashcards_viewer_mark_error",
+              defaultMessage: "Progress could not be saved",
+            })
       )
     }
   }
@@ -182,7 +188,10 @@ function FlashcardRunner({
       setMessage(
         err instanceof Error
           ? err.message
-          : intl.formatMessage({ id: "studio_flashcards_viewer_shuffle_error" })
+          : intl.formatMessage({
+              id: "studio_flashcards_viewer_shuffle_error",
+              defaultMessage: "Shuffle could not be saved",
+            })
       )
     }
   }
@@ -196,7 +205,10 @@ function FlashcardRunner({
       setMessage(
         err instanceof Error
           ? err.message
-          : intl.formatMessage({ id: "studio_flashcards_viewer_reset_error" })
+          : intl.formatMessage({
+              id: "studio_flashcards_viewer_reset_error",
+              defaultMessage: "Progress could not be reset",
+            })
       )
     }
   }
@@ -219,6 +231,7 @@ function FlashcardRunner({
                   disabled={!hasProgress || saving}
                   aria-label={intl.formatMessage({
                     id: "studio_flashcards_viewer_reset_aria",
+                    defaultMessage: "Reset flashcard progress",
                   })}
                 >
                   <RefreshCwIcon />
@@ -229,11 +242,14 @@ function FlashcardRunner({
                   <AlertDialogTitle>
                     {intl.formatMessage({
                       id: "studio_flashcards_reset_dialog_title",
+                      defaultMessage: "Reset flashcard progress?",
                     })}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
                     {intl.formatMessage({
                       id: "studio_flashcards_reset_dialog_body",
+                      defaultMessage:
+                        'This clears every "Needs review" and "Got it" mark for this deck.',
                     })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
@@ -241,11 +257,13 @@ function FlashcardRunner({
                   <AlertDialogCancel>
                     {intl.formatMessage({
                       id: "studio_flashcards_reset_dialog_cancel_button",
+                      defaultMessage: "Cancel",
                     })}
                   </AlertDialogCancel>
                   <AlertDialogAction onClick={() => void resetProgress()}>
                     {intl.formatMessage({
                       id: "studio_flashcards_reset_dialog_confirm_button",
+                      defaultMessage: "Reset progress",
                     })}
                   </AlertDialogAction>
                 </AlertDialogFooter>
@@ -258,7 +276,11 @@ function FlashcardRunner({
         <p className="truncate">{deck.title}</p>
         <p className="shrink-0 tabular-nums">
           {intl.formatMessage(
-            { id: "studio_flashcards_viewer_remaining_status" },
+            {
+              id: "studio_flashcards_viewer_remaining_status",
+              defaultMessage:
+                "{count, plural, one {# remaining} other {# remaining}}",
+            },
             {
               count: counts.unseen,
             }
@@ -278,6 +300,7 @@ function FlashcardRunner({
               <p className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 {intl.formatMessage({
                   id: "studio_flashcards_card_question_label",
+                  defaultMessage: "Question",
                 })}
               </p>
               <StudyText
@@ -290,6 +313,7 @@ function FlashcardRunner({
               >
                 {intl.formatMessage({
                   id: "studio_flashcards_card_see_answer_body",
+                  defaultMessage: "See answer",
                 })}
               </p>
             </div>
@@ -302,6 +326,7 @@ function FlashcardRunner({
               <p className="mb-4 text-xs font-medium tracking-wider text-muted-foreground uppercase">
                 {intl.formatMessage({
                   id: "studio_flashcards_card_answer_label",
+                  defaultMessage: "Answer",
                 })}
               </p>
               <StudyText
@@ -313,9 +338,11 @@ function FlashcardRunner({
                   {currentMark === "good"
                     ? intl.formatMessage({
                         id: "studio_flashcards_card_mark_good_body",
+                        defaultMessage: "Current mark: Got it",
                       })
                     : intl.formatMessage({
                         id: "studio_flashcards_card_mark_again_body",
+                        defaultMessage: "Current mark: Needs review",
                       })}
                 </p>
               ) : null}
@@ -330,6 +357,7 @@ function FlashcardRunner({
         role="progressbar"
         aria-label={intl.formatMessage({
           id: "studio_flashcards_viewer_progress_aria",
+          defaultMessage: "Deck progress",
         })}
       />
 
@@ -342,6 +370,7 @@ function FlashcardRunner({
           onClick={() => move(-1)}
           aria-label={intl.formatMessage({
             id: "studio_flashcards_viewer_previous_aria",
+            defaultMessage: "Previous card",
           })}
         >
           <ArrowLeftIcon />
@@ -354,7 +383,11 @@ function FlashcardRunner({
             disabled={saving}
             onClick={() => void markCard("again")}
             aria-label={intl.formatMessage(
-              { id: "studio_flashcards_viewer_again_aria" },
+              {
+                id: "studio_flashcards_viewer_again_aria",
+                defaultMessage:
+                  "Needs review, {count, plural, one {# card} other {# cards}}",
+              },
               {
                 count: counts.missed,
               }
@@ -364,6 +397,7 @@ function FlashcardRunner({
             <span className="hidden sm:inline">
               {intl.formatMessage({
                 id: "studio_flashcards_viewer_again_button",
+                defaultMessage: "Needs review",
               })}
             </span>
           </Button>
@@ -374,7 +408,11 @@ function FlashcardRunner({
             disabled={saving}
             onClick={() => void markCard("good")}
             aria-label={intl.formatMessage(
-              { id: "studio_flashcards_viewer_good_aria" },
+              {
+                id: "studio_flashcards_viewer_good_aria",
+                defaultMessage:
+                  "Got it, {count, plural, one {# card} other {# cards}}",
+              },
               {
                 count: counts.remembered,
               }
@@ -384,6 +422,7 @@ function FlashcardRunner({
             <span className="hidden sm:inline">
               {intl.formatMessage({
                 id: "studio_flashcards_viewer_good_button",
+                defaultMessage: "Got it",
               })}
             </span>
           </Button>
@@ -395,12 +434,14 @@ function FlashcardRunner({
             onClick={() => void shuffle()}
             aria-label={intl.formatMessage({
               id: "studio_flashcards_viewer_shuffle_aria",
+              defaultMessage: "Shuffle cards",
             })}
           >
             <ShuffleIcon data-icon="inline-start" />
             <span className="hidden sm:inline">
               {intl.formatMessage({
                 id: "studio_flashcards_viewer_shuffle_button",
+                defaultMessage: "Shuffle",
               })}
             </span>
           </Button>
@@ -413,6 +454,7 @@ function FlashcardRunner({
           onClick={() => move(1)}
           aria-label={intl.formatMessage({
             id: "studio_flashcards_viewer_next_aria",
+            defaultMessage: "Next card",
           })}
         >
           <ArrowRightIcon />

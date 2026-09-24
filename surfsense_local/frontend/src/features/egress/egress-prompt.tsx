@@ -84,7 +84,10 @@ export function EgressPrompt() {
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={allowing}>
-            {intl.formatMessage({ id: "egress_prompt_cancel_button" })}
+            {intl.formatMessage({
+              id: "egress_prompt_cancel_button",
+              defaultMessage: "Cancel",
+            })}
           </AlertDialogCancel>
           <AlertDialogAction
             disabled={allowing}
@@ -94,7 +97,10 @@ export function EgressPrompt() {
             }}
           >
             {allowing ? <Spinner data-icon="inline-start" /> : null}
-            {intl.formatMessage({ id: "egress_prompt_allow_button" })}
+            {intl.formatMessage({
+              id: "egress_prompt_allow_button",
+              defaultMessage: "Allow",
+            })}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

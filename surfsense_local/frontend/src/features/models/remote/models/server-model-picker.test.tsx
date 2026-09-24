@@ -387,7 +387,7 @@ describe("choosing a model from a server", () => {
     await user.click(screen.getByRole("button", { name: "Save server" }))
     expect(
       await screen.findByText(
-        "The endpoint's model list could not be verified."
+        "The endpoint’s model list could not be verified."
       )
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Save anyway" }))

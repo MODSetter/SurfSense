@@ -60,9 +60,11 @@ export function FlashcardSurface({
             revealed
               ? intl.formatMessage({
                   id: "studio_flashcard_surface_show_question_aria",
+                  defaultMessage: "Show question",
                 })
               : intl.formatMessage({
                   id: "studio_flashcard_surface_reveal_answer_aria",
+                  defaultMessage: "Reveal answer",
                 })
           }
         />
@@ -89,9 +91,11 @@ export function FlashcardSurface({
           revealed
             ? intl.formatMessage({
                 id: "studio_flashcard_surface_show_question_aria",
+                defaultMessage: "Show question",
               })
             : intl.formatMessage({
                 id: "studio_flashcard_surface_reveal_answer_aria",
+                defaultMessage: "Reveal answer",
               })
         }
       />

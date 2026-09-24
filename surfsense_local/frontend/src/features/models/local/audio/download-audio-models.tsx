@@ -19,7 +19,10 @@ import { useLocalAudioCatalog } from "./use-local-audio-catalog"
 function messageFrom(error: unknown) {
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_download_audio_request_error" })
+    : intl.formatMessage({
+        id: "models_download_audio_request_error",
+        defaultMessage: "The request failed",
+      })
 }
 
 /** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
@@ -52,7 +55,10 @@ export function DownloadAudioModels() {
       <Alert variant="destructive">
         <CircleAlertIcon />
         <AlertTitle>
-          {intl.formatMessage({ id: "models_download_audio_load_error" })}
+          {intl.formatMessage({
+            id: "models_download_audio_load_error",
+            defaultMessage: "Could not load local audio models",
+          })}
         </AlertTitle>
         <AlertDescription>{messageFrom(catalog.error)}</AlertDescription>
       </Alert>
@@ -67,10 +73,15 @@ export function DownloadAudioModels() {
         <AlertTitle>
           {intl.formatMessage({
             id: "models_download_audio_unsupported_title",
+            defaultMessage: "Audio models cannot run on this computer",
           })}
         </AlertTitle>
         <AlertDescription>
-          {intl.formatMessage({ id: "models_download_audio_unsupported_body" })}
+          {intl.formatMessage({
+            id: "models_download_audio_unsupported_body",
+            defaultMessage:
+              "This build has no local audio runtime. Use a server above instead.",
+          })}
         </AlertDescription>
       </Alert>
     )
@@ -147,7 +158,10 @@ export function DownloadAudioModels() {
                       variant="destructive"
                       disabled={busy}
                       aria-label={intl.formatMessage(
-                        { id: "models_download_audio_delete_aria" },
+                        {
+                          id: "models_download_audio_delete_aria",
+                          defaultMessage: "Delete {model}",
+                        },
                         {
                           model: model.label,
                         }

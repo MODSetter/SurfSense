@@ -95,9 +95,15 @@ export function ModelPicker({
         <button
           type="button"
           className={cn(modelControlButtonClassName, className)}
-          title={intl.formatMessage({ id: "chat_model_picker_change_tooltip" })}
+          title={intl.formatMessage({
+            id: "chat_model_picker_change_tooltip",
+            defaultMessage: "Change model",
+          })}
           aria-label={intl.formatMessage(
-            { id: "chat_model_picker_trigger_aria" },
+            {
+              id: "chat_model_picker_trigger_aria",
+              defaultMessage: "Model {model}. Change model.",
+            },
             {
               model: selectedLabel,
             }
@@ -116,9 +122,11 @@ export function ModelPicker({
             value={query}
             placeholder={intl.formatMessage({
               id: "chat_model_picker_search_placeholder",
+              defaultMessage: "Search models",
             })}
             aria-label={intl.formatMessage({
               id: "chat_model_picker_search_aria",
+              defaultMessage: "Search models",
             })}
             className="rounded-none border-0 bg-popover pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-popover"
             onChange={(event) => setQuery(event.target.value)}
@@ -136,17 +144,22 @@ export function ModelPicker({
               <DropdownMenuLabel>
                 {intl.formatMessage({
                   id: "chat_model_picker_installed_title",
+                  defaultMessage: "Installed models",
                 })}
               </DropdownMenuLabel>
               {installed.isPending ? (
                 <DropdownMenuLabel>
                   {intl.formatMessage({
                     id: "chat_model_picker_loading_status",
+                    defaultMessage: "Loading models…",
                   })}
                 </DropdownMenuLabel>
               ) : installed.isError ? (
                 <DropdownMenuLabel>
-                  {intl.formatMessage({ id: "chat_model_picker_load_error" })}
+                  {intl.formatMessage({
+                    id: "chat_model_picker_load_error",
+                    defaultMessage: "Could not load installed models",
+                  })}
                 </DropdownMenuLabel>
               ) : visibleModels.length > 0 ? (
                 <DropdownMenuRadioGroup
@@ -190,9 +203,11 @@ export function ModelPicker({
                   {needle
                     ? intl.formatMessage({
                         id: "chat_model_picker_no_match_empty",
+                        defaultMessage: "No matching models",
                       })
                     : intl.formatMessage({
                         id: "chat_model_picker_none_installed_empty",
+                        defaultMessage: "No installed models",
                       })}
                 </DropdownMenuLabel>
               )}
@@ -203,7 +218,10 @@ export function ModelPicker({
         <DropdownMenuGroup className="p-1">
           <DropdownMenuItem onSelect={onManageModels}>
             <Settings2Icon />
-            {intl.formatMessage({ id: "chat_model_picker_manage_label" })}
+            {intl.formatMessage({
+              id: "chat_model_picker_manage_label",
+              defaultMessage: "Manage models",
+            })}
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

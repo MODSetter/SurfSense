@@ -41,9 +41,11 @@ export function HuggingFaceSearch({
         {open
           ? intl.formatMessage({
               id: "onboarding_hugging_face_search_hide_button",
+              defaultMessage: "Hide Hugging Face search",
             })
           : intl.formatMessage({
               id: "onboarding_hugging_face_search_show_button",
+              defaultMessage: "Not listed? Search Hugging Face",
             })}
         <ChevronRightIcon
           data-icon="inline-end"

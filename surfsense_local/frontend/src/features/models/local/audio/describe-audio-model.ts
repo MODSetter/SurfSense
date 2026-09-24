@@ -18,7 +18,10 @@ const bytes = (value: number) =>
 function languages(codes: string[]): string {
   if (codes.length !== 1)
     return intl.formatMessage(
-      { id: "models_audio_model_languages_label" },
+      {
+        id: "models_audio_model_languages_label",
+        defaultMessage: "{count, plural, one {# language} other {# languages}}",
+      },
       { count: codes.length }
     )
   return intl.formatDisplayName(codes[0], { type: "language" }) ?? codes[0]
@@ -30,13 +33,19 @@ export function describeAudioModel(model: LocalAudioModel): string[] {
     model.quantization,
     bytes(model.size_bytes),
     intl.formatMessage(
-      { id: "models_audio_model_peak_memory_label" },
+      {
+        id: "models_audio_model_peak_memory_label",
+        defaultMessage: "{size} while voicing",
+      },
       {
         size: bytes(model.peak_mb * 1e6),
       }
     ),
     intl.formatMessage(
-      { id: "models_audio_model_voices_label" },
+      {
+        id: "models_audio_model_voices_label",
+        defaultMessage: "{count, plural, one {# voice} other {# voices}}",
+      },
       { count: model.voice_count }
     ),
     languages(model.languages),

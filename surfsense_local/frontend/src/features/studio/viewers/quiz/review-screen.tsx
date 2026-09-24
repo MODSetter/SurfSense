@@ -44,11 +44,17 @@ export function QuizReviewScreen({
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
           <p className="text-sm text-muted-foreground">
-            {intl.formatMessage({ id: "studio_quiz_review_title" })}
+            {intl.formatMessage({
+              id: "studio_quiz_review_title",
+              defaultMessage: "Review",
+            })}
           </p>
           <p className="font-medium">
             {intl.formatMessage(
-              { id: "studio_quiz_review_position_label" },
+              {
+                id: "studio_quiz_review_position_label",
+                defaultMessage: "Question {number} of {total}",
+              },
               {
                 number: String(index + 1),
                 total: String(quiz.questions.length),
@@ -57,7 +63,10 @@ export function QuizReviewScreen({
           </p>
         </div>
         <Button type="button" variant="secondary" size="sm" onClick={onExit}>
-          {intl.formatMessage({ id: "studio_quiz_review_exit_button" })}
+          {intl.formatMessage({
+            id: "studio_quiz_review_exit_button",
+            defaultMessage: "Exit review",
+          })}
         </Button>
       </div>
       <h2
@@ -95,6 +104,7 @@ export function QuizReviewScreen({
                   <span className="sr-only">
                     {intl.formatMessage({
                       id: "studio_quiz_review_correct_aria",
+                      defaultMessage: "Correct answer",
                     })}
                   </span>
                 </span>
@@ -104,6 +114,7 @@ export function QuizReviewScreen({
                   <span className="sr-only">
                     {intl.formatMessage({
                       id: "studio_quiz_review_incorrect_aria",
+                      defaultMessage: "Incorrect answer",
                     })}
                   </span>
                 </span>
@@ -115,7 +126,10 @@ export function QuizReviewScreen({
       <Alert variant="secondary" className="mt-6 border-0">
         <LightbulbIcon />
         <AlertTitle>
-          {intl.formatMessage({ id: "studio_quiz_review_explanation_title" })}
+          {intl.formatMessage({
+            id: "studio_quiz_review_explanation_title",
+            defaultMessage: "Explanation",
+          })}
         </AlertTitle>
         <AlertDescription>
           <StudyText content={question.explanation_text} />
@@ -129,7 +143,10 @@ export function QuizReviewScreen({
           onClick={() => moveTo(index - 1)}
         >
           <ArrowLeftIcon />{" "}
-          {intl.formatMessage({ id: "studio_quiz_review_previous_button" })}
+          {intl.formatMessage({
+            id: "studio_quiz_review_previous_button",
+            defaultMessage: "Previous",
+          })}
         </Button>
         <Button
           type="button"
@@ -137,7 +154,10 @@ export function QuizReviewScreen({
           disabled={index === quiz.questions.length - 1}
           onClick={() => moveTo(index + 1)}
         >
-          {intl.formatMessage({ id: "studio_quiz_review_next_button" })}{" "}
+          {intl.formatMessage({
+            id: "studio_quiz_review_next_button",
+            defaultMessage: "Next",
+          })}{" "}
           <ArrowRightIcon />
         </Button>
       </div>

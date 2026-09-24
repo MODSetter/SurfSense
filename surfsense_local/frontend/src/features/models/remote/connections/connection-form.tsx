@@ -43,21 +43,29 @@ function urlHint(provider: RemoteProvider) {
   if (connect.status === "needs_account_details")
     return intl.formatMessage({
       id: "models_connection_form_provider_needs_account_body",
+      defaultMessage: "Needs your account details",
     })
   if (connect.status === "needs_url")
     return intl.formatMessage({
       id: "models_connection_form_provider_needs_url_body",
+      defaultMessage: "Enter its URL",
     })
   return connect.base_url
 }
 
 function messageFrom(error: unknown) {
   if (error instanceof ApiError && error.code === "unverified_connection") {
-    return intl.formatMessage({ id: "models_error_unverified_connection" })
+    return intl.formatMessage({
+      id: "models_error_unverified_connection",
+      defaultMessage: "The endpoint’s model list could not be verified.",
+    })
   }
   return error instanceof Error
     ? error.message
-    : intl.formatMessage({ id: "models_connection_form_save_error" })
+    : intl.formatMessage({
+        id: "models_connection_form_save_error",
+        defaultMessage: "Could not save connection",
+      })
 }
 
 /**
@@ -78,6 +86,7 @@ export function ConnectionForm({
   // The custom entry's display name doubles as its combobox value.
   const customLabel = intl.formatMessage({
     id: "models_connection_form_custom_provider_label",
+    defaultMessage: "Local or custom server",
   })
   const [label, setLabel] = useState(connection?.label ?? "")
   const [baseUrl, setBaseUrl] = useState(connection?.base_url ?? "")
@@ -167,7 +176,10 @@ export function ConnectionForm({
         <div ref={setPopupHost} className="absolute" />
         <Field>
           <FieldLabel htmlFor={`${fieldId}-name`}>
-            {intl.formatMessage({ id: "models_connection_form_name_label" })}
+            {intl.formatMessage({
+              id: "models_connection_form_name_label",
+              defaultMessage: "Name",
+            })}
           </FieldLabel>
           <Input
             id={`${fieldId}-name`}
@@ -175,6 +187,7 @@ export function ConnectionForm({
             onChange={(event) => setLabel(event.target.value)}
             placeholder={intl.formatMessage({
               id: "models_connection_form_name_placeholder",
+              defaultMessage: "Engineering vLLM",
             })}
             disabled={busy}
           />
@@ -183,6 +196,7 @@ export function ConnectionForm({
           <FieldLabel htmlFor={`${fieldId}-provider`}>
             {intl.formatMessage({
               id: "models_connection_form_provider_label",
+              defaultMessage: "Provider",
             })}
           </FieldLabel>
           <Combobox
@@ -198,12 +212,14 @@ export function ConnectionForm({
               id={`${fieldId}-provider`}
               placeholder={intl.formatMessage({
                 id: "models_connection_form_provider_placeholder",
+                defaultMessage: "Search providers",
               })}
             />
             <ComboboxContent container={popupHost}>
               <ComboboxEmpty>
                 {intl.formatMessage({
                   id: "models_connection_form_provider_empty",
+                  defaultMessage: "No provider found",
                 })}
               </ComboboxEmpty>
               <ComboboxList>
@@ -216,6 +232,7 @@ export function ConnectionForm({
                     <span className="ml-1.5 text-muted-foreground">
                       {intl.formatMessage({
                         id: "models_connection_form_custom_provider_body",
+                        defaultMessage: "Any OpenAI-compatible URL",
                       })}
                     </span>
                   </span>
@@ -224,6 +241,7 @@ export function ConnectionForm({
                   <ComboboxLabel>
                     {intl.formatMessage({
                       id: "models_connection_form_providers_label",
+                      defaultMessage: "Providers",
                     })}
                   </ComboboxLabel>
                   {sortedProviders.map((entry) => (
@@ -265,7 +283,10 @@ export function ConnectionForm({
           : null}
         <Field>
           <FieldLabel htmlFor={`${fieldId}-url`}>
-            {intl.formatMessage({ id: "models_connection_form_url_label" })}
+            {intl.formatMessage({
+              id: "models_connection_form_url_label",
+              defaultMessage: "Base URL",
+            })}
           </FieldLabel>
           <Input
             id={`${fieldId}-url`}
@@ -274,13 +295,19 @@ export function ConnectionForm({
             placeholder={
               chosen
                 ? intl.formatMessage(
-                    { id: "models_connection_form_url_provider_placeholder" },
+                    {
+                      id: "models_connection_form_url_provider_placeholder",
+                      defaultMessage: "{provider} API URL",
+                    },
                     {
                       provider: chosen.name,
                     }
                   )
                 : intl.formatMessage(
-                    { id: "models_connection_form_url_custom_placeholder" },
+                    {
+                      id: "models_connection_form_url_custom_placeholder",
+                      defaultMessage: "e.g. {url}",
+                    },
                     {
                       url: CUSTOM_PLACEHOLDER,
                     }
@@ -292,7 +319,10 @@ export function ConnectionForm({
         {chosen?.connect.key === "none" ? null : (
           <Field>
             <FieldLabel htmlFor={`${fieldId}-key`}>
-              {intl.formatMessage({ id: "models_connection_form_key_label" })}
+              {intl.formatMessage({
+                id: "models_connection_form_key_label",
+                defaultMessage: "API key",
+              })}
             </FieldLabel>
             <Input
               id={`${fieldId}-key`}
@@ -304,9 +334,11 @@ export function ConnectionForm({
                 connection?.has_api_key
                   ? intl.formatMessage({
                       id: "models_connection_form_key_saved_placeholder",
+                      defaultMessage: "Leave blank to keep the saved key",
                     })
                   : intl.formatMessage({
                       id: "models_connection_form_key_placeholder",
+                      defaultMessage: "Optional",
                     })
               }
               disabled={busy}
@@ -324,6 +356,7 @@ export function ConnectionForm({
             <FieldLabel htmlFor={`${fieldId}-clear-key`}>
               {intl.formatMessage({
                 id: "models_connection_form_clear_key_label",
+                defaultMessage: "Remove saved API key",
               })}
             </FieldLabel>
           </Field>
@@ -336,6 +369,8 @@ export function ConnectionForm({
                 <p className="text-muted-foreground">
                   {intl.formatMessage({
                     id: "models_connection_form_save_anyway_body",
+                    defaultMessage:
+                      "Save anyway only if you trust this endpoint. You will enter model IDs manually.",
                   })}
                 </p>
                 <Button
@@ -347,6 +382,7 @@ export function ConnectionForm({
                 >
                   {intl.formatMessage({
                     id: "models_connection_form_save_anyway_button",
+                    defaultMessage: "Save anyway",
                   })}
                 </Button>
               </>
@@ -356,7 +392,10 @@ export function ConnectionForm({
       </FieldGroup>
       <DialogFooter>
         <Button type="button" variant="outline" onClick={onCancel}>
-          {intl.formatMessage({ id: "models_connection_form_cancel_button" })}
+          {intl.formatMessage({
+            id: "models_connection_form_cancel_button",
+            defaultMessage: "Cancel",
+          })}
         </Button>
         <Button
           type="button"
@@ -367,8 +406,12 @@ export function ConnectionForm({
           {connection
             ? intl.formatMessage({
                 id: "models_connection_form_save_changes_button",
+                defaultMessage: "Save changes",
               })
-            : intl.formatMessage({ id: "models_connection_form_save_button" })}
+            : intl.formatMessage({
+                id: "models_connection_form_save_button",
+                defaultMessage: "Save server",
+              })}
         </Button>
       </DialogFooter>
     </>

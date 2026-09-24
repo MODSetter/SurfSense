@@ -123,7 +123,11 @@ async function responseError(response: Response): Promise<ErrorDetails> {
           message:
             required !== null && available !== null
               ? intl.formatMessage(
-                  { id: "app_api_insufficient_space_error" },
+                  {
+                    id: "app_api_insufficient_space_error",
+                    defaultMessage:
+                      "{message} ({required} GB required, {available} GB available)",
+                  },
                   {
                     message: body.detail.message,
                     required: (required / 1e9).toFixed(1),
@@ -147,7 +151,10 @@ async function responseError(response: Response): Promise<ErrorDetails> {
     message:
       response.statusText ||
       intl.formatMessage(
-        { id: "app_api_request_failed_error" },
+        {
+          id: "app_api_request_failed_error",
+          defaultMessage: "Request failed with status {status}",
+        },
         {
           status: String(response.status),
         }

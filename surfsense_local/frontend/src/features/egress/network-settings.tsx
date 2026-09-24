@@ -43,13 +43,17 @@ function DestinationRow({
           />
           {lastCallAt
             ? intl.formatMessage(
-                { id: "egress_destination_last_call_label" },
+                {
+                  id: "egress_destination_last_call_label",
+                  defaultMessage: "Last call: {time}",
+                },
                 {
                   time: <RelativeTime date={new Date(lastCallAt)} />,
                 }
               )
             : intl.formatMessage({
                 id: "egress_destination_never_called_label",
+                defaultMessage: "Last call: never",
               })}
         </p>
       </div>
@@ -61,7 +65,10 @@ function DestinationRow({
         />
         <Label htmlFor={checkboxId} className="sr-only">
           {intl.formatMessage(
-            { id: "egress_destination_allow_aria" },
+            {
+              id: "egress_destination_allow_aria",
+              defaultMessage: "Allow {name}",
+            },
             { name: label }
           )}
         </Label>
@@ -76,7 +83,10 @@ function UpdatesRow() {
   if (prefs === null) return null
   return (
     <DestinationRow
-      label={intl.formatMessage({ id: "egress_network_app_updates_label" })}
+      label={intl.formatMessage({
+        id: "egress_network_app_updates_label",
+        defaultMessage: "App updates",
+      })}
       host="github.com"
       enabled={prefs.automatic}
       lastCallAt={prefs.lastCheckedAt ?? null}
@@ -105,14 +115,24 @@ export function NetworkSettings() {
 
   return (
     <SettingsSection
-      title={intl.formatMessage({ id: "egress_network_title" })}
-      description={intl.formatMessage({ id: "egress_network_body" })}
+      title={intl.formatMessage({
+        id: "egress_network_title",
+        defaultMessage: "Network",
+      })}
+      description={intl.formatMessage({
+        id: "egress_network_body",
+        defaultMessage:
+          "Everywhere SurfSense can send data. Off blocks the call outright. Nothing is enabled by default.",
+      })}
     >
       {destinations.isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : destinations.error ? (
         <p role="alert" className="text-sm text-destructive">
-          {intl.formatMessage({ id: "egress_network_load_error" })}
+          {intl.formatMessage({
+            id: "egress_network_load_error",
+            defaultMessage: "Could not load network destinations.",
+          })}
         </p>
       ) : (
         <ul className="divide-y">

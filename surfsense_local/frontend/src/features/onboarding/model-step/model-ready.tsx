@@ -18,18 +18,27 @@ function usingSentence(inUse: InUse) {
   }
   if (inUse.where === "server") {
     return intl.formatMessage(
-      { id: "onboarding_model_ready_server_status" },
+      {
+        id: "onboarding_model_ready_server_status",
+        defaultMessage: "Using <b>{name}</b> via {source}",
+      },
       { ...values, source: inUse.source }
     )
   }
   if (inUse.where === "local") {
     return intl.formatMessage(
-      { id: "onboarding_model_ready_local_status" },
+      {
+        id: "onboarding_model_ready_local_status",
+        defaultMessage: "Using <b>{name}</b> on this computer",
+      },
       values
     )
   }
   return intl.formatMessage(
-    { id: "onboarding_model_ready_missing_status" },
+    {
+      id: "onboarding_model_ready_missing_status",
+      defaultMessage: "Using <b>{name}</b> (not found on this computer)",
+    },
     values
   )
 }
@@ -42,7 +51,10 @@ function usingSentence(inUse: InUse) {
 export function ModelReady({ inUse }: { inUse: InUse }) {
   return (
     <section
-      aria-label={intl.formatMessage({ id: "onboarding_model_ready_aria" })}
+      aria-label={intl.formatMessage({
+        id: "onboarding_model_ready_aria",
+        defaultMessage: "Model ready",
+      })}
       title={`${inUse.name} · ${inUse.source}`}
       className="min-w-0 truncate text-sm text-muted-foreground"
     >

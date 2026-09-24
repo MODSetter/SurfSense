@@ -118,8 +118,14 @@ function MessageActions({
                 size="icon-sm"
                 aria-label={
                   isCopied
-                    ? intl.formatMessage({ id: "chat_message_copied_aria" })
-                    : intl.formatMessage({ id: "chat_message_copy_aria" })
+                    ? intl.formatMessage({
+                        id: "chat_message_copied_aria",
+                        defaultMessage: "Copied",
+                      })
+                    : intl.formatMessage({
+                        id: "chat_message_copy_aria",
+                        defaultMessage: "Copy message",
+                      })
                 }
               >
                 <AuiIf condition={({ message }) => message.isCopied}>
@@ -133,8 +139,14 @@ function MessageActions({
           </ActionBarPrimitive.Copy>
           <TooltipContent>
             {isCopied
-              ? intl.formatMessage({ id: "chat_message_copied_tooltip" })
-              : intl.formatMessage({ id: "chat_message_copy_tooltip" })}
+              ? intl.formatMessage({
+                  id: "chat_message_copied_tooltip",
+                  defaultMessage: "Copied",
+                })
+              : intl.formatMessage({
+                  id: "chat_message_copy_tooltip",
+                  defaultMessage: "Copy",
+                })}
           </TooltipContent>
         </Tooltip>
       </ActionBarPrimitive.Root>

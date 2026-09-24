@@ -22,7 +22,10 @@ export function useFinishOnboarding(
     const selection = chat.data
     if (!selection) {
       setError(
-        intl.formatMessage({ id: "onboarding_finish_no_chat_model_error" })
+        intl.formatMessage({
+          id: "onboarding_finish_no_chat_model_error",
+          defaultMessage: "Choose a chat model first",
+        })
       )
       return
     }
@@ -35,7 +38,10 @@ export function useFinishOnboarding(
       setError(
         cause instanceof Error
           ? cause.message
-          : intl.formatMessage({ id: "onboarding_finish_error" })
+          : intl.formatMessage({
+              id: "onboarding_finish_error",
+              defaultMessage: "Could not finish setup",
+            })
       )
     } finally {
       setFinishing(false)

@@ -26,14 +26,20 @@ export function AddModelOptions({
       <Separator />
       <section
         className="flex flex-col gap-3"
-        aria-label={intl.formatMessage({ id: "models_add_model_local_aria" })}
+        aria-label={intl.formatMessage({
+          id: "models_add_model_local_aria",
+          defaultMessage: "On this computer",
+        })}
       >
         <h3 className="flex items-center gap-2 text-base font-medium">
           <ComputerIcon
             aria-hidden="true"
             className="size-4 text-muted-foreground"
           />
-          {intl.formatMessage({ id: "models_add_model_local_title" })}
+          {intl.formatMessage({
+            id: "models_add_model_local_title",
+            defaultMessage: "On this computer",
+          })}
         </h3>
         {download}
       </section>

@@ -117,6 +117,7 @@ export function ThreadPanel({
   const [draft, setDraft] = useState("")
   const untitled = intl.formatMessage({
     id: "chat_thread_panel_untitled_label",
+    defaultMessage: "New chat",
   })
   const title = thread?.title || untitled
   const conversationId =
@@ -176,6 +177,7 @@ export function ThreadPanel({
         className="flex h-full min-w-0 flex-col bg-background"
         aria-label={intl.formatMessage({
           id: "chat_thread_panel_conversation_aria",
+          defaultMessage: "Conversation",
         })}
       >
         <header className="flex h-14 shrink-0 items-center px-5">
@@ -186,6 +188,7 @@ export function ThreadPanel({
               maxLength={200}
               aria-label={intl.formatMessage({
                 id: "chat_thread_panel_name_aria",
+                defaultMessage: "Chat name",
               })}
               className="w-auto max-w-full font-heading text-base font-medium md:text-base"
               onChange={(event) => setDraft(event.target.value)}
@@ -205,6 +208,7 @@ export function ThreadPanel({
             <ButtonGroup
               aria-label={intl.formatMessage({
                 id: "chat_thread_panel_header_aria",
+                defaultMessage: "Chat",
               })}
               className="max-w-lg min-w-0"
             >
@@ -229,7 +233,10 @@ export function ThreadPanel({
                     variant="ghost"
                     size="icon-sm"
                     aria-label={intl.formatMessage(
-                      { id: "chat_thread_panel_options_aria" },
+                      {
+                        id: "chat_thread_panel_options_aria",
+                        defaultMessage: "Chat options for {title}",
+                      },
                       {
                         title,
                       }
@@ -260,6 +267,7 @@ export function ThreadPanel({
                       <PencilIcon />
                       {intl.formatMessage({
                         id: "chat_thread_panel_rename_label",
+                        defaultMessage: "Rename",
                       })}
                     </DropdownMenuItem>
                     <DropdownMenuItem
@@ -271,6 +279,7 @@ export function ThreadPanel({
                       <Trash2Icon />
                       {intl.formatMessage({
                         id: "chat_thread_panel_delete_label",
+                        defaultMessage: "Delete chat",
                       })}
                     </DropdownMenuItem>
                   </DropdownMenuGroup>

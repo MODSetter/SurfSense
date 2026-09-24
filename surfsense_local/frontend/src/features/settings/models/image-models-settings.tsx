@@ -21,8 +21,15 @@ export function ImageModelsSettings({
 
   return (
     <ModelSlotSettings
-      title={intl.formatMessage({ id: "settings_image_models_title" })}
-      description={intl.formatMessage({ id: "settings_image_models_body" })}
+      title={intl.formatMessage({
+        id: "settings_image_models_title",
+        defaultMessage: "Image generation models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_image_models_body",
+        defaultMessage:
+          "The model that makes images in Studio. Run one on this computer, or use one from a server.",
+      })}
       slot="image"
       modelType="image_gen"
       models={models}

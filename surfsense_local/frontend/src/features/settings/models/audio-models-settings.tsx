@@ -21,8 +21,15 @@ export function AudioModelsSettings({
 
   return (
     <ModelSlotSettings
-      title={intl.formatMessage({ id: "settings_audio_models_title" })}
-      description={intl.formatMessage({ id: "settings_audio_models_body" })}
+      title={intl.formatMessage({
+        id: "settings_audio_models_title",
+        defaultMessage: "Audio generation models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_audio_models_body",
+        defaultMessage:
+          "The model that voices podcasts in Studio. Run one on this computer, or use one from a server.",
+      })}
       slot="audio"
       modelType="audio_gen"
       models={models}

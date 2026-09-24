@@ -64,22 +64,34 @@ const LICENSE_ROWS: Record<
 > = {
   active: {
     label: () =>
-      intl.formatMessage({ id: "dashboard_footer_license_active_status" }),
+      intl.formatMessage({
+        id: "dashboard_footer_license_active_status",
+        defaultMessage: "License active",
+      }),
     tone: "good",
   },
   none: {
     label: () =>
-      intl.formatMessage({ id: "dashboard_footer_license_none_status" }),
+      intl.formatMessage({
+        id: "dashboard_footer_license_none_status",
+        defaultMessage: "No license",
+      }),
     tone: "bad",
   },
   license_expired: {
     label: () =>
-      intl.formatMessage({ id: "dashboard_footer_license_expired_status" }),
+      intl.formatMessage({
+        id: "dashboard_footer_license_expired_status",
+        defaultMessage: "License expired",
+      }),
     tone: "bad",
   },
   clock_untrusted: {
     label: () =>
-      intl.formatMessage({ id: "dashboard_footer_license_clock_status" }),
+      intl.formatMessage({
+        id: "dashboard_footer_license_clock_status",
+        defaultMessage: "Clock is off",
+      }),
     tone: "bad",
   },
 }
@@ -95,6 +107,7 @@ function updateRow(state: UpdateState): Row {
       return {
         label: intl.formatMessage({
           id: "dashboard_footer_update_checking_status",
+          defaultMessage: "Checking…",
         }),
         tone: "quiet",
         busy: true,
@@ -103,6 +116,7 @@ function updateRow(state: UpdateState): Row {
       return {
         label: intl.formatMessage({
           id: "dashboard_footer_update_downloading_status",
+          defaultMessage: "Downloading…",
         }),
         tone: "quiet",
         busy: true,
@@ -111,6 +125,7 @@ function updateRow(state: UpdateState): Row {
       return {
         label: intl.formatMessage({
           id: "dashboard_footer_update_restart_button",
+          defaultMessage: "Restart to update",
         }),
         tone: "offer",
       }
@@ -118,6 +133,7 @@ function updateRow(state: UpdateState): Row {
       return {
         label: intl.formatMessage({
           id: "dashboard_footer_update_current_status",
+          defaultMessage: "Up to date",
         }),
         tone: "quiet",
       }
@@ -125,6 +141,7 @@ function updateRow(state: UpdateState): Row {
       return {
         label: intl.formatMessage({
           id: "dashboard_footer_update_failed_status",
+          defaultMessage: "Update check failed",
         }),
         tone: "wrong",
       }
@@ -132,6 +149,7 @@ function updateRow(state: UpdateState): Row {
       return {
         label: intl.formatMessage({
           id: "dashboard_footer_update_check_button",
+          defaultMessage: "Check for updates",
         }),
         tone: "quiet",
       }

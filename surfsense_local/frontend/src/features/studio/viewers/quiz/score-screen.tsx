@@ -43,7 +43,10 @@ function QuestionSection({
                 type="button"
                 onClick={() => onReview(index)}
                 aria-label={intl.formatMessage(
-                  { id: "studio_quiz_score_review_question_aria" },
+                  {
+                    id: "studio_quiz_score_review_question_aria",
+                    defaultMessage: "Review question {number}",
+                  },
                   {
                     number: String(index + 1),
                   }
@@ -63,7 +66,10 @@ function QuestionSection({
         </ol>
       ) : (
         <p className="mt-2 text-sm text-muted-foreground">
-          {intl.formatMessage({ id: "studio_quiz_score_section_empty" })}
+          {intl.formatMessage({
+            id: "studio_quiz_score_section_empty",
+            defaultMessage: "None",
+          })}
         </p>
       )}
     </section>
@@ -106,7 +112,10 @@ export function QuizScoreScreen({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-sm text-muted-foreground">
-            {intl.formatMessage({ id: "studio_quiz_score_title" })}
+            {intl.formatMessage({
+              id: "studio_quiz_score_title",
+              defaultMessage: "Your score",
+            })}
           </p>
           <h2
             ref={headingRef}
@@ -123,17 +132,27 @@ export function QuizScoreScreen({
           size="sm"
           onClick={() => onReview(0)}
         >
-          {intl.formatMessage({ id: "studio_quiz_score_review_button" })}
+          {intl.formatMessage({
+            id: "studio_quiz_score_review_button",
+            defaultMessage: "Review",
+          })}
         </Button>
       </div>
       <fieldset className="mt-7 flex h-5 overflow-hidden rounded-full bg-muted">
         <legend className="sr-only">
-          {intl.formatMessage({ id: "studio_quiz_score_breakdown_aria" })}
+          {intl.formatMessage({
+            id: "studio_quiz_score_breakdown_aria",
+            defaultMessage: "Score breakdown",
+          })}
         </legend>
         <button
           type="button"
           aria-label={intl.formatMessage(
-            { id: "studio_quiz_score_show_correct_aria" },
+            {
+              id: "studio_quiz_score_show_correct_aria",
+              defaultMessage:
+                "Show {count, plural, one {# correct question} other {# correct questions}}",
+            },
             {
               count: correct,
             }
@@ -149,7 +168,11 @@ export function QuizScoreScreen({
         <button
           type="button"
           aria-label={intl.formatMessage(
-            { id: "studio_quiz_score_show_missed_aria" },
+            {
+              id: "studio_quiz_score_show_missed_aria",
+              defaultMessage:
+                "Show {count, plural, one {# missed question} other {# missed questions}}",
+            },
             {
               count: missed.length,
             }
@@ -166,7 +189,11 @@ export function QuizScoreScreen({
         <button
           type="button"
           aria-label={intl.formatMessage(
-            { id: "studio_quiz_score_show_skipped_aria" },
+            {
+              id: "studio_quiz_score_show_skipped_aria",
+              defaultMessage:
+                "Show {count, plural, one {# skipped question} other {# skipped questions}}",
+            },
             {
               count: skipped.length,
             }
@@ -187,7 +214,10 @@ export function QuizScoreScreen({
           >
             <span className="size-2 shrink-0 rounded-full bg-emerald-600 sm:size-2.5" />
             {intl.formatMessage(
-              { id: "studio_quiz_score_correct_tab_label" },
+              {
+                id: "studio_quiz_score_correct_tab_label",
+                defaultMessage: "{count} correct",
+              },
               { count: correct }
             )}
           </TabsTrigger>
@@ -197,7 +227,10 @@ export function QuizScoreScreen({
           >
             <span className="size-2 shrink-0 rounded-full bg-red-600 sm:size-2.5" />
             {intl.formatMessage(
-              { id: "studio_quiz_score_missed_tab_label" },
+              {
+                id: "studio_quiz_score_missed_tab_label",
+                defaultMessage: "{count} missed",
+              },
               {
                 count: missed.length,
               }
@@ -209,7 +242,10 @@ export function QuizScoreScreen({
           >
             <span className="size-2 shrink-0 rounded-full bg-muted-foreground sm:size-2.5" />
             {intl.formatMessage(
-              { id: "studio_quiz_score_skipped_tab_label" },
+              {
+                id: "studio_quiz_score_skipped_tab_label",
+                defaultMessage: "{count} skipped",
+              },
               {
                 count: skipped.length,
               }
@@ -220,7 +256,10 @@ export function QuizScoreScreen({
           <TabsContent value="correct" className="mt-0">
             <QuestionSection
               title={intl.formatMessage(
-                { id: "studio_quiz_score_correct_section_title" },
+                {
+                  id: "studio_quiz_score_correct_section_title",
+                  defaultMessage: "Correct ({count})",
+                },
                 {
                   count: correctIndices.length,
                 }
@@ -233,7 +272,10 @@ export function QuizScoreScreen({
           <TabsContent value="missed" className="mt-0">
             <QuestionSection
               title={intl.formatMessage(
-                { id: "studio_quiz_score_missed_section_title" },
+                {
+                  id: "studio_quiz_score_missed_section_title",
+                  defaultMessage: "Missed ({count})",
+                },
                 {
                   count: missed.length,
                 }
@@ -246,7 +288,10 @@ export function QuizScoreScreen({
           <TabsContent value="skipped" className="mt-0">
             <QuestionSection
               title={intl.formatMessage(
-                { id: "studio_quiz_score_skipped_section_title" },
+                {
+                  id: "studio_quiz_score_skipped_section_title",
+                  defaultMessage: "Skipped ({count})",
+                },
                 {
                   count: skipped.length,
                 }
@@ -263,7 +308,10 @@ export function QuizScoreScreen({
           <DropdownMenuTrigger asChild>
             <Button type="button" variant="secondary">
               <RefreshCwIcon />{" "}
-              {intl.formatMessage({ id: "studio_quiz_score_retake_button" })}{" "}
+              {intl.formatMessage({
+                id: "studio_quiz_score_retake_button",
+                defaultMessage: "Retake quiz",
+              })}{" "}
               <ChevronDownIcon />
             </Button>
           </DropdownMenuTrigger>
@@ -274,10 +322,14 @@ export function QuizScoreScreen({
             >
               {intl.formatMessage({
                 id: "studio_quiz_score_retake_missed_label",
+                defaultMessage: "Retake missed questions",
               })}
             </DropdownMenuItem>
             <DropdownMenuItem onSelect={() => onRetake("all")}>
-              {intl.formatMessage({ id: "studio_quiz_score_retake_all_label" })}
+              {intl.formatMessage({
+                id: "studio_quiz_score_retake_all_label",
+                defaultMessage: "Retake all questions",
+              })}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

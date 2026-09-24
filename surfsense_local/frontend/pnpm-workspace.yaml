@@ -13,3 +13,4 @@ minimumReleaseAgeExclude:
   - '@formatjs/cli-native-linux-x64@1.1.26'
   - '@formatjs/cli-native-win32-x64@1.1.27'
   - '@formatjs/cli@6.16.32'
+  - eslint-plugin-formatjs@8.1.0

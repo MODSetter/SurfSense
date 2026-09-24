@@ -51,11 +51,17 @@ export function InlineCitation(props: Record<string, unknown>) {
       size="xs"
       className="mx-0.5 inline-flex h-5 min-w-5 rounded-md bg-popover px-1.5 align-baseline text-[11px] font-medium text-popover-foreground/80 hover:bg-popover hover:text-popover-foreground"
       title={intl.formatMessage(
-        { id: "chat_inline_citation_tooltip" },
+        {
+          id: "chat_inline_citation_tooltip",
+          defaultMessage: "View source chunk #{id}",
+        },
         { id: chunkId }
       )}
       aria-label={intl.formatMessage(
-        { id: "chat_inline_citation_aria" },
+        {
+          id: "chat_inline_citation_aria",
+          defaultMessage: "View cited chunk {id}",
+        },
         { id: chunkId }
       )}
       onClick={() => context.onCitation(chunkId)}

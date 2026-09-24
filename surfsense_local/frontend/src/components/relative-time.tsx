@@ -23,7 +23,10 @@ const compactUnits: [number, (count: number) => string][] = [
     60,
     (count) =>
       intl.formatMessage(
-        { id: "app_relative_time_compact_minutes_label" },
+        {
+          id: "app_relative_time_compact_minutes_label",
+          defaultMessage: "{count}m",
+        },
         { count }
       ),
   ],
@@ -31,7 +34,10 @@ const compactUnits: [number, (count: number) => string][] = [
     24,
     (count) =>
       intl.formatMessage(
-        { id: "app_relative_time_compact_hours_label" },
+        {
+          id: "app_relative_time_compact_hours_label",
+          defaultMessage: "{count}h",
+        },
         { count }
       ),
   ],
@@ -39,7 +45,10 @@ const compactUnits: [number, (count: number) => string][] = [
     7,
     (count) =>
       intl.formatMessage(
-        { id: "app_relative_time_compact_days_label" },
+        {
+          id: "app_relative_time_compact_days_label",
+          defaultMessage: "{count}d",
+        },
         { count }
       ),
   ],
@@ -47,7 +56,10 @@ const compactUnits: [number, (count: number) => string][] = [
     4.345,
     (count) =>
       intl.formatMessage(
-        { id: "app_relative_time_compact_weeks_label" },
+        {
+          id: "app_relative_time_compact_weeks_label",
+          defaultMessage: "{count}w",
+        },
         { count }
       ),
   ],
@@ -55,7 +67,10 @@ const compactUnits: [number, (count: number) => string][] = [
     12,
     (count) =>
       intl.formatMessage(
-        { id: "app_relative_time_compact_months_label" },
+        {
+          id: "app_relative_time_compact_months_label",
+          defaultMessage: "{count}mo",
+        },
         { count }
       ),
   ],
@@ -63,7 +78,10 @@ const compactUnits: [number, (count: number) => string][] = [
     Number.POSITIVE_INFINITY,
     (count) =>
       intl.formatMessage(
-        { id: "app_relative_time_compact_years_label" },
+        {
+          id: "app_relative_time_compact_years_label",
+          defaultMessage: "{count}y",
+        },
         { count }
       ),
   ],
@@ -100,7 +118,10 @@ function getSnapshot() {
 function formatRelativeTime(date: Date, currentTime: number) {
   const seconds = (date.getTime() - currentTime) / 1000
   if (Math.abs(seconds) < 60) {
-    return intl.formatMessage({ id: "app_relative_time_just_now_label" })
+    return intl.formatMessage({
+      id: "app_relative_time_just_now_label",
+      defaultMessage: "just now",
+    })
   }
 
   let value = seconds / 60
@@ -118,7 +139,10 @@ function formatRelativeTime(date: Date, currentTime: number) {
 function formatCompactTime(date: Date, currentTime: number) {
   const seconds = Math.max(0, (currentTime - date.getTime()) / 1000)
   if (seconds < 60) {
-    return intl.formatMessage({ id: "app_relative_time_compact_now_label" })
+    return intl.formatMessage({
+      id: "app_relative_time_compact_now_label",
+      defaultMessage: "now",
+    })
   }
 
   let value = seconds / 60

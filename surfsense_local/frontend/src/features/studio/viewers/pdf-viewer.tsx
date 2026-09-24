@@ -100,7 +100,11 @@ export function PdfViewer({
         if (!response.ok) {
           throw new Error(
             intl.formatMessage(
-              { id: "studio_pdf_viewer_load_error" },
+              {
+                id: "studio_pdf_viewer_load_error",
+                defaultMessage:
+                  "Server returned {status} while retrieving the PDF",
+              },
               {
                 status: String(response.status),
               }
@@ -162,7 +166,10 @@ export function PdfViewer({
         setLoadError(
           error instanceof Error
             ? error.message
-            : intl.formatMessage({ id: "studio_pdf_viewer_unknown_error" })
+            : intl.formatMessage({
+                id: "studio_pdf_viewer_unknown_error",
+                defaultMessage: "Failed to load PDF",
+              })
         )
         setLoading(false)
       }
@@ -223,7 +230,10 @@ export function PdfViewer({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
         <p className="text-sm font-medium">
-          {intl.formatMessage({ id: "studio_pdf_viewer_error_title" })}
+          {intl.formatMessage({
+            id: "studio_pdf_viewer_error_title",
+            defaultMessage: "Failed to load PDF",
+          })}
         </p>
         <p className="text-xs text-muted-foreground">{loadError}</p>
         <Button
@@ -232,7 +242,10 @@ export function PdfViewer({
           size="sm"
           onClick={() => setRetryKey((key) => key + 1)}
         >
-          {intl.formatMessage({ id: "studio_pdf_viewer_retry_button" })}
+          {intl.formatMessage({
+            id: "studio_pdf_viewer_retry_button",
+            defaultMessage: "Try again",
+          })}
         </Button>
       </div>
     )
@@ -246,6 +259,7 @@ export function PdfViewer({
         size="icon-sm"
         aria-label={intl.formatMessage({
           id: "studio_pdf_viewer_zoom_out_aria",
+          defaultMessage: "Zoom out",
         })}
         onClick={zoomOut}
       >
@@ -257,6 +271,7 @@ export function PdfViewer({
         size="icon-sm"
         aria-label={intl.formatMessage({
           id: "studio_pdf_viewer_zoom_in_aria",
+          defaultMessage: "Zoom in",
         })}
         onClick={zoomIn}
       >
