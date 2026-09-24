@@ -1,3 +1,4 @@
+import { useDeleteLocalAudioModel } from "@/features/models/local/audio/use-delete-local-audio-model"
 import { useDeleteLocalChatModel } from "@/features/models/local/chat/use-delete-local-chat-model"
 import { useDeleteLocalImageModel } from "@/features/models/local/image/use-delete-local-image-model"
 
@@ -18,4 +19,5 @@ function useDeleteChat(): SlotDelete {
 export const slotDeletes: Record<OnboardingSlot, () => SlotDelete> = {
   text_gen: useDeleteChat,
   image_gen: useDeleteLocalImageModel,
+  audio_gen: useDeleteLocalAudioModel,
 }

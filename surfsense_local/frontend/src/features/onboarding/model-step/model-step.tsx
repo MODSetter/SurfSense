@@ -59,6 +59,14 @@ const COPY: Record<
     // sd.cpp has no search: its models are the few the catalog ships.
     searchable: false,
   },
+  audio_gen: {
+    title: "Add an audio model",
+    description:
+      "Lets Studio voice podcasts. You can skip this and add one later in Settings.",
+    noLocal: "Audio models cannot run on this computer.",
+    // Nor has audio.cpp.
+    searchable: false,
+  },
 }
 
 /**
