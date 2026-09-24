@@ -21,7 +21,7 @@ choosing or clearing a model never touches.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
-| `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id` | nothing yet; podcasts still voice through the worker's Kokoro |
+| `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id`, which nothing reads yet | Studio's `podcast` |
 | `image_edit`, `video_gen` | none | `openai_compatible`, with a `connection_id` | nothing yet |
 
 A type no feature reads can still be chosen; the feature that first reads one

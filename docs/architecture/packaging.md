@@ -1,6 +1,6 @@
 # Packaging
 
-One build per platform (Linux ships two packages) carries everything the desktop app needs to run offline: the API and the worker frozen into PyInstaller binaries, the renderer, the embedding, parser and voice model packs, and the llama.cpp and audio.cpp runtimes. PyInstaller follows only `import` statements, so anything the app reaches by a path or a string must be named in a spec, and each omission shows up only in a frozen build on a clean machine; the specs name those files, and packaging tests freeze real binaries to catch the ones that slip. Generation weights are never bundled; the app downloads them when the user asks ([egress](egress.md)).
+One build per platform (Linux ships two packages) carries everything the desktop app needs to run offline: the API and the worker frozen into PyInstaller binaries, the renderer, the embedding and parser model packs, and the llama.cpp and audio.cpp runtimes. PyInstaller follows only `import` statements, so anything the app reaches by a path or a string must be named in a spec, and each omission shows up only in a frozen build on a clean machine; the specs name those files, and packaging tests freeze real binaries to catch the ones that slip. Generation weights are never bundled; the app downloads them when the user asks ([egress](egress.md)).
 
 **Code:** [`surfsense_local/backend/bundling/`](../../surfsense_local/backend/bundling/), [`surfsense_local/backend/scripts/build_binaries.py`](../../surfsense_local/backend/scripts/build_binaries.py), [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`surfsense_local/electron/scripts/`](../../surfsense_local/electron/scripts/), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/backend/tests/packaging/`](../../surfsense_local/backend/tests/packaging/)
 **Decisions:** [ADR 0021](../adr/0021-no-intel-mac-build.md), [ADR 0012](../adr/0012-vulkan-only-gpu-backend.md)
@@ -15,7 +15,7 @@ The asar holds only the Electron main and preload bundles. Everything else rides
 |---|---|---|
 | `backend/api`, `backend/worker` | `backend/dist/` | the frozen onedir binaries |
 | `frontend/dist` | `frontend/dist` | the Vite SPA, loaded from disk |
-| `models` | `backend/models` | the embedding model, the Docling parser pack, the Kokoro voice |
+| `models` | `backend/models` | the embedding model and the Docling parser pack |
 | `llamacpp` | `electron/llamacpp` | `llama-server` and the libraries it links |
 | `sdcpp` | `electron/sdcpp` | `sd-server`, for local image generation |
 | `audiocpp` | `electron/audiocpp` | `audiocpp_server`, its libraries, the curated model specs and eSpeak-ng, for podcast voices |
@@ -42,20 +42,18 @@ What else each spec names, and why the analyser cannot find it on its own:
 | `worker.spec` | the remote model manifest | Studio classifies a remote model through the same discovery the API uses, and the file is read by path |
 | `worker.spec` | Docling and its packages, RapidOCR, transformers, torchvision | lazy and native imports Docling reaches only on the first PDF |
 | `worker.spec` | python-docx, python-pptx, xlsxwriter, reportlab | the Office formats run model-written code that imports them, so no static import exists |
-| `worker.spec` | kokoro-onnx, espeakng-loader, phonemizer | the voice model and espeak data are read by path |
 | `worker.spec` | `modules.documents.tasks`, `modules.artifacts.tasks` | Huey resolves a task by its name |
 
 ## Model packs
 
-Three packs are staged into `backend/models` before packaging and ship as `resources/models`, so the first PDF parses and the first query embeds with no network:
+Two packs are staged into `backend/models` before packaging and ship as `resources/models`, so the first PDF parses and the first query embeds with no network. Voices are not bundled: an audio model is downloaded like any other ([`local-models/catalog.md`](local-models/catalog.md)).
 
 | Pack | Staged by | Holds |
 |---|---|---|
 | Embedding | `build:model`, `scripts/fetch_embedding_model.py` | `bge-small-en-v1.5`: the ONNX model, tokenizer and config |
 | Parser | `build:parser`, `scripts/fetch_docling_models.py` | Docling's layout, table and RapidOCR weights, pruned of the variants ingest never loads |
-| Voice | `build:voice`, `scripts/fetch_kokoro_model.py` | Kokoro, for podcasts |
 
-The release workflow runs the three scripts directly. Without the parser pack, Docling downloads its weights on first use and RapidOCR writes into `site-packages`, which is read-only inside a frozen bundle, so the first PDF would fail rather than merely be slow. `worker/ingestion/parsing.py` points `HF_HOME` at the models directory before Docling loads and, once the parser pack is complete, sets `HF_HUB_OFFLINE=1`.
+The release workflow runs the two scripts directly. Without the parser pack, Docling downloads its weights on first use and RapidOCR writes into `site-packages`, which is read-only inside a frozen bundle, so the first PDF would fail rather than merely be slow. `worker/ingestion/parsing.py` points `HF_HOME` at the models directory before Docling loads and, once the parser pack is complete, sets `HF_HUB_OFFLINE=1`.
 
 ## Native runtimes
 

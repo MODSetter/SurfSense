@@ -74,7 +74,7 @@ Wähl ein paar Dokumente und ein Format. Die App schreibt das Ergebnis aus den Q
 | **Tabellenkalkulation** | Eine `.xlsx` mit den Tabellen aus den Quellen | Generierungsmodell |
 | **Webseite** | Eine eigenständige HTML-Seite | Generierungsmodell |
 | **PDF** | Ein gesetztes PDF | Generierungsmodell |
-| **Podcast** | Ein Zwiegespräch als Audio, offline gesprochen von Kokoro-82M | Generierungsmodell + mitgelieferte Stimme |
+| **Podcast** | Ein Zwiegespräch als Audio, offline gesprochen von Kokoro-82M | Generierungsmodell + Audiomodell |
 | **Bild** | Eine Illustration zum Material | Bildmodell + Generierungsmodell |
 | **Infografik** | Eine visuelle Zusammenfassung auf einem Panel | Bildmodell + Generierungsmodell |
 

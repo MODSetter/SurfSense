@@ -26,7 +26,7 @@ This extends the local catalog ([`catalog.md`](../architecture/local-models/cata
 | Voice model | Kokoro-82M ONNX, 340 MB, bundled in the installer | curated models downloaded from the catalog, Kokoro first |
 | Choosing one | not possible: `resolve_text_to_speech()` always returns Kokoro | the `audio_gen` selection, provider `audiocpp` |
 | Podcast gate | `requires_voice`, "Needs a voice model" | `audio_gen` among the format's required model types, "Needs an audio model" |
-| Voices | a list hard-coded in [`providers/kokoro/provider.py`](../../surfsense_local/backend/modules/llm/providers/kokoro/provider.py) | each model's roster, committed in the manifest |
+| Voices | a list hard-coded in `providers/kokoro/provider.py` | each model's roster, committed in the manifest |
 
 The installer loses the 340 MB of Kokoro weights and three Python packages, and gains the sidecar. A podcast needs one download first, so the root README's two lines that say the podcast voice ships inside the installer change with the step that removes it.
 
@@ -216,7 +216,7 @@ Supertonic has no chunk setting, so it commits a peak and no steps; Kitten commi
 
 ## What goes
 
-[`providers/kokoro/`](../../surfsense_local/backend/modules/llm/providers/kokoro/), [`scripts/fetch_kokoro_model.py`](../../surfsense_local/backend/scripts/fetch_kokoro_model.py), the `build:voice` script, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from [`worker.spec`](../../surfsense_local/backend/bundling/worker.spec). onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
+`providers/kokoro/`, `scripts/fetch_kokoro_model.py`, the `build:voice` script, `kokoro-onnx`, and `kokoro_onnx`, `espeakng_loader` and `phonemizer` from [`worker.spec`](../../surfsense_local/backend/bundling/worker.spec). onnxruntime stays for the retrieval model. Podcasts already made keep their audio: an artifact stores its WAV.
 
 ## Order of work
 

@@ -532,5 +532,5 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
 - Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it a few seconds later. The hard-coded list's route reported that, and went with it.
 - Nothing checks free disk space before a download starts.
-- The `audio` block's voices and chunk steps are committed but nothing reads them, and podcasts still speak through the worker's Kokoro, whatever audio model is chosen.
+- The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.
