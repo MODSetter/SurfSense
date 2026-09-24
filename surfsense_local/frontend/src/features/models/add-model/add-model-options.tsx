@@ -24,7 +24,7 @@ export function AddModelOptions({
       <ServerCard onConnected={onConnected} />
       <Separator />
       <section className="flex flex-col gap-3" aria-label="On this computer">
-        <h3 className="flex items-center gap-2 text-sm font-medium">
+        <h3 className="flex items-center gap-2 text-base font-medium">
           <ComputerIcon
             aria-hidden="true"
             className="size-4 text-muted-foreground"

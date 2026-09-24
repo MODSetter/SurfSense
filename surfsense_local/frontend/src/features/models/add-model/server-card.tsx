@@ -22,7 +22,7 @@ export function ServerCard({
     <section className="flex flex-col gap-3" aria-label="Use a server">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <h3 className="flex items-center gap-2 text-sm font-medium">
+          <h3 className="flex items-center gap-2 text-base font-medium">
             <ServerIcon
               aria-hidden="true"
               className="size-4 text-muted-foreground"

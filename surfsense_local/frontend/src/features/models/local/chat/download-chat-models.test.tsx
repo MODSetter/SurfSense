@@ -238,15 +238,16 @@ describe("model catalog", () => {
     expect(screen.queryByText("Runs on your processor")).toBeNull()
   })
 
-  it("installs with only the opaque id", async () => {
-    // The renderer never sends a repo, file, URL, path or quantization.
+  it("installs with only the opaque id, and does not select", async () => {
+    // The renderer never sends a repo, file, URL, path or quantization. A
+    // download does not choose the model either: Use does, same as image.
     const onSelected = vi.fn()
     const fetchMock = serving(catalog(), (path) =>
       path === "/llm/install"
         ? new Response(
             stream([
               '{"type":"downloading","completed":5,"total":10}\n',
-              '{"type":"complete","selection":{"model_type":"text_gen","provider":"llamacpp","connection_id":null,"name":"Qwen3-8B-Q4_K_M","updated_at":"2026-09-07T00:00:00Z"}}\n',
+              '{"type":"complete","selection":null}\n',
             ])
           )
         : null
@@ -258,12 +259,48 @@ describe("model catalog", () => {
     await user.click(
       await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
     )
+    await waitForInstallToSettle()
 
-    await waitFor(() => expect(onSelected).toHaveBeenCalledOnce())
     const call = fetchMock.mock.calls.find(([path]) => path === "/llm/install")
     expect(JSON.parse(String(call?.[1]?.body))).toEqual({
       catalog_id: "opaque-qwen",
-      select: true,
+      select: false,
+    })
+    expect(onSelected).not.toHaveBeenCalled()
+  })
+
+  it("selects a downloaded chat model when Use is clicked, like image", async () => {
+    const onSelected = vi.fn()
+    const fetchMock = serving(
+      catalog({
+        rows: [row({}, [build({ installed_as: "Qwen3-8B-Q4_K_M" })])],
+      }),
+      (path, init) =>
+        path === "/llm/selection/text_gen" && init?.method === "PUT"
+          ? Response.json({
+              model_type: "text_gen",
+              ...JSON.parse(String(init.body)),
+              updated_at: "2026-09-24T00:00:00Z",
+            })
+          : null
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels onSelected={onSelected} />)
+    await user.click(
+      await screen.findByRole("button", { name: "Use Qwen3 8B Q4_K_M" })
+    )
+
+    await waitFor(() => expect(onSelected).toHaveBeenCalledOnce())
+    const call = fetchMock.mock.calls.find(
+      ([path, init]) =>
+        path === "/llm/selection/text_gen" && init?.method === "PUT"
+    )
+    expect(JSON.parse(String(call?.[1]?.body))).toMatchObject({
+      provider: "llamacpp",
+      connection_id: null,
+      name: "Qwen3-8B-Q4_K_M",
     })
   })
 
