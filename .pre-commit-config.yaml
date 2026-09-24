@@ -86,6 +86,28 @@ repos:
         always_run: true
         stages: [pre-commit]
 
+  # The desktop app's translation catalogs. formatjs-verify is FormatJS's own
+  # check: every key translated, no extra keys, the same placeholders and tags.
+  # check-translations adds the SurfSense rules (key shape, unused keys, layout)
+  # and also runs on code changes, since removing a call makes its key unused.
+  - repo: local
+    hooks:
+      - id: formatjs-verify
+        name: formatjs-verify
+        entry: formatjs verify surfsense_local/frontend/translations/*.json --source-locale en --missing-keys --extra-keys --structural-equality
+        language: node
+        additional_dependencies: ["@formatjs/cli@6.16.32"]
+        files: ^surfsense_local/frontend/translations/
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: check-translations
+        name: check-translations
+        entry: node scripts/check_translations.mjs
+        language: system
+        files: ^surfsense_local/(frontend/(translations/|src/)|electron/src/main/)
+        pass_filenames: false
+        stages: [pre-commit]
+
   # Commit message linting
   - repo: https://github.com/commitizen-tools/commitizen
     rev: v4.8.3
