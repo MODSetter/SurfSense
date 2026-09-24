@@ -1,7 +1,8 @@
 ---
-status: accepted
+status: in-progress
 code:
   - surfsense_local/backend/scripts/chat_eval/
+  - surfsense_local/backend/scripts/run_chat_eval.py
 ---
 
 # Chat eval
@@ -61,6 +62,17 @@ Each case carries its retrieved passages, so every model answers from the same c
 
 - Every machine runs the same file, the default `UD-Q4_K_XL`. On a machine short of memory the app recommends a smaller 4-bit build instead; install `UD-Q4_K_XL` from the model's other builds, which installs unless the app refuses it ([catalog](../architecture/local-models/catalog.md)). A machine that refuses it does not run the eval for that model.
 - Each result records the llama.cpp build it ran on, because a release pins one ([packaging](../architecture/packaging.md)).
+- The script asks a llama-server started the way the app starts it, normally the dev app's own, at the address given as `--base-url`, so a run uses the app's launch flags and model presets rather than a copy of them.
+
+## Scoring
+
+Rules only ([`score.py`](../../surfsense_local/backend/scripts/chat_eval/score.py)). Each case in [`cases.json`](../../surfsense_local/backend/scripts/chat_eval/cases.json) carries its passages, which of them hold the answer, and any facts a correct answer states, chosen to read the same in any language. A reply is marked for:
+
+- stopping at the 1,024-token cap, and for coming back empty;
+- a label that names no passage, read by chat's own `resolve_citations()`;
+- citing every passage that holds the answer, and for citing one that does not, which on a case no passage answers is any citation;
+- stating the expected facts;
+- being written in the question's script, which stands in for its language.
 
 ## Reading the results
 
@@ -81,5 +93,5 @@ Each case carries its retrieved passages, so every model answers from the same c
 
 ## Open questions
 
-- What a case scores, and how: citations that resolve and are supported by their passage, admitting when the passages do not hold the answer, answering in the question's language. Rules for the first, a judge model for the rest, or both.
+- Whether a judge model scores what the rules cannot: admitting that the passages do not hold the answer, which the rules read only as citing nothing, and the language of a Latin-script question, which the script rule cannot tell from English.
 - How often the 1,024-token cap cuts a thinking model's answer short ([chat](../architecture/chat.md#known-gaps)). The first thing to measure.

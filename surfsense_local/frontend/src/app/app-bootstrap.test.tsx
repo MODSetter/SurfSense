@@ -161,4 +161,72 @@ describe("app bootstrap", () => {
     expect(screen.queryByText("No chat model is available")).toBeNull()
     expect(screen.queryByText("Choose your AI model")).toBeNull()
   }, 15_000)
+
+  it("opens the dashboard when the chosen model's provider cannot be reached", async () => {
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+      }
+    )
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/onboarding") {
+          return Response.json({ completed: true })
+        }
+        if (path === "/llm/selection/text_gen") {
+          return Response.json({
+            model_type: "text_gen",
+            provider: "openai_compatible",
+            connection_id: 1,
+            name: "gpt-4.1-mini",
+            updated_at: "2026-09-18T23:07:43Z",
+          })
+        }
+        if (path === "/llm/connections/1/models") {
+          return Response.json(
+            { detail: "connection model discovery failed" },
+            { status: 502 }
+          )
+        }
+        if (path === "/workspaces") {
+          return Response.json([
+            {
+              id: 1,
+              name: "Research",
+              created_at: "2026-09-09T00:00:00Z",
+              updated_at: "2026-09-09T00:00:00Z",
+            },
+          ])
+        }
+        if (
+          path === "/workspaces/1/chat/threads" ||
+          path ===
+            "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+
+    render(
+      <TooltipProvider>
+        <AppBootstrap />
+      </TooltipProvider>
+    )
+
+    expect(
+      await screen.findByPlaceholderText(
+        "Reconnect your model provider to send",
+        {},
+        { timeout: 10_000 }
+      )
+    ).toBeTruthy()
+    expect(screen.queryByText("SurfSense could not start")).toBeNull()
+  }, 15_000)
 })

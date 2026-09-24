@@ -50,30 +50,38 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
       listWorkspaces(),
     ])
     let currentSelection: ModelSelection | null = null
-    if (selection?.provider === "openai_compatible") {
-      const models =
-        selection.connection_id === null
-          ? []
-          : await getConnectionModels(selection.connection_id)
-      currentSelection = models.some((model) => model.name === selection.name)
-        ? selection
-        : null
-    } else if (selection) {
-      const models = await getProviderModels(selection.provider)
-      currentSelection = models.some(
-        (model) =>
-          model.installed &&
-          model.selectable_for.includes("text_gen") &&
-          model.name === selection.name
-      )
-        ? selection
-        : null
+    let providerAvailable = false
+    try {
+      if (selection?.provider === "openai_compatible") {
+        const models =
+          selection.connection_id === null
+            ? []
+            : await getConnectionModels(selection.connection_id)
+        currentSelection = models.some((model) => model.name === selection.name)
+          ? selection
+          : null
+      } else if (selection) {
+        const models = await getProviderModels(selection.provider)
+        currentSelection = models.some(
+          (model) =>
+            model.installed &&
+            model.selectable_for.includes("text_gen") &&
+            model.name === selection.name
+        )
+          ? selection
+          : null
+      }
+      providerAvailable = currentSelection !== null
+    } catch {
+      // A provider that does not answer is offline, not a failed start: the
+      // dashboard keeps the choice and asks to reconnect.
+      currentSelection = selection
     }
     return {
       status: "ready",
       Dashboard: await dashboard,
       selection: currentSelection,
-      providerAvailable: currentSelection !== null,
+      providerAvailable,
       workspaces,
     }
   } catch (error) {
