@@ -56,6 +56,9 @@ import {
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
+import { applyLocalePreference, mainIntl } from "./i18n/app-locale.ts"
+import { loadLocalePreference } from "./i18n/locale-prefs.ts"
+import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
@@ -463,16 +466,16 @@ function installProductionMenu(): void {
       { role: "fileMenu" },
       { role: "editMenu" },
       {
-        label: "View",
+        label: mainIntl().formatMessage({ id: "menu_view_label" }),
         submenu: [
           {
-            label: "Reload",
+            label: mainIntl().formatMessage({ id: "menu_view_reload_label" }),
             click: (_item, win) => {
               if (win instanceof BrowserWindow) win.reload()
             },
           },
           {
-            label: "Force Reload",
+            label: mainIntl().formatMessage({ id: "menu_view_force_reload_label" }),
             click: (_item, win) => {
               if (win instanceof BrowserWindow) {
                 win.webContents.reloadIgnoringCache()
@@ -576,8 +579,14 @@ function main(): void {
   app
     .whenReady()
     .then(async () => {
+      applyLocalePreference(loadLocalePreference())
       const boot = await bootSidecars()
       registerDocumentHandlers(boot.dataDir)
+      registerLocaleHandlers({
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+        onChange: installProductionMenu,
+      })
       installProductionMenu()
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()
