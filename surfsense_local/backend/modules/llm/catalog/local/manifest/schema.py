@@ -12,6 +12,7 @@ from pydantic import BaseModel, Field, model_validator
 
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.classifier import classify
+from modules.llm.catalog.local.engines.audiocpp.manifest_fields import AudioDefaults
 from modules.llm.catalog.local.engines.llamacpp.manifest_fields import (
     Sampling,
     ShapeSpec,
@@ -65,6 +66,7 @@ class Validated(BaseModel):
 
     llama_cpp: str | None = None
     sd_cpp: str | None = None
+    audio_cpp: str | None = None
 
 
 class ManifestBuild(BaseModel):
@@ -113,6 +115,7 @@ class CuratedModel(BaseModel):
     template: Template = Field(default_factory=Template)
     sampling: Sampling | None = None
     image: ImageDefaults | None = None
+    audio: AudioDefaults | None = None
     # Text models only: an image model is not priced by the llama.cpp estimator.
     shape: ShapeSpec | None = None
     builds: list[ManifestBuild] = Field(min_length=1)

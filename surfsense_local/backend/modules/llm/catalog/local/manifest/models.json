@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "refreshed_at": "2026-09-23",
+  "refreshed_at": "2026-09-24",
   "models": [
     {
       "id": "qwen3-32b",
@@ -3354,6 +3354,532 @@
           },
           "validated": {
             "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "kokoro-82m",
+      "name": "Kokoro 82M",
+      "family": "Kokoro",
+      "publisher": "hexgrad",
+      "description": "46 natural voices in eight languages.",
+      "license": "apache-2.0",
+      "source_repo": "hexgrad/Kokoro-82M",
+      "aliases": [
+        "hexgrad/Kokoro-82M"
+      ],
+      "evidence": {
+        "architecture": "kokoro_tts",
+        "pipeline_tag": "text-to-speech"
+      },
+      "audio": {
+        "origin": "hexgrad/Kokoro-82M model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
+        "sample_rate": 24000,
+        "peak_mb": 1421,
+        "chunk_steps": [
+          {
+            "text_chunk_size": 120,
+            "peak_mb": 1215
+          },
+          {
+            "text_chunk_size": 60,
+            "peak_mb": 871
+          }
+        ],
+        "languages": [
+          "en-GB",
+          "en-US",
+          "es",
+          "fr",
+          "hi",
+          "it",
+          "pt-BR",
+          "zh"
+        ],
+        "voices": [
+          {
+            "id": "af_heart",
+            "label": "Heart",
+            "language": "en-US"
+          },
+          {
+            "id": "af_bella",
+            "label": "Bella",
+            "language": "en-US"
+          },
+          {
+            "id": "af_nicole",
+            "label": "Nicole",
+            "language": "en-US"
+          },
+          {
+            "id": "af_nova",
+            "label": "Nova",
+            "language": "en-US"
+          },
+          {
+            "id": "af_sarah",
+            "label": "Sarah",
+            "language": "en-US"
+          },
+          {
+            "id": "af_sky",
+            "label": "Sky",
+            "language": "en-US"
+          },
+          {
+            "id": "af_alloy",
+            "label": "Alloy",
+            "language": "en-US"
+          },
+          {
+            "id": "af_aoede",
+            "label": "Aoede",
+            "language": "en-US"
+          },
+          {
+            "id": "af_jessica",
+            "label": "Jessica",
+            "language": "en-US"
+          },
+          {
+            "id": "af_kore",
+            "label": "Kore",
+            "language": "en-US"
+          },
+          {
+            "id": "af_river",
+            "label": "River",
+            "language": "en-US"
+          },
+          {
+            "id": "am_adam",
+            "label": "Adam",
+            "language": "en-US"
+          },
+          {
+            "id": "am_echo",
+            "label": "Echo",
+            "language": "en-US"
+          },
+          {
+            "id": "am_eric",
+            "label": "Eric",
+            "language": "en-US"
+          },
+          {
+            "id": "am_liam",
+            "label": "Liam",
+            "language": "en-US"
+          },
+          {
+            "id": "am_michael",
+            "label": "Michael",
+            "language": "en-US"
+          },
+          {
+            "id": "am_onyx",
+            "label": "Onyx",
+            "language": "en-US"
+          },
+          {
+            "id": "am_puck",
+            "label": "Puck",
+            "language": "en-US"
+          },
+          {
+            "id": "am_fenrir",
+            "label": "Fenrir",
+            "language": "en-US"
+          },
+          {
+            "id": "bf_alice",
+            "label": "Alice",
+            "language": "en-GB"
+          },
+          {
+            "id": "bf_emma",
+            "label": "Emma",
+            "language": "en-GB"
+          },
+          {
+            "id": "bf_isabella",
+            "label": "Isabella",
+            "language": "en-GB"
+          },
+          {
+            "id": "bf_lily",
+            "label": "Lily",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_daniel",
+            "label": "Daniel",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_fable",
+            "label": "Fable",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_george",
+            "label": "George",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_lewis",
+            "label": "Lewis",
+            "language": "en-GB"
+          },
+          {
+            "id": "ef_dora",
+            "label": "Dora",
+            "language": "es"
+          },
+          {
+            "id": "em_alex",
+            "label": "Alex",
+            "language": "es"
+          },
+          {
+            "id": "ff_siwis",
+            "label": "Siwis",
+            "language": "fr"
+          },
+          {
+            "id": "hf_alpha",
+            "label": "Alpha",
+            "language": "hi"
+          },
+          {
+            "id": "hf_beta",
+            "label": "Beta",
+            "language": "hi"
+          },
+          {
+            "id": "hm_omega",
+            "label": "Omega",
+            "language": "hi"
+          },
+          {
+            "id": "hm_psi",
+            "label": "Psi",
+            "language": "hi"
+          },
+          {
+            "id": "if_sara",
+            "label": "Sara",
+            "language": "it"
+          },
+          {
+            "id": "im_nicola",
+            "label": "Nicola",
+            "language": "it"
+          },
+          {
+            "id": "pf_dora",
+            "label": "Dora",
+            "language": "pt-BR"
+          },
+          {
+            "id": "pm_alex",
+            "label": "Alex",
+            "language": "pt-BR"
+          },
+          {
+            "id": "zf_xiaobei",
+            "label": "Xiaobei",
+            "language": "zh"
+          },
+          {
+            "id": "zf_xiaoni",
+            "label": "Xiaoni",
+            "language": "zh"
+          },
+          {
+            "id": "zf_xiaoxiao",
+            "label": "Xiaoxiao",
+            "language": "zh"
+          },
+          {
+            "id": "zf_xiaoyi",
+            "label": "Xiaoyi",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunjian",
+            "label": "Yunjian",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunxi",
+            "label": "Yunxi",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunxia",
+            "label": "Yunxia",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunyang",
+            "label": "Yunyang",
+            "language": "zh"
+          }
+        ]
+      },
+      "builds": [
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Kokoro-82M-GGUF/kokoro-82m-q8_0.gguf",
+              "size_bytes": 189549408,
+              "sha256": "5d800fd204029302c10313daeafdb31c875c7c29ae31974d0d156cc7f512d1d0"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Kokoro-82M-GGUF/kokoro-82m-bf16.gguf",
+              "size_bytes": 211954816,
+              "sha256": "51d10c63557d21f70ef5d607e91c11023cf408dbc3af24c283b18106778e1e67"
+            }
+          ],
+          "validated": {
+            "audio_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "supertonic-3",
+      "name": "Supertonic 3",
+      "family": "Supertonic",
+      "publisher": "Supertone",
+      "description": "Ten voices, each in 31 languages, in the least memory.",
+      "license": "openrail",
+      "source_repo": "Supertone/supertonic-3",
+      "aliases": [
+        "Supertone/supertonic-3"
+      ],
+      "evidence": {
+        "architecture": "supertonic",
+        "pipeline_tag": "text-to-speech"
+      },
+      "audio": {
+        "origin": "Supertone/supertonic-3 model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
+        "sample_rate": 44100,
+        "peak_mb": 454,
+        "languages": [
+          "en",
+          "ko",
+          "ja",
+          "ar",
+          "bg",
+          "cs",
+          "da",
+          "de",
+          "el",
+          "es",
+          "et",
+          "fi",
+          "fr",
+          "hi",
+          "hr",
+          "hu",
+          "id",
+          "it",
+          "lt",
+          "lv",
+          "nl",
+          "pl",
+          "pt",
+          "ro",
+          "ru",
+          "sk",
+          "sl",
+          "sv",
+          "tr",
+          "uk",
+          "vi"
+        ],
+        "voices": [
+          {
+            "id": "M1",
+            "label": "M1"
+          },
+          {
+            "id": "M2",
+            "label": "M2"
+          },
+          {
+            "id": "M3",
+            "label": "M3"
+          },
+          {
+            "id": "M4",
+            "label": "M4"
+          },
+          {
+            "id": "M5",
+            "label": "M5"
+          },
+          {
+            "id": "F1",
+            "label": "F1"
+          },
+          {
+            "id": "F2",
+            "label": "F2"
+          },
+          {
+            "id": "F3",
+            "label": "F3"
+          },
+          {
+            "id": "F4",
+            "label": "F4"
+          },
+          {
+            "id": "F5",
+            "label": "F5"
+          }
+        ]
+      },
+      "builds": [
+        {
+          "quantization": "F16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Supertonic-3-GGUF/supertonic-3-f16.gguf",
+              "size_bytes": 312784196,
+              "sha256": "b312b57797d40ac5c09d915893dbdbaf6405b7dc043f544776c5c95712dff88c"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
+          }
+        },
+        {
+          "quantization": "orig",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Supertonic-3-GGUF/supertonic-3-orig.gguf",
+              "size_bytes": 454072836,
+              "sha256": "af814486a0bc9513fb36afabd9b1155ad14fb2c36a107ac6ffe62ea9adafb662"
+            }
+          ],
+          "validated": {
+            "audio_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "kitten-tts-mini-0.8",
+      "name": "KittenTTS Mini 0.8",
+      "family": "KittenTTS",
+      "publisher": "KittenML",
+      "description": "Eight English voices.",
+      "license": "apache-2.0",
+      "source_repo": "KittenML/kitten-tts-mini-0.8",
+      "aliases": [
+        "KittenML/kitten-tts-mini-0.8"
+      ],
+      "evidence": {
+        "architecture": "kitten_tts",
+        "pipeline_tag": "text-to-speech"
+      },
+      "audio": {
+        "origin": "KittenML/kitten-tts-mini-0.8 model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
+        "sample_rate": 24000,
+        "peak_mb": 1023,
+        "languages": [
+          "en"
+        ],
+        "voices": [
+          {
+            "id": "Bella",
+            "label": "Bella",
+            "language": "en"
+          },
+          {
+            "id": "Jasper",
+            "label": "Jasper",
+            "language": "en"
+          },
+          {
+            "id": "Luna",
+            "label": "Luna",
+            "language": "en"
+          },
+          {
+            "id": "Bruno",
+            "label": "Bruno",
+            "language": "en"
+          },
+          {
+            "id": "Rosie",
+            "label": "Rosie",
+            "language": "en"
+          },
+          {
+            "id": "Hugo",
+            "label": "Hugo",
+            "language": "en"
+          },
+          {
+            "id": "Kiki",
+            "label": "Kiki",
+            "language": "en"
+          },
+          {
+            "id": "Leo",
+            "label": "Leo",
+            "language": "en"
+          }
+        ]
+      },
+      "builds": [
+        {
+          "quantization": "orig",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "KittenTTS-GGUF/kitten-tts-mini-0.8-orig.gguf",
+              "size_bytes": 302167104,
+              "sha256": "8f015d32f30cab7b9eebdebb244b0124cfd855ffe543daa3c6967e496fd24336"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
           }
         }
       ]
