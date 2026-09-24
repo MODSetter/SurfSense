@@ -95,7 +95,10 @@ jobs:
       - name: Gate on per-CPU ggml libraries (Windows)
         if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
         working-directory: surfsense_local/electron/audiocpp
-        run: ls ggml-cpu-*.dll | tee /dev/stderr | grep -q haswell
+        # Git Bash has no /dev/stderr, so no tee as on Linux.
+        run: |
+          ls ggml-cpu-*.dll
+          ls ggml-cpu-*haswell*.dll
 
       - name: Setup uv
         uses: astral-sh/setup-uv@v8.1.0

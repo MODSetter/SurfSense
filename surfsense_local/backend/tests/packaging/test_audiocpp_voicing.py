@@ -101,9 +101,16 @@ def installed(tmp_path_factory: pytest.TempPathFactory) -> AudioCppEngine:
 
 
 @pytest.fixture(scope="module")
-def server(installed: AudioCppEngine) -> Iterator[str]:
+def server_log(tmp_path_factory: pytest.TempPathFactory) -> Path:
+    """Where the server writes; a test that fails shows its tail."""
+    return tmp_path_factory.mktemp("server") / "audiocpp.log"
+
+
+@pytest.fixture(scope="module")
+def server(installed: AudioCppEngine, server_log: Path) -> Iterator[str]:
     """The server as Electron's sidecar starts it: same flags, same eSpeak."""
     assert SERVER.exists(), f"no staged audio.cpp server at {SERVER}"
+    log = server_log.open("wb")
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -137,8 +144,8 @@ def server(installed: AudioCppEngine) -> Iterator[str]:
             ),
             "AUDIOCPP_ESPEAK_DATA": str(espeak / "espeak-ng-data"),
         },
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
     )
     url = f"http://127.0.0.1:{port}"
     try:
@@ -155,11 +162,12 @@ def server(installed: AudioCppEngine) -> Iterator[str]:
     finally:
         process.terminate()
         process.wait(timeout=30)
+        log.close()
 
 
 @pytest.mark.parametrize("model_id", list(CASES))
 def test_a_curated_model_voices_through_the_app_and_is_given_back(
-    installed: AudioCppEngine, server: str, model_id: str
+    installed: AudioCppEngine, server: str, server_log: Path, model_id: str
 ) -> None:
     """Two turns at the manifest's sample rate, then nothing left loaded."""
     language, voices = CASES[model_id]
@@ -173,7 +181,12 @@ def test_a_curated_model_voices_through_the_app_and_is_given_back(
         SpokenTurn(v, line) for v, line in zip(voices, LINES[language], strict=True)
     ]
 
-    voiced = asyncio.run(speech.synthesize(turns, language))
+    try:
+        voiced = asyncio.run(speech.synthesize(turns, language))
+    except Exception:
+        tail = server_log.read_text(errors="replace").splitlines()[-60:]
+        sys.stderr.write("\n".join(["audiocpp_server's log, last lines:", *tail]))
+        raise
 
     with wave.open(io.BytesIO(voiced.content)) as joined:
         assert joined.getframerate() == audio.sample_rate
