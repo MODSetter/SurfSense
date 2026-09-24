@@ -10,7 +10,7 @@ A connection is one named remote endpoint that speaks the OpenAI API: a hosted p
 ## Terms
 
 ```text
-provider             a protocol implementation: llamacpp, sdcpp or openai_compatible
+provider             a protocol implementation: llamacpp, sdcpp, audiocpp or openai_compatible
 provider connection  one named remote endpoint and its optional bearer key
 model                an id the endpoint lists live, or one entered by hand
 model type           what a model is for, and the slot one selection fills: text_gen, image_gen, image_edit, video_gen or audio_gen

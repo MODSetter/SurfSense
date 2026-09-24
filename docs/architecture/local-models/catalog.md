@@ -28,7 +28,8 @@ Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/
 its types, to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
 (`context`, `reads_images`, `tools`, `reasoning`), whether the bundled runtime can
 run it and why not, the `engine` that offered it, its builds, the build it leads
-with and why, and the star. Each build is a set of files with roles, and carries
+with and why, and the star. An audio row adds `voicing`: the memory measured while
+voicing, the voice count and the languages, from its manifest entry. Each build is a set of files with roles, and carries
 its fit, badge, whether it is installed, whether it is recommended, and whether it
 reads images. An image or audio build's `fit` and `badge` are `null`: neither
 sd.cpp nor audio.cpp has a fit estimate, so the row states the download size and
@@ -453,7 +454,7 @@ on search and repo reads, and the stream's generic error during an install.
 
 ## On the screen
 
-Settings has one section per model type, **Chat** and **Image** in the nav, each headed **Text generation models** / **Image generation models** on its own page.
+Settings has one section per model type, **Chat**, **Image** and **Audio** in the nav, each headed **Text generation models**, **Image generation models** or **Audio generation models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per
@@ -461,13 +462,16 @@ connected server ([`../connections.md`](../connections.md)). **Add model** opens
 one page with both ways in, laid out alike, no card or border around either:
 **Use a server**, collapsed to a Connect button until opened, because it is
 short, then **On this computer**, the catalog below. Both sections read the
-one `GET /llm/catalog/local`: chat takes llama.cpp's rows, and image takes only
-sd.cpp's, each curated model with its size and a Download. audio.cpp's rows are
-on no screen yet. The catalog
-carries sd.cpp's rows only when the API has an images folder, which Electron
-hands it with the staged `sd-server` ([`../packaging.md`](../packaging.md));
-otherwise the image section's part of the page says image models cannot run on
-this computer, and the layout stays the same.
+one `GET /llm/catalog/local`: chat takes llama.cpp's rows, image takes only
+sd.cpp's and audio takes only audio.cpp's, each curated model with its size and a
+Download. An audio row reads on one line: its build, its size, the memory it
+takes while voicing, its voice count and its languages, counted, or named when
+there is one ("orig · 302 MB · 1 GB while voicing · 8 voices · English"), from
+the row's `voicing`. The catalog carries sd.cpp's rows only when the API has an
+images folder, and audio.cpp's only when it has an audio folder, which Electron
+hands it with each staged server ([`../packaging.md`](../packaging.md));
+otherwise that section's part of the page says those models cannot run on this
+computer, and the layout stays the same.
 
 The chat catalog, from the top:
 
@@ -494,9 +498,9 @@ Rules the screen holds:
 - An install belongs to the app, not the page that started it: leaving the
   Add model page or closing Settings does not cancel it, and the section's list
   shows its progress until it ends.
-- The image section downloads without selecting: a model is chosen with Use
-  once it is on disk, and the one in use has no Delete, because sd-server holds
-  its file.
+- The image and audio sections download without selecting: a model is chosen
+  with Use once it is on disk, and the one in use has no Delete, because its
+  server holds the file.
 
 ## How it is tested
 
@@ -509,7 +513,7 @@ the service's installs, the audio.cpp slice's evidence and rows, and each
 engine's refresh assembly; the routes, audio's `server.json` included, are
 covered in
 [`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/),
-and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and the settings sections' `chat-models-settings.test.tsx` and `image-models-settings.test.tsx`.
+and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx` and `audio-models-settings.test.tsx`.
 
 ## Known gaps
 
@@ -528,6 +532,5 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
 - Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it a few seconds later. The hard-coded list's route reported that, and went with it.
 - Nothing checks free disk space before a download starts.
-- No screen shows audio.cpp's rows, and `select: true` on an audio build fails after its files land: `selected_models` accepts no `audiocpp` provider yet.
-- The `audio` block's voices and memory are committed but nothing reads them, and podcasts still speak through the worker's Kokoro.
+- The `audio` block's voices and chunk steps are committed but nothing reads them, and podcasts still speak through the worker's Kokoro, whatever audio model is chosen.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.
