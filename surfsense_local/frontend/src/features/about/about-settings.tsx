@@ -63,7 +63,7 @@ export function AboutSettings() {
       description={intl.formatMessage({
         id: "about_settings_body",
         defaultMessage:
-          "Your version of SurfSense, its updates, and where to get help.",
+          "See which version you have, get updates, and find help.",
       })}
       scrollable="all"
     >
