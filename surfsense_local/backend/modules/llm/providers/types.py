@@ -26,6 +26,14 @@ class Message:
 
 
 @dataclass(frozen=True)
+class Delta:
+    """One streamed piece of a reply: answer text, or the model's reasoning."""
+
+    text: str
+    reasoning: bool = False
+
+
+@dataclass(frozen=True)
 class DownloadProgress:
     """How far a model download has come, as the runtime reports it."""
 

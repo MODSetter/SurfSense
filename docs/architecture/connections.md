@@ -113,7 +113,8 @@ Chat goes through `OpenAICompatibleChatProvider(base_url, api_key)`:
 
 - health and model listing through `GET /models`;
 - a streaming `POST /chat/completions`, with an `Authorization: Bearer` header when there is a key and no provider-specific headers or fields;
-- 300 seconds to the first token, since a cold model may still be loading, then 30 seconds between tokens. Model listings wait at most 120 seconds and connection discovery 10;
+- each chunk read as answer (`content`) or reasoning (`reasoning_content`, or `reasoning` as vLLM, Ollama and OpenRouter name it). `chat_deltas()` yields both, marked; `chat()` yields the answer alone, for titles, Studio and the connection check;
+- 300 seconds to the first token, answer or reasoning, since a cold model may still be loading, then 30 seconds between tokens. A long think keeps the stream alive rather than counting as a model that never started. Model listings wait at most 120 seconds and connection discovery 10;
 - no context window and no token count, so chat falls back to its fixed history budget ([`chat.md`](chat.md)).
 
 Images go through `OpenAICompatibleImageProvider`:

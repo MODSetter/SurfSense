@@ -157,7 +157,9 @@ class FakeRouter:
                 return httpx.Response(
                     400, json={"error": {"message": "unsupported response_format"}}
                 )
-            chunks = _stream(self.thinks and not _thinking_off(body))
+            chunks = _stream(
+                self.thinks and not _thinking_off(body), body.get("max_tokens")
+            )
             return httpx.Response(
                 200,
                 text="\n\n".join(chunks) + "\n\n",
@@ -179,15 +181,28 @@ def _thinking_off(body: dict) -> bool:
     )
 
 
-def _stream(thinking: bool) -> list[str]:
-    """What a thinking model emits, against what one answering plainly does."""
-    if thinking:
+def _stream(thinking: bool, max_tokens: int | None) -> list[str]:
+    """What a thinking model emits, against what one answering plainly does.
+
+    A short cap is spent inside the trace, as the 12 token title measurement
+    showed; an uncapped answer thinks and then answers.
+    """
+    if thinking and max_tokens is not None and max_tokens < 50:
         return [
             'data: {"choices":[{"delta":{"reasoning_content":"Okay, the user"}}]}',
             'data: {"choices":[{"finish_reason":"length","delta":{}}]}',
             "data: [DONE]",
         ]
+    trace = (
+        [
+            'data: {"choices":[{"delta":{"reasoning_content":"Okay, the user"}}]}',
+            'data: {"choices":[{"delta":{"reasoning_content":" says hi."}}]}',
+        ]
+        if thinking
+        else []
+    )
     return [
+        *trace,
         'data: {"choices":[{"delta":{"content":"Hel"}}]}',
         'data: {"choices":[{"delta":{"content":"lo"}}]}',
         "data: [DONE]",

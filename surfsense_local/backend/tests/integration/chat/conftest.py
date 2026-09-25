@@ -22,6 +22,10 @@ _PROPS_N_CTX: int | None = None
 # Set per test before the fixture starts the server.
 _TOKENS_PER_WORD: int | None = None
 
+# The trace a thinking model streams as `reasoning_content` before its answer,
+# as llama-server does under `--reasoning-format deepseek`. Empty: no thinking.
+_REASONING: list[str] = []
+
 
 class StubRouterChat(BaseHTTPRequestHandler):
     """The router's OpenAI chat endpoint, streaming its reply as SSE.
@@ -77,10 +81,19 @@ class StubRouterChat(BaseHTTPRequestHandler):
             if request.get("max_tokens") == 12
             else REPLY_DELTAS
         )
-        chunks = [
-            "data: " + json.dumps({"choices": [{"delta": {"content": delta}}]})
-            for delta in deltas
-        ] + ["data: [DONE]"]
+        trace = [] if request.get("max_tokens") == 12 else _REASONING
+        chunks = (
+            [
+                "data: "
+                + json.dumps({"choices": [{"delta": {"reasoning_content": piece}}]})
+                for piece in trace
+            ]
+            + [
+                "data: " + json.dumps({"choices": [{"delta": {"content": delta}}]})
+                for delta in deltas
+            ]
+            + ["data: [DONE]"]
+        )
         self._send(("\n\n".join(chunks) + "\n\n").encode())
 
     def _send(self, body: bytes) -> None:
@@ -98,6 +111,7 @@ def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     """A real llama-server stand-in on a real port; yields the requests it sees."""
     global _PROPS_N_CTX, _TOKENS_PER_WORD
     _REQUESTS.clear()
+    _REASONING.clear()
     _PROPS_N_CTX = None
     _TOKENS_PER_WORD = None
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubRouterChat)
@@ -149,6 +163,11 @@ def set_tokens_per_word(tokens_per_word: int) -> None:
     at this many tokens per word, instead of 404ing like an older build."""
     global _TOKENS_PER_WORD
     _TOKENS_PER_WORD = tokens_per_word
+
+
+def set_reasoning(pieces: list[str]) -> None:
+    """Make the `llamacpp_server` answer think out loud before it replies."""
+    _REASONING[:] = pieces
 
 
 @pytest.fixture

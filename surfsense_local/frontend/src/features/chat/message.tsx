@@ -25,6 +25,7 @@ import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
 import { useCitationContext } from "./citation-context"
 import { CitationProvider, InlineCitation } from "./inline-citation"
+import { ReplyThinking, type ReplyReasoning } from "./reply-thinking"
 import type { Citation } from "./sse"
 
 const streamdownPlugins = {
@@ -62,6 +63,35 @@ function MarkdownText() {
 }
 
 const assistantMessageParts = { Text: MarkdownText }
+
+function reasoningFrom(custom: unknown): ReplyReasoning | null {
+  if (typeof custom === "object" && custom !== null && "reasoning" in custom) {
+    return (custom.reasoning as ReplyReasoning | null) ?? null
+  }
+  return null
+}
+
+function MessageThinking() {
+  const running = useAuiState(
+    ({ message }) => message.status?.type === "running"
+  )
+  const answerStarted = useAuiState(({ message }) =>
+    message.content.some(
+      (part) => part.type === "text" && part.text.trim().length > 0
+    )
+  )
+  const reasoning = useAuiState(({ message }) =>
+    reasoningFrom(message.metadata.custom)
+  )
+
+  return (
+    <ReplyThinking
+      running={running}
+      answerStarted={answerStarted}
+      reasoning={reasoning}
+    />
+  )
+}
 
 function MessageTimestamp() {
   const createdAt = useAuiState(({ message }) => message.createdAt)
@@ -178,6 +208,7 @@ export function AssistantMessage({
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
+          <MessageThinking />
           <MessagePrimitive.Parts components={assistantMessageParts} />
         </div>
       </CitationProvider>
