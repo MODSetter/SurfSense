@@ -351,7 +351,7 @@
   "models_server_models_manual_id_body": "ऐसे मॉडल के लिए जिसे यह सर्वर सूचीबद्ध नहीं करता।",
   "models_server_models_manual_id_label": "सटीक मॉडल ID",
   "models_server_models_manual_use_button": "{slot, select, text_gen {चैट के लिए इस्तेमाल करें} image_gen {इमेज के लिए इस्तेमाल करें} image_edit {इमेज एडिटिंग के लिए इस्तेमाल करें} video_gen {वीडियो के लिए इस्तेमाल करें} audio_gen {ऑडियो के लिए इस्तेमाल करें} other {इस्तेमाल करें}}",
-  "models_server_models_no_match_empty": "{slot, select, text_gen {कोई चैट मॉडल मेल नहीं खाता। कुछ और खोजें, या नीचे सटीक ID टाइप करें।} image_gen {कोई इमेज मॉडल मेल नहीं खाता। कुछ और खोजें, या नीचे सटीक ID टाइप करें।} image_edit {कोई इमेज एडिटिंग मॉडल मेल नहीं खाता। कुछ और खोजें, या नीचे सटीक ID टाइप करें।} video_gen {कोई वीडियो मॉडल मेल नहीं खाता। कुछ और खोजें, या नीचे सटीक ID टाइप करें।} audio_gen {कोई ऑडियो मॉडल मेल नहीं खाता। कुछ और खोजें, या नीचे सटीक ID टाइप करें।} other {कोई मॉडल मेल नहीं खाता। कुछ और खोजें, या नीचे सटीक ID टाइप करें।}}",
+  "models_server_models_no_match_empty": "{slot, select, text_gen {कोई चैट मॉडल मेल नहीं खाता। नीचे सटीक ID टाइप करें।} image_gen {कोई इमेज मॉडल मेल नहीं खाता। नीचे सटीक ID टाइप करें।} image_edit {कोई इमेज एडिटिंग मॉडल मेल नहीं खाता। नीचे सटीक ID टाइप करें।} video_gen {कोई वीडियो मॉडल मेल नहीं खाता। नीचे सटीक ID टाइप करें।} audio_gen {कोई ऑडियो मॉडल मेल नहीं खाता। नीचे सटीक ID टाइप करें।} other {कोई मॉडल मेल नहीं खाता। नीचे सटीक ID टाइप करें।}}",
   "models_server_models_none_listed_empty": "इस सर्वर ने कोई मॉडल सूचीबद्ध नहीं किया। नीचे सटीक ID टाइप करें।",
   "models_server_models_retry_button": "फिर से कोशिश करें",
   "models_server_models_search_aria": "{server} के मॉडल खोजें",

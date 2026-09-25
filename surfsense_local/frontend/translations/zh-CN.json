@@ -351,7 +351,7 @@
   "models_server_models_manual_id_body": "用于这个服务器未列出的模型。",
   "models_server_models_manual_id_label": "准确的模型 ID",
   "models_server_models_manual_use_button": "{slot, select, text_gen {用于对话} image_gen {用于图像} image_edit {用于图像编辑} video_gen {用于视频} audio_gen {用于语音} other {使用}}",
-  "models_server_models_no_match_empty": "{slot, select, text_gen {没有匹配的对话模型。换个搜索词试试，或在下面输入准确的 ID。} image_gen {没有匹配的图像模型。换个搜索词试试，或在下面输入准确的 ID。} image_edit {没有匹配的图像编辑模型。换个搜索词试试，或在下面输入准确的 ID。} video_gen {没有匹配的视频模型。换个搜索词试试，或在下面输入准确的 ID。} audio_gen {没有匹配的语音模型。换个搜索词试试，或在下面输入准确的 ID。} other {没有匹配的模型。换个搜索词试试，或在下面输入准确的 ID。}}",
+  "models_server_models_no_match_empty": "{slot, select, text_gen {没有匹配的对话模型。请在下面输入准确的 ID。} image_gen {没有匹配的图像模型。请在下面输入准确的 ID。} image_edit {没有匹配的图像编辑模型。请在下面输入准确的 ID。} video_gen {没有匹配的视频模型。请在下面输入准确的 ID。} audio_gen {没有匹配的语音模型。请在下面输入准确的 ID。} other {没有匹配的模型。请在下面输入准确的 ID。}}",
   "models_server_models_none_listed_empty": "这个服务器没有列出任何模型。请在下面输入准确的 ID。",
   "models_server_models_retry_button": "重试",
   "models_server_models_search_aria": "搜索 {server} 上的模型",

@@ -351,7 +351,7 @@
   "models_server_models_manual_id_body": "このサーバーが一覧に表示しないモデル用です。",
   "models_server_models_manual_id_label": "正確なモデルID",
   "models_server_models_manual_use_button": "{slot, select, text_gen {チャットに使用} image_gen {画像に使用} image_edit {画像編集に使用} video_gen {動画に使用} audio_gen {音声に使用} other {使用}}",
-  "models_server_models_no_match_empty": "{slot, select, text_gen {一致するチャットモデルはありません。別の検索語を試すか、下に正確なIDを入力してください。} image_gen {一致する画像モデルはありません。別の検索語を試すか、下に正確なIDを入力してください。} image_edit {一致する画像編集モデルはありません。別の検索語を試すか、下に正確なIDを入力してください。} video_gen {一致する動画モデルはありません。別の検索語を試すか、下に正確なIDを入力してください。} audio_gen {一致する音声モデルはありません。別の検索語を試すか、下に正確なIDを入力してください。} other {一致するモデルはありません。別の検索語を試すか、下に正確なIDを入力してください。}}",
+  "models_server_models_no_match_empty": "{slot, select, text_gen {一致するチャットモデルはありません。下に正確なIDを入力してください。} image_gen {一致する画像モデルはありません。下に正確なIDを入力してください。} image_edit {一致する画像編集モデルはありません。下に正確なIDを入力してください。} video_gen {一致する動画モデルはありません。下に正確なIDを入力してください。} audio_gen {一致する音声モデルはありません。下に正確なIDを入力してください。} other {一致するモデルはありません。下に正確なIDを入力してください。}}",
   "models_server_models_none_listed_empty": "このサーバーにはモデルがありません。下に正確なIDを入力してください。",
   "models_server_models_retry_button": "再試行",
   "models_server_models_search_aria": "{server}のモデルを検索",

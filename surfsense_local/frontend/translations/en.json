@@ -351,7 +351,7 @@
   "models_server_models_manual_id_body": "For a model this server does not list.",
   "models_server_models_manual_id_label": "Exact model ID",
   "models_server_models_manual_use_button": "{slot, select, text_gen {Use for chat} image_gen {Use for image} image_edit {Use for image editing} video_gen {Use for video} audio_gen {Use for audio} other {Use}}",
-  "models_server_models_no_match_empty": "{slot, select, text_gen {No chat models match. Try another search, or type an exact ID below.} image_gen {No image models match. Try another search, or type an exact ID below.} image_edit {No image editing models match. Try another search, or type an exact ID below.} video_gen {No video models match. Try another search, or type an exact ID below.} audio_gen {No audio models match. Try another search, or type an exact ID below.} other {No models match. Try another search, or type an exact ID below.}}",
+  "models_server_models_no_match_empty": "{slot, select, text_gen {No chat models match. Type an exact ID below.} image_gen {No image models match. Type an exact ID below.} image_edit {No image editing models match. Type an exact ID below.} video_gen {No video models match. Type an exact ID below.} audio_gen {No audio models match. Type an exact ID below.} other {No models match. Type an exact ID below.}}",
   "models_server_models_none_listed_empty": "This server listed no models. Type an exact ID below.",
   "models_server_models_retry_button": "Retry",
   "models_server_models_search_aria": "Search models from {server}",

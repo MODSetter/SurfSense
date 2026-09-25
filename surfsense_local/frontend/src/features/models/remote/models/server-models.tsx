@@ -364,7 +364,7 @@ export function ServerModels({
                       {
                         id: "models_server_models_no_match_empty",
                         defaultMessage:
-                          "{slot, select, text_gen {No chat models match. Try another search, or type an exact ID below.} image_gen {No image models match. Try another search, or type an exact ID below.} image_edit {No image editing models match. Try another search, or type an exact ID below.} video_gen {No video models match. Try another search, or type an exact ID below.} audio_gen {No audio models match. Try another search, or type an exact ID below.} other {No models match. Try another search, or type an exact ID below.}}",
+                          "{slot, select, text_gen {No chat models match. Type an exact ID below.} image_gen {No image models match. Type an exact ID below.} image_edit {No image editing models match. Type an exact ID below.} video_gen {No video models match. Type an exact ID below.} audio_gen {No audio models match. Type an exact ID below.} other {No models match. Type an exact ID below.}}",
                       },
                       {
                         slot: modelType,

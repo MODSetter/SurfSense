@@ -351,7 +351,7 @@
   "models_server_models_manual_id_body": "이 서버가 목록에 표시하지 않는 모델용입니다.",
   "models_server_models_manual_id_label": "정확한 모델 ID",
   "models_server_models_manual_use_button": "{slot, select, text_gen {채팅에 사용} image_gen {이미지에 사용} image_edit {이미지 편집에 사용} video_gen {동영상에 사용} audio_gen {음성에 사용} other {사용}}",
-  "models_server_models_no_match_empty": "{slot, select, text_gen {일치하는 채팅 모델이 없습니다. 다른 검색어를 사용하거나 아래에 정확한 ID를 입력하세요.} image_gen {일치하는 이미지 모델이 없습니다. 다른 검색어를 사용하거나 아래에 정확한 ID를 입력하세요.} image_edit {일치하는 이미지 편집 모델이 없습니다. 다른 검색어를 사용하거나 아래에 정확한 ID를 입력하세요.} video_gen {일치하는 동영상 모델이 없습니다. 다른 검색어를 사용하거나 아래에 정확한 ID를 입력하세요.} audio_gen {일치하는 음성 모델이 없습니다. 다른 검색어를 사용하거나 아래에 정확한 ID를 입력하세요.} other {일치하는 모델이 없습니다. 다른 검색어를 사용하거나 아래에 정확한 ID를 입력하세요.}}",
+  "models_server_models_no_match_empty": "{slot, select, text_gen {일치하는 채팅 모델이 없습니다. 아래에 정확한 ID를 입력하세요.} image_gen {일치하는 이미지 모델이 없습니다. 아래에 정확한 ID를 입력하세요.} image_edit {일치하는 이미지 편집 모델이 없습니다. 아래에 정확한 ID를 입력하세요.} video_gen {일치하는 동영상 모델이 없습니다. 아래에 정확한 ID를 입력하세요.} audio_gen {일치하는 음성 모델이 없습니다. 아래에 정확한 ID를 입력하세요.} other {일치하는 모델이 없습니다. 아래에 정확한 ID를 입력하세요.}}",
   "models_server_models_none_listed_empty": "이 서버가 모델을 표시하지 않았습니다. 아래에 정확한 ID를 입력하세요.",
   "models_server_models_retry_button": "다시 시도",
   "models_server_models_search_aria": "{server}의 모델 검색",

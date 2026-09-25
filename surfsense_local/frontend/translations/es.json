@@ -351,7 +351,7 @@
   "models_server_models_manual_id_body": "Para un modelo que este servidor no lista.",
   "models_server_models_manual_id_label": "ID exacto del modelo",
   "models_server_models_manual_use_button": "{slot, select, text_gen {Usar para chat} image_gen {Usar para imagen} image_edit {Usar para edición de imágenes} video_gen {Usar para video} audio_gen {Usar para audio} other {Usar}}",
-  "models_server_models_no_match_empty": "{slot, select, text_gen {Ningún modelo de chat coincide. Prueba otra búsqueda o escribe un ID exacto abajo.} image_gen {Ningún modelo de imagen coincide. Prueba otra búsqueda o escribe un ID exacto abajo.} image_edit {Ningún modelo de edición de imágenes coincide. Prueba otra búsqueda o escribe un ID exacto abajo.} video_gen {Ningún modelo de video coincide. Prueba otra búsqueda o escribe un ID exacto abajo.} audio_gen {Ningún modelo de audio coincide. Prueba otra búsqueda o escribe un ID exacto abajo.} other {Ningún modelo coincide. Prueba otra búsqueda o escribe un ID exacto abajo.}}",
+  "models_server_models_no_match_empty": "{slot, select, text_gen {Ningún modelo de chat coincide. Escribe un ID exacto abajo.} image_gen {Ningún modelo de imagen coincide. Escribe un ID exacto abajo.} image_edit {Ningún modelo de edición de imágenes coincide. Escribe un ID exacto abajo.} video_gen {Ningún modelo de video coincide. Escribe un ID exacto abajo.} audio_gen {Ningún modelo de audio coincide. Escribe un ID exacto abajo.} other {Ningún modelo coincide. Escribe un ID exacto abajo.}}",
   "models_server_models_none_listed_empty": "Este servidor no listó ningún modelo. Escribe un ID exacto abajo.",
   "models_server_models_retry_button": "Reintentar",
   "models_server_models_search_aria": "Buscar modelos de {server}",
