@@ -43,7 +43,10 @@ The vector leg looks at the 20 nearest chunks across every workspace before it f
 
 Ranking itself is measured rather than asserted, by [`scripts/run_retrieval_eval.py`](../../surfsense_local/backend/scripts/run_retrieval_eval.py): it indexes a fixed corpus through the real ingest pipeline and records where each query's answering passage landed. Failures that need a library-sized corpus, a bare identifier among near-duplicate manuals being the one that drove [ADR 0031](../adr/0031-ranking-blends-absolute-leg-scores.md), do not reproduce at the handful of documents an integration test builds.
 
+Two things it cannot currently show. LIMIT-small is 200 of its 266 queries, so the `all` row is mostly LIMIT and the per-slice rows are what to read. And the four same-language slices sit at 100% for every model and weight tried — saturated, so they can neither fail nor improve, which makes them blind to a regression an embedder change would cause ([retrieval proposal](../proposals/retrieval.md)).
+
 ## Known gaps
 
-- A question in one language does not find its answer in another. Cosine alone puts the answering passage in the top 5 for 1 of 8 such queries, and the blend for 2 of 8: bge-small is English-only, so no ranking recovers it. A multilingual embedder is the fix.
+- A question in one language does not find its answer in another. Cosine alone puts the answering passage in the top 5 for 1 of 8 such queries, and the blend for 2 of 8: bge-small is English-only, so no ranking recovers it. Same-language retrieval is unaffected, at 100% in all four non-English slices. A multilingual embedder is the fix, designed in the [retrieval proposal](../proposals/retrieval.md).
+- The bundled model is FP16, not the int8 [ADR 0007](../adr/0007-bundled-embeddings.md) specifies: `Qdrant/bge-small-en-v1.5-onnx-Q` is named for quantization but its only ONNX file stores FLOAT16 weights. An int8 export would roughly halve the 63 MB and speed embedding, and needs checking for whether its vectors are close enough to skip a re-embed.
 - FTS5's tokenizer keeps a Japanese or Chinese clause as one token, so the keyword leg finds nothing in those scripts and the blend runs on meaning alone there. `trigram` would segment them at the cost of what BM25 means everywhere else ([ADR 0032](../adr/0032-one-tokenizer-for-index-and-question.md)).
