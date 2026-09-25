@@ -3,5 +3,5 @@ out/
 dist/
 release/
 llamacpp/
-sdcpp/
+/sdcpp/
 /audiocpp/

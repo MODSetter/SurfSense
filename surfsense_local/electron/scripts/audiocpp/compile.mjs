@@ -9,7 +9,7 @@ import { execFileSync } from "node:child_process"
 import { availableParallelism } from "node:os"
 import { join } from "node:path"
 
-import { visualStudio } from "./msvc.mjs"
+import { visualStudio } from "../msvc-runtime.mjs"
 import { COMMIT, SOURCE, TAG } from "./pins.mjs"
 import { configureArgs } from "./recipe.mjs"
 

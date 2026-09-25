@@ -20,7 +20,7 @@
     "build:voice": "uv --directory ../backend run scripts/fetch_bundled_voice.py models",
     "build:parser": "uv --directory ../backend run scripts/fetch_docling_models.py models",
     "build:llamacpp": "node scripts/fetch-llamacpp.mjs",
-    "build:sdcpp": "node scripts/fetch-sdcpp.mjs",
+    "build:sdcpp": "node scripts/sdcpp/stage.mjs",
     "build:audiocpp": "node scripts/audiocpp/stage.mjs",
     "dist": "pnpm build:frontend && pnpm build:binaries && pnpm build:model && pnpm build:voice && pnpm build:parser && pnpm build:llamacpp && pnpm build:sdcpp && pnpm build:audiocpp && pnpm build && electron-builder",
     "test": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test src/main/*.test.ts src/main/**/*.test.ts scripts/**/*.test.mjs",

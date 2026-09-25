@@ -35,8 +35,12 @@ jobs:
   audiocpp:
     uses: ./.github/workflows/build-audiocpp.yml
 
+  # Linux and macOS compile it; Windows downloads upstream's in its own job.
+  sdcpp:
+    uses: ./.github/workflows/build-sdcpp.yml
+
   build:
-    needs: audiocpp
+    needs: [audiocpp, sdcpp]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -215,6 +219,19 @@ jobs:
           if [ -f audiocpp.tar ]; then tar -xf audiocpp.tar && rm audiocpp.tar; fi
           node scripts/audiocpp/stage.mjs --strict
 
+      - name: Fetch the sd.cpp build
+        if: runner.os != 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          name: sdcpp-${{ runner.os }}
+          path: surfsense_local/electron
+
+      - name: Stage sd.cpp
+        working-directory: surfsense_local/electron
+        run: |
+          if [ -f sdcpp.tar ]; then tar -xf sdcpp.tar && rm sdcpp.tar; fi
+          node scripts/sdcpp/stage.mjs --strict
+
       - name: Package installer
         working-directory: surfsense_local/electron
         env:
@@ -295,6 +312,16 @@ jobs:
           test -f "$DIR/espeak/libespeak-ng.so"
           test -d "$DIR/espeak/espeak-ng-data"
           test -f "$DIR/espeak/COPYING"
+
+      - name: Smoke the bundled sd.cpp (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          set -e
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/sdcpp
+          # From its own directory, where ggml looks for its backends.
+          (cd "$DIR" && ./sd-server --help > /dev/null)
+          test -f "$DIR/libggml-vulkan.so"
+          test -f "$DIR/stable-diffusion.cpp.txt"
 
       - name: Upload installers
         uses: actions/upload-artifact@v4
