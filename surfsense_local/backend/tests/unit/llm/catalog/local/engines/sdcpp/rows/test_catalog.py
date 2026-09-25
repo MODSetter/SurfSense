@@ -32,7 +32,13 @@ def test_every_curated_image_model_is_a_runnable_unpriced_row() -> None:
     """Offered by sd.cpp, downloadable, and never starred or badged."""
     result = rows()
 
-    assert set(result) == {"stable-diffusion-1.5", "sdxl-base-1.0"}
+    assert set(result) == {
+        "flux2-klein-4b",
+        "z-image-turbo",
+        "ernie-image-turbo",
+        "stable-diffusion-1.5",
+        "sdxl-base-1.0",
+    }
     sd15 = result["stable-diffusion-1.5"]
     assert sd15.engine == "sdcpp"
     assert sd15.classification.types == (ModelType.IMAGE_GEN,)
@@ -159,3 +165,15 @@ def test_a_recorded_build_whose_file_is_gone_is_not_installed() -> None:
 
     assert sd15.builds[0].installed_as is None
 
+
+def test_z_image_after_flux2_klein_downloads_only_what_klein_did_not_bring() -> None:
+    """They run with the same text encoder, pinned by the same hash."""
+    from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing
+
+    klein = next(m for m in MODELS if m.id == "flux2-klein-4b").as_builds()[0]
+    on_disk = {landing(f) for f in klein.files}
+
+    zimage = rows(files=on_disk)["z-image-turbo"].builds[0]
+
+    encoder = next(f for f in zimage.build.files if f.role.value == "text_encoder")
+    assert zimage.download_bytes == zimage.build.footprint_bytes - encoder.size_bytes

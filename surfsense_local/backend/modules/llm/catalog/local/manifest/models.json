@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "refreshed_at": "2026-09-24",
+  "refreshed_at": "2026-09-25",
   "models": [
     {
       "id": "qwen3-32b",
@@ -3217,6 +3217,310 @@
           },
           "validated": {
             "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "flux2-klein-4b",
+      "name": "FLUX.2 klein 4B",
+      "family": "FLUX.2",
+      "publisher": "Black Forest Labs",
+      "description": "Current image quality in four steps, in the least memory.",
+      "license": "apache-2.0",
+      "source_repo": "black-forest-labs/FLUX.2-klein-4B",
+      "aliases": [
+        "black-forest-labs/FLUX.2-klein-4B"
+      ],
+      "evidence": {
+        "architecture": "flux2",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 3.88
+      },
+      "image": {
+        "origin": "black-forest-labs/FLUX.2-klein-4B model card; sd.cpp docs at master-869-07a85c7, flux2.md",
+        "resolution": 1024,
+        "steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler"
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/FLUX.2-klein-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "3b1f5a9dc3abb32238b053aeb3d823c30afdacbd",
+              "path": "flux-2-klein-4b-Q4_0.gguf",
+              "size_bytes": 2460378560,
+              "sha256": "d1023499ef3f2f82ff7c50e6778495195c1b6cc34835741778868428111f9ff4"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/vae-text-encorder-for-flux-klein-4b",
+              "upstream_repo": "black-forest-labs/FLUX.2-klein-4B",
+              "revision": "5f526678002e43af5551dadb73ce2e8c91b43afe",
+              "path": "split_files/vae/flux2-vae.safetensors",
+              "size_bytes": 336211292,
+              "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/FLUX.2-klein-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "3b1f5a9dc3abb32238b053aeb3d823c30afdacbd",
+              "path": "flux-2-klein-4b-Q8_0.gguf",
+              "size_bytes": 4300629440,
+              "sha256": "0bba6951258ec8f92d51114a8fa13e66828297bfff58a738f52729b3ef66fa28"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/vae-text-encorder-for-flux-klein-4b",
+              "upstream_repo": "black-forest-labs/FLUX.2-klein-4B",
+              "revision": "5f526678002e43af5551dadb73ce2e8c91b43afe",
+              "path": "split_files/vae/flux2-vae.safetensors",
+              "size_bytes": 336211292,
+              "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "z-image-turbo",
+      "name": "Z-Image Turbo",
+      "family": "Z-Image",
+      "publisher": "Tongyi-MAI",
+      "description": "Photographic detail in eight steps. Shares FLUX.2 klein's text encoder.",
+      "license": "apache-2.0",
+      "source_repo": "Tongyi-MAI/Z-Image-Turbo",
+      "aliases": [
+        "Tongyi-MAI/Z-Image-Turbo"
+      ],
+      "evidence": {
+        "architecture": "z_image",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 6.15
+      },
+      "image": {
+        "origin": "Tongyi-MAI/Z-Image-Turbo model card; sd.cpp docs at master-869-07a85c7, z_image.md",
+        "resolution": 1024,
+        "steps": 8,
+        "cfg": 1.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/Z-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "c61c0e422dc8b541b7548cf33a4ef8302b0f8085",
+              "path": "z_image_turbo-Q4_0.gguf",
+              "size_bytes": 3683370944,
+              "sha256": "2bc57986874c84f7ec6d02d9d7070a53b0029954a0e38a6e1342eb91095572f5"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/Z-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "c61c0e422dc8b541b7548cf33a4ef8302b0f8085",
+              "path": "z_image_turbo-Q8_0.gguf",
+              "size_bytes": 6577440704,
+              "sha256": "df1c5baa86d1398c979495a6072dbcee79444fdb884a2445582ba0769c44e9a1"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "ernie-image-turbo",
+      "name": "ERNIE-Image Turbo",
+      "family": "ERNIE-Image",
+      "publisher": "Baidu",
+      "description": "Lettering and posters in eight steps.",
+      "license": "apache-2.0",
+      "source_repo": "baidu/ERNIE-Image-Turbo",
+      "aliases": [
+        "baidu/ERNIE-Image-Turbo"
+      ],
+      "evidence": {
+        "architecture": "ernie_image",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 8.03
+      },
+      "image": {
+        "origin": "baidu/ERNIE-Image-Turbo model card; sd.cpp docs at master-869-07a85c7, ernie_image.md",
+        "resolution": 1024,
+        "steps": 8,
+        "cfg": 1.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/ERNIE-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "a38270280633a5d318a9f51c18ef95eefb07c423",
+              "path": "ernie-image-turbo-Q4_0.gguf",
+              "size_bytes": 4762747584,
+              "sha256": "b348c3727bc9f105d74026f42c9015d37bec3c9921b86015de853912dd34cd76"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Ministral-3-3B-Instruct-2512-GGUF",
+              "upstream_repo": null,
+              "revision": "7564922f37fa5bbb62b87f09a55c12f1f91d7a6a",
+              "path": "Ministral-3-3B-Instruct-2512-Q4_0.gguf",
+              "size_bytes": 2046375200,
+              "sha256": "bd1eef40a7fdb1ba9728ec977bd4aab40fb76993d6ec37377fd6522703dc88a5"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/ERNIE-Image",
+              "upstream_repo": "baidu/ERNIE-Image-Turbo",
+              "revision": "82fe29a5cd056f8b1deebc50570f125bcd4f4bea",
+              "path": "vae/flux2-vae.safetensors",
+              "size_bytes": 336213556,
+              "sha256": "d64f3a68e1cc4f9f4e29b6e0da38a0204fe9a49f2d4053f0ec1fa1ca02f9c4b5"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/ERNIE-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "a38270280633a5d318a9f51c18ef95eefb07c423",
+              "path": "ernie-image-turbo-Q8_0.gguf",
+              "size_bytes": 8694907584,
+              "sha256": "c90af9c9a2cf6f7d0404c3fb17e84391c59b240362284f702168f8d71cfeba5d"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Ministral-3-3B-Instruct-2512-GGUF",
+              "upstream_repo": null,
+              "revision": "7564922f37fa5bbb62b87f09a55c12f1f91d7a6a",
+              "path": "Ministral-3-3B-Instruct-2512-Q4_0.gguf",
+              "size_bytes": 2046375200,
+              "sha256": "bd1eef40a7fdb1ba9728ec977bd4aab40fb76993d6ec37377fd6522703dc88a5"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/ERNIE-Image",
+              "upstream_repo": "baidu/ERNIE-Image-Turbo",
+              "revision": "82fe29a5cd056f8b1deebc50570f125bcd4f4bea",
+              "path": "vae/flux2-vae.safetensors",
+              "size_bytes": 336213556,
+              "sha256": "d64f3a68e1cc4f9f4e29b6e0da38a0204fe9a49f2d4053f0ec1fa1ca02f9c4b5"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
           }
         }
       ]

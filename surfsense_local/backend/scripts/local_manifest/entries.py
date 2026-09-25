@@ -9,7 +9,7 @@ in the written manifest is read from the files.
 
 from local_manifest.audiocpp.entry import AudioEntry
 from local_manifest.entry import Entry
-from local_manifest.sdcpp.entry import ImageEntry
+from local_manifest.sdcpp.entry import Companion, ImageEntry
 
 
 def _qwen3(size: str, description: str) -> Entry:
@@ -66,6 +66,12 @@ _SUPERTONIC_LANGUAGES = [
     "sl", "sv", "tr", "uk", "vi",
 ]
 # fmt: on
+# The text encoder FLUX.2 klein and Z-Image both run with: Comfy's copies of it
+# are byte-identical in their two repos, and Z-Image's own shards match
+# Qwen/Qwen3-4B, so one download serves both.
+_QWEN3_4B = Companion("text_encoder", "unsloth/Qwen3-4B-GGUF", "Qwen3-4B-Q4_0.gguf")
+_SD_CPP_DOCS = "sd.cpp docs at master-869-07a85c7"
+
 # Measured while voicing through audio.cpp v0.8.2's server on an i5-1235U,
 # 24 Sep 2026 (docs/proposals/local-audio-models.md, Measurements).
 _MEASURED = "memory measured on audio.cpp v0.8.2, 24 Sep 2026"
@@ -95,8 +101,96 @@ ENTRIES: tuple[Entry, ...] = (
     ),
     _qwen3("1.7B", "Light enough for older laptops"),
     _qwen3("0.6B", "The smallest that still answers, for any machine"),
-    # Image models: one self-contained Q4_0 file each, the builds sd-server was
-    # measured on here. Defaults are the publisher's, where the card states them.
+    # Image models. The newer families run with a text encoder and a VAE from
+    # their own repos; SD 1 and XL carry theirs inside one Q4_0 file. Defaults
+    # are sd.cpp's documented ones for the distilled builds, which the cards'
+    # diffusers settings do not carry over to.
+    ImageEntry(
+        id="flux2-klein-4b",
+        name="FLUX.2 klein 4B",
+        family="FLUX.2",
+        publisher="Black Forest Labs",
+        description="Current image quality in four steps, in the least memory.",
+        license="apache-2.0",
+        source_repo="black-forest-labs/FLUX.2-klein-4B",
+        repo="leejet/FLUX.2-klein-4B-GGUF",
+        aliases=("black-forest-labs/FLUX.2-klein-4B",),
+        builds=("Q4_0", "Q8_0"),
+        companions=(
+            _QWEN3_4B,
+            Companion(
+                "vae",
+                "Comfy-Org/vae-text-encorder-for-flux-klein-4b",
+                "split_files/vae/flux2-vae.safetensors",
+                upstream_repo="black-forest-labs/FLUX.2-klein-4B",
+            ),
+        ),
+        image={
+            "origin": f"black-forest-labs/FLUX.2-klein-4B model card; {_SD_CPP_DOCS}, flux2.md",
+            "resolution": 1024,
+            "steps": 4,
+            "cfg": 1.0,
+            "sampler": "euler",
+        },
+    ),
+    ImageEntry(
+        id="z-image-turbo",
+        name="Z-Image Turbo",
+        family="Z-Image",
+        publisher="Tongyi-MAI",
+        description="Photographic detail in eight steps. Shares FLUX.2 klein's text encoder.",
+        license="apache-2.0",
+        source_repo="Tongyi-MAI/Z-Image-Turbo",
+        repo="leejet/Z-Image-Turbo-GGUF",
+        aliases=("Tongyi-MAI/Z-Image-Turbo",),
+        builds=("Q4_0", "Q8_0"),
+        companions=(
+            _QWEN3_4B,
+            Companion(
+                "vae",
+                "Comfy-Org/z_image_turbo",
+                "split_files/vae/ae.safetensors",
+                upstream_repo="black-forest-labs/FLUX.1-schnell",
+            ),
+        ),
+        image={
+            "origin": f"Tongyi-MAI/Z-Image-Turbo model card; {_SD_CPP_DOCS}, z_image.md",
+            "resolution": 1024,
+            "steps": 8,
+            "cfg": 1.0,
+        },
+    ),
+    ImageEntry(
+        id="ernie-image-turbo",
+        name="ERNIE-Image Turbo",
+        family="ERNIE-Image",
+        publisher="Baidu",
+        description="Lettering and posters in eight steps.",
+        license="apache-2.0",
+        source_repo="baidu/ERNIE-Image-Turbo",
+        repo="unsloth/ERNIE-Image-Turbo-GGUF",
+        aliases=("baidu/ERNIE-Image-Turbo",),
+        builds=("Q4_0", "Q8_0"),
+        companions=(
+            Companion(
+                "text_encoder",
+                "unsloth/Ministral-3-3B-Instruct-2512-GGUF",
+                "Ministral-3-3B-Instruct-2512-Q4_0.gguf",
+            ),
+            Companion(
+                "vae",
+                "Comfy-Org/ERNIE-Image",
+                "vae/flux2-vae.safetensors",
+                upstream_repo="baidu/ERNIE-Image-Turbo",
+            ),
+        ),
+        image={
+            "origin": f"baidu/ERNIE-Image-Turbo model card; {_SD_CPP_DOCS}, ernie_image.md",
+            "resolution": 1024,
+            "steps": 8,
+            "cfg": 1.0,
+        },
+    ),
     ImageEntry(
         id="stable-diffusion-1.5",
         name="Stable Diffusion 1.5",

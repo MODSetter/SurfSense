@@ -70,14 +70,14 @@ Every size is the default build's, from Hugging Face's listings on 25 Sep 2026, 
 |---|---|---|---|---|
 | **FLUX.2 klein 4B** | Apache-2.0 | diffusion Q4_0 2.46 + Qwen3-4B Q4_0 2.38 + FLUX.2 VAE 0.34 | 5.17 GB | 4 |
 | **Z-Image Turbo** | Apache-2.0 | diffusion Q4_0 3.68 + Qwen3-4B + FLUX.1 VAE 0.34 | 6.39 GB; 4.02 after klein | 8 |
-| **ERNIE-Image Turbo** | Apache-2.0 | diffusion Q4_0 4.76 + Ministral 3 3B Q4_0 2.05 + FLUX.2 VAE | 7.15 GB; 6.81 after klein | 8 |
+| **ERNIE-Image Turbo** | Apache-2.0 | diffusion Q4_0 4.76 + Ministral 3 3B Q4_0 2.05 + its own FLUX.2 VAE 0.34 | 7.15 GB | 8 |
 | Stable Diffusion XL | OpenRAIL++ | one file, Q4_0 | 2.71 GB | |
 | Stable Diffusion 1.5 | CreativeML OpenRAIL-M | one file, Q4_0 | 3.05 GB | |
 | Qwen-Image 2512 | Apache-2.0 | diffusion Q4_0 11.85 + Qwen2.5-VL-7B Q4_0 4.44 + Qwen-Image VAE 0.25 | 16.55 GB | 50 |
 
 - **FLUX.2 klein 4B leads.** It is the smallest complete build of a current model, four steps, and the same files edit images, so one download fills two slots.
 - **Z-Image Turbo** shares klein's text encoder byte for byte (Comfy's `qwen_3_4b.safetensors` is identical in both repos, and Z-Image's shards match `Qwen/Qwen3-4B`). sd.cpp's docs say it runs in 4 GB of VRAM.
-- **ERNIE-Image Turbo** is the one for lettering and posters, and shares klein's VAE.
+- **ERNIE-Image Turbo** is the one for lettering and posters. sd.cpp's docs pair it with `Comfy-Org/ERNIE-Image`'s copy of the FLUX.2 VAE, which is not byte-identical to klein's, so nothing is shared.
 - **SDXL and SD 1.5 stay** as the light choices: one file each, and they run where the others do not.
 - **Qwen-Image 2512** is for 32 GB machines. It ships after a measurement on one.
 
@@ -121,7 +121,7 @@ Not curated: Wan2.1 14B and Wan2.2 A14B (13 to 21 GB); LingBot-Video 1.3B (no GG
 | File | Size | Used by |
 |---|---|---|
 | Qwen3-4B Q4_0, `unsloth/Qwen3-4B-GGUF` | 2.38 GB | FLUX.2 klein 4B, Z-Image Turbo |
-| FLUX.2 VAE, `Comfy-Org/flux2-klein-4B` | 0.34 GB | FLUX.2 klein 4B, ERNIE-Image Turbo |
+| FLUX.2 VAE, `Comfy-Org/vae-text-encorder-for-flux-klein-4b` (formerly `flux2-klein-4B`) | 0.34 GB | FLUX.2 klein 4B |
 | FLUX.1 VAE, `Comfy-Org/z_image_turbo` | 0.34 GB | Z-Image Turbo, LongCat-Image-Edit |
 | Qwen2.5-VL-7B Q4_0 and its projector, `unsloth/Qwen2.5-VL-7B-Instruct-GGUF` | 4.44 + 1.35 GB | LongCat-Image-Edit, Qwen-Image 2512 (without the projector), Qwen-Image-Edit-2511 |
 | Qwen-Image VAE, `Comfy-Org/Qwen-Image_ComfyUI` | 0.25 GB | Qwen-Image 2512, Qwen-Image-Edit-2511 |
