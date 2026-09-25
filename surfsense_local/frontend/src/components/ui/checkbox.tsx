@@ -24,7 +24,7 @@ function Checkbox({ className, ...props }: CheckboxPrimitive.Root.Props) {
         // colour, since the box's text colour flips the instant it unchecks.
         className="grid place-content-center text-primary-foreground transition-[clip-path] duration-400 ease-out [clip-path:inset(0)] data-ending-style:duration-150 data-ending-style:[clip-path:inset(0_100%_0_0)] data-starting-style:[clip-path:inset(0_100%_0_0)] motion-reduce:transition-none [&>svg]:size-3.5"
       >
-        <CheckIcon />
+        <CheckIcon strokeWidth={3} />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   )
