@@ -1,25 +1,11 @@
-import { useEffect, useState } from "react"
-
 import { Button } from "@/components/ui/button"
 import { CheckIcon, CopyIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 
-// Long enough to read "Copied", short enough that a second copy is not blocked.
-const COPIED_MS = 2000
+import { useCopyToClipboard } from "./use-copy-to-clipboard"
 
 export function CopySystemInfoButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-
-  useEffect(() => {
-    if (!copied) return
-    const timer = window.setTimeout(() => setCopied(false), COPIED_MS)
-    return () => window.clearTimeout(timer)
-  }, [copied])
-
-  const copy = async () => {
-    await navigator.clipboard.writeText(text)
-    setCopied(true)
-  }
+  const { copied, copy } = useCopyToClipboard(text)
 
   return (
     <Button type="button" variant="outline" onClick={() => void copy()}>

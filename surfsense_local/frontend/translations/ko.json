@@ -2,6 +2,8 @@
   "about_discord_link": "Discord 커뮤니티",
   "about_docs_link": "문서",
   "about_github_link": "GitHub 소스 코드",
+  "about_identity_version_copied_aria": "버전 복사됨",
+  "about_identity_version_copy_aria": "버전 복사",
   "about_identity_version_label": "버전 {version}",
   "about_license_body": "SurfSense는 Apache License 2.0에 따른 오픈소스입니다.",
   "about_license_link": "라이선스 읽기",

@@ -2,6 +2,8 @@
   "about_discord_link": "Сообщество в Discord",
   "about_docs_link": "Документация",
   "about_github_link": "Исходный код на GitHub",
+  "about_identity_version_copied_aria": "Версия скопирована",
+  "about_identity_version_copy_aria": "Скопировать версию",
   "about_identity_version_label": "Версия {version}",
   "about_license_body": "SurfSense — программа с открытым исходным кодом под лицензией Apache License 2.0.",
   "about_license_link": "Прочитать лицензию",

@@ -2,6 +2,8 @@
   "about_discord_link": "Discord 社区",
   "about_docs_link": "文档",
   "about_github_link": "GitHub 源代码",
+  "about_identity_version_copied_aria": "已复制版本号",
+  "about_identity_version_copy_aria": "复制版本号",
   "about_identity_version_label": "版本 {version}",
   "about_license_body": "SurfSense 基于 Apache License 2.0 开源。",
   "about_license_link": "阅读许可证",

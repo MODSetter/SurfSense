@@ -81,4 +81,22 @@ describe("AboutSettings", () => {
     expect(copied).toContain("Electron 44.0.0")
     expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy()
   })
+
+  it("copies the bare version from beside it", async () => {
+    stubAboutBridge()
+    const user = userEvent.setup()
+    const writeText = vi
+      .spyOn(navigator.clipboard, "writeText")
+      .mockResolvedValue(undefined)
+    render(<AboutSettings />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Copy version" })
+    )
+
+    expect(writeText).toHaveBeenCalledWith("2.0.2")
+    expect(
+      await screen.findByRole("button", { name: "Version copied" })
+    ).toBeTruthy()
+  })
 })

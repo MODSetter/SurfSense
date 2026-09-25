@@ -2,6 +2,8 @@
   "about_discord_link": "Communauté sur Discord",
   "about_docs_link": "Documentation",
   "about_github_link": "Code source sur GitHub",
+  "about_identity_version_copied_aria": "Version copiée",
+  "about_identity_version_copy_aria": "Copier la version",
   "about_identity_version_label": "Version {version}",
   "about_license_body": "SurfSense est open source sous licence Apache License 2.0.",
   "about_license_link": "Lire la licence",

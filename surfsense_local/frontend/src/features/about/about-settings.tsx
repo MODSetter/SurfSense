@@ -11,6 +11,7 @@ import {
   bugReportUrl,
   releaseNotesUrl,
 } from "./about-links"
+import { CopyVersionButton } from "./copy-version-button"
 import { ExternalLink } from "./external-link"
 import { systemInfo } from "./system-info"
 import { Troubleshooting } from "./troubleshooting"
@@ -32,15 +33,18 @@ function AppIdentity({ version }: { version?: string }) {
       <div className="flex flex-col">
         <span className="font-heading text-lg font-medium">SurfSense</span>
         {version ? (
-          <span className="text-sm text-muted-foreground tabular-nums">
-            {intl.formatMessage(
-              {
-                id: "about_identity_version_label",
-                defaultMessage: "Version {version}",
-              },
-              { version }
-            )}
-          </span>
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-muted-foreground tabular-nums">
+              {intl.formatMessage(
+                {
+                  id: "about_identity_version_label",
+                  defaultMessage: "Version {version}",
+                },
+                { version }
+              )}
+            </span>
+            <CopyVersionButton version={version} />
+          </div>
         ) : null}
       </div>
     </div>

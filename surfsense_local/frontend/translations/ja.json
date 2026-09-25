@@ -2,6 +2,8 @@
   "about_discord_link": "Discordのコミュニティ",
   "about_docs_link": "ドキュメント",
   "about_github_link": "GitHubのソースコード",
+  "about_identity_version_copied_aria": "バージョンをコピーしました",
+  "about_identity_version_copy_aria": "バージョンをコピー",
   "about_identity_version_label": "バージョン {version}",
   "about_license_body": "SurfSenseはApache License 2.0のもとで公開されているオープンソースです。",
   "about_license_link": "ライセンスを読む",

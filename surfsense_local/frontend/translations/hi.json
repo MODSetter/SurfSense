@@ -2,6 +2,8 @@
   "about_discord_link": "Discord पर कम्युनिटी",
   "about_docs_link": "डॉक्यूमेंटेशन",
   "about_github_link": "GitHub पर सोर्स कोड",
+  "about_identity_version_copied_aria": "वर्शन कॉपी हो गया",
+  "about_identity_version_copy_aria": "वर्शन कॉपी करें",
   "about_identity_version_label": "वर्शन {version}",
   "about_license_body": "SurfSense, Apache License 2.0 के तहत ओपन सोर्स है।",
   "about_license_link": "लाइसेंस पढ़ें",
