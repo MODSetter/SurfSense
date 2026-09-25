@@ -1,7 +1,8 @@
 ---
-status: accepted
+status: in-progress
 code:
   - surfsense_local/backend/scripts/chat_eval/
+  - surfsense_local/backend/scripts/run_chat_eval.py
 ---
 
 # Chat eval
@@ -61,6 +62,29 @@ Each case carries its retrieved passages, so every model answers from the same c
 
 - Every machine runs the same file, the default `UD-Q4_K_XL`. On a machine short of memory the app recommends a smaller 4-bit build instead; install `UD-Q4_K_XL` from the model's other builds, which installs unless the app refuses it ([catalog](../architecture/local-models/catalog.md)). A machine that refuses it does not run the eval for that model.
 - Each result records the llama.cpp build it ran on, because a release pins one ([packaging](../architecture/packaging.md)).
+- The script asks a llama-server started the way the app starts it, normally the dev app's own, at the address given as `--base-url`, so a run uses the app's launch flags and model presets rather than a copy of them.
+
+## Scoring
+
+Rules only ([`score.py`](../../surfsense_local/backend/scripts/chat_eval/score.py)). Each case in [`cases.json`](../../surfsense_local/backend/scripts/chat_eval/cases.json) carries its passages, which of them hold the answer, and any facts a correct answer states, chosen to read the same in any language. A reply is marked for:
+
+- stopping at the 1,024-token cap, and for coming back empty;
+- a label that names no passage, read by chat's own `resolve_citations()`;
+- citing every passage that holds the answer, and for citing one that does not, which on a case no passage answers is any citation;
+- stating the expected facts;
+- being written in the question's script, which stands in for its language.
+
+## Judging
+
+A frontier model on OpenRouter reviews a run, so a failure comes with its likely cause and a change to try, not only a mark. The point is to learn how to get better answers out of small models, and later better artifacts and edits.
+
+- For each reply it is shown the messages the model received, its reasoning, its answer, the answer key and the rule checks.
+- It returns a verdict held to a schema: whether the answer is grounded, complete, cited correctly, open about what the passages do not hold, and in the question's language. For each failure it gives the quote, the problem, the likely cause (an instruction, the prompt's example, how the passages are shown, the model's capacity, or the case itself) and a fix.
+- A second request reads every verdict of the run and writes a report of failure patterns and the changes to make first.
+- The rubric and the report prompt are markdown files in [`judge/`](../../surfsense_local/backend/scripts/chat_eval/judge/), so a Studio format or an artifact edit adds a rubric, not a second judge.
+- The judge is chosen per run, and every verdict records it with a fingerprint of the rubric, so runs are compared under the same judge and the same rubric.
+- Verdicts and the report are written beside the run they review, and `summary` adds the judge's rates to the rules'.
+- The cases are written for the eval, so nothing a user wrote leaves the machine.
 
 ## Reading the results
 
@@ -76,10 +100,10 @@ Each case carries its retrieved passages, so every model answers from the same c
 | Hugging Face Inference Endpoints for everything | Runs the exact GGUF, but one model per endpoint, so switching models means deploying or waking another endpoint |
 | One rented GPU running llama.cpp's router mode | Switches by model id on the exact files, but it is a machine to operate, not a service |
 | ModelsLab GGUF Cloud | llama.cpp on any GGUF, but a dedicated GPU billed monthly, from $249 as listed in September 2026 |
-| OpenRouter, Together, DeepInfra, Chutes | Not compared in detail; none was found to serve GGUF through llama.cpp |
+| OpenRouter, Together, DeepInfra, Chutes, for the models under test | Not compared in detail; none was found to serve GGUF through llama.cpp |
 | Ollama Cloud | A small set of large models; it retired small ones such as `gemma3:4b` and `ministral-3:3b` on 15 Jul 2026 ([cloud docs](https://github.com/ollama/ollama/blob/cecd265d/docs/cloud.mdx)) |
 
 ## Open questions
 
-- What a case scores, and how: citations that resolve and are supported by their passage, admitting when the passages do not hold the answer, answering in the question's language. Rules for the first, a judge model for the rest, or both.
-- How often the 1,024-token cap cuts a thinking model's answer short ([chat](../architecture/chat.md#known-gaps)). The first thing to measure.
+- How far the judge agrees with a person reading the same answers, which decides how far to trust a change that only the judge favours.
+- How often the 1,024-token cap cuts a thinking model's answer short ([chat](../architecture/chat.md#known-gaps)). Qwen3 1.7B was cut on none of 33 answers; the other models are not measured yet.
