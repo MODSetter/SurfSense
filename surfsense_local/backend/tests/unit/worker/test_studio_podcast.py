@@ -209,6 +209,38 @@ def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
     assert "**Lee:** Goodbye." in built.markdown
 
 
+@pytest.mark.parametrize(
+    ("speakers", "cast"),
+    [
+        ([("Host", "host"), ("Guest", "guest")], "_Host, Guest_"),
+        ([("Priya", "host"), ("Tom", "guest")], "_Priya (host), Tom (guest)_"),
+        ([("host", "host"), ("Co-host", "cohost")], "_host, Co-host_"),
+        ([("Host", "guest"), ("Tom", "expert")], "_Host (guest), Tom (expert)_"),
+    ],
+)
+def test_the_cast_line_names_a_role_only_where_the_name_does_not(
+    monkeypatch: pytest.MonkeyPatch, speakers: list[tuple[str, str]], cast: str
+) -> None:
+    """A default name is its role; "Host (host)" says it twice."""
+    voice, _ = _episode(
+        monkeypatch,
+        '{"title": "T", "segments": [{"title": "Only"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Bye."}]}',
+    )
+    brief = BRIEF.model_copy(
+        update={
+            "speakers": [
+                Speaker(name=name, role=role, voice=f"v{slot}")
+                for slot, (name, role) in enumerate(speakers)
+            ]
+        }
+    )
+
+    built = pipeline.render(MODEL, voice, [], None, brief.model_dump(mode="json"))
+
+    assert built.markdown.splitlines()[2] == cast
+
+
 def test_an_episode_too_short_to_voice_fails_before_synthesis(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
