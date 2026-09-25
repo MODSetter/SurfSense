@@ -20,9 +20,9 @@ import { useFinishOnboarding } from "./use-finish-onboarding"
 const STEPS = [
   "text_gen",
   "image_gen",
+  "audio_gen",
   "image_edit",
   "video_gen",
-  "audio_gen",
 ] as const satisfies readonly OnboardingSlot[]
 
 type Step = (typeof STEPS)[number]

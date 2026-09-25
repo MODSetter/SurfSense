@@ -167,22 +167,22 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then five steps: chat, image, image editing, video and audio model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The five
+The onboarding page opens on a welcome screen, then five steps: chat, image, audio, image editing and video model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The five
 model steps are one component for any slot
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
 built on the same hooks as Settings but with its own screens. Each lists every
 model this computer can run at once, the catalog's starred row first, with
 Download, Use and Delete as in Settings; a download's progress shows under its
 row and never moves the page. The chat step also offers Settings' Hugging Face
-search, closed until asked for; the image, image editing, video and audio steps have none, since
-sd.cpp's and audio.cpp's models are the few the catalog ships. The image editing step lists first the model chosen for images a step earlier when it edits too, so FLUX.2 klein is one Use away, and its downloads fill `image_edit`. A server sits one line below the list and names
+search, closed until asked for; the image, audio, image editing and video steps have none, since
+sd.cpp's and audio.cpp's models are the few the catalog ships. The image editing step lists first the model chosen for images earlier when it edits too, so FLUX.2 klein is one Use away, and its downloads fill `image_edit`. A server sits one line below the list and names
 any connected earlier. Once the slot has a model, the footer names it beside
 Continue. Onboarding installs with `select: true`, so a download is also the
 choice; Settings installs with `select: false`. The chat step's Continue is
 enabled only once a chat model is selected, local or from a server. The image,
-image editing, video and audio steps are optional, and each enables its Continue or Finish only once
+audio, image editing and video steps are optional, and each enables its Continue or Finish only once
 its slot has a model. Each step's Skip and Continue move on to the next, image
-to image editing to video to audio; the audio step's Skip and Finish both post the marker.
+to audio to image editing to video. The last step's buttons read Skip and finish and Finish, and both post the marker.
 
 ## Resolution: local and remote
 

@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   Alert02Icon as Alert02IconData,
   AlertCircleIcon,
+  AiImageEditIcon as AiImageEditIconData,
   AiSearchLinesIcon as AiSearchLinesIconData,
   ArrowDownIcon as ArrowDownIconData,
   ArrowExpand01Icon as ArrowExpand01IconData,
@@ -108,6 +109,7 @@ function createIcon(icon: IconData, defaultClassName?: string) {
 }
 
 export const Alert02Icon = createIcon(Alert02IconData)
+export const AiImageEditIcon = createIcon(AiImageEditIconData)
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
 export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)

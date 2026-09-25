@@ -9,13 +9,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  AiImageEditIcon,
   AudioWaveformIcon,
   Chat01Icon,
   ComputerEthernetIcon,
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
-  PencilEdit02Icon,
   Settings2Icon,
   Video01Icon,
 } from "@/components/ui/icons"
@@ -51,9 +51,9 @@ export type SettingsSectionId =
   | "general"
   | "chat-models"
   | "image-models"
+  | "audio-models"
   | "image-edit-models"
   | "video-models"
-  | "audio-models"
   | "network"
   | "license"
 
@@ -190,9 +190,9 @@ const SETTINGS_SECTIONS = [
   { id: "general", icon: Settings2Icon },
   { id: "chat-models", icon: Chat01Icon },
   { id: "image-models", icon: Image01Icon },
-  { id: "image-edit-models", icon: PencilEdit02Icon },
-  { id: "video-models", icon: Video01Icon },
   { id: "audio-models", icon: AudioWaveformIcon },
+  { id: "image-edit-models", icon: AiImageEditIcon },
+  { id: "video-models", icon: Video01Icon },
   { id: "network", icon: ComputerEthernetIcon },
   { id: "license", icon: LicenseIcon },
 ] satisfies SettingsNavItem[]

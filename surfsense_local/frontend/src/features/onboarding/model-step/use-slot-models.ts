@@ -50,7 +50,7 @@ function useImageEditSlot(): SlotModels {
   const models = useImageModels("image_edit")
   const catalog = useLocalImageCatalog("image_edit")
   const rows = catalog.data ?? []
-  // The image model chosen a step earlier leads when it edits too: one Use,
+  // The image model chosen earlier leads when it edits too: one Use,
   // nothing more to download.
   const forImages = (row: LocalRow) =>
     row.builds.some((build) => build.selected_for?.includes("image_gen"))
