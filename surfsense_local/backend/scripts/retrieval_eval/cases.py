@@ -6,6 +6,10 @@ from pydantic import BaseModel, Field, TypeAdapter, model_validator
 
 CORPUS_DIR = Path(__file__).with_name("corpus")
 QUERIES_PATH = Path(__file__).with_name("queries.json")
+# A fetched dataset lands here rather than in the repo: it keeps someone else's
+# licence out of our tree, and the eval runs with only the authored corpus when
+# it is absent. `scripts/fetch_limit_small.py` writes one.
+LOCAL_DIR = Path(__file__).with_name("local")
 
 
 class Query(BaseModel):
@@ -59,5 +63,16 @@ class Corpus(BaseModel):
         return self
 
 
-def load(directory: Path = CORPUS_DIR, queries_path: Path = QUERIES_PATH) -> Corpus:
-    return Corpus(documents=load_corpus(directory), queries=load_queries(queries_path))
+def load(
+    directory: Path = CORPUS_DIR,
+    queries_path: Path = QUERIES_PATH,
+    local_dir: Path | None = LOCAL_DIR,
+) -> Corpus:
+    """The authored corpus, plus any fetched dataset sitting beside it."""
+    documents = load_corpus(directory)
+    queries = load_queries(queries_path)
+    if local_dir and (local_dir / "corpus").is_dir():
+        documents += load_corpus(local_dir / "corpus")
+    if local_dir and (local_dir / "queries.json").is_file():
+        queries += load_queries(local_dir / "queries.json")
+    return Corpus(documents=documents, queries=queries)

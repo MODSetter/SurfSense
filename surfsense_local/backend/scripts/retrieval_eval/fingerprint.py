@@ -9,12 +9,14 @@ import hashlib
 from pathlib import Path
 
 
-def fingerprint(corpus_dir: Path, embedder: bytes) -> str:
+def fingerprint(*corpus_dirs: Path, embedder: bytes) -> str:
+    """Every document that will be indexed, plus the model that will embed it."""
     digest = hashlib.sha256()
-    for path in sorted(corpus_dir.glob("*.md")):
-        digest.update(path.name.encode("utf-8"))
-        digest.update(path.read_bytes())
-        digest.update(b"\0")
+    for corpus_dir in corpus_dirs:
+        for path in sorted(corpus_dir.glob("*.md")) if corpus_dir.is_dir() else []:
+            digest.update(path.name.encode("utf-8"))
+            digest.update(path.read_bytes())
+            digest.update(b"\0")
     digest.update(embedder)
     return digest.hexdigest()[:16]
 

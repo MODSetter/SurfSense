@@ -17,7 +17,9 @@ def test_the_same_corpus_and_embedder_reuse_one_index(tmp_path) -> None:
     """Re-running an unchanged eval must not pay to embed it again."""
     corpus = _corpus(tmp_path / "a", manual="warranty is 27 months")
 
-    assert fingerprint(corpus, b"embedder-1") == fingerprint(corpus, b"embedder-1")
+    assert fingerprint(corpus, embedder=b"embedder-1") == fingerprint(
+        corpus, embedder=b"embedder-1"
+    )
 
 
 def test_an_edited_document_builds_a_new_index(tmp_path) -> None:
@@ -25,7 +27,7 @@ def test_an_edited_document_builds_a_new_index(tmp_path) -> None:
     before = _corpus(tmp_path / "before", manual="warranty is 27 months")
     after = _corpus(tmp_path / "after", manual="warranty is 39 months")
 
-    assert fingerprint(before, b"same") != fingerprint(after, b"same")
+    assert fingerprint(before, embedder=b"same") != fingerprint(after, embedder=b"same")
 
 
 def test_an_added_document_builds_a_new_index(tmp_path) -> None:
@@ -35,11 +37,13 @@ def test_an_added_document_builds_a_new_index(tmp_path) -> None:
         tmp_path / "two", manual="warranty is 27 months", policy="returns run 45 days"
     )
 
-    assert fingerprint(one, b"same") != fingerprint(two, b"same")
+    assert fingerprint(one, embedder=b"same") != fingerprint(two, embedder=b"same")
 
 
 def test_a_different_embedder_builds_a_new_index(tmp_path) -> None:
     """Vectors from another model are unrelated numbers, not a smaller change."""
     corpus = _corpus(tmp_path / "c", manual="warranty is 27 months")
 
-    assert fingerprint(corpus, b"embedder-1") != fingerprint(corpus, b"embedder-2")
+    assert fingerprint(corpus, embedder=b"embedder-1") != fingerprint(
+        corpus, embedder=b"embedder-2"
+    )

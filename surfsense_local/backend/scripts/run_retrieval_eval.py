@@ -16,7 +16,7 @@ import os
 import sys
 from pathlib import Path
 
-from retrieval_eval.cases import CORPUS_DIR
+from retrieval_eval.cases import CORPUS_DIR, LOCAL_DIR
 from retrieval_eval.fingerprint import embedder_identity, fingerprint
 
 # Deliberately not imported from worker.ingestion.embedding, even though that
@@ -38,7 +38,10 @@ os.environ.setdefault("SURFSENSE_LOCAL_MODELS_DIR", str(_REAL / "models"))
 CACHE_ROOT = Path.home() / ".surfsense-retrieval-eval"
 _KEY = fingerprint(
     CORPUS_DIR,
-    embedder_identity(Path(os.environ["SURFSENSE_LOCAL_MODELS_DIR"]), MODEL_DIR_NAME),
+    LOCAL_DIR / "corpus",
+    embedder=embedder_identity(
+        Path(os.environ["SURFSENSE_LOCAL_MODELS_DIR"]), MODEL_DIR_NAME
+    ),
 )
 os.environ["SURFSENSE_LOCAL_DATA_DIR"] = str(CACHE_ROOT / _KEY)
 
