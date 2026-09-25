@@ -24,7 +24,7 @@ from shared.db import create_db_engine, create_session_factory
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
-from worker.studio.shared import gather, persist
+from worker.studio.shared import cancellation, gather, persist
 
 logger = logging.getLogger(__name__)
 
@@ -81,9 +81,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         session.commit()
         raise_if_cancelled(session, document)
 
-        # ponytail: a cancel during this call waits until the model returns.
-        # Thread-kill the HTTP client if waiting the rest of the reply is too long.
-        built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+        # A cancel hangs up on a model mid-reply; other stages still finish first.
+        with cancellation.watching(lambda: raise_if_cancelled(session, document)):
+            built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
         raise_if_cancelled(session, document)
 
         logger.info(

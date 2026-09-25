@@ -263,8 +263,8 @@ with a small `max_tokens` returns nothing. Measured against Qwen3 1.7B at
 `b11050`, a 12-token title request came back with `content: ''`,
 `finish_reason: length`, and a full `reasoning_content`.
 
-A caller that wants no reasoning passes `reasoning=False`; title generation is
-the one that does. The chat provider then adds `THINKING_OFF`, two fields
+A caller that wants no reasoning passes `reasoning=False`; title generation and
+every Studio model call do. The chat provider then adds `THINKING_OFF`, two fields
 defined in `thinking.py`, to that one request,
 because each covers the other's blind spot and both were measured to work:
 
