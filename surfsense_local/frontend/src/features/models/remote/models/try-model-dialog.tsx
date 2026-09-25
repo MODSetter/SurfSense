@@ -152,9 +152,11 @@ export function TryModelDialog({
   return (
     <>
       <Dialog open onOpenChange={(open) => !open && onClose()}>
-        <DialogContent className="select-none">
+        {/* Wide enough for the longest footer (Russian) on one row. */}
+        <DialogContent className="select-none sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>
+            {/* Clears the close button, which sits over the title's line. */}
+            <DialogTitle className="pr-6">
               {intl.formatMessage(
                 {
                   id: "models_try_dialog_title",
