@@ -67,12 +67,9 @@ export function RenameChatDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className="select-none"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          const input = inputRef.current
-          if (!input) return
-          input.focus()
-          input.select()
+        initialFocus={() => {
+          inputRef.current?.select()
+          return inputRef.current
         }}
       >
         <form onSubmit={(event) => void submit(event)}>
@@ -191,10 +188,7 @@ export function ChatsDialog({
       >
         <DialogContent
           className="select-none sm:max-w-3xl"
-          onOpenAutoFocus={(event) => {
-            event.preventDefault()
-            searchRef.current?.focus()
-          }}
+          initialFocus={searchRef}
         >
           <DialogHeader>
             <DialogTitle className="text-xl">
@@ -333,36 +327,38 @@ export function ChatsDialog({
                           setOpenDropdownId(open ? thread.id : null)
                         }
                       >
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
-                            aria-label={intl.formatMessage(
-                              {
-                                id: "chat_chats_dialog_row_actions_aria",
-                                defaultMessage: "Actions for {title}",
-                              },
-                              {
-                                title,
-                              }
-                            )}
-                            onMouseEnter={onRowMouseEnter}
-                            onMouseLeave={onRowMouseLeave}
-                          >
-                            <EllipsisIcon />
-                          </Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                              aria-label={intl.formatMessage(
+                                {
+                                  id: "chat_chats_dialog_row_actions_aria",
+                                  defaultMessage: "Actions for {title}",
+                                },
+                                {
+                                  title,
+                                }
+                              )}
+                              onMouseEnter={onRowMouseEnter}
+                              onMouseLeave={onRowMouseLeave}
+                            >
+                              <EllipsisIcon />
+                            </Button>
+                          }
+                        />
                         <DropdownMenuContent
                           align="end"
                           sideOffset={8}
                           className="w-36"
-                          onCloseAutoFocus={(event) => event.preventDefault()}
+                          finalFocus={false}
                         >
                           <DropdownMenuGroup>
                             <DropdownMenuItem
                               disabled={thread.id === autoNamingThreadId}
-                              onSelect={() => {
+                              onClick={() => {
                                 setOpenDropdownId(null)
                                 setRenaming(thread)
                               }}
@@ -375,7 +371,7 @@ export function ChatsDialog({
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               variant="destructive"
-                              onSelect={() => {
+                              onClick={() => {
                                 setOpenDropdownId(null)
                                 void onDelete(thread.id)
                               }}

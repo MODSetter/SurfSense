@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { fileURLToPath, URL } from "node:url"
 import formatjs from "@formatjs/unplugin/vite"
 import tailwindcss from "@tailwindcss/vite"
@@ -23,6 +24,9 @@ export default defineConfig({
       "@formatjs/icu-messageformat-parser":
         "@formatjs/icu-messageformat-parser/no-parser.js",
     },
+  },
+  test: {
+    setupFiles: ["./src/test-setup.ts"],
   },
   server: {
     host: "127.0.0.1",

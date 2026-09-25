@@ -328,11 +328,7 @@ describe("studio panel", () => {
     const image = await screen.findByRole("button", { name: "Image" })
     expect(image.getAttribute("aria-disabled")).toBe("true")
     await user.hover(image)
-    expect(
-      await screen.findByRole("tooltip", {
-        name: "Needs an image model",
-      })
-    ).toBeTruthy()
+    expect(await screen.findByText("Needs an image model")).toBeTruthy()
   })
 
   it("shows an explanation tooltip on an available artifact", async () => {
@@ -362,9 +358,9 @@ describe("studio panel", () => {
     const quiz = await screen.findByRole("button", { name: "Quiz" })
     await user.hover(quiz)
     expect(
-      await screen.findByRole("tooltip", {
-        name: "Generate an AI interactive quiz based on your sources",
-      })
+      await screen.findByText(
+        "Generate an AI interactive quiz based on your sources"
+      )
     ).toBeTruthy()
   })
 })

@@ -234,38 +234,39 @@ export function ThreadPanel({
                 </span>
               </Button>
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    aria-label={intl.formatMessage(
-                      {
-                        id: "chat_thread_panel_options_aria",
-                        defaultMessage: "Chat options for {title}",
-                      },
-                      {
-                        title,
-                      }
-                    )}
-                  >
-                    <ChevronDownIcon />
-                  </Button>
-                </DropdownMenuTrigger>
+                <DropdownMenuTrigger
+                  render={
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label={intl.formatMessage(
+                        {
+                          id: "chat_thread_panel_options_aria",
+                          defaultMessage: "Chat options for {title}",
+                        },
+                        {
+                          title,
+                        }
+                      )}
+                    >
+                      <ChevronDownIcon />
+                    </Button>
+                  }
+                />
                 <DropdownMenuContent
                   align="start"
                   sideOffset={8}
                   className="w-36"
-                  onCloseAutoFocus={(event) => {
-                    if (ignoreMenuFocusRef.current) {
-                      event.preventDefault()
-                      ignoreMenuFocusRef.current = false
-                    }
+                  finalFocus={() => {
+                    if (!ignoreMenuFocusRef.current) return true
+                    ignoreMenuFocusRef.current = false
+                    return false
                   }}
                 >
                   <DropdownMenuGroup>
                     <DropdownMenuItem
                       disabled={!canRename}
-                      onSelect={() => {
+                      onClick={() => {
                         ignoreMenuFocusRef.current = true
                         startEditing()
                       }}
@@ -278,7 +279,7 @@ export function ThreadPanel({
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"
-                      onSelect={() => {
+                      onClick={() => {
                         void onDelete(thread.id)
                       }}
                     >

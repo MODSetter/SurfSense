@@ -101,7 +101,7 @@ describe("ChatsDialog", () => {
     await user.click(
       screen.getByRole("button", { name: "Actions for Untitled" })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Rename" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
 
     const input = screen.getByRole("textbox", { name: "Chat name" })
     await user.clear(input)
@@ -133,7 +133,9 @@ describe("ChatsDialog", () => {
     await user.click(
       screen.getByRole("button", { name: "Actions for Untitled" })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Delete chat" }))
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Delete chat" })
+    )
 
     expect(onDelete).toHaveBeenCalledWith(1)
   })

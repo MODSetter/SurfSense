@@ -83,7 +83,7 @@ describe("composer model picker", () => {
       await screen.findByRole("menuitemradio", { name: /gpt-5/ })
     ).toBeTruthy()
     expect(
-      screen.getByRole("menuitemradio", { name: /acme\/mystery-1/ })
+      await screen.findByRole("menuitemradio", { name: /acme\/mystery-1/ })
     ).toBeTruthy()
     expect(
       screen.queryByRole("menuitemradio", { name: /gpt-image-2/ })
@@ -165,7 +165,7 @@ describe("composer model picker", () => {
     const currentItem = await screen.findByRole("menuitemradio", {
       name: "llama3.2:1b",
     })
-    const availableItem = screen.getByRole("menuitemradio", {
+    const availableItem = await screen.findByRole("menuitemradio", {
       name: "qwen3:1.7b",
     })
     expect(currentItem.lastElementChild?.className).toContain(
@@ -206,7 +206,9 @@ describe("composer model picker", () => {
     expect(
       screen.queryByRole("menuitemradio", { name: "llama3.2:1b" })
     ).toBeNull()
-    await user.click(screen.getByRole("menuitemradio", { name: "qwen3:1.7b" }))
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "qwen3:1.7b" })
+    )
 
     await waitFor(() =>
       expect(onModelSelected).toHaveBeenCalledWith(
@@ -319,7 +321,7 @@ describe("composer model picker", () => {
     expect(screen.queryByText("gpt-image-1")).toBeNull()
     // Unknown is not no: the backend offers it for every slot, so it is here.
     expect(
-      screen.getByRole("menuitemradio", { name: /whisper-1/ })
+      await screen.findByRole("menuitemradio", { name: /whisper-1/ })
     ).toBeTruthy()
   })
 })

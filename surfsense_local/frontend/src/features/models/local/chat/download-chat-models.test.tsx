@@ -217,9 +217,7 @@ describe("model catalog", () => {
     // The star says why on hover, not only to a screen reader.
     await user.hover(screen.getByLabelText("Recommended for your computer"))
     expect(
-      await screen.findByRole("tooltip", {
-        name: "Recommended for your computer",
-      })
+      await screen.findByText("Recommended for your computer")
     ).toBeTruthy()
   })
 

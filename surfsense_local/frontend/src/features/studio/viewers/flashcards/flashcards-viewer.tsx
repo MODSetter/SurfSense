@@ -223,20 +223,22 @@ function FlashcardRunner({
       {actionsContainer
         ? createPortal(
             <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  disabled={!hasProgress || saving}
-                  aria-label={intl.formatMessage({
-                    id: "studio_flashcards_viewer_reset_aria",
-                    defaultMessage: "Reset flashcard progress",
-                  })}
-                >
-                  <RefreshCwIcon />
-                </Button>
-              </AlertDialogTrigger>
+              <AlertDialogTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    disabled={!hasProgress || saving}
+                    aria-label={intl.formatMessage({
+                      id: "studio_flashcards_viewer_reset_aria",
+                      defaultMessage: "Reset flashcard progress",
+                    })}
+                  >
+                    <RefreshCwIcon />
+                  </Button>
+                }
+              />
               <AlertDialogContent>
                 <AlertDialogHeader>
                   <AlertDialogTitle>

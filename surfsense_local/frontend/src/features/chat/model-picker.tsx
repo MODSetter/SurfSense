@@ -91,34 +91,36 @@ export function ModelPicker({
         }
       }}
     >
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          // Shares the row with the disclaimer, truncating the model name
-          // rather than forcing a long translation onto more lines.
-          className={cn(
-            modelControlButtonClassName,
-            "min-w-0 shrink",
-            className
-          )}
-          title={intl.formatMessage({
-            id: "chat_model_picker_change_tooltip",
-            defaultMessage: "Change model",
-          })}
-          aria-label={intl.formatMessage(
-            {
-              id: "chat_model_picker_trigger_aria",
-              defaultMessage: "Model {model}. Change model.",
-            },
-            {
-              model: selectedLabel,
-            }
-          )}
-        >
-          <span className="max-w-48 truncate">{selectedLabel}</span>
-          <ChevronDownIcon className="size-3" />
-        </button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            // Shares the row with the disclaimer, truncating the model name
+            // rather than forcing a long translation onto more lines.
+            className={cn(
+              modelControlButtonClassName,
+              "min-w-0 shrink",
+              className
+            )}
+            title={intl.formatMessage({
+              id: "chat_model_picker_change_tooltip",
+              defaultMessage: "Change model",
+            })}
+            aria-label={intl.formatMessage(
+              {
+                id: "chat_model_picker_trigger_aria",
+                defaultMessage: "Model {model}. Change model.",
+              },
+              {
+                model: selectedLabel,
+              }
+            )}
+          >
+            <span className="max-w-48 truncate">{selectedLabel}</span>
+            <ChevronDownIcon className="size-3" />
+          </button>
+        }
+      />
 
       <DropdownMenuContent align="end" className="w-72 p-0">
         <div className="relative p-2">
@@ -179,6 +181,8 @@ export function ModelPicker({
                       <DropdownMenuRadioItem
                         key={key}
                         value={key}
+                        // Radix closed on pick; Base UI radio items stay open.
+                        closeOnClick
                         disabled={selectModel.isPending}
                         className={selected ? "pr-8" : "pr-1.5"}
                       >
@@ -222,7 +226,7 @@ export function ModelPicker({
         </ScrollShadow>
 
         <DropdownMenuGroup className="p-1">
-          <DropdownMenuItem onSelect={onManageModels}>
+          <DropdownMenuItem onClick={onManageModels}>
             <Settings2Icon />
             {intl.formatMessage({
               id: "chat_model_picker_manage_label",

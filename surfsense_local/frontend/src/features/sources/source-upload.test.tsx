@@ -215,9 +215,7 @@ describe("source upload", () => {
       "Ingestion failed. Retry failed.pdf"
     )
     await user.hover(retryIcon)
-    const generic = await screen.findByRole("tooltip", {
-      name: "Ingestion failed. Retry again.",
-    })
+    const generic = await screen.findByText("Ingestion failed. Retry again.")
     expect(generic.getAttribute("data-side")).toBe("top")
   })
 
@@ -254,25 +252,19 @@ describe("source upload", () => {
     // Hovering the title, not the icon, proves this covers the whole row.
     const title = screen.getByRole("button", { name: "failed.pdf" })
     await user.hover(title)
-    expect(
-      screen.queryByRole("tooltip", { name: "connection refused" })
-    ).toBeNull()
+    expect(screen.queryByText("connection refused")).toBeNull()
 
     window.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Control", ctrlKey: true })
     )
-    const real = await screen.findByRole("tooltip", {
-      name: "connection refused",
-    })
+    const real = await screen.findByText("connection refused")
     expect(real.getAttribute("data-side")).toBe("top")
 
     window.dispatchEvent(
       new KeyboardEvent("keyup", { key: "Control", ctrlKey: false })
     )
     await waitFor(() =>
-      expect(
-        screen.queryByRole("tooltip", { name: "connection refused" })
-      ).toBeNull()
+      expect(screen.queryByText("connection refused")).toBeNull()
     )
   })
 
@@ -313,9 +305,9 @@ describe("source upload", () => {
       screen.getByRole("button", { name: "Actions for processing.pdf" })
     )
     expect(
-      screen
-        .getByRole("menuitem", { name: "Delete" })
-        .getAttribute("data-disabled")
+      (await screen.findByRole("menuitem", { name: "Delete" })).getAttribute(
+        "data-disabled"
+      )
     ).not.toBeNull()
     await user.keyboard("{Escape}")
 
@@ -323,11 +315,11 @@ describe("source upload", () => {
       screen.getByRole("button", { name: "Actions for guide.txt" })
     )
     expect(
-      screen
-        .getByRole("menuitem", { name: "Delete" })
-        .getAttribute("data-disabled")
+      (await screen.findByRole("menuitem", { name: "Delete" })).getAttribute(
+        "data-disabled"
+      )
     ).toBeNull()
-    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
     await user.click(screen.getByRole("button", { name: "Delete source" }))
 
     expect(onDelete).toHaveBeenCalledWith(pendingDocument.id)
@@ -367,7 +359,7 @@ describe("source upload", () => {
     await user.click(
       screen.getByRole("button", { name: "Actions for processing.pdf" })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Cancel" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Cancel" }))
     expect(onCancel).toHaveBeenCalledWith(pendingDocument.id)
   })
 
@@ -390,7 +382,7 @@ describe("source upload", () => {
     await user.click(
       await screen.findByRole("button", { name: "Actions for broken.pdf" })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
     expect(
       screen.getByRole("alertdialog", { name: "Delete 1 source?" })
     ).toBeTruthy()

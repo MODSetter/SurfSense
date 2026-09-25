@@ -95,12 +95,9 @@ function WorkspaceNameDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="select-none"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          const input = inputRef.current
-          if (!input) return
-          input.focus()
-          input.select()
+        initialFocus={() => {
+          inputRef.current?.select()
+          return inputRef.current
         }}
       >
         <form onSubmit={(event) => void submit(event)}>
@@ -182,44 +179,45 @@ export function WorkspaceRail({
             const selected = workspace.id === activeWorkspaceId
             return (
               <ContextMenu key={workspace.id}>
-                <ContextMenuTrigger asChild>
-                  <div className="flex w-full">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="icon-lg"
-                          variant="ghost"
-                          className={cn(
-                            "relative mx-auto rounded-xl",
-                            selected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground"
-                          )}
-                          aria-label={workspace.name}
-                          aria-current={selected ? "page" : undefined}
-                          onClick={() => onSelect(workspace.id)}
-                        >
-                          {selected ? (
-                            <span className="absolute -left-1.5 h-5 w-0.5 rounded-full bg-sidebar-primary" />
-                          ) : null}
-                          <Avatar className="size-7 rounded-lg">
-                            <AvatarFallback className="rounded-lg text-[10px] font-semibold">
-                              {workspaceMark(workspace.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        {workspace.name}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent
-                  className="w-36"
-                  onCloseAutoFocus={(event) => event.preventDefault()}
-                >
+                <ContextMenuTrigger
+                  render={
+                    <div className="flex w-full">
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              size="icon-lg"
+                              variant="ghost"
+                              className={cn(
+                                "relative mx-auto rounded-xl",
+                                selected &&
+                                  "bg-sidebar-accent text-sidebar-accent-foreground"
+                              )}
+                              aria-label={workspace.name}
+                              aria-current={selected ? "page" : undefined}
+                              onClick={() => onSelect(workspace.id)}
+                            >
+                              {selected ? (
+                                <span className="absolute -left-1.5 h-5 w-0.5 rounded-full bg-sidebar-primary" />
+                              ) : null}
+                              <Avatar className="size-7 rounded-lg">
+                                <AvatarFallback className="rounded-lg text-[10px] font-semibold">
+                                  {workspaceMark(workspace.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                            </Button>
+                          }
+                        />
+                        <TooltipContent side="right">
+                          {workspace.name}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  }
+                />
+                <ContextMenuContent className="w-36" finalFocus={false}>
                   <ContextMenuGroup>
-                    <ContextMenuItem onSelect={() => setRenaming(workspace)}>
+                    <ContextMenuItem onClick={() => setRenaming(workspace)}>
                       <PencilIcon />
                       {intl.formatMessage({
                         id: "workspaces_rail_rename_label",
@@ -228,7 +226,7 @@ export function WorkspaceRail({
                     </ContextMenuItem>
                     <ContextMenuItem
                       variant="destructive"
-                      onSelect={() => setDeleting(workspace)}
+                      onClick={() => setDeleting(workspace)}
                     >
                       <Trash2Icon />
                       {intl.formatMessage({
@@ -242,21 +240,23 @@ export function WorkspaceRail({
             )
           })}
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon-lg"
-                variant="ghost"
-                className="rounded-xl border border-dashed border-sidebar-border"
-                disabled={isMutating}
-                aria-label={intl.formatMessage({
-                  id: "workspaces_rail_create_aria",
-                  defaultMessage: "Create workspace",
-                })}
-                onClick={() => setCreateOpen(true)}
-              >
-                <PlusIcon />
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-lg"
+                  variant="ghost"
+                  className="rounded-xl border border-dashed border-sidebar-border"
+                  disabled={isMutating}
+                  aria-label={intl.formatMessage({
+                    id: "workspaces_rail_create_aria",
+                    defaultMessage: "Create workspace",
+                  })}
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <PlusIcon />
+                </Button>
+              }
+            />
             <TooltipContent side="right">
               {intl.formatMessage({
                 id: "workspaces_rail_create_tooltip",
@@ -268,20 +268,22 @@ export function WorkspaceRail({
       </ScrollArea>
 
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon-lg"
-            variant="ghost"
-            className="rounded-xl"
-            aria-label={intl.formatMessage({
-              id: "workspaces_rail_settings_aria",
-              defaultMessage: "Open settings",
-            })}
-            onClick={onOpenSettings}
-          >
-            <Settings2Icon />
-          </Button>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <Button
+              size="icon-lg"
+              variant="ghost"
+              className="rounded-xl"
+              aria-label={intl.formatMessage({
+                id: "workspaces_rail_settings_aria",
+                defaultMessage: "Open settings",
+              })}
+              onClick={onOpenSettings}
+            >
+              <Settings2Icon />
+            </Button>
+          }
+        />
         <TooltipContent side="right">
           {intl.formatMessage({
             id: "workspaces_rail_settings_tooltip",

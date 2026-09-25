@@ -52,9 +52,13 @@ describe.each(modals)("%s app-shell layout", (_name, renderModal) => {
     render(renderModal(), { container: root })
 
     await waitFor(() =>
-      expect(document.body.hasAttribute("data-scroll-locked")).toBe(true)
+      expect(
+        [document.documentElement, document.body].some(
+          (element) => getComputedStyle(element).overflowY === "hidden"
+        )
+      ).toBe(true)
     )
-    expect(getComputedStyle(document.body).paddingTop).toBe("0px")
+    expect(parseFloat(getComputedStyle(document.body).paddingTop) || 0).toBe(0)
     expect(getComputedStyle(root).paddingTop).toBe("28px")
   })
 })

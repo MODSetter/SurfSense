@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Popover as PopoverPrimitive } from "radix-ui"
+import { Popover as PopoverPrimitive } from "@base-ui/react/popover"
 
 import { CheckIcon, ChevronDownIcon } from "@/components/ui/icons"
 import {
@@ -10,8 +10,8 @@ import {
 } from "@/components/ui/input-group"
 import { cn } from "@/lib/utils"
 
-// shadcn ships its Combobox on Base UI, which this app does not depend on, so
-// the same API is rebuilt here on the Radix Popover the rest of the UI uses.
+// shadcn's API rebuilt on a Popover so the caller keeps its own filtering and
+// free-text entry; Base UI's Combobox owns both.
 type ComboboxFilter = (
   itemValue: string,
   query: string,
@@ -42,6 +42,7 @@ type ComboboxContextValue = {
   setActiveId: (id: string | null) => void
   itemId: (itemValue: string) => string
   listRef: React.RefObject<HTMLDivElement | null>
+  anchorRef: React.RefObject<HTMLDivElement | null>
 }
 
 const ComboboxContext = React.createContext<ComboboxContextValue | null>(null)
@@ -79,6 +80,7 @@ function Combobox({
   const [activeId, setActiveId] = React.useState<string | null>(null)
   const [items, setItems] = React.useState<Record<string, string[]>>({})
   const listRef = React.useRef<HTMLDivElement>(null)
+  const anchorRef = React.useRef<HTMLDivElement>(null)
   const listId = React.useId()
 
   const open = openProp ?? uncontrolledOpen
@@ -145,11 +147,12 @@ function Combobox({
     setActiveId,
     itemId,
     listRef,
+    anchorRef,
   }
 
   return (
     <ComboboxContext.Provider value={context}>
-      <PopoverPrimitive.Root open={open} onOpenChange={setOpen}>
+      <PopoverPrimitive.Root open={open} onOpenChange={(next) => setOpen(next)}>
         {children}
       </PopoverPrimitive.Root>
     </ComboboxContext.Provider>
@@ -163,7 +166,8 @@ function ComboboxInput({
   ...props
 }: React.ComponentProps<"input"> & { showTrigger?: boolean }) {
   const combobox = useCombobox("ComboboxInput")
-  const { open, setOpen, setActiveId, listRef, select, disabled } = combobox
+  const { open, setOpen, setActiveId, listRef, anchorRef, select, disabled } =
+    combobox
 
   const move = (direction: 1 | -1) => {
     const options = listRef.current?.querySelectorAll<HTMLElement>(
@@ -185,76 +189,76 @@ function ComboboxInput({
   }
 
   return (
-    <PopoverPrimitive.Anchor asChild>
-      <InputGroup className={cn("w-auto", className)}>
-        <InputGroupInput
-          role="combobox"
-          autoComplete="off"
-          aria-expanded={open}
-          aria-controls={combobox.listId}
-          aria-autocomplete="list"
-          aria-activedescendant={
-            open ? (combobox.activeId ?? undefined) : undefined
+    <InputGroup ref={anchorRef} className={cn("w-auto", className)}>
+      <InputGroupInput
+        role="combobox"
+        autoComplete="off"
+        aria-expanded={open}
+        aria-controls={combobox.listId}
+        aria-autocomplete="list"
+        aria-activedescendant={
+          open ? (combobox.activeId ?? undefined) : undefined
+        }
+        disabled={disabled}
+        value={combobox.inputValue}
+        onChange={(event) => {
+          combobox.setInputValue(event.target.value)
+          setActiveId(null)
+          if (!open) setOpen(true)
+        }}
+        onClick={() => {
+          if (!open && !disabled) setOpen(true)
+        }}
+        onKeyDown={(event) => {
+          onKeyDown?.(event)
+          if (event.defaultPrevented) return
+          if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault()
+            if (!open) {
+              setOpen(true)
+              return
+            }
+            move(event.key === "ArrowDown" ? 1 : -1)
+            return
           }
-          disabled={disabled}
-          value={combobox.inputValue}
-          onChange={(event) => {
-            combobox.setInputValue(event.target.value)
-            setActiveId(null)
-            if (!open) setOpen(true)
-          }}
-          onClick={() => {
-            if (!open && !disabled) setOpen(true)
-          }}
-          onKeyDown={(event) => {
-            onKeyDown?.(event)
-            if (event.defaultPrevented) return
-            if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+          if (event.key === "Enter" && open && combobox.activeId) {
+            const option = listRef.current?.querySelector<HTMLElement>(
+              `#${CSS.escape(combobox.activeId)}`
+            )
+            if (
+              option?.dataset.value &&
+              option.dataset.disabled === undefined
+            ) {
               event.preventDefault()
-              if (!open) {
-                setOpen(true)
-                return
-              }
-              move(event.key === "ArrowDown" ? 1 : -1)
-              return
+              select(option.dataset.value)
             }
-            if (event.key === "Enter" && open && combobox.activeId) {
-              const option = listRef.current?.querySelector<HTMLElement>(
-                `#${CSS.escape(combobox.activeId)}`
-              )
-              if (
-                option?.dataset.value &&
-                option.dataset.disabled === undefined
-              ) {
-                event.preventDefault()
-                select(option.dataset.value)
-              }
-              return
-            }
-            if (event.key === "Escape" && open) {
-              event.preventDefault()
-              setOpen(false)
-            }
-          }}
-          {...props}
-        />
-        {showTrigger ? (
-          <InputGroupAddon align="inline-end">
-            <PopoverPrimitive.Trigger asChild>
+            return
+          }
+          if (event.key === "Escape" && open) {
+            event.preventDefault()
+            setOpen(false)
+          }
+        }}
+        {...props}
+      />
+      {showTrigger ? (
+        <InputGroupAddon align="inline-end">
+          <PopoverPrimitive.Trigger
+            disabled={disabled}
+            render={
               <InputGroupButton
                 size="icon-xs"
                 variant="ghost"
-                disabled={disabled}
                 tabIndex={-1}
                 data-slot="combobox-trigger"
-              >
-                <ChevronDownIcon className="text-muted-foreground" />
-              </InputGroupButton>
-            </PopoverPrimitive.Trigger>
-          </InputGroupAddon>
-        ) : null}
-      </InputGroup>
-    </PopoverPrimitive.Anchor>
+              />
+            }
+          >
+            <ChevronDownIcon className="text-muted-foreground" />
+          </PopoverPrimitive.Trigger>
+        </InputGroupAddon>
+      ) : null}
+    </InputGroup>
   )
 }
 
@@ -264,28 +268,34 @@ function ComboboxContent({
   sideOffset = 6,
   container,
   ...props
-}: React.ComponentProps<typeof PopoverPrimitive.Content> & {
-  // Inside a modal Dialog, pass a host element within the dialog: the dialog's
-  // scroll lock only lets wheel events through for targets it contains, so a
-  // popup portalled to the body cannot scroll its own list.
-  container?: React.ComponentProps<typeof PopoverPrimitive.Portal>["container"]
-}) {
-  useCombobox("ComboboxContent")
+}: PopoverPrimitive.Popup.Props &
+  Pick<PopoverPrimitive.Positioner.Props, "align" | "sideOffset"> & {
+    // Inside a modal Dialog, pass a host element within the dialog: the dialog's
+    // scroll lock only lets wheel events through for targets it contains, so a
+    // popup portalled to the body cannot scroll its own list.
+    container?: PopoverPrimitive.Portal.Props["container"]
+  }) {
+  const { anchorRef } = useCombobox("ComboboxContent")
   return (
     <PopoverPrimitive.Portal container={container}>
-      <PopoverPrimitive.Content
-        data-slot="combobox-content"
+      <PopoverPrimitive.Positioner
+        anchor={anchorRef}
         align={align}
         sideOffset={sideOffset}
-        // The input keeps focus so typing continues to filter the list.
-        onOpenAutoFocus={(event) => event.preventDefault()}
-        onCloseAutoFocus={(event) => event.preventDefault()}
-        className={cn(
-          "z-50 max-h-(--radix-popover-content-available-height) w-(--radix-popover-trigger-width) origin-(--radix-popover-content-transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
-          className
-        )}
-        {...props}
-      />
+        className="isolate z-50"
+      >
+        <PopoverPrimitive.Popup
+          data-slot="combobox-content"
+          // The input keeps focus so typing continues to filter the list.
+          initialFocus={false}
+          finalFocus={false}
+          className={cn(
+            "z-50 max-h-(--available-height) w-(--anchor-width) origin-(--transform-origin) overflow-hidden rounded-lg bg-popover p-1 text-popover-foreground shadow-md ring-1 ring-foreground/10 duration-100 data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
+            className
+          )}
+          {...props}
+        />
+      </PopoverPrimitive.Positioner>
     </PopoverPrimitive.Portal>
   )
 }

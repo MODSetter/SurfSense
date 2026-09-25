@@ -133,30 +133,32 @@ function WorkspaceDashboard({
         <div className="titlebar-controls-end">
           <UpdateButton />
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="pointer-events-auto size-6 aria-expanded:bg-transparent"
-                aria-expanded={rightPanelOpen}
-                aria-controls="workspace-right-panel"
-                aria-label={
-                  rightPanelOpen
-                    ? intl.formatMessage({
-                        id: "dashboard_right_panel_hide_aria",
-                        defaultMessage: "Hide right panel",
-                      })
-                    : intl.formatMessage({
-                        id: "dashboard_right_panel_show_aria",
-                        defaultMessage: "Show right panel",
-                      })
-                }
-                onClick={toggleRightPanel}
-              >
-                <SidebarRightIcon />
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="pointer-events-auto size-6 aria-expanded:bg-transparent"
+                  aria-expanded={rightPanelOpen}
+                  aria-controls="workspace-right-panel"
+                  aria-label={
+                    rightPanelOpen
+                      ? intl.formatMessage({
+                          id: "dashboard_right_panel_hide_aria",
+                          defaultMessage: "Hide right panel",
+                        })
+                      : intl.formatMessage({
+                          id: "dashboard_right_panel_show_aria",
+                          defaultMessage: "Show right panel",
+                        })
+                  }
+                  onClick={toggleRightPanel}
+                >
+                  <SidebarRightIcon />
+                </Button>
+              }
+            />
             <TooltipContent side="bottom" collisionPadding={8}>
               {rightPanelOpen
                 ? intl.formatMessage({

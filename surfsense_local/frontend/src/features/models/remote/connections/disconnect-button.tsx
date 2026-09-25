@@ -71,28 +71,30 @@ export function DisconnectButton({
 
   return (
     <AlertDialog>
-      <AlertDialogTrigger asChild>
-        <Button
-          type="button"
-          size="sm"
-          variant="destructive"
-          disabled={disabled}
-          aria-label={intl.formatMessage(
-            {
-              id: "models_disconnect_trigger_aria",
-              defaultMessage: "Disconnect {server}",
-            },
-            {
-              server: connection.label,
-            }
-          )}
-        >
-          {intl.formatMessage({
-            id: "models_disconnect_trigger_button",
-            defaultMessage: "Disconnect",
-          })}
-        </Button>
-      </AlertDialogTrigger>
+      <AlertDialogTrigger
+        render={
+          <Button
+            type="button"
+            size="sm"
+            variant="destructive"
+            disabled={disabled}
+            aria-label={intl.formatMessage(
+              {
+                id: "models_disconnect_trigger_aria",
+                defaultMessage: "Disconnect {server}",
+              },
+              {
+                server: connection.label,
+              }
+            )}
+          >
+            {intl.formatMessage({
+              id: "models_disconnect_trigger_button",
+              defaultMessage: "Disconnect",
+            })}
+          </Button>
+        }
+      />
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
           <AlertDialogTitle>

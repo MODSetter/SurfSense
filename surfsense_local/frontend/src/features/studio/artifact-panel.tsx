@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
 import { Download01Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
@@ -77,20 +77,19 @@ export function ArtifactPanel({
           data.format !== "flashcards" &&
           data.format !== "quiz"
             ? data.files.map((file) => (
-                <Button
+                // A plain link: Base UI's Button would give it role="button".
+                <a
                   key={file.role}
-                  variant="secondary"
-                  size="icon-sm"
-                  asChild
+                  href={fileUrl(data.id, file.role)}
+                  download
+                  aria-label={DOWNLOAD_LABELS[file.role]()}
+                  className={buttonVariants({
+                    variant: "secondary",
+                    size: "icon-sm",
+                  })}
                 >
-                  <a
-                    href={fileUrl(data.id, file.role)}
-                    download
-                    aria-label={DOWNLOAD_LABELS[file.role]()}
-                  >
-                    <Download01Icon />
-                  </a>
-                </Button>
+                  <Download01Icon />
+                </a>
               ))
             : null}
         </>

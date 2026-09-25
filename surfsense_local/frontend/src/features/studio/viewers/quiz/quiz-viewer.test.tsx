@@ -136,7 +136,7 @@ describe("quiz viewer", () => {
 
     await user.click(screen.getByRole("button", { name: /Retake quiz/ }))
     await user.click(
-      screen.getByRole("menuitem", { name: "Retake missed questions" })
+      await screen.findByRole("menuitem", { name: "Retake missed questions" })
     )
 
     expect(await screen.findByText("Arrival at Saturn?")).toBeTruthy()

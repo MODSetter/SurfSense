@@ -213,7 +213,7 @@ export function QuizScoreScreen({
         <TabsList className="h-auto w-auto justify-center gap-0.5 bg-transparent p-0 sm:gap-2">
           <TabsTrigger
             value="correct"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-transparent data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-emerald-600 sm:size-2.5" />
             {intl.formatMessage(
@@ -226,7 +226,7 @@ export function QuizScoreScreen({
           </TabsTrigger>
           <TabsTrigger
             value="missed"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-transparent data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-red-600 sm:size-2.5" />
             {intl.formatMessage(
@@ -241,7 +241,7 @@ export function QuizScoreScreen({
           </TabsTrigger>
           <TabsTrigger
             value="skipped"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-transparent data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-muted-foreground sm:size-2.5" />
             {intl.formatMessage(
@@ -308,27 +308,29 @@ export function QuizScoreScreen({
       </Tabs>
       <div className="mt-7 flex justify-end border-t pt-5">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="secondary">
-              <RefreshCwIcon />{" "}
-              {intl.formatMessage({
-                id: "studio_quiz_score_retake_button",
-                defaultMessage: "Retake quiz",
-              })}{" "}
-              <ChevronDownIcon />
-            </Button>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <Button type="button" variant="secondary">
+                <RefreshCwIcon />{" "}
+                {intl.formatMessage({
+                  id: "studio_quiz_score_retake_button",
+                  defaultMessage: "Retake quiz",
+                })}{" "}
+                <ChevronDownIcon />
+              </Button>
+            }
+          />
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem
               disabled={missed.length + skipped.length === 0}
-              onSelect={() => onRetake("missed")}
+              onClick={() => onRetake("missed")}
             >
               {intl.formatMessage({
                 id: "studio_quiz_score_retake_missed_label",
                 defaultMessage: "Retake missed questions",
               })}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onRetake("all")}>
+            <DropdownMenuItem onClick={() => onRetake("all")}>
               {intl.formatMessage({
                 id: "studio_quiz_score_retake_all_label",
                 defaultMessage: "Retake all questions",
