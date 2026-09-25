@@ -1,14 +1,14 @@
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 
 from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
 
+from shared.tokenizer import terms
+
 # Each leg proposes this many for recall; the blend below orders the union.
 CANDIDATES = 20
 
-_WORD = re.compile(r"\w+")
 _COLUMNS = "c.id, c.document_id, d.title, c.content, c.start_line, c.end_line"
 
 
@@ -96,13 +96,19 @@ def _keyword_leg(
     query: str,
     document_ids: Sequence[int] | None,
 ) -> list[tuple[int, float]]:
-    terms = _WORD.findall(query.lower())
-    if not terms:
+    # Split by the index's own rule, or the question asks for terms it never
+    # held: `स्कैनर` cut at its virama is `स` + `नर`, and this leg then abstains
+    # on every Devanagari question.
+    distinct = terms(query)
+    if not distinct:
         return []
 
     # Quote each term against FTS5's grammar; OR keeps recall wide.
     candidates = _matching(
-        session, workspace_id, " OR ".join(f'"{term}"' for term in terms), document_ids
+        session,
+        workspace_id,
+        " OR ".join(f'"{term}"' for term in distinct),
+        document_ids,
     )
     if not candidates:
         return []
@@ -114,13 +120,12 @@ def _keyword_leg(
     # ponytail: one small indexed lookup per distinct term, so a long question
     # costs a few more. Move to an fts5vocab table if queries ever get long.
     covered = dict.fromkeys(candidates, 0)
-    for term in set(terms):
+    for term in distinct:
         for chunk_id in _matching(
             session, workspace_id, f'"{term}"', document_ids, within=candidates
         ):
             covered[chunk_id] += 1
-    distinct = len(set(terms))
-    return [(chunk_id, count / distinct) for chunk_id, count in covered.items()]
+    return [(chunk_id, count / len(distinct)) for chunk_id, count in covered.items()]
 
 
 def _matching(

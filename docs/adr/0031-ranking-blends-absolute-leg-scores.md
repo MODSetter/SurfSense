@@ -1,6 +1,6 @@
 # ADR 0031: Ranking blends the two legs on absolute scales, keyword strength being term coverage rather than BM25
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0032](0032-one-tokenizer-for-index-and-question.md), term coverage being safe only where a term is a word
 - **Date:** 2026-09-24
 - **Supersedes:** the ordering decision in [ADR 0006](0006-hybrid-retrieval.md), that the union is ordered by cosine similarity alone and needs neither a stopword list nor rank fusion
 - **Source:** [retrieval eval](../../surfsense_local/backend/scripts/run_retrieval_eval.py), [ADR 0006](0006-hybrid-retrieval.md)
