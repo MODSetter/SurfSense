@@ -29,12 +29,28 @@ class Result:
     titles: list[str]
 
 
+def open_index():
+    """The workspace in an index built by an earlier run, or None."""
+    database = get_storage_settings().database_path
+    if not database.exists():
+        return None
+    engine = create_db_engine(database)
+    session = create_session_factory(engine)()
+    workspace = session.query(Workspace).first()
+    if workspace is None:
+        session.close()
+        engine.dispose()
+        return None
+    return session, workspace.id, engine
+
+
 def index(corpus: Corpus):
     """A workspace holding the corpus, every document ingested to ready.
 
     The database is the configured one, which the entry script points at a
-    throwaway directory: the ingest job opens its own engine from that setting,
-    so both halves have to agree or nothing is indexed.
+    directory keyed by the corpus and the embedder: the ingest job opens its
+    own engine from that setting, so both halves have to agree or nothing is
+    indexed.
 
     Returns the engine too, because Windows will not delete the file while a
     pooled connection still holds it.
