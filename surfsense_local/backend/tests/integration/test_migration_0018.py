@@ -1,4 +1,4 @@
-"""Revision 0017: sd-server fills the image editing and video slots too."""
+"""Revision 0018: sd-server fills the image editing and video slots too."""
 
 from pathlib import Path
 
@@ -47,7 +47,7 @@ def test_sd_server_can_fill_the_editing_and_video_slots(
 def test_it_could_not_before(tmp_path: Path) -> None:
     """The check this revision widens."""
     engine = create_db_engine(tmp_path / "surfsense.db")
-    command.upgrade(_config(engine), "0016")
+    command.upgrade(_config(engine), "0017")
 
     with pytest.raises(IntegrityError):
         _choose(engine, "image_edit")
@@ -70,7 +70,7 @@ def test_downgrading_drops_what_the_old_checks_cannot_hold(tmp_path: Path) -> No
     _choose(engine, "image_gen")
     _choose(engine, "image_edit")
 
-    command.downgrade(config, "0016")
+    command.downgrade(config, "0017")
 
     with engine.connect() as connection:
         kept = connection.execute(
