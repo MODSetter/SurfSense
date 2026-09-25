@@ -18,6 +18,11 @@ def offered() -> bool:
     return model_dir() is not None
 
 
-def base_url() -> str:
+def root_url() -> str:
     """Where sd-server answers, once it is running."""
-    return f"{get_llm_settings().image_base_url.rstrip('/')}/v1"
+    return get_llm_settings().image_base_url.rstrip("/")
+
+
+def base_url() -> str:
+    """Its OpenAI-compatible routes."""
+    return f"{root_url()}/v1"

@@ -3,9 +3,10 @@
 from collections.abc import AsyncIterator, Callable, Sequence
 from pathlib import Path
 
-from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.build import Build, BuildFile
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.sdcpp import ENGINE
+from modules.llm.catalog.local.engines.sdcpp.images_folder import landing
 from modules.llm.catalog.local.engines.sdcpp.images_folder.files import files_in
 from modules.llm.catalog.local.engines.sdcpp.images_folder.installed import (
     InstalledImage,
@@ -64,6 +65,9 @@ class SdCppEngine:
             read_installs(self._images_dir),
             files_in(self._images_dir),
         )
+
+    def landing(self, file: BuildFile, model_id: str) -> str:
+        return landing.landing(file)
 
     def holds(self, model_id: str) -> bool:
         return self.installed_image(model_id) is not None

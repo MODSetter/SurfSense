@@ -2,6 +2,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DotIcon, Trash2Icon } from "@/components/ui/icons"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { buildSize } from "@/features/models/local/build-size"
 import type { LocalRow } from "@/features/models/local/chat/api"
 import { BuildAction } from "@/features/models/local/chat/build-action"
 import { FitBadge } from "@/features/models/local/chat/fit-badge"
@@ -69,7 +70,7 @@ export function LocalModelList({
                     <span>{build.quantization}</span>
                     <DotIcon aria-hidden="true" className="size-3" />
                     <span className="tabular-nums">
-                      {formatSize(build.footprint_bytes)}
+                      {formatSize(buildSize(build))}
                     </span>
                     {installed ? (
                       <>

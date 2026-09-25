@@ -79,3 +79,55 @@ async def test_deleting_an_image_model_from_the_catalog_clears_its_selection(
     assert reply.json()["selection_cleared"] is True
     assert not (images_dir / "v1-5-pruned_Q4_0.gguf").exists()
     assert (await client.get("/llm/selection/image_gen")).status_code == 404
+
+
+async def test_a_second_install_waits_its_turn_instead_of_failing(
+    client: AsyncClient, images_dir, fake_hub
+) -> None:
+    """Onboarding moves on while a download runs, so a second model is chosen
+    before the first lands; one download at a time, in order."""
+    import asyncio
+
+    from modules.llm.catalog.local.dependencies import get_local_catalog
+
+    body = (await client.get("/llm/catalog/local")).json()
+    build = image_rows(body)["stable-diffusion-1.5"]["builds"][0]
+    ahead = get_local_catalog().install_lock()
+    await ahead.acquire()
+
+    second = asyncio.create_task(
+        client.post("/llm/install", json={"catalog_id": build["catalog_id"]})
+    )
+    await asyncio.sleep(0.2)
+    assert not second.done()
+    ahead.release()
+    reply = await second
+
+    events = [json.loads(line) for line in reply.text.splitlines()]
+    assert reply.status_code == 200
+    assert events[0]["type"] == "queued"
+    assert events[-1]["type"] == "complete", events[-1]
+
+
+async def test_a_download_the_disk_cannot_hold_is_refused_before_it_starts(
+    client: AsyncClient, images_dir, fake_hub, monkeypatch
+) -> None:
+    """Said before any byte moves, with how much room it needs."""
+    import shutil
+
+    from modules.llm.catalog.local.install import disk_room
+
+    monkeypatch.setattr(
+        disk_room,
+        "disk_usage",
+        lambda _: shutil._ntuple_diskusage(10**12, 10**12, 10**6),
+    )
+    body = (await client.get("/llm/catalog/local")).json()
+    build = image_rows(body)["stable-diffusion-1.5"]["builds"][0]
+
+    reply = await client.post("/llm/install", json={"catalog_id": build["catalog_id"]})
+
+    events = [json.loads(line) for line in reply.text.splitlines()]
+    assert events[-1]["type"] == "error"
+    assert "4.1 GB free" in events[-1]["message"]
+    assert not (images_dir / "v1-5-pruned_Q4_0.gguf").exists()

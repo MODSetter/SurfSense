@@ -7,6 +7,7 @@ from modules.llm.catalog.local.classifier import classify
 from modules.llm.catalog.local.engines.registry import engine_for
 from modules.llm.catalog.local.engines.sdcpp import ENGINE
 from modules.llm.catalog.local.engines.sdcpp.builds.choice import default_build
+from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing
 from modules.llm.catalog.local.engines.sdcpp.rows.lead_build import lead_build
 from modules.llm.catalog.local.installs import InstalledBuild
 from modules.llm.catalog.local.manifest import CuratedModel
@@ -41,6 +42,9 @@ def image_catalog(
                 recommended=False,
                 reads_images=False,
                 projector_checked=False,
+                download_bytes=sum(
+                    f.size_bytes for f in build.files if landing(f) not in files
+                ),
             )
             for build in builds
         )
@@ -72,9 +76,12 @@ def _installed_as(
     installs: Mapping[str, InstalledBuild],
     files: Collection[str],
 ) -> str | None:
+    """Installed only while every file is on disk: sd-server is never started
+    on half a model, and Download fetches what is missing."""
     for record in installs.values():
         if record.repo in repos and record.quantization == build.quantization:
-            return record.model_id
-    if build.weights.path.rsplit("/", 1)[-1] in files:
+            present = all(name in files for name in record.files)
+            return record.model_id if present else None
+    if all(landing(f) in files for f in build.files):
         return build.runtime_name
     return None

@@ -137,13 +137,13 @@ async def install(
     await transact(session, egress.require, egress.HUGGINGFACE)
 
     lock = service.install_lock()
-    if lock.locked():
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "a model is already being installed"
-        )
-    await lock.acquire()
 
     async def progress() -> AsyncIterator[bytes]:
+        # One download at a time, in order: a second waits rather than fails,
+        # so a model chosen while another downloads still comes.
+        if lock.locked():
+            yield _event("queued", message="Waiting for the download ahead of it")
+        await lock.acquire()
         try:
             yield _event("starting", message="Checking the model")
             try:
@@ -256,6 +256,7 @@ def _build(build: BuildRow, in_use: set[str]) -> dict:
         "catalog_id": build.catalog_id,
         "quantization": build.build.quantization,
         "footprint_bytes": build.build.footprint_bytes,
+        "download_bytes": build.download_bytes,
         "files": [
             {"role": f.role.value, "path": f.path, "size_bytes": f.size_bytes}
             for f in build.build.files

@@ -236,9 +236,7 @@ async def test_a_file_that_does_not_match_its_hash_fails_the_install(
     with pytest.raises(ValueError):
         [
             step
-            async for step in service.install(
-                InstallPlan("x-Q4_K_M", bad, "llamacpp")
-            )
+            async for step in service.install(InstallPlan("x-Q4_K_M", bad, "llamacpp"))
         ]
 
 
@@ -253,6 +251,148 @@ async def test_removing_a_model_takes_its_projector_with_it(
 
     assert list((tmp_path / "models").glob("*.gguf")) == []
     assert read_installs(tmp_path / "models") == {}
+
+
+# files models share ---------------------------------------------------------
+
+VAE = b"safetensors-vae"
+ENCODER = b"GGUF-text-encoder"
+
+
+def diffusion_build(name: str) -> Build:
+    """A diffusion model and the VAE and text encoder it runs with, each from
+    its own repo, as sd.cpp's newer families ship. The hub serves a weights
+    file as its own name's bytes."""
+    weights = f"{name}-Q4_0.gguf".encode()
+    return Build(
+        "Q4_0",
+        (
+            BuildFile(
+                FileRole.WEIGHTS,
+                f"{name}-Q4_0.gguf",
+                len(weights),
+                sha(weights),
+                f"q/{name}-GGUF",
+                "r1",
+            ),
+            BuildFile(
+                FileRole.TEXT_ENCODER,
+                "Qwen3-4B-Q4_0.gguf",
+                len(ENCODER),
+                sha(ENCODER),
+                "u/Qwen3-4B-GGUF",
+                "r2",
+            ),
+            BuildFile(
+                FileRole.VAE,
+                "split_files/vae/ae.safetensors",
+                len(VAE),
+                sha(VAE),
+                "c/vae",
+                "r3",
+            ),
+        ),
+    )
+
+
+@pytest.fixture
+def image_service(tmp_path: Path) -> LocalCatalogService:
+    """The shipped manifest with sd-server's folder, as Electron hands it over."""
+    return LocalCatalogService(
+        load_local_manifest(),
+        tmp_path / "models",
+        tmp_path / "lib",
+        images_dir=tmp_path / "images",
+    )
+
+
+@pytest.fixture
+def hub_by_path(monkeypatch):
+    """Serve each file's bytes by its name, and record the URLs asked for."""
+    served = {"Qwen3-4B-Q4_0.gguf": ENCODER, "ae.safetensors": VAE}
+    asked: list[str] = []
+
+    async def download(url, destination, *, sha256=None, transport=None):
+        asked.append(url)
+        name = url.rsplit("/", 1)[-1]
+        data = served.get(name, name.encode())
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+        yield DownloadProgress("complete", len(data), len(data))
+
+    monkeypatch.setattr(download_module, "download_gguf", download)
+    return asked
+
+
+async def test_a_file_two_models_share_lands_once_named_by_its_hash(
+    image_service, tmp_path, hub_by_path
+) -> None:
+    """Two files called ae.safetensors from different repos never collide, and a
+    VAE or text encoder several models use is downloaded once."""
+    klein = diffusion_build("klein")
+    zimage = diffusion_build("zimage")
+    klein_plan = InstallPlan(klein.runtime_name, klein, "sdcpp")
+    zimage_plan = InstallPlan(zimage.runtime_name, zimage, "sdcpp")
+
+    [step async for step in image_service.install(klein_plan)]
+    [step async for step in image_service.install(zimage_plan)]
+
+    images = tmp_path / "images"
+    vae = f"shared/{sha(VAE)[:12]}-ae.safetensors"
+    encoder = f"shared/{sha(ENCODER)[:12]}-Qwen3-4B-Q4_0.gguf"
+    assert (images / vae).read_bytes() == VAE
+    assert (images / encoder).read_bytes() == ENCODER
+    assert sum("ae.safetensors" in url for url in hub_by_path) == 1
+    assert sum("Qwen3-4B" in url for url in hub_by_path) == 1
+    for model_id in (klein.runtime_name, zimage.runtime_name):
+        assert set(read_installs(images)[model_id].companions) == {vae, encoder}
+
+
+async def test_deleting_a_model_keeps_the_files_another_still_uses(
+    image_service, tmp_path, hub_by_path
+) -> None:
+    """A shared file goes with the last model that names it."""
+    klein = diffusion_build("klein")
+    zimage = diffusion_build("zimage")
+    for build in (klein, zimage):
+        [
+            s
+            async for s in image_service.install(
+                InstallPlan(build.runtime_name, build, "sdcpp")
+            )
+        ]
+    images = tmp_path / "images"
+    vae = images / f"shared/{sha(VAE)[:12]}-ae.safetensors"
+
+    image_service.remove(klein.runtime_name, engine="sdcpp")
+
+    assert not (images / "klein-Q4_0.gguf").exists()
+    assert vae.exists()
+
+    image_service.remove(zimage.runtime_name, engine="sdcpp")
+
+    assert not vae.exists()
+    assert list((images / "shared").iterdir()) == []
+
+
+async def test_a_file_already_on_disk_with_its_hash_is_not_fetched_again(
+    image_service, tmp_path, hub_by_path
+) -> None:
+    """A file an install left behind before it failed counts once verified."""
+    build = diffusion_build("klein")
+    images = tmp_path / "images"
+    (images / "shared").mkdir(parents=True)
+    (images / f"shared/{sha(VAE)[:12]}-ae.safetensors").write_bytes(VAE)
+
+    steps = [
+        s
+        async for s in image_service.install(
+            InstallPlan(build.runtime_name, build, "sdcpp")
+        )
+    ]
+
+    assert not any("ae.safetensors" in url for url in hub_by_path)
+    assert steps[-1].completed == build.footprint_bytes
 
 
 def test_a_curated_id_resolves_to_its_pinned_build_without_a_check(service) -> None:
@@ -387,7 +527,7 @@ def test_startup_records_image_models_the_old_list_downloaded(tmp_path) -> None:
     record = read_installs(images)["v1-5-pruned_Q4_0"]
     assert record.weights == ("sd15-q4_0.gguf",)
     image = service.sdcpp.installed_image("v1-5-pruned_Q4_0")
-    assert image is not None and image.file == "sd15-q4_0.gguf"
+    assert image is not None and image.files == (("-m", "sd15-q4_0.gguf"),)
 
 
 def test_a_recorded_image_model_is_not_recorded_again(tmp_path) -> None:

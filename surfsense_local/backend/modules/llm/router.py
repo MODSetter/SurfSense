@@ -1,8 +1,11 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
+from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
@@ -21,6 +24,7 @@ from modules.llm.schemas import (
     ModelRead,
     OnboardingStatusRead,
     ProviderRead,
+    RuntimeFileRead,
     SelectionRead,
     SelectionWrite,
 )
@@ -197,19 +201,19 @@ def _clear_selection(
 def read_local_image_runtime(
     session: SessionDep, service: LocalCatalogDep
 ) -> LocalImageRuntimeRead:
-    chosen = _chosen_image_model(session)
+    wanted = local_image_demand(session, datetime.now(UTC))
+    chosen = session.get(SelectedModel, wanted) if wanted is not None else None
     image = (
         service.sdcpp.installed_image(chosen.name)
         if chosen is not None and chosen.provider == sdcpp.PROVIDER
         else None
     )
     if image is None:
-        return LocalImageRuntimeRead(file=None, args=[])
-    return LocalImageRuntimeRead(file=image.file, args=list(image.args))
-
-
-def _chosen_image_model(session: Session) -> SelectedModel | None:
-    return session.get(SelectedModel, ModelType.IMAGE_GEN)
+        return LocalImageRuntimeRead(files=[], args=[])
+    return LocalImageRuntimeRead(
+        files=[RuntimeFileRead(flag=flag, path=path) for flag, path in image.files],
+        args=list(image.args),
+    )
 
 
 @router.get(

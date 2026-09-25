@@ -5,7 +5,7 @@ from pathlib import Path
 
 import httpx
 
-from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.llamacpp import ENGINE
 from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import write_preset
@@ -25,7 +25,7 @@ from modules.llm.catalog.local.engines.llamacpp.search.hits import (
 from modules.llm.catalog.local.engines.llamacpp.search.listing import read_listing
 from modules.llm.catalog.local.engines.llamacpp.search.repo_row import repo_row
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
-from modules.llm.catalog.local.installs import read_installs
+from modules.llm.catalog.local.installs import projector_filename, read_installs
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.rows import LocalRow
 from modules.llm.fit import FitState, HardwareBudget
@@ -71,6 +71,13 @@ class LlamaCppEngine:
             mint,
             selected=selected,
         ).rows
+
+    def landing(self, file: BuildFile, model_id: str) -> str:
+        """A projector takes the model's name, so two vision models never share
+        or overwrite one."""
+        if file.role is FileRole.PROJECTOR:
+            return projector_filename(model_id)
+        return file.name
 
     def holds(self, model_id: str) -> bool:
         return any(m.model_id == model_id for m in self.installed())

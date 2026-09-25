@@ -1,8 +1,9 @@
 /**
  * stable-diffusion.cpp's sd-server: local image generation. Runs in dev and
  * packaged, like llama-server, and unlike it this holds exactly one model,
- * named by -m at startup and never switchable at runtime. So the process follows the chosen model: the
- * API says which weights and which flags, and index.ts restarts it on a change.
+ * named by its files at startup and never switchable at runtime. So the
+ * process follows the chosen model: the API says which files and which flags,
+ * and index.ts restarts it on a change.
  *
  * It serves POST /v1/images/generations, the route the image provider already
  * speaks, so the backend reaches it as an ordinary OpenAI-compatible endpoint.
@@ -15,9 +16,10 @@ import type { SidecarContext, SidecarSpec } from "./types.ts"
 
 export const SDCPP_SIDECAR = "sdcpp"
 
-/** The weights sd-server should be running, as the API sees it. */
+/** What sd-server should be running, as the API sees it: each file of the
+ * build on the flag that names it, inside the images folder. */
 export interface ImageRuntime {
-  file: string | null
+  files: { flag: string; path: string }[]
   args: string[]
 }
 
@@ -37,19 +39,19 @@ export function sdcppSpec(
   ) {
     return null
   }
-  if (runtime.file === null) return null
+  if (runtime.files.length === 0) return null
 
   const binary = binaryPath(ctx)
-  const model = join(ctx.imageModelsDir, runtime.file)
-  // No prebuilt binary for this host, or the weights are not downloaded yet.
-  if (!existsSync(binary) || !existsSync(model)) return null
+  const imageModelsDir = ctx.imageModelsDir
+  const files = runtime.files.map(({ flag, path }) => [flag, join(imageModelsDir, path)])
+  // No staged binary on this host, or a file of the build is not on disk yet.
+  if (!existsSync(binary) || files.some(([, path]) => !existsSync(path))) return null
 
   return {
     name: SDCPP_SIDECAR,
     cmd: binary,
     args: [
-      "-m",
-      model,
+      ...files.flat(),
       "--listen-port",
       String(ctx.imagePort),
       // Measured on the packaged build: 33s to first image, 3.5s after.

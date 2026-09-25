@@ -56,6 +56,7 @@ export function installView(event: InstallEvent): InstallView {
 
   const message = "message" in event ? event.message : undefined
   const rest: Record<string, string> = {
+    queued: "Waiting",
     starting: "Starting",
     verifying: "Verifying",
     selecting: "Selecting",

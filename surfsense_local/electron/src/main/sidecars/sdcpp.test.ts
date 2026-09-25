@@ -8,7 +8,7 @@ import { exe } from "./platform.ts"
 import { sdcppSpec } from "./sdcpp.ts"
 import type { SidecarContext } from "./types.ts"
 
-const runtime = { file: "sdxl-turbo.gguf", args: [] }
+const runtime = { files: [{ flag: "-m", path: "sdxl.gguf" }], args: [] }
 
 function staged(): SidecarContext {
   const root = mkdtempSync(join(tmpdir(), "sdcpp-"))
@@ -17,7 +17,7 @@ function staged(): SidecarContext {
   mkdirSync(binaries, { recursive: true })
   mkdirSync(images, { recursive: true })
   writeFileSync(join(binaries, exe("sd-server")), "")
-  writeFileSync(join(images, runtime.file), "")
+  writeFileSync(join(images, "sdxl.gguf"), "")
   return {
     packaged: true,
     backendDir: root,
@@ -46,7 +46,39 @@ test("does not run when the pinned build is not staged", () => {
 })
 
 test("does not run before a model is chosen", () => {
-  assert.equal(sdcppSpec(staged(), { file: null, args: [] }), null)
+  assert.equal(sdcppSpec(staged(), { files: [], args: [] }), null)
+})
+
+test("passes every file of a build on its own flag, from the images folder", () => {
+  const ctx = staged()
+  mkdirSync(join(ctx.imageModelsDir!, "shared"))
+  writeFileSync(join(ctx.imageModelsDir!, "shared", "ab-vae.safetensors"), "")
+  const spec = sdcppSpec(ctx, {
+    files: [
+      { flag: "--diffusion-model", path: "sdxl.gguf" },
+      { flag: "--vae", path: "shared/ab-vae.safetensors" },
+    ],
+    args: ["--steps", "4"],
+  })
+  assert.ok(spec)
+  assert.deepEqual(spec.args.slice(0, 4), [
+    "--diffusion-model",
+    join(ctx.imageModelsDir!, "sdxl.gguf"),
+    "--vae",
+    join(ctx.imageModelsDir!, "shared", "ab-vae.safetensors"),
+  ])
+  assert.deepEqual(spec.args.slice(-2), ["--steps", "4"])
+})
+
+test("does not run while one of the build's files is missing", () => {
+  const spec = sdcppSpec(staged(), {
+    files: [
+      { flag: "--diffusion-model", path: "sdxl.gguf" },
+      { flag: "--vae", path: "shared/absent.safetensors" },
+    ],
+    args: [],
+  })
+  assert.equal(spec, null)
 })
 
 test("runs from the staged directory so sd-server finds its ggml backends", () => {

@@ -5,7 +5,7 @@ about this machine: image models have no fit estimate.
 import pytest
 
 from modules.llm.catalog.local.engines.sdcpp.rows.catalog import image_catalog
-from modules.llm.catalog.local.manifest import load_local_manifest
+from modules.llm.catalog.local.manifest import CuratedModel, load_local_manifest
 from modules.llm.catalog.local.rows import LeadReason
 from modules.llm.model_type import ModelType
 
@@ -51,7 +51,9 @@ def test_a_build_an_install_record_names_is_installed_under_that_id() -> None:
 
     (record,) = adopt(["sd15-q4_0.gguf"], MODELS)
 
-    sd15 = rows(installs={record.model_id: record})["stable-diffusion-1.5"]
+    sd15 = rows(installs={record.model_id: record}, files={"sd15-q4_0.gguf"})[
+        "stable-diffusion-1.5"
+    ]
 
     assert sd15.builds[0].installed_as == "v1-5-pruned_Q4_0"
     assert sd15.lead is not None and sd15.lead.why is LeadReason.INSTALLED
@@ -72,3 +74,88 @@ def test_the_selected_image_model_leads_as_in_use() -> None:
     )["sdxl-base-1.0"]
 
     assert sdxl.lead is not None and sdxl.lead.why is LeadReason.IN_USE
+
+
+REV = "a" * 40
+ENCODER_SHA = "e" * 64
+
+
+def _file(role: str, repo: str, path: str, size: int, sha256: str) -> dict:
+    return {
+        "role": role,
+        "repo": repo,
+        "revision": REV,
+        "path": path,
+        "size_bytes": size,
+        "sha256": sha256,
+    }
+
+
+def two_repo_model() -> CuratedModel:
+    """A diffusion model whose text encoder and VAE come from other repos."""
+    return CuratedModel.model_validate(
+        {
+            "id": "flux2-klein-4b",
+            "name": "FLUX.2 klein 4B",
+            "family": "FLUX.2",
+            "publisher": "Black Forest Labs",
+            "description": "Generates and edits in four steps.",
+            "license": "apache-2.0",
+            "source_repo": "black-forest-labs/FLUX.2-klein-4B",
+            "evidence": {"architecture": "flux2"},
+            "image": {"origin": "model card", "resolution": 1024, "steps": 4},
+            "builds": [
+                {
+                    "quantization": "Q4_0",
+                    "files": [
+                        _file(
+                            "weights",
+                            "l/klein-GGUF",
+                            "klein-Q4_0.gguf",
+                            2_000,
+                            "1" * 64,
+                        ),
+                        _file(
+                            "text_encoder",
+                            "u/Qwen3-4B-GGUF",
+                            "Qwen3-4B-Q4_0.gguf",
+                            700,
+                            ENCODER_SHA,
+                        ),
+                        _file(
+                            "vae",
+                            "c/klein",
+                            "split_files/vae/flux2-vae.safetensors",
+                            30,
+                            "3" * 64,
+                        ),
+                    ],
+                }
+            ],
+        }
+    )
+
+
+def test_a_build_states_what_its_download_would_fetch() -> None:
+    """A text encoder another model already brought is on disk, so it is not
+    counted: the row says what Download will actually fetch."""
+    encoder = f"shared/{ENCODER_SHA[:12]}-Qwen3-4B-Q4_0.gguf"
+
+    (fresh,) = image_catalog([two_repo_model()], {}, set(), lambda b: "id")
+    (after,) = image_catalog([two_repo_model()], {}, {encoder}, lambda b: "id")
+
+    assert fresh.builds[0].download_bytes == 2_730
+    assert after.builds[0].download_bytes == 2_030
+    assert after.builds[0].build.footprint_bytes == 2_730
+
+
+def test_a_recorded_build_whose_file_is_gone_is_not_installed() -> None:
+    """Deleted by hand: the row offers Download again, not Use."""
+    from modules.llm.catalog.local.engines.sdcpp.images_folder.legacy import adopt
+
+    (record,) = adopt(["sd15-q4_0.gguf"], MODELS)
+
+    sd15 = rows(installs={record.model_id: record})["stable-diffusion-1.5"]
+
+    assert sd15.builds[0].installed_as is None
+

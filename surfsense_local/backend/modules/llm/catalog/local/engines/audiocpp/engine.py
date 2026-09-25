@@ -3,7 +3,7 @@
 from collections.abc import AsyncIterator, Callable, Sequence
 from pathlib import Path
 
-from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.build import Build, BuildFile
 from modules.llm.catalog.local.engines.audiocpp import ENGINE
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.files import files_in
@@ -98,6 +98,9 @@ class AudioCppEngine:
             bundled=True,
         )
         return downloaded + [m for m in bundled if m.model_id not in ids]
+
+    def landing(self, file: BuildFile, model_id: str) -> str:
+        return file.name
 
     def holds(self, model_id: str) -> bool:
         return self.installed_model(model_id) is not None

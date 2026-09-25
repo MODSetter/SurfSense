@@ -51,6 +51,9 @@ export type LocalBuild = {
   quantization: string
   /** Everything that lands on disk and loads together, projector included. */
   footprint_bytes: number
+  /** What Download fetches, less files another model already brought. Null
+   *  where nothing is shared, so the footprint is the download. */
+  download_bytes?: number | null
   files: BuildFile[]
   /** Null where the engine has no fit estimate (image models): the row states
    *  the download size and nothing about this machine. */
@@ -185,7 +188,8 @@ export type RepoDetail = {
 
 export type InstallEvent =
   | {
-      type: "starting" | "verifying" | "selecting"
+      // `queued`: another download runs, and this one starts when it ends.
+      type: "queued" | "starting" | "verifying" | "selecting"
       message?: string
     }
   | {

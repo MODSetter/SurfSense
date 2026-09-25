@@ -33,6 +33,20 @@ describe("install progress", () => {
     expect(installView({ type: "verifying" }).percent).toBeNull()
   })
 
+  it("says a download waits its turn rather than looking stuck", () => {
+    // One download runs at a time. A model chosen while another downloads
+    // queues behind it, and the button says so instead of "Starting…" for as
+    // long as the first one takes.
+    const view = installView({
+      type: "queued",
+      message: "Waiting for the download ahead of it",
+    })
+
+    expect(view.short).toBe("Waiting…")
+    expect(view.label).toBe("Waiting for the download ahead of it")
+    expect(view.percent).toBeNull()
+  })
+
   it("names the phase in one word, for somewhere with no room", () => {
     // The button carries this. A percentage there would resize it, and the row
     // with it, on every frame. A phase still under way trails an ellipsis; a

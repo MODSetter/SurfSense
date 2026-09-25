@@ -395,14 +395,6 @@ async def test_the_local_image_model_can_take_the_image_role(
     read = await client.get("/llm/selection/image_gen")
     assert read.json()["name"] == SDXL
 
-    # Electron reconciles sd-server against this, so it must name the weights
-    # and the flags the manifest pins for the chosen build.
-    runtime = (await client.get("/llm/image/local/runtime")).json()
-    assert runtime == {
-        "file": "sd_xl_base_1.0_0_Q4_0.gguf",
-        "args": ["--backend", "vae=cpu"],
-    }
-
 
 async def test_an_image_model_that_is_not_installed_cannot_be_chosen(
     client: AsyncClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch

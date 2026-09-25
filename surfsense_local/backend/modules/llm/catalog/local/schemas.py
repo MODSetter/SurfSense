@@ -66,6 +66,9 @@ class BuildRead(BaseModel):
     catalog_id: str
     quantization: str
     footprint_bytes: int
+    # What Download fetches, less files another model already brought; null
+    # where nothing is shared, so the footprint is the download.
+    download_bytes: int | None = None
     files: list[FileRead]
     # Null where the engine has no fit estimate (image models): the row states
     # the download size and nothing about this machine.

@@ -67,10 +67,18 @@ class ConnectionModelRead(BaseModel):
     selectable_for: list[ModelType]
 
 
-class LocalImageRuntimeRead(BaseModel):
-    """What Electron should have sd-server running, or nulls for nothing."""
+class RuntimeFileRead(BaseModel):
+    """One file sd-server is started on, and the flag that names it."""
 
-    file: str | None
+    flag: str
+    # Inside the images folder, which Electron resolves.
+    path: str
+
+
+class LocalImageRuntimeRead(BaseModel):
+    """What Electron should have sd-server running; no files for nothing."""
+
+    files: list[RuntimeFileRead]
     args: list[str]
 
 
