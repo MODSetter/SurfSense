@@ -30,6 +30,7 @@ def run_model(
     sources: list[Source],
     *,
     repair: Repair | None = None,
+    max_tokens: int | None = None,
 ) -> str:
     """Send one system prompt plus the grounding to the chosen generation model.
 
@@ -61,7 +62,11 @@ def run_model(
     # Thinking off: a small model can reason until the window runs out, holding
     # the runtime's only slot, and Studio's structured output gains little.
     reply = asyncio.run(
-        _collect(model.generator.chat(selected.name, messages, reasoning=False))
+        _collect(
+            model.generator.chat(
+                selected.name, messages, max_tokens=max_tokens, reasoning=False
+            )
+        )
     )
     logger.info(
         "studio: model %s/%s returned %s chars in %.1fs",

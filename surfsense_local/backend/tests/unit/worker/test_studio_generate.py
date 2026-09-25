@@ -30,6 +30,18 @@ def test_studio_asks_the_model_not_to_think() -> None:
     assert fake.chat_bodies[-1]["chat_template_kwargs"] == {"enable_thinking": False}
 
 
+def test_a_cap_reaches_llama_server() -> None:
+    """Uncapped, a model that loops writes until its window is full."""
+    fake = FakeRouter(["qwen3"])
+    provider = LlamaCppProvider("http://127.0.0.1:1234", transport=fake.transport())
+
+    generate.run_model(
+        ResolvedGeneration(SELECTION, provider), "system", [], max_tokens=1200
+    )
+
+    assert fake.chat_bodies[-1]["max_tokens"] == 1200
+
+
 class _ModelThatNeverFinishes:
     """Streams forever, or reads its prompt forever, until the caller hangs up."""
 

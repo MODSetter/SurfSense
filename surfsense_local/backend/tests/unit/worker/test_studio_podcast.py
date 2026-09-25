@@ -122,6 +122,7 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
         sources: list,
         *,
         repair: generate.Repair | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         prompts.append(system)
         repairs.append(repair)
@@ -141,6 +142,35 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
     assert "not valid JSON" in repairs[1].instruction
     assert "not valid JSON" not in prompts[1]
     assert "Sam: Hi." in prompts[2]
+
+
+def test_each_segment_is_capped_by_its_target_words_or_a_planned_segment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Uncapped, Qwen3 1.7B looped on a 225-word segment for 283 s, to the end of
+    its 40,960-token window, and the retry replaying that reply could not fit.
+    Its outline also gave a segment 20 words, then its draft wrote past them:
+    capped at 240 tokens, both replies ended mid-JSON."""
+    replies = iter(["not json", *['{"turns": [{"speaker": 1, "text": "Hi."}]}'] * 2])
+    caps: list[int | None] = []
+
+    def fake_run_model(
+        model: object,
+        system: str,
+        sources: list,
+        *,
+        repair: generate.Repair | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+        caps.append(max_tokens)
+        return next(replies)
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", fake_run_model)
+
+    draft.draft(MODEL, BRIEF, SEGMENTS, [])
+
+    # The 100-word opening and its retry at a 250-word segment's, then the 300-word one.
+    assert caps == [3000, 3000, 3600]
 
 
 class FakeVoice:
@@ -172,7 +202,9 @@ def _episode(monkeypatch: pytest.MonkeyPatch, *replies: str) -> tuple[FakeVoice,
     queue = iter(replies)
     prompts: list[str] = []
 
-    def fake_run_model(model: object, system: str, sources: list) -> str:
+    def fake_run_model(
+        model: object, system: str, sources: list, *, max_tokens: int | None = None
+    ) -> str:
         prompts.append(system)
         return next(queue)
 
