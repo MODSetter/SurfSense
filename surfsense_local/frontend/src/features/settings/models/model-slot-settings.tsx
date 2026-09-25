@@ -23,6 +23,7 @@ import type {
   YourModelRow,
   YourModels,
 } from "@/features/models/your-models/your-model-row"
+import { intl } from "@/i18n/intl"
 
 import { SettingsSection } from "../settings-section"
 
@@ -73,8 +74,19 @@ export function ModelSlotSettings({
   if (page === "add") {
     return (
       <SettingsSection
-        title={`Add ${/^[aeiou]/.test(slot) ? "an" : "a"} ${slot} model`}
-        description="Run one on this computer, or use one from a server you already run."
+        title={intl.formatMessage(
+          {
+            id: "settings_models_add_page_title",
+            defaultMessage:
+              "{slot, select, audio {Add an audio model} chat {Add a chat model} image {Add an image model} other {Add a model}}",
+          },
+          { slot }
+        )}
+        description={intl.formatMessage({
+          id: "settings_models_add_page_body",
+          defaultMessage:
+            "Run one on this computer, or use one from a server you already run.",
+        })}
         back={back}
         scrollable="all"
       >
@@ -91,7 +103,10 @@ export function ModelSlotSettings({
     models.inUse === null
   const add = (
     <Button type="button" size="sm" onClick={() => setPage("add")}>
-      Add model
+      {intl.formatMessage({
+        id: "settings_models_add_button",
+        defaultMessage: "Add model",
+      })}
     </Button>
   )
 
@@ -100,17 +115,38 @@ export function ModelSlotSettings({
       {models.error ? (
         <Alert variant="destructive">
           <CircleAlertIcon />
-          <AlertTitle>Could not load model settings</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({
+              id: "settings_models_load_error",
+              defaultMessage: "Could not load model settings",
+            })}
+          </AlertTitle>
           <AlertDescription>{models.error.message}</AlertDescription>
         </Alert>
       ) : models.isPending ? null : empty ? (
         <Empty className="border">
           <EmptyHeader>
-            <EmptyTitle>No {slot} model yet</EmptyTitle>
+            <EmptyTitle>
+              {intl.formatMessage(
+                {
+                  id: "settings_models_empty",
+                  defaultMessage:
+                    "{slot, select, audio {No audio model yet} chat {No chat model yet} image {No image model yet} other {No model yet}}",
+                },
+                { slot }
+              )}
+            </EmptyTitle>
             <EmptyDescription>
               {models.canDownload
-                ? "Download one to run on this computer, or use one from a server you already run."
-                : "Use one from a server you already run."}
+                ? intl.formatMessage({
+                    id: "settings_models_empty_download_body",
+                    defaultMessage:
+                      "Download one to run on this computer, or use one from a server you already run.",
+                  })
+                : intl.formatMessage({
+                    id: "settings_models_empty_server_body",
+                    defaultMessage: "Use one from a server you already run.",
+                  })}
             </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>{add}</EmptyContent>

@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { type ApiError, setEgressPrompt } from "@/lib/api"
 
 import {
@@ -82,7 +83,12 @@ export function EgressPrompt() {
           <AlertDialogDescription>{copy.body}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={allowing}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={allowing}>
+            {intl.formatMessage({
+              id: "egress_prompt_cancel_button",
+              defaultMessage: "Cancel",
+            })}
+          </AlertDialogCancel>
           <AlertDialogAction
             disabled={allowing}
             onClick={(event) => {
@@ -91,7 +97,10 @@ export function EgressPrompt() {
             }}
           >
             {allowing ? <Spinner data-icon="inline-start" /> : null}
-            Allow
+            {intl.formatMessage({
+              id: "egress_prompt_allow_button",
+              defaultMessage: "Allow",
+            })}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

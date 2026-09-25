@@ -267,13 +267,15 @@ async function expectReady(name: string) {
 
 async function toChatStep(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole("button", { name: "Start setting up" }))
-  await screen.findByRole("heading", { name: "Choose a chat model" })
+  await screen.findByRole("heading", { name: "Choose a text generation model" })
 }
 
 async function toImageStep(user: ReturnType<typeof userEvent.setup>) {
   await toChatStep(user)
   await user.click(await screen.findByRole("button", { name: "Continue" }))
-  await screen.findByRole("heading", { name: "Choose an image model" })
+  await screen.findByRole("heading", {
+    name: "Choose an image generation model",
+  })
 }
 
 async function toAudioStep(user: ReturnType<typeof userEvent.setup>) {
@@ -308,7 +310,9 @@ describe("onboarding", () => {
 
     await user.click(await screen.findByRole("button", { name: "Continue" }))
     expect(
-      await screen.findByRole("heading", { name: "Choose an image model" })
+      await screen.findByRole("heading", {
+        name: "Choose an image generation model",
+      })
     ).toBeTruthy()
     expect(screen.getByLabelText("Onboarding step 2 of 3")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
@@ -324,11 +328,15 @@ describe("onboarding", () => {
 
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
-      await screen.findByRole("heading", { name: "Choose an image model" })
+      await screen.findByRole("heading", {
+        name: "Choose an image generation model",
+      })
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
-      await screen.findByRole("heading", { name: "Choose a chat model" })
+      await screen.findByRole("heading", {
+        name: "Choose a text generation model",
+      })
     ).toBeTruthy()
   })
 
@@ -671,7 +679,7 @@ describe("onboarding", () => {
     await waitFor(() =>
       expect(
         screen.getByRole("region", { name: "Model ready" }).textContent
-      ).toBe("Usingaion-2.0via OpenRouter")
+      ).toBe("Using aion-2.0 via OpenRouter")
     )
   })
 

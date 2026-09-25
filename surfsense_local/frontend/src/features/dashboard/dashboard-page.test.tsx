@@ -861,6 +861,9 @@ describe("dashboard chat", () => {
             { status: 201 }
           )
         }
+        if (path === "/license/status") {
+          return Response.json({ state: "none" })
+        }
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           return Response.json({ detail: "Provider crashed" }, { status: 500 })
         }
@@ -894,10 +897,15 @@ describe("dashboard chat", () => {
     )
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
-    expect(await screen.findByText("Provider crashed")).toBeTruthy()
-    expect(screen.getByText("Chat could not continue")).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Model setup" }))
-    expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
+    // Failing before the stream, the request has no kind to classify it, so it
+    // reads as `unknown`: the generic line and Retry, never Model setup.
+    expect(
+      await screen.findByText(
+        "Something went wrong generating a reply. Try again."
+      )
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Model setup" })).toBeNull()
   })
 
   it("aborts the active stream when stop is pressed", async () => {
@@ -1121,22 +1129,12 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    const count = await screen.findByRole("button", {
-      name: "2 sources included in this chat",
-    })
+    // A plain count, not a control: ff1aa3e53 took away its click.
+    const count = await screen.findByText("2 sources")
     expect(count.closest('[data-composer-placement="center"]')).toBeTruthy()
 
     await user.click(screen.getByRole("checkbox", { name: "Select Guide.txt" }))
-    expect(
-      screen.getByRole("button", { name: "1 source included in this chat" })
-    ).toBeTruthy()
-
-    // Sources live in the always-visible left sidebar now, so the click just
-    // brings that list into view instead of switching a tab.
-    await user.click(
-      screen.getByRole("button", { name: "1 source included in this chat" })
-    )
-    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(screen.getByText("1 source")).toBeTruthy()
   })
 
   it("opens a generated artifact in the detail rail", async () => {
@@ -1321,5 +1319,77 @@ describe("dashboard chat", () => {
     expect(
       screen.getByRole("button", { name: "Show right panel" })
     ).toBeTruthy()
+  })
+  it("shows the egress notice only while a model on the refused host is selected", async () => {
+    // Egress is per host: a model on another, allowed host must not inherit
+    // the notice, and coming back to the refused one must bring it back.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/connections/1/models") {
+          return Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "sending data to openrouter.ai is off",
+                destination: "host:openrouter.ai",
+                host: "openrouter.ai",
+              },
+            },
+            { status: 403 }
+          )
+        }
+        if (path === "/llm/connections/2/models") {
+          return Response.json([
+            {
+              connection_id: 2,
+              connection_label: "OpenAI",
+              name: "gpt-5",
+              types: ["text_gen"],
+              capability_source: "catalog",
+              selectable_for: ["text_gen"],
+            },
+          ])
+        }
+        if (path === "/license/status") return Response.json({ state: "none" })
+        return Response.json([])
+      })
+    )
+    const onOpenRouter = {
+      model_type: "text_gen" as const,
+      provider: "openai_compatible",
+      connection_id: 1,
+      name: "anthropic/claude-fable-5",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const onOpenAI = {
+      ...onOpenRouter,
+      connection_id: 2,
+      name: "gpt-5",
+    }
+    const page = (selection: typeof onOpenRouter) => (
+      <TooltipProvider>
+        <DashboardPage
+          selection={selection}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    const refused = "Sending data to openrouter.ai is off."
+
+    const { rerender } = render(page(onOpenRouter))
+    expect(await screen.findByText(refused)).toBeTruthy()
+
+    rerender(page(onOpenAI))
+    await waitFor(() => expect(screen.queryByText(refused)).toBeNull())
+    expect(
+      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+        .disabled
+    ).toBe(false)
+
+    rerender(page(onOpenRouter))
+    expect(await screen.findByText(refused)).toBeTruthy()
   })
 })

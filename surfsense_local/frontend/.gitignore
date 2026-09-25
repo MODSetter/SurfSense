@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# formatjs compile-folder output (pnpm translations)
+src/i18n/compiled

@@ -3,6 +3,7 @@ import { useId, useState } from "react"
 import { CircleAlertIcon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
+import { intl } from "@/i18n/intl"
 
 import type { ModelSelection } from "../../selection/api"
 import { useSelect } from "../../selection/use-selection"
@@ -18,7 +19,12 @@ import { useDeleteLocalChatModel } from "./use-delete-local-chat-model"
 import { useLocalChatCatalog } from "./use-local-chat-catalog"
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "models_download_chat_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 /** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
@@ -38,8 +44,8 @@ function deletableRow(build: LocalBuild, label: string): YourModelRow | null {
 function byFamily(rows: LocalRow[]) {
   const result = new Map<string, LocalRow[]>()
   for (const row of rows) {
-    const family = row.family || "Other"
-    result.set(family, [...(result.get(family) ?? []), row])
+    // An empty family is kept empty; ModelFamilyGroup names it.
+    result.set(row.family, [...(result.get(row.family) ?? []), row])
   }
   return result
 }
@@ -73,7 +79,12 @@ export function DownloadChatModels({
     return (
       <Alert variant="destructive">
         <CircleAlertIcon />
-        <AlertTitle>Could not load local models</AlertTitle>
+        <AlertTitle>
+          {intl.formatMessage({
+            id: "models_download_chat_load_error",
+            defaultMessage: "Could not load local models",
+          })}
+        </AlertTitle>
         <AlertDescription>{messageFrom(catalog.error)}</AlertDescription>
       </Alert>
     )
@@ -126,10 +137,17 @@ export function DownloadChatModels({
         <section className="flex flex-col gap-2.5" aria-labelledby={headingId}>
           <div>
             <h2 id={headingId} className="font-heading text-sm font-medium">
-              Tested by SurfSense
+              {intl.formatMessage({
+                id: "models_download_chat_curated_title",
+                defaultMessage: "Tested by SurfSense",
+              })}
             </h2>
             <p className="text-xs text-muted-foreground">
-              Models we have run, priced against this computer.
+              {intl.formatMessage({
+                id: "models_download_chat_curated_body",
+                defaultMessage:
+                  "Models we have run, priced against this computer.",
+              })}
             </p>
           </div>
           {[...byFamily(curated)].map(([family, rows]) => (
@@ -165,9 +183,17 @@ export function DownloadChatModels({
       ) : (
         <Alert>
           <CircleAlertIcon />
-          <AlertTitle>No tested models could be read</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({
+              id: "models_download_chat_curated_empty",
+              defaultMessage: "No tested models could be read",
+            })}
+          </AlertTitle>
           <AlertDescription>
-            You can still search Hugging Face below.
+            {intl.formatMessage({
+              id: "models_download_chat_curated_empty_body",
+              defaultMessage: "You can still search Hugging Face below.",
+            })}
           </AlertDescription>
         </Alert>
       )}

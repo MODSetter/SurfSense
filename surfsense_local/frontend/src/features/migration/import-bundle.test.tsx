@@ -182,7 +182,9 @@ describe("importing a SurfSense cloud export", () => {
       revealDocument: vi.fn(async () => ""),
       openExternal,
     })
-    const exportLink = screen.getByRole("link", { name: "SurfSense cloud" })
+    const exportLink = screen.getByRole("link", {
+      name: "Open SurfSense cloud",
+    })
     expect(exportLink.getAttribute("href")).toBe("https://surfsense.com/sunset")
     await user.click(exportLink)
     expect(openExternal).toHaveBeenCalledWith("https://surfsense.com/sunset")

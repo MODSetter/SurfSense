@@ -65,7 +65,7 @@ linux:
   target: [AppImage, deb]
   artifactName: "${productName}.${ext}"
   category: Office
-  icon: build/icon.png
+  icon: build/icons/packaged/icon.png
   executableName: surfsense-local
   desktop:
     entry:
@@ -77,13 +77,13 @@ linux:
 win:
   target: [nsis]
   artifactName: "${productName}-Setup.${ext}"
-  icon: build/icon.ico
+  icon: build/icons/packaged/icon.ico
 
 
 mac:
   target: [dmg, zip]
   category: public.app-category.productivity
-  icon: build/icon.icns
+  icon: build/icons/packaged/icon.icns
   artifactName: "${productName}-${arch}.${ext}"
   hardenedRuntime: true
   gatekeeperAssess: false

@@ -1,7 +1,6 @@
-import type { Budget, GpuStatus } from "./api"
+import { intl } from "@/i18n/intl"
 
-const gb = (bytes: number) =>
-  `${new Intl.NumberFormat(undefined, { maximumFractionDigits: 1 }).format(bytes / 1e9)} GB`
+import type { Budget, GpuStatus } from "./api"
 
 /**
  * The status is read before the budget: a machine whose card the runtime cannot
@@ -11,18 +10,57 @@ const gb = (bytes: number) =>
 export function describeHardware(budget: Budget, gpuStatus: GpuStatus) {
   if (gpuStatus === "broken_install") {
     return [
-      "Graphics card not detected by the runtime. Reinstall to fix",
-      `${gb(budget.ram_available_bytes)} memory`,
+      intl.formatMessage({
+        id: "models_hardware_broken_install_label",
+        defaultMessage:
+          "Graphics card not detected by the runtime. Reinstall to fix",
+      }),
+      intl.formatMessage(
+        {
+          id: "models_hardware_memory_label",
+          defaultMessage: "{size, number, ::unit/gigabyte .#} memory",
+        },
+        {
+          size: budget.ram_available_bytes / 1e9,
+        }
+      ),
     ]
   }
   if (!budget.has_gpu) {
     return [
-      "Runs on your processor",
-      `${gb(budget.ram_available_bytes)} memory`,
+      intl.formatMessage({
+        id: "models_hardware_cpu_label",
+        defaultMessage: "Runs on your processor",
+      }),
+      intl.formatMessage(
+        {
+          id: "models_hardware_memory_label",
+          defaultMessage: "{size, number, ::unit/gigabyte .#} memory",
+        },
+        {
+          size: budget.ram_available_bytes / 1e9,
+        }
+      ),
     ]
   }
   return [
-    budget.uma ? "Apple Silicon GPU" : "Graphics card",
-    `${gb(budget.device_total_bytes)} memory`,
+    budget.uma
+      ? intl.formatMessage({
+          id: "models_hardware_apple_gpu_label",
+          defaultMessage: "Apple Silicon GPU",
+        })
+      : intl.formatMessage({
+          id: "models_hardware_gpu_label",
+          defaultMessage: "Graphics card",
+        }),
+    intl.formatMessage(
+      {
+        id: "models_hardware_memory_label",
+        defaultMessage: "{size, number, ::unit/gigabyte .#} memory",
+      },
+      {
+        size: budget.device_total_bytes / 1e9,
+      }
+    ),
   ]
 }

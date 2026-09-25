@@ -2,6 +2,7 @@ import type { ReactNode } from "react"
 
 import { ComputerIcon } from "@/components/ui/icons"
 import { Separator } from "@/components/ui/separator"
+import { intl } from "@/i18n/intl"
 
 import type { Connection } from "../remote/connections/api"
 import { ServerCard } from "./server-card"
@@ -23,13 +24,22 @@ export function AddModelOptions({
     <div className="flex flex-col gap-6">
       <ServerCard onConnected={onConnected} />
       <Separator />
-      <section className="flex flex-col gap-3" aria-label="On this computer">
+      <section
+        className="flex flex-col gap-3"
+        aria-label={intl.formatMessage({
+          id: "models_add_model_local_aria",
+          defaultMessage: "On this computer",
+        })}
+      >
         <h3 className="flex items-center gap-2 text-base font-medium">
           <ComputerIcon
             aria-hidden="true"
             className="size-4 text-muted-foreground"
           />
-          On this computer
+          {intl.formatMessage({
+            id: "models_add_model_local_title",
+            defaultMessage: "On this computer",
+          })}
         </h3>
         {download}
       </section>

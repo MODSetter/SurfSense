@@ -10,13 +10,19 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Button } from "@/components/ui/button"
+import { intl } from "@/i18n/intl"
 
 import { useSelection } from "../../selection/use-selection"
 import type { Connection } from "./api"
 import { useDeleteConnection } from "./use-connections"
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "Could not disconnect"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "models_disconnect_error",
+        defaultMessage: "Could not disconnect",
+      })
 }
 
 /**
@@ -35,10 +41,33 @@ export function DisconnectButton({
   const chat = useSelection("text_gen")
   const image = useSelection("image_gen")
   const remove = useDeleteConnection()
-  const cleared = [
-    chat.data?.connection_id === connection.id ? "Chat" : null,
-    image.data?.connection_id === connection.id ? "Image" : null,
-  ].filter(Boolean)
+  const clearsChatSlot = chat.data?.connection_id === connection.id
+  const clearsImageSlot = image.data?.connection_id === connection.id
+  const clearedBody =
+    clearsChatSlot && clearsImageSlot
+      ? intl.formatMessage({
+          id: "models_disconnect_dialog_clears_both_body",
+          defaultMessage: "Your Chat and Image models will be cleared.",
+        })
+      : clearsChatSlot
+        ? intl.formatMessage({
+            id: "models_disconnect_dialog_clears_chat_body",
+            defaultMessage: "Your Chat model will be cleared.",
+          })
+        : clearsImageSlot
+          ? intl.formatMessage({
+              id: "models_disconnect_dialog_clears_image_body",
+              defaultMessage: "Your Image model will be cleared.",
+            })
+          : intl.formatMessage(
+              {
+                id: "models_disconnect_dialog_clears_none_body",
+                defaultMessage: "No model in use comes from {server}.",
+              },
+              {
+                server: connection.label,
+              }
+            )
 
   return (
     <AlertDialog>
@@ -48,19 +77,36 @@ export function DisconnectButton({
           size="sm"
           variant="destructive"
           disabled={disabled}
-          aria-label={`Disconnect ${connection.label}`}
+          aria-label={intl.formatMessage(
+            {
+              id: "models_disconnect_trigger_aria",
+              defaultMessage: "Disconnect {server}",
+            },
+            {
+              server: connection.label,
+            }
+          )}
         >
-          Disconnect
+          {intl.formatMessage({
+            id: "models_disconnect_trigger_button",
+            defaultMessage: "Disconnect",
+          })}
         </Button>
       </AlertDialogTrigger>
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
-          <AlertDialogTitle>Disconnect {connection.label}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            {cleared.length
-              ? `Your ${cleared.join(" and ")} model${cleared.length > 1 ? "s" : ""} will be cleared.`
-              : `No model in use comes from ${connection.label}.`}
-          </AlertDialogDescription>
+          <AlertDialogTitle>
+            {intl.formatMessage(
+              {
+                id: "models_disconnect_dialog_title",
+                defaultMessage: "Disconnect {server}?",
+              },
+              {
+                server: connection.label,
+              }
+            )}
+          </AlertDialogTitle>
+          <AlertDialogDescription>{clearedBody}</AlertDialogDescription>
         </AlertDialogHeader>
         {remove.isError ? (
           <p className="text-sm text-destructive">
@@ -68,23 +114,30 @@ export function DisconnectButton({
           </p>
         ) : null}
         <AlertDialogFooter>
-          <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogCancel>
+            {intl.formatMessage({
+              id: "models_disconnect_dialog_cancel_button",
+              defaultMessage: "Cancel",
+            })}
+          </AlertDialogCancel>
           <AlertDialogAction
             variant="destructive"
             disabled={remove.isPending}
             onClick={() => {
               // mutateAsync, not mutate's onSuccess: the refresh removes this
               // row, and a per-call callback is dropped once it unmounts.
-              const clearsChat = chat.data?.connection_id === connection.id
               void remove
                 .mutateAsync(connection.id)
                 .then(() => {
-                  if (clearsChat) onChatCleared?.()
+                  if (clearsChatSlot) onChatCleared?.()
                 })
                 .catch(() => undefined)
             }}
           >
-            Disconnect
+            {intl.formatMessage({
+              id: "models_disconnect_dialog_confirm_button",
+              defaultMessage: "Disconnect",
+            })}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Trash2Icon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 
 import type { YourModelRow } from "./your-model-row"
 
@@ -33,17 +34,29 @@ export function ModelRow({
       <div className="flex shrink-0 items-center gap-1">
         {row.selected ? (
           <Button type="button" size="sm" variant="outline" disabled>
-            In use
+            {intl.formatMessage({
+              id: "models_model_row_in_use_button",
+              defaultMessage: "In use",
+            })}
           </Button>
         ) : row.target ? (
           <Button
             type="button"
             size="sm"
             disabled={disabled}
-            aria-label={`Use ${row.name}`}
+            aria-label={intl.formatMessage(
+              {
+                id: "models_model_row_use_aria",
+                defaultMessage: "Use {model}",
+              },
+              { model: row.name }
+            )}
             onClick={onUse}
           >
-            Use
+            {intl.formatMessage({
+              id: "models_model_row_use_button",
+              defaultMessage: "Use",
+            })}
           </Button>
         ) : null}
         {row.removeId ? (
@@ -52,7 +65,15 @@ export function ModelRow({
             size="icon-sm"
             variant="destructive"
             disabled={disabled}
-            aria-label={`Delete ${row.name}`}
+            aria-label={intl.formatMessage(
+              {
+                id: "models_model_row_delete_aria",
+                defaultMessage: "Delete {model}",
+              },
+              {
+                model: row.name,
+              }
+            )}
             onClick={onDelete}
           >
             <Trash2Icon />

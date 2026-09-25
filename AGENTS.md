@@ -107,6 +107,7 @@ Canonical dir: `.agents/skills/`. `.claude/skills` is a symlink to it.
 | `frontend-workflow` | Frontend work in `surfsense_web` and `surfsense_local/frontend`: React/Next performance, color tokens, UI polish, motion. Bundles `react-performance/`, `color/`, `polish/`, `motion/`; routes out to `shadcn`. |
 | `shadcn` | UI components in a tree with `components.json`. Standalone — it inspects the project live and grants its own CLI, which only works as a discovered skill. Load it after `frontend-workflow`, not instead of it. |
 | `migrate-radix-to-base` | Radix UI → Base UI migration. Stays top-level; not part of `frontend-workflow`. |
+| `translate` | Interface strings in `surfsense_local`: adding a message in code (`en.json` is generated from it), moving hard-coded text into messages, translating Japanese and German. Holds the key shape, tone and glossary. |
 
 Do not install skill catalogs. Do not add `CONTEXT.md` or a second rules tree.
 

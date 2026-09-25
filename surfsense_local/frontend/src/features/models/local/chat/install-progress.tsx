@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import type { InstallEvent } from "./api"
 import { installView } from "./install-view"
 
@@ -14,9 +15,19 @@ export function InstallProgress({
 }) {
   const view = installView(event)
   const [announcement, setAnnouncement] = useState(view.label)
-  const announcementText = `${view.label}${
-    view.percent === null ? "" : ` ${view.percent}%`
-  }`
+  const announcementText =
+    view.percent === null
+      ? view.label
+      : intl.formatMessage(
+          {
+            id: "models_install_progress_announcement_status",
+            defaultMessage: "{label} {percent, number, ::percent}",
+          },
+          {
+            label: view.label,
+            percent: view.percent / 100,
+          }
+        )
 
   useEffect(() => {
     const timeout = window.setTimeout(
@@ -37,13 +48,26 @@ export function InstallProgress({
           <span className="text-muted-foreground">{view.detail}</span>
         ) : null}
         {view.percent === null ? null : (
-          <span className="ml-auto tabular-nums">{view.percent}%</span>
+          <span className="ml-auto tabular-nums">
+            {intl.formatMessage(
+              {
+                id: "models_install_progress_percent_status",
+                defaultMessage: "{percent, number, ::percent}",
+              },
+              {
+                percent: view.percent / 100,
+              }
+            )}
+          </span>
         )}
       </div>
       <div
         className="h-1.5 overflow-hidden rounded-full bg-muted"
         role="progressbar"
-        aria-label="Model installation"
+        aria-label={intl.formatMessage({
+          id: "models_install_progress_aria",
+          defaultMessage: "Model installation",
+        })}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={view.percent ?? undefined}
@@ -71,7 +95,10 @@ export function InstallProgress({
         className="self-start"
         onClick={onCancel}
       >
-        Cancel
+        {intl.formatMessage({
+          id: "models_install_progress_cancel_button",
+          defaultMessage: "Cancel",
+        })}
       </Button>
       <span className="sr-only" aria-live="polite">
         {announcement}

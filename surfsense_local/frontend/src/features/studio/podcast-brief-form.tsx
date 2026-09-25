@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { PlusIcon, Trash2Icon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { Select } from "@/components/ui/select"
+import { intl } from "@/i18n/intl"
 
 import {
   MAX_SPEAKERS,
@@ -15,11 +16,103 @@ import {
   type Voice,
 } from "./api"
 
-const DURATION_HINTS = { short: "~3 min", standard: "~8 min", long: "~15 min" }
+type PodcastStyle = PodcastBrief["style"]
+type PodcastDuration = PodcastBrief["duration"]
+type PodcastRole = PodcastSpeaker["role"]
+
+const STYLE_LABELS: Record<PodcastStyle, () => string> = {
+  conversational: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_conversational_label",
+      defaultMessage: "Conversational",
+    }),
+  interview: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_interview_label",
+      defaultMessage: "Interview",
+    }),
+  debate: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_debate_label",
+      defaultMessage: "Debate",
+    }),
+  monologue: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_monologue_label",
+      defaultMessage: "Monologue",
+    }),
+  narrative: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_style_narrative_label",
+      defaultMessage: "Narrative",
+    }),
+}
+const DURATION_LABELS: Record<PodcastDuration, () => string> = {
+  short: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_short_label",
+      defaultMessage: "Short",
+    }),
+  standard: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_standard_label",
+      defaultMessage: "Standard",
+    }),
+  long: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_long_label",
+      defaultMessage: "Long",
+    }),
+}
+const DURATION_HINTS: Record<PodcastDuration, () => string> = {
+  short: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_short_body",
+      defaultMessage: "~3 min",
+    }),
+  standard: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_standard_body",
+      defaultMessage: "~8 min",
+    }),
+  long: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_length_long_body",
+      defaultMessage: "~15 min",
+    }),
+}
+const ROLE_LABELS: Record<PodcastRole, () => string> = {
+  host: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_host_label",
+      defaultMessage: "Host",
+    }),
+  cohost: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_cohost_label",
+      defaultMessage: "Co-host",
+    }),
+  guest: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_guest_label",
+      defaultMessage: "Guest",
+    }),
+  expert: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_expert_label",
+      defaultMessage: "Expert",
+    }),
+  narrator: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_role_narrator_label",
+      defaultMessage: "Narrator",
+    }),
+}
 // Roles by slot when a speaker is added without a say from the user.
 const ROLE_BY_SLOT = ["host", "guest", "expert", "cohost", "narrator"] as const
 
-const languageNames = new Intl.DisplayNames(["en"], { type: "language" })
+// A new speaker's default name is script content sent to the backend, so it
+// stays English whatever the interface language.
 const title = (word: string) => word[0].toUpperCase() + word.slice(1)
 
 export function PodcastBriefForm({
@@ -93,7 +186,13 @@ export function PodcastBriefForm({
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
-        <Field label="Language" htmlFor={`${id}-language`}>
+        <Field
+          label={intl.formatMessage({
+            id: "studio_podcast_brief_language_label",
+            defaultMessage: "Language",
+          })}
+          htmlFor={`${id}-language`}
+        >
           <Select
             id={`${id}-language`}
             value={brief.language}
@@ -101,12 +200,19 @@ export function PodcastBriefForm({
           >
             {languages.map((language) => (
               <option key={language} value={language}>
-                {languageNames.of(language) ?? language}
+                {intl.formatDisplayName(language, { type: "language" }) ??
+                  language}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Style" htmlFor={`${id}-style`}>
+        <Field
+          label={intl.formatMessage({
+            id: "studio_podcast_brief_style_label",
+            defaultMessage: "Style",
+          })}
+          htmlFor={`${id}-style`}
+        >
           <Select
             id={`${id}-style`}
             value={brief.style}
@@ -116,7 +222,7 @@ export function PodcastBriefForm({
           >
             {PODCAST_STYLES.map((style) => (
               <option key={style} value={style}>
-                {title(style)}
+                {STYLE_LABELS[style]()}
               </option>
             ))}
           </Select>
@@ -124,7 +230,12 @@ export function PodcastBriefForm({
       </div>
 
       <div className="space-y-1">
-        <p className="text-xs font-medium text-muted-foreground">Length</p>
+        <p className="text-xs font-medium text-muted-foreground">
+          {intl.formatMessage({
+            id: "studio_podcast_brief_length_label",
+            defaultMessage: "Length",
+          })}
+        </p>
         <div className="grid grid-cols-3 gap-1.5">
           {PODCAST_DURATIONS.map((duration) => (
             <Button
@@ -137,9 +248,9 @@ export function PodcastBriefForm({
               className="aria-pressed:border-primary aria-pressed:bg-primary/5 dark:aria-pressed:border-primary dark:aria-pressed:bg-primary/5"
               onClick={() => update({ duration })}
             >
-              {title(duration)}
+              {DURATION_LABELS[duration]()}
               <span className="text-muted-foreground">
-                {DURATION_HINTS[duration]}
+                {DURATION_HINTS[duration]()}
               </span>
             </Button>
           ))}
@@ -148,7 +259,12 @@ export function PodcastBriefForm({
 
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
-          <p className="text-xs font-medium text-muted-foreground">Speakers</p>
+          <p className="text-xs font-medium text-muted-foreground">
+            {intl.formatMessage({
+              id: "studio_podcast_brief_speakers_label",
+              defaultMessage: "Speakers",
+            })}
+          </p>
           <Button
             type="button"
             variant="ghost"
@@ -157,17 +273,31 @@ export function PodcastBriefForm({
             onClick={addSpeaker}
           >
             <PlusIcon data-icon="inline-start" />
-            Add speaker
+            {intl.formatMessage({
+              id: "studio_podcast_brief_add_speaker_button",
+              defaultMessage: "Add speaker",
+            })}
           </Button>
         </div>
         {brief.speakers.map((speaker, index) => (
           <fieldset
             key={index}
-            aria-label={`Speaker ${index + 1}`}
+            aria-label={intl.formatMessage(
+              {
+                id: "studio_podcast_brief_speaker_aria",
+                defaultMessage: "Speaker {number, number}",
+              },
+              {
+                number: index + 1,
+              }
+            )}
             className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1.5"
           >
             <Input
-              aria-label="Name"
+              aria-label={intl.formatMessage({
+                id: "studio_podcast_brief_speaker_name_aria",
+                defaultMessage: "Name",
+              })}
               className="select-text"
               value={speaker.name}
               maxLength={40}
@@ -176,7 +306,10 @@ export function PodcastBriefForm({
               }
             />
             <Select
-              aria-label="Role"
+              aria-label={intl.formatMessage({
+                id: "studio_podcast_brief_speaker_role_aria",
+                defaultMessage: "Role",
+              })}
               value={speaker.role}
               onChange={(event) =>
                 updateSpeaker(index, {
@@ -186,12 +319,15 @@ export function PodcastBriefForm({
             >
               {PODCAST_ROLES.map((role) => (
                 <option key={role} value={role}>
-                  {role === "cohost" ? "Co-host" : title(role)}
+                  {ROLE_LABELS[role]()}
                 </option>
               ))}
             </Select>
             <Select
-              aria-label="Voice"
+              aria-label={intl.formatMessage({
+                id: "studio_podcast_brief_speaker_voice_aria",
+                defaultMessage: "Voice",
+              })}
               value={speaker.voice}
               onChange={(event) =>
                 updateSpeaker(index, { voice: event.target.value })
@@ -212,7 +348,15 @@ export function PodcastBriefForm({
                 type="button"
                 variant="destructive"
                 size="icon-xs"
-                aria-label={`Remove speaker ${index + 1}`}
+                aria-label={intl.formatMessage(
+                  {
+                    id: "studio_podcast_brief_remove_speaker_aria",
+                    defaultMessage: "Remove speaker {number, number}",
+                  },
+                  {
+                    number: index + 1,
+                  }
+                )}
                 onClick={() => removeSpeaker(index)}
               >
                 <Trash2Icon />

@@ -1,4 +1,4 @@
-import { useRef, type ChangeEvent } from "react"
+import { useRef, type ChangeEvent, type ReactNode } from "react"
 import { ComposerPrimitive } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import {
 import type { ModelSelection } from "@/features/models/selection/api"
 import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
 
@@ -42,7 +43,10 @@ function ModelControl({
       )}
       onClick={onModelSetup}
     >
-      Set up model
+      {intl.formatMessage({
+        id: "chat_composer_set_up_model_button",
+        defaultMessage: "Set up model",
+      })}
     </button>
   )
 }
@@ -60,7 +64,10 @@ function ComposerAction({
         <Button
           size="icon-lg"
           className={cn("rounded-xl", className)}
-          aria-label="Send message"
+          aria-label={intl.formatMessage({
+            id: "chat_composer_send_aria",
+            defaultMessage: "Send message",
+          })}
         >
           <ArrowUp02Icon />
         </Button>
@@ -74,16 +81,15 @@ function ComposerAction({
         size="icon-lg"
         variant="secondary"
         className={cn("rounded-xl", className)}
-        aria-label="Stop generating"
+        aria-label={intl.formatMessage({
+          id: "chat_composer_stop_aria",
+          defaultMessage: "Stop generating",
+        })}
       >
         <CircleStopIcon />
       </Button>
     </ComposerPrimitive.Cancel>
   )
-}
-
-function sourceCountLabel(count: number) {
-  return `${count} ${count === 1 ? "source" : "sources"}`
 }
 
 function SourceCount({
@@ -93,7 +99,13 @@ function SourceCount({
   count: number
   className?: string
 }) {
-  const label = sourceCountLabel(count)
+  const label = intl.formatMessage(
+    {
+      id: "chat_composer_source_count_label",
+      defaultMessage: "{count, plural, one {# source} other {# sources}}",
+    },
+    { count }
+  )
   return (
     <span
       className={cn(
@@ -129,7 +141,10 @@ function AddSourcesButton({
         multiple
         accept={SOURCE_FILE_ACCEPT}
         className="sr-only"
-        aria-label="Add source files"
+        aria-label={intl.formatMessage({
+          id: "chat_composer_add_files_aria",
+          defaultMessage: "Add source files",
+        })}
         disabled={isUploading}
         onChange={upload}
       />
@@ -141,13 +156,21 @@ function AddSourcesButton({
             variant="ghost"
             className={cn("rounded-xl", className)}
             disabled={isUploading}
-            aria-label="Add sources"
+            aria-label={intl.formatMessage({
+              id: "chat_composer_add_sources_aria",
+              defaultMessage: "Add sources",
+            })}
             onClick={() => inputRef.current?.click()}
           >
             <PlusIcon className="size-5" />
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="top">Add sources</TooltipContent>
+        <TooltipContent side="top">
+          {intl.formatMessage({
+            id: "chat_composer_add_sources_tooltip",
+            defaultMessage: "Add sources",
+          })}
+        </TooltipContent>
       </Tooltip>
     </>
   )
@@ -160,6 +183,8 @@ export function ChatComposer({
   isRunning,
   isUploading,
   providerAvailable,
+  notice,
+  blockedPlaceholder,
   onModelSetup,
   onModelSelected,
   onUpload,
@@ -170,15 +195,24 @@ export function ChatComposer({
   isRunning: boolean
   isUploading: boolean
   providerAvailable: boolean
+  // Above the composer: why the saved model could not be used at startup.
+  notice?: ReactNode
+  // Set while something outside the model holds sending, such as egress.
+  blockedPlaceholder?: string
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
 }) {
   return (
     <div
-      className="mx-auto w-full max-w-xl"
+      className="relative mx-auto w-full max-w-xl"
       data-composer-placement={placement}
     >
+      {notice ? (
+        // Tucked behind the composer, which paints over its lower edge: out of
+        // flow, so the composer keeps its place and its own shape.
+        <div className="absolute inset-x-0 bottom-full -mb-4">{notice}</div>
+      ) : null}
       <ComposerPrimitive.Root
         className={cn(
           "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
@@ -195,7 +229,11 @@ export function ChatComposer({
         <ComposerPrimitive.Input
           autoFocus
           unstable_focusOnThreadSwitched
-          disabled={!model}
+          // Held whenever a send could not go anywhere: no model, a model that
+          // can't be used, or egress to it still off.
+          disabled={
+            !model || !providerAvailable || blockedPlaceholder !== undefined
+          }
           className={cn(
             "max-h-44 resize-none bg-transparent px-2 py-2.5 text-sm outline-none placeholder:text-muted-foreground",
             placement === "center"
@@ -203,15 +241,29 @@ export function ChatComposer({
               : "min-h-10 flex-1"
           )}
           placeholder={
-            !model || providerAvailable
-              ? placement === "center"
-                ? "Turn your sources into answers"
-                : "Follow up on this answer"
-              : "Reconnect your model provider to send"
+            blockedPlaceholder !== undefined
+              ? blockedPlaceholder
+              : !model || providerAvailable
+                ? placement === "center"
+                  ? intl.formatMessage({
+                      id: "chat_composer_start_placeholder",
+                      defaultMessage: "Turn your sources into answers",
+                    })
+                  : intl.formatMessage({
+                      id: "chat_composer_follow_up_placeholder",
+                      defaultMessage: "Follow up on this answer",
+                    })
+                : intl.formatMessage({
+                    id: "chat_composer_provider_offline_placeholder",
+                    defaultMessage: "Reconnect your model provider to send",
+                  })
           }
           submitMode="enter"
           rows={1}
-          aria-label="Message"
+          aria-label={intl.formatMessage({
+            id: "chat_composer_message_aria",
+            defaultMessage: "Message",
+          })}
         />
         {placement === "center" ? (
           <>
@@ -241,8 +293,16 @@ export function ChatComposer({
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
           <p className="min-w-0 text-left text-[11px] text-muted-foreground select-none">
             {!model || providerAvailable
-              ? "SurfSense can make mistakes. Check important answers."
-              : "Historical chats remain available while the provider is offline."}
+              ? intl.formatMessage({
+                  id: "chat_composer_disclaimer_body",
+                  defaultMessage:
+                    "SurfSense can make mistakes. Check important answers.",
+                })
+              : intl.formatMessage({
+                  id: "chat_composer_provider_offline_body",
+                  defaultMessage:
+                    "Historical chats remain available while the provider is offline.",
+                })}
           </p>
           <ModelControl
             model={model}

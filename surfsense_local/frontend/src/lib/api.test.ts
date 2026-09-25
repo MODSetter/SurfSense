@@ -54,7 +54,7 @@ describe("api errors", () => {
     const { request } = await import("./api")
 
     await expect(request("/llm/install")).rejects.toThrow(
-      "insufficient disk space (5.0 GB required, 2.0 GB available)"
+      "insufficient disk space (5 GB required, 2 GB available)"
     )
   })
 })

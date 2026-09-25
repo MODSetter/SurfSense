@@ -1,5 +1,6 @@
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { CircleAlertIcon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 
 import type { ModelType } from "../../model-type"
 import type { ModelSelection } from "../../selection/api"
@@ -8,7 +9,12 @@ import { useConnections } from "../connections/use-connections"
 import { ServerModels } from "./server-models"
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "Could not load servers"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "models_server_picker_load_error",
+        defaultMessage: "Could not load servers",
+      })
 }
 
 /**
@@ -37,7 +43,12 @@ export function ServerModelPicker({
     return (
       <Alert variant="destructive">
         <CircleAlertIcon />
-        <AlertTitle>Could not load servers</AlertTitle>
+        <AlertTitle>
+          {intl.formatMessage({
+            id: "models_server_picker_load_error_title",
+            defaultMessage: "Could not load servers",
+          })}
+        </AlertTitle>
         <AlertDescription>{messageFrom(connections.error)}</AlertDescription>
       </Alert>
     )

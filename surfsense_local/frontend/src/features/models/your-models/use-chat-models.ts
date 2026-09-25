@@ -1,3 +1,5 @@
+import { intl } from "@/i18n/intl"
+
 import { useLocalChatCatalog } from "../local/chat/use-local-chat-catalog"
 import { useConnections } from "../remote/connections/use-connections"
 import { useSelection } from "../selection/use-selection"
@@ -30,7 +32,14 @@ export function useChatModels(): YourModels {
                   ? `${row.name} ${build.quantization}`
                   : row.name,
               selected: build.selected,
-              badges: build.reads_images ? ["Vision"] : [],
+              badges: build.reads_images
+                ? [
+                    intl.formatMessage({
+                      id: "models_your_models_vision_label",
+                      defaultMessage: "Vision",
+                    }),
+                  ]
+                : [],
               note: row.runnable ? null : row.not_runnable_reason,
               target: row.selectable_for.includes("text_gen")
                 ? {

@@ -3,6 +3,8 @@ import pytest
 from modules.artifacts.podcast import brief
 from modules.llm.providers.protocols import Voice
 
+pytestmark = pytest.mark.unit
+
 VOICES = [
     Voice("af_heart", "Heart", ("en-US",)),
     Voice("am_adam", "Adam", ("en-US",)),
