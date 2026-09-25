@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest"
 import type { MessageFormatElement } from "react-intl"
 
-import de from "./compiled/de.json"
-import en from "./compiled/en.json"
-import ja from "./compiled/ja.json"
-import type { Locale } from "./locales"
+import { LOCALES, type Locale } from "./locales"
+
+// Every shipped language, from the same glob intl.ts uses, so a language added
+// to LOCALES is covered here without editing this file — and one added without
+// a catalog fails instead of going unchecked.
+const compiled = import.meta.glob<Record<string, MessageFormatElement[]>>(
+  ["./compiled/*.json", "!./compiled/en-XA.json"],
+  { eager: true, import: "default" }
+)
 
 // TYPE.plural and TYPE.tag in @formatjs/icu-messageformat-parser.
 const PLURAL = 6
@@ -45,13 +50,11 @@ function pluralCategoryMismatches(catalog: Catalog, locale: Locale): string[] {
 }
 
 describe("plural categories", () => {
-  it.each([
-    ["en", en],
-    ["ja", ja],
-    ["de", de],
-  ] as const)(
+  it.each(LOCALES)(
     "%s writes exactly the plural forms its language has",
-    (locale, catalog) => {
+    (locale) => {
+      const catalog = compiled[`./compiled/${locale}.json`]
+      expect(catalog, `no compiled catalog for ${locale}`).toBeDefined()
       expect(pluralCategoryMismatches(catalog as Catalog, locale)).toEqual([])
     }
   )

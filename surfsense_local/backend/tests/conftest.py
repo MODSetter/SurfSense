@@ -27,8 +27,20 @@ from shared.queue import ingest_queue, studio_queue
 # A feature missing from Base.metadata is one the drift test cannot check.
 import_models()
 
-# Where scripts/fetch_embedding_model.py places the model for development and CI.
-REAL_MODELS = Path.home() / ".surfsense" / "models"
+# Where the real embedding model might be: the staged pack `pnpm dev` points the
+# app at, then the default data dir scripts/fetch_embedding_model.py writes to.
+# Checking both means a checkout that has run either one exercises the real
+# encoder instead of silently skipping.
+_STAGED_MODELS = Path(__file__).resolve().parents[1] / "models"
+_DEFAULT_MODELS = Path.home() / ".surfsense" / "models"
+REAL_MODELS = next(
+    (
+        candidate
+        for candidate in (_STAGED_MODELS, _DEFAULT_MODELS)
+        if (candidate / "bge-small-en-v1.5" / "model_optimized.onnx").is_file()
+    ),
+    _DEFAULT_MODELS,
+)
 
 
 @pytest.fixture

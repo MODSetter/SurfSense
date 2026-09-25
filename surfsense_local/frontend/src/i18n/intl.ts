@@ -4,12 +4,10 @@ import {
   type MessageFormatElement,
 } from "react-intl"
 
-import de from "./compiled/de.json"
-import en from "./compiled/en.json"
-import ja from "./compiled/ja.json"
 import {
   BASE_LOCALE,
   isAppLocale,
+  LOCALES,
   PSEUDO_LOCALE,
   type AppLocale,
   type Locale,
@@ -17,13 +15,26 @@ import {
 
 type Catalog = Record<FormatjsIntl.Message["ids"], MessageFormatElement[]>
 
-// All three are bundled so text is there on the first render; a key a language
-// lacks shows its English, never its id.
-const catalogs: Record<Locale, Catalog> = {
-  en: en as Catalog,
-  ja: { ...(en as Catalog), ...(ja as Catalog) },
-  de: { ...(en as Catalog), ...(de as Catalog) },
-}
+// A glob, not an import per language, so shipping one more language is a line
+// in LOCALES and a catalog file. `pnpm translations` writes compiled/. The
+// pseudo-locale is excluded here and read below, so it cannot reach a build.
+const compiled = import.meta.glob<Catalog>(
+  ["./compiled/*.json", "!./compiled/en-XA.json"],
+  { eager: true, import: "default" }
+)
+
+const english = compiled[`./compiled/${BASE_LOCALE}.json`] ?? {}
+
+// Every language is bundled so text is there on the first render, and each is
+// merged over English, so a key it lacks shows its English, never its id.
+const catalogs = Object.fromEntries(
+  LOCALES.map((locale) => [
+    locale,
+    locale === BASE_LOCALE
+      ? english
+      : { ...english, ...compiled[`./compiled/${locale}.json`] },
+  ])
+) as Record<Locale, Catalog>
 
 // Main owns the language and preload reports it before the first paint. No
 // bridge (tests, a bare `vite`) or a language the app does not ship is English.

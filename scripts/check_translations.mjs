@@ -15,12 +15,37 @@ const ROOT = join(fileURLToPath(import.meta.url), "..", "..")
 const FRONTEND = join(ROOT, "surfsense_local", "frontend")
 const TRANSLATIONS = join(FRONTEND, "translations")
 const FEATURES = join(FRONTEND, "src", "features")
-const LOCALES = ["en", "ja", "de"]
+const LOCALES_TS = join(FRONTEND, "src", "i18n", "locales.ts")
 // The one prefix that is not a feature folder: the app shell.
 const EXTRA_PREFIXES = ["app"]
 
 const problems = []
 const fail = (where, message) => problems.push(`${where}: ${message}`)
+
+// The shipped languages, read from the one list the app builds from rather
+// than mirrored here, where a stale copy would skip a language in silence.
+function shippedLocales() {
+  const source = readFileSync(LOCALES_TS, "utf8")
+  const list = source.match(/export const LOCALES = \[([^\]]*)\]/)?.[1]
+  if (!list) {
+    fail(relative(ROOT, LOCALES_TS), "no LOCALES array to read")
+    return []
+  }
+  return [...list.matchAll(/"([^"]+)"/g)].map((match) => match[1])
+}
+
+const LOCALES = shippedLocales()
+
+// A catalog with no entry in LOCALES is never bundled; a locale with no
+// catalog leaves the app showing English under that language's name.
+const onDisk = readdirSync(TRANSLATIONS)
+  .filter((name) => name.endsWith(".json"))
+  .map((name) => name.replace(/\.json$/, ""))
+for (const locale of onDisk) {
+  if (!LOCALES.includes(locale)) {
+    fail(`translations/${locale}.json`, "has no entry in i18n/locales.ts")
+  }
+}
 
 function readCatalog(locale) {
   const path = join(TRANSLATIONS, `${locale}.json`)
@@ -45,11 +70,13 @@ function readCatalog(locale) {
     // ICU's escape character; FormatJS's syntax guide asks for ’ in visible text.
     else if (value.includes("'")) fail(where, `${key} has a straight apostrophe; write ’`)
   }
-  // The layout `formatjs extract` writes for en.json, kept by hand in the others.
+  // The layout `formatjs extract` writes for en.json, kept by hand in the
+  // others. Line endings are git's to decide: core.autocrlf checks these files
+  // out with CRLF on Windows, which is not a formatting mistake.
   const sorted = Object.fromEntries(
     Object.entries(data).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
   )
-  if (text !== `${JSON.stringify(sorted, null, 2)}\n`) {
+  if (text.replace(/\r\n/g, "\n") !== `${JSON.stringify(sorted, null, 2)}\n`) {
     fail(where, "not sorted with two-space indent; rewrite it with keys in order")
   }
   return data

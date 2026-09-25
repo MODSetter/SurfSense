@@ -55,21 +55,29 @@ New UI text, step by step:
 
 ## Adding a language
 
-1. Add the code to `LOCALES` in `frontend/src/i18n/locales.ts`, `electron/src/main/i18n/locales.ts` and `scripts/check_translations.mjs`.
-2. Import its catalog into `catalogs` in `frontend/src/i18n/intl.ts` (from `./compiled/`), and add it to the cases in `plural-categories.test.ts`.
-3. For a region code such as `pt-BR`, make `resolve-locale.ts` match the full tag; it matches the base language only.
+1. Create `translations/<code>.json` by translating every key in `en.json` with the steps above. Do this first: a code in `LOCALES` without a catalog fails the checks.
+2. Add the code to `LOCALES` in `frontend/src/i18n/locales.ts` and `electron/src/main/i18n/locales.ts`. Nothing else holds a list: `intl.ts` globs the catalogs, and `plural-categories.test.ts` and `check_translations.mjs` read `LOCALES`.
+3. A language whose catalog is regional, or whose script decides which catalog fits, needs a case in `catalogFor()` in `resolve-locale.ts`, which otherwise matches the base language: any Portuguese takes `pt-BR`, and Chinese takes `zh-CN` unless the tag asks for Traditional.
 4. Add a column to [`glossary.md`](glossary.md) and a line under **Tone**.
-5. Create `translations/<code>.json` by translating every key in `en.json` with the steps above.
-6. Run the checks in **Translating** step 4, then `pnpm test`.
-7. Open the app in that language and shorten any text that overflows. Never shrink the UI to fit.
+5. Run the checks in **Translating** step 4, then `pnpm test`.
+6. Open the app in that language and shorten any text that overflows. Never shrink the UI to fit.
+
+A right-to-left language needs more than a catalog: `dir` on the document, the left and right utility classes replaced with their logical forms, and the directional icons mirrored. None of that is built.
 
 To check layout before any translation exists, pick **English (Pseudo-Accents)** (`en-XA`) under Settings › General in `pnpm dev`. It is longer, accented English; text that stays plain is not in a message.
 
 ## Tone
 
 - **Japanese.** です/ます for sentences, the default in Microsoft's Japanese style guide. Plain form for short labels and buttons (`保存`, `削除`). 〜してください for instructions. Full-width punctuation (`。`, `、`), no space between Japanese and Latin text unless the product name needs it.
+- **Korean.** 합니다체 for sentences, the register Korean software ships in. ~하세요 for instructions (`다시 시도하세요`). Buttons and labels are nouns (`저장`, `삭제`). Standard 띄어쓰기; a particle attaches straight to a Latin name (`SurfSense를`) and is chosen by how the name is pronounced, but a placeholder that hides the ending takes `을(를)`.
+- **Simplified Chinese.** 你, never 您. Simplified characters and mainland terms (`设置`, `下载`, `文件`, `模型`). Bare verbs for buttons (`保存`, `删除`); 请 only where the English asks the user to act. Full-width punctuation (`，`, `。`, `“”`), a half-width space between Chinese and Latin or digits (`在 SurfSense 中`, `4 GB`), none next to full-width punctuation.
+- **Hindi.** *आप*, never *तुम*. Buttons and menu items are the polite imperative (`सहेजें`, `हटाएं`). Sentences end in `।`; labels and fragments do not. Everyday technical terms in Devanagari with their nuqta (`चैट`, `मॉडल`, `सेटिंग्स`, `फ़ाइल`), never a coined Sanskrit equivalent.
 - **German.** *du*, as macOS has used since Sierra. Never *Sie*, never mixed. Capitalize *du* only at the start of a sentence. Buttons are infinitives (`Speichern`, `Löschen`).
-- Both: as short as the English allows. A `_button` or `_label` has the room its English has.
+- **Spanish.** *tú*, never *usted*, never *vos*. Neutral across Spain and Latin America: `video` not `vídeo`, `este equipo` not `ordenador` or `computadora`. Buttons are infinitives (`Guardar`, `Eliminar`). Open every question and exclamation (`¿`, `¡`), and quote with `«»`.
+- **French.** *vous*, as macOS and Windows both use. Never *tu*, never mixed. Buttons are infinitives (`Enregistrer`, `Supprimer`). A no-break space before `:`, `;`, `?`, `!` and inside `« »`.
+- **Brazilian Portuguese.** *você*, never *tu*, and never a mixed verb form. Brazilian vocabulary throughout (`arquivo`, `baixar`, `tela`, `excluir`), never European. Buttons are infinitives (`Salvar`, `Excluir`).
+- **Russian.** *вы*, lowercase except at the start of a sentence; never *ты*, never a capitalised *Вы*. Buttons are infinitives (`Сохранить`, `Удалить`). Guillemets `«»` around a quoted interface label. Every plural writes all four categories, each with its own noun form.
+- Every language: as short as the English allows. A `_button` or `_label` has the room its English has. Write `’` for a visible apostrophe, never `'`, which ICU reads as its escape character.
 
 ## Limits
 

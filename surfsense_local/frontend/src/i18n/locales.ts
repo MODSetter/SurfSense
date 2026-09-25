@@ -1,6 +1,17 @@
 // The languages the app ships; one catalog each in translations/.
 // Mirrored in electron/src/main/i18n/locales.ts.
-export const LOCALES = ["en", "ja", "de"] as const
+export const LOCALES = [
+  "en",
+  "de",
+  "es",
+  "fr",
+  "hi",
+  "ja",
+  "ko",
+  "pt-BR",
+  "ru",
+  "zh-CN",
+] as const
 export type Locale = (typeof LOCALES)[number]
 export const BASE_LOCALE: Locale = "en"
 
