@@ -40,6 +40,7 @@ import {
   InformationCircleIcon as InformationCircleIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
+  LinkSquare02Icon as LinkSquare02IconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
   Moon02Icon as Moon02IconData,
@@ -149,6 +150,7 @@ export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
+export const ExternalLinkIcon = createIcon(LinkSquare02IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MoonIcon = createIcon(Moon02IconData)

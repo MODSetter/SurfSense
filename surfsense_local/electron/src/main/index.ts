@@ -21,6 +21,7 @@ import {
   nameDevBuild,
 } from "./dev-app-identity.ts"
 import { managedOriginalPath } from "./document-files.ts"
+import { allowedExternalUrl } from "./external-url.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
 import {
@@ -64,24 +65,9 @@ import { loadWindowState, saveWindowState } from "./window-state.ts"
 import { applyLocalePreference } from "./i18n/app-locale.ts"
 import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
+import { registerAboutHandlers } from "./about/about-ipc.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
-
-function allowedExternalUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url)
-    if (
-      parsed.protocol === "https:" &&
-      (parsed.hostname === "surfsense.com" ||
-        parsed.hostname === "www.surfsense.com")
-    ) {
-      return parsed.href
-    }
-  } catch {
-    return null
-  }
-  return null
-}
 
 function openAllowedExternal(url: string): void {
   const allowed = allowedExternalUrl(url)
@@ -583,6 +569,7 @@ function main(): void {
         isTrusted: (sender) =>
           mainWindow !== null && sender === mainWindow.webContents,
       })
+      registerAboutHandlers()
       installMenu()
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()

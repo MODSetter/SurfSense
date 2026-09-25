@@ -41,7 +41,7 @@ The GGUF download runs inside the API (`modules/llm/providers/llamacpp/download.
 - llama-server and sd-server, which the backend reaches on `127.0.0.1`.
 - The worker's `POST /internal/events` to the API, and Electron polling the API: `/health` at startup, the image runtime every few seconds.
 - App updates. electron-updater talks to GitHub from the Electron main process, out of reach of `egress.require()`, so it is gated by the `automatic` preference in `updates.json` and by consent in the renderer instead ([updates](updates.md)). Settings › Network shows it as the App updates row, host `github.com`.
-- Links. The main process refuses new windows and `https:` navigations inside the app, and hands a URL on `surfsense.com` or `www.surfsense.com` to `shell.openExternal`; that request is the browser's.
+- Links. The main process refuses new windows and `https:` navigations inside the app, and hands a URL on `surfsense.com` or `www.surfsense.com`, under `github.com/MODSetter/SurfSense`, or the project's Discord invite to `shell.openExternal` (`electron/src/main/external-url.ts`); that request is the browser's.
 - Docling. Packaged Python sidecars run with `HF_HUB_OFFLINE=1` (`electron/src/main/sidecars/python.ts`) and parse with the bundled parser pack ([packaging](packaging.md)). No test yet ingests a PDF with networking off, so this rests on that configuration rather than on a check.
 - Licenses. The app verifies license files offline and never contacts Keygen ([license](license/app.md)); `PUT /egress/keygen` is refused as unknown.
 

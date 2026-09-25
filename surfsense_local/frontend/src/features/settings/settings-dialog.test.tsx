@@ -45,6 +45,21 @@ afterEach(() => {
 })
 
 describe("SettingsDialog", () => {
+  it("keeps About in its own App group, apart from the settings", async () => {
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    const app = screen.getByRole("navigation", { name: "App" })
+    const settings = screen.getByRole("navigation", { name: "Settings" })
+    const about = screen.getByRole("button", { name: "About" })
+    expect(app.contains(about)).toBe(true)
+    expect(settings.contains(about)).toBe(false)
+
+    await user.click(about)
+
+    expect(screen.getByRole("heading", { name: "About" })).toBeTruthy()
+  })
+
   it("changes and persists the appearance preference", async () => {
     const user = userEvent.setup()
 

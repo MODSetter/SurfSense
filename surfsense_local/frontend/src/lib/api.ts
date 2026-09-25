@@ -27,6 +27,9 @@ declare global {
         symbolColor: string
       }) => Promise<void>
       openExternal?: (url: string) => Promise<void>
+      about?: {
+        details: () => Promise<AppDetails>
+      }
       // Mirrors electron/src/preload/index.ts; main resolves and owns the locale.
       locale?: {
         get: () => string
@@ -43,6 +46,16 @@ declare global {
       }
     }
   }
+}
+
+// Mirrors electron/src/main/about/app-details.ts.
+export type AppDetails = {
+  version: string
+  electron: string
+  chrome: string
+  node: string
+  os: string
+  arch: string
 }
 
 // Mirrors electron/src/main/updater.ts.

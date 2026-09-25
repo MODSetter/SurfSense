@@ -29,8 +29,10 @@ const inputGroupAddonVariants = cva(
       align: {
         "inline-start":
           "order-first pl-2 has-[>button]:ml-[-0.3rem] has-[>kbd]:ml-[-0.15rem]",
+        // A trailing button gets a square cap the group's height, so it sits
+        // as far from the end as from the top and bottom at any group height.
         "inline-end":
-          "order-last pr-2 has-[>button]:mr-[-0.3rem] has-[>kbd]:mr-[-0.15rem]",
+          "order-last pr-2 has-[>button]:aspect-square has-[>button]:self-stretch has-[>button]:p-0 has-[>kbd]:mr-[-0.15rem]",
         "block-start":
           "order-first w-full justify-start px-2.5 pt-2 group-has-[>input]/input-group:pt-2 [.border-b]:pb-2",
         "block-end":

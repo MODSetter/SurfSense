@@ -13,7 +13,7 @@ Updates are the one call the app is designed to make on its own, so they are off
 
 - The preference is `updates.json` in Electron's user data: `automatic`, false by default, and `lastCheckedAt`, which Settings › Network shows as the App updates row's last call.
 - The check at launch runs only when `automatic` is on.
-- Check now in Settings › General and the sidebar's update row ask first while `automatic` is off. Allow turns `automatic` on, which also enables the launch check.
+- Check now in Settings › About and the sidebar's update row ask first while `automatic` is off. Allow turns `automatic` on, which also enables the launch check.
 - `autoDownload` is false. The download starts from the `update-available` event, so it only ever follows a check the user enabled or clicked.
 - Installing waits for the user: the restart action in Settings, the sidebar or the title bar calls `quitAndInstall()`, and only once the download is ready.
 

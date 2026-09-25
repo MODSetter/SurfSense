@@ -113,7 +113,7 @@ The rules that keep the processes out of each other's way:
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in English, Japanese and German.
-- [Egress](egress.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [packaging](packaging.md), [sunset](sunset.md).
+- [Egress](egress.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [packaging](packaging.md), [sunset](sunset.md).
 - [Contracts](../contracts/README.md) between the trees.
 
 ## Known gaps
