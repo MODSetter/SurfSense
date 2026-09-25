@@ -19,6 +19,9 @@ from pathlib import Path
 from retrieval_eval.cases import CORPUS_DIR, LOCAL_DIR
 from retrieval_eval.fingerprint import embedder_identity, fingerprint
 
+# Safe this high, unlike the embedder below: it reads no settings, only sqlite3.
+from shared.tokenizer import TOKENIZER
+
 # Deliberately not imported from worker.ingestion.embedding, even though that
 # is where it is defined: importing anything under `worker` pulls in
 # shared.queue, which reads the settings at import time and caches them. That
@@ -40,7 +43,7 @@ os.environ.setdefault(
     str(_STAGED if (_STAGED / "bge-small-en-v1.5").is_dir() else _DATA / "models"),
 )
 # Keyed by what was indexed, so a ranking change reuses the index and only a
-# corpus or embedder change pays to build one.
+# corpus, embedder or tokenizer change pays to build one.
 CACHE_ROOT = Path.home() / ".surfsense-retrieval-eval"
 _KEY = fingerprint(
     CORPUS_DIR,
@@ -48,6 +51,7 @@ _KEY = fingerprint(
     embedder=embedder_identity(
         Path(os.environ["SURFSENSE_LOCAL_MODELS_DIR"]), MODEL_DIR_NAME
     ),
+    tokenizer=TOKENIZER,
 )
 os.environ["SURFSENSE_LOCAL_DATA_DIR"] = str(CACHE_ROOT / _KEY)
 
