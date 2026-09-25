@@ -27,6 +27,7 @@ import {
   type ModelSelection,
 } from "@/features/models/selection/api"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
 // Under the shared models key, so a change made in settings reaches this list.
 const installedModelsQueryKey = [
@@ -94,8 +95,19 @@ export function ModelPicker({
         <button
           type="button"
           className={cn(modelControlButtonClassName, className)}
-          title="Change model"
-          aria-label={`Model ${selectedLabel}. Change model.`}
+          title={intl.formatMessage({
+            id: "chat_model_picker_change_tooltip",
+            defaultMessage: "Change model",
+          })}
+          aria-label={intl.formatMessage(
+            {
+              id: "chat_model_picker_trigger_aria",
+              defaultMessage: "Model {model}. Change model.",
+            },
+            {
+              model: selectedLabel,
+            }
+          )}
         >
           <span className="max-w-48 truncate">{selectedLabel}</span>
           <ChevronDownIcon className="size-3" />
@@ -108,8 +120,14 @@ export function ModelPicker({
           <Input
             type="search"
             value={query}
-            placeholder="Search models"
-            aria-label="Search models"
+            placeholder={intl.formatMessage({
+              id: "chat_model_picker_search_placeholder",
+              defaultMessage: "Search models",
+            })}
+            aria-label={intl.formatMessage({
+              id: "chat_model_picker_search_aria",
+              defaultMessage: "Search models",
+            })}
             className="rounded-none border-0 bg-popover pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-popover"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
@@ -123,12 +141,25 @@ export function ModelPicker({
         <ScrollShadow className="h-60" viewportClassName="select-none p-1">
           <div data-slot="model-picker-results" className="relative min-h-full">
             <DropdownMenuGroup>
-              <DropdownMenuLabel>Installed models</DropdownMenuLabel>
+              <DropdownMenuLabel>
+                {intl.formatMessage({
+                  id: "chat_model_picker_installed_title",
+                  defaultMessage: "Installed models",
+                })}
+              </DropdownMenuLabel>
               {installed.isPending ? (
-                <DropdownMenuLabel>Loading models…</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  {intl.formatMessage({
+                    id: "chat_model_picker_loading_status",
+                    defaultMessage: "Loading models…",
+                  })}
+                </DropdownMenuLabel>
               ) : installed.isError ? (
                 <DropdownMenuLabel>
-                  Could not load installed models
+                  {intl.formatMessage({
+                    id: "chat_model_picker_load_error",
+                    defaultMessage: "Could not load installed models",
+                  })}
                 </DropdownMenuLabel>
               ) : visibleModels.length > 0 ? (
                 <DropdownMenuRadioGroup
@@ -169,7 +200,15 @@ export function ModelPicker({
                       : undefined
                   }
                 >
-                  {needle ? "No matching models" : "No installed models"}
+                  {needle
+                    ? intl.formatMessage({
+                        id: "chat_model_picker_no_match_empty",
+                        defaultMessage: "No matching models",
+                      })
+                    : intl.formatMessage({
+                        id: "chat_model_picker_none_installed_empty",
+                        defaultMessage: "No installed models",
+                      })}
                 </DropdownMenuLabel>
               )}
             </DropdownMenuGroup>
@@ -179,7 +218,10 @@ export function ModelPicker({
         <DropdownMenuGroup className="p-1">
           <DropdownMenuItem onSelect={onManageModels}>
             <Settings2Icon />
-            Manage models
+            {intl.formatMessage({
+              id: "chat_model_picker_manage_label",
+              defaultMessage: "Manage models",
+            })}
           </DropdownMenuItem>
         </DropdownMenuGroup>
       </DropdownMenuContent>

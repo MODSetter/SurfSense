@@ -956,7 +956,7 @@ describe("installing a curated build", () => {
 
     render(<DownloadChatModels />)
     await user.click(
-      await screen.findByRole("button", { name: "1 other builds" })
+      await screen.findByRole("button", { name: "1 other build" })
     )
     await user.click(
       screen.getByRole("button", { name: "Download Qwen3 8B Q4_K_M" })

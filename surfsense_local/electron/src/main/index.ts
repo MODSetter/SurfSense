@@ -15,6 +15,11 @@ import {
 // undefined). require() honours it, and the getter is lazy so dev pays nothing.
 import { autoUpdater } from "electron-updater"
 
+import {
+  applyDevAppIdentity,
+  devWindowIcon,
+  nameDevBuild,
+} from "./dev-app-identity.ts"
 import { managedOriginalPath } from "./document-files.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
@@ -56,6 +61,9 @@ import {
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
+import { applyLocalePreference } from "./i18n/app-locale.ts"
+import { loadLocalePreference } from "./i18n/locale-prefs.ts"
+import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
@@ -79,6 +87,8 @@ function openAllowedExternal(url: string): void {
   const allowed = allowedExternalUrl(url)
   if (allowed) void shell.openExternal(allowed)
 }
+
+nameDevBuild()
 
 // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
 const DATA_DIR = join(
@@ -452,33 +462,21 @@ function applyBackgroundColorToAllWindows(theme: ThemePreference): void {
   for (const win of currentWindows()) win.setBackgroundColor(color)
 }
 
-// Packaged only. Dev keeps Electron's default View menu (reload + DevTools).
+// One menu in dev and packaged builds, all Electron roles: labels come from
+// Electron and the OS, never the in-app language. DevTools only unpackaged.
 // https://www.electronjs.org/docs/latest/tutorial/application-menu
-function installProductionMenu(): void {
-  if (!app.isPackaged) return
-
+function installMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
       { role: "fileMenu" },
       { role: "editMenu" },
       {
-        label: "View",
+        role: "viewMenu",
         submenu: [
-          {
-            label: "Reload",
-            click: (_item, win) => {
-              if (win instanceof BrowserWindow) win.reload()
-            },
-          },
-          {
-            label: "Force Reload",
-            click: (_item, win) => {
-              if (win instanceof BrowserWindow) {
-                win.webContents.reloadIgnoringCache()
-              }
-            },
-          },
+          { role: "reload" },
+          { role: "forceReload" },
+          ...(app.isPackaged ? [] : [{ role: "toggleDevTools" as const }]),
           { type: "separator" },
           { role: "resetZoom" },
           { role: "zoomIn" },
@@ -496,6 +494,7 @@ function createWindow(apiUrl: string): void {
   const savedState = app.isPackaged ? loadWindowState() : null
   const win = new BrowserWindow({
     ...(savedState?.bounds ?? { width: 1280, height: 800 }),
+    ...devWindowIcon(),
     backgroundColor: resolveBackgroundColor(loadThemePreference()),
     show: false,
     // https://www.electronjs.org/docs/latest/tutorial/custom-title-bar
@@ -576,9 +575,15 @@ function main(): void {
   app
     .whenReady()
     .then(async () => {
+      applyLocalePreference(loadLocalePreference())
+      applyDevAppIdentity()
       const boot = await bootSidecars()
       registerDocumentHandlers(boot.dataDir)
-      installProductionMenu()
+      registerLocaleHandlers({
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
+      installMenu()
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()
       app.on("activate", () => {

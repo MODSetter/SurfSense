@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { TypewriterText } from "@/components/typewriter-text"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { intl } from "@/i18n/intl"
 import type { ChatThread } from "./api"
 import { ChatComposer } from "./chat-composer"
 import { ChatViewport } from "./chat-viewport"
@@ -79,6 +80,8 @@ export function ThreadPanel({
   isUploading,
   animateTitle,
   providerAvailable,
+  notice,
+  blockedPlaceholder,
   onCitation,
   onModelSetup,
   onModelSelected,
@@ -99,6 +102,8 @@ export function ThreadPanel({
   isUploading: boolean
   animateTitle: boolean
   providerAvailable: boolean
+  notice?: ReactNode
+  blockedPlaceholder?: string
   sourceCount: number
   onCitation: (chunkId: number) => void
   onModelSetup: () => void
@@ -114,7 +119,11 @@ export function ThreadPanel({
   const ignoreMenuFocusRef = useRef(false)
   const [editingThreadId, setEditingThreadId] = useState<number | null>(null)
   const [draft, setDraft] = useState("")
-  const title = thread?.title || "New chat"
+  const untitled = intl.formatMessage({
+    id: "chat_thread_panel_untitled_label",
+    defaultMessage: "New chat",
+  })
+  const title = thread?.title || untitled
   const conversationId =
     view.status === "active" ? `thread:${view.threadId}` : view.status
   const editing = thread != null && editingThreadId === thread.id
@@ -130,6 +139,8 @@ export function ThreadPanel({
       isRunning={isRunning}
       isUploading={isUploading}
       providerAvailable={providerAvailable}
+      notice={notice}
+      blockedPlaceholder={blockedPlaceholder}
       onModelSetup={onModelSetup}
       onModelSelected={onModelSelected}
       onUpload={onUpload}
@@ -161,7 +172,7 @@ export function ThreadPanel({
     if (!thread || !editing) return
     const next = draft.trim()
     setEditingThreadId(null)
-    if (!next || next === (thread.title || "New chat")) return
+    if (!next || next === (thread.title || untitled)) return
     void onRename(thread.id, next)
   }
 
@@ -170,7 +181,10 @@ export function ThreadPanel({
       <ComposerDraftLifecycle view={view} />
       <section
         className="flex h-full min-w-0 flex-col bg-background"
-        aria-label="Conversation"
+        aria-label={intl.formatMessage({
+          id: "chat_thread_panel_conversation_aria",
+          defaultMessage: "Conversation",
+        })}
       >
         <header className="flex h-14 shrink-0 items-center px-5">
           {thread == null ? null : editing ? (
@@ -178,7 +192,10 @@ export function ThreadPanel({
               ref={titleInputRef}
               value={draft}
               maxLength={200}
-              aria-label="Chat name"
+              aria-label={intl.formatMessage({
+                id: "chat_thread_panel_name_aria",
+                defaultMessage: "Chat name",
+              })}
               className="w-auto max-w-full font-heading text-base font-medium md:text-base"
               onChange={(event) => setDraft(event.target.value)}
               onBlur={commitEditing}
@@ -194,7 +211,13 @@ export function ThreadPanel({
               }}
             />
           ) : (
-            <ButtonGroup aria-label="Chat" className="max-w-lg min-w-0">
+            <ButtonGroup
+              aria-label={intl.formatMessage({
+                id: "chat_thread_panel_header_aria",
+                defaultMessage: "Chat",
+              })}
+              className="max-w-lg min-w-0"
+            >
               <Button
                 type="button"
                 variant="ghost"
@@ -215,7 +238,15 @@ export function ThreadPanel({
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    aria-label={`Chat options for ${title}`}
+                    aria-label={intl.formatMessage(
+                      {
+                        id: "chat_thread_panel_options_aria",
+                        defaultMessage: "Chat options for {title}",
+                      },
+                      {
+                        title,
+                      }
+                    )}
                   >
                     <ChevronDownIcon />
                   </Button>
@@ -240,7 +271,10 @@ export function ThreadPanel({
                       }}
                     >
                       <PencilIcon />
-                      Rename
+                      {intl.formatMessage({
+                        id: "chat_thread_panel_rename_label",
+                        defaultMessage: "Rename",
+                      })}
                     </DropdownMenuItem>
                     <DropdownMenuItem
                       variant="destructive"
@@ -249,7 +283,10 @@ export function ThreadPanel({
                       }}
                     >
                       <Trash2Icon />
-                      Delete chat
+                      {intl.formatMessage({
+                        id: "chat_thread_panel_delete_label",
+                        defaultMessage: "Delete chat",
+                      })}
                     </DropdownMenuItem>
                   </DropdownMenuGroup>
                 </DropdownMenuContent>
@@ -259,7 +296,7 @@ export function ThreadPanel({
         </header>
 
         <ThreadPrimitive.Root className="relative flex min-h-0 flex-1 flex-col">
-          <ChatViewport footer={bottomFooter}>
+          <ChatViewport footer={bottomFooter} footerHasNotice={notice != null}>
             {isLoading ? (
               <div className="mx-auto flex w-full max-w-xl flex-col">
                 <div className="flex flex-col items-end px-6 py-3">

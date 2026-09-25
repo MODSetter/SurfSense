@@ -6,6 +6,7 @@ import { CheckIcon, XIcon } from "@/components/ui/icons"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import {
   answerQuizQuestion,
@@ -65,7 +66,12 @@ export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
   if (error || !quiz) {
     return (
       <p className={`${VIEWER_PADDING} text-sm text-destructive`}>
-        {error instanceof Error ? error.message : "Failed to load this quiz"}
+        {error instanceof Error
+          ? error.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_load_error",
+              defaultMessage: "Failed to load this quiz",
+            })}
       </p>
     )
   }
@@ -141,7 +147,12 @@ function QuizRunner({
       applyState(next)
     } catch (err) {
       setMessage(
-        err instanceof Error ? err.message : "Answer could not be saved"
+        err instanceof Error
+          ? err.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_answer_error",
+              defaultMessage: "Answer could not be saved",
+            })
       )
     }
   }
@@ -165,7 +176,12 @@ function QuizRunner({
       moveForward()
     } catch (err) {
       setMessage(
-        err instanceof Error ? err.message : "Question could not be skipped"
+        err instanceof Error
+          ? err.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_skip_error",
+              defaultMessage: "Question could not be skipped",
+            })
       )
     }
   }
@@ -182,7 +198,12 @@ function QuizRunner({
       requestAnimationFrame(() => headingRef.current?.focus())
     } catch (err) {
       setMessage(
-        err instanceof Error ? err.message : "Quiz could not be restarted"
+        err instanceof Error
+          ? err.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_retake_error",
+              defaultMessage: "Quiz could not be restarted",
+            })
       )
     }
   }
@@ -223,9 +244,15 @@ function QuizRunner({
   return (
     <section aria-labelledby={headingId} className={VIEWER_PADDING}>
       <div className="mb-6 flex items-center justify-between gap-4 text-sm text-muted-foreground">
-        <p className="truncate">Attempt your quiz</p>
+        <p className="truncate">
+          {intl.formatMessage({
+            id: "studio_quiz_viewer_title",
+            defaultMessage: "Attempt your quiz",
+          })}
+        </p>
         <p className="shrink-0 tabular-nums">
-          {position + 1} / {state.active_question_indices.length}
+          {intl.formatNumber(position + 1)} /{" "}
+          {intl.formatNumber(state.active_question_indices.length)}
         </p>
       </div>
       <Progress
@@ -236,7 +263,10 @@ function QuizRunner({
         }
         className="mb-8 h-1.5"
         role="progressbar"
-        aria-label="Quiz progress"
+        aria-label={intl.formatMessage({
+          id: "studio_quiz_viewer_progress_aria",
+          defaultMessage: "Quiz progress",
+        })}
       />
       <h2
         id={headingId}
@@ -253,7 +283,15 @@ function QuizRunner({
           void selectAnswer(Number(value))
         }}
         disabled={answerRevealed || saving}
-        aria-label={`Question ${questionIndex + 1} options`}
+        aria-label={intl.formatMessage(
+          {
+            id: "studio_quiz_viewer_options_aria",
+            defaultMessage: "Question {number, number} options",
+          },
+          {
+            number: questionIndex + 1,
+          }
+        )}
         className="gap-3"
       >
         {question.options.map((option, index) => {
@@ -287,12 +325,22 @@ function QuizRunner({
               {answerRevealed && isCorrect ? (
                 <span className="text-emerald-600">
                   <CheckIcon className="size-5" />
-                  <span className="sr-only">Correct answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_viewer_correct_aria",
+                      defaultMessage: "Correct answer",
+                    })}
+                  </span>
                 </span>
               ) : answerRevealed && isSubmitted ? (
                 <span className="text-destructive">
                   <XIcon className="size-5" />
-                  <span className="sr-only">Incorrect answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_viewer_incorrect_aria",
+                      defaultMessage: "Incorrect answer",
+                    })}
+                  </span>
                 </span>
               ) : null}
             </label>
@@ -305,7 +353,20 @@ function QuizRunner({
           disabled={saving}
           onClick={answerRevealed ? moveForward : () => void skipQuestion()}
         >
-          {answerRevealed ? (isLastQuestion ? "Finish" : "Next") : "Skip"}
+          {answerRevealed
+            ? isLastQuestion
+              ? intl.formatMessage({
+                  id: "studio_quiz_viewer_finish_button",
+                  defaultMessage: "Finish",
+                })
+              : intl.formatMessage({
+                  id: "studio_quiz_viewer_next_button",
+                  defaultMessage: "Next",
+                })
+            : intl.formatMessage({
+                id: "studio_quiz_viewer_skip_button",
+                defaultMessage: "Skip",
+              })}
         </Button>
       </div>
       {message ? (

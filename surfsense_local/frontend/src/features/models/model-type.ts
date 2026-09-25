@@ -11,12 +11,3 @@ export const MODEL_TYPES = [
 ] as const
 
 export type ModelType = (typeof MODEL_TYPES)[number]
-
-/** How copy names a slot, as in "Use gpt-4o for chat". */
-export const SLOT_NAMES: Record<ModelType, string> = {
-  text_gen: "chat",
-  image_gen: "image",
-  image_edit: "image editing",
-  video_gen: "video",
-  audio_gen: "audio",
-}

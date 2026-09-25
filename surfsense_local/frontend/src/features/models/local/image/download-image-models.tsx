@@ -2,6 +2,7 @@ import { useState } from "react"
 
 import { CircleAlertIcon } from "@/components/ui/icons"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { intl } from "@/i18n/intl"
 
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
@@ -14,14 +15,31 @@ import { useDeleteLocalImageModel } from "./use-delete-local-image-model"
 import { useImageInstall } from "./use-image-install"
 import { useLocalImageCatalog } from "./use-local-image-catalog"
 
-const SLOT_TITLES: Record<SdCppSlot, string> = {
-  image_gen: "Image",
-  image_edit: "Image editing",
-  video_gen: "Video",
+const UNSUPPORTED_TITLE: Record<SdCppSlot, () => string> = {
+  image_gen: () =>
+    intl.formatMessage({
+      id: "models_download_image_unsupported_title",
+      defaultMessage: "Image models cannot run on this computer",
+    }),
+  image_edit: () =>
+    intl.formatMessage({
+      id: "models_download_image_edit_unsupported_title",
+      defaultMessage: "Image editing models cannot run on this computer",
+    }),
+  video_gen: () =>
+    intl.formatMessage({
+      id: "models_download_video_unsupported_title",
+      defaultMessage: "Video models cannot run on this computer",
+    }),
 }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "models_download_image_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 /** The row `DeleteModelDialog` needs; it only reads `name` and `selected`. */
@@ -41,8 +59,8 @@ function deletableRow(build: LocalBuild, label: string): YourModelRow | null {
 function byFamily(rows: LocalRow[]) {
   const result = new Map<string, LocalRow[]>()
   for (const row of rows) {
-    const family = row.family || "Other"
-    result.set(family, [...(result.get(family) ?? []), row])
+    // An empty family is kept empty; ModelFamilyGroup names it.
+    result.set(row.family, [...(result.get(row.family) ?? []), row])
   }
   return result
 }
@@ -70,7 +88,12 @@ export function DownloadImageModels({
     return (
       <Alert variant="destructive">
         <CircleAlertIcon />
-        <AlertTitle>Could not load local image models</AlertTitle>
+        <AlertTitle>
+          {intl.formatMessage({
+            id: "models_download_image_load_error",
+            defaultMessage: "Could not load local image models",
+          })}
+        </AlertTitle>
         <AlertDescription>{messageFrom(catalog.error)}</AlertDescription>
       </Alert>
     )
@@ -80,11 +103,13 @@ export function DownloadImageModels({
     return (
       <Alert>
         <CircleAlertIcon />
-        <AlertTitle>
-          {SLOT_TITLES[slot]} models cannot run on this computer
-        </AlertTitle>
+        <AlertTitle>{UNSUPPORTED_TITLE[slot]()}</AlertTitle>
         <AlertDescription>
-          This build has no local image runtime. Use a server above instead.
+          {intl.formatMessage({
+            id: "models_download_image_unsupported_body",
+            defaultMessage:
+              "This build has no local image runtime. Use a server above instead.",
+          })}
         </AlertDescription>
       </Alert>
     )

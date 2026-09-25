@@ -1,3 +1,5 @@
+import { intl } from "@/i18n/intl"
+
 import { fileUrl, type ArtifactDetail } from "../api"
 import { VIEWER_PADDING } from "./viewer-layout"
 
@@ -10,7 +12,11 @@ export function DocumentViewer({ artifact }: { artifact: ArtifactDetail }) {
     <div className={`space-y-4 ${VIEWER_PADDING}`}>
       {primary ? <Preview artifact={artifact} primary={primary} /> : null}
       <p className="text-sm leading-6 whitespace-pre-wrap">
-        {artifact.content || "This artifact has no text body."}
+        {artifact.content ||
+          intl.formatMessage({
+            id: "studio_document_viewer_empty",
+            defaultMessage: "This artifact has no text body.",
+          })}
       </p>
     </div>
   )

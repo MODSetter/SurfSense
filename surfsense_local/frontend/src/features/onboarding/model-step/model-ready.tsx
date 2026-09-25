@@ -1,15 +1,46 @@
+import type { ReactNode } from "react"
+
 import type { InUse } from "@/features/models/your-models/your-model-row"
+import { intl } from "@/i18n/intl"
 
 /** A server's id carries its maker ("aion-labs/aion-2.0"); the server already says whose. */
 function shortName(name: string) {
   return name.split("/").at(-1) || name
 }
 
-/** Where it runs, phrased to finish the sentence rather than label it. */
-function whereItRuns(inUse: InUse) {
-  if (inUse.where === "server") return `via ${inUse.source}`
-  if (inUse.where === "local") return "on this computer"
-  return "(not found on this computer)"
+/** One whole sentence per place it runs, so each language orders it its own way. */
+function usingSentence(inUse: InUse) {
+  const values = {
+    name: shortName(inUse.name),
+    b: (chunks: ReactNode[]) => (
+      <span className="font-medium text-foreground">{chunks}</span>
+    ),
+  }
+  if (inUse.where === "server") {
+    return intl.formatMessage(
+      {
+        id: "onboarding_model_ready_server_status",
+        defaultMessage: "Using <b>{name}</b> via {source}",
+      },
+      { ...values, source: inUse.source }
+    )
+  }
+  if (inUse.where === "local") {
+    return intl.formatMessage(
+      {
+        id: "onboarding_model_ready_local_status",
+        defaultMessage: "Using <b>{name}</b> on this computer",
+      },
+      values
+    )
+  }
+  return intl.formatMessage(
+    {
+      id: "onboarding_model_ready_missing_status",
+      defaultMessage: "Using <b>{name}</b> (not found on this computer)",
+    },
+    values
+  )
 }
 
 /**
@@ -20,15 +51,14 @@ function whereItRuns(inUse: InUse) {
 export function ModelReady({ inUse }: { inUse: InUse }) {
   return (
     <section
-      aria-label="Model ready"
+      aria-label={intl.formatMessage({
+        id: "onboarding_model_ready_aria",
+        defaultMessage: "Model ready",
+      })}
       title={`${inUse.name} · ${inUse.source}`}
-      className="flex min-w-0 items-baseline gap-1 text-sm text-muted-foreground"
+      className="min-w-0 truncate text-sm text-muted-foreground"
     >
-      <span className="shrink-0">Using</span>
-      <span className="min-w-0 truncate font-medium text-foreground">
-        {shortName(inUse.name)}
-      </span>
-      <span className="shrink-0">{whereItRuns(inUse)}</span>
+      {usingSentence(inUse)}
     </section>
   )
 }

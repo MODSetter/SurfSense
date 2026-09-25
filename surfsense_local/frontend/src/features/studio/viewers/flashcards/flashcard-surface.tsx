@@ -1,5 +1,6 @@
 import type { ReactNode } from "react"
 
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 // Ported from surfsense_web's flip card, minus the `motion/react` dependency
@@ -55,7 +56,17 @@ export function FlashcardSurface({
           type="button"
           onClick={onFlip}
           className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-          aria-label={revealed ? "Show question" : "Reveal answer"}
+          aria-label={
+            revealed
+              ? intl.formatMessage({
+                  id: "studio_flashcard_surface_show_question_aria",
+                  defaultMessage: "Show question",
+                })
+              : intl.formatMessage({
+                  id: "studio_flashcard_surface_reveal_answer_aria",
+                  defaultMessage: "Reveal answer",
+                })
+          }
         />
       </div>
     )
@@ -76,7 +87,17 @@ export function FlashcardSurface({
         type="button"
         onClick={onFlip}
         className="absolute inset-0 cursor-pointer rounded-2xl focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-        aria-label={revealed ? "Show question" : "Reveal answer"}
+        aria-label={
+          revealed
+            ? intl.formatMessage({
+                id: "studio_flashcard_surface_show_question_aria",
+                defaultMessage: "Show question",
+              })
+            : intl.formatMessage({
+                id: "studio_flashcard_surface_reveal_answer_aria",
+                defaultMessage: "Reveal answer",
+              })
+        }
       />
     </div>
   )

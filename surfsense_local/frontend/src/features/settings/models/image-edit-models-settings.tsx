@@ -4,6 +4,7 @@ import { useDeleteLocalImageModel } from "@/features/models/local/image/use-dele
 import { useImageInstall } from "@/features/models/local/image/use-image-install"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useImageModels } from "@/features/models/your-models/use-image-models"
+import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
 
@@ -22,9 +23,16 @@ export function ImageEditModelsSettings({
 
   return (
     <ModelSlotSettings
-      title="Image editing models"
-      description="The model that edits images. Run one on this computer, or use one from a server."
-      slot="image editing"
+      title={intl.formatMessage({
+        id: "settings_image_edit_models_title",
+        defaultMessage: "Image editing models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_image_edit_models_body",
+        defaultMessage:
+          "The model that edits images. Run one on this computer, or use one from a server.",
+      })}
+      slot="image_edit"
       modelType="image_edit"
       models={models}
       pending={

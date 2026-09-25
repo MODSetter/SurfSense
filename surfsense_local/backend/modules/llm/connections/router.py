@@ -10,6 +10,7 @@ from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.rows import CUSTOM
+from modules.llm.connections.discovery_failure import discovery_failure
 from modules.llm.connections.service import (
     discover_models,
     normalize_base_url,
@@ -205,9 +206,7 @@ async def list_connection_models(
     try:
         models = await discover_models(connection)
     except httpx.HTTPError as error:
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "connection model discovery failed"
-        ) from error
+        raise discovery_failure(error) from error
     except ValueError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
     return [

@@ -1,4 +1,5 @@
 import { fileURLToPath, URL } from "node:url"
+import formatjs from "@formatjs/unplugin/vite"
 import tailwindcss from "@tailwindcss/vite"
 import react from "@vitejs/plugin-react"
 import { defineConfig } from "vite"
@@ -7,10 +8,20 @@ import { defineConfig } from "vite"
 export default defineConfig({
   // Relative asset paths so the packaged SPA loads over file:// (Electron loadFile).
   base: "./",
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    // The catalogs supply every message, so the inline English is dropped from
+    // the bundle; `formatjs extract` reads it from the source instead.
+    formatjs({ removeDefaultMessage: true }),
+    react(),
+    tailwindcss(),
+  ],
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Every message is precompiled to AST by `pnpm translations`, so the ICU
+      // parser is dead weight at run time (FormatJS performance guide).
+      "@formatjs/icu-messageformat-parser":
+        "@formatjs/icu-messageformat-parser/no-parser.js",
     },
   },
   server: {

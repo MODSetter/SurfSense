@@ -11,6 +11,8 @@ from modules.documents.storage import (
     validate_upload,
 )
 
+pytestmark = pytest.mark.unit
+
 
 def test_the_public_allowlist_is_deliberately_small() -> None:
     """A dependency upgrade must not silently expose another Docling format."""

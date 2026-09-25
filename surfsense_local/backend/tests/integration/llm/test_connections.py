@@ -545,3 +545,58 @@ async def test_a_key_the_app_can_no_longer_read_is_explained_not_a_crash(
     detail = listed.json()["detail"]
     assert detail["code"] == "unreadable_secret"
     assert "key" in detail["message"].casefold()
+
+
+def _closed_port() -> int:
+    import socket
+
+    with socket.socket() as probe:
+        probe.bind(("127.0.0.1", 0))
+        return probe.getsockname()[1]
+
+
+@pytest.mark.parametrize(
+    ("answered", "code"),
+    [
+        (401, "provider_auth"),
+        (403, "provider_auth"),
+        (429, "provider_rate_limited"),
+        (503, "provider_error"),
+    ],
+)
+async def test_a_failed_model_listing_names_what_the_provider_answered(
+    client: AsyncClient, openai_server: str, answered: int, code: str
+) -> None:
+    """Startup and Settings say why a model is unusable, not only that it is."""
+    connection = await _connect(client, openai_server)
+    conftest.MODELS_STATUS = answered
+
+    listed = await client.get(f"/llm/connections/{connection['id']}/models")
+
+    assert listed.status_code == 502
+    assert listed.json()["detail"]["code"] == code
+
+
+async def test_an_unreachable_provider_is_named_as_unreachable(
+    client: AsyncClient, openai_server: str, engine
+) -> None:
+    """Offline, or the endpoint gone, is told apart from a refused key."""
+    connection = await _connect(client, openai_server)
+    # The endpoint goes away after it was saved, as an offline machine sees it.
+    from sqlalchemy import update
+
+    from modules.llm.models import ProviderConnection
+    from shared.db import create_session_factory
+
+    with create_session_factory(engine)() as session:
+        session.execute(
+            update(ProviderConnection)
+            .where(ProviderConnection.id == connection["id"])
+            .values(base_url=f"http://127.0.0.1:{_closed_port()}")
+        )
+        session.commit()
+
+    listed = await client.get(f"/llm/connections/{connection['id']}/models")
+
+    assert listed.status_code == 502
+    assert listed.json()["detail"]["code"] == "provider_unreachable"

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
   CircleAlertIcon,
@@ -22,13 +22,20 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { CitationPanel } from "@/features/chat/citation-panel"
+import { consentPlaceholder } from "@/features/chat/model-issue"
+import { askEgress } from "@/features/egress/ask-egress"
+import { setDestinationEnabled } from "@/features/egress/api"
+import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
-import { getProviders } from "@/features/models/chat-candidates/api"
-import { getConnectionModels } from "@/features/models/remote/models/api"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
+import {
+  checkAvailability,
+  type Availability,
+  type ModelIssue,
+} from "@/features/models/selection/availability"
 import {
   SettingsDialog,
   type SettingsSectionId,
@@ -45,6 +52,7 @@ import { useStudio } from "@/features/studio/use-studio"
 import { UpdateButton } from "@/features/updates/update-settings"
 import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
+import { intl } from "@/i18n/intl"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
 import { readRightPanelOpen, writeRightPanelOpen } from "./chrome-prefs"
 import { LeftSidebar } from "./left-sidebar"
@@ -65,6 +73,10 @@ function WorkspaceDashboard({
   workspace,
   selection,
   providerAvailable,
+  modelIssue,
+  needsConsent,
+  onModelIssueSettings,
+  onAllowModelIssue,
   onModelRequired,
   onModelSelected,
   onOpenLicense,
@@ -73,6 +85,10 @@ function WorkspaceDashboard({
   workspace: Workspace
   selection: ModelSelection | null
   providerAvailable: boolean
+  modelIssue: ModelIssue | null
+  needsConsent: boolean
+  onModelIssueSettings: () => void
+  onAllowModelIssue: () => void
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
@@ -95,6 +111,9 @@ function WorkspaceDashboard({
     selectedDocumentIds: sources.includedDocumentIds,
     onModelRequired,
   })
+
+  const composerHold =
+    modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
 
   const closeInspect = () => setInspect(null)
   const toggleRightPanel = () => {
@@ -123,7 +142,15 @@ function WorkspaceDashboard({
                 aria-expanded={rightPanelOpen}
                 aria-controls="workspace-right-panel"
                 aria-label={
-                  rightPanelOpen ? "Hide right panel" : "Show right panel"
+                  rightPanelOpen
+                    ? intl.formatMessage({
+                        id: "dashboard_right_panel_hide_aria",
+                        defaultMessage: "Hide right panel",
+                      })
+                    : intl.formatMessage({
+                        id: "dashboard_right_panel_show_aria",
+                        defaultMessage: "Show right panel",
+                      })
                 }
                 onClick={toggleRightPanel}
               >
@@ -131,7 +158,15 @@ function WorkspaceDashboard({
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom" collisionPadding={8}>
-              {rightPanelOpen ? "Hide right panel" : "Show right panel"}
+              {rightPanelOpen
+                ? intl.formatMessage({
+                    id: "dashboard_right_panel_hide_tooltip",
+                    defaultMessage: "Hide right panel",
+                  })
+                : intl.formatMessage({
+                    id: "dashboard_right_panel_show_tooltip",
+                    defaultMessage: "Show right panel",
+                  })}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -161,21 +196,39 @@ function WorkspaceDashboard({
             actions={[
               {
                 key: "plugins",
-                label: "Plugins",
+                label: intl.formatMessage({
+                  id: "dashboard_sidebar_plugins_button",
+                  defaultMessage: "Plugins",
+                }),
                 icon: UnplugIcon,
-                badge: "Coming soon",
+                badge: intl.formatMessage({
+                  id: "dashboard_sidebar_plugins_soon_label",
+                  defaultMessage: "Coming soon",
+                }),
                 // TODO: open the plugins panel once it exists.
                 onClick: () =>
-                  toast.info("Plugins are coming soon", {
-                    description:
-                      "Connect external tools to extend what SurfSense can do. We're still polishing this.",
-                  }),
+                  toast.info(
+                    intl.formatMessage({
+                      id: "dashboard_plugins_soon_toast",
+                      defaultMessage: "Plugins are coming soon",
+                    }),
+                    {
+                      description: intl.formatMessage({
+                        id: "dashboard_plugins_soon_body",
+                        defaultMessage:
+                          "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
+                      }),
+                    }
+                  ),
               },
             ]}
             sources={
               <aside
                 id={LEFT_SOURCES_ID}
-                aria-label="Workspace sources"
+                aria-label={intl.formatMessage({
+                  id: "dashboard_sources_aria",
+                  defaultMessage: "Workspace sources",
+                })}
                 className="flex h-full min-h-0 min-w-0 flex-col"
               >
                 <SourcesPanel
@@ -216,6 +269,16 @@ function WorkspaceDashboard({
             isUploading={sources.isUploading}
             animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
             providerAvailable={providerAvailable}
+            notice={
+              modelIssue ? (
+                <ModelIssueNotice
+                  issue={modelIssue}
+                  onAllow={needsConsent ? onAllowModelIssue : undefined}
+                  onOpenSettings={onModelIssueSettings}
+                />
+              ) : null
+            }
+            blockedPlaceholder={composerHold}
             onCitation={(chunkId) => {
               openRightPanel()
               setInspect({ kind: "citation", chunkId })
@@ -309,17 +372,36 @@ function WorkspacesEmpty({
         <div className="mb-4 flex size-11 items-center justify-center rounded-xl bg-muted">
           <LayoutGridIcon className="size-5" />
         </div>
-        <h1 className="font-heading text-xl font-medium">No workspaces</h1>
+        <h1 className="font-heading text-xl font-medium">
+          {intl.formatMessage({
+            id: "dashboard_workspaces_empty",
+            defaultMessage: "No workspaces",
+          })}
+        </h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">
-          A workspace keeps a source library and its chats together.
+          {intl.formatMessage({
+            id: "dashboard_workspaces_empty_body",
+            defaultMessage:
+              "A workspace keeps a source library and its chats together.",
+          })}
         </p>
         <Button
           className="mt-5"
           disabled={isMutating}
-          onClick={() => void onCreate("My Workspace")}
+          onClick={() =>
+            void onCreate(
+              intl.formatMessage({
+                id: "dashboard_workspaces_default_name_label",
+                defaultMessage: "My Workspace",
+              })
+            )
+          }
         >
           <PlusIcon />
-          Create workspace
+          {intl.formatMessage({
+            id: "dashboard_workspaces_create_button",
+            defaultMessage: "Create workspace",
+          })}
         </Button>
         <div className="mt-3">
           <ImportBundleButton onImported={onImported} />
@@ -329,25 +411,40 @@ function WorkspacesEmpty({
   )
 }
 
-type ProviderStatus = "checking" | "available" | "unavailable"
-
 export function DashboardPage({
   selection,
-  initialProviderAvailable,
+  initialProviderAvailable = false,
+  initialAvailability,
   initialWorkspaces,
   onModelUnavailable = () => undefined,
   onModelSelected,
 }: {
   selection: ModelSelection | null
-  initialProviderAvailable: boolean
+  // Shorthand for an `available` or unchecked initial status.
+  initialProviderAvailable?: boolean
+  // What startup found, so this screen need not check the same model again.
+  initialAvailability?: Availability
   initialWorkspaces: Workspace[]
   onModelUnavailable?: () => void
   onModelSelected: (selection: ModelSelection) => void
 }) {
   const workspaces = useWorkspaces(initialWorkspaces)
-  const [providerStatus, setProviderStatus] = useState<ProviderStatus>(() =>
-    initialProviderAvailable ? "available" : "checking"
-  )
+  const initial: Availability =
+    initialAvailability ??
+    (initialProviderAvailable
+      ? { status: "available" }
+      : { status: "checking" })
+  // Tagged with the model it describes, so a newly chosen model reads as
+  // checking until its own answer arrives, never as the last one's.
+  const [checked, setChecked] = useState<{
+    key: string | null
+    availability: Availability
+  }>(() => ({
+    key: selection ? modelKey(selection) : null,
+    availability: initial,
+  }))
+  // Startup already checked this model; the first run here would repeat it.
+  const skipFirstCheck = useRef(initial.status !== "checking")
   const [settingsOpen, setSettingsOpen] = useState(false)
   // Bumped when the settings dialog closes, because a model can be chosen in
   // there without anything on this screen hearing about it: the image model is
@@ -355,43 +452,57 @@ export function DashboardPage({
   const [modelsVisited, setModelsVisited] = useState(0)
   const [settingsSection, setSettingsSection] =
     useState<SettingsSectionId>("general")
+  // Bumped after egress is allowed from the notice, to check the model again.
+  const [consents, setConsents] = useState(0)
 
   const openSettings = (section: SettingsSectionId) => {
     setSettingsSection(section)
     setSettingsOpen(true)
   }
 
+  // Checked when the model changes, when settings close (a key entered again,
+  // egress switched, a connection edited) and after egress is allowed.
   useEffect(() => {
-    if (!selection) {
+    if (!selection) return
+    if (skipFirstCheck.current) {
+      skipFirstCheck.current = false
       return
     }
+    const key = modelKey(selection)
     const controller = new AbortController()
-    const availability =
-      selection.provider === "openai_compatible" &&
-      selection.connection_id !== null
-        ? getConnectionModels(selection.connection_id, controller.signal).then(
-            (models) => models.some((model) => model.name === selection.name)
-          )
-        : getProviders(controller.signal).then((providers) =>
-            providers.some(
-              (provider) =>
-                provider.name === selection.provider && provider.healthy
-            )
-          )
-    void availability
-      .then((available) => {
-        if (controller.signal.aborted) return
-        setProviderStatus(available ? "available" : "unavailable")
-      })
-      .catch(() => {
-        if (controller.signal.aborted) return
-        setProviderStatus("unavailable")
-      })
+    void checkAvailability(selection, controller.signal).then(
+      (availability) => {
+        if (!controller.signal.aborted) setChecked({ key, availability })
+      }
+    )
     return () => controller.abort()
-  }, [selection])
+  }, [selection, modelsVisited, consents])
 
+  const availability: Availability =
+    selection && checked.key === modelKey(selection)
+      ? checked.availability
+      : { status: "checking" }
+  const issue =
+    availability.status === "needs-consent" ||
+    availability.status === "unusable"
+      ? availability.issue
+      : null
+  // A model gone from its list is set up again from scratch.
+  const usableSelection = availability.status === "gone" ? null : selection
   const providerAvailable =
-    selection !== null && providerStatus !== "unavailable"
+    usableSelection !== null && availability.status !== "unusable"
+
+  const allowModelIssue = () => {
+    const destination = issue?.destination
+    if (!destination) return
+    void askEgress({
+      destination,
+      host: issue.host ?? "",
+      allow: () => setDestinationEnabled(destination, true),
+    }).then((allowed) => {
+      if (allowed) setConsents((count) => count + 1)
+    })
+  }
 
   const onImported = async (accepted: ImportAccepted) => {
     const first = accepted.workspaces[0]
@@ -423,8 +534,16 @@ export function DashboardPage({
       <WorkspaceDashboard
         key={workspaces.activeWorkspace.id}
         workspace={workspaces.activeWorkspace}
-        selection={selection}
+        selection={usableSelection}
         providerAvailable={providerAvailable}
+        modelIssue={issue}
+        needsConsent={availability.status === "needs-consent"}
+        onAllowModelIssue={allowModelIssue}
+        onModelIssueSettings={() =>
+          openSettings(
+            availability.status === "needs-consent" ? "network" : "chat-models"
+          )
+        }
         onModelRequired={() => openSettings("chat-models")}
         onModelSelected={onModelSelected}
         onOpenLicense={() => openSettings("license")}
@@ -450,13 +569,21 @@ export function DashboardPage({
           className="absolute top-4 left-1/2 z-40 w-auto max-w-lg -translate-x-1/2 shadow-lg"
         >
           <CircleAlertIcon />
-          <AlertTitle>Workspace action failed</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({
+              id: "dashboard_workspace_error_title",
+              defaultMessage: "Workspace action failed",
+            })}
+          </AlertTitle>
           <AlertDescription>{workspaces.error}</AlertDescription>
           <Button
             variant="ghost"
             size="icon-sm"
             className="absolute top-1 right-1"
-            aria-label="Dismiss workspace error"
+            aria-label={intl.formatMessage({
+              id: "dashboard_workspace_error_dismiss_aria",
+              defaultMessage: "Dismiss workspace error",
+            })}
             onClick={workspaces.clearError}
           >
             <XIcon />

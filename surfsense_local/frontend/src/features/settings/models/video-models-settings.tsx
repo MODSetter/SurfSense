@@ -4,6 +4,7 @@ import { useDeleteLocalImageModel } from "@/features/models/local/image/use-dele
 import { useImageInstall } from "@/features/models/local/image/use-image-install"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useImageModels } from "@/features/models/your-models/use-image-models"
+import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
 
@@ -22,8 +23,15 @@ export function VideoModelsSettings({
 
   return (
     <ModelSlotSettings
-      title="Video generation models"
-      description="The model that makes video. Run one on this computer, or use one from a server."
+      title={intl.formatMessage({
+        id: "settings_video_models_title",
+        defaultMessage: "Video generation models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_video_models_body",
+        defaultMessage:
+          "The model that makes video. Run one on this computer, or use one from a server.",
+      })}
       slot="video"
       modelType="video_gen"
       models={models}

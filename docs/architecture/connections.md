@@ -146,12 +146,16 @@ Loading a connection runs the egress check for its host. The bundled sd-server s
 
 Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envelope-encryption.md)):
 
-- Electron keeps one per-install secret: 32 random bytes, hex-encoded, encrypted with Electron's `safeStorage` (the OS keychain) into `secret.bin` in its userData folder, `<data dir>/electron/`. If that file is missing or cannot be decrypted, after a reinstall or a keychain reset, Electron mints a new secret rather than refusing to start.
+- Electron keeps one per-install secret: 32 random bytes, hex-encoded, encrypted with Electron's `safeStorage` (the OS keychain) into `secret.bin` in its userData folder, `<data dir>/electron/`. If that file is missing or cannot be decrypted, after a reinstall or a keychain reset, Electron mints a new secret rather than refusing to start. `safeStorage` names its keychain item after the app, so development runs as "SurfSense Dev" and never reads or recreates the installed app's key.
 - On Linux without a keyring, `safeStorage` falls back to plain-text encryption so the app still boots.
 - Electron passes the secret as `SURFSENSE_LOCAL_SECRET` to the API and both workers, and to no other sidecar. The sidecars make the calls, so they need the keys, which is why the secret cannot stay inside Electron.
 - [`shared/secrets.py`](../../surfsense_local/backend/shared/secrets.py) derives a Fernet key from the SHA-256 of the secret and encrypts each connection's key into `provider_connections.api_key_ciphertext`. Revision `0007` dropped the plaintext column. `ProviderConnection.api_key` encrypts on write and decrypts on read.
 - A bare `uv run` with no secret in its environment creates `<data dir>/secret`, 32 random bytes hex-encoded with mode `0600`, and logs a warning. The secret then sits next to the database it protects.
 - Ciphertext this install's secret cannot open, after a new secret was minted or a backup was restored on another machine, raises `UnreadableSecretError`. The API answers any route that hits it with `409` and code `unreadable_secret`: the request is valid, the server is healthy, and the stored key is what has to be entered again.
+- Whether the saved chat model can be used has one answer, [`checkAvailability`](../../surfsense_local/frontend/src/features/models/selection/availability.ts), which startup and the dashboard both call: `available`, `gone` (no longer in its list), `needs-consent` (egress to its host is off) or `unusable` (an unreadable or rejected key, an unreachable endpoint, anything else). A failed check never fails startup, and never clears the saved choice: the model stays in the picker so it can be checked again once fixed.
+- The dashboard checks again when the model changes, when Settings closes (a key entered again, egress switched, a connection edited) and after **Allow…**, so fixing the cause in Settings clears the notice without a reload. Startup's answer is its first status, so the same model is not checked twice.
+- `unusable` holds the composer, and a notice attached above it names the reason from the error's code and opens Settings › Text gen ([`model-issue-notice.tsx`](../../surfsense_local/frontend/src/features/chat/model-issue-notice.tsx)). `needs-consent` holds it too, with a notice that names the host: **Allow…** opens the egress consent dialog and **Open settings** opens Settings › Network, so a send never raises the dialog. `gone` offers **Set up model** with no notice.
+- `GET /llm/connections/{id}/models` answers an endpoint's failure with `502` and a code by exception type and status, never the message text: `provider_auth` (401, 403), `provider_rate_limited` (429), `provider_unreachable` (no connection or a timeout), otherwise `provider_error` ([`discovery_failure.py`](../../surfsense_local/backend/modules/llm/connections/discovery_failure.py)).
 - A key is never logged or returned.
 
 ## Frontend
@@ -163,6 +167,5 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 
 ## Known gaps
 
-- `ProviderConnection.api_key` still catches `InvalidToken` to treat a rotated secret as "no key", but `decrypt()` now raises `UnreadableSecretError`, so the catch never fires and `tests/unit/shared/test_secrets.py::test_rotated_secret_reads_as_no_key` fails.
 - An image returned as a URL is downloaded from whatever host the endpoint names, with no egress decision for that host; the endpoint's key is withheld from the download.
 - A model the remote catalog marks `unusable`, from an unreachable provider or served only on `/responses` or through another protocol, is still offered by `GET /llm/connections/{id}/models` and accepted by `choose_model()`, which ignore `call` and `connect.status`.

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ChatsDialog } from "@/features/chat/chats-dialog"
 import type { ChatThread } from "@/features/chat/api"
+import { intl } from "@/i18n/intl"
 
 // A row rendered below "New chat" with the same look. Add an entry here (or
 // pass one through `actions`) rather than hand-rolling another Button.
@@ -86,12 +87,18 @@ export function LeftSidebar({
         </h2>
         <div className="flex flex-col">
           <SidebarNavButton
-            label="New chat"
+            label={intl.formatMessage({
+              id: "dashboard_sidebar_new_chat_button",
+              defaultMessage: "New chat",
+            })}
             icon={PencilEdit02Icon}
             onClick={onNewChat}
           />
           <SidebarNavButton
-            label="Chats"
+            label={intl.formatMessage({
+              id: "dashboard_sidebar_chats_button",
+              defaultMessage: "Chats",
+            })}
             icon={Chat01Icon}
             onClick={() => setChatsOpen(true)}
           />

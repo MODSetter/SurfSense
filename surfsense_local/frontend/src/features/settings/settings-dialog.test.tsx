@@ -151,7 +151,7 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup()
 
     render(<SettingsHarness />)
-    await user.click(screen.getByRole("button", { name: "Chat" }))
+    await user.click(screen.getByRole("button", { name: "Text gen" }))
 
     expect(
       await screen.findByRole("heading", { name: "Text generation models" })
@@ -174,7 +174,7 @@ describe("SettingsDialog", () => {
       )
     ).toBe(true)
 
-    await user.click(screen.getByRole("button", { name: "Image" }))
+    await user.click(screen.getByRole("button", { name: "Image gen" }))
 
     expect(
       await screen.findByRole("heading", { name: "Image generation models" })
@@ -204,7 +204,7 @@ describe("SettingsDialog", () => {
     const user = userEvent.setup()
 
     render(<SettingsHarness />)
-    await user.click(screen.getByRole("button", { name: "Chat" }))
+    await user.click(screen.getByRole("button", { name: "Text gen" }))
 
     expect(
       screen.getByRole("heading", { name: "Text generation models" })

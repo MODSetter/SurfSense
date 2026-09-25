@@ -8,8 +8,9 @@ import { Input } from "@/components/ui/input"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
-import { SLOT_NAMES, type ModelType } from "../../model-type"
+import type { ModelType } from "../../model-type"
 import type { ModelSelection } from "../../selection/api"
 import { useSelection } from "../../selection/use-selection"
 import type { Connection } from "../connections/api"
@@ -18,16 +19,41 @@ import type { ConnectionModel } from "./api"
 import { TryModelDialog } from "./try-model-dialog"
 import { useConnectionModels } from "./use-connection-models"
 
-const TYPE_LABELS: Record<ModelType, string> = {
-  text_gen: "Text generation",
-  image_gen: "Image generation",
-  image_edit: "Image editing",
-  video_gen: "Video generation",
-  audio_gen: "Audio generation",
+const TYPE_LABELS: Record<ModelType, () => string> = {
+  text_gen: () =>
+    intl.formatMessage({
+      id: "models_server_models_type_text_gen_label",
+      defaultMessage: "Text generation",
+    }),
+  image_gen: () =>
+    intl.formatMessage({
+      id: "models_server_models_type_image_gen_label",
+      defaultMessage: "Image generation",
+    }),
+  image_edit: () =>
+    intl.formatMessage({
+      id: "models_server_models_type_image_edit_label",
+      defaultMessage: "Image editing",
+    }),
+  video_gen: () =>
+    intl.formatMessage({
+      id: "models_server_models_type_video_gen_label",
+      defaultMessage: "Video generation",
+    }),
+  audio_gen: () =>
+    intl.formatMessage({
+      id: "models_server_models_type_audio_gen_label",
+      defaultMessage: "Audio generation",
+    }),
 }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "Could not list models"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "models_server_models_list_error",
+        defaultMessage: "Could not list models",
+      })
 }
 
 /** One server, and the models on it that can fill this section's slot. */
@@ -61,7 +87,6 @@ export function ServerModels({
   } | null>(null)
   const models = useConnectionModels(connection.id, open)
   const selection = useSelection(modelType)
-  const slot = SLOT_NAMES[modelType]
 
   const inUse = (name: string) =>
     selection.data?.connection_id === connection.id &&
@@ -111,10 +136,21 @@ export function ServerModels({
             size="sm"
             variant="ghost"
             disabled={disabled}
-            aria-label={`Edit ${connection.label}`}
+            aria-label={intl.formatMessage(
+              {
+                id: "models_server_models_edit_aria",
+                defaultMessage: "Edit {server}",
+              },
+              {
+                server: connection.label,
+              }
+            )}
             onClick={onEdit}
           >
-            Edit
+            {intl.formatMessage({
+              id: "models_server_models_edit_button",
+              defaultMessage: "Edit",
+            })}
           </Button>
           <DisconnectButton
             connection={connection}
@@ -130,7 +166,10 @@ export function ServerModels({
           <div className="flex items-center justify-between gap-3 border-b px-3 py-2.5">
             <span className="truncate text-sm font-medium">{current}</span>
             <Button type="button" size="sm" variant="outline" disabled>
-              In use
+              {intl.formatMessage({
+                id: "models_server_models_current_in_use_button",
+                defaultMessage: "In use",
+              })}
             </Button>
           </div>
         ) : null}
@@ -149,7 +188,23 @@ export function ServerModels({
               open && "rotate-90"
             )}
           />
-          {open ? `Hide ${slot} models` : `Show ${slot} models`}
+          {open
+            ? intl.formatMessage(
+                {
+                  id: "models_server_models_hide_button",
+                  defaultMessage:
+                    "{slot, select, text_gen {Hide chat models} image_gen {Hide image models} image_edit {Hide image editing models} video_gen {Hide video models} audio_gen {Hide audio models} other {Hide models}}",
+                },
+                { slot: modelType }
+              )
+            : intl.formatMessage(
+                {
+                  id: "models_server_models_show_button",
+                  defaultMessage:
+                    "{slot, select, text_gen {Show chat models} image_gen {Show image models} image_edit {Show image editing models} video_gen {Show video models} audio_gen {Show audio models} other {Show models}}",
+                },
+                { slot: modelType }
+              )}
         </button>
 
         {open ? (
@@ -160,8 +215,25 @@ export function ServerModels({
                 autoFocus
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
-                placeholder={`Search ${slot} models`}
-                aria-label={`Search models from ${connection.label}`}
+                placeholder={intl.formatMessage(
+                  {
+                    id: "models_server_models_search_placeholder",
+                    defaultMessage:
+                      "{slot, select, text_gen {Search chat models} image_gen {Search image models} image_edit {Search image editing models} video_gen {Search video models} audio_gen {Search audio models} other {Search models}}",
+                  },
+                  {
+                    slot: modelType,
+                  }
+                )}
+                aria-label={intl.formatMessage(
+                  {
+                    id: "models_server_models_search_aria",
+                    defaultMessage: "Search models from {server}",
+                  },
+                  {
+                    server: connection.label,
+                  }
+                )}
                 className="pl-9"
               />
             </div>
@@ -170,22 +242,36 @@ export function ServerModels({
               <p
                 className="flex items-center gap-2 py-4 text-sm text-muted-foreground"
                 role="status"
-                aria-label="Loading models"
+                aria-label={intl.formatMessage({
+                  id: "models_server_models_loading_aria",
+                  defaultMessage: "Loading models",
+                })}
               >
-                <Spinner /> Loading models…
+                <Spinner />{" "}
+                {intl.formatMessage({
+                  id: "models_server_models_loading_status",
+                  defaultMessage: "Loading models…",
+                })}
               </p>
             ) : models.isError ? (
-              <div className="flex flex-col items-start gap-2 py-2 text-sm">
-                <p className="text-destructive" role="alert">
+              <div className="flex items-center justify-between gap-3 py-2 text-sm">
+                <p
+                  className="min-w-0 text-pretty text-destructive"
+                  role="alert"
+                >
                   {messageFrom(models.error)}
                 </p>
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  className="shrink-0"
                   onClick={() => void models.refetch()}
                 >
-                  Retry
+                  {intl.formatMessage({
+                    id: "models_server_models_retry_button",
+                    defaultMessage: "Retry",
+                  })}
                 </Button>
               </div>
             ) : candidates.length ? (
@@ -195,7 +281,17 @@ export function ServerModels({
               >
                 <ul
                   className="divide-y"
-                  aria-label={`${slot} models on ${connection.label}`}
+                  aria-label={intl.formatMessage(
+                    {
+                      id: "models_server_models_list_aria",
+                      defaultMessage:
+                        "{slot, select, text_gen {chat models on {server}} image_gen {image models on {server}} image_edit {image editing models on {server}} video_gen {video models on {server}} audio_gen {audio models on {server}} other {models on {server}}}",
+                    },
+                    {
+                      slot: modelType,
+                      server: connection.label,
+                    }
+                  )}
                 >
                   {candidates.map((model) => (
                     <li
@@ -208,11 +304,16 @@ export function ServerModels({
                         </p>
                         <div className="mt-1 flex flex-wrap gap-1">
                           {model.capability_source === "unknown" ? (
-                            <Badge variant="outline">Capability unknown</Badge>
+                            <Badge variant="outline">
+                              {intl.formatMessage({
+                                id: "models_server_models_capability_unknown_label",
+                                defaultMessage: "Capability unknown",
+                              })}
+                            </Badge>
                           ) : (
                             model.types.map((type) => (
                               <Badge key={type} variant="secondary">
-                                {TYPE_LABELS[type]}
+                                {TYPE_LABELS[type]()}
                               </Badge>
                             ))
                           )}
@@ -225,17 +326,31 @@ export function ServerModels({
                           variant="outline"
                           disabled
                         >
-                          In use
+                          {intl.formatMessage({
+                            id: "models_server_models_list_in_use_button",
+                            defaultMessage: "In use",
+                          })}
                         </Button>
                       ) : (
                         <Button
                           type="button"
                           size="sm"
                           disabled={disabled}
-                          aria-label={`Use ${model.name}`}
+                          aria-label={intl.formatMessage(
+                            {
+                              id: "models_server_models_use_aria",
+                              defaultMessage: "Use {model}",
+                            },
+                            {
+                              model: model.name,
+                            }
+                          )}
                           onClick={() => setTrying({ model, unlisted: false })}
                         >
-                          Use
+                          {intl.formatMessage({
+                            id: "models_server_models_use_button",
+                            defaultMessage: "Use",
+                          })}
                         </Button>
                       )}
                     </li>
@@ -245,13 +360,31 @@ export function ServerModels({
             ) : (
               <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 {models.data?.length
-                  ? `No ${slot} models match. Try another search, or type an exact ID below.`
-                  : "This server listed no models. Type an exact ID below."}
+                  ? intl.formatMessage(
+                      {
+                        id: "models_server_models_no_match_empty",
+                        defaultMessage:
+                          "{slot, select, text_gen {No chat models match. Try another search, or type an exact ID below.} image_gen {No image models match. Try another search, or type an exact ID below.} image_edit {No image editing models match. Try another search, or type an exact ID below.} video_gen {No video models match. Try another search, or type an exact ID below.} audio_gen {No audio models match. Try another search, or type an exact ID below.} other {No models match. Try another search, or type an exact ID below.}}",
+                      },
+                      {
+                        slot: modelType,
+                      }
+                    )
+                  : intl.formatMessage({
+                      id: "models_server_models_none_listed_empty",
+                      defaultMessage:
+                        "This server listed no models. Type an exact ID below.",
+                    })}
               </p>
             )}
 
             <Field>
-              <FieldLabel htmlFor={manualId}>Exact model ID</FieldLabel>
+              <FieldLabel htmlFor={manualId}>
+                {intl.formatMessage({
+                  id: "models_server_models_manual_id_label",
+                  defaultMessage: "Exact model ID",
+                })}
+              </FieldLabel>
               <div className="flex gap-2">
                 <Input
                   id={manualId}
@@ -267,11 +400,23 @@ export function ServerModels({
                   disabled={disabled || !manualName.trim()}
                   onClick={tryManual}
                 >
-                  Use for {slot}
+                  {intl.formatMessage(
+                    {
+                      id: "models_server_models_manual_use_button",
+                      defaultMessage:
+                        "{slot, select, text_gen {Use for chat} image_gen {Use for image} image_edit {Use for image editing} video_gen {Use for video} audio_gen {Use for audio} other {Use}}",
+                    },
+                    {
+                      slot: modelType,
+                    }
+                  )}
                 </Button>
               </div>
               <FieldDescription>
-                For a model this server does not list.
+                {intl.formatMessage({
+                  id: "models_server_models_manual_id_body",
+                  defaultMessage: "For a model this server does not list.",
+                })}
               </FieldDescription>
             </Field>
           </div>

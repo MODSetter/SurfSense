@@ -1,5 +1,6 @@
 {
   "name": "surfsense-local-electron",
+  "productName": "SurfSense",
   "private": true,
   "version": "2.0.2",
   "description": "Electron shell: spawns the API + worker sidecars, loads the Vite SPA",

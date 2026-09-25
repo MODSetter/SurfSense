@@ -109,7 +109,7 @@ describe("useStudio", () => {
       "Summary of the source failed",
       {
         description:
-          "This artifact couldn't be generated. Retry it from the artifacts tab.",
+          "This artifact couldn’t be generated. Retry it from the artifacts tab.",
       }
     )
     const [, options] = vi.mocked(toast.error).mock.calls[0]
@@ -141,7 +141,7 @@ describe("useStudio", () => {
       "Summary of the source failed",
       {
         description:
-          "This artifact couldn't be generated. Retry it from the artifacts tab.",
+          "This artifact couldn’t be generated. Retry it from the artifacts tab.",
       }
     )
   }, 8000)

@@ -20,6 +20,8 @@ The asar holds only the Electron main and preload bundles. Everything else rides
 | `sdcpp` | `electron/sdcpp` | `sd-server`, for local image generation |
 | `audiocpp` | `electron/audiocpp` | `audiocpp_server`, its libraries, the curated model specs and eSpeak-ng, for podcast voices |
 
+The app icon lives in `electron/build/icons/`: `packaged/` holds the `.icns`, `.ico` and `.png` that `electron-builder.yml` names per OS, and `dev/` a variant with a "DEV" badge, which `electron/src/main/dev-app-identity.ts` sets on the Dock, taskbar, window and About panel only while unpackaged, alongside the name "SurfSense Dev", because development runs inside Electron's own bundle and would otherwise show Electron's icon. The macOS menu bar name and the About panel icon stay Electron’s in development; only packaging changes them. Artwork on Windows and Linux fills its canvas; on macOS it sits at 824 of 1024 px with a transparent margin, Apple's icon grid, so `icon.icns` and `dev/icon-macos.png` carry that margin and the `.ico` and `.png` files do not.
+
 Packaged, Electron runs `resources/backend/api/api` and one `worker` process per queue, `ingest` and `studio`, and gives both `SURFSENSE_LOCAL_MODELS_DIR` pointing at `resources/models` and `HF_HUB_OFFLINE=1` (`electron/src/main/sidecars/python.ts`). In development the same sidecars run through `uv run`.
 
 ## Freezing the backend
@@ -39,7 +41,7 @@ What else each spec names, and why the analyser cannot find it on its own:
 | `api.spec` | `onnxruntime` and `tokenizers` libraries | the query encoder's native libraries load from C |
 | `api.spec` | the local model manifest `catalog/local/manifest/models.json`, the remote model manifest `catalog/remote/manifest/models.json`, the chat prompts | read by path or through `importlib.resources` |
 | `api.spec` | excludes Docling, torch, torchvision, transformers, pandas, scipy and OpenCV | only the worker parses files, and the analyser cannot tell these are optional |
-| `worker.spec` | the remote model manifest | Studio classifies a remote model through the same discovery the API uses, and the file is read by path |
+| `worker.spec` | the local model manifest, the remote model manifest | Studio finds its chosen image and audio models through the local catalog, and classifies a remote model through the same discovery the API uses; both files are read by path |
 | `worker.spec` | Docling and its packages, RapidOCR, transformers, torchvision | lazy and native imports Docling reaches only on the first PDF |
 | `worker.spec` | python-docx, python-pptx, xlsxwriter, reportlab | the Office formats run model-written code that imports them, so no static import exists |
 | `worker.spec` | `modules.documents.tasks`, `modules.artifacts.tasks` | Huey resolves a task by its name |
@@ -132,8 +134,8 @@ All five carry the `packaging` marker, which `pyproject.toml` excludes by defaul
 | Test | Proves |
 |---|---|
 | `test_frozen_boot.py` | a minimal frozen entry, `sys.frozen` true, migrates a real database from the bundled revisions, loads `vec0` and round-trips a vector through `chunk_vectors` |
-| `test_real_binaries.py` | the real API binary passes its retrieval import check and answers `/health`; the real worker passes its vision import check and both queue consumers stay up; both binaries ship the remote manifest, and the frozen API serves a curated row |
-| `test_spec_data_files.py` | every literal `datas` path in the specs exists, so a renamed file cannot ship missing |
+| `test_real_binaries.py` | the real API binary passes its retrieval import check and answers `/health`; the real worker passes its vision import check and both queue consumers stay up; both binaries ship the remote manifest, the worker ships the local one, and the frozen API serves a curated row |
+| `test_spec_data_files.py` | every literal `datas` path in the specs exists, so a renamed file cannot ship missing, and both `api.spec` and `worker.spec` bundle the local model manifest |
 | `test_license_key.py` | the compiled license keys exclude the fixture key |
 | `test_audiocpp_voicing.py` | the staged audio.cpp server, started with the sidecar's flags from the `server.json` the app writes, voices two turns of each curated model through the app's adapter, at the sample rate its entry names, then holds no model loaded; it runs only when `SURFSENSE_TEST_AUDIO_MODELS` names a folder of the pinned files, each checked against its sha256, and then fails without a staged server; `build-audiocpp.yml` runs it on both builds |
 
@@ -148,4 +150,3 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 - No release has built or packaged audio.cpp yet, and nothing has staged its macOS archive on a Mac.
 - No workflow runs the `surfsense_local` unit or integration tests on pull requests; only the two packaging tests above run in CI.
 - No test ingests a PDF with networking disabled.
-- `test_the_curated_manifest_is_one_of_them` fails on Windows: `literal_data_paths()` joins the spec's path with `Path`, which gives backslashes there, and the test looks for a forward-slash string.

@@ -6,6 +6,7 @@ import "react-data-grid/lib/styles.css"
 import { Button } from "@/components/ui/button"
 import { FileIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
 import {
   MAX_VIEWER_BYTES,
@@ -51,7 +52,13 @@ function SpreadsheetGrid({ sheet }: { sheet: SheetView }) {
 
   return (
     <DataGrid
-      aria-label={`${sheet.name} worksheet`}
+      aria-label={intl.formatMessage(
+        {
+          id: "studio_xlsx_viewer_sheet_aria",
+          defaultMessage: "{name} worksheet",
+        },
+        { name: sheet.name }
+      )}
       className="rdg-light h-full"
       columns={columns}
       rowKeyGetter={(row) => row.rowNumber}
@@ -64,11 +71,23 @@ function SpreadsheetGrid({ sheet }: { sheet: SheetView }) {
 function fallbackMessage(error: unknown): string {
   if (error instanceof ParseWorkbookError) {
     if (error.code === "oversize") {
-      return "This workbook is too large to preview here. Download it to open it."
+      return intl.formatMessage({
+        id: "studio_xlsx_viewer_oversize_error",
+        defaultMessage:
+          "This workbook is too large to preview here. Download it to open it.",
+      })
     }
-    return "This workbook could not be opened. Download it to open it."
+    return intl.formatMessage({
+      id: "studio_xlsx_viewer_unreadable_error",
+      defaultMessage:
+        "This workbook could not be opened. Download it to open it.",
+    })
   }
-  return "This spreadsheet can't be previewed here. Download it to open it."
+  return intl.formatMessage({
+    id: "studio_xlsx_viewer_load_error",
+    defaultMessage:
+      "This spreadsheet can’t be previewed here. Download it to open it.",
+  })
 }
 
 export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
@@ -123,7 +142,12 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
       >
         <FileIcon className="size-8 text-muted-foreground" />
         <div>
-          <p className="text-sm font-medium">Couldn't open this spreadsheet</p>
+          <p className="text-sm font-medium">
+            {intl.formatMessage({
+              id: "studio_xlsx_viewer_error_title",
+              defaultMessage: "Couldn’t open this spreadsheet",
+            })}
+          </p>
           <p className="mt-1 text-xs text-muted-foreground">
             {fallbackMessage(error)}
           </p>
@@ -136,7 +160,10 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
             size="sm"
             onClick={() => void refetch()}
           >
-            Try again
+            {intl.formatMessage({
+              id: "studio_xlsx_viewer_retry_button",
+              defaultMessage: "Try again",
+            })}
           </Button>
         ) : null}
       </div>
@@ -150,7 +177,10 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
       {view.sheets.length > 1 ? (
         <div
           role="tablist"
-          aria-label="Worksheets"
+          aria-label={intl.formatMessage({
+            id: "studio_xlsx_viewer_tabs_aria",
+            defaultMessage: "Worksheets",
+          })}
           className="flex shrink-0 gap-1 overflow-x-auto border-b border-neutral-200 px-2 py-1.5"
         >
           {view.sheets.map((entry, index) => (
@@ -174,8 +204,16 @@ export function XlsxViewer({ artifact }: { artifact: ArtifactDetail }) {
 
       {sheet.truncated ? (
         <p className="shrink-0 border-b border-neutral-200 px-3 py-1.5 text-xs text-neutral-500">
-          Showing the first {sheet.cells.length} rows. Download the file for the
-          full workbook.
+          {intl.formatMessage(
+            {
+              id: "studio_xlsx_viewer_truncated_body",
+              defaultMessage:
+                "Showing the first {count, plural, one {# row} other {# rows}}. Download the file for the full workbook.",
+            },
+            {
+              count: sheet.cells.length,
+            }
+          )}
         </p>
       ) : null}
 

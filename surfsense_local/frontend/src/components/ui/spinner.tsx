@@ -1,4 +1,5 @@
 import { Loader2Icon } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 function Spinner({
@@ -9,7 +10,10 @@ function Spinner({
     <Loader2Icon
       data-slot="spinner"
       role="status"
-      aria-label="Loading"
+      aria-label={intl.formatMessage({
+        id: "app_spinner_aria",
+        defaultMessage: "Loading",
+      })}
       className={cn("size-4 animate-spin", className)}
       {...props}
     />

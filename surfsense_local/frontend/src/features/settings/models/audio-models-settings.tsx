@@ -4,6 +4,7 @@ import { useAudioInstall } from "@/features/models/local/audio/use-audio-install
 import { useDeleteLocalAudioModel } from "@/features/models/local/audio/use-delete-local-audio-model"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useAudioModels } from "@/features/models/your-models/use-audio-models"
+import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
 
@@ -20,8 +21,15 @@ export function AudioModelsSettings({
 
   return (
     <ModelSlotSettings
-      title="Audio generation models"
-      description="The model that voices podcasts in Studio. Run one on this computer, or use one from a server."
+      title={intl.formatMessage({
+        id: "settings_audio_models_title",
+        defaultMessage: "Audio generation models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_audio_models_body",
+        defaultMessage:
+          "The model that voices podcasts in Studio. Run one on this computer, or use one from a server.",
+      })}
       slot="audio"
       modelType="audio_gen"
       models={models}
