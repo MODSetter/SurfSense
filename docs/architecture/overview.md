@@ -85,7 +85,7 @@ The rules that keep the processes out of each other's way:
 
 ## Frontend
 
-- A Vite and React SPA with Tailwind and shadcn/ui primitives in `components/ui/`; assistant-ui drives the conversation. Packaged, Electron loads `frontend/dist/index.html` from disk, which is why Vite builds with relative asset paths. In dev it loads the Vite server on port 5173.
+- A Vite and React SPA with Tailwind and shadcn/ui components in `components/ui/`, built on Base UI in shadcn's `base-nova` style; assistant-ui drives the conversation, and still depends on Radix. Packaged, Electron loads `frontend/dist/index.html` from disk, which is why Vite builds with relative asset paths. In dev it loads the Vite server on port 5173.
 - The API's address comes from the preload: Electron passes it as a command-line argument and [`preload/index.ts`](../../surfsense_local/electron/src/preload/index.ts) exposes it as `window.surfsense.apiUrl`. In a bare browser there is no preload, requests stay root-relative, and the Vite dev server forwards `/health`, `/llm`, `/workspaces`, `/chat` and `/artifacts` to `127.0.0.1:8000`.
 - The preload bridge is the renderer's only other channel: opening or revealing an original file, opening an external link, the platform name, updates, theme and the title bar. The renderer never sees Node or the sidecars.
 - API calls go through `request()` in [`lib/api.ts`](../../surfsense_local/frontend/src/lib/api.ts), except the Studio viewers, which fetch an artifact's file bytes directly; an `<img>`, `<audio>` or download link takes its absolute address from `apiUrl()`. `request()` prefixes the address, turns an error body into an `ApiError` with its `code`, and when a user action is refused with `403 egress_disabled` it asks for consent and retries once.
@@ -119,3 +119,4 @@ The rules that keep the processes out of each other's way:
 ## Known gaps
 
 - The frontend never subscribes to `GET /workspaces/{id}/events`; the sources and Studio lists poll every 1.5 seconds instead of invalidating on the events the workers already send.
+- Base UI tooltips are visual only, with no `role="tooltip"` or `aria-describedby`, so text that appears only in a tooltip is not announced to screen readers: the Studio format explanations and the retry hints on failed sources and artifacts.

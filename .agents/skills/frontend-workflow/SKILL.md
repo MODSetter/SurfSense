@@ -17,6 +17,7 @@ guidance lives in this skill's own folders; load only what the task touches.
 |---|---|
 | [react-performance/SKILL.md](./react-performance/SKILL.md) | React or Next.js code — components, pages, data fetching, bundles, re-renders |
 | [../shadcn/SKILL.md](../shadcn/SKILL.md) | shadcn/ui components, or any project with `components.json`. Separate skill — it inspects the project live and grants its own CLI. |
+| [base-ui.md](./base-ui.md) | Components in `surfsense_local/frontend` — composition, menus, dialogs, tooltips, tabs, and testing them on Base UI |
 | [color/SKILL.md](./color/SKILL.md) | Colors, themes, charts, design tokens, borders, shadows |
 | [polish/SKILL.md](./polish/SKILL.md) | Typography, surfaces, icons, micro-interactions, enter/exit transitions |
 | [motion/apple-design.md](./motion/apple-design.md) | Gesture-driven or physical motion — drag, swipe, sheets, springs, momentum, interruptible transitions, translucent materials |
