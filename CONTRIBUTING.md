@@ -50,7 +50,7 @@ Small, focused PRs are easier to review.
 
 - Say what changed, why, and how you tried it.
 - If your change alters behaviour that a doc in `docs/architecture/` describes, update the doc in the same PR. If it fixes a Known gap, delete that line.
-- Run the tests for what you changed. The commands are in each product's README and in the Testing table in [AGENTS.md](AGENTS.md). CI does not run the desktop or web tests yet.
+- Run the tests for what you changed. The commands are in each product's README and in the Testing table in [AGENTS.md](AGENTS.md).
 - After editing anything under `docs/` or `plans/`, run `python scripts/check_docs.py`.
 - [Allow edits from maintainers](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/working-with-forks/allowing-changes-to-a-pull-request-branch-created-from-a-fork) lets us help on the branch.
 - New files follow [AGENTS.md](AGENTS.md). Existing packages do not need a layout rewrite unless that is the issue.
@@ -59,6 +59,6 @@ Small, focused PRs are easier to review.
 
 ## Review and merge
 
-CI on the PR should be green. It runs the docs checker, the linters and a secrets scan, and the backend tests when backend code changes. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
+CI on the PR should be green. `code-quality.yml` runs the docs checker, file checks and a secrets scan on every PR. Each product lints, scans and tests itself when its files change: `docker-tests.yml` for `surfsense_backend` and `surfsense_web`, including the end-to-end journey, and `desktop-tests.yml` for `surfsense_local`. [CODEOWNERS](.github/CODEOWNERS) asks the maintainer who owns the files you touched to review. One maintainer approval is enough to merge. Merged work lands on `dev` and reaches `main` with the next release.
 
 If you work with a coding agent, [AGENTS.md](AGENTS.md) gives it the same rules, along with the repo's layout and commands.

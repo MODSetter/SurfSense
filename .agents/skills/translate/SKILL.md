@@ -51,7 +51,7 @@ New UI text, step by step:
    Repeat for each language. Every added or changed line in that diff is a key to translate.
 2. **Read the context.** The component that calls it (`grep -rn '"<key>"' src`). Translate the meaning in that place, not the English words.
 3. **Translate.** Follow the tone below and [`glossary.md`](glossary.md). Keep every placeholder name, tag name and `select` branch exactly. Write the plural categories the language has, not the English ones: for example, Japanese only `other`, German `one` and `other`.
-4. **Check.** From `surfsense_local/frontend`: `pnpm exec formatjs verify "translations/*.json" --source-locale en --missing-keys --extra-keys --structural-equality`, then `node scripts/check_translations.mjs` from the repo root. The `formatjs-verify` and `check-translations` pre-commit hooks run the same. Stop and fix on any failure; do not commit around it.
+4. **Check.** From `surfsense_local/frontend`: `pnpm translations:verify` (`formatjs verify` for missing and extra keys and matching placeholders), then `node scripts/check_translations.mjs` from the repo root. The `formatjs-verify` and `check-translations` pre-commit hooks run the same. Stop and fix on any failure; do not commit around it.
 
 ## Adding a language
 

@@ -16,7 +16,7 @@ A contract is a frozen file describing something that crosses from one tree to a
 
 Both checks are dependency-free and run from this folder.
 
-Five tests read files in this folder by path. `surfsense_local/backend/tests/integration/migration/test_import.py`, `surfsense_local/backend/tests/integration/license/test_license.py` and `surfsense_backend/tests/unit/services/test_account_export.py` read the fixtures; `surfsense_backend/tests/integration/test_account_export.py` runs `check-export-sample.py` against a real export; and the release build's test-key guard, `surfsense_local/backend/tests/packaging/test_license_key.py`, reads the test public key. Moving this folder means updating all five in the same change, plus the skip entry in `scripts/check_docs.py` and the `docs/contracts/**` path filter in `.github/workflows/backend-tests.yml`.
+Five tests read files in this folder by path. `surfsense_local/backend/tests/integration/migration/test_import.py`, `surfsense_local/backend/tests/integration/license/test_license.py` and `surfsense_backend/tests/unit/services/test_account_export.py` read the fixtures; `surfsense_backend/tests/integration/test_account_export.py` runs `check-export-sample.py` against a real export; and the release build's test-key guard, `surfsense_local/backend/tests/packaging/test_license_key.py`, reads the test public key. Moving this folder means updating all five in the same change, plus the skip entry in `scripts/check_docs.py` and the `docs/contracts/**` path filters in `.github/workflows/docker-tests.yml` and `.github/workflows/desktop-tests.yml`.
 
 ## Changing a contract
 
