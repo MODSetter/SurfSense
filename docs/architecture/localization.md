@@ -1,6 +1,6 @@
 # Localization
 
-The desktop app's interface is in English, Japanese and German, chosen from the OS languages or in Settings. Translations are ICU MessageFormat catalogs in the repo, precompiled and bundled into the app, so nothing is fetched at run time and the build needs no network. FormatJS renders them.
+The desktop app's interface is in English, German, Spanish, French, Hindi, Japanese, Korean, Brazilian Portuguese, Russian and Simplified Chinese, chosen from the OS languages or in Settings. Translations are ICU MessageFormat catalogs in the repo, precompiled and bundled into the app, so nothing is fetched at run time and the build needs no network. FormatJS renders them.
 
 **Code:** [`surfsense_local/frontend/translations/`](../../surfsense_local/frontend/translations/), [`surfsense_local/frontend/src/i18n/`](../../surfsense_local/frontend/src/i18n/), [`surfsense_local/electron/src/main/i18n/`](../../surfsense_local/electron/src/main/i18n/), [`scripts/check_translations.mjs`](../../scripts/check_translations.mjs), [`.agents/skills/translate/`](../../.agents/skills/translate/SKILL.md)
 **Decisions:** [ADR 0029](../adr/0029-icu-translation-catalogs.md), [ADR 0030](../adr/0030-formatjs-renders-interface-text.md)
@@ -11,7 +11,7 @@ Only text written into the app's own code: labels, buttons, headings, in-app men
 
 Not translated: user content (workspace, document and thread names, file contents, chat messages), model output, backend and manifest data (model names and descriptions, provider names, file paths), the application menu, product and technical names used alone (SurfSense, Studio, llama.cpp, GGUF), and logs. The language a chat answer or a Studio output is written in is set elsewhere ([chat](chat.md), [Studio](studio.md)).
 
-English is the source. Japanese and German came first, in the order [`03-international.md`](../../plans/community-local/seo/03-international.md) set for the website.
+English is the source. Japanese and German came first, in the order [`03-international.md`](../../plans/community-local/seo/03-international.md) set for the website; the rest are the languages the [README](../../README.md) is translated into. Arabic is not among them: it reads right to left, which needs `dir` on the document, logical properties in place of the left and right utility classes, and mirrored directional icons, none of which is built.
 
 ## Catalogs
 
@@ -35,7 +35,7 @@ One flat JSON file per language, `{"id": "ICU string"}`, keys sorted with a two-
 
 ## Rendering
 
-- [`intl.ts`](../../surfsense_local/frontend/src/i18n/intl.ts) builds one `createIntl` instance for the page, in the language preload reports, with all three precompiled catalogs bundled and each merged over English. [`main.tsx`](../../surfsense_local/frontend/src/main.tsx) gives it to React through `RawIntlProvider`.
+- [`intl.ts`](../../surfsense_local/frontend/src/i18n/intl.ts) builds one `createIntl` instance for the page, in the language preload reports, with every precompiled catalog bundled and each merged over English. The catalogs come from a glob over `compiled/`, keyed by `LOCALES`, so a language is a catalog file and a line in that list rather than an import here; the pseudo-locale is excluded from the glob so it cannot reach a build. [`main.tsx`](../../surfsense_local/frontend/src/main.tsx) gives it to React through `RawIntlProvider`.
 - Every call declares its English inline, as the FormatJS docs recommend: `intl.formatMessage({ id: "sources_list_empty", defaultMessage: "No sources yet" })`. The id is literal and explicit. [`message-ids.d.ts`](../../surfsense_local/frontend/src/i18n/message-ids.d.ts) types the ids through `FormatjsIntl.Message`, so an id outside `en.json` is a type error.
 - The build strips `defaultMessage` (`@formatjs/unplugin` with `removeDefaultMessage`), so each message ships once, in the catalogs.
 - Rich text is FormatJS's: `{ b: (chunks) => <span …>{chunks}</span> }` for a tag, and an element can be a value, such as `<RelativeTime>` in "Last call: {time}".
@@ -44,7 +44,7 @@ One flat JSON file per language, `{"id": "ICU string"}`, keys sorted with a two-
 
 ## Locale
 
-- Main resolves it: a saved choice, else the first entry of `app.getPreferredSystemLanguages()` whose base language ships (`ja-JP` → `ja`), else English ([`resolve-locale.ts`](../../surfsense_local/electron/src/main/i18n/resolve-locale.ts)).
+- Main resolves it: a saved choice, else the first entry of `app.getPreferredSystemLanguages()` whose base language ships (`ja-JP` → `ja`), else English ([`resolve-locale.ts`](../../surfsense_local/electron/src/main/i18n/resolve-locale.ts)). Two catalogs are regional, so they are matched by hand: any Portuguese takes `pt-BR`, and Chinese takes `zh-CN` unless the tag names Traditional (`zh-TW`, `zh-HK`, `zh-MO`, `zh-Hant`), which has no catalog and falls through to the next system language. Simplified Chinese stays selectable in Settings either way.
 - Settings › General has a Language select beside Appearance: Match system, then each language in its own name. The choice is `locale-prefs.json` in `userData`.
 - Preload reads the locale synchronously before first paint and exposes `locale.get()`, `preference()`, `set()` and `onChange()`. `index.html` sets `<html lang>` in the first frame, and [`locale.ts`](../../surfsense_local/frontend/src/i18n/locale.ts) keeps it.
 - A change saves the choice and reloads the window, which builds its `IntlShape` in the new language. In-memory state, such as an open dialog, resets.
@@ -74,8 +74,8 @@ Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since 
 - ESLint, with FormatJS's plugin: `enforce-default-message` (every call carries its English), `enforce-placeholders` (every placeholder gets a value), and `enforce-id` (ids match `<feature>_<surface>_<purpose>`).
 - `formatjs-extract`, a pre-commit hook: re-runs extraction, so a commit whose `en.json` does not match the code fails as a modified file.
 - `formatjs-verify`, a pre-commit hook: `formatjs verify --missing-keys --extra-keys --structural-equality` over the three catalogs.
-- `check-translations`, a pre-commit hook: [`check_translations.mjs`](../../scripts/check_translations.mjs) for the rules FormatJS does not know: an id prefix that is not a feature folder or `app`, a leading or trailing space, a straight apostrophe, an unsorted file.
-- [`plural-categories.test.ts`](../../surfsense_local/frontend/src/i18n/plural-categories.test.ts), in `pnpm test`: every plural writes exactly the categories `Intl.PluralRules` gives its language.
+- `check-translations`, a pre-commit hook: [`check_translations.mjs`](../../scripts/check_translations.mjs) for the rules FormatJS does not know: an id prefix that is not a feature folder or `app`, a leading or trailing space, a straight apostrophe, an unsorted file, a catalog with no entry in `LOCALES`, and an entry with no catalog. It reads `LOCALES` from `locales.ts` rather than keeping its own copy, where a stale list would skip a language in silence, and it compares the files with line endings normalised, since git checks them out as CRLF on Windows.
+- [`plural-categories.test.ts`](../../surfsense_local/frontend/src/i18n/plural-categories.test.ts), in `pnpm test`: every plural writes exactly the categories `Intl.PluralRules` gives its language. It runs over `LOCALES`, so a new language is covered without editing it.
 
 [`code-quality.yml`](../../.github/workflows/code-quality.yml) runs the hooks on a non-draft pull request's changed files.
 

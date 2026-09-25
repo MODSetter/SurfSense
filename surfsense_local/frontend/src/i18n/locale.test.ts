@@ -41,7 +41,8 @@ describe("the page's language", () => {
   })
 
   it("falls back to English for a language the app does not ship", async () => {
-    fakeBridge("fr")
+    // Swedish, as in resolve-locale.test.ts: a language with no catalog.
+    fakeBridge("sv")
     const { intl } = await loadPage()
     expect(intl.locale).toBe("en")
   })

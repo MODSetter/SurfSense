@@ -1,6 +1,17 @@
 // Mirrors frontend/src/i18n/locales.ts: the languages with a catalog in
 // frontend/translations/.
-export const LOCALES = ["en", "ja", "de"] as const
+export const LOCALES = [
+  "en",
+  "de",
+  "es",
+  "fr",
+  "hi",
+  "ja",
+  "ko",
+  "pt-BR",
+  "ru",
+  "zh-CN",
+] as const
 export type Locale = (typeof LOCALES)[number]
 export const BASE_LOCALE: Locale = "en"
 
