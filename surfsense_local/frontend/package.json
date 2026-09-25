@@ -1,6 +1,7 @@
 {
   "name": "surfsense-local-frontend",
   "private": true,
+  "packageManager": "pnpm@11.27.1",
   "version": "2.0.2",
   "type": "module",
   "scripts": {
@@ -8,6 +9,7 @@
     "translations": "pnpm translations:extract && pnpm translations:compile",
     "translations:extract": "formatjs extract \"src/**/*.{ts,tsx}\" --ignore \"**/*.test.*\" --format simple --out-file translations/en.json",
     "translations:compile": "formatjs compile-folder translations src/i18n/compiled --format simple --ast",
+    "translations:verify": "formatjs verify \"translations/*.json\" --source-locale en --missing-keys --extra-keys --structural-equality",
     "translations:pseudo": "formatjs compile translations/en.json --format simple --ast --pseudo-locale en-XA --out-file src/i18n/compiled/en-XA.json",
     "build": "pnpm translations && tsc -b && vite build",
     "lint": "eslint .",

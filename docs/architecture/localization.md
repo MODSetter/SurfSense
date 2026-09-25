@@ -73,9 +73,9 @@ Vite aliases `@formatjs/icu-messageformat-parser` to its no-parser build, since 
 
 - ESLint, with FormatJS's plugin: `enforce-default-message` (every call carries its English), `enforce-placeholders` (every placeholder gets a value), and `enforce-id` (ids match `<feature>_<surface>_<purpose>`).
 - `formatjs-extract`, a pre-commit hook: re-runs extraction, so a commit whose `en.json` does not match the code fails as a modified file.
-- `formatjs-verify`, a pre-commit hook: `formatjs verify --missing-keys --extra-keys --structural-equality` over the three catalogs.
+- `formatjs-verify`, a pre-commit hook: `pnpm translations:verify`, which runs `formatjs verify --missing-keys --extra-keys --structural-equality` over every catalog. Both formatjs hooks run the frontend's own scripts, so `@formatjs/cli`'s version lives only in its `package.json`.
 - `check-translations`, a pre-commit hook: [`check_translations.mjs`](../../scripts/check_translations.mjs) for the rules FormatJS does not know: an id prefix that is not a feature folder or `app`, a leading or trailing space, a straight apostrophe, an unsorted file, a catalog with no entry in `LOCALES`, and an entry with no catalog. It reads `LOCALES` from `locales.ts` rather than keeping its own copy, where a stale list would skip a language in silence, and it compares the files with line endings normalised, since git checks them out as CRLF on Windows.
-- [`plural-categories.test.ts`](../../surfsense_local/frontend/src/i18n/plural-categories.test.ts), in `pnpm test`: every plural writes exactly the categories `Intl.PluralRules` gives its language. It runs over `LOCALES`, so a new language is covered without editing it.
+- [`plural-categories.test.ts`](../../surfsense_local/frontend/src/i18n/plural-categories.test.ts), in `pnpm test`, which [`desktop-tests.yml`](../../.github/workflows/desktop-tests.yml) runs on pull requests: every plural writes exactly the categories `Intl.PluralRules` gives its language. It runs over `LOCALES`, so a new language is covered without editing it.
 
 [`code-quality.yml`](../../.github/workflows/code-quality.yml) runs the hooks on a non-draft pull request's changed files.
 
@@ -86,7 +86,6 @@ Developers write English only, inline in the `formatMessage` call; `pnpm transla
 ## Known gaps
 
 - `enforce-placeholders` checks values only when they are passed as an object literal; a call that passes a variable, as `model-ready.tsx` does, is not checked.
-- `plural-categories.test.ts` runs only in `pnpm test`, and no workflow runs the desktop tests on pull requests.
 - Backend prose without a code stays English in every language: model install messages, fit verdicts, `not_runnable_reason`, a Studio format's `unavailable_reason`, and the disk-space `detail` that `lib/api.ts` wraps in a translated sentence.
 - Studio's fallback "Needs {models}" joins translated noun phrases with `formatList`, so German case agreement is not guaranteed. It shows only when a format lacks the backend's `unavailable_reason`.
 - A chat failure caught before the stream starts shows the `unknown` kind's text, not the error's own detail.

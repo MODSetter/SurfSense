@@ -126,7 +126,10 @@ jobs:
           python-version: "3.12"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
+        with:
+          # Both desktop trees pin the same pnpm; the root one is the web app's.
+          package_json_file: surfsense_local/electron/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
