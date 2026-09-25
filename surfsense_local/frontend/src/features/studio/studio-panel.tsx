@@ -1,7 +1,6 @@
 import { useState } from "react"
 import {
   ArrowLeftIcon,
-  CheckIcon,
   ChevronRightIcon,
   FileIcon,
   AiSparklesIcon,
@@ -9,6 +8,7 @@ import {
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -367,29 +367,21 @@ function Composer({
             {ready.map((document) => {
               const on = selected.has(document.id)
               return (
-                <button
+                <label
                   key={document.id}
-                  type="button"
-                  onClick={() => toggle(document.id)}
                   className={cn(
                     "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
                     on ? "border-primary bg-primary/5" : "hover:bg-accent"
                   )}
                 >
-                  <span
-                    className={cn(
-                      "flex size-4 items-center justify-center rounded border",
-                      on
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-muted-foreground/40"
-                    )}
-                  >
-                    {on ? <CheckIcon className="size-3" /> : null}
-                  </span>
+                  <Checkbox
+                    checked={on}
+                    onCheckedChange={() => toggle(document.id)}
+                  />
                   <span className="min-w-0 flex-1 truncate">
                     {document.title}
                   </span>
-                </button>
+                </label>
               )
             })}
           </div>
