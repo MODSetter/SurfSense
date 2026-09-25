@@ -680,6 +680,8 @@
   "studio_podcast_brief_style_label": "스타일",
   "studio_podcast_brief_style_monologue_label": "모놀로그",
   "studio_podcast_brief_style_narrative_label": "내러티브",
+  "studio_podcast_brief_voice_female_label": "여성",
+  "studio_podcast_brief_voice_male_label": "남성",
   "studio_podcast_viewer_transcript_title": "스크립트",
   "studio_pptx_viewer_error_title": "프레젠테이션을 불러오지 못했습니다",
   "studio_pptx_viewer_load_error": "프레젠테이션을 가져오는 중 서버가 {status}을(를) 반환했습니다",

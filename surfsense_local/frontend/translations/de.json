@@ -680,6 +680,8 @@
   "studio_podcast_brief_style_label": "Stil",
   "studio_podcast_brief_style_monologue_label": "Monolog",
   "studio_podcast_brief_style_narrative_label": "Erzählung",
+  "studio_podcast_brief_voice_female_label": "Weiblich",
+  "studio_podcast_brief_voice_male_label": "Männlich",
   "studio_podcast_viewer_transcript_title": "Transkript",
   "studio_pptx_viewer_error_title": "Präsentation konnte nicht geladen werden",
   "studio_pptx_viewer_load_error": "Der Server hat beim Abrufen der Präsentation {status} zurückgegeben",

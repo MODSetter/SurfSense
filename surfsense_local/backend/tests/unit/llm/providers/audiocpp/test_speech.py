@@ -42,6 +42,24 @@ def test_the_voices_are_the_chosen_models_roster() -> None:
     assert len(m1.languages) == 31 and "fr" in m1.languages
 
 
+@pytest.mark.parametrize(
+    ("model_id", "voice_id", "gender"),
+    [
+        ("kokoro-82m", "af_heart", "female"),
+        ("kokoro-82m", "bm_george", "male"),
+        ("supertonic-3", "F2", "female"),
+        ("supertonic-3", "M1", "male"),
+        # Kitten's config maps each name to a gendered voice, expr-voice-2-f.
+        ("kitten-tts-mini-0.8", "Bella", "female"),
+        ("kitten-tts-mini-0.8", "Jasper", "male"),
+    ],
+)
+def test_each_voice_says_its_gender(model_id: str, voice_id: str, gender: str) -> None:
+    """The form groups a model's voices by it."""
+    speech = AudioCppSpeech(voiced(model_id, model_id), base_url="")
+    assert next(v for v in speech.voices() if v.id == voice_id).gender == gender
+
+
 def wav(frames: int, rate: int = 24000) -> bytes:
     """What the server answers a speech request with: 16-bit mono PCM."""
     out = io.BytesIO()

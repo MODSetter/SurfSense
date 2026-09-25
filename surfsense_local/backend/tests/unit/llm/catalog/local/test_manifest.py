@@ -233,8 +233,18 @@ def audio_entry(**overrides) -> dict:
             ],
             "languages": ["en-US", "en-GB"],
             "voices": [
-                {"id": "af_heart", "label": "Heart", "language": "en-US"},
-                {"id": "bm_fable", "label": "Fable", "language": "en-GB"},
+                {
+                    "id": "af_heart",
+                    "label": "Heart",
+                    "gender": "female",
+                    "language": "en-US",
+                },
+                {
+                    "id": "bm_fable",
+                    "label": "Fable",
+                    "gender": "male",
+                    "language": "en-GB",
+                },
             ],
         },
         "builds": [
@@ -389,7 +399,8 @@ def _voices(*voices: dict) -> dict:
     return {**audio_entry()["audio"], "voices": list(voices)}
 
 
-HEART = {"id": "af_heart", "label": "Heart", "language": "en-US"}
+HEART = {"id": "af_heart", "label": "Heart", "gender": "female", "language": "en-US"}
+ADAM = {"id": "am_adam", "label": "Adam", "gender": "male", "language": "en-US"}
 
 
 @pytest.mark.parametrize(
@@ -398,8 +409,20 @@ HEART = {"id": "af_heart", "label": "Heart", "language": "en-US"}
         pytest.param(_voices(HEART), id="one voice, and a podcast has two speakers"),
         pytest.param(_voices(HEART, HEART), id="a voice listed twice"),
         pytest.param(
-            _voices(HEART, {"id": "ff_siwis", "label": "Siwis", "language": "fr"}),
+            _voices(
+                HEART,
+                {
+                    "id": "ff_siwis",
+                    "label": "Siwis",
+                    "gender": "female",
+                    "language": "fr",
+                },
+            ),
             id="a voice in a language the model does not list",
+        ),
+        pytest.param(
+            _voices(HEART, {k: v for k, v in ADAM.items() if k != "gender"}),
+            id="a voice without its gender, which the form groups by",
         ),
     ],
 )

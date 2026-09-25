@@ -43,6 +43,8 @@ _KOKORO_LANGUAGES = {
     "p": "pt-BR",
     "z": "zh",
 }
+# The gender letter in Kokoro and Supertonic voice ids.
+_GENDERS = {"f": "female", "m": "male"}
 # fmt: off
 _KOKORO_VOICES = (
     "af_heart", "af_bella", "af_nicole", "af_nova", "af_sarah", "af_sky", "af_alloy",
@@ -365,6 +367,7 @@ ENTRIES: tuple[Entry, ...] = (
                 {
                     "id": voice,
                     "label": voice.split("_")[1].title(),
+                    "gender": _GENDERS[voice[1]],
                     "language": _KOKORO_LANGUAGES[voice[0]],
                 }
                 for voice in _KOKORO_VOICES
@@ -391,7 +394,11 @@ ENTRIES: tuple[Entry, ...] = (
             "peak_mb": 486,
             "languages": _SUPERTONIC_LANGUAGES,
             "voices": [
-                {"id": f"{gender}{n}", "label": f"{gender}{n}"}
+                {
+                    "id": f"{gender}{n}",
+                    "label": f"{gender}{n}",
+                    "gender": _GENDERS[gender.lower()],
+                }
                 for gender in ("M", "F")
                 for n in range(1, 6)
             ],
@@ -420,16 +427,17 @@ ENTRIES: tuple[Entry, ...] = (
             ],
             "languages": ["en"],
             "voices": [
-                {"id": name, "label": name, "language": "en"}
-                for name in (
-                    "Bella",
-                    "Jasper",
-                    "Luna",
-                    "Bruno",
-                    "Rosie",
-                    "Hugo",
-                    "Kiki",
-                    "Leo",
+                {"id": name, "label": name, "gender": gender, "language": "en"}
+                # Its config.json maps each name to a gendered voice, expr-voice-2-f.
+                for name, gender in (
+                    ("Bella", "female"),
+                    ("Jasper", "male"),
+                    ("Luna", "female"),
+                    ("Bruno", "male"),
+                    ("Rosie", "female"),
+                    ("Hugo", "male"),
+                    ("Kiki", "female"),
+                    ("Leo", "male"),
                 )
             ],
         },

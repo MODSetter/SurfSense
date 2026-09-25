@@ -262,7 +262,7 @@ async def test_the_brief_opens_with_defaults_then_with_the_last_episode(
     opened = (await client.get(url)).json()
     assert opened["brief"]["language"] == "en-US"
     assert [s["role"] for s in opened["brief"]["speakers"]] == ["host", "guest"]
-    assert {"id", "label", "languages"} <= set(opened["voices"][0])
+    assert {"id", "label", "gender", "languages"} <= set(opened["voices"][0])
     spoken = {language for voice in opened["voices"] for language in voice["languages"]}
     assert spoken >= {"en-US", "pt-BR"}
 

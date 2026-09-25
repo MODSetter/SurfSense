@@ -152,8 +152,8 @@ class FakeVoice:
 
     def voices(self) -> list[Voice]:
         return [
-            Voice("pm_alex", "Alex", ("pt-BR",)),
-            Voice("pf_dora", "Dora", ("pt-BR",)),
+            Voice("pm_alex", "Alex", "male", ("pt-BR",)),
+            Voice("pf_dora", "Dora", "female", ("pt-BR",)),
         ]
 
     def check_memory(self) -> None:

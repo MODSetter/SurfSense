@@ -31,8 +31,8 @@ ENTRY = AudioEntry(
         "peak_mb": 454,
         "languages": ["en", "fr"],
         "voices": [
-            {"id": "M1", "label": "M1"},
-            {"id": "F1", "label": "F1"},
+            {"id": "M1", "label": "M1", "gender": "male"},
+            {"id": "F1", "label": "F1", "gender": "female"},
         ],
     },
 )

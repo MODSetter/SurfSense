@@ -680,6 +680,8 @@
   "studio_podcast_brief_style_label": "शैली",
   "studio_podcast_brief_style_monologue_label": "मोनोलॉग",
   "studio_podcast_brief_style_narrative_label": "कथात्मक",
+  "studio_podcast_brief_voice_female_label": "महिला",
+  "studio_podcast_brief_voice_male_label": "पुरुष",
   "studio_podcast_viewer_transcript_title": "ट्रांसक्रिप्ट",
   "studio_pptx_viewer_error_title": "प्रेज़ेंटेशन लोड नहीं हो सका",
   "studio_pptx_viewer_load_error": "प्रेज़ेंटेशन लाते समय सर्वर ने {status} लौटाया",

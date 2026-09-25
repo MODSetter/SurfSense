@@ -148,8 +148,10 @@ preferred first, and nothing in it is a score.
   nothing. `validated` records `llama_cpp`, `sd_cpp` or `audio_cpp`, the runtime
   build a person ran the build on.
 - **An audio model commits its voices and its memory**, because audio.cpp's server
-  reports neither. `audio` holds the voices, each with an id, a label and a
-  language (none for a voice that speaks every listed language), the languages,
+  reports neither. `audio` holds the voices, each with an id, a label, a gender
+  (`female` or `male`, from Kokoro's and Supertonic's voice ids and Kitten's
+  `config.json`) and a language (none for a voice that speaks every listed
+  language), the languages,
   the sample rate, and `peak_mb` measured while voicing at the server's default
   chunk size with every chunk full, since audio.cpp sizes its working memory for
   a request's longest chunk, with `chunk_steps`, smaller chunk sizes and their

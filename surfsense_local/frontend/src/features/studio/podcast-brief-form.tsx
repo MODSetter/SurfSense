@@ -11,6 +11,7 @@ import {
   PODCAST_DURATIONS,
   PODCAST_ROLES,
   PODCAST_STYLES,
+  VOICE_GENDERS,
   type PodcastBrief,
   type PodcastSpeaker,
   type Voice,
@@ -19,6 +20,7 @@ import {
 type PodcastStyle = PodcastBrief["style"]
 type PodcastDuration = PodcastBrief["duration"]
 type PodcastRole = PodcastSpeaker["role"]
+type VoiceGender = Voice["gender"]
 
 const STYLE_LABELS: Record<PodcastStyle, () => string> = {
   conversational: () =>
@@ -106,6 +108,18 @@ const ROLE_LABELS: Record<PodcastRole, () => string> = {
     intl.formatMessage({
       id: "studio_podcast_brief_role_narrator_label",
       defaultMessage: "Narrator",
+    }),
+}
+const GENDER_LABELS: Record<VoiceGender, () => string> = {
+  female: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_voice_female_label",
+      defaultMessage: "Female",
+    }),
+  male: () =>
+    intl.formatMessage({
+      id: "studio_podcast_brief_voice_male_label",
+      defaultMessage: "Male",
     }),
 }
 // Roles by slot when a speaker is added without a say from the user.
@@ -333,15 +347,24 @@ export function PodcastBriefForm({
                 updateSpeaker(index, { voice: event.target.value })
               }
             >
-              {spoken.map((voice) => (
-                <option
-                  key={voice.id}
-                  value={voice.id}
-                  disabled={taken.has(voice.id) && voice.id !== speaker.voice}
-                >
-                  {voice.label}
-                </option>
-              ))}
+              {VOICE_GENDERS.map((gender) => {
+                const group = spoken.filter((voice) => voice.gender === gender)
+                return group.length ? (
+                  <optgroup key={gender} label={GENDER_LABELS[gender]()}>
+                    {group.map((voice) => (
+                      <option
+                        key={voice.id}
+                        value={voice.id}
+                        disabled={
+                          taken.has(voice.id) && voice.id !== speaker.voice
+                        }
+                      >
+                        {voice.label}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null
+              })}
             </Select>
             {brief.speakers.length > 1 ? (
               <Button

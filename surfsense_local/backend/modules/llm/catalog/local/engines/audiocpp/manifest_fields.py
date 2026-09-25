@@ -1,6 +1,8 @@
 """What a curated audio.cpp model commits beyond the shared entry: its voices
 and the memory it takes while voicing, because the server reports neither."""
 
+from typing import Literal
+
 from pydantic import BaseModel, Field, model_validator
 
 from modules.llm.catalog.local.manifest.strict import STRICT
@@ -11,6 +13,8 @@ class Voice(BaseModel):
 
     id: str = Field(min_length=1)
     label: str = Field(min_length=1)
+    # The form groups voices by it; each model's own voice ids or config say it.
+    gender: Literal["female", "male"]
     # None: the voice speaks every language the model lists (Supertonic).
     language: str | None = None
 

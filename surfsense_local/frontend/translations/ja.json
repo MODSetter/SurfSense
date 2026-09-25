@@ -680,6 +680,8 @@
   "studio_podcast_brief_style_label": "スタイル",
   "studio_podcast_brief_style_monologue_label": "モノローグ",
   "studio_podcast_brief_style_narrative_label": "ナラティブ",
+  "studio_podcast_brief_voice_female_label": "女性",
+  "studio_podcast_brief_voice_male_label": "男性",
   "studio_podcast_viewer_transcript_title": "文字起こし",
   "studio_pptx_viewer_error_title": "プレゼンテーションを読み込めませんでした",
   "studio_pptx_viewer_load_error": "プレゼンテーションの取得中にサーバーが{status}を返しました",

@@ -680,6 +680,8 @@
   "studio_podcast_brief_style_label": "Стиль",
   "studio_podcast_brief_style_monologue_label": "Монолог",
   "studio_podcast_brief_style_narrative_label": "Повествование",
+  "studio_podcast_brief_voice_female_label": "Женские",
+  "studio_podcast_brief_voice_male_label": "Мужские",
   "studio_podcast_viewer_transcript_title": "Расшифровка",
   "studio_pptx_viewer_error_title": "Не удалось загрузить презентацию",
   "studio_pptx_viewer_load_error": "При получении презентации сервер вернул {status}",

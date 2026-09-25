@@ -1,6 +1,6 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 from modules.llm.providers.types import Delta, Message, Model
 
@@ -72,6 +72,7 @@ class ImageGenerator(Protocol):
 class Voice:
     id: str
     label: str
+    gender: Literal["female", "male"]
     # The languages this voice speaks, as the model's entry names them: one for
     # a Kokoro voice, every one the model speaks for a Supertonic voice.
     languages: tuple[str, ...]

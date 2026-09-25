@@ -406,8 +406,8 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
     class FakeVoice:
         def voices(self) -> list[Voice]:
             return [
-                Voice("af_heart", "Heart", ("en-US",)),
-                Voice("am_adam", "Adam", ("en-US",)),
+                Voice("af_heart", "Heart", "female", ("en-US",)),
+                Voice("am_adam", "Adam", "male", ("en-US",)),
             ]
 
         def check_memory(self) -> None:
@@ -465,8 +465,8 @@ class ShortOfMemory:
 
     def voices(self) -> list[Voice]:
         return [
-            Voice("af_heart", "Heart", ("en-US",)),
-            Voice("am_adam", "Adam", ("en-US",)),
+            Voice("af_heart", "Heart", "female", ("en-US",)),
+            Voice("am_adam", "Adam", "male", ("en-US",)),
         ]
 
     def check_memory(self) -> None:

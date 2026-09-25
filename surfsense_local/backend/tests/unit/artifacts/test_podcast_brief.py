@@ -6,9 +6,9 @@ from modules.llm.providers.protocols import Voice
 pytestmark = pytest.mark.unit
 
 VOICES = [
-    Voice("af_heart", "Heart", ("en-US",)),
-    Voice("am_adam", "Adam", ("en-US",)),
-    Voice("pf_dora", "Dora", ("pt-BR",)),
+    Voice("af_heart", "Heart", "female", ("en-US",)),
+    Voice("am_adam", "Adam", "male", ("en-US",)),
+    Voice("pf_dora", "Dora", "female", ("pt-BR",)),
 ]
 
 
