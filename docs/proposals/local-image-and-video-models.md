@@ -203,7 +203,7 @@ The classifier reads them: `generate` is `IMAGE_GEN`, `edit` is `IMAGE_EDIT`, an
 
 ## Selection
 
-- **sd.cpp fills three slots.** Revision `0017` lets `sdcpp` hold `image_gen`, `image_edit` and `video_gen` ([`selection.md`](../architecture/local-models/selection.md)).
+- **sd.cpp fills three slots.** Revision `0018` lets `sdcpp` hold `image_gen`, `image_edit` and `video_gen` ([`selection.md`](../architecture/local-models/selection.md)).
 - **A model fills the slots of its tasks.** klein's row is `image_gen` and `image_edit`. Chosen for both, one sd-server serves both, since editing is generation with a reference image on the same weights. Krita AI Diffusion, InvokeAI, Draw Things and SwarmUI all treat editing as a property of the model, and a model that does both as one download with two modes.
 - **The engine seam's `model_type` becomes `model_types`**, and an install's `select` names the slot it fills, so onboarding's editing step selects for `image_edit`.
 - **Deleting a model clears every slot that named it.** The confirmation says so when there are two.
@@ -247,7 +247,7 @@ Each step ships alone and leaves the app working.
 
 1. **`sd-server` in the installer.** The Linux and macOS compiles and the Windows archive with its runtime in release CI, SDXL Turbo removed, the licence allowlist in the refresh script. Local images work in a published release for the first time, on Linux older than Ubuntu 24.04 and on macOS before 26.
 2. **Builds of several files, and sd-server per job.** Roles, shared files, delete by record, `download_bytes`, the free-disk check, queued installs, launch flags from the manifest, the runtime route from Studio's jobs, the measured block. FLUX.2 klein 4B, Z-Image Turbo and ERNIE-Image Turbo join.
-3. **Image editing models.** Revision `0017`, `tasks`, the engine's types, the Image editing section and its onboarding step. klein as an editor, then LongCat. The feature that reads the slot comes once it is decided.
+3. **Image editing models.** Revision `0018`, `tasks`, the engine's types, the Image editing section and its onboarding step. klein as an editor, then LongCat. The feature that reads the slot comes once it is decided.
 4. **Video models.** Both Wan models, the `video` block, the Video section and its onboarding step. The `vid_gen` client and the feature that reads the slot come once that feature is decided.
 5. **Later, each its own step:** Qwen-Image 2512 and Qwen-Image-Edit-2511 once measured on a 32 GB machine; **Animate** an image with Wan2.2 5B; Z-Image-Edit when it is released; a remote video client; LingBot-Video once a GGUF exists; reading the Qwen3-4B text encoder from the chat model's own files when both are installed.
 

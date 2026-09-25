@@ -6,8 +6,8 @@ SQLite cannot alter a check constraint, so the table is rebuilt; downgrading
 drops an sd-server editing or video selection, which the old checks cannot
 hold.
 
-Revision ID: 0017
-Revises: 0016
+Revision ID: 0018
+Revises: 0017
 """
 
 from collections.abc import Sequence
@@ -16,13 +16,13 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0017"
-down_revision: str | Sequence[str] | None = "0016"
+revision: str = "0018"
+down_revision: str | Sequence[str] | None = "0017"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 NOW = sa.text("(CURRENT_TIMESTAMP)")
-_TEMP = "_selected_models_0017"
+_TEMP = "_selected_models_0018"
 MODEL_TYPES = ("text_gen", "image_gen", "image_edit", "video_gen", "audio_gen")
 COLUMNS = (
     "model_type, provider, connection_id, name, params_b, vendor, line, updated_at"

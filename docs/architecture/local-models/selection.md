@@ -32,7 +32,7 @@ A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
 when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
 `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and
-`video_gen` (revision `0017`), and `audiocpp` only `audio_gen`, and deleting a
+`video_gen` (revision `0018`), and `audiocpp` only `audio_gen`, and deleting a
 connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
