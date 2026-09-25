@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 
 import {
@@ -16,8 +16,14 @@ import {
   DotIcon,
   SearchIcon,
   Settings2Icon,
+  XIcon,
 } from "@/components/ui/icons"
-import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { getAvailableGenerationModels } from "@/features/models/chat-candidates/api"
 import { MODELS_QUERY_KEY } from "@/features/models/models-query"
@@ -50,6 +56,7 @@ export function ModelPicker({
 }) {
   const queryClient = useQueryClient()
   const [query, setQuery] = useState("")
+  const searchRef = useRef<HTMLInputElement>(null)
   const installed = useQuery({
     queryKey: installedModelsQueryKey,
     queryFn: async ({ signal }) => {
@@ -91,57 +98,84 @@ export function ModelPicker({
         }
       }}
     >
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          // Shares the row with the disclaimer, truncating the model name
-          // rather than forcing a long translation onto more lines.
-          className={cn(
-            modelControlButtonClassName,
-            "min-w-0 shrink",
-            className
-          )}
-          title={intl.formatMessage({
-            id: "chat_model_picker_change_tooltip",
-            defaultMessage: "Change model",
-          })}
-          aria-label={intl.formatMessage(
-            {
-              id: "chat_model_picker_trigger_aria",
-              defaultMessage: "Model {model}. Change model.",
-            },
-            {
-              model: selectedLabel,
-            }
-          )}
-        >
-          <span className="max-w-48 truncate">{selectedLabel}</span>
-          <ChevronDownIcon className="size-3" />
-        </button>
-      </DropdownMenuTrigger>
+      <DropdownMenuTrigger
+        render={
+          <button
+            type="button"
+            // Shares the row with the disclaimer, truncating the model name
+            // rather than forcing a long translation onto more lines.
+            className={cn(
+              modelControlButtonClassName,
+              "min-w-0 shrink",
+              className
+            )}
+            title={intl.formatMessage({
+              id: "chat_model_picker_change_tooltip",
+              defaultMessage: "Change model",
+            })}
+            aria-label={intl.formatMessage(
+              {
+                id: "chat_model_picker_trigger_aria",
+                defaultMessage: "Model {model}. Change model.",
+              },
+              {
+                model: selectedLabel,
+              }
+            )}
+          >
+            <span className="max-w-48 truncate">{selectedLabel}</span>
+            <ChevronDownIcon className="size-3" />
+          </button>
+        }
+      />
 
       <DropdownMenuContent align="end" className="w-72 p-0">
-        <div className="relative p-2">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-4 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            value={query}
-            placeholder={intl.formatMessage({
-              id: "chat_model_picker_search_placeholder",
-              defaultMessage: "Search models",
-            })}
-            aria-label={intl.formatMessage({
-              id: "chat_model_picker_search_aria",
-              defaultMessage: "Search models",
-            })}
-            className="rounded-none border-0 bg-popover pl-9 shadow-none focus-visible:border-0 focus-visible:ring-0 dark:bg-popover"
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key !== "Escape") {
-                event.stopPropagation()
-              }
-            }}
-          />
+        <div className="px-1 py-2">
+          {/* The menu's top bar, so it stays borderless. The icon lines up
+              with the list's labels below (4px + 6px). */}
+          <InputGroup className="border-0 bg-popover dark:bg-popover">
+            <InputGroupAddon className="pl-1.5">
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
+              ref={searchRef}
+              type="search"
+              value={query}
+              placeholder={intl.formatMessage({
+                id: "chat_model_picker_search_placeholder",
+                defaultMessage: "Search models",
+              })}
+              aria-label={intl.formatMessage({
+                id: "chat_model_picker_search_aria",
+                defaultMessage: "Search models",
+              })}
+              // The clear button below replaces the browser's own.
+              className="[&::-webkit-search-cancel-button]:appearance-none"
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== "Escape") {
+                  event.stopPropagation()
+                }
+              }}
+            />
+            {query ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label={intl.formatMessage({
+                    id: "chat_model_picker_search_clear_aria",
+                    defaultMessage: "Clear search",
+                  })}
+                  onClick={() => {
+                    setQuery("")
+                    searchRef.current?.focus()
+                  }}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
         </div>
 
         <ScrollShadow className="h-60" viewportClassName="select-none p-1">
@@ -179,6 +213,8 @@ export function ModelPicker({
                       <DropdownMenuRadioItem
                         key={key}
                         value={key}
+                        // Radix closed on pick; Base UI radio items stay open.
+                        closeOnClick
                         disabled={selectModel.isPending}
                         className={selected ? "pr-8" : "pr-1.5"}
                       >
@@ -222,7 +258,7 @@ export function ModelPicker({
         </ScrollShadow>
 
         <DropdownMenuGroup className="p-1">
-          <DropdownMenuItem onSelect={onManageModels}>
+          <DropdownMenuItem onClick={onManageModels}>
             <Settings2Icon />
             {intl.formatMessage({
               id: "chat_model_picker_manage_label",

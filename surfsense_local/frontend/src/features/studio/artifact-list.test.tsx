@@ -143,14 +143,10 @@ describe("artifact list", () => {
     await user.hover(retryIcon)
     // The real error is reserved for Ctrl/Cmd+hover — see the test below.
     expect(
-      await screen.findByRole("tooltip", {
-        name: "Generation failed. Retry again.",
-      })
+      await screen.findByText("Generation failed. Retry again.")
     ).toBeTruthy()
     expect(
-      screen.queryByRole("tooltip", {
-        name: "ConnectError: All connection attempts failed",
-      })
+      screen.queryByText("ConnectError: All connection attempts failed")
     ).toBeNull()
     const failed = screen.getByRole("button", { name: "Flashcards" })
     expect((failed as HTMLButtonElement).disabled).toBe(true)
@@ -166,7 +162,9 @@ describe("artifact list", () => {
     await user.click(
       screen.getByRole("button", { name: "Actions for Weekly summary" })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Regenerate" }))
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Regenerate" })
+    )
     expect(onRegenerate).toHaveBeenCalledWith(12)
   })
 
@@ -181,10 +179,11 @@ describe("artifact list", () => {
     await user.click(
       screen.getByRole("button", { name: "Actions for Weekly summary" })
     )
+    const cancel = await screen.findByRole("menuitem", { name: "Cancel" })
     expect(
       screen.queryByRole("menuitem", { name: /Regenerate|Retry/ })
     ).toBeNull()
-    await user.click(screen.getByRole("menuitem", { name: "Cancel" }))
+    await user.click(cancel)
     expect(onCancel).toHaveBeenCalledWith(12)
   })
 
@@ -196,7 +195,7 @@ describe("artifact list", () => {
     await user.click(
       screen.getByRole("button", { name: "Actions for Weekly summary" })
     )
-    await user.click(screen.getByRole("menuitem", { name: "Delete" }))
+    await user.click(await screen.findByRole("menuitem", { name: "Delete" }))
     expect(onDelete).not.toHaveBeenCalled()
     await user.click(screen.getByRole("button", { name: "Delete artifact" }))
     expect(onDelete).toHaveBeenCalledWith(12)
@@ -218,9 +217,10 @@ describe("artifact list", () => {
     await user.click(
       screen.getByRole("button", { name: "Actions for Weekly summary" })
     )
-    expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull()
     // The same route as Regenerate, named for what a failed row needs.
-    await user.click(screen.getByRole("menuitem", { name: "Retry" }))
+    const retry = await screen.findByRole("menuitem", { name: "Retry" })
+    expect(screen.queryByRole("menuitem", { name: "Open" })).toBeNull()
+    await user.click(retry)
     expect(onRegenerate).toHaveBeenCalledTimes(2)
   })
 
@@ -234,9 +234,7 @@ describe("artifact list", () => {
       "Generation failed. Retry Weekly summary"
     )
     await user.hover(retryIcon)
-    const generic = await screen.findByRole("tooltip", {
-      name: "Generation failed. Retry again.",
-    })
+    const generic = await screen.findByText("Generation failed. Retry again.")
     expect(generic.getAttribute("data-side")).toBe("top")
   })
 
@@ -249,12 +247,12 @@ describe("artifact list", () => {
     // Hovering the title, not the icon, proves this covers the whole row.
     const title = screen.getByRole("button", { name: "Weekly summary" })
     await user.hover(title)
-    expect(screen.queryByRole("tooltip", { name: "boom" })).toBeNull()
+    expect(screen.queryByText("boom")).toBeNull()
 
     window.dispatchEvent(
       new KeyboardEvent("keydown", { key: "Control", ctrlKey: true })
     )
-    const real = await screen.findByRole("tooltip", { name: "boom" })
+    const real = await screen.findByText("boom")
     expect(real.getAttribute("data-side")).toBe("top")
 
     window.dispatchEvent(
@@ -263,9 +261,7 @@ describe("artifact list", () => {
     // Radix keeps the node mounted with data-state="closed" through its exit
     // animation, which jsdom never finishes — so wait for it to go rather
     // than asserting synchronously.
-    await waitFor(() =>
-      expect(screen.queryByRole("tooltip", { name: "boom" })).toBeNull()
-    )
+    await waitFor(() => expect(screen.queryByText("boom")).toBeNull())
   })
 
   describe("type filter", () => {
@@ -303,7 +299,7 @@ describe("artifact list", () => {
 
       await user.click(screen.getByLabelText("Filter artifacts"))
       expect(
-        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+        await screen.findByRole("menuitemcheckbox", { name: /podcast/i })
       ).toBeTruthy()
       expect(screen.getByText("(2)")).toBeTruthy()
       // Only the types on hand: nothing here was generated as an image.
@@ -312,7 +308,7 @@ describe("artifact list", () => {
       ).toBeNull()
 
       await user.click(
-        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+        await screen.findByRole("menuitemcheckbox", { name: /podcast/i })
       )
       expect(
         screen.queryByRole("button", { name: "Weekly summary" })
@@ -328,19 +324,21 @@ describe("artifact list", () => {
 
       await user.click(screen.getByLabelText("Filter artifacts"))
       await user.click(
-        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+        await screen.findByRole("menuitemcheckbox", { name: /podcast/i })
       )
       expect(screen.getByLabelText("Filter artifacts (1 active)")).toBeTruthy()
 
       await user.click(
-        screen.getByRole("menuitemcheckbox", { name: /summary/i })
+        await screen.findByRole("menuitemcheckbox", { name: /summary/i })
       )
       expect(
         screen.getByRole("button", { name: "Weekly summary" })
       ).toBeTruthy()
       expect(screen.getByRole("button", { name: "Episode one" })).toBeTruthy()
 
-      await user.click(screen.getByRole("menuitem", { name: "Clear filter" }))
+      await user.click(
+        await screen.findByRole("menuitem", { name: "Clear filter" })
+      )
       expect(screen.getByLabelText("Filter artifacts")).toBeTruthy()
       expect(
         screen.getByRole("button", { name: "Weekly summary" })
@@ -374,7 +372,7 @@ describe("artifact list", () => {
 
       await user.click(screen.getByLabelText("Filter artifacts"))
       await user.click(
-        screen.getByRole("menuitemcheckbox", { name: /podcast/i })
+        await screen.findByRole("menuitemcheckbox", { name: /podcast/i })
       )
       unmount()
 

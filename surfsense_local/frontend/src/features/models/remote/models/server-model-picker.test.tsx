@@ -158,6 +158,15 @@ describe("choosing a model from a server", () => {
       "missing"
     )
     expect(await screen.findByText(/No chat models match/)).toBeTruthy()
+
+    const search = screen.getByLabelText<HTMLInputElement>(
+      "Search models from Chat gateway"
+    )
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+    expect(search.value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(await screen.findByText("gpt-4o-mini")).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 
   it("tests an unconfirmed model before it takes the chat slot", async () => {

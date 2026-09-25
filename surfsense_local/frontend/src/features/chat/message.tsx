@@ -138,31 +138,33 @@ function MessageActions({
       <ActionBarPrimitive.Root hideWhenRunning={hideWhenRunning}>
         <Tooltip>
           <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={
-                  isCopied
-                    ? intl.formatMessage({
-                        id: "chat_message_copied_aria",
-                        defaultMessage: "Copied",
-                      })
-                    : intl.formatMessage({
-                        id: "chat_message_copy_aria",
-                        defaultMessage: "Copy message",
-                      })
-                }
-              >
-                <AuiIf condition={({ message }) => message.isCopied}>
-                  <CheckIcon />
-                </AuiIf>
-                <AuiIf condition={({ message }) => !message.isCopied}>
-                  <CopyIcon />
-                </AuiIf>
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={
+                    isCopied
+                      ? intl.formatMessage({
+                          id: "chat_message_copied_aria",
+                          defaultMessage: "Copied",
+                        })
+                      : intl.formatMessage({
+                          id: "chat_message_copy_aria",
+                          defaultMessage: "Copy message",
+                        })
+                  }
+                >
+                  <AuiIf condition={({ message }) => message.isCopied}>
+                    <CheckIcon />
+                  </AuiIf>
+                  <AuiIf condition={({ message }) => !message.isCopied}>
+                    <CopyIcon />
+                  </AuiIf>
+                </Button>
+              }
+            />
           </ActionBarPrimitive.Copy>
           <TooltipContent>
             {isCopied

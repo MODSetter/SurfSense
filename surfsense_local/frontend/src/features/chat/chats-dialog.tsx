@@ -6,6 +6,7 @@ import {
   PencilIcon,
   SearchIcon,
   Trash2Icon,
+  XIcon,
 } from "@/components/ui/icons"
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { RelativeTime } from "@/components/relative-time"
@@ -67,12 +74,9 @@ export function RenameChatDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className="select-none"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          const input = inputRef.current
-          if (!input) return
-          input.focus()
-          input.select()
+        initialFocus={() => {
+          inputRef.current?.select()
+          return inputRef.current
         }}
       >
         <form onSubmit={(event) => void submit(event)}>
@@ -191,10 +195,7 @@ export function ChatsDialog({
       >
         <DialogContent
           className="select-none sm:max-w-3xl"
-          onOpenAutoFocus={(event) => {
-            event.preventDefault()
-            searchRef.current?.focus()
-          }}
+          initialFocus={searchRef}
         >
           <DialogHeader>
             <DialogTitle className="text-xl">
@@ -210,9 +211,11 @@ export function ChatsDialog({
               })}
             </DialogDescription>
           </DialogHeader>
-          <div className="relative mt-4">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <InputGroup className="mt-4 h-10 border-0">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
               ref={searchRef}
               type="search"
               value={query}
@@ -224,10 +227,28 @@ export function ChatsDialog({
                 id: "chat_chats_dialog_search_aria",
                 defaultMessage: "Search chats",
               })}
-              className="h-10 border-0 bg-secondary pl-9 focus-visible:border-0 dark:bg-secondary"
+              // The clear button below replaces the browser's own.
+              className="[&::-webkit-search-cancel-button]:appearance-none"
               onChange={(event) => setQuery(event.target.value)}
             />
-          </div>
+            {query ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label={intl.formatMessage({
+                    id: "chat_chats_dialog_search_clear_aria",
+                    defaultMessage: "Clear search",
+                  })}
+                  onClick={() => {
+                    setQuery("")
+                    searchRef.current?.focus()
+                  }}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
           <ScrollShadow
             className="h-[32rem] min-w-0"
             viewportClassName="overflow-x-hidden"
@@ -333,36 +354,38 @@ export function ChatsDialog({
                           setOpenDropdownId(open ? thread.id : null)
                         }
                       >
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
-                            aria-label={intl.formatMessage(
-                              {
-                                id: "chat_chats_dialog_row_actions_aria",
-                                defaultMessage: "Actions for {title}",
-                              },
-                              {
-                                title,
-                              }
-                            )}
-                            onMouseEnter={onRowMouseEnter}
-                            onMouseLeave={onRowMouseLeave}
-                          >
-                            <EllipsisIcon />
-                          </Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                              aria-label={intl.formatMessage(
+                                {
+                                  id: "chat_chats_dialog_row_actions_aria",
+                                  defaultMessage: "Actions for {title}",
+                                },
+                                {
+                                  title,
+                                }
+                              )}
+                              onMouseEnter={onRowMouseEnter}
+                              onMouseLeave={onRowMouseLeave}
+                            >
+                              <EllipsisIcon />
+                            </Button>
+                          }
+                        />
                         <DropdownMenuContent
                           align="end"
                           sideOffset={8}
                           className="w-36"
-                          onCloseAutoFocus={(event) => event.preventDefault()}
+                          finalFocus={false}
                         >
                           <DropdownMenuGroup>
                             <DropdownMenuItem
                               disabled={thread.id === autoNamingThreadId}
-                              onSelect={() => {
+                              onClick={() => {
                                 setOpenDropdownId(null)
                                 setRenaming(thread)
                               }}
@@ -375,7 +398,7 @@ export function ChatsDialog({
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               variant="destructive"
-                              onSelect={() => {
+                              onClick={() => {
                                 setOpenDropdownId(null)
                                 void onDelete(thread.id)
                               }}

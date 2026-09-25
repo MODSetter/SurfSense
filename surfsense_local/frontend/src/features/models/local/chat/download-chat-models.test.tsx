@@ -217,9 +217,7 @@ describe("model catalog", () => {
     // The star says why on hover, not only to a screen reader.
     await user.hover(screen.getByLabelText("Recommended for your computer"))
     expect(
-      await screen.findByRole("tooltip", {
-        name: "Recommended for your computer",
-      })
+      await screen.findByText("Recommended for your computer")
     ).toBeTruthy()
   })
 
@@ -546,6 +544,24 @@ describe("model catalog", () => {
     expect(
       document.querySelector("[data-slot=search-results]")?.className
     ).toBe(reserved)
+  })
+
+  it("clears the search from its own button and keeps focus in the box", async () => {
+    vi.stubGlobal("fetch", serving(catalog()))
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    const search = await screen.findByRole<HTMLInputElement>("searchbox", {
+      name: "Search all models",
+    })
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "qwen")
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect(search.value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 
   it("explains that search is unavailable rather than erroring", async () => {

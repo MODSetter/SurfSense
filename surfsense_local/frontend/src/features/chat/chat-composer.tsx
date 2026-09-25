@@ -149,22 +149,24 @@ function AddSourcesButton({
         onChange={upload}
       />
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            type="button"
-            size="icon-lg"
-            variant="ghost"
-            className={cn("rounded-xl", className)}
-            disabled={isUploading}
-            aria-label={intl.formatMessage({
-              id: "chat_composer_add_sources_aria",
-              defaultMessage: "Add sources",
-            })}
-            onClick={() => inputRef.current?.click()}
-          >
-            <PlusIcon className="size-5" />
-          </Button>
-        </TooltipTrigger>
+        <TooltipTrigger
+          render={
+            <Button
+              type="button"
+              size="icon-lg"
+              variant="ghost"
+              className={cn("rounded-xl", className)}
+              disabled={isUploading}
+              aria-label={intl.formatMessage({
+                id: "chat_composer_add_sources_aria",
+                defaultMessage: "Add sources",
+              })}
+              onClick={() => inputRef.current?.click()}
+            >
+              <PlusIcon className="size-5" />
+            </Button>
+          }
+        />
         <TooltipContent side="top">
           {intl.formatMessage({
             id: "chat_composer_add_sources_tooltip",

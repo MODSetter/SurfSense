@@ -68,22 +68,24 @@ export function ModelCard({
           <div className="flex min-w-0 items-center gap-2">
             {row.recommended ? (
               <Tooltip>
-                <TooltipTrigger asChild>
-                  {/* A button, so the tooltip also opens from the keyboard. */}
-                  <button
-                    type="button"
-                    aria-label={intl.formatMessage({
-                      id: "models_model_card_recommended_aria",
-                      defaultMessage: "Recommended for your computer",
-                    })}
-                    className="inline-flex shrink-0 cursor-default rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  >
-                    <StarAward02Icon
-                      aria-hidden="true"
-                      className="size-5 text-recommended"
-                    />
-                  </button>
-                </TooltipTrigger>
+                {/* A button, so the tooltip also opens from the keyboard. */}
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={intl.formatMessage({
+                        id: "models_model_card_recommended_aria",
+                        defaultMessage: "Recommended for your computer",
+                      })}
+                      className="inline-flex shrink-0 cursor-default rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <StarAward02Icon
+                        aria-hidden="true"
+                        className="size-5 text-recommended"
+                      />
+                    </button>
+                  }
+                />
                 <TooltipContent side="top">
                   {intl.formatMessage({
                     id: "models_model_card_recommended_tooltip",

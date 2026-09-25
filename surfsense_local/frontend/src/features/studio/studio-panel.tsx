@@ -411,26 +411,28 @@ function FormatCard({
   const Icon = FORMAT_ICONS[entry.key] ?? FileIcon
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-disabled={!entry.available || undefined}
-          aria-pressed={entry.available ? selected : undefined}
-          className={cn(
-            "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
-            entry.available
-              ? "hover:bg-accent"
-              : "cursor-not-allowed opacity-50",
-            selected && "border-primary bg-primary/5"
-          )}
-          onClick={entry.available ? onSelect : undefined}
-        >
-          <Icon />
-          <span className="w-full truncate text-[11px] leading-4">
-            {formatLabel(entry)}
-          </span>
-        </button>
-      </TooltipTrigger>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-disabled={!entry.available || undefined}
+            aria-pressed={entry.available ? selected : undefined}
+            className={cn(
+              "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
+              entry.available
+                ? "hover:bg-accent"
+                : "cursor-not-allowed opacity-50",
+              selected && "border-primary bg-primary/5"
+            )}
+            onClick={entry.available ? onSelect : undefined}
+          >
+            <Icon />
+            <span className="w-full truncate text-[11px] leading-4">
+              {formatLabel(entry)}
+            </span>
+          </button>
+        }
+      />
       <TooltipContent side="top">{formatHint(entry)}</TooltipContent>
     </Tooltip>
   )

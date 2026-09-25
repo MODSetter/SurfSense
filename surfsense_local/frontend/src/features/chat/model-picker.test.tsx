@@ -83,7 +83,7 @@ describe("composer model picker", () => {
       await screen.findByRole("menuitemradio", { name: /gpt-5/ })
     ).toBeTruthy()
     expect(
-      screen.getByRole("menuitemradio", { name: /acme\/mystery-1/ })
+      await screen.findByRole("menuitemradio", { name: /acme\/mystery-1/ })
     ).toBeTruthy()
     expect(
       screen.queryByRole("menuitemradio", { name: /gpt-image-2/ })
@@ -165,7 +165,7 @@ describe("composer model picker", () => {
     const currentItem = await screen.findByRole("menuitemradio", {
       name: "llama3.2:1b",
     })
-    const availableItem = screen.getByRole("menuitemradio", {
+    const availableItem = await screen.findByRole("menuitemradio", {
       name: "qwen3:1.7b",
     })
     expect(currentItem.lastElementChild?.className).toContain(
@@ -206,7 +206,9 @@ describe("composer model picker", () => {
     expect(
       screen.queryByRole("menuitemradio", { name: "llama3.2:1b" })
     ).toBeNull()
-    await user.click(screen.getByRole("menuitemradio", { name: "qwen3:1.7b" }))
+    await user.click(
+      await screen.findByRole("menuitemradio", { name: "qwen3:1.7b" })
+    )
 
     await waitFor(() =>
       expect(onModelSelected).toHaveBeenCalledWith(
@@ -319,7 +321,43 @@ describe("composer model picker", () => {
     expect(screen.queryByText("gpt-image-1")).toBeNull()
     // Unknown is not no: the backend offers it for every slot, so it is here.
     expect(
-      screen.getByRole("menuitemradio", { name: /whisper-1/ })
+      await screen.findByRole("menuitemradio", { name: /whisper-1/ })
     ).toBeTruthy()
+  })
+
+  it("clears the search from its own button and keeps focus in the box", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(
+      <ModelPicker
+        model={{
+          model_type: "text_gen",
+          provider: "openai_compatible",
+          connection_id: 1,
+          name: "gpt-5",
+          updated_at: "2026-09-09T00:00:00Z",
+        }}
+        onModelSelected={vi.fn()}
+        onManageModels={vi.fn()}
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Model gpt-5. Change model." })
+    )
+    const search = await screen.findByRole<HTMLInputElement>("searchbox", {
+      name: "Search models",
+    })
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "qwen")
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect(search.value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 })
