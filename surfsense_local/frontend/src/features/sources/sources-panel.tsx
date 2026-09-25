@@ -428,17 +428,22 @@ export function SourcesPanel({
   const allSelected =
     readyCount > 0 && selectedDocumentIds.length === readyCount
   const listHeader = (
-    <div className="mb-2 flex min-h-7 shrink-0 items-center justify-between gap-2">
+    // Wraps to a second line, rather than clipping, once a language's Select
+    // all / Deselect all no longer fits beside the title and Add.
+    <div className="mb-2 flex min-h-7 shrink-0 flex-wrap items-center justify-between gap-x-2 gap-y-1">
+      {/* The title takes nearly all spare room on a shared line, keeping the
+      buttons together at the right; alone on the second line, the buttons get
+      it all, so Add alone moves to the right edge. */}
       <h3
         id="all-sources"
-        className="px-1 text-sm font-medium text-muted-foreground"
+        className="grow-999 px-1 text-sm font-medium text-muted-foreground"
       >
         {intl.formatMessage({
           id: "sources_list_title",
           defaultMessage: "Sources",
         })}
       </h3>
-      <div className="flex items-center gap-1">
+      <div className="flex grow items-center gap-1">
         {readyCount > 0 ? (
           <Button
             type="button"
@@ -458,7 +463,7 @@ export function SourcesPanel({
                 })}
           </Button>
         ) : null}
-        {addAction}
+        <div className="ml-auto">{addAction}</div>
       </div>
     </div>
   )

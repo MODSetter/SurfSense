@@ -31,7 +31,7 @@ import {
   DotIcon as DotIconData,
   EllipsisIcon as EllipsisIconData,
   File02Icon as File02IconData,
-  FileAddIcon,
+  FilePlusCornerIcon,
   FileIcon as FileIconData,
   FileTextIcon as FileTextIconData,
   FilterIcon as FilterIconData,
@@ -140,7 +140,7 @@ export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
-export const FilePlus2Icon = createIcon(FileAddIcon)
+export const FilePlus2Icon = createIcon(FilePlusCornerIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
 export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
