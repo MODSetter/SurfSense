@@ -9,8 +9,13 @@ import hashlib
 from pathlib import Path
 
 
-def fingerprint(*corpus_dirs: Path, embedder: bytes) -> str:
-    """Every document that will be indexed, plus the model that will embed it."""
+def fingerprint(*corpus_dirs: Path, embedder: bytes, tokenizer: str) -> str:
+    """Every document that will be indexed, and the two rules that turn it into one.
+
+    The tokenizer belongs here with the embedder: it decides the terms the
+    keyword leg scores, so changing it changes the index as surely as a new
+    model does.
+    """
     digest = hashlib.sha256()
     for corpus_dir in corpus_dirs:
         for path in sorted(corpus_dir.glob("*.md")) if corpus_dir.is_dir() else []:
@@ -18,6 +23,7 @@ def fingerprint(*corpus_dirs: Path, embedder: bytes) -> str:
             digest.update(path.read_bytes())
             digest.update(b"\0")
     digest.update(embedder)
+    digest.update(tokenizer.encode("utf-8"))
     return digest.hexdigest()[:16]
 
 

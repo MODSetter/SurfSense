@@ -2,8 +2,8 @@
 
 `retrieve()` finds the passages in a workspace that best answer a query. Two legs widen recall, a keyword match and a nearest-neighbour search over embeddings, and a weighted blend of the two decides the order, meaning counting for rather more than words. It runs in the calling process against the same SQLite file as everything else, and chat is its only caller.
 
-**Code:** [`shared/search.py`](../../surfsense_local/backend/shared/search.py), [`worker/ingestion/embedding.py`](../../surfsense_local/backend/worker/ingestion/embedding.py)
-**Decisions:** [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0007](../adr/0007-bundled-embeddings.md), [ADR 0031](../adr/0031-ranking-blends-absolute-leg-scores.md)
+**Code:** [`shared/search.py`](../../surfsense_local/backend/shared/search.py), [`shared/tokenizer.py`](../../surfsense_local/backend/shared/tokenizer.py), [`worker/ingestion/embedding.py`](../../surfsense_local/backend/worker/ingestion/embedding.py)
+**Decisions:** [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0007](../adr/0007-bundled-embeddings.md), [ADR 0031](../adr/0031-ranking-blends-absolute-leg-scores.md), [ADR 0032](../adr/0032-one-tokenizer-for-index-and-question.md)
 
 ## Interface
 
@@ -19,11 +19,11 @@ retrieve(session, workspace_id, query, top_k=5, document_ids=None) -> list[Hit]
 ## How it ranks
 
 1. **Embed the query** with the bundled bge-small model at the same width as ingest. The import is lazy, so onnxruntime and the model load on the first query rather than when the API starts.
-2. **Keyword leg.** The query is split into word tokens, lowercased, each quoted against FTS5's query grammar and joined with `OR` to keep recall wide. `chunks_fts` is matched, joined to `chunks` and `documents` for the workspace and document filters, and the best 20 by BM25 are kept. Each candidate then scores the fraction of the query's distinct terms it matched, one further lookup per term.
+2. **Keyword leg.** The query is split into terms by the index's own tokenizer, each quoted against FTS5's query grammar and joined with `OR` to keep recall wide. `chunks_fts` is matched, joined to `chunks` and `documents` for the workspace and document filters, and the best 20 by BM25 are kept. Each candidate then scores the fraction of the query's distinct terms it matched, one further lookup per term.
 3. **Vector leg.** A sqlite-vec nearest-neighbour search over `chunk_vectors` takes the 20 closest chunks. It sits in its own CTE, so only `MATCH` and `k` constrain it, as vec0 requires; the workspace and document filters then apply to that set. Each candidate scores its cosine similarity, floored at zero.
 4. **Blend.** `0.65 × semantic + 0.35 × keyword`, a leg a candidate is missing from contributing nothing. The union is cut to `top_k`, cosine breaking a tie.
 
-Both legs decide the order, and both score on a scale that means the same thing from one query to the next, so a leg with nothing to say adds nothing. That is what keeps a keyword match honest: a chunk matching one term of five is weak whatever BM25 says about it, so no stopword list is needed. A paraphrase that shares no words with its passage still arrives through the vector leg. There is no reranker.
+Both legs decide the order, and both score on a scale that means the same thing from one query to the next, so a leg with nothing to say adds nothing. That is what keeps a keyword match honest: a chunk matching one term of five is weak whatever BM25 says about it, so no stopword list is needed. It holds because a term is a word: [`shared/tokenizer.py`](../../surfsense_local/backend/shared/tokenizer.py) states the one rule that splits both the index and the question, and keeps a combining mark inside its word so Devanagari is not cut into letters ([ADR 0032](../adr/0032-one-tokenizer-for-index-and-question.md)). A paraphrase that shares no words with its passage still arrives through the vector leg. There is no reranker.
 
 `Hit.score` is cosine similarity, so it says how close a passage is, not where it sits.
 
@@ -33,15 +33,15 @@ The vector leg looks at the 20 nearest chunks across every workspace before it f
 
 ## Index
 
-`chunks_fts` is an FTS5 table with external content over `chunks`, and `chunk_vectors` a vec0 table keyed by chunk id. Triggers on `chunks` keep the keyword index in step, including on cascade, and ingest writes the vectors ([`data-model.md`](data-model.md), [`documents.md`](documents.md)). Because both indexes key on chunk ids, a hit is a chunk row, and the citation panel can load that chunk's neighbours by position.
+`chunks_fts` is an FTS5 table with external content over `chunks`, declared with the tokenizer `shared/tokenizer.py` names, and `chunk_vectors` a vec0 table keyed by chunk id. Triggers on `chunks` keep the keyword index in step, including on cascade, and ingest writes the vectors ([`data-model.md`](data-model.md), [`documents.md`](documents.md)). Because both indexes key on chunk ids, a hit is a chunk row, and the citation panel can load that chunk's neighbours by position.
 
 ## Tests
 
-[`tests/integration/search/test_retrieve.py`](../../surfsense_local/backend/tests/integration/search/test_retrieve.py) covers a keyword query, a paraphrase found through meaning, the document and lines on a hit, scoping to selected documents and to the workspace, and the empty workspace, query and selection. [`tests/integration/chunks/test_search_index.py`](../../surfsense_local/backend/tests/integration/chunks/test_search_index.py) covers the triggers and the refusal of a vector of the wrong width.
+[`tests/integration/search/test_retrieve.py`](../../surfsense_local/backend/tests/integration/search/test_retrieve.py) covers a keyword query, a paraphrase found through meaning, a Hindi question against three notes one word apart, the document and lines on a hit, scoping to selected documents and to the workspace, and the empty workspace, query and selection. [`tests/integration/chunks/test_search_index.py`](../../surfsense_local/backend/tests/integration/chunks/test_search_index.py) covers the triggers, the refusal of a vector of the wrong width, and that the index and a question split text the same way — the migration and [`shared/tokenizer.py`](../../surfsense_local/backend/shared/tokenizer.py) state the tokenizer separately, and a drift between them scores a question against terms the index never held.
 
 Ranking itself is measured rather than asserted, by [`scripts/run_retrieval_eval.py`](../../surfsense_local/backend/scripts/run_retrieval_eval.py): it indexes a fixed corpus through the real ingest pipeline and records where each query's answering passage landed. Failures that need a library-sized corpus, a bare identifier among near-duplicate manuals being the one that drove [ADR 0031](../adr/0031-ranking-blends-absolute-leg-scores.md), do not reproduce at the handful of documents an integration test builds.
 
 ## Known gaps
 
 - A question in one language does not find its answer in another. Cosine alone puts the answering passage in the top 5 for 1 of 8 such queries, and the blend for 2 of 8: bge-small is English-only, so no ranking recovers it. A multilingual embedder is the fix.
-- FTS5's tokenizer keeps a Japanese or Chinese clause as one token, so the keyword leg finds nothing in those scripts and the blend runs on meaning alone there.
+- FTS5's tokenizer keeps a Japanese or Chinese clause as one token, so the keyword leg finds nothing in those scripts and the blend runs on meaning alone there. `trigram` would segment them at the cost of what BM25 means everywhere else ([ADR 0032](../adr/0032-one-tokenizer-for-index-and-question.md)).

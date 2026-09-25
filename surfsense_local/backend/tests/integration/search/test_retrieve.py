@@ -127,6 +127,35 @@ def test_retrieval_stays_within_the_workspace(
         assert all(hit.document_id != theirs for hit in hits)
 
 
+def test_a_hindi_question_finds_the_note_that_answers_it(
+    engine: Engine, real_model: object
+) -> None:
+    """One word apart, so only the keyword leg can choose between them.
+
+    bge-small is English-only and these three lines differ by a single noun, so
+    meaning leaves them near-tied and term coverage has to break it. Cut at its
+    virama `स्कैनर` is `स` + `नर`, which the index does not hold, and the leg
+    that should decide abstains.
+    """
+    notes = {
+        "scanner": "स्कैनर की बैटरी आठ घंटे चलती है।",
+        "printer": "प्रिंटर की बैटरी आठ घंटे चलती है।",
+        "camera": "कैमरा की बैटरी आठ घंटे चलती है।",
+    }
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(name="नोट्स")
+        session.add(workspace)
+        session.flush()
+        ids = {
+            topic: _ingest(session, workspace.id, content)
+            for topic, content in notes.items()
+        }
+
+        hits = retrieve(session, workspace.id, "स्कैनर की बैटरी कितने घंटे चलती है?")
+
+        assert hits[0].document_id == ids["scanner"]
+
+
 def test_an_empty_workspace_returns_nothing(engine: Engine, real_model: object) -> None:
     """A workspace with no documents ranks nothing, and does not error."""
     with create_session_factory(engine)() as session:

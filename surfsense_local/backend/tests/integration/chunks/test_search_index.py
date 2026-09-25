@@ -10,6 +10,7 @@ from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.models import Workspace
 from shared.config import get_search_settings
+from shared.tokenizer import terms
 
 pytestmark = pytest.mark.integration
 
@@ -92,6 +93,31 @@ def test_deleting_a_document_empties_both_indexes(chunked: Engine) -> None:
     assert _rows(chunked, "chunks") == []
     assert _rows(chunked, "chunks_fts") == []
     assert _rows(chunked, "chunk_vectors") == []
+
+
+def test_the_index_splits_text_the_way_a_question_will(chunked: Engine) -> None:
+    """The migration declares the tokenizer, `shared.tokenizer` states it again.
+
+    Let them drift and a question is scored against terms the index never held:
+    since ADR 0031 the keyword leg weighs what fraction of a question a chunk
+    matched, so the mismatch does not merely miss, it votes.
+    """
+    sentence = "स्कैनर की बैटरी आठ घंटे चलती है"
+    with chunked.begin() as connection:
+        connection.execute(
+            text("UPDATE chunks SET content = :content WHERE id = 1"),
+            {"content": sentence},
+        )
+        connection.execute(
+            text("CREATE VIRTUAL TABLE vocab USING fts5vocab(chunks_fts, row)")
+        )
+
+    with chunked.connect() as connection:
+        held = sorted(
+            row[0] for row in connection.execute(text("SELECT term FROM vocab"))
+        )
+
+    assert held == terms(sentence)
 
 
 def test_a_vector_of_the_wrong_width_is_refused(chunked: Engine) -> None:
