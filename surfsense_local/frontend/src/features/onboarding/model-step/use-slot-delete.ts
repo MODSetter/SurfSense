@@ -19,5 +19,7 @@ function useDeleteChat(): SlotDelete {
 export const slotDeletes: Record<OnboardingSlot, () => SlotDelete> = {
   text_gen: useDeleteChat,
   image_gen: useDeleteLocalImageModel,
+  image_edit: useDeleteLocalImageModel,
+  video_gen: useDeleteLocalImageModel,
   audio_gen: useDeleteLocalAudioModel,
 }

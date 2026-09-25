@@ -66,6 +66,9 @@ class BuildRead(BaseModel):
     catalog_id: str
     quantization: str
     footprint_bytes: int
+    # What Download fetches, less files another model already brought; null
+    # where nothing is shared, so the footprint is the download.
+    download_bytes: int | None = None
     files: list[FileRead]
     # Null where the engine has no fit estimate (image models): the row states
     # the download size and nothing about this machine.
@@ -75,6 +78,9 @@ class BuildRead(BaseModel):
     # What the runtime calls this build on disk, which Use and Delete act on.
     installed_as: str | None
     selected: bool
+    # The slots whose selection names this build, so each section marks it by
+    # its own.
+    selected_for: list[ModelType] = []
     recommended: bool
     reads_images: bool
     projector_checked: bool
@@ -163,3 +169,5 @@ class RepoRead(BaseModel):
 class InstallRequest(BaseModel):
     catalog_id: str = Field(min_length=1, max_length=128)
     select: bool = True
+    # The slot `select` fills; the engine's first when absent.
+    model_type: ModelType | None = None

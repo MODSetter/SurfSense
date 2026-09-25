@@ -1,3 +1,4 @@
+import type { SdCppSlot } from "../local/image/api"
 import { useLocalImageCatalog } from "../local/image/use-local-image-catalog"
 import { useConnections } from "../remote/connections/use-connections"
 import { useSelection } from "../selection/use-selection"
@@ -7,10 +8,11 @@ import {
   type YourModels,
 } from "./your-model-row"
 
-/** Every image model on disk, and the one in use wherever it runs. */
-export function useImageModels(): YourModels {
-  const catalog = useLocalImageCatalog()
-  const selection = useSelection("image_gen")
+/** Every image model on disk that can fill `slot`, and the one in use for it
+ *  wherever it runs. */
+export function useImageModels(slot: SdCppSlot = "image_gen"): YourModels {
+  const catalog = useLocalImageCatalog(slot)
+  const selection = useSelection(slot)
   const connections = useConnections()
   const rows = catalog.data ?? []
 

@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url"
 
 import { compile, missingToolchain } from "./compile.mjs"
 import { stageEspeak } from "./espeak.mjs"
-import { copyMsvcRuntime } from "./msvc.mjs"
+import { copyMsvcRuntime } from "../msvc-runtime.mjs"
 import { TAG } from "./pins.mjs"
 import { copyServerFiles, SERVER } from "./server-files.mjs"
 import { unpackUpstream } from "./upstream-archive.mjs"

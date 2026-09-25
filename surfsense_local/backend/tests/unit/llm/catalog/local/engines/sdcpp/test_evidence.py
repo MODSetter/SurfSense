@@ -68,3 +68,79 @@ def test_xl_is_named_whichever_converter_named_its_second_encoder() -> None:
 def test_tensors_it_does_not_know_name_nothing() -> None:
     """MiniMax-H3's bare video GGUFs must not pass for an image model."""
     assert diffusion_architecture(_tensors(["blocks.0.attn.weight"])) is None
+
+
+# The first tensors of each file, and the one sd.cpp dispatches the family on,
+# read on 25 Sep 2026. leejet's converter writes no metadata; unsloth's ERNIE
+# file declares general.architecture "wan", which is not what it is.
+FLUX2_KLEIN_TENSORS = [
+    "double_blocks.0.img_attn.norm.query_norm.scale",
+    "double_stream_modulation_img.lin.weight",
+    "single_blocks.0.linear1.weight",
+]
+Z_IMAGE_TENSORS = [
+    "context_refiner.0.attention.k_norm.weight",
+    "cap_pad_token",
+    "cap_embedder.0.weight",
+]
+ERNIE_IMAGE_TENSORS = [
+    "adaLN_modulation.1.bias",
+    "layers.0.adaLN_mlp_ln.weight",
+    "layers.0.adaLN_sa_ln.weight",
+]
+
+
+@pytest.mark.parametrize(
+    ("names", "family"),
+    [
+        (FLUX2_KLEIN_TENSORS, "flux2"),
+        (Z_IMAGE_TENSORS, "z_image"),
+        (ERNIE_IMAGE_TENSORS, "ernie_image"),
+    ],
+)
+def test_the_newer_families_are_named_by_the_tensor_sd_cpp_reads(
+    names: list[str], family: str
+) -> None:
+    """A standalone diffusion model's names are bare; sd.cpp prefixes them with
+    model.diffusion_model. when it loads one, and either form is the family."""
+    prefixed = [f"model.diffusion_model.{n}" for n in names]
+
+    assert diffusion_architecture(_tensors(names)) == family
+    assert diffusion_architecture(_tensors(prefixed)) == family
+    assert classify(family).types == (ModelType.IMAGE_GEN,)
+
+
+# The first tensors of both curated Wan files, read on 25 Sep 2026; sd.cpp tells
+# Wan by the cross attention's key norm.
+WAN_TENSORS = [
+    "blocks.0.cross_attn.k.bias",
+    "blocks.0.cross_attn.k.weight",
+    "blocks.0.cross_attn.norm_k.weight",
+]
+
+
+def test_wan_is_named_by_its_cross_attention_and_makes_video() -> None:
+    """Wan2.1 and Wan2.2 alike; the classifier calls it a video model."""
+    assert diffusion_architecture(_tensors(WAN_TENSORS)) == "wan"
+    assert classify("wan").types == (ModelType.VIDEO_GEN,)
+
+
+def test_longcat_is_flux_shaped_with_a_qwen2_5_vl_wide_text_input() -> None:
+    """sd.cpp tells LongCat from FLUX.1 by its text input's width, 3584, which is
+    Qwen2.5-VL-7B's; the file itself claims to be flux."""
+
+    def model(txt_in_width: int) -> list:
+        return read_header_prefix(
+            gguf(
+                [],
+                [
+                    tensor("double_blocks.0.img_attn.qkv.weight", [3072, 9216]),
+                    tensor("txt_in.weight", [txt_in_width, 3072]),
+                ],
+            )
+        ).tensors
+
+    assert diffusion_architecture(model(3584)) == "longcat"
+    assert classify("longcat").types == (ModelType.IMAGE_GEN,)
+    # FLUX.1's T5 input is 4096 wide; nothing curated is FLUX.1.
+    assert diffusion_architecture(model(4096)) is None

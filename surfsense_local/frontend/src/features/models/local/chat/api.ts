@@ -52,6 +52,9 @@ export type LocalBuild = {
   quantization: string
   /** Everything that lands on disk and loads together, projector included. */
   footprint_bytes: number
+  /** What Download fetches, less files another model already brought. Null
+   *  where nothing is shared, so the footprint is the download. */
+  download_bytes?: number | null
   files: BuildFile[]
   /** Null where the engine has no fit estimate (image models): the row states
    *  the download size and nothing about this machine. */
@@ -61,6 +64,9 @@ export type LocalBuild = {
   /** What the runtime calls this build on disk, which Use and Delete act on. */
   installed_as: string | null
   selected: boolean
+  /** The slots whose selection names this build: each section marks it by its
+   *  own. Absent from a server older than image editing. */
+  selected_for?: string[]
   /** The build to install on this machine. Curated models only. */
   recommended: boolean
   reads_images: boolean
@@ -186,7 +192,8 @@ export type RepoDetail = {
 
 export type InstallEvent =
   | {
-      type: "starting" | "verifying" | "selecting"
+      // `queued`: another download runs, and this one starts when it ends.
+      type: "queued" | "starting" | "verifying" | "selecting"
       message?: string
     }
   | {
@@ -245,12 +252,18 @@ export async function installCatalogModel(
   catalogId: string,
   onEvent: (event: InstallEvent) => void,
   signal?: AbortSignal,
-  select = true
+  select = true,
+  /** The slot `select` fills; the engine's own when absent. */
+  modelType?: string
 ): Promise<ModelSelection | null> {
   const response = await request("/llm/install", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ catalog_id: catalogId, select }),
+    body: JSON.stringify({
+      catalog_id: catalogId,
+      select,
+      ...(modelType ? { model_type: modelType } : {}),
+    }),
     signal,
   })
   if (!response.body) {

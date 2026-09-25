@@ -38,6 +38,8 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | vision (model badge) | 画像認識 | 이미지 인식 | 图像识别 | विज़न | Vision | Visión | Vision | Visão | Изображения |
 | build (a quantized variant) | ビルド | 빌드 | 版本 | बिल्ड | Variante | variante | variante | variante | сборка |
 | in use | 使用中 | 사용 중 | 使用中 | उपयोग में | Aktiv | En uso | Actif | Em uso | Используется |
+| image editing | 画像編集 | 이미지 편집 | 图像编辑 | इमेज एडिटिंग | Bildbearbeitung | edición de imágenes | modification d’images | edição de imagem | редактирование изображений |
+| video | 動画 | 동영상 | 视频 | वीडियो | Video | video | vidéo | vídeo | видео |
 | server (a model server) | サーバー | 서버 | 服务器 | सर्वर | Server | servidor | serveur | servidor | сервер |
 | provider | プロバイダー | 제공업체 | 提供商 | प्रोवाइडर | Anbieter | proveedor | fournisseur | provedor | провайдер |
 | this computer | このコンピューター | 이 컴퓨터 | 这台电脑 | यह कंप्यूटर | dieser Computer | este equipo | cet ordinateur | este computador | этот компьютер |

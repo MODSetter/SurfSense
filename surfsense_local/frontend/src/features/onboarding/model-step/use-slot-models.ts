@@ -46,6 +46,36 @@ function useImageSlot(): SlotModels {
   }
 }
 
+function useImageEditSlot(): SlotModels {
+  const models = useImageModels("image_edit")
+  const catalog = useLocalImageCatalog("image_edit")
+  const rows = catalog.data ?? []
+  // The image model chosen a step earlier leads when it edits too: one Use,
+  // nothing more to download.
+  const forImages = (row: LocalRow) =>
+    row.builds.some((build) => build.selected_for?.includes("image_gen"))
+  return {
+    rows: [...rows.filter(forImages), ...rows.filter((row) => !forImages(row))],
+    hardware: null,
+    inUse: models.inUse,
+    isPending: models.isPending,
+    error: models.error,
+  }
+}
+
+function useVideoSlot(): SlotModels {
+  const models = useImageModels("video_gen")
+  const catalog = useLocalImageCatalog("video_gen")
+  return {
+    rows: catalog.data ?? [],
+    // sd.cpp has no fit estimate for video either.
+    hardware: null,
+    inUse: models.inUse,
+    isPending: models.isPending,
+    error: models.error,
+  }
+}
+
 function useAudioSlot(): SlotModels {
   const models = useAudioModels()
   // The whole catalog, not audio's own view of it: the list reads chat's rows.
@@ -67,5 +97,7 @@ function useAudioSlot(): SlotModels {
 export const slotModels: Record<OnboardingSlot, () => SlotModels> = {
   text_gen: useChatSlot,
   image_gen: useImageSlot,
+  image_edit: useImageEditSlot,
+  video_gen: useVideoSlot,
   audio_gen: useAudioSlot,
 }

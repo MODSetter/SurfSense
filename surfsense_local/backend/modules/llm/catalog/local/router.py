@@ -7,7 +7,7 @@ reads its listing only; the one header read happens when a build is installed.
 
 import json
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 
 import httpx
 from fastapi import APIRouter, HTTPException, Request, status
@@ -66,11 +66,13 @@ def read_local_catalog(service: LocalCatalogDep, session: SessionDep) -> dict:
     """No network call of any kind."""
     selected = {
         model_type: name
-        for model_type in (ModelType.TEXT_GEN, ModelType.IMAGE_GEN, ModelType.AUDIO_GEN)
+        for model_type in ModelType
         if (name := _selected_local(session, model_type))
     }
     catalog = service.catalog(selected)
-    in_use = set(selected.values())
+    in_use: dict[str, list[ModelType]] = {}
+    for model_type, name in selected.items():
+        in_use.setdefault(name, []).append(model_type)
     return {
         "budget": _budget(catalog.budget),
         "gpu_status": catalog.gpu_status.value,
@@ -120,7 +122,7 @@ async def read_repo(repo: str, service: LocalCatalogDep, session: SessionDep) ->
         row, gated = await service.repo(repo)
     except httpx.HTTPError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, UNREACHABLE) from error
-    return {"repo": repo, "gated": gated, "row": _row(row, in_use=set())}
+    return {"repo": repo, "gated": gated, "row": _row(row, in_use={})}
 
 
 @router.post("/install", summary="Download a model and optionally select it")
@@ -137,13 +139,13 @@ async def install(
     await transact(session, egress.require, egress.HUGGINGFACE)
 
     lock = service.install_lock()
-    if lock.locked():
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, "a model is already being installed"
-        )
-    await lock.acquire()
 
     async def progress() -> AsyncIterator[bytes]:
+        # One download at a time, in order: a second waits rather than fails,
+        # so a model chosen while another downloads still comes.
+        if lock.locked():
+            yield _event("queued", message="Waiting for the download ahead of it")
+        await lock.acquire()
         try:
             yield _event("starting", message="Checking the model")
             try:
@@ -172,7 +174,10 @@ async def install(
                 yield _event("selecting", message="Selecting model")
                 with request.app.state.session_factory() as fresh:
                     chosen = await choose_model(
-                        fresh, engine.model_type, engine.provider, checked.model_id
+                        fresh,
+                        payload.model_type or engine.model_types[0],
+                        engine.provider,
+                        checked.model_id,
                     )
                     selection = SelectionRead.model_validate(chosen).model_dump(
                         mode="json"
@@ -210,7 +215,7 @@ def _budget(budget) -> dict:
     }
 
 
-def _row(row: LocalRow, in_use: set[str]) -> dict:
+def _row(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
     classification = row.classification
     return {
         "id": row.id,
@@ -250,12 +255,13 @@ def _row(row: LocalRow, in_use: set[str]) -> dict:
     }
 
 
-def _build(build: BuildRow, in_use: set[str]) -> dict:
+def _build(build: BuildRow, in_use: Mapping[str, list[ModelType]]) -> dict:
     fit, badge = build.fit, build.badge
     return {
         "catalog_id": build.catalog_id,
         "quantization": build.build.quantization,
         "footprint_bytes": build.build.footprint_bytes,
+        "download_bytes": build.download_bytes,
         "files": [
             {"role": f.role.value, "path": f.path, "size_bytes": f.size_bytes}
             for f in build.build.files
@@ -283,6 +289,7 @@ def _build(build: BuildRow, in_use: set[str]) -> dict:
         "can_install": build.can_install,
         "installed_as": build.installed_as,
         "selected": build.installed_as is not None and build.installed_as in in_use,
+        "selected_for": in_use.get(build.installed_as or "", []),
         "recommended": build.recommended,
         "reads_images": build.reads_images,
         "projector_checked": build.projector_checked,

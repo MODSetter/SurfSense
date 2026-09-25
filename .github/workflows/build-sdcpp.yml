@@ -1,0 +1,116 @@
+# Compile stable-diffusion.cpp's sd-server for Linux and macOS with the scripts
+# in surfsense_local/electron/scripts/sdcpp/, check each against the app's
+# floors, and hand the staged folder to the desktop release as an artifact. A
+# pull request that changes the scripts runs it too. Windows takes upstream's
+# archive, a pinned download, which the release stages itself.
+#
+# TODO: ask upstream (leejet/stable-diffusion.cpp) to publish a Linux archive
+# built on Ubuntu 22.04 and a macOS one for 13.3, as llama.cpp does. Once a
+# release does, download those and drop the compile.
+name: Build sd.cpp
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - surfsense_local/electron/scripts/sdcpp/**
+      - .github/workflows/build-sdcpp.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The release's Linux runner: its glibc is the AppImage's floor.
+          - os: ubuntu-22.04
+            name: Linux x64
+          - os: macos-15
+            name: macOS arm64
+    defaults:
+      run:
+        shell: bash
+        working-directory: surfsense_local/electron
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          # The scripts need Node only, not the app's pnpm install.
+          package-manager-cache: false
+
+      # A release that does not change the scripts reuses the last checked build.
+      - id: cache
+        uses: actions/cache@v5
+        with:
+          path: surfsense_local/electron/sdcpp
+          key: sdcpp-${{ runner.os }}-${{ hashFiles('surfsense_local/electron/scripts/sdcpp/*.mjs') }}
+
+      - name: Install the Vulkan SDK
+        # 22.04 packages no glslc, which compiles ggml's Vulkan shaders;
+        # llama.cpp's 22.04 release build takes LunarG's SDK the same way.
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          wget -qO - https://packages.lunarg.com/lunarg-signing-key-pub.asc | sudo apt-key add -
+          sudo wget -qO /etc/apt/sources.list.d/lunarg-vulkan-jammy.list https://packages.lunarg.com/vulkan/lunarg-vulkan-jammy.list
+          sudo apt-get update -y
+          sudo apt-get install -y vulkan-sdk ninja-build
+
+      - name: Compile and stage
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: node scripts/sdcpp/stage.mjs --strict
+
+      - name: Gate on the app's Linux floor
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_local/electron/sdcpp
+        # The floor is glibc 2.34, RHEL 9, whose libgcc_s is GCC 11's: nothing
+        # after GCC_7.0.0. Only the Vulkan backend may need the system's Vulkan
+        # loader, which comes with the GPU driver.
+        run: |
+          files=$(for f in sd-server *.so*; do [ -L "$f" ] || echo "$f"; done)
+          too_new=$(for f in $files; do objdump -T "$f"; done | grep -oE '(GLIBC|GCC)_[0-9.]+[0-9]' | sort -Vu | while read -r v; do
+            case "$v" in GLIBC_*) floor=GLIBC_2.34 ;; GCC_*) floor=GCC_7.0.0 ;; esac
+            [ "$(printf '%s\n%s\n' "$v" "$floor" | sort -V | tail -1)" = "$floor" ] || echo "$v"
+          done)
+          if [ -n "$too_new" ]; then
+            for f in $files; do objdump -T "$f" | grep -wF "$too_new" | sed "s|^|$f: |"; done
+            exit 1
+          fi
+          needs=$(for f in $files; do objdump -p "$f" | awk -v f="$f" '$1 == "NEEDED" && ($2 ~ /^lib(stdc\+\+|gomp)/ || ($2 ~ /^libvulkan/ && f != "libggml-vulkan.so")) {print f ": " $2}'; done)
+          if [ -n "$needs" ]; then echo "$needs"; exit 1; fi
+          test -f libggml-vulkan.so
+          ls libggml-cpu-*.so | tee /dev/stderr | grep -q haswell
+
+      - name: Gate on the app's macOS floor
+        if: runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_local/electron/sdcpp
+        # 13.3, as llama.cpp's and audio.cpp's builds; upstream's is 26.0. Every
+        # library it loads is the system's or its own.
+        run: |
+          bad=0
+          for f in sd-server *.dylib; do
+            [ -L "$f" ] && continue
+            minos=$(otool -l "$f" | awk '$1 == "minos" {print $2; exit}')
+            if [ "$(printf '%s\n%s\n' "$minos" 13.3 | sort -V | tail -1)" != "13.3" ]; then
+              echo "$f needs macOS $minos"; bad=1
+            fi
+            outside=$(otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -vE '^(/usr/lib/|/System/Library/|@rpath/|@loader_path/)' || true)
+            if [ -n "$outside" ]; then echo "$f links $outside"; bad=1; fi
+          done
+          exit $bad
+
+      # An artifact drops symlinks and file modes; a tar keeps both.
+      - name: Pack
+        run: tar -cf sdcpp.tar sdcpp
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdcpp-${{ runner.os }}
+          path: surfsense_local/electron/sdcpp.tar
+          retention-days: 7

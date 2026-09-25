@@ -1,6 +1,6 @@
 # Packaging
 
-One build per platform (Linux ships two packages) carries everything the desktop app needs to run offline: the API and the worker frozen into PyInstaller binaries, the renderer, the embedding, voice and parser model packs, and the llama.cpp and audio.cpp runtimes. PyInstaller follows only `import` statements, so anything the app reaches by a path or a string must be named in a spec, and each omission shows up only in a frozen build on a clean machine; the specs name those files, and packaging tests freeze real binaries to catch the ones that slip. Generation weights are never bundled; the app downloads them when the user asks ([egress](egress.md)).
+One build per platform (Linux ships two packages) carries everything the desktop app needs to run offline: the API and the worker frozen into PyInstaller binaries, the renderer, the embedding, voice and parser model packs, and the llama.cpp, sd.cpp and audio.cpp runtimes. PyInstaller follows only `import` statements, so anything the app reaches by a path or a string must be named in a spec, and each omission shows up only in a frozen build on a clean machine; the specs name those files, and packaging tests freeze real binaries to catch the ones that slip. Generation weights are never bundled; the app downloads them when the user asks ([egress](egress.md)).
 
 **Code:** [`surfsense_local/backend/bundling/`](../../surfsense_local/backend/bundling/), [`surfsense_local/backend/scripts/build_binaries.py`](../../surfsense_local/backend/scripts/build_binaries.py), [`surfsense_local/electron/electron-builder.yml`](../../surfsense_local/electron/electron-builder.yml), [`surfsense_local/electron/scripts/`](../../surfsense_local/electron/scripts/), [`.github/workflows/release-local.yml`](../../.github/workflows/release-local.yml), [`surfsense_local/backend/tests/packaging/`](../../surfsense_local/backend/tests/packaging/)
 **Decisions:** [ADR 0021](../adr/0021-no-intel-mac-build.md), [ADR 0012](../adr/0012-vulkan-only-gpu-backend.md)
@@ -61,7 +61,10 @@ The release workflow runs the three scripts directly. Without the parser pack, D
 ## Native runtimes
 
 - `scripts/fetch-llamacpp.mjs` stages a pinned llama.cpp build, checked against its pinned SHA-256, into `electron/llamacpp/`, keeping `llama-server` and the libraries it links. Its rules, the pin, the Vulkan-only GPU backend and the pruning, are in [local-models/runtime.md](local-models/runtime.md).
-- `scripts/fetch-sdcpp.mjs` stages stable-diffusion.cpp's `sd-server` into `electron/sdcpp/` from a pinned tag, checked against a locally computed SHA-256: the Vulkan builds for Windows and Linux x64 and the macOS arm64 build. A host with no prebuilt binary gets an empty directory, and the app runs without local image generation.
+- `scripts/sdcpp/stage.mjs`, which `build:sdcpp` runs, stages stable-diffusion.cpp's `sd-server` into `electron/sdcpp/` with the libraries it loads from beside itself and its licences, leaving `sd-cli` behind. It runs `sd-server --help` from the staged folder before it swaps the folder into place.
+  - Windows downloads upstream's Vulkan archive, checked against its pinned SHA-256, and copies the MSVC and OpenMP runtimes beside it, which the archive needs and does not carry.
+  - Linux and macOS compile the pinned commit, because upstream's Linux archives need glibc 2.38 and its macOS archive needs macOS 26.0. The recipe, `scripts/sdcpp/recipe.mjs`, builds Vulkan on Linux, with one ggml library per micro-architecture, and Metal on macOS, for 13.3.
+  - Compiling needs CMake, a C++ compiler and the Vulkan SDK (`glslc` and headers) on Linux, or Xcode's command line tools on macOS; Windows needs Visual Studio 2022 or newer with the C++ tools, for the runtime it ships. Without them the script stages an empty folder and says why, and the app runs without local images. Release CI passes `--strict`, which fails instead.
 - `scripts/audiocpp/stage.mjs`, which `build:audiocpp` runs, stages audio.cpp's `audiocpp_server` into `electron/audiocpp/` with the model specs of the three curated families. It adds eSpeak-ng 1.52.0 from the pinned `espeakng-loader` wheel, which Kokoro and Kitten phonemise through (Kokoro finds it through the server's environment, Kitten through `server.json`, [`local-models/catalog.md`](local-models/catalog.md)), and eSpeak-ng's GPL licence text, which the wheel does not carry. It runs `--list-devices` from the staged folder before it swaps the folder into place.
   - macOS downloads upstream's archive, checked against its pinned SHA-256.
   - Windows and Linux compile the pinned commit, because upstream's Linux archives need glibc 2.38 and its Windows archive compiles AVX-512 into the executable. The recipe, `scripts/audiocpp/recipe.mjs`, builds only the CPU backend, since the server runs with `--backend cpu`, with one ggml library per micro-architecture and only the curated model families.
@@ -73,6 +76,13 @@ The release workflow runs the three scripts directly. Without the parser pack, D
 
 [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles the Windows and Linux builds with `stage.mjs --strict`, checks them, and hands each staged folder on as an artifact. `release-local.yml` calls it, and its packaging jobs unpack the artifact before `stage.mjs`, which then finds the server already staged. A pull request that changes `scripts/audiocpp/`, the audio.cpp adapter or engine, the manifest or the voicing test runs it too. It caches the staged folder by the scripts' contents, so a release that does not change them reuses the last checked build, and voices with it again.
 
+Why it compiles rather than downloads, in plain words: upstream's ready-made programs for Linux and Windows do not run on many of the computers the app supports, for a different reason on each.
+
+- **Linux: the age of the system.** Upstream's program needs a recent Linux, Ubuntu 24.04 or later (glibc 2.38). The app's build also runs on older ones, such as Ubuntu 22.04 and RHEL 9.
+- **Windows: the processor, not the Windows version.** Upstream's program uses AVX-512 instructions that many common processors lack, so it crashes on them, recent ones included: Intel's 12th to 14th generation, and AMD's before Zen 4. The app's build picks the right code for the processor it runs on.
+
+macOS needs neither, so the app ships upstream's program there. The app's builds are upstream's own code at a pinned commit; only the build settings differ.
+
 It is a stopgap. Once upstream publishes archives that meet both floors, the app downloads those as it does llama.cpp's, and the compile path and the workflow go.
 
 - Linux builds on `ubuntu-22.04`, the release's own runner, with GCC 13 from the toolchain PPA. The PPA replaces the runner's libstdc++ with a newer one, so the build runs in its own job, and the frozen Python binaries never bundle it.
@@ -82,6 +92,18 @@ It is a stopgap. Once upstream publishes archives that meet both floors, the app
 - Windows copies the MSVC runtime beside the executable, so a clean Windows needs no redistributable.
 - Both run `test_audiocpp_voicing.py` on the staged folder, cached or not, with each curated model's pinned file downloaded from the URL its manifest entry names ([Packaging tests](#packaging-tests)).
 - An artifact drops symlinks and file modes, so the staged folder travels as a tar.
+
+## Building sd.cpp
+
+[`build-sdcpp.yml`](../../.github/workflows/build-sdcpp.yml) compiles the Linux and macOS builds with `stage.mjs --strict`, checks each against the app's floors, and hands each staged folder on as an artifact, as `build-audiocpp.yml` does. A pull request that changes `scripts/sdcpp/` runs it too, so a compile that a pin bump or a new runner image breaks fails in review rather than in a release. It caches the staged folder by the scripts' contents. Windows is a pinned download, so the release job stages it itself, as it does llama.cpp.
+
+Why it compiles on Linux and macOS, in plain words: upstream's ready-made programs start only on the newest systems there, Ubuntu 24.04 (glibc 2.38) and macOS 26.0, while the app runs on Ubuntu 22.04, RHEL 9 and macOS 13.3, the floor its llama.cpp and audio.cpp builds already set. Upstream's Windows program runs on any x64 processor, since its AVX-512 code sits only in the per-processor ggml libraries ggml picks at start, so Windows takes it as built.
+
+- Linux builds on `ubuntu-22.04` with LunarG's Vulkan SDK, as llama.cpp's own 22.04 release does, because 22.04 packages no `glslc` to compile ggml's shaders.
+- libstdc++ is linked statically into every file, ggml's modules included, and OpenMP is off, so neither `libstdc++` nor `libgomp` ships. libgcc stays dynamic.
+- Linux gates on no symbol newer than `GLIBC_2.34` or `GCC_7.0.0`, on no file that needs libstdc++ or libgomp, and on only the Vulkan backend needing the system's Vulkan loader, which comes with the GPU driver.
+- macOS gates on every file targeting 13.3 or older and linking only the system's libraries and its own.
+- It is a stopgap, like audio.cpp's: once upstream publishes a Linux archive built on 22.04 and a macOS one for 13.3, the app downloads those and the compile goes.
 
 ## Release builds
 
@@ -95,7 +117,7 @@ It is a stopgap. Once upstream publishes archives that meet both floors, the app
 
 The Linux runner is pinned because `ubuntu-latest` moves to 26.04 and would silently raise the AppImage's glibc floor; llama.cpp's Vulkan build needs 2.34. There is no Intel Mac build, because torch and onnxruntime no longer publish Intel macOS wheels.
 
-Each runner, in order, checks the version (semver; on a tag push it must equal `surfsense_local/VERSION`), refuses to build with the test signing key ([license](license/app.md)), freezes the binaries, smokes the frozen worker's Docling vision imports (`--check-vision-runtime`) and the frozen API's `/health`, stages the model packs, builds the SPA and the Electron bundles, stages llama.cpp and audio.cpp, and runs `electron-builder`. The three runners wait for the `audiocpp` job, whose Windows and Linux builds they unpack. On Linux it then starts the API from the packaged `linux-unpacked` resources and runs `llama-server --list-devices` and `audiocpp_server --list-devices` from their packaged directories, because ggml finds its backends only next to the running executable, and checks that eSpeak-ng and its licence are packaged beside `audiocpp_server`.
+Each runner, in order, checks the version (semver; on a tag push it must equal `surfsense_local/VERSION`), refuses to build with the test signing key ([license](license/app.md)), freezes the binaries, smokes the frozen worker's Docling vision imports (`--check-vision-runtime`) and the frozen API's `/health`, stages the model packs, builds the SPA and the Electron bundles, stages llama.cpp, audio.cpp and sd.cpp, and runs `electron-builder`. The three runners wait for the `audiocpp` and `sdcpp` jobs, and unpack audio.cpp's Windows and Linux builds and sd.cpp's Linux and macOS builds. On Linux it then starts the API from the packaged `linux-unpacked` resources and runs `llama-server --list-devices`, `audiocpp_server --list-devices` and `sd-server --help` from their packaged directories, because ggml finds its backends only next to the running executable, and checks that eSpeak-ng and its licence are packaged beside `audiocpp_server`, and sd.cpp's Vulkan backend and licence beside `sd-server`.
 
 The macOS build is signed with the hardened runtime and notarized whenever the signing secrets are available. Two steps run only on tag pushes: the early check of the Apple notarization credentials, and Azure Trusted Signing for the Windows build.
 
@@ -121,7 +143,8 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 
 ## Known gaps
 
-- Release CI never runs `fetch-sdcpp.mjs`, although `electron-builder.yml` packages an `sdcpp` folder, and `sdcpp/` is not in git, so installers are built without `sd-server` and offer no local image models.
+- `build-sdcpp.yml` has not run yet, so no release has built or packaged sd.cpp: the Linux and macOS compiles and the Windows runtime copy have not run; only the build recipe is unit-tested.
+- No CI job generates an image with the staged `sd-server`; its gates are `--help` and the platform floors, not a picture.
 - No tagged release has built the llama.cpp runtime: the v2.0.2 run staged Ollama and llmfit instead.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
 - No release has built or packaged audio.cpp yet, and nothing has staged its macOS archive on a Mac.

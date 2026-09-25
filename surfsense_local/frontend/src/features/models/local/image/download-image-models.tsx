@@ -10,9 +10,28 @@ import type { YourModelRow } from "../../your-models/your-model-row"
 import type { LocalBuild, LocalRow } from "../chat/api"
 import { ModelCard } from "../chat/model-card"
 import { ModelFamilyGroup } from "../chat/model-family-group"
+import type { SdCppSlot } from "./api"
 import { useDeleteLocalImageModel } from "./use-delete-local-image-model"
 import { useImageInstall } from "./use-image-install"
 import { useLocalImageCatalog } from "./use-local-image-catalog"
+
+const UNSUPPORTED_TITLE: Record<SdCppSlot, () => string> = {
+  image_gen: () =>
+    intl.formatMessage({
+      id: "models_download_image_unsupported_title",
+      defaultMessage: "Image models cannot run on this computer",
+    }),
+  image_edit: () =>
+    intl.formatMessage({
+      id: "models_download_image_edit_unsupported_title",
+      defaultMessage: "Image editing models cannot run on this computer",
+    }),
+  video_gen: () =>
+    intl.formatMessage({
+      id: "models_download_video_unsupported_title",
+      defaultMessage: "Video models cannot run on this computer",
+    }),
+}
 
 function messageFrom(error: unknown) {
   return error instanceof Error
@@ -46,11 +65,16 @@ function byFamily(rows: LocalRow[]) {
   return result
 }
 
-/** Image models sd-server can run on this computer, listed as chat's are. */
-export function DownloadImageModels() {
-  const catalog = useLocalImageCatalog()
+/** Image models sd-server can run on this computer for `slot`, listed as
+ *  chat's are. */
+export function DownloadImageModels({
+  slot = "image_gen",
+}: {
+  slot?: SdCppSlot
+}) {
+  const catalog = useLocalImageCatalog(slot)
   const { installState, install, cancelInstall } = useImageInstall()
-  const select = useSelect("image_gen")
+  const select = useSelect(slot)
   const remove = useDeleteLocalImageModel()
   const [deleting, setDeleting] = useState<{
     removeId: string
@@ -79,12 +103,7 @@ export function DownloadImageModels() {
     return (
       <Alert>
         <CircleAlertIcon />
-        <AlertTitle>
-          {intl.formatMessage({
-            id: "models_download_image_unsupported_title",
-            defaultMessage: "Image models cannot run on this computer",
-          })}
-        </AlertTitle>
+        <AlertTitle>{UNSUPPORTED_TITLE[slot]()}</AlertTitle>
         <AlertDescription>
           {intl.formatMessage({
             id: "models_download_image_unsupported_body",

@@ -34,10 +34,16 @@ class InstalledBuild:
     weights: tuple[str, ...]
     projector: str | None = None
     projector_gguf: Mapping[str, Any] = field(default_factory=dict)
+    # A VAE or a text encoder, which other installed builds may name too.
+    companions: tuple[str, ...] = ()
 
     @property
     def files(self) -> tuple[str, ...]:
-        return self.weights + ((self.projector,) if self.projector else ())
+        return (
+            self.weights
+            + ((self.projector,) if self.projector else ())
+            + self.companions
+        )
 
 
 def read_installs(models_dir: Path) -> dict[str, InstalledBuild]:
@@ -50,6 +56,7 @@ def read_installs(models_dir: Path) -> dict[str, InstalledBuild]:
     for item in raw.get("builds", []):
         try:
             item["weights"] = tuple(item["weights"])
+            item["companions"] = tuple(item.get("companions", ()))
             build = InstalledBuild(**item)
         except (KeyError, TypeError):
             continue
@@ -77,17 +84,20 @@ def record_install(models_dir: Path, build: InstalledBuild) -> None:
 
 
 def forget_install(models_dir: Path, model_id: str) -> tuple[str, ...]:
-    """Drop one build from the record and return the files that go with it."""
+    """Drop one build from the record and return the files that go with it:
+    each one no other installed build still names."""
     installs = read_installs(models_dir)
     build = installs.pop(model_id, None)
     write_installs(models_dir, installs)
     if build is None:
         return (f"{model_id}.gguf", projector_filename(model_id))
-    return build.files
+    kept = {name for other in installs.values() for name in other.files}
+    return tuple(name for name in build.files if name not in kept)
 
 
 def _plain(build: InstalledBuild) -> dict[str, Any]:
     plain = asdict(build)
     plain["weights"] = list(build.weights)
+    plain["companions"] = list(build.companions)
     plain["projector_gguf"] = dict(build.projector_gguf)
     return plain

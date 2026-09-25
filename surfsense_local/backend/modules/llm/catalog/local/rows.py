@@ -73,6 +73,9 @@ class BuildRow:
     projector_checked: bool
     # Shipped with the app, read-only: installed, and never deleted.
     bundled: bool = False
+    # What Download fetches, less the files another model already brought.
+    # None where no file is shared, so the footprint is the download.
+    download_bytes: int | None = None
 
     @property
     def can_install(self) -> bool:

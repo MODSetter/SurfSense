@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
+import { buildSize } from "../build-size"
 import type { LocalBuild, LocalRow } from "./api"
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
@@ -105,7 +106,7 @@ export function ModelCard({
               {lead.quantization}
               <DotIcon aria-hidden="true" className="size-3 shrink-0" />
               <span className="tabular-nums">
-                {formatSize(lead.footprint_bytes)}
+                {formatSize(buildSize(lead))}
               </span>
             </span>
           </div>
@@ -215,7 +216,7 @@ export function ModelCard({
                       </span>
                       <FitBadge fit={build.fit} copy={build.badge} />
                       <span className="text-xs text-muted-foreground tabular-nums">
-                        {formatSize(build.footprint_bytes)}
+                        {formatSize(buildSize(build))}
                       </span>
                     </div>
                     <BuildAction

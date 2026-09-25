@@ -257,6 +257,68 @@ def audio_entry(**overrides) -> dict:
     return {**base, **overrides}
 
 
+def video_entry(**overrides) -> dict:
+    """Wan2.1 1.3B as sd.cpp runs it: the diffusion model, umt5 and its VAE."""
+    base = {
+        "id": "wan2.1-t2v-1.3b",
+        "name": "Wan2.1 T2V 1.3B",
+        "family": "Wan",
+        "publisher": "Wan-AI",
+        "description": "Short clips from text, in the least memory.",
+        "license": "apache-2.0",
+        "source_repo": "Wan-AI/Wan2.1-T2V-1.3B",
+        "evidence": {"architecture": "wan", "pipeline_tag": "text-to-video"},
+        "video": {
+            "origin": "Wan-AI/Wan2.1-T2V-1.3B model card; sd.cpp docs, wan.md",
+            "tasks": ["text"],
+            "width": 832,
+            "height": 480,
+            "frames": 33,
+            "fps": 16,
+            "cfg": 6.0,
+            "flow_shift": 3.0,
+        },
+        "builds": [
+            {
+                "quantization": "Q8_0",
+                "files": [
+                    {
+                        **file("weights", "Wan2.1-T2V-1.3B-Q8_0.gguf", 1_535_768_800),
+                        "repo": "samuelchristlie/Wan2.1-T2V-1.3B-GGUF",
+                    },
+                    {
+                        **file(
+                            "text_encoder",
+                            "umt5-xxl-encoder-Q4_K_M.gguf",
+                            3_655_145_312,
+                        ),
+                        "repo": "city96/umt5-xxl-encoder-gguf",
+                    },
+                    {
+                        **file(
+                            "vae",
+                            "split_files/vae/wan_2.1_vae.safetensors",
+                            253_815_318,
+                        ),
+                        "repo": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+                    },
+                ],
+            }
+        ],
+    }
+    return {**base, **overrides}
+
+
+def test_a_video_model_carries_its_clip_defaults() -> None:
+    """sd.cpp runs it, with a video block in place of an image one."""
+    (model,) = LocalManifest.model_validate(manifest(video_entry())).models
+
+    assert model.image is None
+    assert model.video is not None
+    assert (model.video.frames, model.video.fps) == (33, 16)
+    assert model.video.tasks == ["text"]
+
+
 def test_an_image_model_needs_no_chat_fields() -> None:
     """No context window, template, sampling or fit shape: sd.cpp reads none."""
     (model,) = LocalManifest.model_validate(manifest(image_entry())).models
@@ -289,6 +351,18 @@ def test_an_image_model_needs_no_chat_fields() -> None:
         ),
         pytest.param(
             audio_entry(shape=entry()["shape"]), id="an audio model with a fit shape"
+        ),
+        pytest.param(video_entry(video=None), id="a video model without its defaults"),
+        pytest.param(
+            video_entry(image=image_entry()["image"]),
+            id="a video model with image defaults too",
+        ),
+        pytest.param(
+            image_entry(video=video_entry()["video"]),
+            id="an image model with video defaults too",
+        ),
+        pytest.param(
+            entry(video=video_entry()["video"]), id="a chat model with video defaults"
         ),
     ],
 )

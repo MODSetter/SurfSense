@@ -37,7 +37,14 @@ function messageFrom(error: unknown) {
  * and each section shows only its own download. `select` is whether a finished
  * install also becomes the model in use: chat's does, image's waits for Use.
  */
-export function createInstall({ select }: { select: boolean }) {
+export function createInstall({
+  select,
+  modelType,
+}: {
+  select: boolean
+  /** The slot a selecting install fills; the engine's own when absent. */
+  modelType?: string
+}) {
   // Module state, not component state: a download outlives the view that
   // started it, so leaving the catalog or closing settings does not cancel it.
   let state: InstallState = IDLE
@@ -79,7 +86,8 @@ export function createInstall({ select }: { select: boolean }) {
           catalogId,
           (event) => publish({ status: "installing", catalogId, label, event }),
           next.signal,
-          select
+          select,
+          modelType
         )
         await refresh()
         if (selection) onSelected?.(selection)

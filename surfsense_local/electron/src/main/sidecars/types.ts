@@ -43,7 +43,7 @@ export interface SidecarContext {
    * else. Unset, every machine badges as having no GPU and nothing says why.
    */
   llamacppBinariesDir?: string
-  /** Where the staged sd-server build lives: `fetch-sdcpp.mjs` writes it. */
+  /** Where the staged sd-server build lives: `scripts/sdcpp/stage.mjs` writes it. */
   sdcppBinariesDir?: string
   /**
    * sd-server's port, model dir, and URL for API + worker. Unset when no build

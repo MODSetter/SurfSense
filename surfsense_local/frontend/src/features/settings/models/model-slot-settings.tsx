@@ -78,7 +78,7 @@ export function ModelSlotSettings({
           {
             id: "settings_models_add_page_title",
             defaultMessage:
-              "{slot, select, audio {Add an audio model} chat {Add a chat model} image {Add an image model} other {Add a model}}",
+              "{slot, select, audio {Add an audio model} chat {Add a chat model} image {Add an image model} image_edit {Add an image editing model} video {Add a video model} other {Add a model}}",
           },
           { slot }
         )}
@@ -131,7 +131,7 @@ export function ModelSlotSettings({
                 {
                   id: "settings_models_empty",
                   defaultMessage:
-                    "{slot, select, audio {No audio model yet} chat {No chat model yet} image {No image model yet} other {No model yet}}",
+                    "{slot, select, audio {No audio model yet} chat {No chat model yet} image {No image model yet} image_edit {No image editing model yet} video {No video model yet} other {No model yet}}",
                 },
                 { slot }
               )}

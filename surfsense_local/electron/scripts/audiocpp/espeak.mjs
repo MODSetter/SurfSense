@@ -3,7 +3,7 @@
 import { copyFileSync, cpSync, mkdirSync } from "node:fs"
 import { join } from "node:path"
 
-import { download, unpack } from "./download.mjs"
+import { download, unpack } from "../pinned-download.mjs"
 import { ESPEAK, ESPEAK_LICENCE } from "./pins.mjs"
 
 export async function stageEspeak(work, stage) {

@@ -3,9 +3,10 @@
 from collections.abc import AsyncIterator, Callable, Sequence
 from pathlib import Path
 
-from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.build import Build, BuildFile
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.sdcpp import ENGINE
+from modules.llm.catalog.local.engines.sdcpp.images_folder import landing
 from modules.llm.catalog.local.engines.sdcpp.images_folder.files import files_in
 from modules.llm.catalog.local.engines.sdcpp.images_folder.installed import (
     InstalledImage,
@@ -23,7 +24,8 @@ from modules.llm.providers.sdcpp import PROVIDER
 
 class SdCppEngine:
     name = ENGINE
-    model_type = ModelType.IMAGE_GEN
+    # sd-server makes images, edits them, and makes video.
+    model_types = (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT, ModelType.VIDEO_GEN)
     provider = PROVIDER
 
     def __init__(self, images_dir: Path | None, models: Sequence[CuratedModel]) -> None:
@@ -64,6 +66,9 @@ class SdCppEngine:
             read_installs(self._images_dir),
             files_in(self._images_dir),
         )
+
+    def landing(self, file: BuildFile, model_id: str) -> str:
+        return landing.landing(file)
 
     def holds(self, model_id: str) -> bool:
         return self.installed_image(model_id) is not None

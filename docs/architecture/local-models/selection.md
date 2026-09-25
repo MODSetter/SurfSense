@@ -21,8 +21,9 @@ choosing or clearing a model never touches.
 |---|---|---|---|
 | `text_gen` | `llamacpp`, the bundled runtime | `openai_compatible`, with a `connection_id` | chat, titles, Studio's writing |
 | `image_gen` | `sdcpp`, the bundled sd-server | `openai_compatible`, with a `connection_id` | Studio's `image` and `infographic` |
+| `image_edit` | `sdcpp`, a model whose entry names `edit` | `openai_compatible`, with a `connection_id` | nothing yet |
 | `audio_gen` | `audiocpp`, the bundled audio.cpp server | `openai_compatible`, with a `connection_id`, which nothing reads yet | Studio's `podcast` |
-| `image_edit`, `video_gen` | none | `openai_compatible`, with a `connection_id` | nothing yet |
+| `video_gen` | `sdcpp`, a model whose entry has a `video` block | `openai_compatible`, with a `connection_id` | nothing yet |
 
 A type no feature reads can still be chosen; the feature that first reads one
 brings the client that calls it.
@@ -30,8 +31,8 @@ brings the client that calls it.
 A row stores the provider, the connection when remote, the exact model id, and
 three fingerprint facts. A check constraint requires a `connection_id` exactly
 when the provider is `openai_compatible`, a second (`local_runtime_type`) lets
-`llamacpp` hold only `text_gen`, `sdcpp` only `image_gen` and `audiocpp` only
-`audio_gen`, and deleting a
+`llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and
+`video_gen` (revision `0017`), and `audiocpp` only `audio_gen`, and deleting a
 connection cascades to the rows that name it. `provider` is the SurfSense inference provider, never the
 model's publisher.
 
@@ -44,10 +45,13 @@ fingerprints and stores:
   connection, the router must list the model as installed, and its own header
   must make it `text_gen` ([`catalog.md`](catalog.md)). The provider drops a
   file whose header is not a model, and an unreadable header counts as `text_gen`.
-- **Local image** (`sdcpp`): the type must be `image_gen`, there is no
-  connection, and the name must be a curated image build installed in the
-  images folder, named by its first weights file as a chat build is
-  ([`catalog.md`](catalog.md)).
+- **Local image** (`sdcpp`): there is no connection, the name must be a
+  curated image build installed in the images folder, named by its first
+  weights file as a chat build is ([`catalog.md`](catalog.md)), and the type
+  must be one its entry names: `image_gen` for `generate`, `image_edit` for
+  `edit`, and `video_gen` for a model with a `video` block. FLUX.2 klein fills
+  both image slots from the same files; SD 1.5 is refused for editing, and
+  every image model for video.
 - **Local audio** (`audiocpp`): the type must be `audio_gen`, there is no
   connection, and the name must be a curated audio build installed in the
   audio folder or shipped in the models pack, named by its weights file as a
@@ -69,8 +73,9 @@ and choosing a model is when the user has said they are about to use it
 loads nothing.
 
 Installing with `select: true` goes through the same `choose_model()`
-([`catalog.md`](catalog.md)). Deleting a local model clears the `text_gen`,
-`image_gen` or `audio_gen` row that named it, by the engine that held it, and reports
+([`catalog.md`](catalog.md)). Deleting a local model clears every row of the
+types its engine fills that named it, `image_gen` and `image_edit` both for a
+model chosen for each, and reports
 `selection_cleared`; nothing chooses another
 model in its place, except that at the next start an empty `audio_gen` row takes
 the voice the app ships ([`default_voice.py`](../../../surfsense_local/backend/modules/llm/default_voice.py)).
@@ -153,7 +158,7 @@ three, and `worker.spec` takes those plus every `*.md` under `worker.studio`.
 `GET /llm/onboarding` returns `{"completed": bool}`, true once the singleton
 `onboarding_completion` row exists. `POST /llm/onboarding` writes that row and
 requires a persisted `text_gen` selection, answering `422 chat model required`
-otherwise; image and audio models are optional. The marker means the user finished
+otherwise; image, image editing, video and audio models are optional. The marker means the user finished
 choosing, and it is the one thing that must not become true early.
 
 Two invariants, both easy to break from the frontend: selecting or clearing a
@@ -162,22 +167,22 @@ route. Only the onboarding page's last step does, once a chat model is
 persisted. Once the marker exists the app never shows onboarding again, and a
 missing selection is fixed from Settings' Chat section.
 
-The onboarding page opens on a welcome screen, then three steps: chat, image and audio model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The three
+The onboarding page opens on a welcome screen, then five steps: chat, image, image editing, video and audio model. The welcome is not counted as a step, but it is part of onboarding and gated by the same marker, so it is never shown again once onboarding is done. The five
 model steps are one component for any slot
 ([`frontend/src/features/onboarding/model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)),
 built on the same hooks as Settings but with its own screens. Each lists every
 model this computer can run at once, the catalog's starred row first, with
 Download, Use and Delete as in Settings; a download's progress shows under its
 row and never moves the page. The chat step also offers Settings' Hugging Face
-search, closed until asked for; the image and audio steps have none, since
-sd.cpp's and audio.cpp's models are the few the catalog ships. A server sits one line below the list and names
+search, closed until asked for; the image, image editing, video and audio steps have none, since
+sd.cpp's and audio.cpp's models are the few the catalog ships. The image editing step lists first the model chosen for images a step earlier when it edits too, so FLUX.2 klein is one Use away, and its downloads fill `image_edit`. A server sits one line below the list and names
 any connected earlier. Once the slot has a model, the footer names it beside
 Continue. Onboarding installs with `select: true`, so a download is also the
 choice; Settings installs with `select: false`. The chat step's Continue is
-enabled only once a chat model is selected, local or from a server. The image
-and audio steps are optional, and each enables its Continue or Finish only once
-its slot has a model. The image step's Skip and Continue both move on to the
-audio step; the audio step's Skip and Finish both post the marker.
+enabled only once a chat model is selected, local or from a server. The image,
+image editing, video and audio steps are optional, and each enables its Continue or Finish only once
+its slot has a model. Each step's Skip and Continue move on to the next, image
+to image editing to video to audio; the audio step's Skip and Finish both post the marker.
 
 ## Resolution: local and remote
 

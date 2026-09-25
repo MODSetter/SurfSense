@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
-from modules.llm.catalog.local.build import Build
+from modules.llm.catalog.local.build import Build, BuildFile
 from modules.llm.catalog.local.install.plan import InstallPlan
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.rows import LocalRow
@@ -24,8 +24,9 @@ class InstallStep:
 
 class LocalEngine(Protocol):
     name: str
-    # The selection it fills, and the provider that selection names.
-    model_type: ModelType
+    # The selections it can fill, the first unless an install names another,
+    # and the provider those selections name.
+    model_types: tuple[ModelType, ...]
     provider: str
 
     @property
@@ -40,6 +41,10 @@ class LocalEngine(Protocol):
         *,
         selected: str | None,
     ) -> tuple[LocalRow, ...]: ...
+
+    def landing(self, file: BuildFile, model_id: str) -> str:
+        """Where one file of `model_id`'s build lands, relative to `folder`."""
+        ...
 
     def holds(self, model_id: str) -> bool: ...
 

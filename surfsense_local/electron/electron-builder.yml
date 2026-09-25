@@ -31,7 +31,7 @@ extraResources:
   # Weights are downloaded post-install into the writable data dir, never bundled.
   - from: llamacpp
     to: llamacpp
-  # stable-diffusion.cpp's sd-server for local image generation (fetch-sdcpp.mjs).
+  # stable-diffusion.cpp's sd-server for local image generation (scripts/sdcpp/).
   # Empty on hosts with no prebuilt binary; the sidecar then simply does not start.
   - from: sdcpp
     to: sdcpp

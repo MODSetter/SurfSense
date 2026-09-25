@@ -12,5 +12,7 @@ export const onboardingInstalls: Record<
 > = {
   text_gen: createInstall({ select: true }),
   image_gen: createInstall({ select: true }),
+  image_edit: createInstall({ select: true, modelType: "image_edit" }),
+  video_gen: createInstall({ select: true, modelType: "video_gen" }),
   audio_gen: createInstall({ select: true }),
 }

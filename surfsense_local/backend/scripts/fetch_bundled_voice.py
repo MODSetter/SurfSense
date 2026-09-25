@@ -39,7 +39,8 @@ async def stage(
     build: Build, into: Path, *, transport: httpx.AsyncBaseTransport | None = None
 ) -> None:
     plan = InstallPlan(build.runtime_name, build, ENGINE)
-    async for _ in download_build(plan, into, transport=transport):
+    # Where the audio engine lands it: under its own name.
+    async for _ in download_build(plan, into, lambda f: f.name, transport=transport):
         pass
 
 

@@ -39,7 +39,8 @@ const byVersion = (a, b) => {
   return 0
 }
 
-export function copyMsvcRuntime(stage) {
+/** `openmp` adds vcomp140.dll, for a build whose ggml was compiled with OpenMP. */
+export function copyMsvcRuntime(stage, { openmp = false } = {}) {
   const vs = visualStudio()
   const redist = vs && join(vs, "VC", "Redist", "MSVC")
   if (!redist || !existsSync(redist)) throw new Error("no MSVC redistributable to ship")
@@ -53,6 +54,11 @@ export function copyMsvcRuntime(stage) {
       if (/^(vcruntime140|msvcp140).*\.dll$/i.test(dll)) {
         copyFileSync(join(x64, crt, dll), join(stage, dll))
       }
+    }
+    if (openmp) {
+      const omp = readdirSync(x64).find((name) => /^Microsoft\.VC\d+\.OpenMP$/.test(name))
+      if (!omp) throw new Error(`no OpenMP runtime beside ${crt}`)
+      copyFileSync(join(x64, omp, "vcomp140.dll"), join(stage, "vcomp140.dll"))
     }
     return
   }

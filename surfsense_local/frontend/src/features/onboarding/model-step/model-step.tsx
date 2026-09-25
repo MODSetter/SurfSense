@@ -86,6 +86,48 @@ const COPY: Record<
     // sd.cpp has no search: its models are the few the catalog ships.
     searchable: false,
   },
+  image_edit: {
+    title: () =>
+      intl.formatMessage({
+        id: "onboarding_image_edit_step_title",
+        defaultMessage: "Choose an image editing model",
+      }),
+    description: () =>
+      intl.formatMessage({
+        id: "onboarding_image_edit_step_body",
+        defaultMessage:
+          "Edits images. An image model that edits too needs nothing more to download.",
+      }),
+    noLocal: () =>
+      intl.formatMessage({
+        id: "onboarding_image_edit_step_no_local_empty",
+        defaultMessage:
+          "Image editing models cannot run on this computer. Use a server instead.",
+      }),
+    // Nor has it for editing: the same few models.
+    searchable: false,
+  },
+  video_gen: {
+    title: () =>
+      intl.formatMessage({
+        id: "onboarding_video_step_title",
+        defaultMessage: "Choose a video generation model",
+      }),
+    description: () =>
+      intl.formatMessage({
+        id: "onboarding_video_step_body",
+        defaultMessage:
+          "Makes short video clips. Run one on this computer, or use one from a server.",
+      }),
+    noLocal: () =>
+      intl.formatMessage({
+        id: "onboarding_video_step_no_local_empty",
+        defaultMessage:
+          "Video models cannot run on this computer. Use a server instead.",
+      }),
+    // Nor for video.
+    searchable: false,
+  },
   audio_gen: {
     title: () =>
       intl.formatMessage({

@@ -30,10 +30,10 @@ class SelectedModel(Base):
             name="provider_connection",
         ),
         CheckConstraint(
-            # A local runtime serves one type: llama.cpp answers text,
-            # sd-server draws, audio.cpp speaks.
+            # Each local runtime serves its own types: llama.cpp answers text,
+            # sd-server draws, edits and animates, audio.cpp speaks.
             "(provider <> 'llamacpp' OR model_type = 'text_gen') AND "
-            "(provider <> 'sdcpp' OR model_type = 'image_gen') AND "
+            "(provider <> 'sdcpp' OR model_type IN ('image_gen', 'image_edit', 'video_gen')) AND "
             "(provider <> 'audiocpp' OR model_type = 'audio_gen')",
             name="local_runtime_type",
         ),

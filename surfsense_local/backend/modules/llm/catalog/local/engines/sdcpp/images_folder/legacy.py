@@ -7,11 +7,11 @@ from collections.abc import Iterable, Sequence
 from modules.llm.catalog.local.installs import InstalledBuild
 from modules.llm.catalog.local.manifest import CuratedModel
 
-# old filename -> (curated id, quantization)
+# old filename -> (curated id, quantization). The old list's SDXL Turbo is not
+# curated any more: its licence does not allow commercial use.
 LEGACY_FILES = {
     "sd15-q4_0.gguf": ("stable-diffusion-1.5", "Q4_0"),
     "sdxl-base-q4_0.gguf": ("sdxl-base-1.0", "Q4_0"),
-    "sdxl-turbo-q4_0.gguf": ("sdxl-turbo", "Q4_0"),
 }
 
 

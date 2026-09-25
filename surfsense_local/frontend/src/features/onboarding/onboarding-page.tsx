@@ -11,13 +11,13 @@ import { ModelStep } from "./model-step/model-step"
 import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
-type Screen = "welcome" | "chat" | "image" | "audio"
+type Screen = "welcome" | "chat" | "image" | "image_edit" | "video" | "audio"
 
 /**
  * The steps the dots count. The welcome is still onboarding, and still gated by
  * the same marker, but it is an introduction, not a step to complete.
  */
-const STEPS = ["chat", "image", "audio"] as const
+const STEPS = ["chat", "image", "image_edit", "video", "audio"] as const
 
 function OnboardingBrand() {
   return (
@@ -233,13 +233,37 @@ export function OnboardingPage({
                 defaultMessage: "Continue",
               })}
               onBack={() => setScreen("chat")}
+              onNext={() => setScreen("image_edit")}
+              onSkip={() => setScreen("image_edit")}
+            />
+          ) : null}
+          {screen === "image_edit" ? (
+            <ModelStep
+              modelType="image_edit"
+              nextLabel={intl.formatMessage({
+                id: "onboarding_image_edit_step_continue_button",
+                defaultMessage: "Continue",
+              })}
+              onBack={() => setScreen("image")}
+              onNext={() => setScreen("video")}
+              onSkip={() => setScreen("video")}
+            />
+          ) : null}
+          {screen === "video" ? (
+            <ModelStep
+              modelType="video_gen"
+              nextLabel={intl.formatMessage({
+                id: "onboarding_video_step_continue_button",
+                defaultMessage: "Continue",
+              })}
+              onBack={() => setScreen("image_edit")}
               onNext={() => setScreen("audio")}
               onSkip={() => setScreen("audio")}
             />
           ) : null}
           {screen === "audio" ? (
             <AudioStep
-              onBack={() => setScreen("image")}
+              onBack={() => setScreen("video")}
               onComplete={onComplete}
             />
           ) : null}

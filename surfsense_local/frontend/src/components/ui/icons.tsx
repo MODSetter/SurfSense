@@ -65,6 +65,7 @@ import {
   Sun03Icon as Sun03IconData,
   UnplugIcon as UnplugIconData,
   Upload01Icon as Upload01IconData,
+  Video01Icon as Video01IconData,
   ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
   WebDesign01Icon as WebDesign01IconData,
@@ -171,6 +172,7 @@ export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
 export const Upload01Icon = createIcon(Upload01IconData)
+export const Video01Icon = createIcon(Video01IconData)
 export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(
   SquareDashedMousePointerIconData

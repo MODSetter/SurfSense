@@ -9,6 +9,10 @@ from typing import Any
 class FileRole(StrEnum):
     WEIGHTS = "weights"
     PROJECTOR = "projector"
+    # sd.cpp's newer families ship the VAE and the text encoder beside the
+    # diffusion model, and several models use the same one.
+    VAE = "vae"
+    TEXT_ENCODER = "text_encoder"
 
 
 @dataclass(frozen=True)
@@ -26,6 +30,11 @@ class BuildFile:
     repo: str = ""
     revision: str = "main"
     gguf: Mapping[str, Any] = field(default_factory=dict)
+
+    @property
+    def name(self) -> str:
+        """The file's own name, without the folder it sits in upstream."""
+        return self.path.rsplit("/", 1)[-1]
 
 
 @dataclass(frozen=True)

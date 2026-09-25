@@ -15,7 +15,9 @@ import {
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  PencilEdit02Icon,
   Settings2Icon,
+  Video01Icon,
 } from "@/components/ui/icons"
 import {
   Tooltip,
@@ -35,7 +37,9 @@ import { AppearanceToggle } from "./appearance-toggle"
 import { LanguageSelect } from "./language-select"
 import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
+import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
+import { VideoModelsSettings } from "./models/video-models-settings"
 import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
@@ -47,6 +51,8 @@ export type SettingsSectionId =
   | "general"
   | "chat-models"
   | "image-models"
+  | "image-edit-models"
+  | "video-models"
   | "audio-models"
   | "network"
   | "license"
@@ -184,6 +190,8 @@ const SETTINGS_SECTIONS = [
   { id: "general", icon: Settings2Icon },
   { id: "chat-models", icon: Chat01Icon },
   { id: "image-models", icon: Image01Icon },
+  { id: "image-edit-models", icon: PencilEdit02Icon },
+  { id: "video-models", icon: Video01Icon },
   { id: "audio-models", icon: AudioWaveformIcon },
   { id: "network", icon: ComputerEthernetIcon },
   { id: "license", icon: LicenseIcon },
@@ -204,6 +212,16 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_image_label",
       defaultMessage: "Image gen",
+    }),
+  "image-edit-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_image_edit_label",
+      defaultMessage: "Image edit",
+    }),
+  "video-models": () =>
+    intl.formatMessage({
+      id: "settings_nav_video_label",
+      defaultMessage: "Video gen",
     }),
   "audio-models": () =>
     intl.formatMessage({
@@ -312,6 +330,14 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "image-models" ? (
               <ImageModelsSettings onModelUnavailable={onModelUnavailable} />
+            ) : null}
+            {activeSection.id === "image-edit-models" ? (
+              <ImageEditModelsSettings
+                onModelUnavailable={onModelUnavailable}
+              />
+            ) : null}
+            {activeSection.id === "video-models" ? (
+              <VideoModelsSettings onModelUnavailable={onModelUnavailable} />
             ) : null}
             {activeSection.id === "audio-models" ? (
               <AudioModelsSettings onModelUnavailable={onModelUnavailable} />

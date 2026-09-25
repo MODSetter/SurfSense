@@ -15,6 +15,7 @@ from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
+from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.install.tickets import TicketStore
 from modules.llm.catalog.local.installs import forget_install
@@ -139,7 +140,9 @@ class LocalCatalogService:
             for row in engine.rows(
                 self._manifest.models,
                 self._minter(engine.name),
-                selected=selected.get(engine.model_type),
+                selected=next(
+                    (selected[t] for t in engine.model_types if t in selected), None
+                ),
             )
         )
         star = next((row.id for row in rows if row.recommended), None)
@@ -188,11 +191,26 @@ class LocalCatalogService:
         )
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
-        return await self.engine(plan.engine).check(plan)
+        """The engine's refusals first, then the disk's."""
+        engine = self.engine(plan.engine)
+        checked = await engine.check(plan)
+        folder = self._folder(plan.engine)
+        fetched = sum(
+            f.size_bytes
+            for f in checked.build.files
+            if not (folder / engine.landing(f, checked.model_id)).exists()
+        )
+        refuse_without_room(folder, fetched)
+        return checked
 
     def install(self, plan: InstallPlan) -> AsyncIterator[DownloadProgress]:
         """Every file of the build into its engine's folder, then recorded."""
-        return download.download_build(plan, self._folder(plan.engine))
+        engine = self.engine(plan.engine)
+        return download.download_build(
+            plan,
+            self._folder(plan.engine),
+            lambda file: engine.landing(file, plan.model_id),
+        )
 
     def remove(self, model_id: str, *, engine: str) -> None:
         """Delete a model's files, every part and its projector, and forget it."""

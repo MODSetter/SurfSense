@@ -2,7 +2,7 @@
 import { mkdirSync } from "node:fs"
 import { join } from "node:path"
 
-import { download, unpack } from "./download.mjs"
+import { download, unpack } from "../pinned-download.mjs"
 import { MAC_ARCHIVE } from "./pins.mjs"
 
 /** Unpack the pinned archive in `work`; returns where its files and specs are. */
