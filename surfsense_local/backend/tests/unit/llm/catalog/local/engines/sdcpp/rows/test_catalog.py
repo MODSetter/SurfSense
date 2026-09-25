@@ -42,6 +42,7 @@ def test_every_curated_image_model_is_a_runnable_unpriced_row() -> None:
         "flux2-klein-4b",
         "z-image-turbo",
         "ernie-image-turbo",
+        "longcat-image",
         "stable-diffusion-1.5",
         "sdxl-base-1.0",
     }

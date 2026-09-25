@@ -11,6 +11,7 @@ IMAGE_IDS = {
     "flux2-klein-4b",
     "z-image-turbo",
     "ernie-image-turbo",
+    "longcat-image",
     "stable-diffusion-1.5",
     "sdxl-base-1.0",
 }

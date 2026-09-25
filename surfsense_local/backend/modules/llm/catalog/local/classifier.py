@@ -106,6 +106,7 @@ _IMAGE = (
     "qwen_image",
     "z_image",
     "ernie_image",
+    "longcat",
     "lumina2",
     "sd1",
     "sd3",

@@ -3530,6 +3530,109 @@
       ]
     },
     {
+      "id": "longcat-image",
+      "name": "LongCat-Image",
+      "family": "LongCat",
+      "publisher": "Meituan",
+      "description": "Photographic detail and exact lettering, in English or Chinese. Slower: 50 steps.",
+      "license": "apache-2.0",
+      "source_repo": "meituan-longcat/LongCat-Image",
+      "aliases": [
+        "meituan-longcat/LongCat-Image"
+      ],
+      "evidence": {
+        "architecture": "longcat",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 6.27
+      },
+      "image": {
+        "origin": "meituan-longcat/LongCat-Image model card; sd.cpp docs at master-869-07a85c7, longcat_image.md",
+        "resolution": 1024,
+        "steps": 50,
+        "cfg": 5.0,
+        "sampler": "euler",
+        "flow_shift": 3.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "vantagewithai/LongCat-Image-GGUF",
+              "upstream_repo": null,
+              "revision": "22f38d64150ed3a99454e5e3a3bbfcf639969b05",
+              "path": "comfy/LongCat-Image-Q4_0.gguf",
+              "size_bytes": 3591090400,
+              "sha256": "d494513ea95e82fb7069cdb914738f22dfc940fc770000fbbc8ad0a7a445f601"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+              "upstream_repo": null,
+              "revision": "68bb8bc4b7df5289c143aaec0ab477a7d4051aab",
+              "path": "Qwen2.5-VL-7B-Instruct-Q4_0.gguf",
+              "size_bytes": 4444119936,
+              "sha256": "7d450c23023b219e433fffdc1060f1c31f8f382be6d6ce78d5e4b679e18601ce"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "vantagewithai/LongCat-Image-GGUF",
+              "upstream_repo": null,
+              "revision": "22f38d64150ed3a99454e5e3a3bbfcf639969b05",
+              "path": "comfy/LongCat-Image-Q8_0.gguf",
+              "size_bytes": 6705361120,
+              "sha256": "e45928b01712af742ccec57ac515d54c97ba276e6f86b825022e866ae4f329a5"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+              "upstream_repo": null,
+              "revision": "68bb8bc4b7df5289c143aaec0ab477a7d4051aab",
+              "path": "Qwen2.5-VL-7B-Instruct-Q4_0.gguf",
+              "size_bytes": 4444119936,
+              "sha256": "7d450c23023b219e433fffdc1060f1c31f8f382be6d6ce78d5e4b679e18601ce"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
       "id": "stable-diffusion-1.5",
       "name": "Stable Diffusion 1.5",
       "family": "Stable Diffusion",

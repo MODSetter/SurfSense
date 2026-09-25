@@ -31,6 +31,9 @@ class ImageEntry(Entry):
     # The weights' builds in `repo` to pin, most preferred first: the first is
     # the default.
     builds: tuple[str, ...] = ("Q4_0",)
+    # The folder of `repo` the builds sit in, where it holds more than one
+    # conversion; the root by default.
+    folder: str = ""
     # What every build runs with; SD 1 and XL carry theirs inside the one file.
     companions: tuple[Companion, ...] = ()
 

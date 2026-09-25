@@ -97,3 +97,16 @@ def test_a_video_model_runs_with_its_clip_settings(tmp_path) -> None:
         "3.0",
     )
     assert video.types == (ModelType.VIDEO_GEN,)
+
+
+def test_longcat_runs_on_its_qwen_encoder_with_its_own_settings(tmp_path) -> None:
+    """The curated entry as written: its text encoder on --llm, 50 steps."""
+    longcat = next(m for m in load_local_manifest().models if m.id == "longcat-image")
+    put(tmp_path, *(landing(f) for f in longcat.as_builds()[0].files))
+
+    image = SdCppEngine(tmp_path, [longcat]).installed_image("LongCat-Image-Q4_0")
+
+    assert image is not None
+    assert [flag for flag, _ in image.files] == ["--diffusion-model", "--llm", "--vae"]
+    assert image.files[0][1] == "LongCat-Image-Q4_0.gguf"
+    assert image.args[4:6] == ("--steps", "50")

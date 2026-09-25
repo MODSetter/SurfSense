@@ -37,7 +37,7 @@ nothing about this machine, and nothing blocks its install. The screen renders t
 of them.
 
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's and audio.cpp's.
-sd.cpp's are the five curated image models and two video models, only when Electron handed the API an
+sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
 ([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
@@ -160,13 +160,16 @@ preferred first, and nothing in it is a score.
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped seventeen, most preferred first within each type. Seven
+The shipped eighteen, most preferred first within each type. Seven
 chat models, all from `unsloth/*-GGUF` with 18 builds each: Qwen3 32B, 14B, 8B,
-4B, Gemma 3 4B (reads images), Qwen3 1.7B and 0.6B. Five image models. FLUX.2
+4B, Gemma 3 4B (reads images), Qwen3 1.7B and 0.6B. Six image models. FLUX.2
 klein 4B, Z-Image Turbo and ERNIE-Image Turbo, `Q4_0` then `Q8_0`, each a
 diffusion GGUF with the text encoder and VAE sd.cpp's docs pair it with, from
 their own repos: klein and Z-Image share `unsloth/Qwen3-4B-GGUF`'s `Q4_0`,
-ERNIE takes Ministral 3 3B, and each takes its own VAE. Then Stable Diffusion
+ERNIE takes Ministral 3 3B, and each takes its own VAE. LongCat-Image, `Q4_0`
+then `Q8_0` from the `comfy/` folder of `vantagewithai/LongCat-Image-GGUF`,
+runs with unsloth's Qwen2.5-VL-7B `Q4_0` and Z-Image's VAE, at the card's 50
+steps. Then Stable Diffusion
 1.5 and XL, one self-contained `Q4_0` file each from `kostakoff/*-GGUF`, the
 same files and hashes the hard-coded list they replace downloaded. That list's
 SDXL Turbo is not curated: its licence, `sai-nc-community`, fails the licence
@@ -200,7 +203,8 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
 
 - **An image entry's evidence comes from its tensors**, the only thing an sd.cpp
   file reliably states, and what a person reviews comes from the entry: the
-  builds to pin, most preferred first; the companions, each a VAE, text encoder
+  builds to pin, most preferred first, and the repo folder they sit in where
+  the repo holds more than one conversion; the companions, each a VAE, text encoder
   or projector named by its repo and path and pinned at that repo's commit, with
   the vendor as `upstream_repo` where the repo is a copy; the `image` defaults,
   each with the source it was read from, or for a video model (`VideoEntry`)
@@ -332,7 +336,10 @@ on, bare in a standalone file and under `model.diffusion_model.` once sd.cpp
 loads it: `double_stream_modulation_img.lin.weight` is `flux2`,
 `cap_embedder.0.weight` is `z_image` and `layers.0.adaLN_sa_ln.weight` is
 `ernie_image`, and `blocks.0.cross_attn.norm_k.weight` is `wan`, the one video
-family, which the classifier makes `VIDEO_GEN`. Unsloth's ERNIE file declares
+family, which the classifier makes `VIDEO_GEN`. LongCat is FLUX-shaped, and is
+told from FLUX.1 as sd.cpp tells it: `double_blocks` with a `txt_in.weight`
+3584 wide, Qwen2.5-VL-7B's hidden size where FLUX.1's T5 gives 4096. Its file
+declares `flux`. Unsloth's ERNIE file declares
 `general.architecture` `wan`, which is why the tensors decide. The refresh script writes the name into each image
 entry's evidence, and sd-server's launch flags follow from it.
 
@@ -596,7 +603,7 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
-- Only the three audio defaults are validated; `validated` is empty on the other 130 builds.
+- Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
 - `POST /llm/install` does not refuse a curated build that will not fit; only the screen's disabled Download does.

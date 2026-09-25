@@ -26,7 +26,10 @@ def pinned_builds(
     in_repo = {
         b.quantization: b
         for b in builds_in(
-            snapshot.listing, repo=snapshot.repo, revision=snapshot.revision
+            snapshot.listing,
+            repo=snapshot.repo,
+            revision=snapshot.revision,
+            folder=entry.folder,
         )
     }
     shared = tuple(_companion(c, (companions or {})[c.repo]) for c in entry.companions)

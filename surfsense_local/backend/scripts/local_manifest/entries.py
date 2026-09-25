@@ -198,6 +198,46 @@ ENTRIES: tuple[Entry, ...] = (
         },
     ),
     ImageEntry(
+        id="longcat-image",
+        name="LongCat-Image",
+        family="LongCat",
+        publisher="Meituan",
+        description="Photographic detail and exact lettering, in English or Chinese. Slower: 50 steps.",
+        license="apache-2.0",
+        source_repo="meituan-longcat/LongCat-Image",
+        # Two conversions, one per folder; sd.cpp's docs cite the comfy/ one.
+        repo="vantagewithai/LongCat-Image-GGUF",
+        folder="comfy",
+        aliases=("meituan-longcat/LongCat-Image",),
+        builds=("Q4_0", "Q8_0"),
+        companions=(
+            # sd.cpp's docs cite mradermacher's quantizations, which carry no
+            # licence tag; unsloth's of the same model are Apache-2.0.
+            Companion(
+                "text_encoder",
+                "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+                "Qwen2.5-VL-7B-Instruct-Q4_0.gguf",
+            ),
+            # The FLUX.1 VAE, the same file Z-Image Turbo runs with.
+            Companion(
+                "vae",
+                "Comfy-Org/z_image_turbo",
+                "split_files/vae/ae.safetensors",
+                upstream_repo="black-forest-labs/FLUX.1-schnell",
+            ),
+        ),
+        # Guidance, sampler and shift are sd.cpp's; the card's 50 steps, since
+        # sd.cpp's example states none.
+        image={
+            "origin": f"meituan-longcat/LongCat-Image model card; {_SD_CPP_DOCS}, longcat_image.md",
+            "resolution": 1024,
+            "steps": 50,
+            "cfg": 5.0,
+            "sampler": "euler",
+            "flow_shift": 3.0,
+        },
+    ),
+    ImageEntry(
         id="stable-diffusion-1.5",
         name="Stable Diffusion 1.5",
         family="Stable Diffusion",

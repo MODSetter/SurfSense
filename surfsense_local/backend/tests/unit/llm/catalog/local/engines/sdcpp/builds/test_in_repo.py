@@ -36,3 +36,27 @@ def test_each_gguf_is_one_self_contained_build() -> None:
     assert weights.path == "v1-5-pruned_Q4_0.gguf"
     assert weights.size_bytes == 3051366272
     assert weights.revision == REV
+
+
+# vantagewithai/LongCat-Image-GGUF, read on 25 Sep 2026: two conversions of the
+# same model, one per folder; sd.cpp's docs cite the one in comfy/.
+LONGCAT_LISTING = (
+    ListedFile("README.md", 1200),
+    ListedFile("comfy/LongCat-Image-Q4_0.gguf", 3591090400, "1" * 64),
+    ListedFile("comfy/LongCat-Image-Q8_0.gguf", 6705361120, "2" * 64),
+    ListedFile("org/LongCat-Image-Q4_0.gguf", 3556481696, "3" * 64),
+)
+
+
+def test_a_repo_folder_can_hold_the_builds() -> None:
+    """Only the folder the entry names, so two conversions never mix."""
+    builds = builds_in(
+        LONGCAT_LISTING, repo="vantagewithai/LongCat-Image-GGUF", folder="comfy"
+    )
+
+    assert [b.weights.path for b in builds] == [
+        "comfy/LongCat-Image-Q4_0.gguf",
+        "comfy/LongCat-Image-Q8_0.gguf",
+    ]
+    assert builds[0].quantization == "Q4_0"
+    assert builds[0].runtime_name == "LongCat-Image-Q4_0"

@@ -71,20 +71,22 @@ Every size is the default build's, from Hugging Face's listings on 25 Sep 2026, 
 | **FLUX.2 klein 4B** | Apache-2.0 | diffusion Q4_0 2.46 + Qwen3-4B Q4_0 2.38 + FLUX.2 VAE 0.34 | 5.17 GB | 4 |
 | **Z-Image Turbo** | Apache-2.0 | diffusion Q4_0 3.68 + Qwen3-4B + FLUX.1 VAE 0.34 | 6.39 GB; 4.02 after klein | 8 |
 | **ERNIE-Image Turbo** | Apache-2.0 | diffusion Q4_0 4.76 + Ministral 3 3B Q4_0 2.05 + its own FLUX.2 VAE 0.34 | 7.15 GB | 8 |
+| **LongCat-Image** | Apache-2.0 | diffusion Q4_0 3.59 + Qwen2.5-VL-7B Q4_0 4.44 + FLUX.1 VAE 0.34 | 8.37 GB; 8.03 after Z-Image | 50 |
 | Stable Diffusion XL | OpenRAIL++ | one file, Q4_0 | 2.71 GB | |
 | Stable Diffusion 1.5 | CreativeML OpenRAIL-M | one file, Q4_0 | 3.05 GB | |
-| Qwen-Image 2512 | Apache-2.0 | diffusion Q4_0 11.85 + Qwen2.5-VL-7B Q4_0 4.44 + Qwen-Image VAE 0.25 | 16.55 GB | 50 |
+| Qwen-Image 2512 | Apache-2.0 | diffusion Q4_0 11.85 + Qwen2.5-VL-7B Q4_0 4.44 + Qwen-Image VAE 0.25 | 16.55 GB; 12.1 after LongCat | 50 |
 
 - **FLUX.2 klein 4B leads.** It is the smallest complete build of a current model, four steps, and the same files edit images, so one download fills two slots.
 - **Z-Image Turbo** shares klein's text encoder byte for byte (Comfy's `qwen_3_4b.safetensors` is identical in both repos, and Z-Image's shards match `Qwen/Qwen3-4B`). sd.cpp's docs say it runs in 4 GB of VRAM.
 - **ERNIE-Image Turbo** is the one for lettering and posters. sd.cpp's docs pair it with `Comfy-Org/ERNIE-Image`'s copy of the FLUX.2 VAE, which is not byte-identical to klein's, so nothing is shared.
+- **LongCat-Image** renders exact lettering in English or Chinese. It takes 50 steps, the slowest here, and its text encoder is the one Qwen-Image and LongCat-Image-Edit take.
 - **SDXL and SD 1.5 stay** as the light choices: one file each, and they run where the others do not.
 - **Qwen-Image 2512** is for 32 GB machines. It ships after a measurement on one.
 
 Considered and not curated:
 
 - **FLUX.1 schnell** (Apache-2.0): 10.4 GB, a gated vendor repo, and a T5 and CLIP-L stack no other curated model shares; CLIP-L's weights carry no licence tag.
-- **Chroma1-HD** (8.7 GB) needs T5 too. **LongCat-Image** (8.4 GB) is worth adding with LongCat's edit model if that one ships.
+- **Chroma1-HD** (8.7 GB) needs T5 too.
 - **Z-Image base, FLUX.2 klein base**: 20 to 50 steps. The distilled builds are what a laptop can wait for.
 - **Ovis-Image 7B**: its 5.1 GB text encoder has no GGUF. **HiDream-O1, Boogu**: no GGUF.
 - **LLaDA-Image**: newer than the pinned sd.cpp, and its text encoder alone is 9.7 GB. **MiniT2I, SenseNova U1.5**: research-scale, or a whole directory of weights.
@@ -98,7 +100,7 @@ Considered and not curated:
 | Qwen-Image-Edit-2511 | Apache-2.0 | diffusion Q4_0 11.85 + Qwen2.5-VL-7B + projector + Qwen-Image VAE | 17.90 GB; 13.2 after Qwen-Image 2512 | 40 |
 
 - **An edit model is shown the image**, not asked to repaint around it: sd.cpp passes it as a reference image. Qwen and LongCat read it through their text encoder's vision projector (`--llm_vision`); klein does not need one.
-- **LongCat's Turbo GGUF is not the one sd.cpp's docs cite.** It ships if it edits correctly on the pinned sd.cpp. If not, LongCat is not curated: the cited model takes 50 steps, too slow for a laptop, and klein already edits there.
+- **LongCat's Turbo GGUF is not the one sd.cpp's docs cite.** It ships if it edits correctly on the pinned sd.cpp. If not, LongCat-Image-Edit is not curated: the cited model takes 50 steps, too slow for a laptop, and klein already edits there.
 - **Qwen-Image-Edit-2511** needs `--model-args qwen_image_zero_cond_t=true`, and is for 32 GB machines, like Qwen-Image.
 
 Not curated: FLUX.1 Kontext dev (licence); Z-Image-Edit, not released (its README says "To be released"; sd.cpp's `z_image_omni` preset is waiting for it); Boogu Edit (no GGUF); Step1X-Edit, OmniGen2, HiDream-E1 (sd.cpp cannot run them); Qwen-Image-Edit and 2509, which 2511 supersedes.
@@ -111,7 +113,7 @@ Not curated: FLUX.1 Kontext dev (licence); Z-Image-Edit, not released (its READM
 | **Wan2.1 T2V 1.3B** | Apache-2.0 | diffusion Q8_0 1.59 + umt5-xxl + Wan2.1 VAE 0.25 | 5.50 GB; 1.84 after the 5B | text in, 16 fps, 832×480 |
 
 - **Which leads is a measurement.** The 5B leads if it renders a 33-frame clip at 832×480 in under 10 minutes on the reference laptop; otherwise the 1.3B leads. Until that is measured, the 1.3B leads in the manifest, as the one sure to fit a laptop. Draw Things calls the 1.3B "the better option for low-spec devices".
-- **The 1.3B's GGUF is not one sd.cpp's docs cite** (sd.cpp cites only the fp16 safetensors, 2.84 GB); it is validated like LongCat's.
+- **The 1.3B's GGUF is not one sd.cpp's docs cite** (sd.cpp cites only the fp16 safetensors, 2.84 GB); it is validated like LongCat-Image-Edit Turbo's.
 - **umt5-xxl has no Q4_0**, and a 1.3B model is small enough at Q8_0, so a build's companions and quantization are named by its entry, not by one preference order ([Builds of several files](#builds-of-several-files)).
 
 Not curated: Wan2.1 14B and Wan2.2 A14B (13 to 21 GB); LingBot-Video 1.3B (no GGUF, and it expects JSON prompts); LTX, HunyuanVideo, MiniMax-H3 (licence); Mochi, Kandinsky 5, Cosmos (sd.cpp cannot run them).
@@ -122,8 +124,8 @@ Not curated: Wan2.1 14B and Wan2.2 A14B (13 to 21 GB); LingBot-Video 1.3B (no GG
 |---|---|---|
 | Qwen3-4B Q4_0, `unsloth/Qwen3-4B-GGUF` | 2.38 GB | FLUX.2 klein 4B, Z-Image Turbo |
 | FLUX.2 VAE, `Comfy-Org/vae-text-encorder-for-flux-klein-4b` (formerly `flux2-klein-4B`) | 0.34 GB | FLUX.2 klein 4B |
-| FLUX.1 VAE, `Comfy-Org/z_image_turbo` | 0.34 GB | Z-Image Turbo, LongCat-Image-Edit |
-| Qwen2.5-VL-7B Q4_0 and its projector, `unsloth/Qwen2.5-VL-7B-Instruct-GGUF` | 4.44 + 1.35 GB | LongCat-Image-Edit, Qwen-Image 2512 (without the projector), Qwen-Image-Edit-2511 |
+| FLUX.1 VAE, `Comfy-Org/z_image_turbo` | 0.34 GB | Z-Image Turbo, LongCat-Image, LongCat-Image-Edit |
+| Qwen2.5-VL-7B Q4_0 and its projector, `unsloth/Qwen2.5-VL-7B-Instruct-GGUF` | 4.44 + 1.35 GB | LongCat-Image and Qwen-Image 2512 (without the projector), LongCat-Image-Edit, Qwen-Image-Edit-2511 |
 | Qwen-Image VAE, `Comfy-Org/Qwen-Image_ComfyUI` | 0.25 GB | Qwen-Image 2512, Qwen-Image-Edit-2511 |
 | umt5-xxl Q4_K_M, `city96/umt5-xxl-encoder-gguf` | 3.66 GB | both Wan models |
 
@@ -269,7 +271,7 @@ What this takes from them: shared files known by content and deleted by reading 
 
 - `sd-server` is the one runtime for image generation, editing and video. Windows takes upstream's archive with the MSVC and OpenMP runtimes; Linux and macOS compile in release CI. Nothing is published as a release of this repository.
 - A curated model and each of its files allow commercial use with no cap, registration or excluded territory, enforced by the refresh script. SDXL Turbo leaves.
-- Image: FLUX.2 klein 4B, Z-Image Turbo, ERNIE-Image Turbo, SDXL, SD 1.5, then Qwen-Image 2512 once measured. Editing: klein, LongCat-Image-Edit Turbo if it validates, then Qwen-Image-Edit-2511 once measured. Video: Wan2.2 TI2V 5B and Wan2.1 T2V 1.3B, ordered by a measurement.
+- Image: FLUX.2 klein 4B, Z-Image Turbo, ERNIE-Image Turbo, LongCat-Image, SD 1.5, SDXL, then Qwen-Image 2512 once measured. Editing: klein, LongCat-Image-Edit Turbo if it validates, then Qwen-Image-Edit-2511 once measured. Video: Wan2.2 TI2V 5B and Wan2.1 T2V 1.3B, ordered by a measurement.
 - A build lists every file it runs from. A file two builds pin is downloaded once, known by its sha256, and deleted when no installed build's record names it.
 - A model's tasks are reviewed in its entry and map to its types. A model with two tasks fills two slots from one download.
 - One sd.cpp model runs at a time, for the Studio job that needs it, and stops 5 minutes after the last job; a cancel stops it at once. Each model's defaults are launch flags.
@@ -282,7 +284,7 @@ What this takes from them: shared files known by content and deleted by reading 
 Each is a measurement with its rule set above, or set here:
 
 - **Wan 5B or 1.3B first**: the 5B leads if a 33-frame clip at 832×480 renders in under 10 minutes on the reference laptop.
-- **LongCat-Image-Edit Turbo**: curated if it edits correctly from the uncited GGUF; otherwise LongCat is not curated.
+- **LongCat-Image-Edit Turbo**: curated if it edits correctly from the uncited GGUF; otherwise it is not curated.
 - **Unloading the chat model during a video render**: measured with it resident and unloaded; unload if the clip is at least 1.3× faster, the same bar audio set for Metal.
 - **Vulkan per family**: klein's VAE decode can run out of memory and return a grey image (sd.cpp [#1220](https://github.com/leejet/stable-diffusion.cpp/issues/1220); `--vae-tiling` or the small decoder); Wan2.2 has open Vulkan failures on Windows ([#942](https://github.com/leejet/stable-diffusion.cpp/issues/942)) and macOS ([#860](https://github.com/leejet/stable-diffusion.cpp/issues/860)); `--diffusion-fa`, passed to every model today, is listed in sd.cpp's docs only for the CPU, CUDA and Metal. A model ships on a platform once it has generated there.
 

@@ -222,3 +222,27 @@ def test_a_video_entry_writes_its_clip_defaults_in_place_of_image_ones() -> None
     ).models
     assert model.evidence.architecture == "wan"
     assert model.video is not None and model.video.frames == 33
+
+
+def test_an_entry_can_take_its_builds_from_one_folder_of_the_repo() -> None:
+    """LongCat's repo holds two conversions; sd.cpp's docs cite the comfy/ one."""
+    longcat = replace(
+        KLEIN,
+        id="longcat-image",
+        repo="vantagewithai/LongCat-Image-GGUF",
+        folder="comfy",
+    )
+    listing = RepoAtRevision(
+        longcat.repo,
+        REV,
+        "text-to-image",
+        (
+            ListedFile("comfy/LongCat-Image-Q4_0.gguf", 3591090400, "7" * 64),
+            ListedFile("org/LongCat-Image-Q4_0.gguf", 3556481696, "8" * 64),
+        ),
+        None,
+    )
+
+    (build,) = pinned_builds(longcat, listing, COMPANION_REPOS)
+
+    assert build.weights.path == "comfy/LongCat-Image-Q4_0.gguf"
