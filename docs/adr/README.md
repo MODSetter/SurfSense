@@ -65,5 +65,6 @@ The Date is the day the decision was first written down. Source links are permal
 | 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted |
 | 0029 | [Interface text lives in ICU MessageFormat catalogs, one flat JSON file per language](0029-icu-translation-catalogs.md) | Accepted |
 | 0030 | [FormatJS renders interface text from precompiled, bundled catalogs, with no network at build or run time](0030-formatjs-renders-interface-text.md) | Accepted |
-| 0031 | [Ranking blends the two legs on absolute scales, keyword strength being term coverage rather than BM25](0031-ranking-blends-absolute-leg-scores.md) | Accepted, amended by 0032 |
+| 0031 | [Ranking blends the two legs on absolute scales, keyword strength being term coverage rather than BM25](0031-ranking-blends-absolute-leg-scores.md) | Accepted, amended by 0032 and 0033 |
 | 0032 | [The index and the question are split by one tokenizer, FTS5's own, and it keeps a word's combining marks](0032-one-tokenizer-for-index-and-question.md) | Accepted |
+| 0033 | [Every candidate is scored on its own cosine, because a chunk the vector leg did not reach is unmeasured rather than unrelated](0033-every-candidate-is-scored-on-its-own-cosine.md) | Accepted |
