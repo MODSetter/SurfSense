@@ -6,6 +6,7 @@ import {
   PencilIcon,
   SearchIcon,
   Trash2Icon,
+  XIcon,
 } from "@/components/ui/icons"
 
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { RelativeTime } from "@/components/relative-time"
@@ -204,9 +211,11 @@ export function ChatsDialog({
               })}
             </DialogDescription>
           </DialogHeader>
-          <div className="relative mt-4">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <InputGroup className="mt-4 h-10 border-0">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
               ref={searchRef}
               type="search"
               value={query}
@@ -218,10 +227,28 @@ export function ChatsDialog({
                 id: "chat_chats_dialog_search_aria",
                 defaultMessage: "Search chats",
               })}
-              className="h-10 border-0 bg-secondary pl-9 focus-visible:border-0 dark:bg-secondary"
+              // The clear button below replaces the browser's own.
+              className="[&::-webkit-search-cancel-button]:appearance-none"
               onChange={(event) => setQuery(event.target.value)}
             />
-          </div>
+            {query ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label={intl.formatMessage({
+                    id: "chat_chats_dialog_search_clear_aria",
+                    defaultMessage: "Clear search",
+                  })}
+                  onClick={() => {
+                    setQuery("")
+                    searchRef.current?.focus()
+                  }}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
           <ScrollShadow
             className="h-[32rem] min-w-0"
             viewportClassName="overflow-x-hidden"

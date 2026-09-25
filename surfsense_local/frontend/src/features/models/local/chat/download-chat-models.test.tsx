@@ -546,6 +546,24 @@ describe("model catalog", () => {
     ).toBe(reserved)
   })
 
+  it("clears the search from its own button and keeps focus in the box", async () => {
+    vi.stubGlobal("fetch", serving(catalog()))
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    const search = await screen.findByRole<HTMLInputElement>("searchbox", {
+      name: "Search all models",
+    })
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "qwen")
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect(search.value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+  })
+
   it("explains that search is unavailable rather than erroring", async () => {
     // With egress off, curated and installed still work. That is the airgapped
     // product, not a degraded one.

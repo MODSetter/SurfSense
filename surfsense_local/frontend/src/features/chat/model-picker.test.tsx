@@ -324,4 +324,40 @@ describe("composer model picker", () => {
       await screen.findByRole("menuitemradio", { name: /whisper-1/ })
     ).toBeTruthy()
   })
+
+  it("clears the search from its own button and keeps focus in the box", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(
+      <ModelPicker
+        model={{
+          model_type: "text_gen",
+          provider: "openai_compatible",
+          connection_id: 1,
+          name: "gpt-5",
+          updated_at: "2026-09-09T00:00:00Z",
+        }}
+        onModelSelected={vi.fn()}
+        onManageModels={vi.fn()}
+      />
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Model gpt-5. Change model." })
+    )
+    const search = await screen.findByRole<HTMLInputElement>("searchbox", {
+      name: "Search models",
+    })
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "qwen")
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect(search.value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+  })
 })

@@ -139,4 +139,20 @@ describe("ChatsDialog", () => {
 
     expect(onDelete).toHaveBeenCalledWith(1)
   })
+
+  it("clears the search from its own button and keeps focus in the box", async () => {
+    const user = userEvent.setup()
+    render(<ChatsDialog {...baseProps()} />)
+    const search = screen.getByRole<HTMLInputElement>("searchbox", {
+      name: "Search chats",
+    })
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "notes")
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect(search.value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+  })
 })

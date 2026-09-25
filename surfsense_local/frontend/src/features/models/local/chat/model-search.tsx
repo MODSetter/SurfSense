@@ -2,9 +2,14 @@ import { Fragment, useEffect, useId, useRef, useState } from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { Badge } from "@/components/ui/badge"
-import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
-import { DotIcon, SearchIcon } from "@/components/ui/icons"
+import { DotIcon, SearchIcon, XIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import {
   HUGGINGFACE,
@@ -188,6 +193,7 @@ export function ModelSearch({
 }) {
   const headingId = useId()
   const [query, setQuery] = useState("")
+  const searchRef = useRef<HTMLInputElement>(null)
   const [openRepo, setOpenRepo] = useState<string | null>(null)
   const trimmed = query.trim()
 
@@ -242,9 +248,12 @@ export function ModelSearch({
             })}
           </p>
         </div>
-        <div className="relative w-full max-w-[14rem] sm:w-auto">
-          <SearchIcon className="pointer-events-none absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
+        <InputGroup className="w-full sm:w-56">
+          <InputGroupAddon>
+            <SearchIcon />
+          </InputGroupAddon>
+          <InputGroupInput
+            ref={searchRef}
             type="search"
             autoFocus={autoFocus}
             value={query}
@@ -256,11 +265,29 @@ export function ModelSearch({
               id: "models_search_aria",
               defaultMessage: "Search all models",
             })}
-            className="h-8 border-0 bg-secondary pl-8 text-sm focus-visible:border-0"
+            // The clear button below replaces the browser's own.
+            className="text-sm [&::-webkit-search-cancel-button]:appearance-none"
             onFocus={() => setReached(true)}
             onChange={(event) => setQuery(event.target.value)}
           />
-        </div>
+          {query ? (
+            <InputGroupAddon align="inline-end">
+              <InputGroupButton
+                size="icon-xs"
+                aria-label={intl.formatMessage({
+                  id: "models_search_clear_aria",
+                  defaultMessage: "Clear search",
+                })}
+                onClick={() => {
+                  setQuery("")
+                  searchRef.current?.focus()
+                }}
+              >
+                <XIcon />
+              </InputGroupButton>
+            </InputGroupAddon>
+          ) : null}
+        </InputGroup>
       </div>
 
       {/* Reserved once, so the page does not move as the section goes from a

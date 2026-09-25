@@ -1,10 +1,21 @@
-import { useId, useState } from "react"
+import { useId, useRef, useState } from "react"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field"
-import { ChevronRightIcon, DotIcon, SearchIcon } from "@/components/ui/icons"
+import {
+  ChevronRightIcon,
+  DotIcon,
+  SearchIcon,
+  XIcon,
+} from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
 import { ScrollShadow } from "@/components/ui/scroll-shadow"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
@@ -80,6 +91,7 @@ export function ServerModels({
   const manualId = useId()
   const [open, setOpen] = useState(defaultOpen)
   const [search, setSearch] = useState("")
+  const searchRef = useRef<HTMLInputElement>(null)
   const [manualName, setManualName] = useState("")
   const [trying, setTrying] = useState<{
     model: ConnectionModel
@@ -209,9 +221,12 @@ export function ServerModels({
 
         {open ? (
           <div id={listId} className="flex flex-col gap-3 border-t px-3 py-3">
-            <div className="relative">
-              <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
+            <InputGroup>
+              <InputGroupAddon>
+                <SearchIcon />
+              </InputGroupAddon>
+              <InputGroupInput
+                ref={searchRef}
                 autoFocus
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -234,9 +249,25 @@ export function ServerModels({
                     server: connection.label,
                   }
                 )}
-                className="pl-9"
               />
-            </div>
+              {search ? (
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    size="icon-xs"
+                    aria-label={intl.formatMessage({
+                      id: "models_server_models_search_clear_aria",
+                      defaultMessage: "Clear search",
+                    })}
+                    onClick={() => {
+                      setSearch("")
+                      searchRef.current?.focus()
+                    }}
+                  >
+                    <XIcon />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              ) : null}
+            </InputGroup>
 
             {models.isPending ? (
               <p
