@@ -365,6 +365,9 @@ describe("onboarding", () => {
     expect(screen.getByLabelText("Onboarding step 5 of 5")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Finish" })).toBeTruthy()
+    // Skipping the last step ends onboarding, so it says so.
+    expect(screen.getByRole("button", { name: "Skip and finish" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Skip" })).toBeNull()
 
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
@@ -868,7 +871,7 @@ describe("onboarding", () => {
     await toAudioStep(user)
     expect(onComplete).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole("button", { name: "Skip" }))
+    await user.click(screen.getByRole("button", { name: "Skip and finish" }))
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
     expect(onComplete.mock.calls[0]?.[0]).toMatchObject({ name: "qwen3-4b" })

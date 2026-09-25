@@ -158,7 +158,7 @@ const COPY: Record<
  */
 export function ModelStep({
   modelType,
-  nextLabel,
+  last = false,
   finishing = false,
   error = null,
   onBack,
@@ -166,7 +166,8 @@ export function ModelStep({
   onSkip,
 }: {
   modelType: OnboardingSlot
-  nextLabel: string
+  /** The step that ends onboarding: Continue and Skip say they finish. */
+  last?: boolean
   finishing?: boolean
   error?: string | null
   /** Absent on the first step: the welcome is not somewhere to go back to. */
@@ -423,10 +424,15 @@ export function ModelStep({
               disabled={finishing}
               onClick={onSkip}
             >
-              {intl.formatMessage({
-                id: "onboarding_model_step_skip_button",
-                defaultMessage: "Skip",
-              })}
+              {last
+                ? intl.formatMessage({
+                    id: "onboarding_model_step_skip_finish_button",
+                    defaultMessage: "Skip and finish",
+                  })
+                : intl.formatMessage({
+                    id: "onboarding_model_step_skip_button",
+                    defaultMessage: "Skip",
+                  })}
             </Button>
           ) : null}
           <Button
@@ -435,7 +441,15 @@ export function ModelStep({
             onClick={onNext}
           >
             {finishing ? <Spinner data-icon="inline-start" /> : null}
-            {nextLabel}
+            {last
+              ? intl.formatMessage({
+                  id: "onboarding_model_step_finish_button",
+                  defaultMessage: "Finish",
+                })
+              : intl.formatMessage({
+                  id: "onboarding_model_step_continue_button",
+                  defaultMessage: "Continue",
+                })}
           </Button>
         </div>
       </CardFooter>
