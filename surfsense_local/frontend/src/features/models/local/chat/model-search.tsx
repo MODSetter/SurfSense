@@ -8,7 +8,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { DotIcon, SearchIcon, XIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -330,7 +330,7 @@ export function ModelSearch({
         ) : (
           // The cap is the reserved height less the 1px border top and
           // bottom, so a full list fills the space exactly and moves nothing.
-          <ScrollShadow
+          <ScrollFade
             className="overflow-hidden rounded-xl border bg-card"
             viewportClassName="max-h-[calc(20rem-2px)]"
           >
@@ -415,7 +415,7 @@ export function ModelSearch({
                 )
               })}
             </ul>
-          </ScrollShadow>
+          </ScrollFade>
         )}
       </div>
     </section>

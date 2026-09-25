@@ -2,7 +2,7 @@ import type { ReactNode } from "react"
 
 import { Button } from "@/components/ui/button"
 import { ArrowLeftIcon } from "@/components/ui/icons"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 
 export function SettingsSection({
   title,
@@ -50,10 +50,10 @@ export function SettingsSection({
       <div className="grid h-full min-h-0 grid-rows-[minmax(0,1fr)_auto]">
         {/* pt-10 is a fixed gutter, not scroll content — it keeps the dialog's own close button clear no matter how far this scrolls, the way the fixed header used to in the other two modes; min-w-0 stops a wide nowrap descendant from forcing this grid item past its 1fr track and out through the section's overflow-hidden. */}
         <div className="min-h-0 min-w-0 pt-10">
-          <ScrollShadow className="h-full" viewportClassName="px-7 pb-5">
+          <ScrollFade className="h-full" viewportClassName="px-7 pb-5">
             <header className="pb-6">{heading}</header>
             {children}
-          </ScrollShadow>
+          </ScrollFade>
         </div>
 
         {footer ? (
@@ -71,9 +71,9 @@ export function SettingsSection({
 
       <div className="relative min-h-0 min-w-0">
         {scrollable ? (
-          <ScrollShadow className="h-full" viewportClassName="px-7 py-5">
+          <ScrollFade className="h-full" viewportClassName="px-7 py-5">
             <div>{children}</div>
-          </ScrollShadow>
+          </ScrollFade>
         ) : (
           <div
             data-slot="settings-section-content"

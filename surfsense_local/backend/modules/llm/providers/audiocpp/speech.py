@@ -63,7 +63,7 @@ class AudioCppSpeech:
         """The model's roster. A voice with no language speaks all the model's."""
         every = tuple(self._model.audio.languages)
         return [
-            Voice(v.id, v.label, (v.language,) if v.language else every)
+            Voice(v.id, v.label, v.gender, (v.language,) if v.language else every)
             for v in self._model.audio.voices
         ]
 

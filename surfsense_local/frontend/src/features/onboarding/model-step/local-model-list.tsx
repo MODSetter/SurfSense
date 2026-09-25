@@ -1,7 +1,7 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DotIcon, Trash2Icon } from "@/components/ui/icons"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { buildSize } from "@/features/models/local/build-size"
 import type { LocalRow } from "@/features/models/local/chat/api"
 import { BuildAction } from "@/features/models/local/chat/build-action"
@@ -42,7 +42,7 @@ export function LocalModelList({
   onDelete: (row: LocalRow) => void
 }) {
   return (
-    <ScrollShadow
+    <ScrollFade
       className="overflow-hidden rounded-xl border bg-card"
       // Four rows and half of the next: the cut row says the list scrolls.
       viewportClassName="max-h-72"
@@ -147,6 +147,6 @@ export function LocalModelList({
           )
         })}
       </ul>
-    </ScrollShadow>
+    </ScrollFade>
   )
 }

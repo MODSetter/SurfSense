@@ -32,7 +32,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { RelativeTime } from "@/components/relative-time"
 import { TypewriterText } from "@/components/typewriter-text"
@@ -249,7 +249,7 @@ export function ChatsDialog({
               </InputGroupAddon>
             ) : null}
           </InputGroup>
-          <ScrollShadow
+          <ScrollFade
             className="h-[32rem] min-w-0"
             viewportClassName="overflow-x-hidden"
           >
@@ -417,7 +417,7 @@ export function ChatsDialog({
                 )
               })}
             </div>
-          </ScrollShadow>
+          </ScrollFade>
           <DialogFooter className="-mt-4">
             <Button
               type="button"

@@ -680,6 +680,8 @@
   "studio_podcast_brief_style_label": "Style",
   "studio_podcast_brief_style_monologue_label": "Monologue",
   "studio_podcast_brief_style_narrative_label": "Récit",
+  "studio_podcast_brief_voice_female_label": "Féminine",
+  "studio_podcast_brief_voice_male_label": "Masculine",
   "studio_podcast_viewer_transcript_title": "Transcription",
   "studio_pptx_viewer_error_title": "Impossible de charger la présentation",
   "studio_pptx_viewer_load_error": "Le serveur a renvoyé {status} lors de la récupération de la présentation",

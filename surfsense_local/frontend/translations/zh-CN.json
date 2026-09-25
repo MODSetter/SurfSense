@@ -680,6 +680,8 @@
   "studio_podcast_brief_style_label": "风格",
   "studio_podcast_brief_style_monologue_label": "独白",
   "studio_podcast_brief_style_narrative_label": "叙事",
+  "studio_podcast_brief_voice_female_label": "女声",
+  "studio_podcast_brief_voice_male_label": "男声",
   "studio_podcast_viewer_transcript_title": "文字稿",
   "studio_pptx_viewer_error_title": "无法加载演示文稿",
   "studio_pptx_viewer_load_error": "获取演示文稿时服务器返回 {status}",

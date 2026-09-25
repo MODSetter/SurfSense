@@ -1,7 +1,7 @@
 import asyncio
 import logging
 
-from modules.artifacts.podcast.brief import PodcastBrief
+from modules.artifacts.podcast.brief import PodcastBrief, Speaker
 from modules.llm.providers.protocols import SpokenTurn, TextToSpeech
 from modules.llm.resolution import ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline
@@ -58,8 +58,15 @@ def render(
 
 
 def _transcript(title: str, brief: PodcastBrief, turns: list[draft.Turn]) -> str:
-    cast = ", ".join(f"{s.name} ({s.role.value})" for s in brief.speakers)
+    cast = ", ".join(_cast_member(s) for s in brief.speakers)
     lines = [f"# {title}", "", f"_{cast}_", ""]
     for turn in turns:
         lines += [f"**{brief.speakers[turn.speaker - 1].name}:** {turn.text}", ""]
     return "\n".join(lines).strip()
+
+
+def _cast_member(speaker: Speaker) -> str:
+    """The role only where the name does not already say it: "Co-host" is cohost."""
+    if speaker.name.casefold().replace("-", "") == speaker.role.value:
+        return speaker.name
+    return f"{speaker.name} ({speaker.role.value})"

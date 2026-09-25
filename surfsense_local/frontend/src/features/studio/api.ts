@@ -97,9 +97,16 @@ export type PodcastBrief = {
   speakers: PodcastSpeaker[]
 }
 
+export const VOICE_GENDERS = ["female", "male"] as const
+
 /** One voice, and the languages it speaks: every one of the model's for a
  *  Supertonic voice. */
-export type Voice = { id: string; label: string; languages: string[] }
+export type Voice = {
+  id: string
+  label: string
+  gender: (typeof VOICE_GENDERS)[number]
+  languages: string[]
+}
 
 export function readPodcastBrief(
   workspaceId: number,

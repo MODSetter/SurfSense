@@ -299,6 +299,11 @@ describe("studio panel", () => {
     expect(screen.getByText("Sources (0 selected)")).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Select all" }))
     expect(screen.getByText("Sources (2 selected)")).toBeTruthy()
+    const titan = screen.getByRole("checkbox", { name: "Titan notes" })
+    expect(titan.getAttribute("aria-checked")).toBe("true")
+    await user.click(screen.getByText("Titan notes"))
+    expect(titan.getAttribute("aria-checked")).toBe("false")
+    expect(screen.getByText("Sources (1 selected)")).toBeTruthy()
   })
 
   it("explains why an unavailable image format is disabled", async () => {

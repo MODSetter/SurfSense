@@ -7,11 +7,11 @@ import type { PodcastBrief, Voice } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
 
 const voices: Voice[] = [
-  { id: "af_heart", label: "Heart", languages: ["en-US"] },
-  { id: "am_adam", label: "Adam", languages: ["en-US"] },
-  { id: "bf_emma", label: "Emma", languages: ["en-GB"] },
-  { id: "pf_dora", label: "Dora", languages: ["pt-BR"] },
-  { id: "pm_alex", label: "Alex", languages: ["pt-BR"] },
+  { id: "af_heart", label: "Heart", gender: "female", languages: ["en-US"] },
+  { id: "am_adam", label: "Adam", gender: "male", languages: ["en-US"] },
+  { id: "bf_emma", label: "Emma", gender: "female", languages: ["en-GB"] },
+  { id: "pf_dora", label: "Dora", gender: "female", languages: ["pt-BR"] },
+  { id: "pm_alex", label: "Alex", gender: "male", languages: ["pt-BR"] },
 ]
 
 const brief: PodcastBrief = {
@@ -40,8 +40,8 @@ const value = (element: HTMLElement) =>
 
 // Supertonic's voices each speak every language the model does.
 const multilingual: Voice[] = [
-  { id: "M1", label: "M1", languages: ["en", "fr"] },
-  { id: "F1", label: "F1", languages: ["en", "fr"] },
+  { id: "M1", label: "M1", gender: "male", languages: ["en", "fr"] },
+  { id: "F1", label: "F1", gender: "female", languages: ["en", "fr"] },
 ]
 
 describe("podcast brief form", () => {
@@ -108,6 +108,34 @@ describe("podcast brief form", () => {
     rows = screen.getAllByRole("group", { name: /Speaker \d/ })
     expect(rows).toHaveLength(1)
     expect(value(within(rows[0]).getByLabelText("Voice"))).toBe("am_adam")
+  })
+
+  it("lists languages A to Z by the name shown, not in the model's order", () => {
+    render(<Harness />)
+
+    expect(
+      within(screen.getByLabelText("Language"))
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["American English", "Brazilian Portuguese", "British English"])
+  })
+
+  it("groups each speaker's voices by gender", () => {
+    render(<Harness />)
+
+    const voice = within(
+      screen.getAllByRole("group", { name: /Speaker \d/ })[0]
+    ).getByLabelText("Voice")
+    const groups = within(voice).getAllByRole("group")
+    expect(groups.map((group) => group.getAttribute("label"))).toEqual([
+      "Female",
+      "Male",
+    ])
+    expect(
+      within(groups[0])
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["Heart"])
   })
 
   it("names the speaker inline", async () => {
