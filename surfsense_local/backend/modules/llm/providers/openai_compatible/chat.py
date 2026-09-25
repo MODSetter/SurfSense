@@ -6,7 +6,7 @@ import httpx
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.stream_deadline import with_deadlines
-from modules.llm.providers.types import Message, Model
+from modules.llm.providers.types import Delta, Message, Model
 
 # Waiting for the first token is waiting for a model to load, which on a cold
 # file is tens of seconds and on a large one more. Once tokens are flowing, a
@@ -112,6 +112,28 @@ class OpenAICompatibleChatProvider:
         reasoning: bool | None = None,
         json_schema: dict | None = None,
     ) -> AsyncIterator[str]:
+        """The answer text alone, for callers that have no use for the trace."""
+        async for delta in self.chat_deltas(
+            model,
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning=reasoning,
+            json_schema=json_schema,
+        ):
+            if not delta.reasoning:
+                yield delta.text
+
+    async def chat_deltas(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning: bool | None = None,
+        json_schema: dict | None = None,
+    ) -> AsyncIterator[Delta]:
         body: dict[str, object] = {
             "model": model,
             "messages": [
@@ -144,7 +166,7 @@ class OpenAICompatibleChatProvider:
         ):
             yield delta
 
-    async def _stream(self, body: dict[str, object]) -> AsyncIterator[str]:
+    async def _stream(self, body: dict[str, object]) -> AsyncIterator[Delta]:
         """The deltas as the endpoint sends them, with no waiting rule of its own."""
         async with (
             self._client(TIMEOUT) as client,
@@ -185,7 +207,7 @@ async def _error_message(reply: httpx.Response) -> str:
     return fallback
 
 
-def _delta(line: str) -> str | None:
+def _delta(line: str) -> Delta | None:
     if not line.startswith("data:"):
         return None
     payload = line[len("data:") :].strip()
@@ -194,4 +216,12 @@ def _delta(line: str) -> str | None:
     choices = json.loads(payload).get("choices")
     if not choices:
         return None
-    return choices[0].get("delta", {}).get("content")
+    delta = choices[0].get("delta", {})
+    if content := delta.get("content"):
+        return Delta(content)
+    # llama.cpp and DeepSeek name the trace `reasoning_content`; vLLM, Ollama
+    # and OpenRouter name it `reasoning`.
+    trace = delta.get("reasoning_content") or delta.get("reasoning")
+    if isinstance(trace, str) and trace:
+        return Delta(trace, reasoning=True)
+    return None

@@ -2,7 +2,7 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from typing import Protocol
 
-from modules.llm.providers.types import Message, Model
+from modules.llm.providers.types import Delta, Message, Model
 
 
 class Generator(Protocol):
@@ -41,7 +41,21 @@ class Generator(Protocol):
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning: bool | None = None,
-    ) -> AsyncIterator[str]: ...
+    ) -> AsyncIterator[str]:
+        """The answer text alone; a thinking model's trace is left out."""
+        ...
+
+    def chat_deltas(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning: bool | None = None,
+    ) -> AsyncIterator[Delta]:
+        """The reply as it streams, with the trace marked apart from the answer."""
+        ...
 
 
 @dataclass(frozen=True)

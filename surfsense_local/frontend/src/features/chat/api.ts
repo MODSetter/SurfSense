@@ -13,6 +13,8 @@ export type ChatThread = {
 export type MessageContent = {
   text?: string
   citations?: Citation[]
+  // A thinking model's trace, shown folded above the answer.
+  reasoning?: { text: string; duration_ms: number | null }
 }
 
 export type ChatMessage = {

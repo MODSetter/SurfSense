@@ -12,7 +12,11 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
-from tests.integration.chat.conftest import set_props_n_ctx, set_tokens_per_word
+from tests.integration.chat.conftest import (
+    set_props_n_ctx,
+    set_reasoning,
+    set_tokens_per_word,
+)
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
@@ -260,6 +264,52 @@ async def test_a_followup_carries_the_earlier_turn(
     assert sent[0]["role"] == "system"
     assert sent[-1] == {"role": "user", "content": "second question"}
     assert "first question" in [message["content"] for message in sent]
+
+
+async def test_a_thinking_model_shows_its_reasoning_before_the_answer(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The trace streams as its own frames, closes with how long it took, and
+    stays with the turn so a reload still shows it."""
+    set_reasoning(["The note says ", "revenue climbed."])
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened to revenue?")
+
+    kinds = [event["type"] for event in events]
+    trace = [event["text"] for event in events if event["type"] == "reasoning"]
+    assert "".join(trace) == "The note says revenue climbed."
+    last_trace = max(i for i, kind in enumerate(kinds) if kind == "reasoning")
+    assert last_trace < kinds.index("reasoning-end") < kinds.index("delta")
+    duration_ms = events[kinds.index("reasoning-end")]["duration_ms"]
+    assert isinstance(duration_ms, int) and duration_ms >= 0
+    answer = "".join(event["text"] for event in events if event["type"] == "delta")
+    assert answer == "Revenue climbed after the launch [1]."
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored[1]["content"]["reasoning"] == {
+        "text": "The note says revenue climbed.",
+        "duration_ms": duration_ms,
+    }
+
+
+async def test_a_followup_never_hands_the_model_its_earlier_reasoning(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """A trace is for the person reading it. Sent back, it would spend the next
+    turn's window on thinking the model has already done."""
+    set_reasoning(["The note says ", "revenue climbed."])
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "first question")
+    llamacpp_server.clear()
+    await _send(client, thread_id, "second question")
+
+    sent = [message["content"] for message in llamacpp_server[-1]["messages"]]
+    assert not any("revenue climbed." in content for content in sent[1:-1])
+    assert "Revenue climbed after the launch" in "".join(sent[1:-1])
 
 
 async def test_title_failure_does_not_block_the_answer(

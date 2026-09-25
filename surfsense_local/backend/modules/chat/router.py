@@ -16,6 +16,7 @@ from modules.chat.errors import classify_chat_error
 from modules.chat.history import TokenCounter, build_messages
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
+from modules.chat.reasoning import ReasoningTrace
 from modules.chat.schemas import (
     MessageCreate,
     MessageRead,
@@ -181,13 +182,25 @@ async def send_message(
         cited: list[dict] = []
         answer = ""
         assistant_completed_at: str | None = None
+        trace = ReasoningTrace()
         try:
             try:
-                async for delta in generator.chat(
+                async for delta in generator.chat_deltas(
                     selected.name, messages, max_tokens=answer_max_tokens(n_ctx)
                 ):
-                    parts.append(delta)
-                    yield _frame({"type": "delta", "text": delta})
+                    if delta.reasoning:
+                        trace.add(delta.text)
+                        yield _frame({"type": "reasoning", "text": delta.text})
+                        continue
+                    if (duration_ms := trace.end()) is not None:
+                        yield _frame(
+                            {"type": "reasoning-end", "duration_ms": duration_ms}
+                        )
+                    parts.append(delta.text)
+                    yield _frame({"type": "delta", "text": delta.text})
+                # A think that used the whole budget never reaches an answer.
+                if (duration_ms := trace.end()) is not None:
+                    yield _frame({"type": "reasoning-end", "duration_ms": duration_ms})
             except Exception as exc:
                 # Surfaced as an event; a turn with no content at all is
                 # discarded below rather than left as an empty, unexplained
@@ -217,7 +230,14 @@ async def send_message(
                 # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
                 answer, used = resolve_citations("".join(parts), citations)
                 cited = [asdict(citation) for citation in used]
-                await transact(session, _complete, assistant_message, answer, cited)
+                await transact(
+                    session,
+                    _complete,
+                    assistant_message,
+                    answer,
+                    cited,
+                    trace.stored(),
+                )
                 assistant_completed_at = _iso(assistant_message.completed_at)
 
         if failed and not parts:
@@ -321,9 +341,15 @@ def _discard_turn(
 
 
 def _complete(
-    _session: Session, message: ChatMessage, answer: str, cited: list[dict]
+    _session: Session,
+    message: ChatMessage,
+    answer: str,
+    cited: list[dict],
+    reasoning: dict | None,
 ) -> None:
     message.content = {"text": answer, "citations": cited}
+    if reasoning is not None:
+        message.content["reasoning"] = reasoning
     message.completed_at = datetime.now(UTC)
 
 
