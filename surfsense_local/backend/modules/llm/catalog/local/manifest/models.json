@@ -3311,54 +3311,6 @@
       ]
     },
     {
-      "id": "sdxl-turbo",
-      "name": "SDXL Turbo",
-      "family": "Stable Diffusion",
-      "publisher": "Stability AI",
-      "description": "XL quality in one step, for quick drafts. Non-commercial licence.",
-      "license": "sai-nc-community",
-      "source_repo": "stabilityai/sdxl-turbo",
-      "aliases": [
-        "stabilityai/sdxl-turbo"
-      ],
-      "evidence": {
-        "architecture": "sdxl",
-        "pipeline_tag": "text-to-image",
-        "parameters_b": 3.47
-      },
-      "image": {
-        "origin": "stabilityai/sdxl-turbo model card",
-        "resolution": 512,
-        "steps": 1,
-        "cfg": 0.0
-      },
-      "builds": [
-        {
-          "quantization": "Q4_0",
-          "files": [
-            {
-              "role": "weights",
-              "repo": "gpustack/stable-diffusion-xl-1.0-turbo-GGUF",
-              "upstream_repo": null,
-              "revision": "632cbcdd425c03a01667b9b5cdd7396b14f8cab8",
-              "path": "stable-diffusion-xl-1.0-turbo-Q4_0.gguf",
-              "size_bytes": 3940010720,
-              "sha256": "5282eec23430ca46de87de984521fbf04e3cf78fa4152b05610089bc71d8a535"
-            }
-          ],
-          "run": {
-            "args": [
-              "--backend",
-              "vae=cpu"
-            ]
-          },
-          "validated": {
-            "sd_cpp": null
-          }
-        }
-      ]
-    },
-    {
       "id": "kokoro-82m",
       "name": "Kokoro 82M",
       "family": "Kokoro",

@@ -25,6 +25,7 @@ from local_manifest.audiocpp import refresh as audiocpp
 from local_manifest.audiocpp.entry import AudioEntry
 from local_manifest.entries import ENTRIES
 from local_manifest.guard import losses
+from local_manifest.licence import refused
 from local_manifest.llamacpp import refresh as llamacpp
 from local_manifest.sdcpp import refresh as sdcpp
 from local_manifest.sdcpp.entry import ImageEntry
@@ -83,6 +84,11 @@ def main() -> int:
     arguments = parser.parse_args()
     accept_loss = arguments.accept_loss
     only = set(arguments.only) if arguments.only else None
+
+    if problems := refused(ENTRIES):
+        for problem in problems:
+            print(f"refused: {problem}", file=sys.stderr)
+        return 1
 
     print("reading listings and headers, pinned to each repo's commit:")
     try:

@@ -37,7 +37,7 @@ nothing about this machine, and nothing blocks its install. The screen renders t
 of them.
 
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's and audio.cpp's.
-sd.cpp's are the three curated image models, only when Electron handed the API an
+sd.cpp's are the two curated image models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
 ([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
@@ -158,14 +158,13 @@ preferred first, and nothing in it is a score.
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped thirteen, most preferred first within each type. Seven
+The shipped twelve, most preferred first within each type. Seven
 chat models, all from `unsloth/*-GGUF` with 18 builds each: Qwen3 32B, 14B, 8B,
-4B, Gemma 3 4B (reads images), Qwen3 1.7B and 0.6B. Three image models, one
+4B, Gemma 3 4B (reads images), Qwen3 1.7B and 0.6B. Two image models, one
 self-contained `Q4_0` file each, the same files and hashes the hard-coded list
-they replace downloaded: Stable Diffusion 1.5 and XL from `kostakoff/*-GGUF`,
-and SDXL Turbo from `gpustack/stable-diffusion-xl-1.0-turbo-GGUF`, whose licence,
-`sai-nc-community`, allows non-commercial use only without a Stability AI
-membership. Three audio models, one file per build from their folders of
+they replace downloaded: Stable Diffusion 1.5 and XL from `kostakoff/*-GGUF`.
+That list's SDXL Turbo is not curated: its licence, `sai-nc-community`, fails
+the licence rule ([Authoring](#authoring)). Three audio models, one file per build from their folders of
 `audio-cpp/audio.cpp-gguf`: Kokoro 82M (`Q8_0`, then `BF16`), Supertonic 3 (`F16`,
 then `orig`; its `q8_0` file is the `orig` file under another name) and KittenTTS
 Mini 0.8 (`orig`). Only the three audio defaults are validated, each voiced on
@@ -201,6 +200,13 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
   ([`builds/choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
   and nothing outside it: no imatrix files, drafters, big endian builds, or
   quantizations such as `TQ1_0` that the order does not rank.
+- **It refuses a model whose licence does not allow commercial use** with no
+  revenue cap, registration, membership or excluded territory, before it reads
+  anything: every entry's licence tag must be on the reviewed allowlist in
+  [`local_manifest/licence.py`](../../../surfsense_local/backend/scripts/local_manifest/licence.py).
+  An OpenRAIL or Gemma licence passes, since its use restrictions pass on to the
+  user rather than limit commercial use. A unit test holds the committed
+  manifest to the same rule, so a hand edit cannot slip one in.
 - **It refuses to write** a build without a hash or size, a projector that does not
   see images or is not as wide as the model, and a refresh that drops a model or
   a build, listing what would go, unless it is rerun with `--accept-loss`.
@@ -542,7 +548,7 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
-- Only the three audio defaults are validated; `validated` is empty on the other 131 builds.
+- Only the three audio defaults are validated; `validated` is empty on the other 130 builds.
 - `sampling`, `template.system_role`, the `image` defaults and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet and sd-server runs at its own defaults. Only sd.cpp's `run.args` reach a runtime. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
 - `POST /llm/install` does not refuse a curated build that will not fit; only the screen's disabled Download does.

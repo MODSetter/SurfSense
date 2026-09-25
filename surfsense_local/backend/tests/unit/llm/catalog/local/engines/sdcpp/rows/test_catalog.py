@@ -32,7 +32,7 @@ def test_every_curated_image_model_is_a_runnable_unpriced_row() -> None:
     """Offered by sd.cpp, downloadable, and never starred or badged."""
     result = rows()
 
-    assert set(result) == {"stable-diffusion-1.5", "sdxl-base-1.0", "sdxl-turbo"}
+    assert set(result) == {"stable-diffusion-1.5", "sdxl-base-1.0"}
     sd15 = result["stable-diffusion-1.5"]
     assert sd15.engine == "sdcpp"
     assert sd15.classification.types == (ModelType.IMAGE_GEN,)
@@ -66,9 +66,9 @@ def test_a_build_whose_own_file_is_in_the_folder_is_installed() -> None:
 
 def test_the_selected_image_model_leads_as_in_use() -> None:
     """The row says which build the Studio's images come from."""
-    turbo = rows(
-        files={"stable-diffusion-xl-1.0-turbo-Q4_0.gguf"},
-        selected="stable-diffusion-xl-1.0-turbo-Q4_0",
-    )["sdxl-turbo"]
+    sdxl = rows(
+        files={"sd_xl_base_1.0_0_Q4_0.gguf"},
+        selected="sd_xl_base_1.0_0_Q4_0",
+    )["sdxl-base-1.0"]
 
-    assert turbo.lead is not None and turbo.lead.why is LeadReason.IN_USE
+    assert sdxl.lead is not None and sdxl.lead.why is LeadReason.IN_USE

@@ -7,7 +7,7 @@ from httpx import AsyncClient
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
-IMAGE_IDS = {"stable-diffusion-1.5", "sdxl-base-1.0", "sdxl-turbo"}
+IMAGE_IDS = {"stable-diffusion-1.5", "sdxl-base-1.0"}
 
 
 def image_rows(body: dict) -> dict[str, dict]:

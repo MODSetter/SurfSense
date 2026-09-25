@@ -128,26 +128,6 @@ ENTRIES: tuple[Entry, ...] = (
         # the CPU and the card holds only the diffusion model.
         run_args=("--backend", "vae=cpu"),
     ),
-    ImageEntry(
-        id="sdxl-turbo",
-        name="SDXL Turbo",
-        family="Stable Diffusion",
-        publisher="Stability AI",
-        description="XL quality in one step, for quick drafts. Non-commercial licence.",
-        # Non-commercial and research use; commercial use needs a Stability AI
-        # membership.
-        license="sai-nc-community",
-        source_repo="stabilityai/sdxl-turbo",
-        repo="gpustack/stable-diffusion-xl-1.0-turbo-GGUF",
-        aliases=("stabilityai/sdxl-turbo",),
-        image={
-            "origin": "stabilityai/sdxl-turbo model card",
-            "resolution": 512,
-            "steps": 1,
-            "cfg": 0.0,
-        },
-        run_args=("--backend", "vae=cpu"),
-    ),
     # Audio models: podcast voices, from audio.cpp's own conversions. Kokoro
     # leads: the most voices, and the voice ids podcast briefs store today.
     AudioEntry(
