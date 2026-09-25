@@ -4,14 +4,18 @@ its next poll after the job needs it, a few seconds later."""
 import httpx
 import pytest
 
+from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import GeneratedImage
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
 from modules.llm.providers.sdcpp.serving import (
     ImageServerNotReadyError,
     wait_until_serving,
 )
+from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
 pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
+
+CHAT = "Qwen3-1.7B-UD-Q4_K_XL"
 
 
 def server(*answers: object) -> tuple[httpx.MockTransport, list[str]]:
@@ -64,6 +68,7 @@ async def test_the_local_image_generator_posts_only_once_its_model_is_served() -
         Inner(),
         "http://127.0.0.1:1",
         "klein-Q4_0.gguf",
+        RouterClient("http://router", transport=FakeRouter().transport()),
         interval=0,
         transport=transport,
     )
@@ -72,3 +77,31 @@ async def test_the_local_image_generator_posts_only_once_its_model_is_served() -
 
     assert len(asked) == 2 and posted == ["a lighthouse"]
     assert image.content == b"png"
+
+
+async def test_the_chat_model_leaves_the_graphics_card_before_the_image() -> None:
+    """They share one card, and Studio's writer is done by now. Measured on a
+    10 GB RTX 3080: with Qwen3 1.7B resident, Z-Image Turbo ran out of memory
+    mid-sampling; with it unloaded, the same image took 19 s."""
+    transport, _ = server("klein-Q4_0.gguf")
+    chat = FakeRouter(models=[CHAT])
+    chat.loaded.add(CHAT)
+    resident_at_post: list[set[str]] = []
+
+    class Inner:
+        async def generate(self, model: str, prompt: str) -> GeneratedImage:
+            resident_at_post.append(set(chat.loaded))
+            return GeneratedImage(b"png", "image/png")
+
+    generator = LocalImageGenerator(
+        Inner(),
+        "http://127.0.0.1:1",
+        "klein-Q4_0.gguf",
+        RouterClient("http://router", transport=chat.transport()),
+        interval=0,
+        transport=transport,
+    )
+
+    await generator.generate("klein-Q4_0", "a lighthouse")
+
+    assert resident_at_post == [set()]

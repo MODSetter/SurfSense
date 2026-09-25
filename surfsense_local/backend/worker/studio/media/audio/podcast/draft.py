@@ -5,7 +5,7 @@ from modules.artifacts.podcast.brief import PodcastBrief
 from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
-from worker.studio.media.audio.podcast.outline import Segment
+from worker.studio.media.audio.podcast.outline import WORDS_PER_SEGMENT, Segment
 from worker.studio.media.audio.podcast.roster import roster
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Source
@@ -16,6 +16,11 @@ logger = logging.getLogger(__name__)
 # How much of the dialogue so far each segment sees, so it continues rather
 # than restarts, without carrying the whole episode in every call.
 RECAP_CHARS = 800
+# A segment's JSON measured 2.5 tokens a word in English and 5.5 in Hindi on
+# Qwen3's tokenizer; 12 lets a reply run past twice its target and stops a loop
+# in seconds. The target is the outline's guess, once 20 words, so it never
+# counts under a planned segment.
+REPLY_TOKENS_PER_WORD = 12
 _JSON_NUDGE = "Your previous reply was not valid JSON. Return only the JSON object."
 
 
@@ -39,7 +44,18 @@ def draft(
         text = prompt(
             model.tier, brief, segment, position, len(segments), recap(turns, brief)
         )
-        turns.extend(_draft_one(model, brief, text, position, len(segments), sources))
+        turns.extend(
+            _draft_one(
+                model,
+                brief,
+                text,
+                position,
+                len(segments),
+                sources,
+                max_tokens=max(segment.target_words, WORDS_PER_SEGMENT)
+                * REPLY_TOKENS_PER_WORD,
+            )
+        )
     return turns
 
 
@@ -109,8 +125,10 @@ def _draft_one(
     position: int,
     total: int,
     sources: list[Source],
+    *,
+    max_tokens: int,
 ) -> list[Turn]:
-    reply = generate.run_model(model, text, sources)
+    reply = generate.run_model(model, text, sources, max_tokens=max_tokens)
     try:
         return parse(reply, brief)
     except ValueError as first:
@@ -118,7 +136,11 @@ def _draft_one(
             "studio: podcast segment %s/%s: %s; retrying", position, total, first
         )
     retry = generate.run_model(
-        model, text, sources, repair=generate.Repair(reply, _JSON_NUDGE)
+        model,
+        text,
+        sources,
+        repair=generate.Repair(reply, _JSON_NUDGE),
+        max_tokens=max_tokens,
     )
     try:
         return parse(retry, brief)

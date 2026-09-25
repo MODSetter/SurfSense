@@ -22,14 +22,14 @@ _ENDED = (DocumentStatus.READY, DocumentStatus.FAILED, DocumentStatus.CANCELLED)
 
 def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     """The oldest running job's image type; else the last one's, for IDLE after
-    it ended; else None. A cancel ends the window at once: sd-server cannot
-    stop a generation, so stopping the process is the cancel."""
+    it ended, while no other Studio job runs; else None. A cancel ends the
+    window at once: sd-server cannot stop a generation, so stopping the
+    process is the cancel."""
     needs = {fmt.key: slot for fmt in FORMATS if (slot := _image_type(fmt))}
-    jobs = (
-        select(Artifact.format, Document.status, Document.updated_at)
-        .join(Document, Artifact.document_id == Document.id)
-        .where(Artifact.format.in_(needs))
+    studio = select(Artifact.format, Document.status, Document.updated_at).join(
+        Document, Artifact.document_id == Document.id
     )
+    jobs = studio.where(Artifact.format.in_(needs))
     running = session.execute(
         jobs.where(Document.status == DocumentStatus.PROCESSING)
         .order_by(Document.updated_at)
@@ -37,6 +37,12 @@ def local_image_demand(session: Session, now: datetime) -> ModelType | None:
     ).first()
     if running is not None:
         return needs[running.format]
+    # A podcast voices on the processor and a text job loads the chat model;
+    # either needs the memory more than a second image would.
+    if session.execute(
+        studio.where(Document.status == DocumentStatus.PROCESSING).limit(1)
+    ).first():
+        return None
     last = session.execute(
         jobs.where(Document.status.in_(_ENDED))
         .order_by(Document.updated_at.desc())

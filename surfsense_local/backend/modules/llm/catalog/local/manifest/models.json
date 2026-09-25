@@ -3483,7 +3483,11 @@
             }
           ],
           "run": {
-            "args": []
+            "args": [
+              "--vae-tiling",
+              "--vae-tile-size",
+              "16x16"
+            ]
           },
           "validated": {
             "sd_cpp": null
@@ -3521,7 +3525,11 @@
             }
           ],
           "run": {
-            "args": []
+            "args": [
+              "--vae-tiling",
+              "--vae-tile-size",
+              "16x16"
+            ]
           },
           "validated": {
             "sd_cpp": null

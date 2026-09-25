@@ -1,13 +1,14 @@
 /**
  * The Python sidecars: the API, and the worker once per queue. Same shape: a
- * frozen onedir binary when packaged, `uv run` in dev, same SURFSENSE_LOCAL_*
- * env. Both reach llama-server, so both need the bundled address.
+ * frozen onedir binary when packaged, the backend's venv interpreter in dev,
+ * same SURFSENSE_LOCAL_* env. Both reach llama-server, so both need the bundled
+ * address.
  */
 import { existsSync } from "node:fs"
 import { join } from "node:path"
 
 import { binaryPath as audiocppBinary, espeakPaths } from "./audiocpp.ts"
-import { exe } from "./platform.ts"
+import { exe, isWindows } from "./platform.ts"
 import type { SidecarContext, SidecarSpec } from "./types.ts"
 
 function pythonEnv(ctx: SidecarContext): Record<string, string> {
@@ -54,9 +55,13 @@ function pythonCmd(
   devEntry: string,
   args: string[] = [],
 ): { cmd: string; args: string[]; cwd: string } {
+  // Not `uv run`: Windows kills the app's children with it but not theirs, and
+  // under uv Python is one of theirs, so a Ctrl-C left workers taking the next
+  // session's jobs. predev's own `uv run` scripts have synced this venv.
+  const venv = join(ctx.backendDir, ".venv", isWindows ? "Scripts" : "bin")
   return ctx.packaged
     ? { cmd: join(ctx.binariesDir, "backend", name, exe(name)), args, cwd: ctx.binariesDir }
-    : { cmd: "uv", args: ["run", devEntry, ...args], cwd: ctx.backendDir }
+    : { cmd: join(venv, exe("python")), args: [devEntry, ...args], cwd: ctx.backendDir }
 }
 
 export function apiSpec(ctx: SidecarContext): SidecarSpec {

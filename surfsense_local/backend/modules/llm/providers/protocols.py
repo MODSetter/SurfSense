@@ -97,7 +97,7 @@ class TextToSpeech(Protocol):
 
     def voices(self) -> list[Voice]: ...
 
-    def check_memory(self) -> None:
+    async def check_memory(self) -> None:
         """Raise, with the sentence a person reads, when voicing cannot fit."""
         ...
 
