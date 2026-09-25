@@ -1,0 +1,134 @@
+[
+  {
+    "id": "warranty-en",
+    "slice": "english",
+    "text": "How long is the warranty on the Kestrel X200 blender?",
+    "expect": ["covered for 27 months"]
+  },
+  {
+    "id": "jar-capacity-en",
+    "slice": "english",
+    "text": "What size is the X200 jar?",
+    "expect": ["1.8 litre Tritan jar"]
+  },
+  {
+    "id": "budget-en",
+    "slice": "english",
+    "text": "What is the first-year budget for the Lisbon office?",
+    "expect": ["418,000 euros"]
+  },
+  {
+    "id": "who-proposed-en",
+    "slice": "english",
+    "text": "Who proposed the Lisbon office budget?",
+    "expect": ["Ingrid Solheim"]
+  },
+  {
+    "id": "paraphrase-cleaning",
+    "slice": "paraphrase",
+    "text": "how do I wash the blender jug",
+    "expect": ["Rinse the jar with warm water"]
+  },
+  {
+    "id": "paraphrase-storage",
+    "slice": "paraphrase",
+    "text": "what should I do with the appliance if I am not going to use it for a while",
+    "expect": ["Store the jar unlocked from the base"]
+  },
+  {
+    "id": "wifi-password",
+    "slice": "identifier",
+    "text": "What is the guest wifi password in the Lisbon office?",
+    "expect": ["tagus-harbour-77"]
+  },
+  {
+    "id": "printer-asset-tag",
+    "slice": "identifier",
+    "text": "LX-4417",
+    "expect": ["LX-4417"]
+  },
+  {
+    "id": "staff-network-name",
+    "slice": "identifier",
+    "text": "Which network do staff laptops join?",
+    "expect": ["LX-Staff"]
+  },
+  {
+    "id": "current-return-window",
+    "slice": "superseded",
+    "text": "How many days do customers have to return an item now?",
+    "expect": ["return window is 45 days"]
+  },
+  {
+    "id": "current-return-packaging",
+    "slice": "superseded",
+    "text": "Do I need the original packaging to return something?",
+    "expect": ["original packaging is no longer required"]
+  },
+  {
+    "id": "warranty-de",
+    "slice": "german",
+    "text": "Wie lange gilt die Garantie für den Kestrel X300?",
+    "expect": ["39 Monate"]
+  },
+  {
+    "id": "cleaning-de",
+    "slice": "german",
+    "text": "Wie reinige ich den Behälter?",
+    "expect": ["Spüle den Behälter nach jedem Gebrauch"]
+  },
+  {
+    "id": "warranty-ja",
+    "slice": "japanese",
+    "text": "Kestrel X400 の保証期間はどのくらいですか？",
+    "expect": ["42 か月間"]
+  },
+  {
+    "id": "cleaning-ja",
+    "slice": "japanese",
+    "text": "容器はどうやって洗えばいいですか？",
+    "expect": ["ぬるま湯ですすいでください"]
+  },
+  {
+    "id": "return-window-zh",
+    "slice": "chinese",
+    "text": "退货期限是多少天？",
+    "expect": ["30 天内可以申请退货"]
+  },
+  {
+    "id": "return-postage-zh",
+    "slice": "chinese",
+    "text": "退货运费由谁承担？",
+    "expect": ["退货运费由我们承担"]
+  },
+  {
+    "id": "annual-leave-hi",
+    "slice": "hindi",
+    "text": "एक साल में कितने दिन की छुट्टी मिलती है?",
+    "expect": ["24 दिन का वार्षिक अवकाश"]
+  },
+  {
+    "id": "sick-leave-hi",
+    "slice": "hindi",
+    "text": "बीमारी की छुट्टी कितने दिन की है?",
+    "expect": ["12 दिन है"]
+  },
+  {
+    "id": "warranty-x400-in-english",
+    "slice": "cross-lingual",
+    "text": "What is the warranty period of the Kestrel X400?",
+    "expect": ["42 か月間"]
+  },
+  {
+    "id": "leave-policy-in-english",
+    "slice": "cross-lingual",
+    "text": "How many days of annual leave do employees get?",
+    "expect": ["24 दिन का वार्षिक अवकाश"]
+  },
+  {
+    "id": "return-window-in-english-zh-doc",
+    "slice": "cross-lingual",
+    "text": "What is the refund window for the Chinese store?",
+    "expect": ["30 天内可以申请退货"]
+  }
+]
