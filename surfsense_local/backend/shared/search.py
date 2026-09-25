@@ -53,13 +53,14 @@ def retrieve(
     from worker.ingestion.embedding import embed
 
     vector = serialize_float32(embed([query])[0])
-    keyword = _keyword_leg(session, workspace_id, query, selected_document_ids)
-    semantic = _vector_leg(session, workspace_id, vector, selected_document_ids)
-    fused = _fuse(keyword, semantic)
-    if not fused:
+    keyword = dict(_keyword_leg(session, workspace_id, query, selected_document_ids))
+    candidates = keyword.keys() | set(
+        _vector_leg(session, workspace_id, vector, selected_document_ids)
+    )
+    if not candidates:
         return []
 
-    return _best(session, fused, vector, top_k)
+    return _best(session, keyword, candidates, vector, top_k)
 
 
 # How much of the order meaning owns. Our corpus is flat across 0.6 to 0.65 and
@@ -70,24 +71,6 @@ def retrieve(
 # the one that meant the same thing, because appearing in both legs beats
 # topping one.
 SEMANTIC_WEIGHT = 0.65
-
-
-def _fuse(
-    keyword: Sequence[tuple[int, float]], semantic: Sequence[tuple[int, float]]
-) -> dict[int, float]:
-    """Blend the legs, each already on its own absolute 0..1 scale.
-
-    Absolute matters more than the weight: a leg scaled against its own best
-    candidate calls that candidate perfect however bad it is, so a query whose
-    only keyword match is "a" would vote at full strength for nonsense. Term
-    coverage and cosine both mean something on their own, so neither leg can
-    inflate itself when it has nothing.
-    """
-    scores: dict[int, float] = {}
-    for leg, weight in ((semantic, SEMANTIC_WEIGHT), (keyword, 1.0 - SEMANTIC_WEIGHT)):
-        for chunk_id, strength in leg:
-            scores[chunk_id] = scores.get(chunk_id, 0.0) + weight * strength
-    return scores
 
 
 def _keyword_leg(
@@ -162,7 +145,12 @@ def _vector_leg(
     workspace_id: int,
     vector: bytes,
     document_ids: Sequence[int] | None,
-) -> list[tuple[int, float]]:
+) -> list[int]:
+    """The nearest chunks, proposed for ranking rather than scored.
+
+    `_best` measures every candidate's cosine, so a chunk this leg did not
+    reach is unmeasured rather than unrelated.
+    """
     # KNN scans the whole index (its own CTE, as vec0 wants), then the workspace
     # filter applies. ponytail: fine for a few small local workspaces; widen k if
     # a workspace's hits start falling outside the global top CANDIDATES.
@@ -187,16 +175,27 @@ def _vector_leg(
     statement = text(sql)
     if document_ids is not None:
         statement = statement.bindparams(bindparam("document_ids", expanding=True))
-    rows = session.execute(statement, params)
-    # Cosine similarity, and a passage pointing the other way is no evidence at
-    # all rather than evidence against, so it floors at nothing.
-    return [(row.id, max(0.0, 1.0 - row.distance)) for row in rows]
+    return [row.id for row in session.execute(statement, params)]
 
 
 def _best(
-    session: Session, fused: dict[int, float], vector: bytes, top_k: int
+    session: Session,
+    keyword: dict[int, float],
+    candidates: set[int],
+    vector: bytes,
+    top_k: int,
 ) -> list[Hit]:
-    """The best `top_k` blended candidates, closest breaking any tie.
+    """The best `top_k` candidates blended, closest breaking any tie.
+
+    Both legs are on absolute 0..1 scales, which matters more than the weight: a
+    leg scaled against its own best candidate calls that candidate perfect
+    however bad it is, so a query whose only keyword match is "a" would vote at
+    full strength for nonsense.
+
+    Every candidate is scored on its own cosine here rather than on the vector
+    leg's, because that leg returns only the nearest `CANDIDATES` and a chunk
+    outside them is unmeasured, not unrelated. Reading it as zero let a crowded
+    workspace next door decide what this one ranked first.
 
     `score` stays the cosine similarity so a caller can still read how close a
     passage is, even though it no longer decides where the passage sits.
@@ -208,8 +207,16 @@ def _best(
         "JOIN documents d ON d.id = c.document_id "
         "WHERE c.id IN :ids"
     ).bindparams(bindparam("ids", expanding=True))
-    rows = session.execute(stmt, {"vector": vector, "ids": list(fused)}).all()
-    ordered = sorted(rows, key=lambda row: (-fused[row.id], row.distance))
+    rows = session.execute(stmt, {"vector": vector, "ids": list(candidates)}).all()
+
+    def blended(row) -> float:
+        # A passage pointing the other way is no evidence rather than evidence
+        # against, so cosine floors at nothing.
+        return SEMANTIC_WEIGHT * max(0.0, 1.0 - row.distance) + (
+            1.0 - SEMANTIC_WEIGHT
+        ) * keyword.get(row.id, 0.0)
+
+    ordered = sorted(rows, key=lambda row: (-blended(row), row.distance))
     return [
         Hit(
             chunk_id=row.id,

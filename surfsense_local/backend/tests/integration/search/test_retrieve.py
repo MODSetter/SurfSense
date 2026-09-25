@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from modules.documents.models import Document, DocumentType
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
-from shared.search import retrieve
+from shared.search import CANDIDATES, retrieve
 from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
@@ -154,6 +154,38 @@ def test_a_hindi_question_finds_the_note_that_answers_it(
         hits = retrieve(session, workspace.id, "स्कैनर की बैटरी कितने घंटे चलती है?")
 
         assert hits[0].document_id == ids["scanner"]
+
+
+def test_a_crowded_neighbour_workspace_does_not_reorder_mine(
+    engine: Engine, real_model: object
+) -> None:
+    """Another workspace's documents must not decide what mine ranks first.
+
+    KNN takes the global nearest `CANDIDATES` before the workspace filter runs,
+    so a neighbour holding that many closer chunks leaves my own notes out of
+    the semantic leg. Scored as cosine zero rather than unmeasured, the note
+    that merely carries more of the query's words wins.
+    """
+    query = "a cat napping in sunlight"
+    with create_session_factory(engine)() as session:
+        mine = Workspace(name="Mine")
+        neighbour = Workspace(name="Neighbour")
+        session.add_all([mine, neighbour])
+        session.flush()
+        # Closer to the query than anything of mine can be, and enough of them
+        # to leave no room.
+        for _ in range(CANDIDATES):
+            _ingest(session, neighbour.id, query)
+        # Two words of the query against three, so coverage alone prefers the
+        # invoice; meaning is the only thing that puts the dozing cat first.
+        dozing = _ingest(session, mine.id, "The feline dozed in the warm sunlight.")
+        _ingest(
+            session, mine.id, "Invoice: a crate of tinned cat food shipped in bulk."
+        )
+
+        hits = retrieve(session, mine.id, query)
+
+        assert hits[0].document_id == dozing
 
 
 def test_an_empty_workspace_returns_nothing(engine: Engine, real_model: object) -> None:
