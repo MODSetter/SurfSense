@@ -24,6 +24,54 @@
     "expect": ["Ingrid Solheim"]
   },
   {
+    "id": "office-opens-en",
+    "slice": "english",
+    "text": "When does the Lisbon office open?",
+    "expect": ["2 November 2026"]
+  },
+  {
+    "id": "floor-size-en",
+    "slice": "english",
+    "text": "How big is the Lisbon floor?",
+    "expect": ["620 square metres"]
+  },
+  {
+    "id": "expense-no-approval",
+    "slice": "english",
+    "text": "How much can I spend without getting approval first?",
+    "expect": ["up to 200 euros needs no prior approval"]
+  },
+  {
+    "id": "expense-director",
+    "slice": "english",
+    "text": "When do I need a director to approve spending?",
+    "expect": ["Above 2,000 euros needs a director"]
+  },
+  {
+    "id": "hotel-cap-lisbon",
+    "slice": "english",
+    "text": "What is the hotel cap in Lisbon?",
+    "expect": ["180 euros a night in Lisbon"]
+  },
+  {
+    "id": "meal-allowance",
+    "slice": "english",
+    "text": "How much can I claim for meals while travelling?",
+    "expect": ["up to 60 euros a day"]
+  },
+  {
+    "id": "claim-deadline",
+    "slice": "english",
+    "text": "How long do I have to submit an expense claim?",
+    "expect": ["within 60 days of the spend"]
+  },
+  {
+    "id": "incident-review-deadline",
+    "slice": "english",
+    "text": "How soon must an incident review be written?",
+    "expect": ["within three working days"]
+  },
+  {
     "id": "paraphrase-cleaning",
     "slice": "paraphrase",
     "text": "how do I wash the blender jug",
@@ -36,10 +84,28 @@
     "expect": ["Store the jar unlocked from the base"]
   },
   {
-    "id": "wifi-password",
-    "slice": "identifier",
-    "text": "What is the guest wifi password in the Lisbon office?",
-    "expect": ["tagus-harbour-77"]
+    "id": "paraphrase-escalate",
+    "slice": "paraphrase",
+    "text": "when should I get another team involved in an outage",
+    "expect": ["above 5,000 for ten minutes"]
+  },
+  {
+    "id": "paraphrase-fob-hours",
+    "slice": "paraphrase",
+    "text": "can I get into the building at the weekend",
+    "expect": ["07:00 to 21:00 on weekdays"]
+  },
+  {
+    "id": "paraphrase-out-of-hours",
+    "slice": "paraphrase",
+    "text": "what wakes someone up in the middle of the night",
+    "expect": ["Only a SEV-1 pages the on-call engineer"]
+  },
+  {
+    "id": "paraphrase-cert-rotation",
+    "slice": "paraphrase",
+    "text": "how often is the payment certificate replaced",
+    "expect": ["rotated every 90 days"]
   },
   {
     "id": "printer-asset-tag",
@@ -48,10 +114,46 @@
     "expect": ["LX-4417"]
   },
   {
+    "id": "error-basket-lock",
+    "slice": "identifier",
+    "text": "ERR-5041",
+    "expect": ["ERR-5041"]
+  },
+  {
+    "id": "error-handshake",
+    "slice": "identifier",
+    "text": "What does ERR-5107 mean?",
+    "expect": ["ERR-5107"]
+  },
+  {
+    "id": "error-address",
+    "slice": "identifier",
+    "text": "ERR-4412 severity",
+    "expect": ["ERR-4412"]
+  },
+  {
+    "id": "wifi-password",
+    "slice": "identifier",
+    "text": "What is the guest wifi password in the Lisbon office?",
+    "expect": ["tagus-harbour-77"]
+  },
+  {
     "id": "staff-network-name",
     "slice": "identifier",
     "text": "Which network do staff laptops join?",
     "expect": ["LX-Staff"]
+  },
+  {
+    "id": "guest-network-name",
+    "slice": "identifier",
+    "text": "LX-Guest",
+    "expect": ["LX-Guest"]
+  },
+  {
+    "id": "sev-1-definition",
+    "slice": "identifier",
+    "text": "SEV-1",
+    "expect": ["SEV-1 when customers cannot complete a purchase"]
   },
   {
     "id": "current-return-window",
@@ -66,6 +168,66 @@
     "expect": ["original packaging is no longer required"]
   },
   {
+    "id": "current-refund-speed",
+    "slice": "superseded",
+    "text": "How quickly is a refund paid back?",
+    "expect": ["within five working days"]
+  },
+  {
+    "id": "current-booking-window",
+    "slice": "superseded",
+    "text": "How far ahead do I have to book a flight?",
+    "expect": ["at least 10 days ahead"]
+  },
+  {
+    "id": "current-rideshare",
+    "slice": "superseded",
+    "text": "Can I claim an Uber to the airport?",
+    "expect": ["Taxis and rideshare are both reimbursed"]
+  },
+  {
+    "id": "travel-agent-gone",
+    "slice": "superseded",
+    "text": "Do I still book through the travel agent?",
+    "expect": ["ended on 31 December 2025"]
+  },
+  {
+    "id": "x100-warranty",
+    "slice": "near-duplicate",
+    "text": "How long is the Kestrel X100 covered for?",
+    "expect": ["covered for 18 months"]
+  },
+  {
+    "id": "x100-jar-size",
+    "slice": "near-duplicate",
+    "text": "What size jar does the X100 have?",
+    "expect": ["1.2 litre Tritan jar"]
+  },
+  {
+    "id": "x100-dishwasher",
+    "slice": "near-duplicate",
+    "text": "Can I put the X100 blade in the dishwasher?",
+    "expect": ["dishwasher safe on the top rack"]
+  },
+  {
+    "id": "x200-dishwasher",
+    "slice": "near-duplicate",
+    "text": "Is the X200 blade assembly dishwasher safe?",
+    "expect": ["not dishwasher safe"]
+  },
+  {
+    "id": "x100-ice",
+    "slice": "near-duplicate",
+    "text": "Can the X100 crush ice?",
+    "expect": ["not rated for ice or frozen fruit"]
+  },
+  {
+    "id": "jar-interchangeable",
+    "slice": "near-duplicate",
+    "text": "Does the X100 jar fit the X200?",
+    "expect": ["not interchangeable with the X200 jar"]
+  },
+  {
     "id": "warranty-de",
     "slice": "german",
     "text": "Wie lange gilt die Garantie für den Kestrel X300?",
@@ -76,6 +238,24 @@
     "slice": "german",
     "text": "Wie reinige ich den Behälter?",
     "expect": ["Spüle den Behälter nach jedem Gebrauch"]
+  },
+  {
+    "id": "payroll-retention-de",
+    "slice": "german",
+    "text": "Wie lange werden Abrechnungsunterlagen aufbewahrt?",
+    "expect": ["zehn Jahre"]
+  },
+  {
+    "id": "access-logs-de",
+    "slice": "german",
+    "text": "Wann werden Zugangsprotokolle gelöscht?",
+    "expect": ["nach 90 Tagen"]
+  },
+  {
+    "id": "subject-access-de",
+    "slice": "german",
+    "text": "Wie schnell bekomme ich eine Auskunft über meine Daten?",
+    "expect": ["innerhalb eines Monats"]
   },
   {
     "id": "warranty-ja",
@@ -90,6 +270,24 @@
     "expect": ["ぬるま湯ですすいでください"]
   },
   {
+    "id": "return-rate-ja",
+    "slice": "japanese",
+    "text": "X100 の返品率はどれくらいですか？",
+    "expect": ["4.2 パーセント"]
+  },
+  {
+    "id": "x400-launch-ja",
+    "slice": "japanese",
+    "text": "X400 の発売日はいつですか？",
+    "expect": ["2026年11月2日"]
+  },
+  {
+    "id": "osaka-lease-ja",
+    "slice": "japanese",
+    "text": "大阪オフィスの契約はいつ終わりますか？",
+    "expect": ["2027年3月末"]
+  },
+  {
     "id": "return-window-zh",
     "slice": "chinese",
     "text": "退货期限是多少天？",
@@ -100,6 +298,24 @@
     "slice": "chinese",
     "text": "退货运费由谁承担？",
     "expect": ["退货运费由我们承担"]
+  },
+  {
+    "id": "repair-time-zh",
+    "slice": "chinese",
+    "text": "维修一般需要多长时间？",
+    "expect": ["十个工作日"]
+  },
+  {
+    "id": "replacement-zh",
+    "slice": "chinese",
+    "text": "什么情况下可以换新机？",
+    "expect": ["维修三次仍未解决"]
+  },
+  {
+    "id": "wear-parts-zh",
+    "slice": "chinese",
+    "text": "密封圈损坏保修吗？",
+    "expect": ["密封圈"]
   },
   {
     "id": "annual-leave-hi",
@@ -114,21 +330,69 @@
     "expect": ["12 दिन है"]
   },
   {
-    "id": "warranty-x400-in-english",
+    "id": "carry-over-hi",
+    "slice": "hindi",
+    "text": "कितनी छुट्टी अगले साल ले जा सकते हैं?",
+    "expect": ["अधिकतम 10 दिन"]
+  },
+  {
+    "id": "password-length-hi",
+    "slice": "hindi",
+    "text": "पासवर्ड कितना लंबा होना चाहिए?",
+    "expect": ["14 अक्षर"]
+  },
+  {
+    "id": "screen-lock-hi",
+    "slice": "hindi",
+    "text": "स्क्रीन लॉक का समय कितना होना चाहिए?",
+    "expect": ["पाँच मिनट"]
+  },
+  {
+    "id": "x400-warranty-asked-in-english",
     "slice": "cross-lingual",
     "text": "What is the warranty period of the Kestrel X400?",
     "expect": ["42 か月間"]
   },
   {
-    "id": "leave-policy-in-english",
+    "id": "annual-leave-asked-in-english",
     "slice": "cross-lingual",
     "text": "How many days of annual leave do employees get?",
     "expect": ["24 दिन का वार्षिक अवकाश"]
   },
   {
-    "id": "return-window-in-english-zh-doc",
+    "id": "repair-time-asked-in-english",
     "slice": "cross-lingual",
-    "text": "What is the refund window for the Chinese store?",
-    "expect": ["30 天内可以申请退货"]
+    "text": "How long does a repair usually take at the service centre?",
+    "expect": ["十个工作日"]
+  },
+  {
+    "id": "payroll-retention-asked-in-english",
+    "slice": "cross-lingual",
+    "text": "How long do we keep payroll records?",
+    "expect": ["zehn Jahre"]
+  },
+  {
+    "id": "x400-launch-asked-in-english",
+    "slice": "cross-lingual",
+    "text": "When is the X400 being released?",
+    "expect": ["2026年11月2日"]
+  },
+  {
+    "id": "password-length-asked-in-english",
+    "slice": "cross-lingual",
+    "text": "What is the minimum password length?",
+    "expect": ["14 अक्षर"]
+  },
+  {
+    "id": "x300-warranty-asked-in-english",
+    "slice": "cross-lingual",
+    "text": "How long is the Kestrel X300 under warranty?",
+    "expect": ["39 Monate"]
+  },
+  {
+    "id": "cleaning-asked-in-japanese",
+    "slice": "cross-lingual",
+    "text": "X200 の容器はどうやって洗いますか？",
+    "expect": ["Rinse the jar with warm water"]
   }
 ]
