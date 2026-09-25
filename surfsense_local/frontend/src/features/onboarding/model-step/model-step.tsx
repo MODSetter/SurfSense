@@ -12,7 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { ArrowLeftIcon, ComputerIcon, DotIcon } from "@/components/ui/icons"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
@@ -380,12 +380,12 @@ export function ModelStep({
             </Button>
           </div>
         ) : null}
-        <ScrollShadow
+        <ScrollFade
           className="min-h-0 flex-1"
           viewportClassName="px-(--card-spacing) pb-1"
         >
           {body()}
-        </ScrollShadow>
+        </ScrollFade>
         {select.isError ? (
           <p className="px-(--card-spacing) text-sm text-destructive">
             {select.error.message}

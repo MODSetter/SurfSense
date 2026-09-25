@@ -342,27 +342,10 @@ describe("dashboard chat", () => {
     expect(addSources.className).not.toContain("-mr-1.5")
     const conversation = screen.getByRole("region", { name: "Conversation" })
     const viewport = conversation.querySelector("[data-chat-viewport]")
-    const topShadow = conversation.querySelector(
-      '[data-slot="scroll-shadow-top"]'
-    )
     expect(conversation.parentElement?.className).toContain("flex-1")
     expect(conversation.querySelector("header")).toBeTruthy()
-    expect(topShadow).toBeTruthy()
-    expect(
-      conversation.querySelector('[data-slot="scroll-shadow-bottom"]')
-    ).toBeNull()
-    Object.defineProperties(viewport, {
-      clientHeight: { configurable: true, value: 400 },
-      scrollHeight: { configurable: true, value: 800 },
-      scrollTop: { configurable: true, value: 0, writable: true },
-    })
-    fireEvent.scroll(viewport as HTMLElement)
-    expect(topShadow?.className).toContain("opacity-0")
-    ;(viewport as HTMLElement).scrollTop = 80
-    fireEvent.scroll(viewport as HTMLElement)
-    await waitFor(() => {
-      expect(topShadow?.className).toContain("opacity-100")
-    })
+    // Top edge only, so the sticky composer at the bottom is never masked.
+    expect(viewport?.className).toContain("scroll-fade-t")
 
     await user.type(input, "Start a chat")
     await user.click(screen.getByRole("button", { name: "Send message" }))
@@ -1224,7 +1207,7 @@ describe("dashboard chat", () => {
       name: "Workspace sources",
     })
     const sourcesScroll = sourcesPanel.querySelector(
-      '[data-slot="scroll-shadow-viewport"]'
+      '[data-slot="scroll-fade-viewport"]'
     )
     expect(
       sourcesScroll?.contains(screen.getByRole("heading", { name: "Sources" }))
@@ -1239,7 +1222,7 @@ describe("dashboard chat", () => {
       name: "Workspace artifacts",
     })
     const artifactsScroll = artifactsPanel.querySelector(
-      '[data-slot="scroll-shadow-viewport"]'
+      '[data-slot="scroll-fade-viewport"]'
     )
     const weeklySummary = await screen.findByRole("button", {
       name: /^Weekly summary/,

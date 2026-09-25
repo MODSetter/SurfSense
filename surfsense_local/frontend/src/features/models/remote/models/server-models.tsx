@@ -16,7 +16,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
@@ -306,7 +306,7 @@ export function ServerModels({
                 </Button>
               </div>
             ) : candidates.length ? (
-              <ScrollShadow
+              <ScrollFade
                 className="overflow-hidden rounded-lg border"
                 viewportClassName="max-h-80"
               >
@@ -387,7 +387,7 @@ export function ServerModels({
                     </li>
                   ))}
                 </ul>
-              </ScrollShadow>
+              </ScrollFade>
             ) : (
               <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
                 {models.data?.length

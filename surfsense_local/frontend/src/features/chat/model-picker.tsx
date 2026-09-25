@@ -24,7 +24,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@/components/ui/input-group"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { getAvailableGenerationModels } from "@/features/models/chat-candidates/api"
 import { MODELS_QUERY_KEY } from "@/features/models/models-query"
 import {
@@ -178,7 +178,7 @@ export function ModelPicker({
           </InputGroup>
         </div>
 
-        <ScrollShadow className="h-60" viewportClassName="select-none p-1">
+        <ScrollFade className="h-60" viewportClassName="select-none p-1">
           <div data-slot="model-picker-results" className="relative min-h-full">
             <DropdownMenuGroup>
               <DropdownMenuLabel>
@@ -255,7 +255,7 @@ export function ModelPicker({
               )}
             </DropdownMenuGroup>
           </div>
-        </ScrollShadow>
+        </ScrollFade>
 
         <DropdownMenuGroup className="p-1">
           <DropdownMenuItem onClick={onManageModels}>

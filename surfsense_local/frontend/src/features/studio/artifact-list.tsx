@@ -40,7 +40,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
 import {
@@ -507,7 +507,7 @@ export function ArtifactList({
           />
         ) : null}
       </div>
-      <ScrollShadow className="min-h-0 flex-1" from="from-background">
+      <ScrollFade className="min-h-0 flex-1">
         {isLoading ? (
           <SkeletonSlabs />
         ) : artifacts.length === 0 ? (
@@ -567,7 +567,7 @@ export function ArtifactList({
             ))}
           </ul>
         )}
-      </ScrollShadow>
+      </ScrollFade>
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(open) => {

@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -362,7 +362,7 @@ function Composer({
             </Button>
           ) : null}
         </div>
-        <ScrollShadow className="min-h-0 flex-1" viewportClassName="pr-2">
+        <ScrollFade className="min-h-0 flex-1" viewportClassName="pr-2">
           <div className="space-y-1">
             {ready.map((document) => {
               const on = selected.has(document.id)
@@ -393,7 +393,7 @@ function Composer({
               )
             })}
           </div>
-        </ScrollShadow>
+        </ScrollFade>
       </div>
     </div>
   )

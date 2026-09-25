@@ -1,11 +1,7 @@
 import { ThreadPrimitive } from "@assistant-ui/react"
-import { useRef, type ReactNode } from "react"
+import type { ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { ArrowDownIcon } from "@/components/ui/icons"
-import {
-  ScrollShadowEdge,
-  useScrollShadowEdges,
-} from "@/components/ui/scroll-shadow"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -42,22 +38,18 @@ export function ChatViewport({
   footer?: ReactNode
   footerHasNotice?: boolean
 }) {
-  const viewportRef = useRef<HTMLDivElement>(null)
-  const { edges, updateEdges } = useScrollShadowEdges(viewportRef)
-
   return (
     <div className="relative flex min-h-0 w-full min-w-0 flex-1 flex-col">
       <ThreadPrimitive.Viewport
-        ref={viewportRef}
         turnAnchor="top"
-        className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-y-auto px-4"
+        // Top edge only: a bottom mask would fade the sticky composer.
+        className="flex min-h-0 w-full min-w-0 flex-1 scroll-fade-t flex-col overflow-y-auto px-4 [--scroll-fade-reveal:24px] scroll-fade-6"
         style={{ scrollbarGutter: "stable" }}
         autoScroll
         scrollToBottomOnRunStart
         scrollToBottomOnInitialize
         scrollToBottomOnThreadSwitch
         data-chat-viewport
-        onScroll={updateEdges}
       >
         {children}
         {footer ? (
@@ -69,7 +61,6 @@ export function ChatViewport({
           </ThreadPrimitive.ViewportFooter>
         ) : null}
       </ThreadPrimitive.Viewport>
-      <ScrollShadowEdge edge="top" visible={edges.top} from="from-background" />
     </div>
   )
 }

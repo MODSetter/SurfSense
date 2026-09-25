@@ -45,7 +45,7 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
 import { useModifierHeld } from "@/hooks/use-modifier-held"
@@ -493,7 +493,7 @@ export function SourcesPanel({
         aria-labelledby="all-sources"
       >
         {listHeader}
-        <ScrollShadow className="min-h-0 flex-1" from="from-background">
+        <ScrollFade className="min-h-0 flex-1">
           {isLoading ? (
             <SkeletonSlabs />
           ) : documents.length > 0 ? (
@@ -542,7 +542,7 @@ export function SourcesPanel({
               </EmptyHeader>
             </Empty>
           )}
-        </ScrollShadow>
+        </ScrollFade>
       </section>
       <AlertDialog
         open={deleteTarget !== null}
