@@ -357,8 +357,7 @@ function FlashcardRunner({
 
       <Progress
         value={progressValue}
-        className="h-1.5"
-        role="progressbar"
+        className="*:data-[slot=progress-track]:h-1.5"
         aria-label={intl.formatMessage({
           id: "studio_flashcards_viewer_progress_aria",
           defaultMessage: "Deck progress",

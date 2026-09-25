@@ -261,8 +261,7 @@ function QuizRunner({
             state.active_question_indices.length) *
           100
         }
-        className="mb-8 h-1.5"
-        role="progressbar"
+        className="mb-8 *:data-[slot=progress-track]:h-1.5"
         aria-label={intl.formatMessage({
           id: "studio_quiz_viewer_progress_aria",
           defaultMessage: "Quiz progress",

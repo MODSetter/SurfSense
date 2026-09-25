@@ -77,6 +77,12 @@ describe("flashcards viewer", () => {
     render(<FlashcardsViewer artifact={artifact} actionsContainer={null} />)
 
     expect(await screen.findByText("Arrival year?")).toBeTruthy()
+    // Card 1 of 2: assistive tech hears how far through the deck this is.
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Deck progress" })
+        .getAttribute("aria-valuenow")
+    ).toBe("50")
     // Both faces mount for the flip transition; only the front is exposed
     // to assistive tech until revealed.
     expect(
