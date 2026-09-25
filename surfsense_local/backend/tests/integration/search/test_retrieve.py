@@ -72,8 +72,9 @@ def test_a_paraphrase_finds_its_document_through_meaning(
 
     hits = retrieve(session, workspace_id, "a cat napping in sunlight")
 
-    # Every content word is absent from the corpus, so the keyword leg is empty
-    # and only meaning can have found it.
+    # Not a quiet keyword leg: "a" and "in" match the cooking note, which ranks
+    # first on BM25. A match covering one term of five has to stay weak enough
+    # for meaning to win, or every question carries its stopwords' documents.
     assert hits[0].document_id == ids["cat"]
 
 

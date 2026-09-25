@@ -10,3 +10,7 @@ __pycache__/
 
 # Embedding, voice, and parser packs staged for packaging (scripts/fetch_*.py models)
 /models/
+
+# Datasets the retrieval eval fetches (scripts/fetch_limit_small.py). Someone
+# else's licence; re-fetch rather than commit.
+/scripts/retrieval_eval/local/

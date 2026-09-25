@@ -40,7 +40,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0003 | [Generated deliverables are a document type, not a second corpus](0003-artifacts-as-documents.md) | Accepted |
 | 0004 | [The desktop app is its own tree on FastAPI, SQLite and Huey, with no accounts](0004-desktop-app-is-its-own-tree.md) | Accepted |
 | 0005 | [Schema changes are hand-written Alembic revisions that the API applies at startup](0005-hand-written-migrations.md) | Accepted |
-| 0006 | [Retrieval widens recall with FTS5 and sqlite-vec, then orders the union by cosine similarity](0006-hybrid-retrieval.md) | Accepted |
+| 0006 | [Retrieval widens recall with FTS5 and sqlite-vec, then orders the union by cosine similarity](0006-hybrid-retrieval.md) | Accepted, the ordering decision superseded by 0031 |
 | 0007 | [Embeddings come from a bundled bge-small model run in process on the CPU](0007-bundled-embeddings.md) | Accepted |
 | 0008 | [Ingest and Studio jobs run on separate Huey queues, each drained by its own worker](0008-two-job-queues.md) | Accepted |
 | 0009 | [The UI stays fresh by invalidating queries on server-sent events, with no sync engine](0009-freshness-by-invalidation.md) | Accepted |
@@ -65,3 +65,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0028 | [Model-written code may run on the user's machine without a sandbox, and the agent asks before each shell command](0028-model-written-code-runs-with-approval.md) | Accepted |
 | 0029 | [Interface text lives in ICU MessageFormat catalogs, one flat JSON file per language](0029-icu-translation-catalogs.md) | Accepted |
 | 0030 | [FormatJS renders interface text from precompiled, bundled catalogs, with no network at build or run time](0030-formatjs-renders-interface-text.md) | Accepted |
+| 0031 | [Ranking blends the two legs on absolute scales, keyword strength being term coverage rather than BM25](0031-ranking-blends-absolute-leg-scores.md) | Accepted |

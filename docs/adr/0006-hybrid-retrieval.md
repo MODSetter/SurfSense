@@ -1,6 +1,6 @@
 # ADR 0006: Retrieval widens recall with FTS5 and sqlite-vec, then orders the union by cosine similarity
 
-- **Status:** Accepted
+- **Status:** Accepted; the ordering decision, that cosine alone decides and neither a stopword list nor rank fusion is needed, is superseded by [ADR 0031](0031-ranking-blends-absolute-leg-scores.md)
 - **Date:** 2026-09-05
 - **Source:** [Umbrella plan L105](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00-umbrella-plan.md#L105), [Data model L200–224](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00c-data-model.md#L200-L224), [Search plan L6–31](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/worker/03-search.md#L6-L31)
 
