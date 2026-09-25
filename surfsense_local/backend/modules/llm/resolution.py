@@ -16,6 +16,7 @@ from modules.llm.providers.openai_compatible import (
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
+from shared.config import get_llm_settings
 
 
 class ModelResolutionError(RuntimeError):
@@ -76,6 +77,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
                 OpenAICompatibleImageProvider(0, sdcpp.base_url(), None),
                 sdcpp.root_url(),
                 image.served_file,
+                llamacpp.RouterClient(get_llm_settings().llamacpp_base_url),
             ),
         )
     connection = _connection(session, selected)
