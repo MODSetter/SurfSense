@@ -198,6 +198,10 @@ ENTRIES: tuple[Entry, ...] = (
             "steps": 8,
             "cfg": 1.0,
         },
+        # Its 6.5 GB of weights stay on the card while it decodes, leaving a 10 GB
+        # card 2.45 GB for sd.cpp's default 32x32 tile, which wants 2.5 GB. 16x16
+        # tiles fit (RTX 3080); forced, since the automatic retry ignores the size.
+        run_args=("--vae-tiling", "--vae-tile-size", "16x16"),
     ),
     ImageEntry(
         id="longcat-image",
