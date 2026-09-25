@@ -31,8 +31,14 @@ MODEL_DIR_NAME = "bge-small-en-v1.5"
 # left this alone would index into the user's own library: measured, it
 # re-parsed the real one. The models stay where they are; only the database and
 # its documents belong to this run.
-_REAL = Path(os.environ.get("SURFSENSE_LOCAL_DATA_DIR") or Path.home() / ".surfsense")
-os.environ.setdefault("SURFSENSE_LOCAL_MODELS_DIR", str(_REAL / "models"))
+_DATA = Path(os.environ.get("SURFSENSE_LOCAL_DATA_DIR") or Path.home() / ".surfsense")
+# The staged pack first, which is what `pnpm dev` points the app at, so a run
+# needs no environment and never reads the installed app's directory.
+_STAGED = Path(__file__).resolve().parents[1] / "models"
+os.environ.setdefault(
+    "SURFSENSE_LOCAL_MODELS_DIR",
+    str(_STAGED if (_STAGED / "bge-small-en-v1.5").is_dir() else _DATA / "models"),
+)
 # Keyed by what was indexed, so a ranking change reuses the index and only a
 # corpus or embedder change pays to build one.
 CACHE_ROOT = Path.home() / ".surfsense-retrieval-eval"
