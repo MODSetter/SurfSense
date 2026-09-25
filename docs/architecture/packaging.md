@@ -22,7 +22,7 @@ The asar holds only the Electron main and preload bundles. Everything else rides
 
 The app icon lives in `electron/build/icons/`: `packaged/` holds the `.icns`, `.ico` and `.png` that `electron-builder.yml` names per OS, and `dev/` a variant with a "DEV" badge, which `electron/src/main/dev-app-identity.ts` sets on the Dock, taskbar, window and About panel only while unpackaged, alongside the name "SurfSense Dev", because development runs inside Electron's own bundle and would otherwise show Electron's icon. The macOS menu bar name and the About panel icon stay Electron’s in development; only packaging changes them. Artwork on Windows and Linux fills its canvas; on macOS it sits at 824 of 1024 px with a transparent margin, Apple's icon grid, so `icon.icns` and `dev/icon-macos.png` carry that margin and the `.ico` and `.png` files do not.
 
-Packaged, Electron runs `resources/backend/api/api` and one `worker` process per queue, `ingest` and `studio`, and gives both `SURFSENSE_LOCAL_MODELS_DIR` pointing at `resources/models` and `HF_HUB_OFFLINE=1` (`electron/src/main/sidecars/python.ts`). In development the same sidecars run through `uv run`.
+Packaged, Electron runs `resources/backend/api/api` and one `worker` process per queue, `ingest` and `studio`, and gives both `SURFSENSE_LOCAL_MODELS_DIR` pointing at `resources/models` and `HF_HUB_OFFLINE=1` (`electron/src/main/sidecars/python.ts`). In development the same sidecars run on the backend's `.venv` interpreter ([`overview.md`](overview.md) says why not `uv run`).
 
 ## Freezing the backend
 
