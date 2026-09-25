@@ -94,7 +94,13 @@ export function ModelPicker({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className={cn(modelControlButtonClassName, className)}
+          // Shares the row with the disclaimer, truncating the model name
+          // rather than forcing a long translation onto more lines.
+          className={cn(
+            modelControlButtonClassName,
+            "min-w-0 shrink",
+            className
+          )}
           title={intl.formatMessage({
             id: "chat_model_picker_change_tooltip",
             defaultMessage: "Change model",

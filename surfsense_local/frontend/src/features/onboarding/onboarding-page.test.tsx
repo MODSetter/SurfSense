@@ -292,18 +292,18 @@ async function toImageEditStep(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole("heading", { name: "Choose an image editing model" })
 }
 
-async function toVideoStep(user: ReturnType<typeof userEvent.setup>) {
+async function toAudioStep(user: ReturnType<typeof userEvent.setup>) {
   await toImageEditStep(user)
+  await user.click(screen.getByRole("button", { name: "Skip" }))
+  await screen.findByRole("heading", { name: "Choose an audio model" })
+}
+
+async function toVideoStep(user: ReturnType<typeof userEvent.setup>) {
+  await toAudioStep(user)
   await user.click(screen.getByRole("button", { name: "Skip" }))
   await screen.findByRole("heading", {
     name: "Choose a video generation model",
   })
-}
-
-async function toAudioStep(user: ReturnType<typeof userEvent.setup>) {
-  await toVideoStep(user)
-  await user.click(screen.getByRole("button", { name: "Skip" }))
-  await screen.findByRole("heading", { name: "Choose an audio model" })
 }
 
 const openRouter = {
@@ -318,7 +318,7 @@ const openRouter = {
 }
 
 describe("onboarding", () => {
-  it("walks the welcome, then five steps: chat, image, image editing, video and audio models", async () => {
+  it("walks the welcome, then five steps: chat, image, image editing, audio and video models", async () => {
     vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
@@ -351,26 +351,27 @@ describe("onboarding", () => {
 
     await user.click(screen.getByRole("button", { name: "Skip" }))
     expect(
-      await screen.findByRole("heading", {
-        name: "Choose a video generation model",
-      })
+      await screen.findByRole("heading", { name: "Choose an audio model" })
     ).toBeTruthy()
     expect(screen.getByLabelText("Onboarding step 4 of 5")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
 
     await user.click(screen.getByRole("button", { name: "Skip" }))
     expect(
-      await screen.findByRole("heading", { name: "Choose an audio model" })
+      await screen.findByRole("heading", {
+        name: "Choose a video generation model",
+      })
     ).toBeTruthy()
     expect(screen.getByLabelText("Onboarding step 5 of 5")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Finish" })).toBeTruthy()
+    // Skipping the last step ends onboarding, so it says so.
+    expect(screen.getByRole("button", { name: "Skip and finish" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Skip" })).toBeNull()
 
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
-      await screen.findByRole("heading", {
-        name: "Choose a video generation model",
-      })
+      await screen.findByRole("heading", { name: "Choose an audio model" })
     ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
@@ -426,7 +427,7 @@ describe("onboarding", () => {
 
   it("leads the editing step with the image model when it edits too", async () => {
     // FLUX.2 klein makes and edits images from the same files: chosen for
-    // images a step earlier, it is one Use away, with nothing to download.
+    // images earlier, it is one Use away, with nothing to download.
     const edits = {
       selectable_for: ["image_gen", "image_edit"],
       types: ["image_gen", "image_edit"],
@@ -695,12 +696,12 @@ describe("onboarding", () => {
     })
     expect(search()).toBeNull()
     await user.click(screen.getByRole("button", { name: "Skip" }))
+    await screen.findByRole("heading", { name: "Choose an audio model" })
+    expect(search()).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Skip" }))
     await screen.findByRole("heading", {
       name: "Choose a video generation model",
     })
-    expect(search()).toBeNull()
-    await user.click(screen.getByRole("button", { name: "Skip" }))
-    await screen.findByRole("heading", { name: "Choose an audio model" })
     expect(search()).toBeNull()
   })
 
@@ -855,20 +856,20 @@ describe("onboarding", () => {
       await screen.findByText(/Audio models cannot run on this computer/)
     ).toBeTruthy()
     expect(
-      screen.getByRole("button", { name: "Finish" }).hasAttribute("disabled")
+      screen.getByRole("button", { name: "Continue" }).hasAttribute("disabled")
     ).toBe(true)
   })
 
-  it("finishes without an image or audio model when both are skipped", async () => {
+  it("finishes without any optional model when every one is skipped", async () => {
     const fetchMock = backend({ selections: { ...chatChosen } })
     vi.stubGlobal("fetch", fetchMock)
     const onComplete = vi.fn()
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={onComplete} />)
-    await toAudioStep(user)
+    await toVideoStep(user)
     expect(onComplete).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole("button", { name: "Skip" }))
+    await user.click(screen.getByRole("button", { name: "Skip and finish" }))
 
     await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
     expect(onComplete.mock.calls[0]?.[0]).toMatchObject({ name: "qwen3-4b" })
@@ -909,24 +910,27 @@ describe("onboarding", () => {
     expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it("finishes once an audio model is downloaded", async () => {
+  it("finishes once a video model is downloaded", async () => {
     const fetchMock = backend({
       selections: { ...chatChosen },
       rows: [
         row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
-        row("audiocpp", "Kokoro 82M", "kokoro-82m"),
+        row("sdcpp", "Wan2.1 1.3B", "wan-small", {
+          selectable_for: ["video_gen"],
+          types: ["video_gen"],
+        }),
       ],
     })
     vi.stubGlobal("fetch", fetchMock)
     const onComplete = vi.fn()
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={onComplete} />)
-    await toAudioStep(user)
+    await toVideoStep(user)
 
     await user.click(
-      await screen.findByRole("button", { name: "Download Kokoro 82M Q4_K_M" })
+      await screen.findByRole("button", { name: "Download Wan2.1 1.3B Q4_K_M" })
     )
-    await expectReady("Kokoro 82M")
+    await expectReady("Wan2.1 1.3B")
     const finish = screen.getByRole("button", { name: "Finish" })
     await waitFor(() => expect(finish.hasAttribute("disabled")).toBe(false))
     await user.click(finish)

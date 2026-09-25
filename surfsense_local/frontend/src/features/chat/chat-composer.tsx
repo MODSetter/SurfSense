@@ -291,7 +291,9 @@ export function ChatComposer({
       </ComposerPrimitive.Root>
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
-          <p className="min-w-0 text-left text-[11px] text-muted-foreground select-none">
+          {/* Keeps its line and leaves the model name what is left, never less
+          than 7rem, so a long translation truncates the name before wrapping. */}
+          <p className="max-w-[calc(100%-7rem)] shrink-0 text-left text-[11px] text-muted-foreground select-none">
             {!model || providerAvailable
               ? intl.formatMessage({
                   id: "chat_composer_disclaimer_body",

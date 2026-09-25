@@ -2,6 +2,7 @@ import * as React from "react"
 import {
   Alert02Icon as Alert02IconData,
   AlertCircleIcon,
+  AiImageEditIcon as AiImageEditIconData,
   AiSearchLinesIcon as AiSearchLinesIconData,
   ArrowDownIcon as ArrowDownIconData,
   ArrowExpand01Icon as ArrowExpand01IconData,
@@ -30,7 +31,7 @@ import {
   DotIcon as DotIconData,
   EllipsisIcon as EllipsisIconData,
   File02Icon as File02IconData,
-  FileAddIcon,
+  FilePlusCornerIcon,
   FileIcon as FileIconData,
   FileTextIcon as FileTextIconData,
   FilterIcon as FilterIconData,
@@ -108,6 +109,7 @@ function createIcon(icon: IconData, defaultClassName?: string) {
 }
 
 export const Alert02Icon = createIcon(Alert02IconData)
+export const AiImageEditIcon = createIcon(AiImageEditIconData)
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
 export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)
@@ -138,7 +140,7 @@ export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
-export const FilePlus2Icon = createIcon(FileAddIcon)
+export const FilePlus2Icon = createIcon(FilePlusCornerIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
 export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)

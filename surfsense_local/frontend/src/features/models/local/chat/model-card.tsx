@@ -160,15 +160,19 @@ export function ModelCard({
 
       {others.length > 0 && row.runnable ? (
         <div className="mt-1">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="xs"
             aria-expanded={expanded}
             aria-controls={buildsId}
-            className="flex items-center gap-1 rounded-sm text-xs text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            // Keeps the chevron in line with the card's text above it.
+            className="-ml-1.5 text-muted-foreground"
             onClick={() => setOpen((value) => !value)}
           >
             <ChevronDownIcon
               aria-hidden="true"
+              data-icon="inline-start"
               className={cn(
                 "size-3 transition-transform motion-reduce:transition-none",
                 expanded && "rotate-180"
@@ -189,7 +193,7 @@ export function ModelCard({
                     count: others.length,
                   }
                 )}
-          </button>
+          </Button>
           {expanded ? (
             <ul
               id={buildsId}

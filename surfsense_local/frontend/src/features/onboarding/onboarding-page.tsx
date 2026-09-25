@@ -8,16 +8,28 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
+import type { OnboardingSlot } from "./model-step/slot"
 import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
-type Screen = "welcome" | "chat" | "image" | "image_edit" | "video" | "audio"
-
 /**
- * The steps the dots count. The welcome is still onboarding, and still gated by
- * the same marker, but it is an introduction, not a step to complete.
+ * The steps, in order, and the ones the dots count. The welcome is still
+ * onboarding, and still gated by the same marker, but it is an introduction,
+ * not a step to complete. Whichever step is last finishes onboarding.
  */
-const STEPS = ["chat", "image", "image_edit", "video", "audio"] as const
+const STEPS = [
+  "text_gen",
+  "image_gen",
+  "image_edit",
+  "audio_gen",
+  "video_gen",
+] as const satisfies readonly OnboardingSlot[]
+
+type Step = (typeof STEPS)[number]
+type Screen = "welcome" | Step
+
+/** Finishing needs a chat model, so only this step cannot be skipped. */
+const REQUIRED_STEP: Step = "text_gen"
 
 function OnboardingBrand() {
   return (
@@ -37,7 +49,7 @@ function OnboardingBrand() {
   )
 }
 
-function OnboardingProgress({ screen }: { screen: (typeof STEPS)[number] }) {
+function OnboardingProgress({ screen }: { screen: Step }) {
   const step = STEPS.indexOf(screen) + 1
   return (
     <Stepper
@@ -164,27 +176,30 @@ function WelcomeStep({ onNext }: { onNext: () => void }) {
   )
 }
 
-/** The last step ends onboarding either way: the audio model is optional. */
-function AudioStep({
-  onBack,
+/** One step in the order of `STEPS`: the last one finishes, the rest move on. */
+function OnboardingStep({
+  step,
+  onGo,
   onComplete,
 }: {
-  onBack: () => void
+  step: Step
+  onGo: (step: Step) => void
   onComplete: (selection: ModelSelection) => void
 }) {
   const { finish, finishing, error } = useFinishOnboarding(onComplete)
+  const index = STEPS.indexOf(step)
+  const previous = STEPS[index - 1]
+  const next = STEPS[index + 1]
+  const advance = next ? () => onGo(next) : () => void finish()
   return (
     <ModelStep
-      modelType="audio_gen"
-      nextLabel={intl.formatMessage({
-        id: "onboarding_audio_step_finish_button",
-        defaultMessage: "Finish",
-      })}
+      modelType={step}
+      last={!next}
       finishing={finishing}
       error={error}
-      onBack={onBack}
-      onNext={() => void finish()}
-      onSkip={() => void finish()}
+      onBack={previous ? () => onGo(previous) : undefined}
+      onNext={advance}
+      onSkip={step === REQUIRED_STEP ? undefined : advance}
     />
   )
 }
@@ -212,61 +227,16 @@ export function OnboardingPage({
         )}
         <div className="flex min-h-0 flex-1 items-center justify-center">
           {screen === "welcome" ? (
-            <WelcomeStep onNext={() => setScreen("chat")} />
-          ) : null}
-          {screen === "chat" ? (
-            <ModelStep
-              modelType="text_gen"
-              nextLabel={intl.formatMessage({
-                id: "onboarding_chat_step_continue_button",
-                defaultMessage: "Continue",
-              })}
-              onNext={() => setScreen("image")}
-            />
-          ) : null}
-          {screen === "image" ? (
-            // Optional, and not the last step: Skip moves on, as Continue does.
-            <ModelStep
-              modelType="image_gen"
-              nextLabel={intl.formatMessage({
-                id: "onboarding_image_step_continue_button",
-                defaultMessage: "Continue",
-              })}
-              onBack={() => setScreen("chat")}
-              onNext={() => setScreen("image_edit")}
-              onSkip={() => setScreen("image_edit")}
-            />
-          ) : null}
-          {screen === "image_edit" ? (
-            <ModelStep
-              modelType="image_edit"
-              nextLabel={intl.formatMessage({
-                id: "onboarding_image_edit_step_continue_button",
-                defaultMessage: "Continue",
-              })}
-              onBack={() => setScreen("image")}
-              onNext={() => setScreen("video")}
-              onSkip={() => setScreen("video")}
-            />
-          ) : null}
-          {screen === "video" ? (
-            <ModelStep
-              modelType="video_gen"
-              nextLabel={intl.formatMessage({
-                id: "onboarding_video_step_continue_button",
-                defaultMessage: "Continue",
-              })}
-              onBack={() => setScreen("image_edit")}
-              onNext={() => setScreen("audio")}
-              onSkip={() => setScreen("audio")}
-            />
-          ) : null}
-          {screen === "audio" ? (
-            <AudioStep
-              onBack={() => setScreen("video")}
+            <WelcomeStep onNext={() => setScreen(STEPS[0])} />
+          ) : (
+            // Keyed so each step starts fresh rather than inheriting the last.
+            <OnboardingStep
+              key={screen}
+              step={screen}
+              onGo={setScreen}
               onComplete={onComplete}
             />
-          ) : null}
+          )}
         </div>
       </div>
     </main>

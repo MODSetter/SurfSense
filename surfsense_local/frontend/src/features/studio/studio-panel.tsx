@@ -324,12 +324,14 @@ function Composer({
         aria-hidden={view !== "sources"}
       >
         <div className="flex shrink-0 items-center justify-between gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 text-muted-foreground"
             onClick={() => setView("main")}
-            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeftIcon className="size-3.5" />
+            <ArrowLeftIcon data-icon="inline-start" />
             {intl.formatMessage(
               {
                 id: "studio_source_picker_back_button",
@@ -339,7 +341,7 @@ function Composer({
                 count: selected.size,
               }
             )}
-          </button>
+          </Button>
           {ready.length > 0 ? (
             <Button
               type="button"
