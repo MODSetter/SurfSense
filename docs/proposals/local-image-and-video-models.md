@@ -30,8 +30,8 @@ Audio's catalog grows too, on the plan in [local audio models](local-audio-model
 |---|---|---|
 | In the installer | only in a local `pnpm dist`, which runs `build:sdcpp`; release CI never stages `sd-server`, so no published release offers a local image model | Windows from upstream's archive with its runtime; Linux and macOS compiled in release CI |
 | Image models | SD 1.5, SDXL and SDXL Turbo, one self-contained file each | FLUX.2 klein 4B, Z-Image Turbo and ERNIE-Image Turbo first; SD 1.5 and SDXL kept; SDXL Turbo removed |
-| Image editing | a slot nothing reads, with no local runtime | FLUX.2 klein 4B from the same files, and LongCat-Image-Edit; **Edit** on an image in Studio |
-| Video | the same | Wan2.2 TI2V 5B and Wan2.1 T2V 1.3B; a **Video clip** Studio format |
+| Image editing | a slot nothing reads, with no local runtime | FLUX.2 klein 4B from the same files, and LongCat-Image-Edit, chosen in Settings and onboarding; which feature reads the slot is not decided |
+| Video | the same | Wan2.1 T2V 1.3B and Wan2.2 TI2V 5B, chosen in Settings and onboarding; which feature reads the slot is not decided |
 | A build | one GGUF, or weights and a projector | weights, VAE, text encoder and projector; a file two models share is downloaded once |
 | `sd-server` | runs from start with the image selection, and keeps it resident after the first image | runs for the job that needs it, one model at a time, stopped 5 minutes after the last job |
 | Generation settings | sd-server's own defaults; the manifest's `image` defaults are read by nothing | each model's reviewed defaults, passed at launch |
@@ -110,7 +110,7 @@ Not curated: FLUX.1 Kontext dev (licence); Z-Image-Edit, not released (its READM
 | **Wan2.2 TI2V 5B** | Apache-2.0 | diffusion Q4_0 3.03 + umt5-xxl Q4_K_M 3.66 + Wan2.2 VAE 1.41 | 8.09 GB | text or an image in, 24 fps |
 | **Wan2.1 T2V 1.3B** | Apache-2.0 | diffusion Q8_0 1.59 + umt5-xxl + Wan2.1 VAE 0.25 | 5.50 GB; 1.84 after the 5B | text in, 16 fps, 832×480 |
 
-- **Which leads is a measurement.** The 5B leads if it renders a 33-frame clip at 832×480 in under 10 minutes on the reference laptop; otherwise the 1.3B leads. Draw Things calls the 1.3B "the better option for low-spec devices".
+- **Which leads is a measurement.** The 5B leads if it renders a 33-frame clip at 832×480 in under 10 minutes on the reference laptop; otherwise the 1.3B leads. Until that is measured, the 1.3B leads in the manifest, as the one sure to fit a laptop. Draw Things calls the 1.3B "the better option for low-spec devices".
 - **The 1.3B's GGUF is not one sd.cpp's docs cite** (sd.cpp cites only the fp16 safetensors, 2.84 GB); it is validated like LongCat's.
 - **umt5-xxl has no Q4_0**, and a 1.3B model is small enough at Q8_0, so a build's companions and quantization are named by its entry, not by one preference order ([Builds of several files](#builds-of-several-files)).
 
@@ -165,7 +165,7 @@ sd-server's default generation settings come from its launch flags, so each mode
 | Task | Route | Why this one |
 |---|---|---|
 | Generate | `POST /v1/images/generations` | unchanged |
-| Edit | `POST /sdcpp/v1/img_gen` with `ref_images`, polled at `/sdcpp/v1/jobs/{id}` | `/v1/images/edits` also makes the first image the `init_image`, which runs image-to-image at a strength of 0.75, not the reference edit these models are trained for |
+| Edit, once a feature reads the slot | `POST /sdcpp/v1/img_gen` with `ref_images`, polled at `/sdcpp/v1/jobs/{id}` | `/v1/images/edits` also makes the first image the `init_image`, which runs image-to-image at a strength of 0.75, not the reference edit these models are trained for |
 | Video | `POST /sdcpp/v1/vid_gen`, polled at `/sdcpp/v1/jobs/{id}` | the only video route. `video_frames` defaults to 1, so the client sends it, a multiple of four plus one for Wan. A finished result is kept 600 s |
 
 **A clip is WebM (VP8)**, sd-server's default container, which Electron's Chromium plays. Every app checked that writes MP4 ships or finds ffmpeg (InvokeAI through `imageio-ffmpeg`, SwarmUI and Wan2GP likewise, LocalAI from `PATH`); WebM needs nothing added. The artifact is `video/webm`.
@@ -209,8 +209,8 @@ The classifier reads them: `generate` is `IMAGE_GEN`, `edit` is `IMAGE_EDIT`, an
 ## Studio
 
 - **Image and Infographic** keep their path, now at each model's own defaults.
-- **Edit.** An image's or an infographic's viewer gets **Edit**. The user writes what to change, and the `image_edit` model repaints it with the image as reference. The result is a new artifact, "*title*, edited", whose one source is the image it edits, so every version stays and can be cited. It goes through `create_artifact_job` as format `image_edit`, which needs only `image_edit`, with the user's words sent as written. It is not in the format grid, since it starts from an image. A remote edit model is reached at the connection's `/images/edits`.
-- **Video clip.** A new format, `video`, needing `video_gen` and `text_gen`. The chat model writes a title and one shot description from the sources, and the video model renders it at the model's frame count and rate: a few seconds. The markdown body is the shot, so a clip can be found by what it shows. The media viewer plays it. No remote video client exists, so a remote `video_gen` selection says so and the format stays unavailable, as podcasts do for remote audio.
+- **Editing has no Studio feature yet.** The editing slot can be filled, in Settings and onboarding, but what reads it, and whether an edit replaces an image or makes a new one, is a product decision still to take. A Studio Edit that made a new artifact per edit was built and taken out for that reason.
+- **Video has no Studio feature yet.** The video slot can be filled, in Settings and onboarding, but what reads it, such as a Studio format that renders a clip from the sources, is a product decision still to take.
 - **Neither is retried** after a failure, like an image: a retry would render again.
 
 ## Onboarding
@@ -245,8 +245,8 @@ Each step ships alone and leaves the app working.
 
 1. **`sd-server` in the installer.** The Linux and macOS compiles and the Windows archive with its runtime in release CI, SDXL Turbo removed, the licence allowlist in the refresh script. Local images work in a published release for the first time, on Linux older than Ubuntu 24.04 and on macOS before 26.
 2. **Builds of several files, and sd-server per job.** Roles, shared files, delete by record, `download_bytes`, the free-disk check, queued installs, launch flags from the manifest, the runtime route from Studio's jobs, the measured block. FLUX.2 klein 4B, Z-Image Turbo and ERNIE-Image Turbo join.
-3. **Image editing.** Revision `0017`, `tasks`, the engine's types, the edit job and the viewer's Edit, remote `/images/edits`, the Image editing section and its onboarding step. klein as an editor, then LongCat.
-4. **Video.** The `vid_gen` client, the Video clip format and its viewer, the Video section and its onboarding step. Both Wan models.
+3. **Image editing models.** Revision `0017`, `tasks`, the engine's types, the Image editing section and its onboarding step. klein as an editor, then LongCat. The feature that reads the slot comes once it is decided.
+4. **Video models.** Both Wan models, the `video` block, the Video section and its onboarding step. The `vid_gen` client and the feature that reads the slot come once that feature is decided.
 5. **Later, each its own step:** Qwen-Image 2512 and Qwen-Image-Edit-2511 once measured on a 32 GB machine; **Animate** an image with Wan2.2 5B; Z-Image-Edit when it is released; a remote video client; LingBot-Video once a GGUF exists; reading the Qwen3-4B text encoder from the chat model's own files when both are installed.
 
 ## How others do it
@@ -273,7 +273,7 @@ What this takes from them: shared files known by content and deleted by reading 
 - A build lists every file it runs from. A file two builds pin is downloaded once, known by its sha256, and deleted when no installed build's record names it.
 - A model's tasks are reviewed in its entry and map to its types. A model with two tasks fills two slots from one download.
 - One sd.cpp model runs at a time, for the Studio job that needs it, and stops 5 minutes after the last job; a cancel stops it at once. Each model's defaults are launch flags.
-- Editing sends the image as a reference on sd-server's native route. A clip is WebM.
+- An edit, once a feature reads the slot, sends the image as a reference on sd-server's native route. A clip is WebM.
 - Each curated model commits its measured peak memory and time, and a job refuses below that peak, naming a lighter model.
 - Onboarding has five steps, all but chat skippable, each stating what its downloads fetch. A second download queues.
 

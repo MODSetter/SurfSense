@@ -107,6 +107,13 @@ function backend({
           ...build,
           installed_as: onDisk ? file : null,
           selected: onDisk && selection?.name === file,
+          selected_for: onDisk
+            ? Object.keys(selections).filter(
+                (slot) =>
+                  selections[slot]?.provider === entry.engine &&
+                  selections[slot]?.name === file
+              )
+            : [],
         }
       }),
     }))
@@ -140,16 +147,17 @@ function backend({
       const entry = rows.find((candidate) => candidate.id === file)
       const engine = (entry?.engine ?? "llamacpp") as Engine
       installed.add(file)
+      const slot = body.model_type ?? slotOf(engine)
       const selection = body.select
         ? {
-            model_type: slotOf(engine),
+            model_type: slot,
             provider: engine,
             connection_id: null,
             name: file,
             updated_at: "2026-09-24T00:00:00Z",
           }
         : null
-      if (selection) selections[slotOf(engine)] = selection
+      if (selection) selections[slot] = selection
       return new Response(
         [
           JSON.stringify({ type: "downloading", completed: 1, total: 2 }),
@@ -276,8 +284,20 @@ async function toImageStep(user: ReturnType<typeof userEvent.setup>) {
   await screen.findByRole("heading", { name: "Choose an image model" })
 }
 
-async function toAudioStep(user: ReturnType<typeof userEvent.setup>) {
+async function toImageEditStep(user: ReturnType<typeof userEvent.setup>) {
   await toImageStep(user)
+  await user.click(screen.getByRole("button", { name: "Skip" }))
+  await screen.findByRole("heading", { name: "Choose an image editing model" })
+}
+
+async function toVideoStep(user: ReturnType<typeof userEvent.setup>) {
+  await toImageEditStep(user)
+  await user.click(screen.getByRole("button", { name: "Skip" }))
+  await screen.findByRole("heading", { name: "Choose a video model" })
+}
+
+async function toAudioStep(user: ReturnType<typeof userEvent.setup>) {
+  await toVideoStep(user)
   await user.click(screen.getByRole("button", { name: "Skip" }))
   await screen.findByRole("heading", { name: "Choose an audio model" })
 }
@@ -294,7 +314,7 @@ const openRouter = {
 }
 
 describe("onboarding", () => {
-  it("walks the welcome, then three steps: chat, image and audio models", async () => {
+  it("walks the welcome, then five steps: chat, image, image editing, video and audio models", async () => {
     vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
@@ -302,7 +322,7 @@ describe("onboarding", () => {
     // The welcome introduces onboarding; it is not one of its steps.
     expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
     await toChatStep(user)
-    expect(screen.getByLabelText("Onboarding step 1 of 3")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 1 of 5")).toBeTruthy()
     // The welcome is not somewhere to go back to.
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
 
@@ -310,18 +330,44 @@ describe("onboarding", () => {
     expect(
       await screen.findByRole("heading", { name: "Choose an image model" })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 2 of 3")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 2 of 5")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
 
     // Skipping the image model moves on; it does not end onboarding.
     await user.click(screen.getByRole("button", { name: "Skip" }))
     expect(
+      await screen.findByRole("heading", {
+        name: "Choose an image editing model",
+      })
+    ).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 3 of 5")).toBeTruthy()
+    expect(screen.getByText("Optional")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Skip" }))
+    expect(
+      await screen.findByRole("heading", { name: "Choose a video model" })
+    ).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 4 of 5")).toBeTruthy()
+    expect(screen.getByText("Optional")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Skip" }))
+    expect(
       await screen.findByRole("heading", { name: "Choose an audio model" })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 3 of 3")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 5 of 5")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Finish" })).toBeTruthy()
 
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(
+      await screen.findByRole("heading", { name: "Choose a video model" })
+    ).toBeTruthy()
+    await user.click(screen.getByRole("button", { name: "Back" }))
+    expect(
+      await screen.findByRole("heading", {
+        name: "Choose an image editing model",
+      })
+    ).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Back" }))
     expect(
       await screen.findByRole("heading", { name: "Choose an image model" })
@@ -330,6 +376,92 @@ describe("onboarding", () => {
     expect(
       await screen.findByRole("heading", { name: "Choose a chat model" })
     ).toBeTruthy()
+  })
+
+  it("lists only video models on the video step, and fills the video slot", async () => {
+    const video = { selectable_for: ["video_gen"], types: ["video_gen"] }
+    const fetchMock = backend({
+      selections: { ...chatChosen },
+      rows: [
+        row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
+        row("sdcpp", "Wan2.1 1.3B", "wan-small", video),
+        row("sdcpp", "SD 1.5", "sd15"),
+      ],
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toVideoStep(user)
+
+    expect(screen.queryByText("SD 1.5")).toBeNull()
+    await user.click(
+      await screen.findByRole("button", { name: "Download Wan2.1 1.3B Q4_K_M" })
+    )
+
+    await waitFor(() => {
+      const install = fetchMock.mock.calls.find(
+        ([path]) => path === "/llm/install"
+      )
+      expect(JSON.parse(String(install?.[1]?.body))).toMatchObject({
+        catalog_id: "opaque-wan-small",
+        select: true,
+        model_type: "video_gen",
+      })
+    })
+  })
+
+  it("leads the editing step with the image model when it edits too", async () => {
+    // FLUX.2 klein makes and edits images from the same files: chosen for
+    // images a step earlier, it is one Use away, with nothing to download.
+    const edits = {
+      selectable_for: ["image_gen", "image_edit"],
+      types: ["image_gen", "image_edit"],
+    }
+    const fetchMock = backend({
+      selections: {
+        ...chatChosen,
+        image_gen: {
+          model_type: "image_gen",
+          provider: "sdcpp",
+          connection_id: null,
+          name: "flux-klein",
+          updated_at: "2026-09-25T00:00:00Z",
+        },
+      },
+      rows: [
+        row("llamacpp", "Qwen3 4B", "qwen3-4b", { recommended: true }),
+        row("sdcpp", "LongCat Edit", "longcat-edit", edits),
+        row("sdcpp", "FLUX.2 klein", "flux-klein", edits),
+        row("sdcpp", "SD 1.5", "sd15"),
+      ],
+      onDisk: ["flux-klein"],
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toImageStep(user)
+    await user.click(await screen.findByRole("button", { name: "Continue" }))
+    await screen.findByRole("heading", {
+      name: "Choose an image editing model",
+    })
+
+    const choices = await screen.findAllByRole("listitem")
+    expect(choices[0]?.textContent).toContain("FLUX.2 klein")
+    expect(screen.queryByText("SD 1.5")).toBeNull()
+    await user.click(
+      screen.getByRole("button", { name: "Use FLUX.2 klein Q4_K_M" })
+    )
+
+    await waitFor(() => {
+      const write = fetchMock.mock.calls.find(
+        ([path, init]) =>
+          path === "/llm/selection/image_edit" && init?.method === "PUT"
+      )
+      expect(JSON.parse(String(write?.[1]?.body))).toMatchObject({
+        provider: "sdcpp",
+        name: "flux-klein",
+      })
+    })
   })
 
   it("lists every model at once, the recommended one first", async () => {
@@ -534,7 +666,7 @@ describe("onboarding", () => {
     })
   })
 
-  it("offers no search on the image or audio step", async () => {
+  it("offers no search on the image, image editing, video or audio step", async () => {
     vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
@@ -542,6 +674,14 @@ describe("onboarding", () => {
       screen.queryByRole("button", { name: "Not listed? Search Hugging Face" })
 
     await toImageStep(user)
+    expect(search()).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Skip" }))
+    await screen.findByRole("heading", {
+      name: "Choose an image editing model",
+    })
+    expect(search()).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Skip" }))
+    await screen.findByRole("heading", { name: "Choose a video model" })
     expect(search()).toBeNull()
     await user.click(screen.getByRole("button", { name: "Skip" }))
     await screen.findByRole("heading", { name: "Choose an audio model" })
@@ -746,7 +886,9 @@ describe("onboarding", () => {
     await user.click(next)
 
     expect(
-      await screen.findByRole("heading", { name: "Choose an audio model" })
+      await screen.findByRole("heading", {
+        name: "Choose an image editing model",
+      })
     ).toBeTruthy()
     expect(onComplete).not.toHaveBeenCalled()
   })

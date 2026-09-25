@@ -25,7 +25,7 @@ on an opaque id the server mints, so the renderer can never name a download.
 | Can be starred | yes | no | no |
 
 Every row is a `LocalRow` ([`rows.py`](../../../surfsense_local/backend/modules/llm/catalog/local/rows.py)):
-its types, to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
+its types (for an image model, the `tasks` its entry names: `generate` is `image_gen`, `edit` is `image_edit`), to which the route adds `selectable_for` ([`selection.md`](selection.md)), its support
 (`context`, `reads_images`, `tools`, `reasoning`), whether the bundled runtime can
 run it and why not, the `engine` that offered it, its builds, the build it leads
 with and why, and the star. An audio row adds `voicing`: the memory measured while
@@ -37,7 +37,7 @@ nothing about this machine, and nothing blocks its install. The screen renders t
 of them.
 
 `GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's and audio.cpp's.
-sd.cpp's are the five curated image models, only when Electron handed the API an
+sd.cpp's are the five curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
 ([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
@@ -79,7 +79,7 @@ engine's `model_type` and `provider`.
 | | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) |
 |---|---|---|---|
 | Evidence | GGUF metadata keys | tensor names, as sd.cpp dispatches on them (`evidence.py`) | the family key, read from the header's front (`evidence.py`) |
-| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults (required) | `audio`: voices, languages, sample rate, measured memory (required) |
+| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio`: voices, languages, sample rate, measured memory (required) |
 | Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | a GGUF at the repo's root, with the VAE and text encoder the entry names from their own repos (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) |
 | Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) |
 | Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed models, `server.json` |
@@ -141,7 +141,8 @@ preferred first, and nothing in it is a score.
 - **An entry carries its engine's fields and no others.** The classifier reads
   `evidence`, the registry names the engine, and the engine names the fields it
   reads and the ones it needs. A text model needs `context`; an image model
-  needs `image` defaults and an audio model needs `audio`, and neither carries
+  needs `image` defaults, a video model `video` ones, never both, and an audio
+  model needs `audio`, and none of them carries
   `context`, `shape`, `template` or `sampling`, because sd.cpp and audio.cpp read
   none of them. A field no engine reads would be reviewed and trusted while doing
   nothing. `validated` records `llama_cpp`, `sd_cpp` or `audio_cpp`, the runtime
@@ -159,7 +160,7 @@ preferred first, and nothing in it is a score.
   alias or a build's repo with the same quantization, or, with no record, when
   its file name is the build's own.
 
-The shipped fifteen, most preferred first within each type. Seven
+The shipped seventeen, most preferred first within each type. Seven
 chat models, all from `unsloth/*-GGUF` with 18 builds each: Qwen3 32B, 14B, 8B,
 4B, Gemma 3 4B (reads images), Qwen3 1.7B and 0.6B. Five image models. FLUX.2
 klein 4B, Z-Image Turbo and ERNIE-Image Turbo, `Q4_0` then `Q8_0`, each a
@@ -169,7 +170,12 @@ ERNIE takes Ministral 3 3B, and each takes its own VAE. Then Stable Diffusion
 1.5 and XL, one self-contained `Q4_0` file each from `kostakoff/*-GGUF`, the
 same files and hashes the hard-coded list they replace downloaded. That list's
 SDXL Turbo is not curated: its licence, `sai-nc-community`, fails the licence
-rule ([Authoring](#authoring)). No image build is validated yet. Three audio models, one file per build from their folders of
+rule ([Authoring](#authoring)). Two video models, sd.cpp's too: Wan2.1 T2V 1.3B
+(`Q8_0` then `Q4_0`, from a repo holding only it, whose GGUF sd.cpp's docs do
+not cite) leads while no clip is measured, then Wan2.2 TI2V 5B (`Q4_0` then
+`Q8_0`, from `QuantStack`); both run with `city96/umt5-xxl-encoder-gguf`'s
+`Q4_K_M` and each with its own Wan VAE. No image or video build is validated
+yet. Three audio models, one file per build from their folders of
 `audio-cpp/audio.cpp-gguf`: Kokoro 82M (`Q8_0`, then `BF16`), Supertonic 3 (`F16`,
 then `orig`; its `q8_0` file is the `orig` file under another name) and KittenTTS
 Mini 0.8 (`orig`). Only the three audio defaults are validated, each voiced on
@@ -197,7 +203,9 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
   builds to pin, most preferred first; the companions, each a VAE, text encoder
   or projector named by its repo and path and pinned at that repo's commit, with
   the vendor as `upstream_repo` where the repo is a copy; the `image` defaults,
-  each with the source it was read from; and sd-server's `run.args`. Only what
+  each with the source it was read from, or for a video model (`VideoEntry`)
+  the `video` ones: the tasks it takes, its size, frames and rate, and its
+  sampling; and sd-server's `run.args`. Only what
   the card, report or sd.cpp's docs state is filled; the rest is left to
   sd-server's defaults. It refuses a companion its repo no longer lists.
 - **An audio entry's evidence is its family**, read from the default build's first
@@ -323,8 +331,9 @@ families are named by the one tensor sd.cpp's `get_sd_version` dispatches each
 on, bare in a standalone file and under `model.diffusion_model.` once sd.cpp
 loads it: `double_stream_modulation_img.lin.weight` is `flux2`,
 `cap_embedder.0.weight` is `z_image` and `layers.0.adaLN_sa_ln.weight` is
-`ernie_image`. Unsloth's ERNIE file declares `general.architecture` `wan`, which
-is why the tensors decide. The refresh script writes the name into each image
+`ernie_image`, and `blocks.0.cross_attn.norm_k.weight` is `wan`, the one video
+family, which the classifier makes `VIDEO_GEN`. Unsloth's ERNIE file declares
+`general.architecture` `wan`, which is why the tensors decide. The refresh script writes the name into each image
 entry's evidence, and sd-server's launch flags follow from it.
 
 An audio.cpp GGUF's family is `audiocpp.model_spec.family`, and its header
@@ -395,7 +404,9 @@ counted rather than decoded
 
 ## Install ids
 
-`POST /llm/install` takes `{"catalog_id": "...", "select": true}` and nothing
+`POST /llm/install` takes `{"catalog_id": "...", "select": true}`, and
+optionally the `model_type` that `select` fills, the engine's first type when
+absent, so onboarding's editing step installs straight into `image_edit`. Nothing
 else: no repo, file, URL, path or quantization, so the renderer cannot name an
 arbitrary download. A curated build's id is minted once per process and keyed on
 its repo and weights path; a searched build's is a ticket holding the whole build
@@ -499,7 +510,7 @@ on search and repo reads, and the stream's generic error during an install.
 
 ## On the screen
 
-Settings has one section per model type, **Chat**, **Image** and **Audio** in the nav, each headed **Text generation models**, **Image generation models** or **Audio generation models** on its own page.
+Settings has one section per model type, **Chat**, **Image**, **Image editing**, **Video** and **Audio** in the nav, each headed **Text generation models**, **Image generation models**, **Image editing models**, **Video generation models** or **Audio generation models** on its own page.
 Each names the model in use at the top, then groups the slot's models by source:
 **This computer**, every build on disk, curated or not, with Use (when its type
 can fill the slot) or In use and Delete after confirmation; then one group per
@@ -507,8 +518,9 @@ connected server ([`../connections.md`](../connections.md)). **Add model** opens
 one page with both ways in, laid out alike, no card or border around either:
 **Use a server**, collapsed to a Connect button until opened, because it is
 short, then **On this computer**, the catalog below. Both sections read the
-one `GET /llm/catalog/local`: chat takes llama.cpp's rows, image takes only
-sd.cpp's and audio takes only audio.cpp's, each curated model with its size and a
+one `GET /llm/catalog/local`: chat takes llama.cpp's rows, image and image
+editing and video take sd.cpp's that can fill their slot (`selectable_for`), and audio
+takes only audio.cpp's, each curated model with its size and a
 Download. Once a chat or image model is on disk its row offers Delete after
 confirmation, the same as **This computer**'s list; an audio row reads
 Downloaded. An audio row reads on one line: its build, its size, the memory it
@@ -549,7 +561,12 @@ Rules the screen holds:
 - The image section uses the same cards, install states and progress as chat;
   it only downloads without selecting, so a model is chosen with Use once it is
   on disk. Every downloaded model has Delete, the one in use included: the API
-  clears the image slot, and Electron stops sd-server on its next poll.
+  clears every slot that named it, and Electron stops sd-server on its next poll.
+- The image editing section is the image section's parts for `image_edit`: only
+  models whose entry names `edit`, each marked In use by the build's
+  `selected_for`, which lists the slots that chose it, so FLUX.2 klein in use for
+  images still offers Use for editing, with nothing to download. Both sections
+  share one sd.cpp download.
 - The audio section has the same install states, Use, In use and Delete as
   image, and its rows add what voicing takes. Every downloaded model has Delete,
   the one in use included: the API refuses while Studio is generating, otherwise

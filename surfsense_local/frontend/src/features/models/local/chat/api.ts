@@ -63,6 +63,9 @@ export type LocalBuild = {
   /** What the runtime calls this build on disk, which Use and Delete act on. */
   installed_as: string | null
   selected: boolean
+  /** The slots whose selection names this build: each section marks it by its
+   *  own. Absent from a server older than image editing. */
+  selected_for?: string[]
   /** The build to install on this machine. Curated models only. */
   recommended: boolean
   reads_images: boolean
@@ -248,12 +251,18 @@ export async function installCatalogModel(
   catalogId: string,
   onEvent: (event: InstallEvent) => void,
   signal?: AbortSignal,
-  select = true
+  select = true,
+  /** The slot `select` fills; the engine's own when absent. */
+  modelType?: string
 ): Promise<ModelSelection | null> {
   const response = await request("/llm/install", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ catalog_id: catalogId, select }),
+    body: JSON.stringify({
+      catalog_id: catalogId,
+      select,
+      ...(modelType ? { model_type: modelType } : {}),
+    }),
     signal,
   })
   if (!response.body) {

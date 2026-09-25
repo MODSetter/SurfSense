@@ -15,7 +15,9 @@ import {
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
+  PencilEdit02Icon,
   Settings2Icon,
+  Video01Icon,
 } from "@/components/ui/icons"
 import {
   Tooltip,
@@ -33,7 +35,9 @@ import { cn } from "@/lib/utils"
 import { AppearanceToggle } from "./appearance-toggle"
 import { AudioModelsSettings } from "./models/audio-models-settings"
 import { ChatModelsSettings } from "./models/chat-models-settings"
+import { ImageEditModelsSettings } from "./models/image-edit-models-settings"
 import { ImageModelsSettings } from "./models/image-models-settings"
+import { VideoModelsSettings } from "./models/video-models-settings"
 import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
@@ -46,6 +50,8 @@ export type SettingsSectionId =
   | "general"
   | "chat-models"
   | "image-models"
+  | "image-edit-models"
+  | "video-models"
   | "audio-models"
   | "network"
   | "license"
@@ -145,6 +151,16 @@ const SETTINGS_SECTIONS = [
     icon: Image01Icon,
   },
   {
+    id: "image-edit-models",
+    label: "Image editing",
+    icon: PencilEdit02Icon,
+  },
+  {
+    id: "video-models",
+    label: "Video",
+    icon: Video01Icon,
+  },
+  {
     id: "audio-models",
     label: "Audio",
     icon: AudioWaveformIcon,
@@ -234,6 +250,14 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "image-models" ? (
               <ImageModelsSettings onModelUnavailable={onModelUnavailable} />
+            ) : null}
+            {activeSection.id === "image-edit-models" ? (
+              <ImageEditModelsSettings
+                onModelUnavailable={onModelUnavailable}
+              />
+            ) : null}
+            {activeSection.id === "video-models" ? (
+              <VideoModelsSettings onModelUnavailable={onModelUnavailable} />
             ) : null}
             {activeSection.id === "audio-models" ? (
               <AudioModelsSettings onModelUnavailable={onModelUnavailable} />

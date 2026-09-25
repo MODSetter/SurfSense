@@ -59,6 +59,22 @@ const COPY: Record<
     // sd.cpp has no search: its models are the few the catalog ships.
     searchable: false,
   },
+  image_edit: {
+    title: "Choose an image editing model",
+    description:
+      "Edits images. An image model that edits too needs nothing more to download.",
+    noLocal: "Image editing models cannot run on this computer.",
+    // Nor has it for editing: the same few models.
+    searchable: false,
+  },
+  video_gen: {
+    title: "Choose a video model",
+    description:
+      "Makes short video clips. Run one on this computer, or use one from a server.",
+    noLocal: "Video models cannot run on this computer.",
+    // Nor for video.
+    searchable: false,
+  },
   audio_gen: {
     title: "Choose an audio model",
     description:

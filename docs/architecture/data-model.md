@@ -120,7 +120,7 @@ An artifact's searchable body is a `Document` with `document_type = ARTIFACT`; `
 | `selected_models` | `model_type`, `provider`, `connection_id`, `name`, `params_b`, `vendor`, `line`, `updated_at` | one row per model type: `text_gen`, `image_gen`, `image_edit`, `video_gen` or `audio_gen` |
 | `onboarding_completion` | `id`, `completed_at` | a singleton (`CHECK id = 1`) whose presence means onboarding is done |
 
-- A CHECK on `selected_models` allows `llamacpp`, `sdcpp` and `audiocpp` only without a connection and `openai_compatible` only with one, and a second, `local_runtime_type`, lets `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen` and `audiocpp` only `audio_gen`. `connection_id` cascades, so deleting a connection clears exactly the selections that used it.
+- A CHECK on `selected_models` allows `llamacpp`, `sdcpp` and `audiocpp` only without a connection and `openai_compatible` only with one, and a second, `local_runtime_type`, lets `llamacpp` hold only `text_gen`, `sdcpp` only `image_gen`, `image_edit` and `video_gen`, and `audiocpp` only `audio_gen`. `connection_id` cascades, so deleting a connection clears exactly the selections that used it.
 - `params_b`, `vendor` and `line` (`flagship` or `small`) are the model's fingerprint, recorded when it is chosen. They feed the prompt tier, which is computed on read, so retuning a threshold needs no migration.
 - Choosing a model never writes `onboarding_completion`; `POST /llm/onboarding` does, once a `text_gen` selection exists.
 - Remote `/models` answers, the local catalog, hardware profiles and fit estimates are not stored; they are recomputed or fetched live.
