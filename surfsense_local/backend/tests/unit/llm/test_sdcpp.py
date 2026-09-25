@@ -31,10 +31,12 @@ def test_a_host_without_sd_server_offers_nothing(
     assert sdcpp.offered() is False
 
 
-def test_the_local_image_model_only_takes_the_image_gen_slot(staged: Path) -> None:
-    """It cannot chat, cannot carry a connection, and must be installed first."""
-    with pytest.raises(HTTPException, match="does not serve text_gen"):
-        _validate_local_image(ModelType.TEXT_GEN, SD15, None)
+def test_a_local_image_model_takes_only_the_slots_its_entry_names(
+    staged: Path,
+) -> None:
+    """It cannot carry a connection, must be installed first, and fills only
+    what its entry's tasks say: SD 1.5 makes images, and neither chats nor
+    edits."""
     with pytest.raises(HTTPException, match="must not include a connection"):
         _validate_local_image(ModelType.IMAGE_GEN, SD15, 1)
     with pytest.raises(HTTPException, match="is not installed"):
@@ -43,6 +45,10 @@ def test_the_local_image_model_only_takes_the_image_gen_slot(staged: Path) -> No
     (staged / f"{SD15}.gguf").write_bytes(b"GGUF")
 
     _validate_local_image(ModelType.IMAGE_GEN, SD15, None)
+    with pytest.raises(HTTPException, match="does not serve text_gen"):
+        _validate_local_image(ModelType.TEXT_GEN, SD15, None)
+    with pytest.raises(HTTPException, match="does not serve image_edit"):
+        _validate_local_image(ModelType.IMAGE_EDIT, SD15, None)
 
 
 def test_base_url_reaches_sd_server_on_the_openai_route(

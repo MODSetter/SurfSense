@@ -108,3 +108,18 @@ def test_the_newer_families_are_named_by_the_tensor_sd_cpp_reads(
     assert diffusion_architecture(_tensors(names)) == family
     assert diffusion_architecture(_tensors(prefixed)) == family
     assert classify(family).types == (ModelType.IMAGE_GEN,)
+
+
+# The first tensors of both curated Wan files, read on 25 Sep 2026; sd.cpp tells
+# Wan by the cross attention's key norm.
+WAN_TENSORS = [
+    "blocks.0.cross_attn.k.bias",
+    "blocks.0.cross_attn.k.weight",
+    "blocks.0.cross_attn.norm_k.weight",
+]
+
+
+def test_wan_is_named_by_its_cross_attention_and_makes_video() -> None:
+    """Wan2.1 and Wan2.2 alike; the classifier calls it a video model."""
+    assert diffusion_architecture(_tensors(WAN_TENSORS)) == "wan"
+    assert classify("wan").types == (ModelType.VIDEO_GEN,)

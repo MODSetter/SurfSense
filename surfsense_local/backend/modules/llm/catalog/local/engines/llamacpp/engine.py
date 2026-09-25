@@ -36,7 +36,7 @@ from modules.llm.providers.llamacpp import PROVIDER
 
 class LlamaCppEngine:
     name = ENGINE
-    model_type = ModelType.TEXT_GEN
+    model_types = (ModelType.TEXT_GEN,)
     provider = PROVIDER
 
     def __init__(

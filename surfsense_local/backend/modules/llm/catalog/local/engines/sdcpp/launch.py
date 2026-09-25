@@ -5,7 +5,10 @@ Studio posts only a prompt."""
 from collections.abc import Callable
 
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
-from modules.llm.catalog.local.engines.sdcpp.manifest_fields import ImageDefaults
+from modules.llm.catalog.local.engines.sdcpp.manifest_fields import (
+    ImageDefaults,
+    VideoDefaults,
+)
 
 # These carry their VAE and text encoders inside the one file.
 _ONE_FILE = frozenset({"sd1", "sdxl"})
@@ -46,4 +49,26 @@ def default_flags(image: ImageDefaults | None) -> tuple[str, ...]:
         flags += ["--sampling-method", image.sampler]
     if image.flow_shift is not None:
         flags += ["--flow-shift", str(image.flow_shift)]
+    return tuple(flags)
+
+
+def video_flags(video: VideoDefaults | None) -> tuple[str, ...]:
+    """A clip's size, length and rate beside the sampling a video entry states."""
+    if video is None:
+        return ()
+    flags: list[str] = []
+    if video.width and video.height:
+        flags += ["-W", str(video.width), "-H", str(video.height)]
+    if video.frames:
+        flags += ["--video-frames", str(video.frames)]
+    if video.fps:
+        flags += ["--fps", str(video.fps)]
+    if video.steps:
+        flags += ["--steps", str(video.steps)]
+    if video.cfg is not None:
+        flags += ["--cfg-scale", str(video.cfg)]
+    if video.sampler:
+        flags += ["--sampling-method", video.sampler]
+    if video.flow_shift is not None:
+        flags += ["--flow-shift", str(video.flow_shift)]
     return tuple(flags)

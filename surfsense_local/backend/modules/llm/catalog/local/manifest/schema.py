@@ -19,7 +19,10 @@ from modules.llm.catalog.local.engines.llamacpp.manifest_fields import (
     Template,
 )
 from modules.llm.catalog.local.engines.registry import ENGINE_ENTRY_FIELDS, engine_for
-from modules.llm.catalog.local.engines.sdcpp.manifest_fields import ImageDefaults
+from modules.llm.catalog.local.engines.sdcpp.manifest_fields import (
+    ImageDefaults,
+    VideoDefaults,
+)
 from modules.llm.catalog.local.manifest.strict import STRICT
 from modules.llm.fit import ModelShape
 
@@ -115,6 +118,7 @@ class CuratedModel(BaseModel):
     template: Template = Field(default_factory=Template)
     sampling: Sampling | None = None
     image: ImageDefaults | None = None
+    video: VideoDefaults | None = None
     audio: AudioDefaults | None = None
     # Text models only: an image model is not priced by the llama.cpp estimator.
     shape: ShapeSpec | None = None
@@ -137,6 +141,9 @@ class CuratedModel(BaseModel):
             )
         if missing := engine.entry_requires - present:
             raise ValueError(f"{self.id}: {engine.name} needs {sorted(missing)}")
+        choice = engine.entry_requires_one_of
+        if choice and len(present & choice) != 1:
+            raise ValueError(f"{self.id}: {engine.name} needs one of {sorted(choice)}")
         return self
 
     @model_validator(mode="after")

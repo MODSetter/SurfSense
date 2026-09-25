@@ -29,16 +29,23 @@ def rows(installs=None, files=(), selected=None):
 
 
 def test_every_curated_image_model_is_a_runnable_unpriced_row() -> None:
-    """Offered by sd.cpp, downloadable, and never starred or badged."""
+    """Offered by sd.cpp, downloadable, and never starred or badged; its video
+    models beside them."""
     result = rows()
 
-    assert set(result) == {
+    images = {
+        id
+        for id, row in result.items()
+        if ModelType.IMAGE_GEN in row.classification.types
+    }
+    assert images == {
         "flux2-klein-4b",
         "z-image-turbo",
         "ernie-image-turbo",
         "stable-diffusion-1.5",
         "sdxl-base-1.0",
     }
+    assert set(result) - images == {"wan2.1-t2v-1.3b", "wan2.2-ti2v-5b"}
     sd15 = result["stable-diffusion-1.5"]
     assert sd15.engine == "sdcpp"
     assert sd15.classification.types == (ModelType.IMAGE_GEN,)
@@ -177,3 +184,25 @@ def test_z_image_after_flux2_klein_downloads_only_what_klein_did_not_bring() -> 
 
     encoder = next(f for f in zimage.build.files if f.role.value == "text_encoder")
     assert zimage.download_bytes == zimage.build.footprint_bytes - encoder.size_bytes
+
+
+def test_a_model_that_edits_too_fills_both_slots() -> None:
+    """FLUX.2 klein edits with the weights it generates with; SD 1.5 cannot."""
+    result = rows()
+
+    klein = result["flux2-klein-4b"]
+    assert klein.classification.types == (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT)
+    assert klein.runnable
+    assert result["stable-diffusion-1.5"].classification.types == (ModelType.IMAGE_GEN,)
+
+
+def test_a_video_model_fills_the_video_slot_only() -> None:
+    """Its entry's video block, not an image one, decides what it is for."""
+    from tests.unit.llm.catalog.local.test_manifest import video_entry
+
+    wan = CuratedModel.model_validate(video_entry())
+
+    (row,) = image_catalog([wan], {}, set(), lambda b: "id")
+
+    assert row.classification.types == (ModelType.VIDEO_GEN,)
+    assert row.runnable

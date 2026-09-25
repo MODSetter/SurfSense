@@ -17,8 +17,12 @@ IMAGE_IDS = {
 
 
 def image_rows(body: dict) -> dict[str, dict]:
-    """The rows sd.cpp offered, by id."""
-    return {r["id"]: r for r in body["rows"] if r["engine"] == "sdcpp"}
+    """The image rows sd.cpp offered, by id; its video rows are beside them."""
+    return {
+        r["id"]: r
+        for r in body["rows"]
+        if r["engine"] == "sdcpp" and "image_gen" in r["selectable_for"]
+    }
 
 
 async def test_image_models_are_rows_with_no_fit_claim(

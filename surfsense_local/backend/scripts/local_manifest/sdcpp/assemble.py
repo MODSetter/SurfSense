@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from local_manifest.recorded import RepoAtRevision
-from local_manifest.sdcpp.entry import Companion, ImageEntry
+from local_manifest.sdcpp.entry import Companion, ImageEntry, VideoEntry
 from local_manifest.unreadable import UnreadableBuildError
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.engines.sdcpp.builds.in_repo import builds_in
@@ -90,7 +90,11 @@ def entry_for(
             "pipeline_tag": snapshot.pipeline_tag,
             "parameters_b": round(total / 1e9, 2) or None,
         },
-        "image": dict(entry.image),
+        **(
+            {"video": dict(entry.video)}
+            if isinstance(entry, VideoEntry)
+            else {"image": dict(entry.image)}
+        ),
         "builds": [
             {
                 "quantization": build.quantization,

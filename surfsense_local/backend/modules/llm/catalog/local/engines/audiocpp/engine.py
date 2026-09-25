@@ -27,7 +27,7 @@ from modules.llm.providers.audiocpp.memory import OtherModel
 
 class AudioCppEngine:
     name = ENGINE
-    model_type = ModelType.AUDIO_GEN
+    model_types = (ModelType.AUDIO_GEN,)
     provider = PROVIDER
 
     def __init__(

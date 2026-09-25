@@ -149,13 +149,12 @@ async def delete_model(
     finally:
         install_lock.release()
 
-    selection_cleared = await transact(
-        session,
-        _clear_selection,
-        engine.provider,
-        model_name,
-        engine.model_type,
-    )
+    selection_cleared = False
+    for model_type in engine.model_types:
+        cleared = await transact(
+            session, _clear_selection, engine.provider, model_name, model_type
+        )
+        selection_cleared = selection_cleared or cleared
     return ModelDeleteRead(name=model_name, selection_cleared=selection_cleared)
 
 

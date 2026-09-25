@@ -24,8 +24,9 @@ class InstallStep:
 
 class LocalEngine(Protocol):
     name: str
-    # The selection it fills, and the provider that selection names.
-    model_type: ModelType
+    # The selections it can fill, the first unless an install names another,
+    # and the provider those selections name.
+    model_types: tuple[ModelType, ...]
     provider: str
 
     @property

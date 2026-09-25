@@ -18,6 +18,7 @@ _FAMILY_TENSORS = {
     "double_stream_modulation_img.lin.weight": "flux2",
     "cap_embedder.0.weight": "z_image",
     "layers.0.adaLN_sa_ln.weight": "ernie_image",
+    "blocks.0.cross_attn.norm_k.weight": "wan",
 }
 
 

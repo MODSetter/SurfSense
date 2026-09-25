@@ -1,6 +1,7 @@
 """The manifest's image models and the images folder as rows, unpriced."""
 
 from collections.abc import Callable, Collection, Mapping, Sequence
+from dataclasses import replace
 
 from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.classifier import classify
@@ -9,6 +10,7 @@ from modules.llm.catalog.local.engines.sdcpp import ENGINE
 from modules.llm.catalog.local.engines.sdcpp.builds.choice import default_build
 from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing
 from modules.llm.catalog.local.engines.sdcpp.rows.lead_build import lead_build
+from modules.llm.catalog.local.engines.sdcpp.tasks import model_types
 from modules.llm.catalog.local.installs import InstalledBuild
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.rows import BuildRow, LocalRow, LocalSupport, Origin
@@ -30,6 +32,8 @@ def image_catalog(
         engine = engine_for(classification.types)
         if engine is None or engine.name != ENGINE:
             continue
+        # What it is for is the entry's word, not the architecture's.
+        classification = replace(classification, types=model_types(model))
         builds = model.as_builds()
         repos = {model.source_repo, *model.aliases, *(b.weights.repo for b in builds)}
         build_rows = tuple(

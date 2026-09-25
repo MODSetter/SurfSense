@@ -7,7 +7,7 @@ from dataclasses import replace
 import pytest
 from local_manifest.recorded import RepoAtRevision
 from local_manifest.sdcpp.assemble import entry_for, pinned_builds
-from local_manifest.sdcpp.entry import Companion, ImageEntry
+from local_manifest.sdcpp.entry import Companion, ImageEntry, VideoEntry
 from local_manifest.unreadable import UnreadableBuildError
 
 from modules.llm.catalog.local.listed_file import ListedFile
@@ -17,6 +17,7 @@ from tests.unit.llm.catalog.local.engines.sdcpp.builds.test_in_repo import REV
 from tests.unit.llm.catalog.local.engines.sdcpp.test_evidence import (
     FLUX2_KLEIN_TENSORS,
     SDXL_TENSORS,
+    WAN_TENSORS,
 )
 from tests.unit.llm.gguf.build import gguf, tensor
 
@@ -167,3 +168,57 @@ def test_a_companion_its_repo_no_longer_lists_refuses_the_refresh() -> None:
 
     with pytest.raises(UnreadableBuildError, match="flux2-vae"):
         pinned_builds(KLEIN, KLEIN_REPO, moved)
+
+
+WAN = VideoEntry(
+    id="wan2.1-t2v-1.3b",
+    name="Wan2.1 T2V 1.3B",
+    family="Wan",
+    publisher="Wan-AI",
+    description="Short clips from text, in the least memory.",
+    license="apache-2.0",
+    source_repo="Wan-AI/Wan2.1-T2V-1.3B",
+    repo="samuelchristlie/Wan2.1-T2V-1.3B-GGUF",
+    builds=("Q8_0",),
+    companions=(
+        Companion(
+            "text_encoder",
+            "city96/umt5-xxl-encoder-gguf",
+            "umt5-xxl-encoder-Q4_K_M.gguf",
+        ),
+    ),
+    video={"origin": "model card", "frames": 33, "fps": 16},
+)
+WAN_REPO = RepoAtRevision(
+    WAN.repo,
+    REV,
+    "text-to-video",
+    (ListedFile("Wan2.1-T2V-1.3B-Q8_0.gguf", 1535768800, "5" * 64),),
+    None,
+)
+UMT5 = {
+    "city96/umt5-xxl-encoder-gguf": RepoAtRevision(
+        "city96/umt5-xxl-encoder-gguf",
+        ENCODER_REV,
+        None,
+        (ListedFile("umt5-xxl-encoder-Q4_K_M.gguf", 3655145312, "6" * 64),),
+        None,
+    )
+}
+
+
+def test_a_video_entry_writes_its_clip_defaults_in_place_of_image_ones() -> None:
+    """The same assembly as an image model's; only the reviewed block differs."""
+    header = read_header_prefix(gguf([], [tensor(n, [4, 4]) for n in WAN_TENSORS]))
+    written = entry_for(WAN, WAN_REPO, pinned_builds(WAN, WAN_REPO, UMT5), header, {})
+
+    assert "image" not in written
+    (model,) = LocalManifest.model_validate(
+        {
+            "schema_version": SCHEMA_VERSION,
+            "refreshed_at": "2026-09-25",
+            "models": [written],
+        }
+    ).models
+    assert model.evidence.architecture == "wan"
+    assert model.video is not None and model.video.frames == 33

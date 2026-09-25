@@ -62,3 +62,38 @@ def test_a_model_missing_one_of_its_files_is_not_installed(tmp_path) -> None:
     assert row.builds[0].installed_as is None
     assert row.builds[0].download_bytes == 730
     assert engine.installed_image("klein-Q4_0") is None
+
+
+def test_a_video_model_runs_with_its_clip_settings(tmp_path) -> None:
+    """Wan's text encoder is T5, so it goes to --t5xxl; frames and rate are
+    the server's own until a request says otherwise."""
+    from modules.llm.catalog.local.manifest import CuratedModel
+    from modules.llm.model_type import ModelType
+    from tests.unit.llm.catalog.local.test_manifest import video_entry
+
+    wan = CuratedModel.model_validate(video_entry())
+    put(tmp_path, *(landing(f) for f in wan.as_builds()[0].files))
+
+    video = SdCppEngine(tmp_path, [wan]).installed_image("Wan2.1-T2V-1.3B-Q8_0")
+
+    assert video is not None
+    assert [flag for flag, _ in video.files] == [
+        "--diffusion-model",
+        "--t5xxl",
+        "--vae",
+    ]
+    assert video.args == (
+        "-W",
+        "832",
+        "-H",
+        "480",
+        "--video-frames",
+        "33",
+        "--fps",
+        "16",
+        "--cfg-scale",
+        "6.0",
+        "--flow-shift",
+        "3.0",
+    )
+    assert video.types == (ModelType.VIDEO_GEN,)

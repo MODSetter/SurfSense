@@ -9,7 +9,7 @@ in the written manifest is read from the files.
 
 from local_manifest.audiocpp.entry import AudioEntry
 from local_manifest.entry import Entry
-from local_manifest.sdcpp.entry import Companion, ImageEntry
+from local_manifest.sdcpp.entry import Companion, ImageEntry, VideoEntry
 
 
 def _qwen3(size: str, description: str) -> Entry:
@@ -71,6 +71,10 @@ _SUPERTONIC_LANGUAGES = [
 # Qwen/Qwen3-4B, so one download serves both.
 _QWEN3_4B = Companion("text_encoder", "unsloth/Qwen3-4B-GGUF", "Qwen3-4B-Q4_0.gguf")
 _SD_CPP_DOCS = "sd.cpp docs at master-869-07a85c7"
+# Every Wan model's text encoder, and the one download both curated ones share.
+_UMT5 = Companion(
+    "text_encoder", "city96/umt5-xxl-encoder-gguf", "umt5-xxl-encoder-Q4_K_M.gguf"
+)
 
 # Measured while voicing through audio.cpp v0.8.2's server on an i5-1235U,
 # 24 Sep 2026 (docs/proposals/local-audio-models.md, Measurements).
@@ -127,6 +131,8 @@ ENTRIES: tuple[Entry, ...] = (
         ),
         image={
             "origin": f"black-forest-labs/FLUX.2-klein-4B model card; {_SD_CPP_DOCS}, flux2.md",
+            # One set of weights makes and edits: the card and sd.cpp's -r.
+            "tasks": ["generate", "edit"],
             "resolution": 1024,
             "steps": 4,
             "cfg": 1.0,
@@ -221,6 +227,76 @@ ENTRIES: tuple[Entry, ...] = (
         # Its VAE decode alone can want about 10 GB of VRAM, so it decodes on
         # the CPU and the card holds only the diffusion model.
         run_args=("--backend", "vae=cpu"),
+    ),
+    # Video models, which sd-server runs too. The lighter one leads until a
+    # clip is measured on a laptop: the 5B leads if a 33-frame clip at 832x480
+    # renders in under 10 minutes there. Settings are sd.cpp's for Wan.
+    VideoEntry(
+        id="wan2.1-t2v-1.3b",
+        name="Wan2.1 T2V 1.3B",
+        family="Wan",
+        publisher="Wan-AI",
+        description="Short clips from text, in the least memory.",
+        license="apache-2.0",
+        source_repo="Wan-AI/Wan2.1-T2V-1.3B",
+        # A repo holding only this model; its GGUF is not one sd.cpp's docs
+        # cite, which give only the fp16 safetensors.
+        repo="samuelchristlie/Wan2.1-T2V-1.3B-GGUF",
+        aliases=("Wan-AI/Wan2.1-T2V-1.3B",),
+        builds=("Q8_0", "Q4_0"),
+        companions=(
+            _UMT5,
+            Companion(
+                "vae",
+                "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+                "split_files/vae/wan_2.1_vae.safetensors",
+                upstream_repo="Wan-AI/Wan2.1-T2V-1.3B",
+            ),
+        ),
+        video={
+            "origin": f"Wan-AI/Wan2.1-T2V-1.3B model card; {_SD_CPP_DOCS}, wan.md",
+            "tasks": ["text"],
+            "width": 832,
+            "height": 480,
+            "frames": 33,
+            "fps": 16,
+            "cfg": 6.0,
+            "sampler": "euler",
+            "flow_shift": 3.0,
+        },
+    ),
+    VideoEntry(
+        id="wan2.2-ti2v-5b",
+        name="Wan2.2 TI2V 5B",
+        family="Wan",
+        publisher="Wan-AI",
+        description="Clips from text or an image, at 24 frames a second.",
+        license="apache-2.0",
+        source_repo="Wan-AI/Wan2.2-TI2V-5B",
+        repo="QuantStack/Wan2.2-TI2V-5B-GGUF",
+        aliases=("Wan-AI/Wan2.2-TI2V-5B",),
+        builds=("Q4_0", "Q8_0"),
+        companions=(
+            _UMT5,
+            # The one Wan model with its own VAE.
+            Companion(
+                "vae",
+                "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+                "split_files/vae/wan2.2_vae.safetensors",
+                upstream_repo="Wan-AI/Wan2.2-TI2V-5B",
+            ),
+        ),
+        video={
+            "origin": f"Wan-AI/Wan2.2-TI2V-5B model card; {_SD_CPP_DOCS}, wan.md",
+            "tasks": ["text", "image"],
+            "width": 832,
+            "height": 480,
+            "frames": 33,
+            "fps": 24,
+            "cfg": 6.0,
+            "sampler": "euler",
+            "flow_shift": 3.0,
+        },
     ),
     # Audio models: podcast voices, from audio.cpp's own conversions. Kokoro
     # leads: the most voices, and the voice ids podcast briefs store today.

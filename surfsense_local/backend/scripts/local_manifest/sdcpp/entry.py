@@ -33,3 +33,11 @@ class ImageEntry(Entry):
     builds: tuple[str, ...] = ("Q4_0",)
     # What every build runs with; SD 1 and XL carry theirs inside the one file.
     companions: tuple[Companion, ...] = ()
+
+
+@dataclass(frozen=True)
+class VideoEntry(ImageEntry):
+    """An sd.cpp video model: the same files and builds as an image model's, and
+    `VideoDefaults` as the manifest writes them in place of `image`."""
+
+    video: dict[str, Any] = field(default_factory=dict)

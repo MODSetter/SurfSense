@@ -78,6 +78,9 @@ class BuildRead(BaseModel):
     # What the runtime calls this build on disk, which Use and Delete act on.
     installed_as: str | None
     selected: bool
+    # The slots whose selection names this build, so each section marks it by
+    # its own.
+    selected_for: list[ModelType] = []
     recommended: bool
     reads_images: bool
     projector_checked: bool
@@ -166,3 +169,5 @@ class RepoRead(BaseModel):
 class InstallRequest(BaseModel):
     catalog_id: str = Field(min_length=1, max_length=128)
     select: bool = True
+    # The slot `select` fills; the engine's first when absent.
+    model_type: ModelType | None = None

@@ -24,7 +24,8 @@ from modules.llm.providers.sdcpp import PROVIDER
 
 class SdCppEngine:
     name = ENGINE
-    model_type = ModelType.IMAGE_GEN
+    # sd-server makes images, edits them, and makes video.
+    model_types = (ModelType.IMAGE_GEN, ModelType.IMAGE_EDIT, ModelType.VIDEO_GEN)
     provider = PROVIDER
 
     def __init__(self, images_dir: Path | None, models: Sequence[CuratedModel]) -> None:

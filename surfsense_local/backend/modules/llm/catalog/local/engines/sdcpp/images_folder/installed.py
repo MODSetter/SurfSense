@@ -7,10 +7,15 @@ from dataclasses import dataclass
 
 from modules.llm.catalog.local.build import BuildFile, FileRole
 from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing
-from modules.llm.catalog.local.engines.sdcpp.launch import default_flags, file_flags
+from modules.llm.catalog.local.engines.sdcpp.launch import (
+    default_flags,
+    file_flags,
+    video_flags,
+)
 from modules.llm.catalog.local.engines.sdcpp.rows.catalog import image_catalog
 from modules.llm.catalog.local.installs import InstalledBuild
 from modules.llm.catalog.local.manifest import CuratedModel
+from modules.llm.model_type import ModelType
 
 
 @dataclass(frozen=True)
@@ -20,6 +25,8 @@ class InstalledImage:
     # Each file's flag and its path inside the images folder.
     files: tuple[tuple[str, str], ...]
     args: tuple[str, ...]
+    # The slots it can fill, from its entry's tasks.
+    types: tuple[ModelType, ...] = (ModelType.IMAGE_GEN,)
 
     @property
     def served_file(self) -> str:
@@ -51,7 +58,10 @@ def installed_image(
                 model_id,
                 row.name,
                 file_flags(model.evidence.architecture, build_row.build, where),
-                default_flags(model.image) + tuple(pinned.run.args),
+                default_flags(model.image)
+                + video_flags(model.video)
+                + tuple(pinned.run.args),
+                row.classification.types,
             )
     return None
 

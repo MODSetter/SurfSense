@@ -137,21 +137,23 @@ def complete_onboarding(session: Session) -> bool:
 def _validate_local_image(
     model_type: ModelType, model_name: str, connection_id: int | None
 ) -> None:
-    """The bundled sd-server fills the image_gen slot, and only once downloaded."""
-    if model_type is not ModelType.IMAGE_GEN:
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"the local image runtime does not serve {model_type}",
-        )
+    """The bundled sd-server fills the slots the model's entry names, and only
+    once downloaded."""
     if connection_id is not None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "local selections must not include a connection",
         )
-    if get_local_catalog().sdcpp.installed_image(model_name) is None:
+    image = get_local_catalog().sdcpp.installed_image(model_name)
+    if image is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"image model is not installed: {model_name}",
+        )
+    if model_type not in image.types:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"{image.label} does not serve {model_type}",
         )
 
 

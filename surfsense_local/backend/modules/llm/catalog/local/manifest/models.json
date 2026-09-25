@@ -3239,6 +3239,10 @@
       },
       "image": {
         "origin": "black-forest-labs/FLUX.2-klein-4B model card; sd.cpp docs at master-869-07a85c7, flux2.md",
+        "tasks": [
+          "generate",
+          "edit"
+        ],
         "resolution": 1024,
         "steps": 4,
         "cfg": 1.0,
@@ -3607,6 +3611,223 @@
               "--backend",
               "vae=cpu"
             ]
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "wan2.1-t2v-1.3b",
+      "name": "Wan2.1 T2V 1.3B",
+      "family": "Wan",
+      "publisher": "Wan-AI",
+      "description": "Short clips from text, in the least memory.",
+      "license": "apache-2.0",
+      "source_repo": "Wan-AI/Wan2.1-T2V-1.3B",
+      "aliases": [
+        "Wan-AI/Wan2.1-T2V-1.3B"
+      ],
+      "evidence": {
+        "architecture": "wan",
+        "pipeline_tag": "text-to-video",
+        "parameters_b": 1.42
+      },
+      "video": {
+        "origin": "Wan-AI/Wan2.1-T2V-1.3B model card; sd.cpp docs at master-869-07a85c7, wan.md",
+        "tasks": [
+          "text"
+        ],
+        "width": 832,
+        "height": 480,
+        "frames": 33,
+        "fps": 16,
+        "cfg": 6.0,
+        "sampler": "euler",
+        "flow_shift": 3.0
+      },
+      "builds": [
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "samuelchristlie/Wan2.1-T2V-1.3B-GGUF",
+              "upstream_repo": null,
+              "revision": "5a512b15fc35d1b67a074cfe55a591be9e9ef9b5",
+              "path": "Wan2.1-T2V-1.3B-Q8_0.gguf",
+              "size_bytes": 1535768800,
+              "sha256": "30a44f695b4275a915810120360d6fd26152ec303c2226b5152ec33a93c380e4"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+              "upstream_repo": "Wan-AI/Wan2.1-T2V-1.3B",
+              "revision": "123acf1cc74bccbb9bfff8ac1ee72edc08c2341d",
+              "path": "split_files/vae/wan_2.1_vae.safetensors",
+              "size_bytes": 253815318,
+              "sha256": "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "samuelchristlie/Wan2.1-T2V-1.3B-GGUF",
+              "upstream_repo": null,
+              "revision": "5a512b15fc35d1b67a074cfe55a591be9e9ef9b5",
+              "path": "Wan2.1-T2V-1.3B-Q4_0.gguf",
+              "size_bytes": 865581280,
+              "sha256": "50f74e4597a214796ef9a6c8f19ae63b0046fe8b611b48d210d366a675fedcac"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+              "upstream_repo": "Wan-AI/Wan2.1-T2V-1.3B",
+              "revision": "123acf1cc74bccbb9bfff8ac1ee72edc08c2341d",
+              "path": "split_files/vae/wan_2.1_vae.safetensors",
+              "size_bytes": 253815318,
+              "sha256": "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "wan2.2-ti2v-5b",
+      "name": "Wan2.2 TI2V 5B",
+      "family": "Wan",
+      "publisher": "Wan-AI",
+      "description": "Clips from text or an image, at 24 frames a second.",
+      "license": "apache-2.0",
+      "source_repo": "Wan-AI/Wan2.2-TI2V-5B",
+      "aliases": [
+        "Wan-AI/Wan2.2-TI2V-5B"
+      ],
+      "evidence": {
+        "architecture": "wan",
+        "pipeline_tag": "text-to-video",
+        "parameters_b": 5.0
+      },
+      "video": {
+        "origin": "Wan-AI/Wan2.2-TI2V-5B model card; sd.cpp docs at master-869-07a85c7, wan.md",
+        "tasks": [
+          "text",
+          "image"
+        ],
+        "width": 832,
+        "height": 480,
+        "frames": 33,
+        "fps": 24,
+        "cfg": 6.0,
+        "sampler": "euler",
+        "flow_shift": 3.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "QuantStack/Wan2.2-TI2V-5B-GGUF",
+              "upstream_repo": null,
+              "revision": "57437632ddd08bdcbd1508c866aa22e126ed51d2",
+              "path": "Wan2.2-TI2V-5B-Q4_0.gguf",
+              "size_bytes": 3029086560,
+              "sha256": "fcf40dd62cb5e15556eef5f975700ab0b071aacd1939607689276e88f81ba463"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+              "upstream_repo": "Wan-AI/Wan2.2-TI2V-5B",
+              "revision": "ee6f4a40737a995bf5818954cfce6d59443b0f04",
+              "path": "split_files/vae/wan2.2_vae.safetensors",
+              "size_bytes": 1409400960,
+              "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "QuantStack/Wan2.2-TI2V-5B-GGUF",
+              "upstream_repo": null,
+              "revision": "57437632ddd08bdcbd1508c866aa22e126ed51d2",
+              "path": "Wan2.2-TI2V-5B-Q8_0.gguf",
+              "size_bytes": 5400179040,
+              "sha256": "57bece983817ab2f957546683bb670f13be7d99022d45674840cd999a050ea8f"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+              "upstream_repo": "Wan-AI/Wan2.2-TI2V-5B",
+              "revision": "ee6f4a40737a995bf5818954cfce6d59443b0f04",
+              "path": "split_files/vae/wan2.2_vae.safetensors",
+              "size_bytes": 1409400960,
+              "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156"
+            }
+          ],
+          "run": {
+            "args": []
           },
           "validated": {
             "sd_cpp": null
