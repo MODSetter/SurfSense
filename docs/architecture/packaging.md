@@ -69,6 +69,8 @@ The release workflow runs the three scripts directly. Without the parser pack, D
 
 `pnpm dist` in `electron/` runs every staging step, every native runtime included, before `electron-builder`.
 
+`frontend/` and `electron/` each pin their pnpm in `packageManager` (`pnpm@11.27.1`), which pnpm switches to locally and the desktop workflows read through `package_json_file`. The repository root's `packageManager` is the web app's, `pnpm@10.26.0`, and does not apply here.
+
 ## Building audio.cpp
 
 [`build-audiocpp.yml`](../../.github/workflows/build-audiocpp.yml) compiles the Windows and Linux builds with `stage.mjs --strict`, checks them, and hands each staged folder on as an artifact. `release-local.yml` calls it, and its packaging jobs unpack the artifact before `stage.mjs`, which then finds the server already staged. A pull request that changes `scripts/audiocpp/`, the audio.cpp adapter or engine, the manifest or the voicing test runs it too. It caches the staged folder by the scripts' contents, so a release that does not change them reuses the last checked build, and voices with it again.
