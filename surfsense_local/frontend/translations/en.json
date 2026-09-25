@@ -479,7 +479,7 @@
   "settings_nav_license_label": "License",
   "settings_nav_network_label": "Network",
   "settings_nav_title": "Settings",
-  "settings_nav_video_label": "Video gen",
+  "settings_nav_video_label": "Video",
   "settings_video_models_body": "The model that makes video. Run one on this computer, or use one from a server.",
   "settings_video_models_title": "Video generation models",
   "sources_action_failed_title": "Source action failed",

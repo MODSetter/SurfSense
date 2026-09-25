@@ -479,7 +479,7 @@
   "settings_nav_license_label": "라이선스",
   "settings_nav_network_label": "네트워크",
   "settings_nav_title": "설정",
-  "settings_nav_video_label": "동영상 생성",
+  "settings_nav_video_label": "동영상",
   "settings_video_models_body": "동영상을 만드는 모델입니다. 이 컴퓨터에서 실행하거나, 서버의 모델을 사용하세요.",
   "settings_video_models_title": "동영상 생성 모델",
   "sources_action_failed_title": "소스 작업 실패",

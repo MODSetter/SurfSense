@@ -479,7 +479,7 @@
   "settings_nav_license_label": "许可证",
   "settings_nav_network_label": "网络",
   "settings_nav_title": "设置",
-  "settings_nav_video_label": "视频生成",
+  "settings_nav_video_label": "视频",
   "settings_video_models_body": "生成视频的模型。可以在这台电脑上运行一个，也可以使用服务器上的。",
   "settings_video_models_title": "视频生成模型",
   "sources_action_failed_title": "来源操作失败",

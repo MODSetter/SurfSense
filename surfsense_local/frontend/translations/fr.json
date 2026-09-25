@@ -479,7 +479,7 @@
   "settings_nav_license_label": "Licence",
   "settings_nav_network_label": "Réseau",
   "settings_nav_title": "Paramètres",
-  "settings_nav_video_label": "Gén. de vidéos",
+  "settings_nav_video_label": "Vidéo",
   "settings_video_models_body": "Le modèle qui crée les vidéos. Exécutez-en un sur cet ordinateur ou utilisez-en un depuis un serveur.",
   "settings_video_models_title": "Modèles de génération de vidéos",
   "sources_action_failed_title": "Échec de l’action sur la source",

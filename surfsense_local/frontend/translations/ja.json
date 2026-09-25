@@ -479,7 +479,7 @@
   "settings_nav_license_label": "ライセンス",
   "settings_nav_network_label": "ネットワーク",
   "settings_nav_title": "設定",
-  "settings_nav_video_label": "動画生成",
+  "settings_nav_video_label": "動画",
   "settings_video_models_body": "動画を生成するモデルです。このコンピューターで実行するか、サーバー上のモデルを使います。",
   "settings_video_models_title": "動画生成モデル",
   "sources_action_failed_title": "ソースの操作に失敗しました",

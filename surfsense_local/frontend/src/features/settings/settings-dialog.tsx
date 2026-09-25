@@ -51,8 +51,8 @@ export type SettingsSectionId =
   | "general"
   | "chat-models"
   | "image-models"
-  | "audio-models"
   | "image-edit-models"
+  | "audio-models"
   | "video-models"
   | "network"
   | "license"
@@ -190,8 +190,8 @@ const SETTINGS_SECTIONS = [
   { id: "general", icon: Settings2Icon },
   { id: "chat-models", icon: Chat01Icon },
   { id: "image-models", icon: Image01Icon },
-  { id: "audio-models", icon: AudioWaveformIcon },
   { id: "image-edit-models", icon: AiImageEditIcon },
+  { id: "audio-models", icon: AudioWaveformIcon },
   { id: "video-models", icon: Video01Icon },
   { id: "network", icon: ComputerEthernetIcon },
   { id: "license", icon: LicenseIcon },
@@ -221,7 +221,7 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
   "video-models": () =>
     intl.formatMessage({
       id: "settings_nav_video_label",
-      defaultMessage: "Video gen",
+      defaultMessage: "Video",
     }),
   "audio-models": () =>
     intl.formatMessage({
