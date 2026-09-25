@@ -131,6 +131,12 @@ function toRuntimeMessage(
     metadata: {
       custom: {
         citations: message.content.citations ?? [],
+        reasoning: message.content.reasoning
+          ? {
+              text: message.content.reasoning.text,
+              durationMs: message.content.reasoning.duration_ms,
+            }
+          : null,
       },
     },
   }
@@ -457,6 +463,46 @@ export function useChatRuntime({
                           content: {
                             ...message.content,
                             citations: event.items,
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "reasoning") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            reasoning: {
+                              text:
+                                (message.content.reasoning?.text ?? "") +
+                                event.text,
+                              duration_ms: null,
+                            },
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "reasoning-end") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId && message.content.reasoning
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            reasoning: {
+                              ...message.content.reasoning,
+                              duration_ms: event.duration_ms,
+                            },
                           },
                         }
                       : message

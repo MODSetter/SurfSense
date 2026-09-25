@@ -18,6 +18,7 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | open source | オープンソース † | 오픈소스 | 开源 | ओपन सोर्स | Open Source † | código abierto | open source | código aberto | открытый исходный код |
 | privacy | プライバシー | 프라이버시 | 隐私 | गोपनीयता | Datenschutz † | privacidad | confidentialité | privacidade | конфиденциальность |
 | source (an added file or folder) | ソース | 소스 | 来源 | स्रोत | Quelle | fuente | source | fonte | источник |
+| thinking (a model reasoning before it answers) | 考え中 / 考えました | 생각 | 思考 | सोचना | nachdenken | pensar | réflexion | pensar | размышления |
 | document | ドキュメント | 문서 | 文档 | दस्तावेज़ | Dokument | documento | document | documento | документ |
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |
 | model | モデル | 모델 | 模型 | मॉडल | Modell | modelo | modèle | modelo | модель |

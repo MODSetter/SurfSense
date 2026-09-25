@@ -105,9 +105,10 @@ directory.
 - `--no-ui`, because llama-server ships its own web UI, which the app neither
   needs nor wants exposed.
 - `--reasoning-format deepseek` routes `<think>` blocks to
-  `message.reasoning_content`. Without it a thinking model's trace enters the
-  answer, and citation rewriting corrupts `[n]` tokens that appeared inside the
-  reasoning.
+  `message.reasoning_content`, which chat streams as its own frames
+  ([`chat.md`](../chat.md#the-stream)). Without it a thinking model's trace
+  enters the answer, and citation rewriting corrupts `[n]` tokens that appeared
+  inside the reasoning.
 - `cwd` is the binaries directory because ggml scans the running executable's
   own directory for backend libraries. Anywhere else it reports no devices,
   silently, and every model runs on the CPU.

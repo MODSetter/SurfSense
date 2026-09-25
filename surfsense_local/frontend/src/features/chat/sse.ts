@@ -16,6 +16,8 @@ export type ChatStreamEvent =
     }
   | { type: "thread-title-update"; title: string }
   | { type: "citation-catalog"; items: Citation[] }
+  | { type: "reasoning"; text: string }
+  | { type: "reasoning-end"; duration_ms: number }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
   | { type: "completed"; assistant_completed_at: string; text?: string }

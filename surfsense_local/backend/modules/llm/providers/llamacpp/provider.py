@@ -36,7 +36,7 @@ from modules.llm.providers.llamacpp.messages import for_template
 from modules.llm.providers.llamacpp.router_client import RouterClient
 from modules.llm.providers.llamacpp.thinking import THINKING_OFF
 from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
-from modules.llm.providers.types import Message, Model
+from modules.llm.providers.types import Delta, Message, Model
 
 PROVIDER = "llamacpp"
 # The first part of a split build is listed as a shard; it is the model.
@@ -178,11 +178,33 @@ class LlamaCppProvider:
         reasoning: bool | None = None,
         json_schema: dict | None = None,
     ) -> AsyncIterator[str]:
+        """The answer text alone, for callers that have no use for the trace."""
+        async for delta in self.chat_deltas(
+            model,
+            messages,
+            max_tokens=max_tokens,
+            temperature=temperature,
+            reasoning=reasoning,
+            json_schema=json_schema,
+        ):
+            if not delta.reasoning:
+                yield delta.text
+
+    async def chat_deltas(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning: bool | None = None,
+        json_schema: dict | None = None,
+    ) -> AsyncIterator[Delta]:
         # Downgrade at the seam: `modules/chat` assembles one conversation and
         # never learns that templates differ.
         shaped = for_template(messages, await self.capabilities(model))
         try:
-            async for chunk in self._chat.chat(
+            async for delta in self._chat.chat_deltas(
                 model,
                 shaped,
                 max_tokens=max_tokens,
@@ -190,7 +212,7 @@ class LlamaCppProvider:
                 reasoning=reasoning,
                 json_schema=json_schema,
             ):
-                yield chunk
+                yield delta
         except httpx.HTTPStatusError as error:
             # llama.cpp issue #29006: json_schema on the chat endpoint returns
             # 400 for some templates, though the model itself is fine. Losing a
@@ -201,11 +223,11 @@ class LlamaCppProvider:
             logger.warning(
                 "%s rejected a json_schema request; retrying unconstrained", model
             )
-            async for chunk in self._chat.chat(
+            async for delta in self._chat.chat_deltas(
                 model,
                 shaped,
                 max_tokens=max_tokens,
                 temperature=temperature,
                 reasoning=reasoning,
             ):
-                yield chunk
+                yield delta

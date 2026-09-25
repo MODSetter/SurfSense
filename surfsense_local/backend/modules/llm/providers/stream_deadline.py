@@ -30,13 +30,13 @@ class StreamTimeoutError(TimeoutError):
         )
 
 
-async def with_deadlines(
-    stream: AsyncIterator[str],
+async def with_deadlines[T](
+    stream: AsyncIterator[T],
     *,
     first_item_seconds: float,
     between_items_seconds: float,
     subject: str = "the stream",
-) -> AsyncIterator[str]:
+) -> AsyncIterator[T]:
     """Yield from `stream`, applying the start budget then the stall budget.
 
     The deadline restarts on every item, so a long stream is never cut off for

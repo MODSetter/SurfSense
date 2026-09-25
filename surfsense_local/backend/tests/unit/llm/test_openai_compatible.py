@@ -10,6 +10,7 @@ from modules.llm.providers.openai_compatible.image import (
     OpenAICompatibleImageProvider,
     _route_cache,
 )
+from modules.llm.providers.types import Delta
 
 pytestmark = pytest.mark.unit
 PNG = b"\x89PNG\r\n\x1a\nfake"
@@ -101,7 +102,7 @@ def test_types_come_from_the_endpoint_then_the_catalogue_then_nowhere() -> None:
 
 def test_delta_reads_openai_sse_and_ignores_done() -> None:
     """Chat streaming retains the existing OpenAI delta behavior."""
-    assert _delta('data: {"choices":[{"delta":{"content":"hi"}}]}') == "hi"
+    assert _delta('data: {"choices":[{"delta":{"content":"hi"}}]}') == Delta("hi")
     assert _delta("data: [DONE]") is None
 
 
