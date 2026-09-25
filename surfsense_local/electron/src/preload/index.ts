@@ -46,6 +46,9 @@ contextBridge.exposeInMainWorld("surfsense", {
   }): Promise<void> => ipcRenderer.invoke("shell:titlebar-overlay", overlay),
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke("shell:open-external", url),
+  about: {
+    details: () => ipcRenderer.invoke("about:details"),
+  },
   locale: {
     get: (): string => locale,
     preference: (): Promise<string> => ipcRenderer.invoke("locale:preference"),

@@ -24,12 +24,12 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { AboutSettings } from "@/features/about/about-settings"
 import { NetworkSettings } from "@/features/egress/network-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { UpdateSettings } from "@/features/updates/update-settings"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -44,6 +44,7 @@ import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
   id: SettingsSectionId
+  group: "settings" | "app"
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
@@ -56,6 +57,7 @@ export type SettingsSectionId =
   | "video-models"
   | "network"
   | "license"
+  | "about"
 
 const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
 
@@ -183,22 +185,35 @@ function GeneralSettings({
         </div>
         <ImportBundleButton onImported={onImported} />
       </div>
-      <UpdateSettings />
     </SettingsSection>
   )
 }
 
 // Add future settings pages here; the dialog navigation is generated from this list.
 const SETTINGS_SECTIONS = [
-  { id: "general", icon: Settings2Icon },
-  { id: "chat-models", icon: Chat01Icon },
-  { id: "image-models", icon: Image01Icon },
-  { id: "image-edit-models", icon: AiImageEditIcon },
-  { id: "audio-models", icon: AudioWaveformIcon },
-  { id: "video-models", icon: Video01Icon },
-  { id: "network", icon: ComputerEthernetIcon },
-  { id: "license", icon: LicenseIcon },
+  { id: "general", group: "settings", icon: Settings2Icon },
+  { id: "chat-models", group: "settings", icon: Chat01Icon },
+  { id: "image-models", group: "settings", icon: Image01Icon },
+  { id: "image-edit-models", group: "settings", icon: AiImageEditIcon },
+  { id: "audio-models", group: "settings", icon: AudioWaveformIcon },
+  { id: "video-models", group: "settings", icon: Video01Icon },
+  { id: "network", group: "settings", icon: ComputerEthernetIcon },
+  { id: "license", group: "settings", icon: LicenseIcon },
+  { id: "about", group: "app", icon: InformationCircleIcon },
 ] satisfies SettingsNavItem[]
+
+const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {
+  settings: () =>
+    intl.formatMessage({
+      id: "settings_nav_title",
+      defaultMessage: "Settings",
+    }),
+  app: () =>
+    intl.formatMessage({
+      id: "settings_nav_app_title",
+      defaultMessage: "App",
+    }),
+}
 
 const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
   general: () =>
@@ -240,6 +255,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_license_label",
       defaultMessage: "License",
+    }),
+  about: () =>
+    intl.formatMessage({
+      id: "settings_nav_about_label",
+      defaultMessage: "About",
     }),
 }
 
@@ -284,41 +304,49 @@ export function SettingsDialog({
 
         <div className="grid h-full min-h-0 grid-cols-[184px_minmax(0,1fr)]">
           <aside className="border-r bg-sidebar p-3 text-sidebar-foreground">
-            <p className="px-2 pt-5 pb-3 text-xs font-medium text-muted-foreground">
-              {intl.formatMessage({
-                id: "settings_nav_title",
-                defaultMessage: "Settings",
-              })}
-            </p>
-            <nav
-              className="flex flex-col gap-1"
-              aria-label={intl.formatMessage({
-                id: "settings_nav_aria",
-                defaultMessage: "Settings sections",
-              })}
-            >
-              {SETTINGS_SECTIONS.map((section) => {
-                const Icon = section.icon
-                const selected = section.id === activeSection.id
-                return (
-                  <Button
-                    key={section.id}
-                    type="button"
-                    variant="ghost"
+            {(Object.keys(GROUP_LABELS) as SettingsNavItem["group"][]).map(
+              (group, index) => (
+                <div key={group} className={cn(index > 0 && "mt-4")}>
+                  <p
+                    id={`settings-nav-${group}`}
                     className={cn(
-                      "h-10 w-full justify-start rounded-lg",
-                      selected &&
-                        "bg-sidebar-accent text-sidebar-accent-foreground"
+                      "px-2 pb-3 text-xs font-medium text-muted-foreground",
+                      index === 0 ? "pt-5" : "pt-2"
                     )}
-                    aria-current={selected ? "page" : undefined}
-                    onClick={() => onSectionChange(section.id)}
                   >
-                    <Icon />
-                    {SECTION_LABELS[section.id]()}
-                  </Button>
-                )
-              })}
-            </nav>
+                    {GROUP_LABELS[group]()}
+                  </p>
+                  <nav
+                    className="flex flex-col gap-0.5"
+                    aria-labelledby={`settings-nav-${group}`}
+                  >
+                    {SETTINGS_SECTIONS.filter(
+                      (section) => section.group === group
+                    ).map((section) => {
+                      const Icon = section.icon
+                      const selected = section.id === activeSection.id
+                      return (
+                        <Button
+                          key={section.id}
+                          type="button"
+                          variant="ghost"
+                          className={cn(
+                            "h-9 w-full justify-start rounded-lg",
+                            selected &&
+                              "bg-sidebar-accent text-sidebar-accent-foreground"
+                          )}
+                          aria-current={selected ? "page" : undefined}
+                          onClick={() => onSectionChange(section.id)}
+                        >
+                          <Icon />
+                          {SECTION_LABELS[section.id]()}
+                        </Button>
+                      )
+                    })}
+                  </nav>
+                </div>
+              )
+            )}
           </aside>
 
           <section className="min-h-0 min-w-0 overflow-hidden bg-popover text-popover-foreground">
@@ -347,6 +375,7 @@ export function SettingsDialog({
             ) : null}
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
+            {activeSection.id === "about" ? <AboutSettings /> : null}
           </section>
         </div>
       </DialogContent>

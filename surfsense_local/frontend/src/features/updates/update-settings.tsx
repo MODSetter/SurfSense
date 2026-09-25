@@ -86,7 +86,7 @@ export function UpdateSettings() {
           {intl.formatMessage({
             id: "updates_settings_body",
             defaultMessage:
-              "Free updates from GitHub Releases. SurfSense stays silent until you allow App updates under Network, which also enables the launch check.",
+              "Free updates from GitHub. Once you allow update checks, SurfSense also checks each time it starts.",
           })}
         </p>
         {state.status === "error" ? (

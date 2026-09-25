@@ -210,10 +210,10 @@ export function QuizScoreScreen({
         />
       </fieldset>
       <Tabs value={category} onValueChange={selectCategory} className="mt-4">
-        <TabsList className="h-auto w-auto justify-center gap-0.5 bg-transparent p-0 sm:gap-2">
+        <TabsList className="w-auto justify-center gap-0.5 bg-transparent p-0 group-data-horizontal/tabs:h-auto sm:gap-2">
           <TabsTrigger
             value="correct"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground"
+            className="h-auto flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground dark:data-active:border-transparent dark:data-active:bg-secondary dark:data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-emerald-600 sm:size-2.5" />
             {intl.formatMessage(
@@ -226,7 +226,7 @@ export function QuizScoreScreen({
           </TabsTrigger>
           <TabsTrigger
             value="missed"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground"
+            className="h-auto flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground dark:data-active:border-transparent dark:data-active:bg-secondary dark:data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-red-600 sm:size-2.5" />
             {intl.formatMessage(
@@ -241,7 +241,7 @@ export function QuizScoreScreen({
           </TabsTrigger>
           <TabsTrigger
             value="skipped"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground"
+            className="h-auto flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground dark:data-active:border-transparent dark:data-active:bg-secondary dark:data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-muted-foreground sm:size-2.5" />
             {intl.formatMessage(
