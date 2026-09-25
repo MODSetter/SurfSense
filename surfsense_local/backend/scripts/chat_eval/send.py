@@ -35,7 +35,7 @@ class Target:
 @dataclass(frozen=True)
 class Reply:
     content: str
-    reasoning_chars: int
+    reasoning: str
     finish_reason: str | None
     usage: dict
     timings: dict
@@ -76,11 +76,12 @@ def featherless(model: EvalModel) -> Target:
 async def ask(
     target: Target, messages: list[Message], sampling: dict[str, float | int]
 ) -> Reply:
+    """`messages` as sent, already shaped for this target's template."""
     headers = {"Authorization": f"Bearer {target.api_key}"} if target.api_key else {}
     async with httpx.AsyncClient(timeout=TIMEOUT, headers=headers) as client:
         response = await client.post(
             f"{target.base_url}/chat/completions",
-            json=body(target.model, target.shape(messages), sampling),
+            json=body(target.model, messages, sampling),
         )
     if response.is_error:
         raise RuntimeError(
@@ -89,11 +90,10 @@ async def ask(
     payload = response.json()
     choice = payload["choices"][0]
     message = choice.get("message") or {}
-    # llama.cpp calls it reasoning_content; some OpenAI-style hosts call it reasoning.
-    reasoning = message.get("reasoning_content") or message.get("reasoning") or ""
     return Reply(
         content=message.get("content") or "",
-        reasoning_chars=len(reasoning),
+        # llama.cpp calls it reasoning_content; some OpenAI-style hosts, reasoning.
+        reasoning=message.get("reasoning_content") or message.get("reasoning") or "",
         finish_reason=choice.get("finish_reason"),
         usage=payload.get("usage") or {},
         timings=payload.get("timings") or {},
