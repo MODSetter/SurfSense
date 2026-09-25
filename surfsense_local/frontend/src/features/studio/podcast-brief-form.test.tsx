@@ -110,6 +110,16 @@ describe("podcast brief form", () => {
     expect(value(within(rows[0]).getByLabelText("Voice"))).toBe("am_adam")
   })
 
+  it("lists languages A to Z by the name shown, not in the model's order", () => {
+    render(<Harness />)
+
+    expect(
+      within(screen.getByLabelText("Language"))
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["American English", "Brazilian Portuguese", "British English"])
+  })
+
   it("groups each speaker's voices by gender", () => {
     render(<Harness />)
 

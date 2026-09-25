@@ -139,7 +139,13 @@ export function PodcastBriefForm({
   onChange: (brief: PodcastBrief) => void
 }) {
   const id = useId()
+  // By the name shown, in the interface language: the model's order is its own.
   const languages = [...new Set(voices.flatMap((voice) => voice.languages))]
+    .map((code) => ({
+      code,
+      name: intl.formatDisplayName(code, { type: "language" }) ?? code,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name, intl.locale))
   const spoken = voices.filter((voice) =>
     voice.languages.includes(brief.language)
   )
@@ -212,10 +218,9 @@ export function PodcastBriefForm({
             value={brief.language}
             onChange={(event) => changeLanguage(event.target.value)}
           >
-            {languages.map((language) => (
-              <option key={language} value={language}>
-                {intl.formatDisplayName(language, { type: "language" }) ??
-                  language}
+            {languages.map(({ code, name }) => (
+              <option key={code} value={code}>
+                {name}
               </option>
             ))}
           </Select>
