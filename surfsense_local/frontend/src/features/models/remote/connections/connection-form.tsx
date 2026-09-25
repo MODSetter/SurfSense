@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
   Combobox,
+  ComboboxCollection,
   ComboboxContent,
   ComboboxEmpty,
   ComboboxGroup,
@@ -35,7 +36,23 @@ import { fillTemplate } from "./provider-url"
 // this is an example, shown as placeholder text only.
 const CUSTOM_PLACEHOLDER = "http://localhost:11434/v1"
 
-const showAll = () => true
+type ProviderOption = {
+  value: string
+  label: string
+  hint: string | null
+  keywords: string[]
+  disabled: boolean
+}
+
+type ProviderGroup = { label: string | null; items: ProviderOption[] }
+
+// Matches the id as well as the name, so "bedrock" finds Amazon Bedrock.
+function matchesProvider(option: ProviderOption, query: string) {
+  const needle = query.trim().toLowerCase()
+  return [option.label, ...option.keywords].some((candidate) =>
+    candidate.toLowerCase().includes(needle)
+  )
+}
 
 function urlHint(provider: RemoteProvider) {
   const { connect } = provider
@@ -83,7 +100,6 @@ export function ConnectionForm({
   onSaved: (connection: Connection) => void
 }) {
   const fieldId = useId()
-  // The custom entry's display name doubles as its combobox value.
   const customLabel = intl.formatMessage({
     id: "models_connection_form_custom_provider_label",
     defaultMessage: "Local or custom server",
@@ -93,8 +109,6 @@ export function ConnectionForm({
   const [providerId, setProviderId] = useState(
     connection?.catalog_provider ?? CUSTOM_PROVIDER
   )
-  // What the user is typing in the picker; null shows the chosen provider.
-  const [providerQuery, setProviderQuery] = useState<string | null>(null)
   const [accountValues, setAccountValues] = useState<Record<string, string>>({})
   const providers = useQuery({
     queryKey: ["remote-providers"],
@@ -106,15 +120,45 @@ export function ConnectionForm({
   )
   const chosen = sortedProviders.find((entry) => entry.id === providerId)
 
-  const choose = (name: string) => {
-    setProviderQuery(null)
+  const customOption: ProviderOption = {
+    value: CUSTOM_PROVIDER,
+    label: customLabel,
+    hint: intl.formatMessage({
+      id: "models_connection_form_custom_provider_body",
+      defaultMessage: "Any OpenAI-compatible URL",
+    }),
+    keywords: ["local", "custom"],
+    disabled: false,
+  }
+  const providerGroups: ProviderGroup[] = [
+    { label: null, items: [customOption] },
+    {
+      label: intl.formatMessage({
+        id: "models_connection_form_providers_label",
+        defaultMessage: "Providers",
+      }),
+      items: sortedProviders.map((entry) => ({
+        value: entry.id,
+        label: entry.name,
+        hint: urlHint(entry),
+        keywords: [entry.id],
+        disabled: entry.connect.status === "unreachable",
+      })),
+    },
+  ]
+  const selectedOption =
+    providerGroups[1].items.find((option) => option.value === providerId) ??
+    customOption
+
+  const choose = (option: ProviderOption | null) => {
+    if (!option) return
     setAccountValues({})
-    if (name === customLabel) {
+    if (option.value === CUSTOM_PROVIDER) {
       setProviderId(CUSTOM_PROVIDER)
       setBaseUrl("")
       return
     }
-    const next = sortedProviders.find((entry) => entry.name === name)
+    const next = sortedProviders.find((entry) => entry.id === option.value)
     if (!next || next.connect.status === "unreachable") return
     setProviderId(next.id)
     setBaseUrl(
@@ -137,9 +181,9 @@ export function ConnectionForm({
     null
   )
   const [canSaveAnyway, setCanSaveAnyway] = useState(false)
-  // Hosts the combobox popup inside the settings dialog so its scroll lock
-  // lets the list scroll. Absolute, so it adds no height and the centred
-  // dialog does not shift when the popup opens.
+  // Hosts the combobox popup inside the settings dialog, which hides
+  // everything outside itself from assistive technology. Absolute, so it adds
+  // no height and the centred dialog does not shift when the popup opens.
   const [popupHost, setPopupHost] = useState<HTMLDivElement | null>(null)
 
   const save = async (allowUnverified: boolean) => {
@@ -200,16 +244,16 @@ export function ConnectionForm({
             })}
           </FieldLabel>
           <Combobox
-            value={chosen?.name ?? customLabel}
+            items={providerGroups}
+            value={selectedOption}
             onValueChange={choose}
-            inputValue={providerQuery ?? chosen?.name ?? customLabel}
-            onInputValueChange={setProviderQuery}
-            // Opening shows every provider; only what the user types narrows it.
-            filter={providerQuery === null ? showAll : undefined}
+            isItemEqualToValue={(item, value) => item.value === value.value}
+            filter={matchesProvider}
             disabled={busy}
           >
             <ComboboxInput
               id={`${fieldId}-provider`}
+              disabled={busy}
               placeholder={intl.formatMessage({
                 id: "models_connection_form_provider_placeholder",
                 defaultMessage: "Search providers",
@@ -223,43 +267,32 @@ export function ConnectionForm({
                 })}
               </ComboboxEmpty>
               <ComboboxList>
-                <ComboboxItem
-                  value={customLabel}
-                  keywords={["local", "custom"]}
-                >
-                  <span className="min-w-0 flex-1 truncate">
-                    {customLabel}
-                    <span className="ml-1.5 text-muted-foreground">
-                      {intl.formatMessage({
-                        id: "models_connection_form_custom_provider_body",
-                        defaultMessage: "Any OpenAI-compatible URL",
-                      })}
-                    </span>
-                  </span>
-                </ComboboxItem>
-                <ComboboxGroup>
-                  <ComboboxLabel>
-                    {intl.formatMessage({
-                      id: "models_connection_form_providers_label",
-                      defaultMessage: "Providers",
-                    })}
-                  </ComboboxLabel>
-                  {sortedProviders.map((entry) => (
-                    <ComboboxItem
-                      key={entry.id}
-                      value={entry.name}
-                      keywords={[entry.id]}
-                      disabled={entry.connect.status === "unreachable"}
-                    >
-                      <span className="min-w-0 flex-1 truncate">
-                        {entry.name}
-                        <span className="ml-1.5 text-muted-foreground">
-                          {urlHint(entry)}
-                        </span>
-                      </span>
-                    </ComboboxItem>
-                  ))}
-                </ComboboxGroup>
+                {(group: ProviderGroup) => (
+                  <ComboboxGroup
+                    key={group.label ?? "custom"}
+                    items={group.items}
+                  >
+                    {group.label ? (
+                      <ComboboxLabel>{group.label}</ComboboxLabel>
+                    ) : null}
+                    <ComboboxCollection>
+                      {(option: ProviderOption) => (
+                        <ComboboxItem
+                          key={option.value}
+                          value={option}
+                          disabled={option.disabled}
+                        >
+                          <span className="min-w-0 flex-1 truncate">
+                            {option.label}
+                            <span className="ml-1.5 text-muted-foreground">
+                              {option.hint}
+                            </span>
+                          </span>
+                        </ComboboxItem>
+                      )}
+                    </ComboboxCollection>
+                  </ComboboxGroup>
+                )}
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
