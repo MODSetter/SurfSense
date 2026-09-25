@@ -105,6 +105,18 @@ async def test_it_stops_once_five_idle_minutes_have_passed(
     assert await served(client) == []
 
 
+async def test_another_studio_job_ends_the_idle_minutes(
+    client: AsyncClient, images_dir: Path, engine: Engine
+) -> None:
+    """A podcast voices in the memory those weights hold. Measured on 16 GB:
+    LongCat Image and the chat model left Kokoro 1.2 GB of the 3.5 GB it needs."""
+    await choose_sdxl(client, images_dir)
+    studio_job(engine, DocumentStatus.READY, timedelta(minutes=1))
+    studio_job(engine, DocumentStatus.PROCESSING, timedelta(0), fmt="podcast")
+
+    assert await served(client) == []
+
+
 async def test_a_cancelled_image_job_stops_it_at_once(
     client: AsyncClient, images_dir: Path, engine: Engine
 ) -> None:

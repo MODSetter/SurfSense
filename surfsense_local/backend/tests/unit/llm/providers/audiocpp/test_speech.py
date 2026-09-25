@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from modules.llm.catalog.local.manifest import load_local_manifest
+from modules.llm.providers.audiocpp import speech as speech_module
 from modules.llm.providers.audiocpp.speech import (
     AudioCppSpeech,
     NotEnoughMemoryError,
@@ -16,11 +17,16 @@ from modules.llm.providers.audiocpp.speech import (
     VoicedModel,
     VoicingError,
 )
+from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import SpokenTurn
+from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
 pytestmark = pytest.mark.unit
 
 MODELS = {m.id: m for m in load_local_manifest().models}
+CHAT = "Qwen3-1.7B-UD-Q4_K_XL"
+# A router holding no model, for tests about something else.
+NO_CHAT = RouterClient("http://router", transport=FakeRouter().transport())
 
 
 def voiced(model_id: str, installed_as: str) -> VoicedModel:
@@ -33,8 +39,12 @@ def voiced(model_id: str, installed_as: str) -> VoicedModel:
 def test_the_voices_are_the_chosen_models_roster() -> None:
     """A Supertonic voice speaks every language the model does; a Kokoro voice
     speaks its own."""
-    kokoro = AudioCppSpeech(voiced("kokoro-82m", "kokoro-82m-q8_0"), base_url="")
-    supertonic = AudioCppSpeech(voiced("supertonic-3", "supertonic-3-f16"), base_url="")
+    kokoro = AudioCppSpeech(
+        voiced("kokoro-82m", "kokoro-82m-q8_0"), base_url="", chat_runtime=NO_CHAT
+    )
+    supertonic = AudioCppSpeech(
+        voiced("supertonic-3", "supertonic-3-f16"), base_url="", chat_runtime=NO_CHAT
+    )
 
     heart = next(v for v in kokoro.voices() if v.id == "af_heart")
     assert (heart.label, heart.languages) == ("Heart", ("en-US",))
@@ -56,7 +66,9 @@ def test_the_voices_are_the_chosen_models_roster() -> None:
 )
 def test_each_voice_says_its_gender(model_id: str, voice_id: str, gender: str) -> None:
     """The form groups a model's voices by it."""
-    speech = AudioCppSpeech(voiced(model_id, model_id), base_url="")
+    speech = AudioCppSpeech(
+        voiced(model_id, model_id), base_url="", chat_runtime=NO_CHAT
+    )
     assert next(v for v in speech.voices() if v.id == voice_id).gender == gender
 
 
@@ -104,6 +116,7 @@ def speak(model: VoicedModel, server: StubServer, turns, language="en-US", free=
     speech = AudioCppSpeech(
         model,
         base_url="http://audio",
+        chat_runtime=NO_CHAT,
         transport=httpx.MockTransport(server),
         available=lambda: free,
     )
@@ -181,9 +194,10 @@ def test_a_failed_turn_carries_the_servers_own_words() -> None:
     assert not isinstance(failed.value, httpx.HTTPError)
 
 
-def test_voicing_refuses_before_loading_when_memory_is_short() -> None:
+def test_voicing_refuses_before_loading_when_memory_is_short(monkeypatch) -> None:
     """The server's own guard counts the 190 MB file, not the 2.3 GB Kokoro
     takes while voicing, so the app checks the measured peak plus 1 GiB."""
+    monkeypatch.setattr(speech_module, "MEMORY_WAIT_SECONDS", 0)
     server = StubServer()
 
     with pytest.raises(NotEnoughMemoryError) as refused:
@@ -200,20 +214,82 @@ def test_voicing_refuses_before_loading_when_memory_is_short() -> None:
     assert server.speech() == []
 
 
-def test_a_refusal_names_the_first_lighter_model_that_would_fit() -> None:
+def test_the_chat_model_leaves_memory_before_voicing_checks_it() -> None:
+    """Its script is written by then. Measured on 16 GB: unloading Qwen3 1.7B
+    freed 2.1 GB; the router reloads it on its next request."""
+    chat = FakeRouter(models=[CHAT])
+    chat.loaded.add(CHAT)
+    resident_when_checked: list[set[str]] = []
+
+    def available() -> int:
+        resident_when_checked.append(set(chat.loaded))
+        return PLENTY
+
+    speech = AudioCppSpeech(
+        voiced("kokoro-82m", "kokoro-82m-q8_0"),
+        base_url="http://audio",
+        chat_runtime=RouterClient("http://router", transport=chat.transport()),
+        transport=httpx.MockTransport(StubServer()),
+        available=available,
+    )
+    asyncio.run(speech.synthesize([SpokenTurn("af_heart", "Hello.")], "en-US"))
+
+    assert resident_when_checked == [set()]
+
+
+def test_a_start_check_short_of_memory_frees_the_chat_model(monkeypatch) -> None:
+    """Voicing unloads it anyway: on 16 GB, Qwen3 1.7B resident left 3.3 GB and
+    refused Kokoro's 3.5 before a word was drafted. With plenty free it stays
+    loaded for the outline."""
+    monkeypatch.setattr(speech_module, "MEMORY_WAIT_SECONDS", 0)
+
+    def resident_after(free_while_loaded: int) -> set[str]:
+        chat = FakeRouter(models=[CHAT])
+        chat.loaded.add(CHAT)
+        speech = AudioCppSpeech(
+            voiced("kokoro-82m", "kokoro-82m-q8_0"),
+            base_url="http://audio",
+            chat_runtime=RouterClient("http://router", transport=chat.transport()),
+            available=lambda: free_while_loaded if chat.loaded else PLENTY,
+        )
+        asyncio.run(speech.check_memory())
+        return chat.loaded
+
+    assert resident_after(3_300_000_000) == set()
+    assert resident_after(PLENTY) == {CHAT}
+
+
+def test_memory_on_its_way_back_is_waited_for(monkeypatch) -> None:
+    """A podcast ends sd-server's idle minutes, but Electron stops it only on
+    its next 5 s poll; the first reading is taken before then."""
+    monkeypatch.setattr(speech_module, "MEMORY_POLL_SECONDS", 0)
+    readings = iter([2**30, 2**30, PLENTY])
+    speech = AudioCppSpeech(
+        voiced("kokoro-82m", "kokoro-82m-q8_0"),
+        base_url="http://audio",
+        chat_runtime=NO_CHAT,
+        available=lambda: next(readings),
+    )
+
+    asyncio.run(speech.check_memory())
+
+
+def test_a_refusal_names_the_first_lighter_model_that_would_fit(monkeypatch) -> None:
     """Supertonic, at 1.6 GB, fits where even Kokoro's smallest chunk, at
     2.1 GB, would not; Kitten, at 3.0 GB, would not fit either."""
+    monkeypatch.setattr(speech_module, "MEMORY_WAIT_SECONDS", 0)
     audio = MODELS["kokoro-82m"].audio
     assert audio is not None
     others = (OtherModel("Supertonic 3", 486), OtherModel("KittenTTS Mini 0.8", 1863))
     speech = AudioCppSpeech(
         VoicedModel("kokoro-82m-q8_0", audio, others),
         base_url="http://audio",
+        chat_runtime=NO_CHAT,
         available=lambda: 1_800_000_000,
     )
 
     with pytest.raises(NotEnoughMemoryError) as refused:
-        speech.check_memory()
+        asyncio.run(speech.check_memory())
 
     assert str(refused.value) == (
         "Voicing needs about 3.5 GB free; this computer has 1.8 GB. "

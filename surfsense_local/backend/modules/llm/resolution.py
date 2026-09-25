@@ -104,7 +104,11 @@ def resolve_text_to_speech(session: Session) -> TextToSpeech:
     voiced = VoicedModel(
         installed.model_id, installed.audio, engine.others_than(installed)
     )
-    return AudioCppSpeech(voiced, base_url=audiocpp.base_url())
+    return AudioCppSpeech(
+        voiced,
+        base_url=audiocpp.base_url(),
+        chat_runtime=llamacpp.RouterClient(get_llm_settings().llamacpp_base_url),
+    )
 
 
 def _connection(session: Session, selected: SelectedModel) -> ProviderConnection:

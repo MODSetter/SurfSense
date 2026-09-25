@@ -92,8 +92,9 @@ directory.
   not reproduce on either backend and was withdrawn. The cost is that a local
   model, once loaded, stays resident while the app runs, even after the user
   switches to a remote connection. Only Studio calls `RouterClient.unload()`:
-  before a local image, which shares the graphics card
-  ([`studio.md`](../studio.md)); the next request reloads it.
+  before a local image, which shares the graphics card, and before voicing a
+  podcast, which needs its memory ([`studio.md`](../studio.md)); the next
+  request reloads it.
   Someone who never loads a local model spends none of it, because the router
   holds no device memory until something loads.
 - `--models-autoload` is the upstream default, stated because the chat path

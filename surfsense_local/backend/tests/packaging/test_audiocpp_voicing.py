@@ -29,7 +29,9 @@ from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
+from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import SpokenTurn
+from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 
 pytestmark = pytest.mark.packaging
 
@@ -186,7 +188,11 @@ def test_a_curated_model_voices_through_the_app_and_is_given_back(
     name = CURATED[model_id].builds[0].files[0].path.rsplit("/", 1)[-1]
     model = installed.installed_model(name.removesuffix(".gguf"))
     assert model is not None
-    speech = AudioCppSpeech(VoicedModel(model.model_id, model.audio), base_url=server)
+    speech = AudioCppSpeech(
+        VoicedModel(model.model_id, model.audio),
+        base_url=server,
+        chat_runtime=RouterClient("http://router", transport=FakeRouter().transport()),
+    )
     turns = [
         SpokenTurn(v, line) for v, line in zip(voices, LINES[language], strict=True)
     ]

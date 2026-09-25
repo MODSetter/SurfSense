@@ -410,7 +410,7 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
                 Voice("am_adam", "Adam", "male", ("en-US",)),
             ]
 
-        def check_memory(self) -> None:
+        async def check_memory(self) -> None:
             pass
 
         async def synthesize(
@@ -469,7 +469,7 @@ class ShortOfMemory:
             Voice("am_adam", "Adam", "male", ("en-US",)),
         ]
 
-    def check_memory(self) -> None:
+    async def check_memory(self) -> None:
         raise NotEnoughMemoryError(SHORT)
 
     async def synthesize(self, turns: list[SpokenTurn], language: str):
@@ -498,7 +498,7 @@ def test_a_podcast_short_of_memory_refuses_before_any_drafting(
 class ShortOfMemoryAtVoicing(ShortOfMemory):
     """Memory that was there before drafting and is gone by voicing."""
 
-    def check_memory(self) -> None:
+    async def check_memory(self) -> None:
         pass
 
     async def synthesize(self, turns: list[SpokenTurn], language: str):

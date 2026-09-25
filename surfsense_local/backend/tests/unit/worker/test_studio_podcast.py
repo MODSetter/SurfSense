@@ -156,7 +156,7 @@ class FakeVoice:
             Voice("pf_dora", "Dora", "female", ("pt-BR",)),
         ]
 
-    def check_memory(self) -> None:
+    async def check_memory(self) -> None:
         pass
 
     async def synthesize(
