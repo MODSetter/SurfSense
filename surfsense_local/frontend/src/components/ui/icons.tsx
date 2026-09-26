@@ -12,6 +12,7 @@ import {
   AudioWaveformIcon as AudioWaveformIconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
+  Bug01Icon as Bug01IconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
   Cards01Icon as Cards01IconData,
   ChartHistogramIcon as ChartHistogramIconData,
@@ -119,6 +120,7 @@ export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
 export const BrainCircuitIcon = createIcon(BrainCircuitIconData)
+export const BugIcon = createIcon(Bug01IconData)
 export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData)

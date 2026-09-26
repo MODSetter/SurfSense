@@ -21,4 +21,4 @@ Outside the desktop app there is no bridge: the version, release notes, bug repo
 ## Known gaps
 
 - No third-party license notices ship with the app. Generating them needs the frontend's npm dependencies, the Python sidecars' packages and the bundled native binaries collected at build time.
-- The app writes no log files, so there is no logs folder to open. Sidecar output goes to the terminal only.
+- The app writes no log files, so there is no logs folder to open. This run's output is kept in memory and shown in Report issue ([issue reports](issue-reports.md)), and is gone once the app quits.

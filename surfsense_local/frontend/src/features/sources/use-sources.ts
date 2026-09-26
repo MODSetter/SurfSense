@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { errorToast } from "@/features/feedback/error-toast"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -163,7 +164,7 @@ export function useSources(workspaceId: number) {
           })
       if (error) throw new Error(error)
     } catch (cause) {
-      toast.error(title, { description: messageFrom(cause) })
+      errorToast(title, { description: messageFrom(cause) })
     }
   }
 
@@ -224,7 +225,7 @@ export function useSources(workspaceId: number) {
     const supported = files.filter(isSupportedSourceFile)
     const unsupported = files.filter((file) => !isSupportedSourceFile(file))
     if (supported.length === 0) {
-      toast.error(
+      errorToast(
         intl.formatMessage(
           {
             id: "sources_upload_failed_toast",
@@ -355,7 +356,7 @@ export function useSources(workspaceId: number) {
       }
     } catch (cause) {
       if (!isAbort(cause) && uploadController.current === controller) {
-        toast.error(
+        errorToast(
           intl.formatMessage(
             {
               id: "sources_upload_failed_toast",

@@ -30,6 +30,10 @@ declare global {
       about?: {
         details: () => Promise<AppDetails>
       }
+      // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
+      sessionLog?: {
+        read: () => Promise<string[]>
+      }
       // Mirrors electron/src/preload/index.ts; main resolves and owns the locale.
       locale?: {
         get: () => string

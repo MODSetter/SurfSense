@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
+import { errorToast } from "@/features/feedback/error-toast"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -128,7 +129,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
             } else if (artifact.status === "failed") {
               // The raw error (often a multi-line HTTP exception) belongs in
               // the row's own Ctrl/Cmd-hover tooltip, not a toast.
-              toast.error(
+              errorToast(
                 intl.formatMessage(
                   {
                     id: "studio_artifact_failed_toast",

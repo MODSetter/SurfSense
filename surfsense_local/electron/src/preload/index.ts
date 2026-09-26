@@ -49,6 +49,9 @@ contextBridge.exposeInMainWorld("surfsense", {
   about: {
     details: () => ipcRenderer.invoke("about:details"),
   },
+  sessionLog: {
+    read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
+  },
   locale: {
     get: (): string => locale,
     preference: (): Promise<string> => ipcRenderer.invoke("locale:preference"),

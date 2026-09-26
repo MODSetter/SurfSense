@@ -5,8 +5,8 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 
+import { errorToast } from "@/features/feedback/error-toast"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
 
@@ -273,7 +273,7 @@ export function useChatRuntime({
         }
       }
     } catch (cause) {
-      toast.error(
+      errorToast(
         intl.formatMessage({
           id: "chat_runtime_delete_toast",
           defaultMessage: "Couldn’t delete chat",
@@ -299,7 +299,7 @@ export function useChatRuntime({
       )
       return true
     } catch (cause) {
-      toast.error(
+      errorToast(
         intl.formatMessage({
           id: "chat_runtime_rename_toast",
           defaultMessage: "Couldn’t rename chat",
@@ -639,7 +639,7 @@ export function useChatRuntime({
 
   useEffect(() => {
     if (threadsQuery.error) {
-      toast.error(
+      errorToast(
         intl.formatMessage({
           id: "chat_runtime_load_threads_toast",
           defaultMessage: "Couldn’t load your chats",
@@ -653,7 +653,7 @@ export function useChatRuntime({
 
   useEffect(() => {
     if (messagesQuery.error) {
-      toast.error(
+      errorToast(
         intl.formatMessage({
           id: "chat_runtime_load_messages_toast",
           defaultMessage: "Couldn’t load this chat",
