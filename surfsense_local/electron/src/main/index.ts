@@ -68,6 +68,8 @@ import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
 import { sessionLog } from "./session-log/session-log.ts"
 import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
+import { appMenu } from "./menu/app-menu.ts"
+import { helpMenu } from "./menu/help-menu.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
@@ -453,13 +455,26 @@ function applyBackgroundColorToAllWindows(theme: ThemePreference): void {
   for (const win of currentWindows()) win.setBackgroundColor(color)
 }
 
-// One menu in dev and packaged builds, all Electron roles: labels come from
-// Electron and the OS, never the in-app language. DevTools only unpackaged.
+// A menu action the window carries out, shown first in case it was hidden.
+function sendToWindow(channel: string): void {
+  if (!mainWindow) return
+  mainWindow.show()
+  mainWindow.webContents.send(channel)
+}
+
+// One menu in dev and packaged builds. Role labels come from Electron and the
+// OS; the few items of ours are English. DevTools only unpackaged.
 // https://www.electronjs.org/docs/latest/tutorial/application-menu
 function installMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+      ...(process.platform === "darwin"
+        ? [
+            appMenu({
+              checkForUpdates: () => sendToWindow("updates:check-requested"),
+            }),
+          ]
+        : []),
       { role: "fileMenu" },
       { role: "editMenu" },
       {
@@ -477,6 +492,11 @@ function installMenu(): void {
         ],
       },
       { role: "windowMenu" },
+      helpMenu({
+        version: app.getVersion(),
+        openExternal: openAllowedExternal,
+        reportIssue: () => sendToWindow("help:report-issue"),
+      }),
     ])
   )
 }

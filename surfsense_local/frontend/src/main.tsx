@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/sonner.tsx"
 import { TooltipProvider } from "@/components/ui/tooltip.tsx"
 import { EgressPrompt } from "@/features/egress/egress-prompt.tsx"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog.tsx"
+import { MenuUpdateCheck } from "@/features/updates/menu-update-check.tsx"
 import { intl } from "@/i18n/intl.ts"
 import { followMainLocale } from "@/i18n/locale.ts"
 import { queryClient } from "@/lib/query-client.ts"
@@ -37,6 +38,7 @@ createRoot(root).render(
             <App />
             <EgressPrompt />
             <IssueReportDialog />
+            <MenuUpdateCheck />
             <Toaster position="top-right" />
           </TooltipProvider>
         </ThemeProvider>

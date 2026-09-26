@@ -2,12 +2,11 @@ import type { ComponentType } from "react"
 
 import { Button } from "@/components/ui/button"
 import { DownloadCircle02Icon, LicenseIcon } from "@/components/ui/icons"
-import { askEgress } from "@/features/egress/ask-egress"
 import type { LicenseState } from "@/features/license/api"
 import { useLicense } from "@/features/license/use-license"
+import { useCheckForUpdates } from "@/features/updates/use-check-for-updates"
 import {
   updatesBridge,
-  useUpdatePrefs,
   useUpdateState,
 } from "@/features/updates/use-update-state"
 import { intl } from "@/i18n/intl"
@@ -174,25 +173,17 @@ export function SidebarFooter({
   const license = useLicense().data
   const updates = updatesBridge()
   const state = useUpdateState()
-  const { prefs, setAutomatic } = useUpdatePrefs()
+  const checkForUpdates = useCheckForUpdates()
 
   const currentLicenseRow = license ? licenseRow(license.state) : null
 
   if (!currentLicenseRow && !updates) return null
 
-  // Installing is local and needs no permission. Checking asks github.com, and
-  // Settings > Network promises that call is refused until allowed -- so the
-  // first one asks, the same way picking a remote model does.
+  // Installing is local and needs no permission; checking goes through consent.
   const onUpdateClick = async () => {
     if (!updates) return
     if (state.status === "ready") return void updates.install()
-    if (prefs?.automatic) return void updates.check()
-    const allowed = await askEgress({
-      destination: "app_updates",
-      host: "github.com",
-      allow: () => setAutomatic(true),
-    })
-    if (allowed) await updates.check()
+    await checkForUpdates()
   }
 
   return (

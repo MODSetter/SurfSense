@@ -44,12 +44,17 @@ export function IssueReportDialog() {
   const details = useAppDetails()
 
   useEffect(() => {
-    setOpenHandler((next) => {
+    const openWith = (next: ReportContext) => {
       setContext(next)
       setCopyFailed(false)
       setOpen(true)
-    })
-    return () => setOpenHandler(null)
+    }
+    setOpenHandler(openWith)
+    const stopMenu = window.surfsense?.help?.onReportIssue(() => openWith({}))
+    return () => {
+      setOpenHandler(null)
+      stopMenu?.()
+    }
   }, [])
 
   const submit = async (event: SubmitEvent) => {
@@ -198,11 +203,11 @@ export function IssueReportDialog() {
               })}
             </Button>
             <Button type="submit" disabled={!description.trim()}>
-              <ExternalLinkIcon data-icon="inline-start" />
               {intl.formatMessage({
                 id: "feedback_form_submit_button",
                 defaultMessage: "Continue on GitHub",
               })}
+              <ExternalLinkIcon data-icon="inline-end" />
             </Button>
           </DialogFooter>
         </form>

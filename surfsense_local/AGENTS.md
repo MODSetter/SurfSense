@@ -20,7 +20,7 @@ Version is `VERSION`. `scripts/bump-version.sh` writes it through the desktop pa
 - React UI, colors, polish, motion in `frontend/`: `frontend-workflow` skill.
 - shadcn components (`frontend/components.json`): `shadcn` skill after `frontend-workflow`, not instead of it — separate, and it inspects the project live.
 - New behavior: `tdd` skill.
-- Interface text in `frontend/`: `translate` skill. The application menu is Electron roles only and is not translated.
+- Interface text in `frontend/`: `translate` skill. The application menu is not translated: Electron roles, plus a few English items of ours in `electron/src/main/menu/`.
 
 ## Do not
 

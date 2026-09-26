@@ -25,6 +25,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { AboutSettings } from "@/features/about/about-settings"
+import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { NetworkSettings } from "@/features/egress/network-settings"
 import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
@@ -287,6 +288,7 @@ export function SettingsDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="h-[640px] min-h-0 w-[1000px] max-w-none gap-0 overflow-hidden rounded-2xl p-0 shadow-xl select-none sm:max-w-none">
+        <EgressPrompt nested />
         <DialogHeader className="sr-only">
           <DialogTitle>
             {intl.formatMessage({

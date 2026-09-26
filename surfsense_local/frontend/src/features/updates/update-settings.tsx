@@ -5,10 +5,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import { askEgress } from "@/features/egress/ask-egress"
 import { intl } from "@/i18n/intl"
 import type { UpdateState } from "@/lib/api"
 
+import { useCheckForUpdates } from "./use-check-for-updates"
 import {
   updatesBridge,
   useUpdatePrefs,
@@ -55,22 +55,10 @@ function statusText(state: UpdateState) {
 export function UpdateSettings() {
   const updates = updatesBridge()
   const state = useUpdateState()
-  const { prefs, setAutomatic } = useUpdatePrefs()
+  const { prefs } = useUpdatePrefs()
+  const onCheckClick = useCheckForUpdates()
 
   if (!updates || prefs === null) return null
-
-  // Installing is local and needs no permission. Checking asks github.com, and
-  // Settings > Network promises that call is refused until allowed -- so the
-  // first check asks, the same way the sidebar's does.
-  const onCheckClick = async () => {
-    if (prefs.automatic) return void updates.check()
-    const allowed = await askEgress({
-      destination: "app_updates",
-      host: "github.com",
-      allow: () => setAutomatic(true),
-    })
-    if (allowed) await updates.check()
-  }
 
   const text = statusText(state)
   return (
