@@ -16,6 +16,7 @@ import type { Connection } from "@/features/models/remote/connections/api"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
+import { serversCanServe } from "@/features/models/remote/servers-can-serve"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { InUseSummary } from "@/features/models/your-models/in-use-summary"
 import { LocalModelsGroup } from "@/features/models/your-models/local-models-group"
@@ -45,7 +46,6 @@ export function ModelSlotSettings({
   onDelete,
   onSelected,
   onChatCleared,
-  servers = true,
 }: {
   title: string
   description: string
@@ -58,9 +58,8 @@ export function ModelSlotSettings({
   onDelete: (row: YourModelRow) => Promise<unknown>
   onSelected?: (selection: ModelSelection) => void
   onChatCleared?: () => void
-  /** Off where no server model can do the slot's job yet. */
-  servers?: boolean
 }) {
+  const servers = serversCanServe(modelType)
   const connections = useConnections()
   const [page, setPage] = useState<Page>("list")
   // Edited in a dialog over the list; saving leaves the list as it was.

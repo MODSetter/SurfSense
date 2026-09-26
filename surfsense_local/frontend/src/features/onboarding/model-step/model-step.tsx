@@ -18,6 +18,7 @@ import { Spinner } from "@/components/ui/spinner"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
+import { serversCanServe } from "@/features/models/remote/servers-can-serve"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
 import type { YourModelRow } from "@/features/models/your-models/your-model-row"
@@ -39,8 +40,9 @@ const COPY: Record<
   OnboardingSlot,
   {
     title: () => string
-    description: () => string
-    noLocal: () => string
+    // `servers`: whether this slot offers servers (`serversCanServe`).
+    description: (servers: boolean) => string
+    noLocal: (servers: boolean) => string
     /** Hugging Face search, for llama.cpp's GGUF models only. */
     searchable: boolean
   }
@@ -51,18 +53,24 @@ const COPY: Record<
         id: "onboarding_chat_step_title",
         defaultMessage: "Choose a text generation model",
       }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_body",
-        defaultMessage:
-          "Answers you in chat. Run one on this computer so your chats stay private, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_no_local_empty",
-        defaultMessage:
-          "No tested model can run on this computer. Use a server instead.",
-      }),
+    description: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_chat_step_body",
+          defaultMessage:
+            "Answers you in chat. {servers, select, yes {Run one on this computer so your chats stay private, or use one from a server.} other {Run one on this computer so your chats stay private.}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
+    noLocal: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_chat_step_no_local_empty",
+          defaultMessage:
+            "No tested model can run on this computer.{servers, select, yes { Use a server instead.} other {}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
     searchable: true,
   },
   image_gen: {
@@ -71,18 +79,24 @@ const COPY: Record<
         id: "onboarding_image_step_title",
         defaultMessage: "Choose an image generation model",
       }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_body",
-        defaultMessage:
-          "Creates images for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_no_local_empty",
-        defaultMessage:
-          "Image models cannot run on this computer. Use a server instead.",
-      }),
+    description: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_image_step_body",
+          defaultMessage:
+            "Creates images for you. {servers, select, yes {Run one on this computer, or use one from a server.} other {Run one on this computer.}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
+    noLocal: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_image_step_no_local_empty",
+          defaultMessage:
+            "Image models cannot run on this computer.{servers, select, yes { Use a server instead.} other {}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
     // sd.cpp has no search: its models are the few the catalog ships.
     searchable: false,
   },
@@ -98,12 +112,15 @@ const COPY: Record<
         defaultMessage:
           "Edits images. An image model that edits too needs nothing more to download.",
       }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_no_local_empty",
-        defaultMessage:
-          "Image editing models cannot run on this computer. Use a server instead.",
-      }),
+    noLocal: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_image_edit_step_no_local_empty",
+          defaultMessage:
+            "Image editing models cannot run on this computer.{servers, select, yes { Use a server instead.} other {}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
     // Nor has it for editing: the same few models.
     searchable: false,
   },
@@ -113,18 +130,24 @@ const COPY: Record<
         id: "onboarding_video_step_title",
         defaultMessage: "Choose a video generation model",
       }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_body",
-        defaultMessage:
-          "Makes short video clips. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_no_local_empty",
-        defaultMessage:
-          "Video models cannot run on this computer. Use a server instead.",
-      }),
+    description: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_video_step_body",
+          defaultMessage:
+            "Makes short video clips. {servers, select, yes {Run one on this computer, or use one from a server.} other {Run one on this computer.}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
+    noLocal: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_video_step_no_local_empty",
+          defaultMessage:
+            "Video models cannot run on this computer.{servers, select, yes { Use a server instead.} other {}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
     // Nor for video.
     searchable: false,
   },
@@ -134,18 +157,24 @@ const COPY: Record<
         id: "onboarding_audio_step_title",
         defaultMessage: "Choose an audio model",
       }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_body",
-        defaultMessage:
-          "Creates podcasts for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_no_local_empty",
-        defaultMessage:
-          "Audio models cannot run on this computer. Use a server instead.",
-      }),
+    description: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_audio_step_body",
+          defaultMessage:
+            "Creates podcasts for you. {servers, select, yes {Run one on this computer, or use one from a server.} other {Run one on this computer.}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
+    noLocal: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_audio_step_no_local_empty",
+          defaultMessage:
+            "Audio models cannot run on this computer.{servers, select, yes { Use a server instead.} other {}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
     // Nor has audio.cpp.
     searchable: false,
   },
@@ -183,6 +212,7 @@ export function ModelStep({
   const select = useSelect(modelType)
   const remove = slotDeletes[modelType]()
   const connections = useConnections()
+  const servers = serversCanServe(modelType)
   const [onServer, setOnServer] = useState(false)
   // With nothing connected yet there is no server page to show: Connect
   // opens the dialog here, and a server saved from it opens on its models.
@@ -318,7 +348,7 @@ export function ModelStep({
             />
           ) : (
             <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
-              {copy.noLocal()}
+              {copy.noLocal(servers)}
             </p>
           )}
           {copy.searchable ? (
@@ -331,14 +361,19 @@ export function ModelStep({
           ) : null}
         </section>
 
-        <Separator />
-
-        <ServerOption
-          connections={connections.data ?? []}
-          onOpen={() =>
-            connections.data?.length ? setOnServer(true) : setConnecting(true)
-          }
-        />
+        {servers ? (
+          <>
+            <Separator />
+            <ServerOption
+              connections={connections.data ?? []}
+              onOpen={() =>
+                connections.data?.length
+                  ? setOnServer(true)
+                  : setConnecting(true)
+              }
+            />
+          </>
+        ) : null}
       </div>
     )
   }
@@ -350,7 +385,7 @@ export function ModelStep({
           <h1 className="font-heading text-xl text-balance">{copy.title()}</h1>
         </CardTitle>
         <CardDescription className="max-w-lg text-pretty">
-          {copy.description()}
+          {copy.description(servers)}
         </CardDescription>
         {onSkip ? (
           <CardAction>
