@@ -21,6 +21,8 @@ declare global {
         check: () => Promise<void>
         install: () => Promise<void>
         onState: (listener: (state: UpdateState) => void) => () => void
+        // The app menu's Check for Updates…. Mirrors electron/src/preload/index.ts.
+        onCheckRequested: (listener: () => void) => () => void
       }
       setTitleBarOverlay?: (overlay: {
         color: string
@@ -33,6 +35,10 @@ declare global {
       // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
       sessionLog?: {
         read: () => Promise<string[]>
+      }
+      // The app menu's Help › Report Issue…. Mirrors electron/src/preload/index.ts.
+      help?: {
+        onReportIssue: (listener: () => void) => () => void
       }
       // Mirrors electron/src/preload/index.ts; main resolves and owns the locale.
       locale?: {

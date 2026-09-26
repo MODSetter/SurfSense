@@ -11,7 +11,26 @@ describe("ReplyThinking", () => {
   it("says the model is working before anything has streamed", () => {
     render(<ReplyThinking running answerStarted={false} reasoning={null} />)
 
-    expect(screen.getByRole("status").textContent).toBe("Thinking…")
+    expect(screen.getByRole("status").textContent).toBe("Thinking")
+  })
+
+  it("keeps the same header when the trace starts, so its motion never restarts", () => {
+    const { container, rerender } = render(
+      <ReplyThinking running answerStarted={false} reasoning={null} />
+    )
+    const header = screen.getByRole("button", { name: "Thinking" })
+    const indicator = container.querySelector("svg")
+
+    rerender(
+      <ReplyThinking
+        running
+        answerStarted={false}
+        reasoning={{ text: "First step.", durationMs: null }}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "Thinking" })).toBe(header)
+    expect(container.querySelector("svg")).toBe(indicator)
   })
 
   it("shows nothing for a reply that answered without thinking", () => {
@@ -31,9 +50,11 @@ describe("ReplyThinking", () => {
       />
     )
 
-    const toggle = screen.getByRole("button", { name: "Thinking…" })
+    const toggle = screen.getByRole("button", { name: "Thinking" })
     expect(toggle.getAttribute("aria-expanded")).toBe("true")
-    screen.getByText("The note says revenue climbed.")
+    expect(
+      screen.getByRole("region", { name: "Thinking" }).textContent
+    ).toContain("The note says revenue climbed.")
   })
 
   it("folds the trace away once the answer starts, and opens on click", () => {
@@ -52,12 +73,38 @@ describe("ReplyThinking", () => {
       name: "Thought for 12 seconds",
     })
     expect(toggle.getAttribute("aria-expanded")).toBe("false")
-    expect(screen.queryByText("The note says revenue climbed.")).toBeNull()
+    // Stays mounted so it can slide shut, but out of reach while folded.
+    expect(screen.queryByRole("region")).toBeNull()
 
     fireEvent.click(toggle)
 
     expect(toggle.getAttribute("aria-expanded")).toBe("true")
-    screen.getByText("The note says revenue climbed.")
+    expect(
+      screen.getByRole("region", { name: "Thought for 12 seconds" }).textContent
+    ).toContain("The note says revenue climbed.")
+  })
+
+  it("holds the chat still while the trace slides open or shut", () => {
+    render(
+      <div data-testid="chat" style={{ overflowY: "auto" }}>
+        <ReplyThinking
+          running={false}
+          answerStarted
+          reasoning={{ text: "Earlier reasoning.", durationMs: 3_000 }}
+        />
+      </div>
+    )
+    const chat = screen.getByTestId("chat")
+    chat.scrollTop = 200
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Thought for 3 seconds" })
+    )
+    // The chat's auto-scroll chasing the growing trace to the bottom.
+    chat.scrollTop = 900
+    fireEvent.scroll(chat)
+
+    expect(chat.scrollTop).toBe(200)
   })
 
   it("keeps the newest reasoning in view while it streams", () => {

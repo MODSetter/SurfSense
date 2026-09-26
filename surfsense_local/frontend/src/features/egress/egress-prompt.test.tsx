@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { act, cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { requestVoid } from "@/lib/api"
 import { render } from "@/test-utils"
 
+import { askEgress } from "./ask-egress"
 import { EgressPrompt } from "./egress-prompt"
 
 const REFUSED = {
@@ -104,5 +106,58 @@ describe("egress prompt", () => {
 
     await refused
     expect(calls).toEqual(["POST /chat/threads/1/messages"])
+  })
+
+  it("asks from inside an open dialog as its nested dialog", async () => {
+    render(
+      <>
+        <EgressPrompt />
+        <Dialog open>
+          <DialogContent>
+            <DialogTitle>Settings</DialogTitle>
+            <EgressPrompt nested />
+          </DialogContent>
+        </Dialog>
+      </>
+    )
+
+    act(() => {
+      void askEgress({
+        destination: "app_updates",
+        host: "github.com",
+        allow: async () => undefined,
+      })
+    })
+
+    await screen.findByRole("alertdialog")
+    expect(screen.getAllByRole("alertdialog")).toHaveLength(1)
+    // Base UI steps the parent back only for a dialog rendered inside it.
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[role="dialog"]')
+          ?.hasAttribute("data-nested-dialog-open")
+      ).toBe(true)
+    )
+  })
+
+  it("hands questions back to the app once the dialog closes", async () => {
+    const view = render(
+      <>
+        <EgressPrompt />
+        <EgressPrompt nested />
+      </>
+    )
+    view.rerender(<EgressPrompt />)
+
+    act(() => {
+      void askEgress({
+        destination: "app_updates",
+        host: "github.com",
+        allow: async () => undefined,
+      })
+    })
+
+    expect(await screen.findByRole("alertdialog")).toBeTruthy()
   })
 })

@@ -39,6 +39,12 @@ contextBridge.exposeInMainWorld("surfsense", {
       ipcRenderer.on("updates:state", wrapped)
       return () => ipcRenderer.removeListener("updates:state", wrapped)
     },
+    onCheckRequested: (listener: () => void) => {
+      const wrapped = () => listener()
+      ipcRenderer.on("updates:check-requested", wrapped)
+      return () =>
+        ipcRenderer.removeListener("updates:check-requested", wrapped)
+    },
   },
   setTitleBarOverlay: (overlay: {
     color: string
@@ -51,6 +57,13 @@ contextBridge.exposeInMainWorld("surfsense", {
   },
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
+  },
+  help: {
+    onReportIssue: (listener: () => void): (() => void) => {
+      const wrapped = () => listener()
+      ipcRenderer.on("help:report-issue", wrapped)
+      return () => ipcRenderer.removeListener("help:report-issue", wrapped)
+    },
   },
   locale: {
     get: (): string => locale,

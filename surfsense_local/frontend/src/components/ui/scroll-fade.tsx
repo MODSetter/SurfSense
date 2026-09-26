@@ -1,4 +1,4 @@
-import type { ReactNode } from "react"
+import type { ComponentProps, ReactNode } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -9,6 +9,7 @@ export function ScrollFade({
   className,
   viewportClassName,
   scroll = true,
+  ...viewportProps
 }: {
   children: ReactNode
   className?: string
@@ -17,14 +18,21 @@ export function ScrollFade({
   // dialog section that scrolls its heading and body together). Renders
   // children at their natural height instead of a clipped, scrolling box.
   scroll?: boolean
-}) {
+} & Omit<ComponentProps<"div">, "children" | "className">) {
+  // The rest, `ref` included, land on the viewport: it is the element that
+  // scrolls, so it is the one a caller measures, labels or listens to.
   if (!scroll) {
-    return <div className={cn(viewportClassName)}>{children}</div>
+    return (
+      <div {...viewportProps} className={cn(viewportClassName)}>
+        {children}
+      </div>
+    )
   }
 
   return (
     <div className={cn("relative min-h-0", className)}>
       <div
+        {...viewportProps}
         data-slot="scroll-fade-viewport"
         className={cn(
           "h-full min-h-0 scroll-fade overflow-y-auto overscroll-contain [--scroll-fade-reveal:24px] scroll-fade-6",

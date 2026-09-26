@@ -85,6 +85,24 @@ describe("issue report", () => {
     expect(within(dialog).getByText(`Error: ${ERROR}`)).toBeTruthy()
   })
 
+  it("opens from the Help menu", async () => {
+    stubBridge()
+    let reportIssue = () => {}
+    window.surfsense!.help = {
+      onReportIssue: (listener) => {
+        reportIssue = listener
+        return () => {}
+      },
+    }
+    render(<IssueReportDialog />)
+
+    act(() => reportIssue())
+
+    expect(
+      await screen.findByRole("dialog", { name: "Report an issue" })
+    ).toBeTruthy()
+  })
+
   it("shows this session's log", async () => {
     stubBridge()
 

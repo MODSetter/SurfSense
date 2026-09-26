@@ -13,6 +13,7 @@ export function stubUpdateBridge(initial: {
   let prefs = { automatic: initial.automatic }
   let state = initial.state
   const listeners = new Set<(state: UpdateState) => void>()
+  const menuListeners = new Set<() => void>()
   const calls: string[] = []
   window.surfsense = {
     apiUrl: "",
@@ -37,10 +38,18 @@ export function stubUpdateBridge(initial: {
         listeners.add(listener)
         return () => listeners.delete(listener)
       },
+      onCheckRequested: (listener) => {
+        menuListeners.add(listener)
+        return () => menuListeners.delete(listener)
+      },
     },
   }
   return {
     calls,
+    // The app menu's Check for Updates….
+    checkFromMenu() {
+      for (const listener of menuListeners) listener()
+    },
     push(next: UpdateState) {
       state = next
       for (const listener of listeners) listener(next)

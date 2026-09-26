@@ -2,6 +2,7 @@ import { useId, useLayoutEffect, useRef } from "react"
 
 import { Button } from "@/components/ui/button"
 import { CheckIcon, CopyIcon } from "@/components/ui/icons"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { useCopyToClipboard } from "@/features/about/use-copy-to-clipboard"
 import { intl } from "@/i18n/intl"
 
@@ -12,7 +13,7 @@ export function SessionLogView({ lines }: { lines: string[] }) {
   const titleId = useId()
   const text = lines.join("\n")
   const { copied, copy } = useCopyToClipboard(text)
-  const logRef = useRef<HTMLPreElement>(null)
+  const logRef = useRef<HTMLDivElement>(null)
   const following = useRef(true)
 
   useLayoutEffect(() => {
@@ -52,8 +53,11 @@ export function SessionLogView({ lines }: { lines: string[] }) {
               })}
         </Button>
       </div>
-      {/* Polled every second, so a live region would read each new line aloud. */}
-      <pre
+      {/* Polled every second, so a live region would read each new line aloud.
+          The ring sits on the wrapper: the fade's mask would clip it. */}
+      <ScrollFade
+        className="rounded-lg bg-muted has-[:focus-visible]:ring-3 has-[:focus-visible]:ring-ring/50"
+        viewportClassName="h-56 max-h-[30vh] p-3 outline-none"
         ref={logRef}
         role="log"
         aria-labelledby={titleId}
@@ -65,15 +69,16 @@ export function SessionLogView({ lines }: { lines: string[] }) {
             log.scrollHeight - log.scrollTop - log.clientHeight <=
             FOLLOW_SLACK_PX
         }}
-        className="h-56 max-h-[30vh] overflow-y-auto rounded-lg bg-muted p-3 font-mono text-xs leading-relaxed wrap-anywhere whitespace-pre-wrap outline-none select-text focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        {lines.length > 0
-          ? text
-          : intl.formatMessage({
-              id: "feedback_log_empty",
-              defaultMessage: "Nothing logged yet",
-            })}
-      </pre>
+        <pre className="font-mono text-xs leading-relaxed wrap-anywhere whitespace-pre-wrap select-text">
+          {lines.length > 0
+            ? text
+            : intl.formatMessage({
+                id: "feedback_log_empty",
+                defaultMessage: "Nothing logged yet",
+              })}
+        </pre>
+      </ScrollFade>
     </section>
   )
 }

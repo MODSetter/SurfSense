@@ -16,11 +16,16 @@ export type Pending = {
 
 export type AskHandler = (request: Omit<Pending, "resolve">) => Promise<boolean>
 
-// Set while the dialog is mounted, for callers the API layer cannot speak for.
-let ask: AskHandler | null = null
+// One per mounted prompt; the innermost answers, so a prompt inside an open
+// dialog opens as that dialog's nested dialog.
+const handlers: AskHandler[] = []
 
-export function setAskHandler(handler: AskHandler | null): void {
-  ask = handler
+export function registerAskHandler(handler: AskHandler): () => void {
+  handlers.push(handler)
+  return () => {
+    const index = handlers.lastIndexOf(handler)
+    if (index !== -1) handlers.splice(index, 1)
+  }
 }
 
 /**
@@ -33,5 +38,6 @@ export function setAskHandler(handler: AskHandler | null): void {
  * shell simply gets no consent rather than an error.
  */
 export function askEgress(request: Omit<Pending, "resolve">): Promise<boolean> {
+  const ask = handlers.at(-1)
   return ask ? ask(request) : Promise.resolve(false)
 }

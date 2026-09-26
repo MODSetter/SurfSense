@@ -20,7 +20,7 @@ import {
   destinationsQueryKey,
   setDestinationEnabled,
 } from "./api"
-import { setAskHandler, type Pending } from "./ask-egress"
+import { registerAskHandler, type Pending } from "./ask-egress"
 
 function pendingFrom(error: ApiError, resolve: Pending["resolve"]): Pending {
   const { destination, host } = error.detail
@@ -33,7 +33,9 @@ function pendingFrom(error: ApiError, resolve: Pending["resolve"]): Pending {
   }
 }
 
-export function EgressPrompt() {
+// `nested`: rendered inside another dialog, it answers only questions asked
+// while that dialog is open; refused API calls stay with the app's prompt.
+export function EgressPrompt({ nested = false }: { nested?: boolean }) {
   const queryClient = useQueryClient()
   const [queue, setQueue] = useState<Pending[]>([])
   const [allowing, setAllowing] = useState(false)
@@ -42,17 +44,18 @@ export function EgressPrompt() {
   useEffect(() => {
     const enqueue = (pending: Pending) =>
       setQueue((queue) => [...queue, pending])
+    const unregister = registerAskHandler(
+      (request) => new Promise((resolve) => enqueue({ ...request, resolve }))
+    )
+    if (nested) return unregister
     setEgressPrompt(
       (error) => new Promise((resolve) => enqueue(pendingFrom(error, resolve)))
     )
-    setAskHandler(
-      (request) => new Promise((resolve) => enqueue({ ...request, resolve }))
-    )
     return () => {
       setEgressPrompt(null)
-      setAskHandler(null)
+      unregister()
     }
-  }, [])
+  }, [nested])
 
   const settle = (allowed: boolean) => {
     current?.resolve(allowed)

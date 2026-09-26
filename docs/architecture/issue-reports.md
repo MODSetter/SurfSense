@@ -1,8 +1,8 @@
 # Issue reports
 
-Report issue, below Plugins in the sidebar and on every error toast, shows what this run of the app has logged and turns the user's description into a GitHub bug report.
+Report issue, below Plugins in the sidebar, on every error toast and under Help › Report Issue… in the macOS menu bar (Windows and Linux draw no menu bar), shows what this run of the app has logged and turns the user's description into a GitHub bug report.
 
-**Code:** [`surfsense_local/frontend/src/features/feedback/`](../../surfsense_local/frontend/src/features/feedback/), [`surfsense_local/electron/src/main/session-log/`](../../surfsense_local/electron/src/main/session-log/), [`.github/ISSUE_TEMPLATE/bug.yml`](../../.github/ISSUE_TEMPLATE/bug.yml)
+**Code:** [`surfsense_local/frontend/src/features/feedback/`](../../surfsense_local/frontend/src/features/feedback/), [`surfsense_local/electron/src/main/session-log/`](../../surfsense_local/electron/src/main/session-log/), [`surfsense_local/electron/src/main/menu/`](../../surfsense_local/electron/src/main/menu/), [`.github/ISSUE_TEMPLATE/bug.yml`](../../.github/ISSUE_TEMPLATE/bug.yml)
 
 ## The session log
 
