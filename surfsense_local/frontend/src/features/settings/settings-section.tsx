@@ -13,7 +13,7 @@ export function SettingsSection({
   scrollable = true,
 }: {
   title: string
-  description: string
+  description?: string
   children: ReactNode
   footer?: ReactNode
   /** A sub-page names the page it returns to. */
@@ -39,9 +39,11 @@ export function SettingsSection({
         </Button>
       ) : null}
       <h2 className="font-heading text-lg font-medium text-balance">{title}</h2>
-      <p className="mt-1 text-sm text-pretty text-muted-foreground">
-        {description}
-      </p>
+      {description ? (
+        <p className="mt-1 text-sm text-pretty text-muted-foreground">
+          {description}
+        </p>
+      ) : null}
     </>
   )
 
