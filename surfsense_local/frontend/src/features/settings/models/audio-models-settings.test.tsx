@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
 import { render } from "@/test-utils"
 
 import { AudioModelsSettings } from "./audio-models-settings"
@@ -19,16 +20,6 @@ const budget = {
   ram_available_bytes: 16_000_000_000,
   uma: true,
   has_gpu: true,
-}
-
-function stream(lines: string[]) {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const line of lines)
-        controller.enqueue(new TextEncoder().encode(line))
-      controller.close()
-    },
-  })
 }
 
 /** audio.cpp's catalog row: no fit estimate, and what voicing takes instead. */
@@ -314,31 +305,10 @@ describe("audio model settings", () => {
   })
 
   it("names the phase while it downloads, as chat and image do", async () => {
-    // Left open so the download is still under way when the row is read.
-    let finish = () => {}
-    const open = new ReadableStream<Uint8Array>({
-      start(controller) {
-        finish = () => {
-          controller.enqueue(
-            new TextEncoder().encode(
-              '{"type":"complete","message":"Model is ready","selection":null}\n'
-            )
-          )
-          controller.close()
-        }
-        controller.enqueue(
-          new TextEncoder().encode(
-            '{"type":"downloading","message":"Downloading","completed":95000000,"total":190000000}\n'
-          )
-        )
-      },
+    const installs = fakeInstallApi({
+      modelTypes: { "opaque-kokoro": ["audio_gen"] },
     })
-    vi.stubGlobal(
-      "fetch",
-      serving([audioRow()], (path) =>
-        path === "/llm/install" ? new Response(open) : null
-      )
-    )
+    vi.stubGlobal("fetch", serving([audioRow()], installs.handle))
     const user = userEvent.setup()
     render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
 
@@ -346,6 +316,13 @@ describe("audio model settings", () => {
     await user.click(
       await screen.findByRole("button", { name: "Download Kokoro 82M Q8_0" })
     )
+
+    installs.move({
+      type: "downloading",
+      message: "Downloading",
+      completed: 95_000_000,
+      total: 190_000_000,
+    })
 
     const button = await screen.findByRole("button", {
       name: "Download Kokoro 82M Q8_0",
@@ -353,23 +330,13 @@ describe("audio model settings", () => {
     await waitFor(() => expect(button.textContent).toBe("Downloading…"))
     expect(screen.getAllByText("50%").length).toBeGreaterThan(0)
 
-    // Install state outlives the view, so the next test must not inherit it.
-    finish()
+    installs.complete()
     await waitFor(() => expect(button.textContent).toBe("Download"))
   })
 
   it("downloads through the catalog without selecting", async () => {
-    const fetchMock = serving([audioRow()], (path) =>
-      path === "/llm/install"
-        ? new Response(
-            stream([
-              '{"type":"downloading","completed":1,"total":2}\n',
-              '{"type":"complete","message":"Model is ready","selection":null}\n',
-            ])
-          )
-        : null
-    )
-    vi.stubGlobal("fetch", fetchMock)
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving([audioRow()], installs.handle))
     const user = userEvent.setup()
     render(<AudioModelsSettings onModelUnavailable={() => undefined} />)
 
@@ -378,14 +345,10 @@ describe("audio model settings", () => {
       await screen.findByRole("button", { name: "Download Kokoro 82M Q8_0" })
     )
 
-    await waitFor(() => {
-      const install = fetchMock.mock.calls.find(
-        ([path]) => path === "/llm/install"
-      )
-      expect(JSON.parse(String(install?.[1]?.body))).toEqual({
-        catalog_id: "opaque-kokoro",
-        select: false,
-      })
-    })
+    await waitFor(() =>
+      expect(installs.started).toEqual([
+        { catalog_id: "opaque-kokoro", select: false },
+      ])
+    )
   })
 })

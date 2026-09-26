@@ -1,9 +1,8 @@
-import { InstallProgress } from "@/features/models/local/chat/install-progress"
 import { DownloadAudioModels } from "@/features/models/local/audio/download-audio-models"
-import { useAudioInstall } from "@/features/models/local/audio/use-audio-install"
 import { useDeleteLocalAudioModel } from "@/features/models/local/audio/use-delete-local-audio-model"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useAudioModels } from "@/features/models/your-models/use-audio-models"
+import { usePendingInstalls } from "@/features/models/local/installs/pending-installs"
 import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
@@ -17,7 +16,8 @@ export function AudioModelsSettings({
   const models = useAudioModels()
   const select = useSelect("audio_gen")
   const remove = useDeleteLocalAudioModel()
-  const { installState, cancelInstall } = useAudioInstall()
+  // Only downloads whose model can fill this slot, wherever they started.
+  const pending = usePendingInstalls("audio_gen")
 
   return (
     <ModelSlotSettings
@@ -32,17 +32,7 @@ export function AudioModelsSettings({
       slot="audio"
       modelType="audio_gen"
       models={models}
-      pending={
-        installState.status === "installing" ? (
-          <div className="flex flex-col gap-2">
-            <p className="truncate text-sm font-medium">{installState.label}</p>
-            <InstallProgress
-              event={installState.event}
-              onCancel={cancelInstall}
-            />
-          </div>
-        ) : null
-      }
+      pending={pending}
       download={<DownloadAudioModels />}
       onChatCleared={onModelUnavailable}
       onUse={async (row) => {

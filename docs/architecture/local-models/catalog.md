@@ -53,6 +53,7 @@ catalog/local/
   build.py  listed_file.py  quantization.py  classifier.py  installs.py  rows.py
   manifest/                 the entry envelope, strict config, loader, models.json
   install/                  plan.py, download.py (one path for every engine), tickets.py
+  install_jobs/             jobs.py (queue, cancel, feed), steps.py, describe.py, router.py
   engines/
     engine.py               the seam: what every engine answers
     registry.py             which engine runs which type, and the entry fields each reads
@@ -413,7 +414,7 @@ counted rather than decoded
 
 ## Install ids
 
-`POST /llm/install` takes `{"catalog_id": "...", "select": true}`, and
+`POST /llm/installs` takes `{"catalog_id": "...", "select": true}`, and
 optionally the `model_type` that `select` fills, the engine's first type when
 absent, so onboarding's editing step installs straight into `image_edit`. Nothing
 else: no repo, file, URL, path or quantization, so the renderer cannot name an
@@ -422,14 +423,34 @@ its repo and weights path; a searched build's is a ticket holding the whole buil
 and the repo's tag, kept for 300 s, the window the screen's search cache uses.
 Both fail the same way: `422 catalog id is stale or unknown; refresh the catalog`.
 
-## The install stream
+## Install jobs
 
-NDJSON, one `{"type": …}` frame per line:
+An install is a job the API owns, not a request: `POST /llm/installs` answers
+`202` with the job and returns, and the job runs on in the API whatever the
+renderer does. A job carries its `id`, `catalog_id`, a `label` the screens show
+(the row's name and build, or a searched repo's), the `model_types` its model
+can fill (the row's `selectable_for`; a searched build fills `text_gen`),
+`select`, `model_type`, and its latest `event`, one of the frames below. It ends
+on `complete`, `error` or `cancelled`, and a finished job stays listed for 60 s,
+so a screen that reconnects still learns how it ended
+([`install_jobs/`](../../../surfsense_local/backend/modules/llm/catalog/local/install_jobs/)).
+
+`GET /llm/installs/events` is NDJSON, `{"jobs": [...]}` per line: the whole list
+at once, again on every change, and every 15 s even when nothing changed. Each
+frame is complete, so a screen that missed one needs nothing replayed.
+`DELETE /llm/installs/{id}` cancels a running or waiting job.
+
+The renderer holds one copy: a query only that feed writes, opened once for the
+app ([`installs/`](../../../surfsense_local/frontend/src/features/models/local/installs/)).
+It toasts the end of a job it saw running, and refreshes the model queries when
+one completes, whether or not Settings is open.
+
+Event types:
 
 ```text
 queued       "Waiting for the download ahead of it"   only while another install runs; it starts when that one ends
 starting     "Checking the model"              every install; only a searched build's headers are read
-error        the reason, and the stream ends   when the exact check or the disk refuses
+error        the reason, and the job ends      when the exact check or the disk refuses
 starting     "Preparing download"
 downloading  completed / total, repeated       across every file of the build
 verifying    "Checking the model"              each file with a hash was checked as it landed
@@ -440,6 +461,7 @@ selecting    "Selecting model"                 only when select is true
 complete     "Model is ready"
              or "Downloaded. It becomes available once the runtime restarts."
 error        "The model could not be installed. Retry the download."
+cancelled    "Installation cancelled"          DELETE reached it, running or waiting
 ```
 
 The API fetches each file of the build from
@@ -449,16 +471,16 @@ gives no LFS hash goes unchecked): an in-process fetch is the only place
 `egress.require()` can hold. Each file lands as a `.part` and is renamed
 only when whole and verified, a cancelled download resumes with a `Range`
 request, and a file already where it lands with its pinned hash is not fetched
-again. One install runs at a time: a second opens with `queued` and waits
+again. One install runs at a time: a second job starts as `queued` and waits
 rather than failing, so a model chosen while another downloads still comes.
 Before any byte moves, the files not yet on disk plus 1 GiB must fit in the
-disk's free space, or the stream ends with how much room the download needs.
+disk's free space, or the job ends with how much room the download needs.
 Then the install record is written,
-`reprice()` rewrites the preset, the stream waits for the router to list the
+`reprice()` rewrites the preset, the job waits for the router to list the
 model and forwards its load progress, and with `select` the model becomes the
 `text_gen` selection ([`runtime.md`](runtime.md)).
 
-An image build takes the same stream into the images folder, with its record in
+An image build takes the same steps into the images folder, with its record in
 that folder's `installs.json`. Its weights keep their own name; every other file
 lands once in the folder's `shared/`, as `<first 12 hex of its sha256>-<name>`,
 since several models use the same VAE or text encoder and two different files
@@ -468,7 +490,7 @@ restart and nothing to warm. With `select` it becomes the `image_gen`
 selection, and Electron starts sd-server on it when a Studio job needs it
 ([`../studio.md`](../studio.md)).
 
-An audio build takes the same stream into the audio folder, with its record in
+An audio build takes the same steps into the audio folder, with its record in
 that folder's `installs.json`, and skips both `preparing` phases too. The install
 rewrites `server.json`, which names every installed audio model with its family
 and path; Electron restarts audio.cpp's server when the file changes, and a model
@@ -501,6 +523,7 @@ in place rather than renamed, since sd-server may hold it open, and revision
 ## HTTP routes
 
 All under `/llm`, in [`local/router.py`](../../../surfsense_local/backend/modules/llm/catalog/local/router.py);
+installs are in [`local/install_jobs/router.py`](../../../surfsense_local/backend/modules/llm/catalog/local/install_jobs/router.py);
 delete is in `modules/llm/router.py` beside the selection routes.
 
 | Route | Returns | Network |
@@ -509,13 +532,17 @@ delete is in `modules/llm/router.py` beside the selection routes.
 | `GET /llm/catalog/local` | budget, `gpu_status`, every local row, `recommended_id` | none |
 | `GET /llm/catalog/local/search?q=&limit=` | hits, described not judged | `host:huggingface.co` |
 | `GET /llm/catalog/local/search/{repo:path}` | the repo's row: builds with exact sizes and estimated fit | `host:huggingface.co` |
-| `POST /llm/install` | NDJSON progress stream | `host:huggingface.co` |
+| `POST /llm/installs` | `202` and the job, queued behind any running one | `host:huggingface.co` |
+| `GET /llm/installs` | every job, running, waiting, or finished in the last 60 s | none |
+| `GET /llm/installs/{id}` | one job | none |
+| `GET /llm/installs/events` | NDJSON: every job, now and on each change | none |
+| `DELETE /llm/installs/{id}` | `204`; `404` when it is unknown or already over | none |
 | `DELETE /llm/models/{model_name:path}` | `ModelDeleteRead`, with `selection_cleared` | none |
 
 Search, repo reads and downloads share one consent, `host:huggingface.co`
 ([`../egress.md`](../egress.md)). A destination that is off is a `403` with
 `code: egress_disabled`. An unreachable host is a `503` naming `huggingface.co`
-on search and repo reads, and the stream's generic error during an install.
+on search and repo reads, and the job's generic error during an install.
 
 ## On the screen
 
@@ -557,16 +584,21 @@ The chat catalog, from the top:
 
 Rules the screen holds:
 
-- The install button names the phase ("Starting…", "Downloading…",
+- The install button names the phase ("Waiting…", "Starting…", "Downloading…",
   "Verifying…", "Preparing…", "Selecting…"), and the progress bar and Cancel sit under the build being
   installed, curated or searched. "Other builds" stays open while one of its
   builds installs.
+- A download blocks nothing but itself: every other Download stays enabled and
+  queues behind it, reading "Waiting…". Delete is off while any job runs, since
+  the API refuses one then.
 - Reduced speed installs like any other build, with no confirmation. Only a
   refusal blocks.
 - Install errors, including the exact check's refusals, show as a toast.
-- An install belongs to the app, not the page that started it: leaving the
-  Add model page or closing Settings does not cancel it, and the section's list
-  shows its progress until it ends.
+- An install belongs to the API, not the page that started it: leaving the
+  Add model page, closing Settings or reloading does not cancel it. Each
+  section's list shows the jobs whose model can fill its slot, wherever they
+  were started, until they end: a video download shows under Video and nowhere
+  else, and FLUX.2 klein under both Image and Image editing.
 - The image section uses the same cards, install states and progress as chat;
   it only downloads without selecting, so a model is chosen with Use once it is
   on disk. Every downloaded model has Delete, the one in use included: the API
@@ -574,8 +606,7 @@ Rules the screen holds:
 - The image editing section is the image section's parts for `image_edit`: only
   models whose entry names `edit`, each marked In use by the build's
   `selected_for`, which lists the slots that chose it, so FLUX.2 klein in use for
-  images still offers Use for editing, with nothing to download. Both sections
-  share one sd.cpp download.
+  images still offers Use for editing, with nothing to download.
 - The audio section has the same install states, Use, In use and Delete as
   image, and its rows add what voicing takes. Every downloaded model has Delete,
   the one in use included: the API refuses while Studio is generating, otherwise
@@ -591,10 +622,10 @@ Unit tests in
 cover the manifest, builds, the build choice and lead, the classifier, support,
 pricing through the catalog (the badge matches the load on every budget shape; a
 recommended build never warns), reprice, search against mocked transports, and
-the service's installs, the audio.cpp slice's evidence and rows, and each
+the service's installs, install jobs (`test_install_jobs.py`), the audio.cpp slice's evidence and rows, and each
 engine's refresh assembly; the routes, audio's `server.json` included, are
 covered in
-[`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/),
+[`surfsense_local/backend/tests/integration/llm/`](../../../surfsense_local/backend/tests/integration/llm/), the feed over a real socket in `test_install_feed.py`,
 and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and the settings sections' `chat-models-settings.test.tsx`, `image-models-settings.test.tsx` and `audio-models-settings.test.tsx`.
 
 ## Known gaps
@@ -608,7 +639,7 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
-- `POST /llm/install` does not refuse a curated build that will not fit; only the screen's disabled Download does.
+- `POST /llm/installs` does not refuse a curated build that will not fit; only the screen's disabled Download does.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.

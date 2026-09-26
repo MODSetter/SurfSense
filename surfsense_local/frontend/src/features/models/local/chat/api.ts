@@ -1,8 +1,6 @@
-import { request, requestJson } from "@/lib/api"
-import { intl } from "@/i18n/intl"
+import { requestJson } from "@/lib/api"
 
 import type { ModelSelection } from "../../selection/api"
-import { parseNdjson } from "../read-ndjson"
 
 /**
  * Where a model's weights will live. Three states, and no `unknown`: every row
@@ -193,7 +191,7 @@ export type RepoDetail = {
 export type InstallEvent =
   | {
       // `queued`: another download runs, and this one starts when it ends.
-      type: "queued" | "starting" | "verifying" | "selecting"
+      type: "queued" | "starting" | "verifying" | "selecting" | "cancelled"
       message?: string
     }
   | {
@@ -248,50 +246,6 @@ export function getRepoDetail(
 }
 
 /** Resolves to the new selection, or null when `select` is false. */
-export async function installCatalogModel(
-  catalogId: string,
-  onEvent: (event: InstallEvent) => void,
-  signal?: AbortSignal,
-  select = true,
-  /** The slot `select` fills; the engine's own when absent. */
-  modelType?: string
-): Promise<ModelSelection | null> {
-  const response = await request("/llm/install", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      catalog_id: catalogId,
-      select,
-      ...(modelType ? { model_type: modelType } : {}),
-    }),
-    signal,
-  })
-  if (!response.body) {
-    throw new Error(
-      intl.formatMessage({
-        id: "models_install_stream_ended_error",
-        defaultMessage: "The install stream ended before completion",
-      })
-    )
-  }
-
-  for await (const event of parseNdjson<InstallEvent>(response.body)) {
-    onEvent(event)
-    if (event.type === "error") {
-      throw new Error(event.message)
-    }
-    if (event.type === "complete") {
-      return event.selection
-    }
-  }
-  throw new Error(
-    intl.formatMessage({
-      id: "models_install_stream_ended_error",
-      defaultMessage: "The install stream ended before completion",
-    })
-  )
-}
-
 export function deleteLocalModel(modelId: string): Promise<DeleteModelResult> {
   return requestJson<DeleteModelResult>(
     `/llm/models/${encodeURIComponent(modelId)}`,

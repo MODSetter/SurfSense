@@ -2,24 +2,20 @@
 
 `/llm/catalog/local` renders offline and at once. Search is its own request,
 egress gated, because what the user types goes to a third party. Opening a repo
-reads its listing only; the one header read happens when a build is installed.
+reads its listing only; the one header read happens when a build is installed
+(`install_jobs/`).
 """
 
-import json
-import logging
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import Mapping
 
 import httpx
-from fastapi import APIRouter, HTTPException, Request, status
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, HTTPException, status
 
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
-from modules.llm.catalog.local.install.plan import InstallRefusedError
 from modules.llm.catalog.local.rows import BuildRow, LocalRow
 from modules.llm.catalog.local.schemas import (
-    InstallRequest,
     LocalCatalogRead,
     RepoRead,
     SearchRead,
@@ -27,14 +23,10 @@ from modules.llm.catalog.local.schemas import (
 )
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
-from modules.llm.schemas import SelectionRead
 from modules.llm.selectable import selectable_for
-from modules.llm.selection import choose_model
 
 router = APIRouter()
-logger = logging.getLogger(__name__)
 
-STALE_ID = "catalog id is stale or unknown; refresh the catalog"
 UNREACHABLE = "huggingface.co is unreachable"
 
 
@@ -123,75 +115,6 @@ async def read_repo(repo: str, service: LocalCatalogDep, session: SessionDep) ->
     except httpx.HTTPError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, UNREACHABLE) from error
     return {"repo": repo, "gated": gated, "row": _row(row, in_use={})}
-
-
-@router.post("/install", summary="Download a model and optionally select it")
-async def install(
-    payload: InstallRequest,
-    request: Request,
-    service: LocalCatalogDep,
-    session: SessionDep,
-) -> StreamingResponse:
-    plan = service.resolve_install(payload.catalog_id)
-    if plan is None:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, STALE_ID)
-
-    await transact(session, egress.require, egress.HUGGINGFACE)
-
-    lock = service.install_lock()
-
-    async def progress() -> AsyncIterator[bytes]:
-        # One download at a time, in order: a second waits rather than fails,
-        # so a model chosen while another downloads still comes.
-        if lock.locked():
-            yield _event("queued", message="Waiting for the download ahead of it")
-        await lock.acquire()
-        try:
-            yield _event("starting", message="Checking the model")
-            try:
-                checked = await service.check(plan)
-            except InstallRefusedError as refused:
-                yield _event("error", message=str(refused))
-                return
-            yield _event("starting", message="Preparing download")
-            async for step in service.install(checked):
-                yield _event(
-                    "downloading",
-                    message=step.status,
-                    completed=step.completed,
-                    total=step.total,
-                )
-            yield _event("verifying", message="Checking the model")
-            engine = service.engine(checked.engine)
-            ready = "Model is ready"
-            async for step in engine.after_install(checked.model_id):
-                if step.kind == "complete":
-                    ready = step.message
-                    continue
-                yield _event(step.kind, message=step.message, progress=step.progress)
-            selection = None
-            if payload.select:
-                yield _event("selecting", message="Selecting model")
-                with request.app.state.session_factory() as fresh:
-                    chosen = await choose_model(
-                        fresh,
-                        payload.model_type or engine.model_types[0],
-                        engine.provider,
-                        checked.model_id,
-                    )
-                    selection = SelectionRead.model_validate(chosen).model_dump(
-                        mode="json"
-                    )
-            yield _event("complete", message=ready, selection=selection)
-        except Exception:
-            logger.exception("model install failed")
-            yield _event(
-                "error", message="The model could not be installed. Retry the download."
-            )
-        finally:
-            lock.release()
-
-    return StreamingResponse(progress(), media_type="application/x-ndjson")
 
 
 def _selected_local(
@@ -295,7 +218,3 @@ def _build(build: BuildRow, in_use: Mapping[str, list[ModelType]]) -> dict:
         "projector_checked": build.projector_checked,
         "bundled": build.bundled,
     }
-
-
-def _event(kind: str, **payload: object) -> bytes:
-    return (json.dumps({"type": kind, **payload}) + "\n").encode()

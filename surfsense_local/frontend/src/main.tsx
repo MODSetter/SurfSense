@@ -11,6 +11,7 @@ import { Toaster } from "@/components/ui/sonner.tsx"
 import { TooltipProvider } from "@/components/ui/tooltip.tsx"
 import { EgressPrompt } from "@/features/egress/egress-prompt.tsx"
 import { IssueReportDialog } from "@/features/feedback/issue-report-dialog.tsx"
+import { InstallFeed } from "@/features/models/local/installs/install-feed.tsx"
 import { MenuUpdateCheck } from "@/features/updates/menu-update-check.tsx"
 import { intl } from "@/i18n/intl.ts"
 import { followMainLocale } from "@/i18n/locale.ts"
@@ -43,6 +44,7 @@ createRoot(root).render(
               <App />
             </AppDialogs>
             <MenuUpdateCheck />
+            <InstallFeed />
             <Toaster position="top-right" />
           </TooltipProvider>
         </ThemeProvider>

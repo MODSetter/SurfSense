@@ -53,7 +53,7 @@ describe("api errors", () => {
     vi.resetModules()
     const { request } = await import("./api")
 
-    await expect(request("/llm/install")).rejects.toThrow(
+    await expect(request("/llm/installs")).rejects.toThrow(
       "insufficient disk space (5 GB required, 2 GB available)"
     )
   })
@@ -91,7 +91,7 @@ describe("egress prompt", () => {
     )
     setEgressPrompt(prompt)
 
-    const response = await request("/llm/install", {
+    const response = await request("/llm/installs", {
       method: "POST",
     })
 
@@ -110,7 +110,7 @@ describe("egress prompt", () => {
     setEgressPrompt(async () => false)
 
     await expect(
-      request("/llm/install", { method: "POST" })
+      request("/llm/installs", { method: "POST" })
     ).rejects.toMatchObject({ code: "egress_disabled" })
     expect(fetch).toHaveBeenCalledTimes(1)
   })

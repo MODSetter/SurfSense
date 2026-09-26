@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronRightIcon } from "@/components/ui/icons"
 import type { LocalBuild } from "@/features/models/local/chat/api"
 import { ModelSearch } from "@/features/models/local/chat/model-search"
-import type { InstallState } from "@/features/models/local/create-install"
+import type { InstallJob } from "@/features/models/local/installs/api"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -14,15 +14,15 @@ import { cn } from "@/lib/utils"
  * tested list above is enough for most people.
  */
 export function HuggingFaceSearch({
-  installState,
+  installs,
   disabled,
   onInstall,
   onCancel,
 }: {
-  installState: InstallState
+  installs: readonly InstallJob[]
   disabled: boolean
-  onInstall: (build: LocalBuild, label: string) => void
-  onCancel: () => void
+  onInstall: (build: LocalBuild) => void
+  onCancel: (jobId: string) => void
 }) {
   const searchId = useId()
   const [open, setOpen] = useState(false)
@@ -61,7 +61,7 @@ export function HuggingFaceSearch({
             autoFocus
             onInstall={onInstall}
             onCancel={onCancel}
-            installState={installState}
+            installs={installs}
             disabled={disabled}
           />
         </div>

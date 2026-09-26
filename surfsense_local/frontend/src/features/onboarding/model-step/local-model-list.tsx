@@ -7,7 +7,8 @@ import type { LocalRow } from "@/features/models/local/chat/api"
 import { BuildAction } from "@/features/models/local/chat/build-action"
 import { FitBadge } from "@/features/models/local/chat/fit-badge"
 import { InstallProgress } from "@/features/models/local/chat/install-progress"
-import type { InstallState } from "@/features/models/local/create-install"
+import type { InstallJob } from "@/features/models/local/installs/api"
+import { jobFor } from "@/features/models/local/installs/job-state"
 import { intl } from "@/i18n/intl"
 
 import { leadBuild } from "./local-choices"
@@ -26,7 +27,7 @@ const formatSize = (bytes: number) =>
  */
 export function LocalModelList({
   rows,
-  installState,
+  installs,
   disabled,
   onDownload,
   onUse,
@@ -34,11 +35,11 @@ export function LocalModelList({
   onDelete,
 }: {
   rows: LocalRow[]
-  installState: InstallState
+  installs: readonly InstallJob[]
   disabled: boolean
   onDownload: (row: LocalRow) => void
   onUse: (row: LocalRow) => void
-  onCancel: () => void
+  onCancel: (jobId: string) => void
   onDelete: (row: LocalRow) => void
 }) {
   return (
@@ -58,9 +59,7 @@ export function LocalModelList({
           const build = leadBuild(row)
           if (!build) return null
           const installed = build.installed_as !== null
-          const downloading =
-            installState.status === "installing" &&
-            installState.catalogId === build.catalog_id
+          const job = jobFor(installs, build.catalog_id)
           return (
             <li key={row.id} className="flex flex-col gap-2 px-4 py-3">
               <div className="flex items-center justify-between gap-3">
@@ -110,7 +109,7 @@ export function LocalModelList({
                   <BuildAction
                     build={build}
                     label={row.name}
-                    installState={installState}
+                    installs={installs}
                     disabled={disabled}
                     runtimeAvailable
                     onAction={() => (installed ? onUse(row) : onDownload(row))}
@@ -120,7 +119,8 @@ export function LocalModelList({
                       type="button"
                       size="icon-sm"
                       variant="destructive"
-                      disabled={disabled}
+                      // The API refuses a delete while any install runs.
+                      disabled={disabled || installs.length > 0}
                       aria-label={intl.formatMessage(
                         {
                           id: "onboarding_model_list_delete_aria",
@@ -137,10 +137,10 @@ export function LocalModelList({
                   ) : null}
                 </div>
               </div>
-              {downloading && installState.status === "installing" ? (
+              {job ? (
                 <InstallProgress
-                  event={installState.event}
-                  onCancel={onCancel}
+                  event={job.event}
+                  onCancel={() => onCancel(job.id)}
                 />
               ) : null}
             </li>

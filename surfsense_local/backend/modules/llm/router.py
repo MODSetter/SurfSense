@@ -9,6 +9,7 @@ from modules.artifacts.local_image_demand import local_image_demand
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.catalog.local.dependencies import LocalCatalogDep
+from modules.llm.catalog.local.install_jobs.router import router as install_jobs_router
 from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
 from modules.llm.connections.router import router as connections_router
@@ -34,6 +35,7 @@ from shared.config import get_llm_settings
 
 router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(local_catalog_router)
+router.include_router(install_jobs_router)
 router.include_router(remote_catalog_router)
 router.include_router(connections_router)
 

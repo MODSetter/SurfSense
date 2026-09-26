@@ -28,7 +28,8 @@ import {
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
-import type { InstallState } from "./use-chat-install"
+import type { InstallJob } from "../installs/api"
+import { jobFor } from "../installs/job-state"
 
 // Tall enough for a handful of results, so the common search neither moves the
 // page nor leaves a hole under a short list. The section is the last thing in
@@ -68,13 +69,13 @@ function RepoBuilds({
   repo,
   onInstall,
   onCancel,
-  installState,
+  installs,
   disabled,
 }: {
   repo: string
-  onInstall: (build: LocalBuild, label: string) => void
-  onCancel: () => void
-  installState: InstallState
+  onInstall: (build: LocalBuild) => void
+  onCancel: (jobId: string) => void
+  installs: readonly InstallJob[]
   disabled: boolean
 }) {
   const detail = useQuery({
@@ -138,39 +139,44 @@ function RepoBuilds({
           { repo }
         )}
       >
-        {row.builds.map((build) => (
-          <li
-            key={build.catalog_id || build.quantization}
-            className="flex flex-col gap-2 px-3 py-2"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium">
-                    {build.quantization}
-                  </span>
-                  <FitBadge fit={build.fit} copy={build.badge} />
-                  <span className="text-xs text-muted-foreground tabular-nums">
-                    {formatSize(build.footprint_bytes)}
-                  </span>
+        {row.builds.map((build) => {
+          const job = jobFor(installs, build.catalog_id)
+          return (
+            <li
+              key={build.catalog_id || build.quantization}
+              className="flex flex-col gap-2 px-3 py-2"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium">
+                      {build.quantization}
+                    </span>
+                    <FitBadge fit={build.fit} copy={build.badge} />
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {formatSize(build.footprint_bytes)}
+                    </span>
+                  </div>
+                  <FitReason copy={build.badge} />
                 </div>
-                <FitReason copy={build.badge} />
+                <BuildAction
+                  build={build}
+                  label={repo}
+                  installs={installs}
+                  disabled={disabled}
+                  runtimeAvailable
+                  onAction={onInstall}
+                />
               </div>
-              <BuildAction
-                build={build}
-                label={repo}
-                installState={installState}
-                disabled={disabled}
-                runtimeAvailable
-                onAction={(target) => onInstall(target, repo)}
-              />
-            </div>
-            {installState.status === "installing" &&
-            installState.catalogId === build.catalog_id ? (
-              <InstallProgress event={installState.event} onCancel={onCancel} />
-            ) : null}
-          </li>
-        ))}
+              {job ? (
+                <InstallProgress
+                  event={job.event}
+                  onCancel={() => onCancel(job.id)}
+                />
+              ) : null}
+            </li>
+          )
+        })}
       </ul>
     </>
   )
@@ -179,13 +185,13 @@ function RepoBuilds({
 export function ModelSearch({
   onInstall,
   onCancel,
-  installState,
+  installs,
   disabled,
   autoFocus = false,
 }: {
-  onInstall: (build: LocalBuild, label: string) => void
-  onCancel: () => void
-  installState: InstallState
+  onInstall: (build: LocalBuild) => void
+  onCancel: (jobId: string) => void
+  installs: readonly InstallJob[]
   disabled: boolean
   /** Only where the search was just asked for; a page that merely lists it
    *  must not focus it, since focusing raises the egress question. */
@@ -406,7 +412,7 @@ export function ModelSearch({
                           repo={hit.repo}
                           onInstall={onInstall}
                           onCancel={onCancel}
-                          installState={installState}
+                          installs={installs}
                           disabled={disabled}
                         />
                       </div>

@@ -88,8 +88,8 @@ async def test_one_grant_covers_everything_sent_to_huggingface(
 
     refusals = [
         await client.get("/llm/catalog/local/search", params={"q": "qwen"}),
-        await client.post("/llm/install", json={"catalog_id": catalog_id}),
-        await client.post("/llm/install", json={"catalog_id": image_id}),
+        await client.post("/llm/installs", json={"catalog_id": catalog_id}),
+        await client.post("/llm/installs", json={"catalog_id": image_id}),
     ]
 
     assert [refused.status_code for refused in refusals] == [403, 403, 403]

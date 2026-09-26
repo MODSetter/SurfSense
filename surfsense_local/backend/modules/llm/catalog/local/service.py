@@ -18,6 +18,7 @@ from modules.llm.catalog.local.install import download
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.install.tickets import TicketStore
+from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
 from modules.llm.catalog.local.installs import forget_install
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
@@ -76,6 +77,7 @@ class LocalCatalogService:
         self._curated_tokens: dict[tuple[str, str], str] = {}
         # One pull at a time: two downloads compete for one disk and one bar.
         self._install_lock = asyncio.Lock()
+        self._install_jobs = InstallJobs(self._install_lock)
         self.llamacpp = LlamaCppEngine(models_dir, runtime_url, self.budget)
         self.sdcpp = SdCppEngine(images_dir, manifest.models)
         self.audiocpp = AudioCppEngine(
@@ -92,6 +94,9 @@ class LocalCatalogService:
 
     def install_lock(self) -> asyncio.Lock:
         return self._install_lock
+
+    def install_jobs(self) -> InstallJobs:
+        return self._install_jobs
 
     # the machine ------------------------------------------------------------
 
