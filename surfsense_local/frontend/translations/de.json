@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "Wähle zuerst ein Chatmodell",
   "onboarding_hugging_face_search_hide_button": "Hugging-Face-Suche ausblenden",
   "onboarding_hugging_face_search_show_button": "Nicht dabei? Auf Hugging Face suchen",
-  "onboarding_image_edit_step_body": "Bearbeitet Bilder. Ein Bildmodell, das auch bearbeitet, braucht keinen weiteren Download.",
+  "onboarding_image_edit_step_body": "Bearbeitet Bilder für dich. {servers, select, yes {Führe eines auf diesem Computer aus oder nutze eines von einem Server.} other {Führe eines auf diesem Computer aus.}}",
   "onboarding_image_edit_step_no_local_empty": "Bildbearbeitungsmodelle können auf diesem Computer nicht laufen.{servers, select, yes { Nutze stattdessen einen Server.} other {}}",
   "onboarding_image_edit_step_title": "Modell für Bildbearbeitung wählen",
   "onboarding_image_step_body": "Erstellt Bilder für dich. {servers, select, yes {Führe eines auf diesem Computer aus oder nutze eines von einem Server.} other {Führe eines auf diesem Computer aus.}}",

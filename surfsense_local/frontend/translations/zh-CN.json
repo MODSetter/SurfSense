@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "请先选择对话模型",
   "onboarding_hugging_face_search_hide_button": "隐藏 Hugging Face 搜索",
   "onboarding_hugging_face_search_show_button": "没有列出？搜索 Hugging Face",
-  "onboarding_image_edit_step_body": "编辑图像。如果图像模型也能编辑，就无需再下载其他内容。",
+  "onboarding_image_edit_step_body": "为你编辑图像。{servers, select, yes {可以在这台电脑上运行一个，也可以使用服务器上的。} other {可以在这台电脑上运行一个。}}",
   "onboarding_image_edit_step_no_local_empty": "这台电脑无法运行图像编辑模型。{servers, select, yes {请改用服务器。} other {}}",
   "onboarding_image_edit_step_title": "选择图像编辑模型",
   "onboarding_image_step_body": "为你生成图像。{servers, select, yes {可以在这台电脑上运行一个，也可以使用服务器上的。} other {可以在这台电脑上运行一个。}}",

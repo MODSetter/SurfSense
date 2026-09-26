@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "Choisissez d’abord un modèle de chat",
   "onboarding_hugging_face_search_hide_button": "Masquer la recherche Hugging Face",
   "onboarding_hugging_face_search_show_button": "Absent de la liste ? Rechercher sur Hugging Face",
-  "onboarding_image_edit_step_body": "Modifie vos images. Un modèle d’image qui sait aussi les modifier ne nécessite aucun autre téléchargement.",
+  "onboarding_image_edit_step_body": "Modifie vos images. {servers, select, yes {Exécutez-en un sur cet ordinateur ou utilisez-en un depuis un serveur.} other {Exécutez-en un sur cet ordinateur.}}",
   "onboarding_image_edit_step_no_local_empty": "Les modèles de modification d’images ne peuvent pas fonctionner sur cet ordinateur.{servers, select, yes { Utilisez plutôt un serveur.} other {}}",
   "onboarding_image_edit_step_title": "Choisissez un modèle de modification d’images",
   "onboarding_image_step_body": "Crée vos images. {servers, select, yes {Exécutez-en un sur cet ordinateur ou utilisez-en un depuis un serveur.} other {Exécutez-en un sur cet ordinateur.}}",

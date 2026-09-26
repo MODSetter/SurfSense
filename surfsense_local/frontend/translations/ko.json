@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "먼저 채팅 모델을 선택하세요",
   "onboarding_hugging_face_search_hide_button": "Hugging Face 검색 숨기기",
   "onboarding_hugging_face_search_show_button": "목록에 없나요? Hugging Face 검색",
-  "onboarding_image_edit_step_body": "이미지를 편집해 줍니다. 편집도 되는 이미지 모델이라면 추가로 다운로드할 것이 없습니다.",
+  "onboarding_image_edit_step_body": "이미지를 편집해 줍니다. {servers, select, yes {이 컴퓨터에서 실행하거나, 서버의 모델을 사용하세요.} other {이 컴퓨터에서 실행하세요.}}",
   "onboarding_image_edit_step_no_local_empty": "이 컴퓨터에서는 이미지 편집 모델을 실행할 수 없습니다.{servers, select, yes { 대신 서버를 사용하세요.} other {}}",
   "onboarding_image_edit_step_title": "이미지 편집 모델 선택",
   "onboarding_image_step_body": "이미지를 만들어 줍니다. {servers, select, yes {이 컴퓨터에서 실행하거나, 서버의 모델을 사용하세요.} other {이 컴퓨터에서 실행하세요.}}",

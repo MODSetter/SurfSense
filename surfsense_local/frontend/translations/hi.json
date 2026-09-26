@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "पहले चैट मॉडल चुनें",
   "onboarding_hugging_face_search_hide_button": "Hugging Face खोज छिपाएं",
   "onboarding_hugging_face_search_show_button": "सूची में नहीं है? Hugging Face पर खोजें",
-  "onboarding_image_edit_step_body": "इमेज एडिट करता है। जो इमेज मॉडल एडिट भी करता है, उसके लिए कुछ और डाउनलोड नहीं करना पड़ता।",
+  "onboarding_image_edit_step_body": "आपके लिए इमेज एडिट करता है। {servers, select, yes {इसे इस कंप्यूटर पर चलाएं, या किसी सर्वर से इस्तेमाल करें।} other {इसे इस कंप्यूटर पर चलाएं।}}",
   "onboarding_image_edit_step_no_local_empty": "इमेज एडिटिंग मॉडल इस कंप्यूटर पर नहीं चल सकते।{servers, select, yes { इसके बजाय कोई सर्वर इस्तेमाल करें।} other {}}",
   "onboarding_image_edit_step_title": "इमेज एडिटिंग मॉडल चुनें",
   "onboarding_image_step_body": "आपके लिए इमेज बनाता है। {servers, select, yes {इसे इस कंप्यूटर पर चलाएं, या किसी सर्वर से इस्तेमाल करें।} other {इसे इस कंप्यूटर पर चलाएं।}}",

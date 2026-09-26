@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "先にチャットモデルを選んでください",
   "onboarding_hugging_face_search_hide_button": "Hugging Faceの検索を閉じる",
   "onboarding_hugging_face_search_show_button": "見つからない場合はHugging Faceを検索",
-  "onboarding_image_edit_step_body": "画像を編集します。編集もできる画像モデルなら、追加のダウンロードは不要です。",
+  "onboarding_image_edit_step_body": "画像を編集します。{servers, select, yes {このコンピューターで実行するか、サーバー上のモデルを使います。} other {このコンピューターで実行します。}}",
   "onboarding_image_edit_step_no_local_empty": "このコンピューターでは画像編集モデルを実行できません。{servers, select, yes {代わりにサーバーを使ってください。} other {}}",
   "onboarding_image_edit_step_title": "画像編集モデルを選択",
   "onboarding_image_step_body": "画像を作成します。{servers, select, yes {このコンピューターで実行するか、サーバー上のモデルを使います。} other {このコンピューターで実行します。}}",

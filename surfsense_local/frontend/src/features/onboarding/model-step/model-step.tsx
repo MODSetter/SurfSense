@@ -106,12 +106,15 @@ const COPY: Record<
         id: "onboarding_image_edit_step_title",
         defaultMessage: "Choose an image editing model",
       }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_body",
-        defaultMessage:
-          "Edits images. An image model that edits too needs nothing more to download.",
-      }),
+    description: (servers) =>
+      intl.formatMessage(
+        {
+          id: "onboarding_image_edit_step_body",
+          defaultMessage:
+            "Edits images for you. {servers, select, yes {Run one on this computer, or use one from a server.} other {Run one on this computer.}}",
+        },
+        { servers: servers ? "yes" : "no" }
+      ),
     noLocal: (servers) =>
       intl.formatMessage(
         {

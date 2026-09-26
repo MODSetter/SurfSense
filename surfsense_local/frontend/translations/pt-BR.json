@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "Escolha primeiro um modelo de chat",
   "onboarding_hugging_face_search_hide_button": "Ocultar a busca no Hugging Face",
   "onboarding_hugging_face_search_show_button": "Não está na lista? Busque no Hugging Face",
-  "onboarding_image_edit_step_body": "Edita imagens. Um modelo de imagem que também edita não precisa baixar mais nada.",
+  "onboarding_image_edit_step_body": "Edita imagens para você. {servers, select, yes {Execute um neste computador ou use um de um servidor.} other {Execute um neste computador.}}",
   "onboarding_image_edit_step_no_local_empty": "Modelos de edição de imagem não podem ser executados neste computador.{servers, select, yes { Em vez disso, use um servidor.} other {}}",
   "onboarding_image_edit_step_title": "Escolha um modelo de edição de imagem",
   "onboarding_image_step_body": "Cria imagens para você. {servers, select, yes {Execute um neste computador ou use um de um servidor.} other {Execute um neste computador.}}",

@@ -435,7 +435,7 @@
   "onboarding_finish_no_chat_model_error": "Сначала выберите модель для чата",
   "onboarding_hugging_face_search_hide_button": "Скрыть поиск по Hugging Face",
   "onboarding_hugging_face_search_show_button": "Нет в списке? Поищите на Hugging Face",
-  "onboarding_image_edit_step_body": "Редактирует изображения. Если модель для изображений умеет и редактировать, больше ничего скачивать не нужно.",
+  "onboarding_image_edit_step_body": "Редактирует для вас изображения. {servers, select, yes {Запустите её на этом компьютере или используйте модель с сервера.} other {Запустите её на этом компьютере.}}",
   "onboarding_image_edit_step_no_local_empty": "Модели для редактирования изображений не запускаются на этом компьютере.{servers, select, yes { Используйте вместо них сервер.} other {}}",
   "onboarding_image_edit_step_title": "Выберите модель редактирования изображений",
   "onboarding_image_step_body": "Создаёт для вас изображения. {servers, select, yes {Запустите её на этом компьютере или используйте модель с сервера.} other {Запустите её на этом компьютере.}}",
