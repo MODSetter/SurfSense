@@ -465,3 +465,277 @@
     animation: none;
   }
 }
+
+/* The thinking indicator (`features/chat/thinking-indicator.tsx`), ported
+ * from surfsense_web. Dark keeps the web's light-on-screen glow; light draws
+ * the same dots in ink, since screen blending on a pale ground erases them. */
+.ss-thinking-indicator {
+  --ss-thinking-core: var(--foreground);
+  --ss-thinking-glow: var(--muted-foreground);
+  --ss-thinking-cool: var(--notice);
+  --ss-thinking-warm: var(--warning);
+  --ss-thinking-blend: normal;
+}
+
+.dark .ss-thinking-indicator {
+  --ss-thinking-core: #fff;
+  --ss-thinking-glow: #dce8f0;
+  --ss-thinking-cool: #9de5ff;
+  --ss-thinking-warm: #ffd2a0;
+  --ss-thinking-blend: screen;
+}
+
+.ss-thinking-core {
+  fill: var(--ss-thinking-core);
+}
+
+.ss-thinking-glow {
+  fill: var(--ss-thinking-glow);
+}
+
+.ss-thinking-cool {
+  fill: var(--ss-thinking-cool);
+}
+
+.ss-thinking-warm {
+  fill: var(--ss-thinking-warm);
+}
+
+.ss-thinking-light,
+.ss-thinking-goo {
+  mix-blend-mode: var(--ss-thinking-blend);
+}
+
+.ss-thinking-dot {
+  transform: translate(var(--ss-thinking-x), var(--ss-thinking-y));
+  animation-duration: 6s;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+}
+
+.ss-thinking-dot,
+.ss-thinking-orbit,
+.ss-thinking-pulse,
+.ss-thinking-breathe-primary,
+.ss-thinking-breathe-secondary {
+  transform-box: view-box;
+  transform-origin: 12px 12px;
+  will-change: transform;
+}
+
+.ss-thinking-orbit {
+  animation: ss-thinking-orbit 17.95s linear infinite;
+}
+
+.ss-thinking-pulse {
+  animation: ss-thinking-pulse var(--ss-thinking-pulse-duration)
+    cubic-bezier(0.45, 0, 0.55, 1) var(--ss-thinking-pulse-delay) infinite;
+}
+
+.ss-thinking-breathe-primary {
+  animation: ss-thinking-breathe-primary 4.833s linear
+    var(--ss-thinking-breathe-primary-delay) infinite;
+}
+
+.ss-thinking-breathe-secondary {
+  animation: ss-thinking-breathe-secondary 2.618s linear
+    var(--ss-thinking-breathe-secondary-delay) infinite;
+}
+
+.ss-thinking-dot-a {
+  animation-name: ss-thinking-pair-a;
+}
+
+.ss-thinking-dot-b {
+  animation-name: ss-thinking-pair-b;
+}
+
+.ss-thinking-dot-c {
+  animation-name: ss-thinking-pair-c;
+}
+
+.ss-thinking-light {
+  animation: ss-thinking-luminance 6s ease-in-out infinite;
+}
+
+.ss-thinking-goo {
+  animation: ss-thinking-goo 6s ease-in-out infinite;
+}
+
+@keyframes ss-thinking-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ss-thinking-pulse {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  34% {
+    transform: translate(
+      var(--ss-thinking-pulse-x),
+      var(--ss-thinking-pulse-y)
+    );
+  }
+  68% {
+    transform: translate(
+      var(--ss-thinking-recoil-x),
+      var(--ss-thinking-recoil-y)
+    );
+  }
+}
+
+@keyframes ss-thinking-breathe-primary {
+  0%,
+  50%,
+  100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.18);
+  }
+  75% {
+    transform: scale(0.82);
+  }
+}
+
+@keyframes ss-thinking-breathe-secondary {
+  0%,
+  50%,
+  100% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.08);
+  }
+  75% {
+    transform: scale(0.92);
+  }
+}
+
+@keyframes ss-thinking-luminance {
+  0%,
+  72%,
+  100% {
+    opacity: 0.92;
+  }
+  88% {
+    opacity: 0.72;
+  }
+  92% {
+    opacity: 1;
+  }
+}
+
+@keyframes ss-thinking-goo {
+  0%,
+  10%,
+  20%,
+  28%,
+  40%,
+  72%,
+  100% {
+    opacity: 0.08;
+  }
+  16%,
+  24%,
+  32% {
+    opacity: 0.48;
+  }
+  82% {
+    opacity: 0.56;
+  }
+  88% {
+    opacity: 0.82;
+  }
+  92% {
+    opacity: 0.18;
+  }
+}
+
+/* Each pair crosses the centre in turn, then all six gather and burst. */
+@keyframes ss-thinking-pair-a {
+  0%,
+  6%,
+  27%,
+  72%,
+  100% {
+    transform: translate(var(--ss-thinking-x), var(--ss-thinking-y)) scale(1);
+  }
+  16% {
+    transform: translate(var(--ss-thinking-cross-x), var(--ss-thinking-cross-y))
+      scale(1.08);
+  }
+  82% {
+    transform: translate(0, 0) scale(0.88);
+  }
+  88% {
+    transform: translate(0, 0) scale(0.64);
+  }
+  92% {
+    transform: translate(var(--ss-thinking-burst-x), var(--ss-thinking-burst-y))
+      scale(1.1);
+  }
+}
+
+@keyframes ss-thinking-pair-b {
+  0%,
+  14%,
+  35%,
+  72%,
+  100% {
+    transform: translate(var(--ss-thinking-x), var(--ss-thinking-y)) scale(1);
+  }
+  24% {
+    transform: translate(var(--ss-thinking-cross-x), var(--ss-thinking-cross-y))
+      scale(1.08);
+  }
+  82% {
+    transform: translate(0, 0) scale(0.88);
+  }
+  88% {
+    transform: translate(0, 0) scale(0.64);
+  }
+  92% {
+    transform: translate(var(--ss-thinking-burst-x), var(--ss-thinking-burst-y))
+      scale(1.1);
+  }
+}
+
+@keyframes ss-thinking-pair-c {
+  0%,
+  22%,
+  43%,
+  72%,
+  100% {
+    transform: translate(var(--ss-thinking-x), var(--ss-thinking-y)) scale(1);
+  }
+  32% {
+    transform: translate(var(--ss-thinking-cross-x), var(--ss-thinking-cross-y))
+      scale(1.08);
+  }
+  82% {
+    transform: translate(0, 0) scale(0.88);
+  }
+  88% {
+    transform: translate(0, 0) scale(0.64);
+  }
+  92% {
+    transform: translate(var(--ss-thinking-burst-x), var(--ss-thinking-burst-y))
+      scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ss-thinking-dot,
+  .ss-thinking-orbit,
+  .ss-thinking-pulse,
+  .ss-thinking-breathe-primary,
+  .ss-thinking-breathe-secondary,
+  .ss-thinking-light,
+  .ss-thinking-goo {
+    animation: none;
+  }
+}
