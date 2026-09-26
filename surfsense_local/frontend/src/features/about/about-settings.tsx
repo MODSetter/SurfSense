@@ -105,7 +105,9 @@ export function AboutSettings() {
             })}
           </ExternalLink>
           {details ? (
-            <ExternalLink href={bugReportUrl(systemInfo(details))}>
+            <ExternalLink
+              href={bugReportUrl(`\n\n---\n${systemInfo(details)}`)}
+            >
               {intl.formatMessage({
                 id: "about_report_issue_link",
                 defaultMessage: "Report an issue",

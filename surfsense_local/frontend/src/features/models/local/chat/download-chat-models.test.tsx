@@ -682,9 +682,10 @@ describe("model catalog", () => {
     )
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Download interrupted", {
-        id: "model-install-error",
-      })
+      expect(toast.error).toHaveBeenCalledWith(
+        "Download interrupted",
+        expect.objectContaining({ id: "model-install-error" })
+      )
     )
   })
 })

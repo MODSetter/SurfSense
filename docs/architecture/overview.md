@@ -87,7 +87,7 @@ The rules that keep the processes out of each other's way:
 
 - A Vite and React SPA with Tailwind and shadcn/ui components in `components/ui/`, built on Base UI in shadcn's `base-nova` style; assistant-ui drives the conversation, and still depends on Radix. Packaged, Electron loads `frontend/dist/index.html` from disk, which is why Vite builds with relative asset paths. In dev it loads the Vite server on port 5173.
 - The API's address comes from the preload: Electron passes it as a command-line argument and [`preload/index.ts`](../../surfsense_local/electron/src/preload/index.ts) exposes it as `window.surfsense.apiUrl`. In a bare browser there is no preload, requests stay root-relative, and the Vite dev server forwards `/health`, `/llm`, `/workspaces`, `/chat` and `/artifacts` to `127.0.0.1:8000`.
-- The preload bridge is the renderer's only other channel: opening or revealing an original file, opening an external link, the platform name, updates, theme and the title bar. The renderer never sees Node or the sidecars.
+- The preload bridge is the renderer's only other channel: opening or revealing an original file, opening an external link, the platform name, updates, theme, the title bar and this session's log. The renderer never sees Node or the sidecars.
 - API calls go through `request()` in [`lib/api.ts`](../../surfsense_local/frontend/src/lib/api.ts), except the Studio viewers, which fetch an artifact's file bytes directly; an `<img>`, `<audio>` or download link takes its absolute address from `apiUrl()`. `request()` prefixes the address, turns an error body into an `ApiError` with its `code`, and when a user action is refused with `403 egress_disabled` it asks for consent and retries once.
 - TanStack Query holds most server state: threads and messages, the citation panel, the model catalog and settings, an open artifact. The sources list and the Studio artifact list are component state refreshed by the poll above.
 - There is no router. [`app/app-bootstrap.tsx`](../../surfsense_local/frontend/src/app/app-bootstrap.tsx) asks `GET /llm/onboarding`, then renders either onboarding ([`local-models/selection.md`](local-models/selection.md)) or the lazily loaded dashboard: the workspace rail, threads and sources on the left, the conversation in the middle, and Studio, artifacts and the citation panel on the right.
@@ -100,8 +100,8 @@ The rules that keep the processes out of each other's way:
 - [`backend/worker/`](../../surfsense_local/backend/worker/): `consumer.py` drains one queue per process, `jobs.py` holds status transitions and cancellation, `notify.py` the change notice, and `ingestion/` and `studio/` the two pipelines.
 - [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the two Huey queues, `retrieve()`, and the secret that encrypts stored keys.
 - [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0012`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
-- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `license`, `migration` and `updates`.
-- [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (boot, window, IPC and the image-model and preset watchers), `sidecars/` (the supervisor and one spec per sidecar), `secret.ts`, `updater.ts` and `document-files.ts`.
+- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `license`, `migration`, `updates` and `feedback`.
+- [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (boot, window, IPC and the image-model and preset watchers), `sidecars/` (the supervisor and one spec per sidecar), `session-log/` (this run's output, for issue reports), `secret.ts`, `updater.ts` and `document-files.ts`.
 
 ## Where to read next
 
@@ -113,7 +113,7 @@ The rules that keep the processes out of each other's way:
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in English, Japanese and German.
-- [Egress](egress.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [packaging](packaging.md), [sunset](sunset.md).
+- [Egress](egress.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [issue reports](issue-reports.md), [packaging](packaging.md), [sunset](sunset.md).
 - [Contracts](../contracts/README.md) between the trees.
 
 ## Known gaps

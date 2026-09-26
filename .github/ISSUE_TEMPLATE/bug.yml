@@ -33,3 +33,9 @@ body:
     attributes:
       label: How to reproduce
       description: Steps, version, or a short log if you have one.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: In the desktop app, Report issue copies this session's log to your clipboard. Paste it here, and remove anything you would rather not share.
+      render: text

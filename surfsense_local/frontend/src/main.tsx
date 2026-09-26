@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { Toaster } from "@/components/ui/sonner.tsx"
 import { TooltipProvider } from "@/components/ui/tooltip.tsx"
 import { EgressPrompt } from "@/features/egress/egress-prompt.tsx"
+import { IssueReportDialog } from "@/features/feedback/issue-report-dialog.tsx"
 import { intl } from "@/i18n/intl.ts"
 import { followMainLocale } from "@/i18n/locale.ts"
 import { queryClient } from "@/lib/query-client.ts"
@@ -35,6 +36,7 @@ createRoot(root).render(
           <TooltipProvider>
             <App />
             <EgressPrompt />
+            <IssueReportDialog />
             <Toaster position="top-right" />
           </TooltipProvider>
         </ThemeProvider>

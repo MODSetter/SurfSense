@@ -66,6 +66,8 @@ import { applyLocalePreference } from "./i18n/app-locale.ts"
 import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
 import { registerAboutHandlers } from "./about/about-ipc.ts"
+import { sessionLog } from "./session-log/session-log.ts"
+import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
 
@@ -375,6 +377,9 @@ async function registerUpdateHandlers(): Promise<void> {
   if (app.isPackaged) {
     // GitHub's CDN rejects the multi-range requests differential updates need.
     autoUpdater.disableDifferentialDownload = true
+    // Its default logger is the console, which a packaged app shows nowhere.
+    const log = (message: unknown) => sessionLog.append("updater", String(message))
+    autoUpdater.logger = { info: log, warn: log, error: log }
     updates = attachUpdater(autoUpdater, broadcast)
   } else {
     // ponytail: dev has no signed build to update; expose the same surface
@@ -497,6 +502,10 @@ function createWindow(apiUrl: string): void {
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null
   })
+  // Its info level is React's and Vite's development chatter.
+  win.webContents.on("console-message", ({ level, message }) => {
+    if (level === "warning" || level === "error") sessionLog.append("renderer", message)
+  })
 
   if (app.isPackaged) {
     win.on("close", () => saveWindowState(win))
@@ -570,6 +579,10 @@ function main(): void {
           mainWindow !== null && sender === mainWindow.webContents,
       })
       registerAboutHandlers()
+      registerSessionLogHandlers({
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
       installMenu()
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()

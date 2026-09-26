@@ -46,6 +46,9 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | this computer | このコンピューター | 이 컴퓨터 | 这台电脑 | यह कंप्यूटर | dieser Computer | este equipo | cet ordinateur | este computador | этот компьютер |
 | retry | 再試行 | 다시 시도 | 重试 | फिर से कोशिश करें | Erneut versuchen | Reintentar | Réessayer | Tentar novamente | Повторить |
 | View (menu) | 表示 | 보기 | 视图 | देखें | Darstellung | Ver | Affichage | Exibir | Вид |
+| report an issue | 問題を報告 | 문제 신고 | 报告问题 | समस्या रिपोर्ट करें | Problem melden | informar de un problema | signaler un problème | relatar um problema | сообщить о проблеме |
+| session log | セッションログ | 세션 로그 | 会话日志 | सेशन लॉग | Sitzungsprotokoll | registro de la sesión | journal de session | log da sessão | журнал сеанса |
+| clipboard | クリップボード | 클립보드 | 剪贴板 | क्लिपबोर्ड | Zwischenablage | portapapeles | presse-papiers | área de transferência | буфер обмена |
 
 ## What the English means
 
@@ -62,3 +65,4 @@ Strings whose English is ambiguous enough that every translator so far had to op
 | "Selecting" (`models_install_selecting_status`) | the install phase that makes the new model the active one, not the user picking anything. |
 | "Needs review" / "Got it" (`studio_flashcards_viewer_again_button`, `_good_button`) | the two grades on a card. Reuse the exact words in the reset dialog, which quotes them. |
 | "seats" (`license_status_seats_label`) | licensed users. |
+| “Logs”, “What happened?” (`feedback_form_note_body`, `feedback_log_copied_toast`, `feedback_report_copied_toast`) | field labels on the GitHub bug form, which is in English. Keep them in English, in the language's own quotation marks, so the reporter can find them on the page. |

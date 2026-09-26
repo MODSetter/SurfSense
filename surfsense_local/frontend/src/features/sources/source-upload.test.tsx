@@ -505,10 +505,13 @@ describe("source upload", () => {
     )
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith("Couldn’t add your source", {
-        id: "source-upload-error",
-        description: "Unsupported file type: unsupported.exe",
-      })
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t add your source",
+        expect.objectContaining({
+          id: "source-upload-error",
+          description: "Unsupported file type: unsupported.exe",
+        })
+      )
     )
     expect(fetchMock).not.toHaveBeenCalledWith(
       "/workspaces/1/documents/upload",

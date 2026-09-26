@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 import {
+  BugIcon,
   CircleAlertIcon,
   LayoutGridIcon,
   PlusIcon,
@@ -25,6 +26,7 @@ import { CitationPanel } from "@/features/chat/citation-panel"
 import { consentPlaceholder } from "@/features/chat/model-issue"
 import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
+import { openIssueReport } from "@/features/feedback/open-issue-report"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
@@ -222,6 +224,15 @@ function WorkspaceDashboard({
                       }),
                     }
                   ),
+              },
+              {
+                key: "report-issue",
+                label: intl.formatMessage({
+                  id: "dashboard_sidebar_report_issue_button",
+                  defaultMessage: "Report issue",
+                }),
+                icon: BugIcon,
+                onClick: () => openIssueReport(),
               },
             ]}
             sources={

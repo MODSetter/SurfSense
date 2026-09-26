@@ -10,11 +10,9 @@ export function releaseNotesUrl(version: string): string {
   return `${REPO_URL}/releases/tag/v${version}`
 }
 
-// `what` is a field id in .github/ISSUE_TEMPLATE/bug.yml; GitHub prefills it.
-export function bugReportUrl(systemInfo: string): string {
-  const params = new URLSearchParams({
-    template: "bug.yml",
-    what: `\n\n---\n${systemInfo}`,
-  })
+// `what` is a field id in .github/ISSUE_TEMPLATE/bug.yml; GitHub prefills it, and `title`.
+export function bugReportUrl(what: string, title?: string): string {
+  const params = new URLSearchParams({ template: "bug.yml", what })
+  if (title) params.set("title", title)
   return `${REPO_URL}/issues/new?${params}`
 }

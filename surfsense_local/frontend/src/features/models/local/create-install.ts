@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from "react"
 import { toast } from "sonner"
 
+import { errorToast } from "@/features/feedback/error-toast"
 import { intl } from "@/i18n/intl"
 
 import { useRefreshModels } from "../models-query"
@@ -103,7 +104,7 @@ export function createInstall({
             }
           )
         } else {
-          toast.error(messageFrom(error), { id: "model-install-error" })
+          errorToast(messageFrom(error), { id: "model-install-error" })
         }
       } finally {
         controller = null

@@ -107,10 +107,10 @@ describe("useStudio", () => {
 
     expect(toast.error).toHaveBeenCalledExactlyOnceWith(
       "Summary of the source failed",
-      {
+      expect.objectContaining({
         description:
           "This artifact couldn’t be generated. Retry it from the artifacts tab.",
-      }
+      })
     )
     const [, options] = vi.mocked(toast.error).mock.calls[0]
     expect(String(options?.description)).not.toContain("HTTPStatusError")
@@ -139,10 +139,10 @@ describe("useStudio", () => {
 
     expect(toast.error).toHaveBeenCalledExactlyOnceWith(
       "Summary of the source failed",
-      {
+      expect.objectContaining({
         description:
           "This artifact couldn’t be generated. Retry it from the artifacts tab.",
-      }
+      })
     )
   }, 8000)
 
