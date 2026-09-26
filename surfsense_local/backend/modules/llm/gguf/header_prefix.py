@@ -87,6 +87,21 @@ class HeaderPrefixReader(GGUFReader):
 
     header_tensors: tuple[HeaderTensor, ...]
 
+    def __init__(self, path: os.PathLike[str] | str) -> None:
+        """Map, and unmap again if the base constructor rejects the prefix.
+
+        The base class maps the file in its first statement and parses in the
+        rest, so a truncated prefix raises with the map still open and no
+        instance for the caller to close. Windows then refuses the unlink, and
+        that `PermissionError` replaces the `TruncatedHeaderError` a caller
+        widens on.
+        """
+        try:
+            super().__init__(path)
+        except BaseException:
+            self.close()
+            raise
+
     def _get(
         self,
         offset: int,
@@ -211,7 +226,7 @@ class HeaderPrefixReader(GGUFReader):
         Windows refuses to unlink a mapped file, and this runs once per searched
         model, so the map is closed explicitly rather than left to the collector.
         """
-        mapping = getattr(self.data, "_mmap", None)
+        mapping = getattr(getattr(self, "data", None), "_mmap", None)
         if mapping is not None:
             mapping.close()
 
