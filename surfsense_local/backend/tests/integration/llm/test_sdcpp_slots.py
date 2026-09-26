@@ -2,7 +2,6 @@
 model that edits too fills the editing slot from the same files, and a video
 model the video slot."""
 
-import json
 from pathlib import Path
 
 import pytest
@@ -11,6 +10,7 @@ from httpx import AsyncClient
 from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers import sdcpp
+from tests.integration.llm.installs import install_to_end
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -93,18 +93,16 @@ async def test_an_install_can_fill_the_editing_slot(
     rows = (await client.get("/llm/catalog/local")).json()["rows"]
     klein = next(r for r in rows if r["id"] == "flux2-klein-4b")
 
-    reply = await client.post(
-        "/llm/install",
-        json={
-            "catalog_id": klein["builds"][0]["catalog_id"],
-            "select": True,
-            "model_type": "image_edit",
-        },
+    job = await install_to_end(
+        client,
+        catalog_id=klein["builds"][0]["catalog_id"],
+        select=True,
+        model_type="image_edit",
     )
 
-    events = [json.loads(line) for line in reply.text.splitlines()]
-    assert events[-1]["type"] == "complete", events[-1]
-    assert events[-1]["selection"]["model_type"] == "image_edit"
+    assert job["event"]["type"] == "complete", job
+    assert job["event"]["selection"]["model_type"] == "image_edit"
+    assert set(job["model_types"]) == {"image_gen", "image_edit"}
     assert (await client.get("/llm/selection/image_gen")).status_code == 404
 
 

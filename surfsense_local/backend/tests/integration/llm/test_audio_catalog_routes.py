@@ -6,6 +6,8 @@ import json
 import pytest
 from httpx import AsyncClient
 
+from tests.integration.llm.installs import install_to_end
+
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
 AUDIO_IDS = {"kokoro-82m", "supertonic-3", "kitten-tts-mini-0.8"}
@@ -42,18 +44,15 @@ async def test_a_build_with_no_audio_cpp_offers_no_audio_rows(
 
 async def install(
     client: AsyncClient, model: str, quantization: str, *, select: bool = False
-) -> list[dict]:
-    """Install one curated audio build through the one install stream."""
+) -> dict:
+    """Install one curated audio build as a job, and wait for it to end."""
     body = (await client.get("/llm/catalog/local")).json()
     (build,) = [
         b
         for b in audio_rows(body)[model]["builds"]
         if b["quantization"] == quantization
     ]
-    reply = await client.post(
-        "/llm/install", json={"catalog_id": build["catalog_id"], "select": select}
-    )
-    return [json.loads(line) for line in reply.text.splitlines()]
+    return await install_to_end(client, catalog_id=build["catalog_id"], select=select)
 
 
 async def test_an_audio_build_installs_into_its_folder_and_names_itself_in_the_config(
@@ -61,9 +60,9 @@ async def test_an_audio_build_installs_into_its_folder_and_names_itself_in_the_c
 ) -> None:
     """Electron starts audio.cpp's server from `server.json` and restarts it
     when the file changes, so the install is what makes the model reachable."""
-    events = await install(client, "kokoro-82m", "Q8_0")
+    job = await install(client, "kokoro-82m", "Q8_0")
 
-    assert events[-1]["type"] == "complete", events[-1]
+    assert job["event"]["type"] == "complete", job
     assert (audio_dir / "kokoro-82m-q8_0.gguf").exists()
     config = json.loads((audio_dir / "server.json").read_text())
     assert config == {
@@ -178,10 +177,10 @@ async def test_an_audio_build_installed_with_select_becomes_the_audio_selection(
     client: AsyncClient, audio_dir, fake_hub
 ) -> None:
     """The one install stream fills the engine's own slot."""
-    events = await install(client, "supertonic-3", "F16", select=True)
+    job = await install(client, "supertonic-3", "F16", select=True)
 
-    assert events[-1]["type"] == "complete", events[-1]
-    selection = events[-1]["selection"]
+    assert job["event"]["type"] == "complete", job
+    selection = job["event"]["selection"]
     assert (selection["model_type"], selection["provider"], selection["name"]) == (
         "audio_gen",
         "audiocpp",

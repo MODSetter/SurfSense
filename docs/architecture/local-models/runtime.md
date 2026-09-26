@@ -220,11 +220,11 @@ load with `plan_load()` ([`fit.md`](fit.md)): the capacity budget decides the
 verdict, so the plan agrees with the badge the catalog showed, and the live
 budget caps how far the window widens past the floor.
 
-The install stream then waits. `wait_until_servable()` polls the router's
+The install job then waits. `wait_until_servable()` polls the router's
 `/models` for up to 30 s at 0.5 s intervals, because the router learns about a
 new model only by restarting, and reporting the install complete before then
 tells the user a model is ready while a chat returns `model '<id>' not found`, a
-400. A timeout returns `False` rather than raising, and the stream completes with
+400. A timeout returns `False` rather than raising, and the job completes with
 "Downloaded. It becomes available once the runtime restarts.": the download
 succeeded and the file is on disk, so reporting a failed install would be wrong.
 

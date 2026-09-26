@@ -8,11 +8,12 @@ import { intl } from "@/i18n/intl"
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
 import type { YourModelRow } from "../../your-models/your-model-row"
+import { useInstall } from "../installs/use-install"
+import { jobFor } from "../installs/job-state"
 import { BuildAction } from "../chat/build-action"
 import { InstallProgress } from "../chat/install-progress"
 import type { LocalAudioModel } from "./api"
 import { describeAudioModel } from "./describe-audio-model"
-import { useAudioInstall } from "./use-audio-install"
 import { useDeleteLocalAudioModel } from "./use-delete-local-audio-model"
 import { useLocalAudioCatalog } from "./use-local-audio-catalog"
 
@@ -42,7 +43,7 @@ function deletableRow(model: LocalAudioModel): YourModelRow | null {
 /** Audio models audio.cpp can run on this computer, with chat's and image's actions. */
 export function DownloadAudioModels() {
   const catalog = useLocalAudioCatalog()
-  const { installState, install, cancelInstall } = useAudioInstall()
+  const { installs, install, cancel } = useInstall({ select: false })
   const select = useSelect("audio_gen")
   const remove = useDeleteLocalAudioModel()
   const [deleting, setDeleting] = useState<YourModelRow | null>(null)
@@ -81,8 +82,8 @@ export function DownloadAudioModels() {
     )
   }
 
-  const busy =
-    installState.status === "installing" || select.isPending || remove.isPending
+  // A download does not block the rest: another one queues behind it.
+  const busy = select.isPending || remove.isPending
 
   const act = (model: LocalAudioModel) => {
     if (busy) return
@@ -97,7 +98,7 @@ export function DownloadAudioModels() {
         })
         .catch(() => undefined)
     } else {
-      void install(model.catalog_id, model.label)
+      void install(model.catalog_id)
     }
   }
 
@@ -114,9 +115,7 @@ export function DownloadAudioModels() {
     <div className="flex flex-col gap-3">
       <ul className="divide-y overflow-hidden rounded-xl border bg-card">
         {models.map((model) => {
-          const active =
-            installState.status === "installing" &&
-            installState.catalogId === model.catalog_id
+          const job = jobFor(installs, model.catalog_id)
           return (
             <li key={model.id} className="flex flex-col gap-2 px-3 py-2.5">
               <div className="flex items-center justify-between gap-3">
@@ -140,7 +139,7 @@ export function DownloadAudioModels() {
                   <BuildAction
                     build={model.build}
                     label={model.label}
-                    installState={installState}
+                    installs={installs}
                     disabled={busy}
                     runtimeAvailable
                     onAction={() => act(model)}
@@ -151,7 +150,8 @@ export function DownloadAudioModels() {
                       type="button"
                       size="icon-sm"
                       variant="destructive"
-                      disabled={busy}
+                      // The API refuses a delete while any install runs.
+                      disabled={busy || installs.length > 0}
                       aria-label={intl.formatMessage(
                         {
                           id: "models_download_audio_delete_aria",
@@ -172,10 +172,10 @@ export function DownloadAudioModels() {
                   ) : null}
                 </div>
               </div>
-              {active ? (
+              {job ? (
                 <InstallProgress
-                  event={installState.event}
-                  onCancel={cancelInstall}
+                  event={job.event}
+                  onCancel={() => cancel(job.id)}
                 />
               ) : null}
             </li>

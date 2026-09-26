@@ -9,12 +9,12 @@ import type { ModelSelection } from "../../selection/api"
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
 import type { YourModelRow } from "../../your-models/your-model-row"
+import { useInstall } from "../installs/use-install"
 import type { LocalBuild, LocalRow } from "./api"
 import { HardwareSummary } from "./hardware-summary"
 import { ModelCard } from "./model-card"
 import { ModelFamilyGroup } from "./model-family-group"
 import { ModelSearch } from "./model-search"
-import { useChatInstall } from "./use-chat-install"
 import { useDeleteLocalChatModel } from "./use-delete-local-chat-model"
 import { useLocalChatCatalog } from "./use-local-chat-catalog"
 
@@ -62,7 +62,8 @@ export function DownloadChatModels({
 }) {
   const headingId = useId()
   const catalog = useLocalChatCatalog()
-  const { installState, install, cancelInstall } = useChatInstall(onSelected)
+  // Downloading does not select: a model is chosen with Use once it is on disk.
+  const { installs, install, cancel } = useInstall({ select: false })
   const select = useSelect("text_gen")
   const remove = useDeleteLocalChatModel(onModelUnavailable)
   const [deleting, setDeleting] = useState<{
@@ -95,12 +96,12 @@ export function DownloadChatModels({
   const curated = catalog.data.rows.filter(
     (row) => row.origin === "curated" && row.engine === "llamacpp"
   )
-  const busy =
-    installState.status === "installing" || select.isPending || remove.isPending
+  // A download does not block the rest: another one queues behind it.
+  const busy = select.isPending || remove.isPending
 
   // No confirmation for a partial fit: it runs, slower, and llama.cpp places
   // the layers. Only physics blocks, and that is already `can_install`.
-  const act = (build: LocalBuild, label: string) => {
+  const act = (build: LocalBuild) => {
     if (busy) return
     if (build.installed_as) {
       void select
@@ -114,7 +115,7 @@ export function DownloadChatModels({
         .then((selection) => onSelected?.(selection))
         .catch(() => undefined)
     } else {
-      void install(build.catalog_id, label)
+      void install(build.catalog_id)
     }
   }
 
@@ -159,13 +160,11 @@ export function DownloadChatModels({
                 <li key={row.id}>
                   <ModelCard
                     row={row}
-                    installState={installState}
+                    installs={installs}
                     actionsDisabled={busy}
                     runtimeAvailable
-                    onAction={(build) =>
-                      act(build, `${row.name} ${build.quantization}`)
-                    }
-                    onCancel={cancelInstall}
+                    onAction={act}
+                    onCancel={cancel}
                     onDelete={(build) => {
                       const target = deletableRow(
                         build,
@@ -204,8 +203,8 @@ export function DownloadChatModels({
 
       <ModelSearch
         onInstall={act}
-        onCancel={cancelInstall}
-        installState={installState}
+        onCancel={cancel}
+        installs={installs}
         disabled={busy}
       />
 

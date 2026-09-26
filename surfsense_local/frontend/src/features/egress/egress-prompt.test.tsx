@@ -86,7 +86,7 @@ describe("egress prompt", () => {
     )
     render(<EgressPrompt />)
 
-    void requestVoid("/llm/install", { method: "POST" }).catch(() => {})
+    void requestVoid("/llm/installs", { method: "POST" }).catch(() => {})
 
     const dialog = await screen.findByRole("alertdialog")
     expect(dialog.textContent).toContain("what you type")

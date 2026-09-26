@@ -1,9 +1,9 @@
 """Image models in the one local catalog, offered by sd.cpp."""
 
-import json
-
 import pytest
 from httpx import AsyncClient
+
+from tests.integration.llm.installs import install_to_end, wait_for_end
 
 pytestmark = [pytest.mark.integration, pytest.mark.asyncio]
 
@@ -62,13 +62,11 @@ async def test_an_image_build_installs_into_its_folder_and_is_selected(
     body = (await client.get("/llm/catalog/local")).json()
     build = image_rows(body)["stable-diffusion-1.5"]["builds"][0]
 
-    reply = await client.post(
-        "/llm/install", json={"catalog_id": build["catalog_id"], "select": True}
-    )
+    job = await install_to_end(client, catalog_id=build["catalog_id"], select=True)
 
-    events = [json.loads(line) for line in reply.text.splitlines()]
-    assert events[-1]["type"] == "complete", events[-1]
-    assert not any(e["type"] == "preparing" for e in events)
+    assert job["event"]["type"] == "complete", job
+    assert job["label"] == "Stable Diffusion 1.5 Q4_0"
+    assert job["model_types"] == ["image_gen"]
     assert (images_dir / "v1-5-pruned_Q4_0.gguf").exists()
     selection = (await client.get("/llm/selection/image_gen")).json()
     assert (selection["provider"], selection["name"]) == ("sdcpp", "v1-5-pruned_Q4_0")
@@ -106,18 +104,17 @@ async def test_a_second_install_waits_its_turn_instead_of_failing(
     ahead = get_local_catalog().install_lock()
     await ahead.acquire()
 
-    second = asyncio.create_task(
-        client.post("/llm/install", json={"catalog_id": build["catalog_id"]})
+    second = await client.post(
+        "/llm/installs", json={"catalog_id": build["catalog_id"]}
     )
     await asyncio.sleep(0.2)
-    assert not second.done()
-    ahead.release()
-    reply = await second
 
-    events = [json.loads(line) for line in reply.text.splitlines()]
-    assert reply.status_code == 200
-    assert events[0]["type"] == "queued"
-    assert events[-1]["type"] == "complete", events[-1]
+    assert second.status_code == 202
+    waiting = (await client.get(f"/llm/installs/{second.json()['id']}")).json()
+    assert waiting["event"]["type"] == "queued"
+    ahead.release()
+    job = await wait_for_end(client, second.json()["id"])
+    assert job["event"]["type"] == "complete", job
 
 
 async def test_a_download_the_disk_cannot_hold_is_refused_before_it_starts(
@@ -136,9 +133,8 @@ async def test_a_download_the_disk_cannot_hold_is_refused_before_it_starts(
     body = (await client.get("/llm/catalog/local")).json()
     build = image_rows(body)["stable-diffusion-1.5"]["builds"][0]
 
-    reply = await client.post("/llm/install", json={"catalog_id": build["catalog_id"]})
+    job = await install_to_end(client, catalog_id=build["catalog_id"])
 
-    events = [json.loads(line) for line in reply.text.splitlines()]
-    assert events[-1]["type"] == "error"
-    assert "4.1 GB free" in events[-1]["message"]
+    assert job["event"]["type"] == "error"
+    assert "4.1 GB free" in job["event"]["message"]
     assert not (images_dir / "v1-5-pruned_Q4_0.gguf").exists()

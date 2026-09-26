@@ -1,9 +1,8 @@
-import { InstallProgress } from "@/features/models/local/chat/install-progress"
 import { DownloadImageModels } from "@/features/models/local/image/download-image-models"
 import { useDeleteLocalImageModel } from "@/features/models/local/image/use-delete-local-image-model"
-import { useImageInstall } from "@/features/models/local/image/use-image-install"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useImageModels } from "@/features/models/your-models/use-image-models"
+import { usePendingInstalls } from "@/features/models/local/installs/pending-installs"
 import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
@@ -19,7 +18,8 @@ export function ImageEditModelsSettings({
   const select = useSelect("image_edit")
   const remove = useDeleteLocalImageModel()
   // One sd.cpp download at a time, shown in both sections.
-  const { installState, cancelInstall } = useImageInstall()
+  // Only downloads whose model can fill this slot, wherever they started.
+  const pending = usePendingInstalls("image_edit")
 
   return (
     <ModelSlotSettings
@@ -35,17 +35,7 @@ export function ImageEditModelsSettings({
       slot="image_edit"
       modelType="image_edit"
       models={models}
-      pending={
-        installState.status === "installing" ? (
-          <div className="flex flex-col gap-2">
-            <p className="truncate text-sm font-medium">{installState.label}</p>
-            <InstallProgress
-              event={installState.event}
-              onCancel={cancelInstall}
-            />
-          </div>
-        ) : null
-      }
+      pending={pending}
       download={<DownloadImageModels slot="image_edit" />}
       onChatCleared={onModelUnavailable}
       onUse={async (row) => {

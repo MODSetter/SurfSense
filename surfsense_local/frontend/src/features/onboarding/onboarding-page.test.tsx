@@ -2,6 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
 
@@ -92,8 +93,11 @@ function backend({
   selections = {} as Record<string, Record<string, unknown>>,
   connections = [] as unknown[],
   onDisk = [] as string[],
+  /** Leave each download running until the test ends it. */
+  holdInstalls = false,
 } = {}) {
   const installed = new Set<string>(onDisk)
+  const installs = fakeInstallApi()
   const slotOf = (engine: Engine) => SLOT[engine]
 
   const catalogRows = () =>
@@ -118,7 +122,7 @@ function backend({
       }),
     }))
 
-  return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+  const serve = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input)
     if (path === "/llm/catalog/local") {
       return Response.json({
@@ -141,7 +145,7 @@ function backend({
         ? Response.json(selections[slot])
         : Response.json({ detail: "not selected" }, { status: 404 })
     }
-    if (path === "/llm/install" && init?.method === "POST") {
+    if (path === "/llm/installs" && init?.method === "POST") {
       const body = JSON.parse(String(init.body))
       const file = String(body.catalog_id).replace("opaque-", "")
       const entry = rows.find((candidate) => candidate.id === file)
@@ -158,14 +162,18 @@ function backend({
           }
         : null
       if (selection) selections[slot] = selection
-      return new Response(
-        [
-          JSON.stringify({ type: "downloading", completed: 1, total: 2 }),
-          JSON.stringify({ type: "complete", selection }),
-          "",
-        ].join("\n")
-      )
+      const reply = installs.handle(path, init)
+      const job = await reply?.clone().json()
+      setTimeout(() => {
+        installs.move({ type: "downloading", completed: 1, total: 2 }, job.id)
+        if (!holdInstalls) {
+          installs.move({ type: "complete", selection }, job.id)
+        }
+      })
+      return reply
     }
+    const handled = installs.handle(path, init)
+    if (handled) return handled
     if (path.startsWith("/llm/models/") && init?.method === "DELETE") {
       const file = decodeURIComponent(path.split("/").at(-1) ?? "")
       installed.delete(file)
@@ -235,6 +243,12 @@ function backend({
     }
     return Response.json({ detail: "not found" }, { status: 404 })
   })
+  return Object.assign(serve, { installs })
+}
+
+/** The body of each install the screen started. */
+function installsStarted(fetchMock: ReturnType<typeof backend>) {
+  return fetchMock.installs.started
 }
 
 const chatChosen = {
@@ -413,16 +427,15 @@ describe("onboarding", () => {
       await screen.findByRole("button", { name: "Download Wan2.1 1.3B Q4_K_M" })
     )
 
-    await waitFor(() => {
-      const install = fetchMock.mock.calls.find(
-        ([path]) => path === "/llm/install"
-      )
-      expect(JSON.parse(String(install?.[1]?.body))).toMatchObject({
-        catalog_id: "opaque-wan-small",
-        select: true,
-        model_type: "video_gen",
-      })
-    })
+    await waitFor(() =>
+      expect(installsStarted(fetchMock)).toEqual([
+        {
+          catalog_id: "opaque-wan-small",
+          select: true,
+          model_type: "video_gen",
+        },
+      ])
+    )
   })
 
   it("leads the editing step with the image model when it edits too", async () => {
@@ -526,14 +539,10 @@ describe("onboarding", () => {
     )
 
     await expectReady("Qwen3 4B Q4_K_M")
-    const install = fetchMock.mock.calls.find(
-      ([path]) => path === "/llm/install"
-    )
     // Onboarding's download is also the choice: no second click to use it.
-    expect(JSON.parse(String(install?.[1]?.body))).toEqual({
-      catalog_id: "opaque-qwen3-4b",
-      select: true,
-    })
+    expect(installsStarted(fetchMock)).toEqual([
+      { catalog_id: "opaque-qwen3-4b", select: true, model_type: "text_gen" },
+    ])
     await waitFor(() =>
       expect(
         screen
@@ -574,32 +583,8 @@ describe("onboarding", () => {
   })
 
   it("shows a download under its row and stays put", async () => {
-    let release = () => {}
-    const held = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const base = backend()
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
-        if (String(input) !== "/llm/install") return base(input, init)
-        // Let the backend record the install, then hold the stream open.
-        const finished = await base(input, init)
-        const text = await finished.text()
-        const encoder = new TextEncoder()
-        return new Response(
-          new ReadableStream<Uint8Array>({
-            async start(controller) {
-              const [progress, complete] = text.split("\n")
-              controller.enqueue(encoder.encode(`${progress}\n`))
-              await held
-              controller.enqueue(encoder.encode(`${complete}\n`))
-              controller.close()
-            },
-          })
-        )
-      })
-    )
+    const base = backend({ holdInstalls: true })
+    vi.stubGlobal("fetch", base)
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
     await toChatStep(user)
@@ -614,7 +599,7 @@ describe("onboarding", () => {
       await within(row as HTMLElement).findByRole("progressbar")
     ).toBeTruthy()
 
-    release()
+    base.installs.complete()
     await waitFor(() =>
       expect(within(row as HTMLElement).getByText("In use")).toBeTruthy()
     )
@@ -670,15 +655,15 @@ describe("onboarding", () => {
       })
     )
 
-    await waitFor(() => {
-      const install = fetchMock.mock.calls.find(
-        ([path]) => path === "/llm/install"
-      )
-      expect(JSON.parse(String(install?.[1]?.body))).toEqual({
-        catalog_id: "opaque-qwen3-14b",
-        select: true,
-      })
-    })
+    await waitFor(() =>
+      expect(installsStarted(fetchMock)).toEqual([
+        {
+          catalog_id: "opaque-qwen3-14b",
+          select: true,
+          model_type: "text_gen",
+        },
+      ])
+    )
   })
 
   it("offers no search on the image, image editing, video or audio step", async () => {

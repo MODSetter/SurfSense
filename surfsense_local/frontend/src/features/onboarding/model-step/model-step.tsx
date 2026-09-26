@@ -16,6 +16,7 @@ import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
+import { useInstall } from "@/features/models/local/installs/use-install"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
 import { serversCanServe } from "@/features/models/remote/servers-can-serve"
@@ -32,7 +33,6 @@ import { ModelReady } from "./model-ready"
 import { ServerOption } from "./server-option"
 import { ServerPath } from "./server-path"
 import { LOCAL_PROVIDER, type OnboardingSlot } from "./slot"
-import { onboardingInstalls } from "./use-onboarding-install"
 import { slotDeletes } from "./use-slot-delete"
 import { slotModels } from "./use-slot-models"
 
@@ -210,8 +210,11 @@ export function ModelStep({
 }) {
   const copy = COPY[modelType]
   const models = slotModels[modelType]()
-  const useInstall = onboardingInstalls[modelType]
-  const { installState, install, cancelInstall } = useInstall()
+  // Onboarding selects what it installs, so a first model takes one click.
+  const { installs, install, cancel } = useInstall({
+    select: true,
+    modelType,
+  })
   const select = useSelect(modelType)
   const remove = slotDeletes[modelType]()
   const connections = useConnections()
@@ -228,21 +231,21 @@ export function ModelStep({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
-  const installing = installState.status === "installing"
-  const busy = installing || select.isPending || remove.isPending || finishing
+  // A download does not block the rest: another one queues behind it.
+  const busy = select.isPending || remove.isPending || finishing
   const choices = localChoices(models.rows)
 
   // Neither a download nor Use moves the page: progress and "In use" show on
   // the row that asked for them.
   const download = (row: LocalRow) => {
     const build = leadBuild(row)
-    if (build) downloadBuild(build, row.name)
+    if (build) downloadBuild(build)
   }
 
   // A searched build installs through the same call: the id is opaque.
-  const downloadBuild = (build: LocalBuild, label: string) => {
+  const downloadBuild = (build: LocalBuild) => {
     if (busy) return
-    void install(build.catalog_id, label)
+    void install(build.catalog_id)
   }
 
   const use = (row: LocalRow) => {
@@ -342,11 +345,11 @@ export function ModelStep({
           {choices.length ? (
             <LocalModelList
               rows={choices}
-              installState={installState}
+              installs={installs}
               disabled={busy}
               onDownload={download}
               onUse={use}
-              onCancel={cancelInstall}
+              onCancel={cancel}
               onDelete={askDelete}
             />
           ) : (
@@ -356,10 +359,10 @@ export function ModelStep({
           )}
           {copy.searchable ? (
             <HuggingFaceSearch
-              installState={installState}
+              installs={installs}
               disabled={busy}
               onInstall={downloadBuild}
-              onCancel={cancelInstall}
+              onCancel={cancel}
             />
           ) : null}
         </section>

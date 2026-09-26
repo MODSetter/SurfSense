@@ -424,7 +424,7 @@ async def test_image_model_downloads_are_listed_and_refusable_too(
     rows = (await client.get("/llm/catalog/local")).json()["rows"]
     sd15 = next(r for r in rows if r["id"] == "stable-diffusion-1.5")
     denied = await client.post(
-        "/llm/install", json={"catalog_id": sd15["builds"][0]["catalog_id"]}
+        "/llm/installs", json={"catalog_id": sd15["builds"][0]["catalog_id"]}
     )
     assert denied.status_code == 403
     assert denied.json()["detail"]["destination"] == "host:huggingface.co"

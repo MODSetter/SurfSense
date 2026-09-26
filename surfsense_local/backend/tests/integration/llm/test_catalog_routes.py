@@ -102,7 +102,7 @@ async def test_installing_an_unknown_id_says_the_catalog_is_stale(
     client: AsyncClient,
 ) -> None:
     """Installing an unknown id says the catalog is stale."""
-    reply = await client.post("/llm/install", json={"catalog_id": "never-minted"})
+    reply = await client.post("/llm/installs", json={"catalog_id": "never-minted"})
 
     assert reply.status_code == 422
     assert "stale" in reply.json()["detail"]
@@ -115,7 +115,7 @@ async def test_a_curated_build_is_installed_by_its_opaque_id(
     body = (await client.get("/llm/catalog/local")).json()
     catalog_id = body["rows"][0]["builds"][0]["catalog_id"]
 
-    reply = await client.post("/llm/install", json={"catalog_id": catalog_id})
+    reply = await client.post("/llm/installs", json={"catalog_id": catalog_id})
 
     assert reply.status_code == 403
 
@@ -137,3 +137,17 @@ async def test_every_curated_row_says_which_build_it_leads_with_and_why(
                 "nothing_fits",
             }
             assert lead["quantization"] in {b["quantization"] for b in row["builds"]}
+
+
+async def test_an_install_that_is_not_running_cannot_be_cancelled(
+    client: AsyncClient,
+) -> None:
+    """Cancel names a job; one unknown or over is a 404, not a silent no-op."""
+    assert (await client.delete("/llm/installs/never-started")).status_code == 404
+    assert (await client.get("/llm/installs/never-started")).status_code == 404
+
+
+async def test_the_install_list_starts_empty(client: AsyncClient) -> None:
+    """A fresh app has no jobs, so no screen shows a download."""
+    assert (await client.get("/llm/installs")).json() == {"jobs": []}
+

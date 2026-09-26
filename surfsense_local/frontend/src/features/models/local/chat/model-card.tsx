@@ -16,11 +16,12 @@ import {
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 import { buildSize } from "../build-size"
+import type { InstallJob } from "../installs/api"
+import { jobFor } from "../installs/job-state"
 import type { LocalBuild, LocalRow } from "./api"
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
-import type { InstallState } from "./use-chat-install"
 
 const formatSize = (bytes: number) =>
   intl.formatNumber(bytes / 1e9, {
@@ -31,7 +32,7 @@ const formatSize = (bytes: number) =>
 
 export function ModelCard({
   row,
-  installState,
+  installs,
   actionsDisabled,
   runtimeAvailable,
   onAction,
@@ -39,11 +40,11 @@ export function ModelCard({
   onDelete,
 }: {
   row: LocalRow
-  installState: InstallState
+  installs: readonly InstallJob[]
   actionsDisabled: boolean
   runtimeAvailable: boolean
   onAction: (build: LocalBuild) => void
-  onCancel: () => void
+  onCancel: (jobId: string) => void
   onDelete?: (build: LocalBuild) => void
 }) {
   const buildsId = useId()
@@ -54,12 +55,11 @@ export function ModelCard({
 
   // The bar sits under whichever build is downloading, the lead or one listed
   // under it, the same as a searched repo's builds.
-  const installing = (build: LocalBuild) =>
-    installState.status === "installing" &&
-    installState.catalogId === build.catalog_id
+  const installing = (build: LocalBuild) => jobFor(installs, build.catalog_id)
   const others = row.builds.filter((b) => b !== lead)
   // Kept open while one of its builds downloads, so its bar cannot be hidden.
-  const expanded = open || others.some(installing)
+  const expanded = open || others.some((build) => installing(build) != null)
+  const leadJob = installing(lead)
 
   return (
     <article className="px-3 py-2 transition-colors hover:bg-muted/20">
@@ -125,7 +125,7 @@ export function ModelCard({
             <BuildAction
               build={lead}
               label={row.name}
-              installState={installState}
+              installs={installs}
               disabled={actionsDisabled}
               runtimeAvailable={runtimeAvailable}
               onAction={onAction}
@@ -136,7 +136,8 @@ export function ModelCard({
               type="button"
               size="icon-sm"
               variant="destructive"
-              disabled={actionsDisabled}
+              // The API refuses a delete while any install runs.
+              disabled={actionsDisabled || installs.length > 0}
               aria-label={intl.formatMessage(
                 {
                   id: "models_model_card_delete_aria",
@@ -154,9 +155,12 @@ export function ModelCard({
         </div>
       </div>
 
-      {installing(lead) && installState.status === "installing" ? (
+      {leadJob ? (
         <div className="mt-2">
-          <InstallProgress event={installState.event} onCancel={onCancel} />
+          <InstallProgress
+            event={leadJob.event}
+            onCancel={() => onCancel(leadJob.id)}
+          />
         </div>
       ) : null}
 
@@ -210,38 +214,41 @@ export function ModelCard({
                 }
               )}
             >
-              {others.map((build) => (
-                <li
-                  key={build.catalog_id || build.quantization}
-                  className="flex flex-col gap-2 px-2.5 py-1.5"
-                >
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-2">
-                      <span className="font-mono text-xs">
-                        {build.quantization}
-                      </span>
-                      <FitBadge fit={build.fit} copy={build.badge} />
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {formatSize(buildSize(build))}
-                      </span>
+              {others.map((build) => {
+                const job = installing(build)
+                return (
+                  <li
+                    key={build.catalog_id || build.quantization}
+                    className="flex flex-col gap-2 px-2.5 py-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="font-mono text-xs">
+                          {build.quantization}
+                        </span>
+                        <FitBadge fit={build.fit} copy={build.badge} />
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {formatSize(buildSize(build))}
+                        </span>
+                      </div>
+                      <BuildAction
+                        build={build}
+                        label={row.name}
+                        installs={installs}
+                        disabled={actionsDisabled}
+                        runtimeAvailable={runtimeAvailable}
+                        onAction={onAction}
+                      />
                     </div>
-                    <BuildAction
-                      build={build}
-                      label={row.name}
-                      installState={installState}
-                      disabled={actionsDisabled}
-                      runtimeAvailable={runtimeAvailable}
-                      onAction={onAction}
-                    />
-                  </div>
-                  {installing(build) && installState.status === "installing" ? (
-                    <InstallProgress
-                      event={installState.event}
-                      onCancel={onCancel}
-                    />
-                  ) : null}
-                </li>
-              ))}
+                    {job ? (
+                      <InstallProgress
+                        event={job.event}
+                        onCancel={() => onCancel(job.id)}
+                      />
+                    ) : null}
+                  </li>
+                )
+              })}
             </ul>
           ) : null}
         </div>

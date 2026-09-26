@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
 import { render } from "@/test-utils"
 
 import { ChatModelsSettings } from "./chat-models-settings"
@@ -338,33 +339,10 @@ describe("chat model settings", () => {
   it("keeps a download going after leaving the catalog", async () => {
     // The download belongs to the app, not the view: going back to the list
     // shows its progress there instead of cancelling it.
-    let release = () => {}
-    const held = new Promise<void>((resolve) => {
-      release = resolve
+    const installs = fakeInstallApi({
+      labels: { "opaque-qwen": "Qwen3 8B Q4_K_M" },
     })
-    const encoder = new TextEncoder()
-    vi.stubGlobal(
-      "fetch",
-      serving({
-        rows: [row()],
-        extra: (path) =>
-          path === "/llm/install"
-            ? new Response(
-                new ReadableStream<Uint8Array>({
-                  async start(controller) {
-                    controller.enqueue(
-                      encoder.encode(
-                        '{"type":"downloading","completed":5,"total":10}\n'
-                      )
-                    )
-                    await held
-                    controller.close()
-                  },
-                })
-              )
-            : null,
-      })
-    )
+    vi.stubGlobal("fetch", serving({ rows: [row()], extra: installs.handle }))
     const user = userEvent.setup()
 
     renderSettings()
@@ -387,7 +365,7 @@ describe("chat model settings", () => {
     expect(await screen.findByText("Qwen3 8B Q4_K_M")).toBeTruthy()
     expect(screen.getByRole("progressbar")).toBeTruthy()
 
-    release()
+    installs.complete()
     await waitFor(() => expect(screen.queryByRole("progressbar")).toBeNull())
   })
 })

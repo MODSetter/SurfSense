@@ -4,7 +4,10 @@ import userEvent from "@testing-library/user-event"
 
 import { render } from "@/test-utils"
 
+import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
+
 import { ImageModelsSettings } from "./image-models-settings"
+import { VideoModelsSettings } from "./video-models-settings"
 
 afterEach(() => {
   cleanup()
@@ -19,16 +22,6 @@ const budget = {
   ram_available_bytes: 16_000_000_000,
   uma: true,
   has_gpu: true,
-}
-
-function stream(lines: string[]) {
-  return new ReadableStream<Uint8Array>({
-    start(controller) {
-      for (const line of lines)
-        controller.enqueue(new TextEncoder().encode(line))
-      controller.close()
-    },
-  })
 }
 
 /** sd.cpp's catalog row: one build, no fit estimate. */
@@ -217,16 +210,10 @@ describe("image model settings", () => {
   })
 
   it("downloads through the catalog without selecting", async () => {
-    const fetchMock = serving([imageRow()], (path) =>
-      path === "/llm/install"
-        ? new Response(
-            stream([
-              '{"type":"downloading","completed":1,"total":2}\n',
-              '{"type":"complete","message":"Model is ready","selection":null}\n',
-            ])
-          )
-        : null
-    )
+    const installs = fakeInstallApi({
+      modelTypes: { "opaque-sdxl-turbo": ["image_gen"] },
+    })
+    const fetchMock = serving([imageRow()], installs.handle)
     vi.stubGlobal("fetch", fetchMock)
     const user = userEvent.setup()
     render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
@@ -236,15 +223,11 @@ describe("image model settings", () => {
       await screen.findByRole("button", { name: "Download SDXL Turbo Q4_0" })
     )
 
-    await waitFor(() => {
-      const install = fetchMock.mock.calls.find(
-        ([path]) => path === "/llm/install"
-      )
-      expect(JSON.parse(String(install?.[1]?.body))).toEqual({
-        catalog_id: "opaque-sdxl-turbo",
-        select: false,
-      })
-    })
+    await waitFor(() =>
+      expect(installs.started).toEqual([
+        { catalog_id: "opaque-sdxl-turbo", select: false },
+      ])
+    )
     expect(
       fetchMock.mock.calls.some(([path]) =>
         String(path).startsWith("/llm/image/local")
@@ -253,25 +236,10 @@ describe("image model settings", () => {
   })
 
   it("names the phase while it downloads and cancels, like chat", async () => {
-    const fetchMock = serving([imageRow()], (path, init) =>
-      path === "/llm/install"
-        ? new Response(
-            new ReadableStream<Uint8Array>({
-              start(controller) {
-                controller.enqueue(
-                  new TextEncoder().encode(
-                    '{"type":"downloading","completed":1000000000,"total":2000000000}\n'
-                  )
-                )
-                init?.signal?.addEventListener("abort", () =>
-                  controller.error(new DOMException("Aborted", "AbortError"))
-                )
-              },
-            })
-          )
-        : null
-    )
-    vi.stubGlobal("fetch", fetchMock)
+    const installs = fakeInstallApi({
+      modelTypes: { "opaque-sdxl-turbo": ["image_gen"] },
+    })
+    vi.stubGlobal("fetch", serving([imageRow()], installs.handle))
     const user = userEvent.setup()
     render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
 
@@ -279,6 +247,11 @@ describe("image model settings", () => {
     await user.click(
       await screen.findByRole("button", { name: "Download SDXL Turbo Q4_0" })
     )
+    installs.move({
+      type: "downloading",
+      completed: 1_000_000_000,
+      total: 2_000_000_000,
+    })
 
     expect(await screen.findAllByText("Downloading…")).not.toHaveLength(0)
     expect(screen.getAllByText("1 GB of 2 GB")).not.toHaveLength(0)
@@ -287,5 +260,35 @@ describe("image model settings", () => {
     expect(
       await screen.findByRole("button", { name: "Download SDXL Turbo Q4_0" })
     ).toBeTruthy()
+  })
+
+  it("shows only downloads its own slot can use, wherever they started", async () => {
+    // A video download started on the video page, before this one opened.
+    const installs = fakeInstallApi({
+      running: [
+        {
+          id: "job-video",
+          catalog_id: "opaque-wan",
+          label: "Wan 2.2 Q4_0",
+          model_types: ["video_gen"],
+          select: false,
+          model_type: null,
+          event: { type: "downloading", completed: 1, total: 2 },
+        },
+      ],
+    })
+    vi.stubGlobal(
+      "fetch",
+      serving([imageRow({ installed_as: "sdxl-turbo-q4_0" })], installs.handle)
+    )
+
+    render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
+    await screen.findByRole("button", { name: "Use SDXL Turbo" })
+    expect(screen.queryByText("Wan 2.2 Q4_0")).toBeNull()
+    cleanup()
+
+    render(<VideoModelsSettings onModelUnavailable={() => undefined} />)
+    expect(await screen.findByText("Wan 2.2 Q4_0")).toBeTruthy()
+    expect(screen.getByRole("progressbar")).toBeTruthy()
   })
 })

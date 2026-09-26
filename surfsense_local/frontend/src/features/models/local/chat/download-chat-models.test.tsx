@@ -5,6 +5,7 @@ import { toast } from "sonner"
 
 import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { render } from "@/test-utils"
+import { fakeInstallApi } from "../installs/fake-install-api"
 import { parseNdjson } from "../read-ndjson"
 import {
   type Fit,
@@ -248,30 +249,21 @@ describe("model catalog", () => {
     // The renderer never sends a repo, file, URL, path or quantization. A
     // download does not choose the model either: Use does, same as image.
     const onSelected = vi.fn()
-    const fetchMock = serving(catalog(), (path) =>
-      path === "/llm/install"
-        ? new Response(
-            stream([
-              '{"type":"downloading","completed":5,"total":10}\n',
-              '{"type":"complete","selection":null}\n',
-            ])
-          )
-        : null
-    )
-    vi.stubGlobal("fetch", fetchMock)
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving(catalog(), installs.handle))
     const user = userEvent.setup()
 
     render(<DownloadChatModels onSelected={onSelected} />)
     await user.click(
       await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
     )
+    expect(await screen.findByRole("progressbar")).toBeTruthy()
+    installs.complete()
     await waitForInstallToSettle()
 
-    const call = fetchMock.mock.calls.find(([path]) => path === "/llm/install")
-    expect(JSON.parse(String(call?.[1]?.body))).toEqual({
-      catalog_id: "opaque-qwen",
-      select: false,
-    })
+    expect(installs.started).toEqual([
+      { catalog_id: "opaque-qwen", select: false },
+    ])
     expect(onSelected).not.toHaveBeenCalled()
   })
 
@@ -664,22 +656,16 @@ describe("model catalog", () => {
   })
 
   it("shows install failures as a toast instead of inside the model row", async () => {
-    vi.stubGlobal(
-      "fetch",
-      serving(catalog(), (path) =>
-        path === "/llm/install"
-          ? new Response(
-              stream(['{"type":"error","message":"Download interrupted"}\n'])
-            )
-          : null
-      )
-    )
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving(catalog(), installs.handle))
     const user = userEvent.setup()
 
     render(<DownloadChatModels />)
     await user.click(
       await screen.findByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
     )
+    await screen.findByRole("progressbar")
+    installs.move({ type: "error", message: "Download interrupted" })
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
@@ -821,13 +807,10 @@ describe("a model with no recommended build", () => {
 
 describe("installing a searched build", () => {
   it("shows the phase and a progress bar, as a curated build does", async () => {
-    let release = () => {}
-    const held = new Promise<void>((resolve) => {
-      release = resolve
-    })
+    const installs = fakeInstallApi()
     vi.stubGlobal(
       "fetch",
-      serving(catalog({ rows: [] }), (path) => {
+      serving(catalog({ rows: [] }), (path, init) => {
         if (path.startsWith("/llm/catalog/local/search?")) {
           return Response.json({
             results: [
@@ -856,24 +839,7 @@ describe("installing a searched build", () => {
             ]),
           })
         }
-        if (path === "/llm/install") {
-          // Starts downloading, then holds, so the in-flight state is visible.
-          const encoder = new TextEncoder()
-          return new Response(
-            new ReadableStream<Uint8Array>({
-              async start(controller) {
-                controller.enqueue(
-                  encoder.encode(
-                    '{"type":"downloading","completed":5,"total":10}\n'
-                  )
-                )
-                await held
-                controller.close()
-              },
-            })
-          )
-        }
-        return null
+        return installs.handle(path, init)
       })
     )
     const user = userEvent.setup()
@@ -890,37 +856,15 @@ describe("installing a searched build", () => {
       })
     )
 
+    installs.move({ type: "downloading", completed: 5, total: 10 })
     expect(await screen.findByText("Downloading…")).toBeTruthy()
     expect(await screen.findByRole("progressbar")).toBeTruthy()
-    release()
+    installs.complete()
     await waitForInstallToSettle()
   })
 })
 
 describe("installing a curated build", () => {
-  function holdingInstall() {
-    let release = () => {}
-    const held = new Promise<void>((resolve) => {
-      release = resolve
-    })
-    const encoder = new TextEncoder()
-    const reply = () =>
-      new Response(
-        new ReadableStream<Uint8Array>({
-          async start(controller) {
-            controller.enqueue(
-              encoder.encode(
-                '{"type":"downloading","completed":5,"total":10}\n'
-              )
-            )
-            await held
-            controller.close()
-          },
-        })
-      )
-    return { reply, release: () => release() }
-  }
-
   const twoBuilds = () =>
     catalog({
       rows: [
@@ -936,13 +880,8 @@ describe("installing a curated build", () => {
     })
 
   it("shows the bar under the lead build when it is the one downloading", async () => {
-    const install = holdingInstall()
-    vi.stubGlobal(
-      "fetch",
-      serving(twoBuilds(), (path) =>
-        path === "/llm/install" ? install.reply() : null
-      )
-    )
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving(twoBuilds(), installs.handle))
     const user = userEvent.setup()
 
     render(<DownloadChatModels />)
@@ -957,18 +896,13 @@ describe("installing a curated build", () => {
     expect(
       screen.queryByRole("list", { name: "Builds of Qwen3 8B" })
     ).toBeNull()
-    install.release()
+    installs.complete()
     await waitForInstallToSettle()
   })
 
   it("shows the bar under an other build when it is the one downloading", async () => {
-    const install = holdingInstall()
-    vi.stubGlobal(
-      "fetch",
-      serving(twoBuilds(), (path) =>
-        path === "/llm/install" ? install.reply() : null
-      )
-    )
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving(twoBuilds(), installs.handle))
     const user = userEvent.setup()
 
     render(<DownloadChatModels />)
@@ -981,7 +915,70 @@ describe("installing a curated build", () => {
 
     const list = await screen.findByRole("list", { name: "Builds of Qwen3 8B" })
     expect(await within(list).findByRole("progressbar")).toBeTruthy()
-    install.release()
+    installs.complete()
+    await waitForInstallToSettle()
+  })
+
+  it("queues a second download behind the first instead of blocking it", async () => {
+    const installs = fakeInstallApi()
+    vi.stubGlobal("fetch", serving(twoBuilds(), installs.handle))
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Download Qwen3 8B UD-Q4_K_XL",
+      })
+    )
+    await screen.findByRole("progressbar")
+    await user.click(screen.getByRole("button", { name: "1 other build" }))
+    await user.click(
+      screen.getByRole("button", { name: "Download Qwen3 8B Q4_K_M" })
+    )
+    installs.move({ type: "queued", message: "Waiting" })
+
+    const list = await screen.findByRole("list", { name: "Builds of Qwen3 8B" })
+    expect(await within(list).findByText("Waiting…")).toBeTruthy()
+    expect(installs.started.map((body) => body.catalog_id)).toEqual([
+      "ud",
+      "q4",
+    ])
+    installs.complete("job-1")
+    installs.complete("job-2")
+    await waitForInstallToSettle()
+  })
+
+  it("reports how a download ended though another page started it", async () => {
+    // Started before this page opened, as from onboarding or another section.
+    const installs = fakeInstallApi({
+      running: [
+        {
+          id: "job-elsewhere",
+          catalog_id: "q4",
+          label: "Qwen3 8B Q4_K_M",
+          model_types: ["text_gen"],
+          select: false,
+          model_type: null,
+          event: { type: "downloading", completed: 1, total: 2 },
+        },
+      ],
+    })
+    vi.stubGlobal("fetch", serving(twoBuilds(), installs.handle))
+
+    render(<DownloadChatModels />)
+    const list = await screen.findByRole("list", { name: "Builds of Qwen3 8B" })
+    expect(await within(list).findByRole("progressbar")).toBeTruthy()
+    installs.move(
+      { type: "error", message: "Download interrupted" },
+      "job-elsewhere"
+    )
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Download interrupted",
+        expect.objectContaining({ id: "model-install-error" })
+      )
+    )
     await waitForInstallToSettle()
   })
 

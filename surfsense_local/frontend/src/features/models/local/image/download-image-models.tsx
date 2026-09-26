@@ -7,12 +7,12 @@ import { intl } from "@/i18n/intl"
 import { useSelect } from "../../selection/use-selection"
 import { DeleteModelDialog } from "../../your-models/delete-model-dialog"
 import type { YourModelRow } from "../../your-models/your-model-row"
+import { useInstall } from "../installs/use-install"
 import type { LocalBuild, LocalRow } from "../chat/api"
 import { ModelCard } from "../chat/model-card"
 import { ModelFamilyGroup } from "../chat/model-family-group"
 import type { SdCppSlot } from "./api"
 import { useDeleteLocalImageModel } from "./use-delete-local-image-model"
-import { useImageInstall } from "./use-image-install"
 import { useLocalImageCatalog } from "./use-local-image-catalog"
 
 const UNSUPPORTED_TITLE: Record<SdCppSlot, () => string> = {
@@ -73,7 +73,8 @@ export function DownloadImageModels({
   slot?: SdCppSlot
 }) {
   const catalog = useLocalImageCatalog(slot)
-  const { installState, install, cancelInstall } = useImageInstall()
+  // Downloading does not select: a model is picked once it is on disk.
+  const { installs, install, cancel } = useInstall({ select: false })
   const select = useSelect(slot)
   const remove = useDeleteLocalImageModel()
   const [deleting, setDeleting] = useState<{
@@ -116,10 +117,10 @@ export function DownloadImageModels({
     )
   }
 
-  const busy =
-    installState.status === "installing" || select.isPending || remove.isPending
+  // A download does not block the rest: another one queues behind it.
+  const busy = select.isPending || remove.isPending
 
-  const act = (build: LocalBuild, label: string) => {
+  const act = (build: LocalBuild) => {
     if (busy) return
     if (build.installed_as) {
       void select
@@ -132,7 +133,7 @@ export function DownloadImageModels({
         })
         .catch(() => undefined)
     } else {
-      void install(build.catalog_id, label)
+      void install(build.catalog_id)
     }
   }
 
@@ -153,13 +154,11 @@ export function DownloadImageModels({
             <li key={row.id}>
               <ModelCard
                 row={row}
-                installState={installState}
+                installs={installs}
                 actionsDisabled={busy}
                 runtimeAvailable
-                onAction={(build) =>
-                  act(build, `${row.name} ${build.quantization}`)
-                }
-                onCancel={cancelInstall}
+                onAction={act}
+                onCancel={cancel}
                 onDelete={(build) => {
                   const target = deletableRow(
                     build,

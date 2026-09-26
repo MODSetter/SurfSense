@@ -1,10 +1,9 @@
 import { DownloadChatModels } from "@/features/models/local/chat/download-chat-models"
-import { InstallProgress } from "@/features/models/local/chat/install-progress"
-import { useChatInstall } from "@/features/models/local/chat/use-chat-install"
 import { useDeleteLocalChatModel } from "@/features/models/local/chat/use-delete-local-chat-model"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { useSelect } from "@/features/models/selection/use-selection"
 import { useChatModels } from "@/features/models/your-models/use-chat-models"
+import { usePendingInstalls } from "@/features/models/local/installs/pending-installs"
 import { intl } from "@/i18n/intl"
 
 import { ModelSlotSettings } from "./model-slot-settings"
@@ -19,7 +18,8 @@ export function ChatModelsSettings({
   const models = useChatModels()
   const select = useSelect("text_gen")
   const remove = useDeleteLocalChatModel(onModelUnavailable)
-  const { installState, cancelInstall } = useChatInstall()
+  // Only downloads whose model can fill this slot, wherever they started.
+  const pending = usePendingInstalls("text_gen")
 
   return (
     <ModelSlotSettings
@@ -35,17 +35,7 @@ export function ChatModelsSettings({
       slot="chat"
       modelType="text_gen"
       models={models}
-      pending={
-        installState.status === "installing" ? (
-          <div className="flex flex-col gap-2">
-            <p className="truncate text-sm font-medium">{installState.label}</p>
-            <InstallProgress
-              event={installState.event}
-              onCancel={cancelInstall}
-            />
-          </div>
-        ) : null
-      }
+      pending={pending}
       download={
         <DownloadChatModels
           onSelected={onSelected}

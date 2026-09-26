@@ -2,7 +2,8 @@ import { intl } from "@/i18n/intl"
 
 import type { InstallEvent } from "./api"
 
-type Phase = "queued" | "starting" | "verifying" | "selecting" | "complete"
+type Phase =
+  "queued" | "starting" | "verifying" | "selecting" | "complete" | "cancelled"
 
 const PHASE_SHORT: Record<Phase, () => string> = {
   queued: () =>
@@ -29,6 +30,11 @@ const PHASE_SHORT: Record<Phase, () => string> = {
     intl.formatMessage({
       id: "models_install_complete_short_status",
       defaultMessage: "Done",
+    }),
+  cancelled: () =>
+    intl.formatMessage({
+      id: "models_install_cancelled_short_status",
+      defaultMessage: "Cancelled",
     }),
 }
 
@@ -57,6 +63,11 @@ const PHASE_LABEL: Record<Phase, () => string> = {
     intl.formatMessage({
       id: "models_install_complete_status",
       defaultMessage: "Done",
+    }),
+  cancelled: () =>
+    intl.formatMessage({
+      id: "models_install_cancelled_status",
+      defaultMessage: "Cancelled",
     }),
 }
 
