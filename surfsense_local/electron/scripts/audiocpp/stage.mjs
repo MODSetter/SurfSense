@@ -2,7 +2,7 @@
 // electron/audiocpp, swapped in whole once the server lists its devices.
 // macOS downloads upstream's archive; Windows and Linux compile the pinned
 // source. Without a toolchain the app runs without local audio, unless
-// --strict, which release CI passes.
+// --strict, which release CI and `pnpm dist` pass.
 import { execFileSync } from "node:child_process"
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url"
 import { compile, missingToolchain } from "./compile.mjs"
 import { stageEspeak } from "./espeak.mjs"
 import { copyMsvcRuntime } from "../msvc-runtime.mjs"
+import { NotStaged, notStaged } from "../not-staged/message.mjs"
+import { packageManager } from "../not-staged/package-manager.mjs"
 import { TAG } from "./pins.mjs"
 import { copyServerFiles, SERVER } from "./server-files.mjs"
 import { unpackUpstream } from "./upstream-archive.mjs"
@@ -48,16 +50,21 @@ async function main() {
   }
 
   const host = `${process.platform}-${process.arch}`
-  const missing = !HOSTS.includes(host)
-    ? `a supported host, not ${host}`
+  const reason = !HOSTS.includes(host)
+    ? `audio.cpp is not staged: it has no build for ${host}.`
     : process.platform === "darwin"
       ? null
-      : missingToolchain()
-  if (missing) {
-    if (strict) throw new Error(`staging audio.cpp needs ${missing}`)
+      : notStaged(
+          "audio.cpp",
+          `on ${process.platform === "win32" ? "Windows" : "Linux"} it is compiled from source`,
+          missingToolchain(),
+          packageManager()
+        )
+  if (reason) {
+    if (strict) throw new NotStaged(reason)
     // Empty, so the packager still finds the folder; the sidecar never starts.
     mkdirSync(OUT, { recursive: true })
-    console.warn(`audio.cpp not staged: it needs ${missing}. Local audio is unavailable.`)
+    console.warn(`${reason}\n\nThe app runs without local audio.`)
     return
   }
 
@@ -92,6 +99,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error)
+  console.error(error instanceof NotStaged ? error.message : error)
   process.exitCode = 1
 })

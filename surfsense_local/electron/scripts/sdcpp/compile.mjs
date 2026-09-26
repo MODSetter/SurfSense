@@ -9,6 +9,7 @@ import { copyFileSync } from "node:fs"
 import { availableParallelism } from "node:os"
 import { join } from "node:path"
 
+import { CMAKE, CXX_COMPILER, VULKAN_SDK, XCODE_TOOLS } from "../not-staged/tools.mjs"
 import { COMMIT, SOURCE, SUBMODULES, TAG } from "./pins.mjs"
 import { configureArgs } from "./recipe.mjs"
 
@@ -20,16 +21,18 @@ function output(cmd, args) {
   }
 }
 
-/** What this machine lacks to compile it, or null. */
+/** Everything this machine lacks to compile it, empty if nothing. */
 export function missingToolchain() {
-  if (output("cmake", ["--version"]) == null) return "CMake"
+  const missing = []
+  if (output("cmake", ["--version"]) == null) missing.push(CMAKE)
   if (process.platform === "darwin") {
-    return output("xcrun", ["--find", "clang"]) == null ? "Xcode's command line tools" : null
+    if (output("xcrun", ["--find", "clang"]) == null) missing.push(XCODE_TOOLS)
+    return missing
   }
-  if (output(process.env.CXX ?? "g++", ["--version"]) == null) return "a C++ compiler"
+  if (output(process.env.CXX ?? "g++", ["--version"]) == null) missing.push(CXX_COMPILER)
   // ggml's Vulkan shaders are compiled at build time.
-  if (output("glslc", ["--version"]) == null) return "the Vulkan SDK (glslc and headers)"
-  return null
+  if (output("glslc", ["--version"]) == null) missing.push(VULKAN_SDK)
+  return missing
 }
 
 /** Build every target in `work`; returns the folder holding the server. */

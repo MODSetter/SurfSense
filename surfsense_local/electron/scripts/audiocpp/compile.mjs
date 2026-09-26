@@ -10,6 +10,7 @@ import { availableParallelism } from "node:os"
 import { join } from "node:path"
 
 import { visualStudio } from "../msvc-runtime.mjs"
+import { CMAKE, GCC_13, VISUAL_STUDIO } from "../not-staged/tools.mjs"
 import { COMMIT, SOURCE, TAG } from "./pins.mjs"
 import { configureArgs } from "./recipe.mjs"
 
@@ -21,17 +22,20 @@ function output(cmd, args) {
   }
 }
 
-/** What this machine lacks to compile it, or null. audio.cpp requires GCC 13. */
+/** Everything this machine lacks to compile it, empty if nothing. audio.cpp requires GCC 13. */
 export function missingToolchain() {
-  if (output("cmake", ["--version"]) == null) return "CMake"
+  const missing = []
+  if (output("cmake", ["--version"]) == null) missing.push(CMAKE)
   if (process.platform === "win32") {
-    return visualStudio() ? null : "Visual Studio 2022 or newer with the C++ tools"
+    if (!visualStudio()) missing.push(VISUAL_STUDIO)
+    return missing
   }
   const cxx = process.env.CXX ?? "g++"
   const version = output(cxx, ["-dumpversion"])
-  if (version == null) return "GCC 13 or newer"
-  if (Number(version.split(".")[0]) < 13) return `GCC 13 or newer (${cxx} is ${version})`
-  return null
+  if (version == null) missing.push(GCC_13)
+  // No package fixes an old one: the distribution's g++ is already installed.
+  else if (Number(version.split(".")[0]) < 13) missing.push({ name: `${GCC_13.name} (${cxx} is ${version})` })
+  return missing
 }
 
 /** Build the server in `work`; returns where its files and its source are. */

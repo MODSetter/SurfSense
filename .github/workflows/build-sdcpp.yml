@@ -14,6 +14,7 @@ on:
   pull_request:
     paths:
       - surfsense_local/electron/scripts/sdcpp/**
+      - surfsense_local/electron/scripts/not-staged/**
       - .github/workflows/build-sdcpp.yml
 
 permissions:
