@@ -78,7 +78,12 @@ export function parseStudyText(value: string): StudyTextSegment[] | null {
         if (candidate !== closing) return null
         const latex = value.slice(latexStart, index)
         if (!latex.trim() || !hasBalancedLatexBraces(latex)) return null
-        segments.push({ type: "math", value: latex, display, offset: openingOffset })
+        segments.push({
+          type: "math",
+          value: latex,
+          display,
+          offset: openingOffset,
+        })
         index += 2
         textStart = index
         break
@@ -88,7 +93,11 @@ export function parseStudyText(value: string): StudyTextSegment[] | null {
     if (textStart !== index) return null
   }
   if (textStart < value.length) {
-    segments.push({ type: "text", value: value.slice(textStart), offset: textStart })
+    segments.push({
+      type: "text",
+      value: value.slice(textStart),
+      offset: textStart,
+    })
   }
   return segments
 }

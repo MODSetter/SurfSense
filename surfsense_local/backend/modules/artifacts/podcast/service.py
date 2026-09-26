@@ -20,9 +20,9 @@ def open_brief(
     returning user changes only what differs; otherwise the defaults.
     """
     try:
-        voices = resolve_text_to_speech().voices()
+        voices = resolve_text_to_speech(session).voices()
     except ModelResolutionError as error:
-        raise HTTPException(status.HTTP_409_CONFLICT, "Voice model required") from error
+        raise HTTPException(status.HTTP_409_CONFLICT, "Needs an audio model") from error
 
     last = session.scalars(
         select(Artifact)

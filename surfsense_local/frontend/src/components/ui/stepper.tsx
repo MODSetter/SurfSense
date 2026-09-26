@@ -1,4 +1,4 @@
-import { Slot } from "radix-ui"
+import { Button as ButtonPrimitive } from "@base-ui/react/button"
 import * as React from "react"
 
 import { CheckIcon } from "@/components/ui/icons"
@@ -147,37 +147,33 @@ const StepperItem = React.forwardRef<HTMLDivElement, StepperItemProps>(
 )
 StepperItem.displayName = "StepperItem"
 
-interface StepperTriggerProps extends React.ComponentProps<"button"> {
-  asChild?: boolean
-}
+const StepperTrigger = React.forwardRef<
+  HTMLButtonElement,
+  ButtonPrimitive.Props
+>(({ className, children, onClick, ...props }, ref) => {
+  const { setActiveStep } = useStepper()
+  const { step, isDisabled } = useStepItem()
 
-const StepperTrigger = React.forwardRef<HTMLButtonElement, StepperTriggerProps>(
-  ({ asChild = false, className, children, onClick, ...props }, ref) => {
-    const { setActiveStep } = useStepper()
-    const { step, isDisabled } = useStepItem()
-    const Comp = asChild ? Slot.Root : "button"
-
-    return (
-      <Comp
-        ref={ref}
-        className={cn(
-          "inline-flex items-center gap-3 disabled:pointer-events-none disabled:opacity-50",
-          className
-        )}
-        disabled={isDisabled}
-        onClick={(event) => {
-          onClick?.(event)
-          if (!event.defaultPrevented) {
-            setActiveStep(step)
-          }
-        }}
-        {...props}
-      >
-        {children}
-      </Comp>
-    )
-  }
-)
+  return (
+    <ButtonPrimitive
+      ref={ref}
+      className={cn(
+        "inline-flex items-center gap-3 disabled:pointer-events-none disabled:opacity-50",
+        className
+      )}
+      disabled={isDisabled}
+      onClick={(event) => {
+        onClick?.(event)
+        if (!event.defaultPrevented) {
+          setActiveStep(step)
+        }
+      }}
+      {...props}
+    >
+      {children}
+    </ButtonPrimitive>
+  )
+})
 StepperTrigger.displayName = "StepperTrigger"
 
 interface StepperIndicatorProps extends React.ComponentProps<"div"> {

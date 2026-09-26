@@ -40,6 +40,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import type { Workspace } from "./api"
@@ -63,6 +64,7 @@ function WorkspaceNameDialog({
   initialName,
   submitLabel,
   onOpenChange,
+  onOpenChangeComplete,
   onSubmit,
 }: {
   open: boolean
@@ -71,6 +73,7 @@ function WorkspaceNameDialog({
   initialName: string
   submitLabel: string
   onOpenChange: (open: boolean) => void
+  onOpenChangeComplete: (open: boolean) => void
   onSubmit: (name: string) => Promise<boolean>
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -91,15 +94,16 @@ function WorkspaceNameDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent
         className="select-none"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          const input = inputRef.current
-          if (!input) return
-          input.focus()
-          input.select()
+        initialFocus={() => {
+          inputRef.current?.select()
+          return inputRef.current
         }}
       >
         <form onSubmit={(event) => void submit(event)}>
@@ -112,7 +116,10 @@ function WorkspaceNameDialog({
             className="my-4"
             value={name}
             onChange={(event) => setName(event.target.value)}
-            aria-label="Workspace name"
+            aria-label={intl.formatMessage({
+              id: "workspaces_name_dialog_name_aria",
+              defaultMessage: "Workspace name",
+            })}
             maxLength={200}
           />
           <DialogFooter>
@@ -121,10 +128,18 @@ function WorkspaceNameDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {intl.formatMessage({
+                id: "workspaces_name_dialog_cancel_button",
+                defaultMessage: "Cancel",
+              })}
             </Button>
             <Button type="submit" disabled={!name.trim() || isSubmitting}>
-              {isSubmitting ? "Saving..." : submitLabel}
+              {isSubmitting
+                ? intl.formatMessage({
+                    id: "workspaces_name_dialog_saving_status",
+                    defaultMessage: "Saving...",
+                  })
+                : submitLabel}
             </Button>
           </DialogFooter>
         </form>
@@ -152,14 +167,24 @@ export function WorkspaceRail({
   onDelete: (id: number) => Promise<boolean>
   onOpenSettings: () => void
 }) {
-  const [createOpen, setCreateOpen] = useState(false)
-  const [renaming, setRenaming] = useState<Workspace | null>(null)
+  // The name dialog, creating ("new") or renaming; cleared once it has closed.
+  const [naming, setNaming] = useState<Workspace | "new" | null>(null)
+  const [namingOpen, setNamingOpen] = useState(false)
   const [deleting, setDeleting] = useState<Workspace | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const openNaming = (target: Workspace | "new") => {
+    setNaming(target)
+    setNamingOpen(true)
+  }
 
   return (
     <nav
       className="flex h-full flex-col items-center bg-app-shell py-3 text-sidebar-foreground"
-      aria-label="Workspaces"
+      aria-label={intl.formatMessage({
+        id: "workspaces_rail_aria",
+        defaultMessage: "Workspaces",
+      })}
     >
       <ScrollArea className="min-h-0 w-full flex-1">
         <div className="flex flex-col items-center gap-2 px-1.5">
@@ -167,53 +192,63 @@ export function WorkspaceRail({
             const selected = workspace.id === activeWorkspaceId
             return (
               <ContextMenu key={workspace.id}>
-                <ContextMenuTrigger asChild>
-                  <div className="flex w-full">
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          size="icon-lg"
-                          variant="ghost"
-                          className={cn(
-                            "relative mx-auto rounded-xl",
-                            selected &&
-                              "bg-sidebar-accent text-sidebar-accent-foreground"
-                          )}
-                          aria-label={workspace.name}
-                          aria-current={selected ? "page" : undefined}
-                          onClick={() => onSelect(workspace.id)}
-                        >
-                          {selected ? (
-                            <span className="absolute -left-1.5 h-5 w-0.5 rounded-full bg-sidebar-primary" />
-                          ) : null}
-                          <Avatar className="size-7 rounded-lg">
-                            <AvatarFallback className="rounded-lg text-[10px] font-semibold">
-                              {workspaceMark(workspace.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent side="right">
-                        {workspace.name}
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                </ContextMenuTrigger>
-                <ContextMenuContent
-                  className="w-36"
-                  onCloseAutoFocus={(event) => event.preventDefault()}
-                >
+                <ContextMenuTrigger
+                  render={
+                    <div className="flex w-full">
+                      <Tooltip>
+                        <TooltipTrigger
+                          render={
+                            <Button
+                              size="icon-lg"
+                              variant="ghost"
+                              className={cn(
+                                "relative mx-auto rounded-xl",
+                                selected &&
+                                  "bg-sidebar-accent text-sidebar-accent-foreground"
+                              )}
+                              aria-label={workspace.name}
+                              aria-current={selected ? "page" : undefined}
+                              onClick={() => onSelect(workspace.id)}
+                            >
+                              {selected ? (
+                                <span className="absolute -left-1.5 h-5 w-0.5 rounded-full bg-sidebar-primary" />
+                              ) : null}
+                              <Avatar className="size-7 rounded-lg">
+                                <AvatarFallback className="rounded-lg text-[10px] font-semibold">
+                                  {workspaceMark(workspace.name)}
+                                </AvatarFallback>
+                              </Avatar>
+                            </Button>
+                          }
+                        />
+                        <TooltipContent side="right">
+                          {workspace.name}
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
+                  }
+                />
+                <ContextMenuContent className="w-36" finalFocus={false}>
                   <ContextMenuGroup>
-                    <ContextMenuItem onSelect={() => setRenaming(workspace)}>
+                    <ContextMenuItem onClick={() => openNaming(workspace)}>
                       <PencilIcon />
-                      Rename
+                      {intl.formatMessage({
+                        id: "workspaces_rail_rename_label",
+                        defaultMessage: "Rename",
+                      })}
                     </ContextMenuItem>
                     <ContextMenuItem
                       variant="destructive"
-                      onSelect={() => setDeleting(workspace)}
+                      onClick={() => {
+                        setDeleting(workspace)
+                        setDeleteOpen(true)
+                      }}
                     >
                       <Trash2Icon />
-                      Delete
+                      {intl.formatMessage({
+                        id: "workspaces_rail_delete_label",
+                        defaultMessage: "Delete",
+                      })}
                     </ContextMenuItem>
                   </ContextMenuGroup>
                 </ContextMenuContent>
@@ -221,85 +256,150 @@ export function WorkspaceRail({
             )
           })}
           <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                size="icon-lg"
-                variant="ghost"
-                className="rounded-xl border border-dashed border-sidebar-border"
-                disabled={isMutating}
-                aria-label="Create workspace"
-                onClick={() => setCreateOpen(true)}
-              >
-                <PlusIcon />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">Create workspace</TooltipContent>
+            <TooltipTrigger
+              render={
+                <Button
+                  size="icon-lg"
+                  variant="ghost"
+                  className="rounded-xl border border-dashed border-sidebar-border"
+                  disabled={isMutating}
+                  aria-label={intl.formatMessage({
+                    id: "workspaces_rail_create_aria",
+                    defaultMessage: "Create workspace",
+                  })}
+                  onClick={() => openNaming("new")}
+                >
+                  <PlusIcon />
+                </Button>
+              }
+            />
+            <TooltipContent side="right">
+              {intl.formatMessage({
+                id: "workspaces_rail_create_tooltip",
+                defaultMessage: "Create workspace",
+              })}
+            </TooltipContent>
           </Tooltip>
         </div>
       </ScrollArea>
 
       <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size="icon-lg"
-            variant="ghost"
-            className="rounded-xl"
-            aria-label="Open settings"
-            onClick={onOpenSettings}
-          >
-            <Settings2Icon />
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent side="right">Settings</TooltipContent>
+        <TooltipTrigger
+          render={
+            <Button
+              size="icon-lg"
+              variant="ghost"
+              className="rounded-xl"
+              aria-label={intl.formatMessage({
+                id: "workspaces_rail_settings_aria",
+                defaultMessage: "Open settings",
+              })}
+              onClick={onOpenSettings}
+            >
+              <Settings2Icon />
+            </Button>
+          }
+        />
+        <TooltipContent side="right">
+          {intl.formatMessage({
+            id: "workspaces_rail_settings_tooltip",
+            defaultMessage: "Settings",
+          })}
+        </TooltipContent>
       </Tooltip>
 
-      <WorkspaceNameDialog
-        key={`create-${createOpen}`}
-        open={createOpen}
-        title="Create workspace"
-        description="Keep a separate source library and set of chats."
-        initialName=""
-        submitLabel="Create"
-        onOpenChange={setCreateOpen}
-        onSubmit={onCreate}
-      />
-      {renaming ? (
+      {naming === "new" ? (
         <WorkspaceNameDialog
-          key={renaming.id}
-          open
-          title="Rename workspace"
-          description="Choose a name that identifies this research context."
-          initialName={renaming.name}
-          submitLabel="Rename"
-          onOpenChange={(open) => {
-            if (!open) setRenaming(null)
+          open={namingOpen}
+          title={intl.formatMessage({
+            id: "workspaces_create_dialog_title",
+            defaultMessage: "Create workspace",
+          })}
+          description={intl.formatMessage({
+            id: "workspaces_create_dialog_body",
+            defaultMessage: "Keep a separate source library and set of chats.",
+          })}
+          initialName=""
+          submitLabel={intl.formatMessage({
+            id: "workspaces_create_dialog_submit_button",
+            defaultMessage: "Create",
+          })}
+          onOpenChange={setNamingOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setNaming(null)
           }}
-          onSubmit={(name) => onRename(renaming.id, name)}
+          onSubmit={onCreate}
+        />
+      ) : naming ? (
+        <WorkspaceNameDialog
+          key={naming.id}
+          open={namingOpen}
+          title={intl.formatMessage({
+            id: "workspaces_rename_dialog_title",
+            defaultMessage: "Rename workspace",
+          })}
+          description={intl.formatMessage({
+            id: "workspaces_rename_dialog_body",
+            defaultMessage:
+              "Choose a name that identifies this research context.",
+          })}
+          initialName={naming.name}
+          submitLabel={intl.formatMessage({
+            id: "workspaces_rename_dialog_submit_button",
+            defaultMessage: "Rename",
+          })}
+          onOpenChange={setNamingOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setNaming(null)
+          }}
+          onSubmit={(name) => onRename(naming.id, name)}
         />
       ) : null}
       <AlertDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setDeleting(null)
         }}
       >
         <AlertDialogContent className="select-none">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {deleting?.name}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {intl.formatMessage(
+                {
+                  id: "workspaces_delete_dialog_title",
+                  defaultMessage: "Delete {name}?",
+                },
+                {
+                  name: deleting?.name ?? "",
+                }
+              )}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This permanently deletes its chats, documents, and indexed data.
+              {intl.formatMessage({
+                id: "workspaces_delete_dialog_body",
+                defaultMessage:
+                  "This permanently deletes its chats, documents, and indexed data.",
+              })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>
+              {intl.formatMessage({
+                id: "workspaces_delete_dialog_cancel_button",
+                defaultMessage: "Cancel",
+              })}
+            </AlertDialogCancel>
             <AlertDialogAction
               variant="destructive"
               onClick={() => {
                 if (deleting) void onDelete(deleting.id)
-                setDeleting(null)
               }}
             >
-              Delete workspace
+              {intl.formatMessage({
+                id: "workspaces_delete_dialog_confirm_button",
+                defaultMessage: "Delete workspace",
+              })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

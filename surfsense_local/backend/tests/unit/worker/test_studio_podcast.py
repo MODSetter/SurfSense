@@ -5,7 +5,7 @@ import pytest
 from modules.artifacts.podcast.brief import Duration, PodcastBrief, Speaker, Style
 from modules.llm.profile import Tier
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
-from modules.llm.resolution import ModelResolutionError, ResolvedGeneration
+from modules.llm.resolution import ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline, pipeline
 from worker.studio.shared import generate
 
@@ -122,6 +122,7 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
         sources: list,
         *,
         repair: generate.Repair | None = None,
+        max_tokens: int | None = None,
     ) -> str:
         prompts.append(system)
         repairs.append(repair)
@@ -143,30 +144,67 @@ def test_a_broken_reply_is_retried_once_then_reported_by_segment(
     assert "Sam: Hi." in prompts[2]
 
 
+def test_each_segment_is_capped_by_its_target_words_or_a_planned_segment(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Uncapped, Qwen3 1.7B looped on a 225-word segment for 283 s, to the end of
+    its 40,960-token window, and the retry replaying that reply could not fit.
+    Its outline also gave a segment 20 words, then its draft wrote past them:
+    capped at 240 tokens, both replies ended mid-JSON."""
+    replies = iter(["not json", *['{"turns": [{"speaker": 1, "text": "Hi."}]}'] * 2])
+    caps: list[int | None] = []
+
+    def fake_run_model(
+        model: object,
+        system: str,
+        sources: list,
+        *,
+        repair: generate.Repair | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+        caps.append(max_tokens)
+        return next(replies)
+
+    monkeypatch.setattr("worker.studio.shared.generate.run_model", fake_run_model)
+
+    draft.draft(MODEL, BRIEF, SEGMENTS, [])
+
+    # The 100-word opening and its retry at a 250-word segment's, then the 300-word one.
+    assert caps == [3000, 3000, 3600]
+
+
 class FakeVoice:
     """A TextToSpeech that records what it was asked to say."""
 
     def __init__(self) -> None:
         self.turns: list[SpokenTurn] = []
+        self.language: str | None = None
 
     def voices(self) -> list[Voice]:
-        return [Voice("pm_alex", "Alex", "pt-BR"), Voice("pf_dora", "Dora", "pt-BR")]
+        return [
+            Voice("pm_alex", "Alex", "male", ("pt-BR",)),
+            Voice("pf_dora", "Dora", "female", ("pt-BR",)),
+        ]
 
-    async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+    async def check_memory(self) -> None:
+        pass
+
+    async def synthesize(
+        self, turns: list[SpokenTurn], language: str
+    ) -> SynthesizedAudio:
         self.turns = turns
+        self.language = language
         return SynthesizedAudio(b"RIFFfake", "audio/wav")
 
 
 def _episode(monkeypatch: pytest.MonkeyPatch, *replies: str) -> tuple[FakeVoice, list]:
     voice = FakeVoice()
-    monkeypatch.setattr(
-        "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech",
-        lambda: voice,
-    )
     queue = iter(replies)
     prompts: list[str] = []
 
-    def fake_run_model(model: object, system: str, sources: list) -> str:
+    def fake_run_model(
+        model: object, system: str, sources: list, *, max_tokens: int | None = None
+    ) -> str:
         prompts.append(system)
         return next(queue)
 
@@ -186,18 +224,53 @@ def test_an_episode_is_planned_then_drafted_per_segment_then_voiced_per_speaker(
         '{"turns": [{"speaker": 2, "text": "Goodbye."}]}',
     )
 
-    built = pipeline.render(MODEL, [], "the risks", BRIEF.model_dump(mode="json"))
+    built = pipeline.render(
+        MODEL, voice, [], "the risks", BRIEF.model_dump(mode="json")
+    )
 
     assert len(prompts) == 3 and "the risks" in prompts[0]
     assert [(t.voice, t.text) for t in voice.turns] == [
         ("pm_alex", "Welcome."),
         ("pf_dora", "Goodbye."),
     ]
+    assert voice.language == "pt-BR"
     assert built.title == "Saturn Rings"
     assert built.primary == b"RIFFfake"
     assert built.primary_filename == "saturn-rings.wav"
     assert "**Sam:** Welcome." in built.markdown
     assert "**Lee:** Goodbye." in built.markdown
+
+
+@pytest.mark.parametrize(
+    ("speakers", "cast"),
+    [
+        ([("Host", "host"), ("Guest", "guest")], "_Host, Guest_"),
+        ([("Priya", "host"), ("Tom", "guest")], "_Priya (host), Tom (guest)_"),
+        ([("host", "host"), ("Co-host", "cohost")], "_host, Co-host_"),
+        ([("Host", "guest"), ("Tom", "expert")], "_Host (guest), Tom (expert)_"),
+    ],
+)
+def test_the_cast_line_names_a_role_only_where_the_name_does_not(
+    monkeypatch: pytest.MonkeyPatch, speakers: list[tuple[str, str]], cast: str
+) -> None:
+    """A default name is its role; "Host (host)" says it twice."""
+    voice, _ = _episode(
+        monkeypatch,
+        '{"title": "T", "segments": [{"title": "Only"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Bye."}]}',
+    )
+    brief = BRIEF.model_copy(
+        update={
+            "speakers": [
+                Speaker(name=name, role=role, voice=f"v{slot}")
+                for slot, (name, role) in enumerate(speakers)
+            ]
+        }
+    )
+
+    built = pipeline.render(MODEL, voice, [], None, brief.model_dump(mode="json"))
+
+    assert built.markdown.splitlines()[2] == cast
 
 
 def test_an_episode_too_short_to_voice_fails_before_synthesis(
@@ -211,22 +284,5 @@ def test_an_episode_too_short_to_voice_fails_before_synthesis(
     )
 
     with pytest.raises(ValueError, match="too short"):
-        pipeline.render(MODEL, [], None, BRIEF.model_dump(mode="json"))
+        pipeline.render(MODEL, voice, [], None, BRIEF.model_dump(mode="json"))
     assert voice.turns == []
-
-
-def test_without_a_voice_engine_the_text_model_is_never_called(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    """A missing voice engine fails before any model tokens are spent."""
-    monkeypatch.setattr(
-        "modules.llm.providers.kokoro.provider.missing_files",
-        lambda: ["kokoro-v1.0.onnx"],
-    )
-    monkeypatch.setattr(
-        "worker.studio.shared.generate.run_model",
-        lambda *a: pytest.fail("the text model was called"),
-    )
-
-    with pytest.raises(ModelResolutionError, match="Kokoro"):
-        pipeline.render(None, [], None, BRIEF.model_dump(mode="json"))

@@ -8,6 +8,9 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
+from modules.llm.catalog.remote.manifest.loader import remote_lookup
+from modules.llm.catalog.remote.rows import CUSTOM
+from modules.llm.connections.discovery_failure import discovery_failure
 from modules.llm.connections.service import (
     discover_models,
     normalize_base_url,
@@ -27,13 +30,18 @@ from modules.llm.schemas import (
     ConnectionWrite,
     ModelTestWrite,
 )
+from modules.llm.selectable import selectable_for
 
 router = APIRouter(prefix="/connections")
 
 DEFAULT_IMAGE_TEST_PROMPT = "A simple blue circle centered on a plain white background."
 DEFAULT_CHAT_TEST_PROMPT = "Reply with one short sentence confirming you can answer."
-# Enough to show the model answers, little enough that testing cannot run a bill up.
-CHAT_TEST_MAX_TOKENS = 64
+# Enough that a thinking model reaches its answer, and still little enough that
+# testing cannot run a bill up. A plain answer never approaches this, because the
+# reply is cut at its character limit as soon as text arrives; only a model
+# spending the budget on a reasoning trace gets near it. At 64 such a model
+# returned nothing at all, and was reported as broken.
+CHAT_TEST_MAX_TOKENS = 1024
 CHAT_TEST_MAX_CHARS = 600
 
 
@@ -43,6 +51,7 @@ def _read(connection: ProviderConnection) -> ConnectionRead:
         label=connection.label,
         provider=connection.provider,
         base_url=connection.base_url,
+        catalog_provider=connection.catalog_provider,
         has_api_key=connection.api_key_ciphertext is not None,
         created_at=connection.created_at,
         updated_at=connection.updated_at,
@@ -59,6 +68,13 @@ def _candidate(payload: ConnectionWrite) -> tuple[str, str, str | None]:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"unknown connection provider: {payload.provider}",
+        )
+    if payload.catalog_provider != CUSTOM and not remote_lookup().has_provider(
+        payload.catalog_provider
+    ):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"unknown catalog provider: {payload.catalog_provider}",
         )
     try:
         base_url = normalize_base_url(payload.base_url)
@@ -148,6 +164,7 @@ async def create_connection(
         label=label,
         provider=payload.provider,
         base_url=base_url,
+        catalog_provider=payload.catalog_provider,
         api_key=api_key,
     )
     return await transact(session, _save, connection)
@@ -166,6 +183,7 @@ async def update_connection(
     connection.label = label
     connection.provider = payload.provider
     connection.base_url = base_url
+    connection.catalog_provider = payload.catalog_provider
     connection.api_key = api_key
     return await transact(session, _save, connection)
 
@@ -188,9 +206,7 @@ async def list_connection_models(
     try:
         models = await discover_models(connection)
     except httpx.HTTPError as error:
-        raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "connection model discovery failed"
-        ) from error
+        raise discovery_failure(error) from error
     except ValueError as error:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
     return [
@@ -198,8 +214,9 @@ async def list_connection_models(
             connection_id=connection.id,
             connection_label=connection.label,
             name=model.name,
-            capabilities=list(model.capabilities),
+            types=list(model.types),
             capability_source=model.capability_source,
+            selectable_for=selectable_for(model.types, model.capability_known),
         )
         for model in models
     ]
@@ -239,7 +256,9 @@ async def test_connection_chat(
     reply = reply.strip()
     if not reply:
         raise HTTPException(
-            status.HTTP_502_BAD_GATEWAY, "the model answered with no text"
+            status.HTTP_502_BAD_GATEWAY,
+            "the model returned no text, which a reasoning model does when it "
+            "spends the whole reply thinking",
         )
     return ChatTestRead(reply=reply[:CHAT_TEST_MAX_CHARS])
 

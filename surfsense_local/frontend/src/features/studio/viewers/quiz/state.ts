@@ -5,7 +5,10 @@ import type { Quiz } from "./quiz-viewer"
 // api.ts and backend/modules/artifacts/quiz_progress.py) — answering,
 // skipping, and retaking are all server round-trips now, so this file only
 // computes things from a state, never mutates one.
-export function emptyQuizState(generation: number, questionCount: number): QuizState {
+export function emptyQuizState(
+  generation: number,
+  questionCount: number
+): QuizState {
   return {
     generation,
     mode: "all",
@@ -37,7 +40,8 @@ export function quizResults(quiz: Quiz, state: QuizState) {
   let correct = 0
   quiz.questions.forEach((question, index) => {
     if (skippedSet.has(index)) skipped.push(index)
-    else if (state.answers[index] === question.correct_option_index) correct += 1
+    else if (state.answers[index] === question.correct_option_index)
+      correct += 1
     else missed.push(index)
   })
   return {

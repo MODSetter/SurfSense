@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import time
 from collections.abc import AsyncIterator
@@ -6,9 +7,13 @@ from dataclasses import dataclass
 
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
+from worker.studio.shared import cancellation
 from worker.studio.shared.artifact import Source
 
 logger = logging.getLogger(__name__)
+
+# How long a cancel may wait for the model to be hung up on.
+CANCEL_POLL_SECONDS = 1.0
 
 
 @dataclass(frozen=True)
@@ -25,6 +30,7 @@ def run_model(
     sources: list[Source],
     *,
     repair: Repair | None = None,
+    max_tokens: int | None = None,
 ) -> str:
     """Send one system prompt plus the grounding to the chosen generation model.
 
@@ -53,7 +59,15 @@ def run_model(
         model.tier,
         sum(len(source.content) for source in sources),
     )
-    reply = asyncio.run(_collect(model.generator.chat(selected.name, messages)))
+    # Thinking off: a small model can reason until the window runs out, holding
+    # the runtime's only slot, and Studio's structured output gains little.
+    reply = asyncio.run(
+        _collect(
+            model.generator.chat(
+                selected.name, messages, max_tokens=max_tokens, reasoning=False
+            )
+        )
+    )
     logger.info(
         "studio: model %s/%s returned %s chars in %.1fs",
         selected.provider,
@@ -65,6 +79,27 @@ def run_model(
 
 
 async def _collect(stream: AsyncIterator[str]) -> str:
+    """The whole reply, or a cancel within a poll of it being asked for.
+
+    Abandoning the read closes the request, which is what stops the model;
+    polling on a timer rather than per token also covers a long prompt read,
+    when no token has arrived yet.
+    """
+    reading = asyncio.ensure_future(_join(stream))
+    while True:
+        done, _ = await asyncio.wait({reading}, timeout=CANCEL_POLL_SECONDS)
+        if done:
+            return reading.result()
+        try:
+            cancellation.raise_if_cancelled()
+        except BaseException:
+            reading.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await reading
+            raise
+
+
+async def _join(stream: AsyncIterator[str]) -> str:
     return "".join([delta async for delta in stream])
 
 

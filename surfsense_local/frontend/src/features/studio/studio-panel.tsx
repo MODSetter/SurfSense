@@ -1,14 +1,14 @@
 import { useState } from "react"
 import {
   ArrowLeftIcon,
-  CheckIcon,
   ChevronRightIcon,
   FileIcon,
-  SparklesIcon,
+  AiSparklesIcon,
 } from "@/components/ui/icons"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
 import {
   Tooltip,
@@ -26,37 +26,127 @@ import {
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
+import type { ModelType } from "@/features/models/model-type"
+import { intl } from "@/i18n/intl"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
-import { FORMAT_ICONS, STUDIO_CATALOG } from "./studio-formats"
+import { FORMAT_ICONS, formatLabel, studioCatalog } from "./studio-formats"
 import { usePodcastBrief } from "./use-podcast-brief"
 
-const FORMAT_HINTS: Record<string, string> = {
-  summary: "Generate an AI summary based on your sources",
-  docx: "Generate an AI Word document based on your sources",
-  pptx: "Generate an AI slide deck based on your sources",
-  xlsx: "Generate an AI spreadsheet based on your sources",
-  html: "Generate an AI interactive web page based on your sources",
-  pdf: "Generate an AI PDF based on your sources",
-  mindmap: "Generate an AI mind map based on your sources",
-  flashcards: "Generate AI flashcards based on your sources",
-  quiz: "Generate an AI interactive quiz based on your sources",
-  podcast: "Generate an AI podcast based on your sources",
-  image: "Generate an AI image based on your sources",
-  infographic: "Generate an AI infographic based on your sources",
+const FORMAT_HINTS: Record<string, () => string> = {
+  summary: () =>
+    intl.formatMessage({
+      id: "studio_format_summary_tooltip",
+      defaultMessage: "Generate an AI summary based on your sources",
+    }),
+  docx: () =>
+    intl.formatMessage({
+      id: "studio_format_docx_tooltip",
+      defaultMessage: "Generate an AI Word document based on your sources",
+    }),
+  pptx: () =>
+    intl.formatMessage({
+      id: "studio_format_pptx_tooltip",
+      defaultMessage: "Generate an AI slide deck based on your sources",
+    }),
+  xlsx: () =>
+    intl.formatMessage({
+      id: "studio_format_xlsx_tooltip",
+      defaultMessage: "Generate an AI spreadsheet based on your sources",
+    }),
+  html: () =>
+    intl.formatMessage({
+      id: "studio_format_html_tooltip",
+      defaultMessage:
+        "Generate an AI interactive web page based on your sources",
+    }),
+  pdf: () =>
+    intl.formatMessage({
+      id: "studio_format_pdf_tooltip",
+      defaultMessage: "Generate an AI PDF based on your sources",
+    }),
+  mindmap: () =>
+    intl.formatMessage({
+      id: "studio_format_mindmap_tooltip",
+      defaultMessage: "Generate an AI mind map based on your sources",
+    }),
+  flashcards: () =>
+    intl.formatMessage({
+      id: "studio_format_flashcards_tooltip",
+      defaultMessage: "Generate AI flashcards based on your sources",
+    }),
+  quiz: () =>
+    intl.formatMessage({
+      id: "studio_format_quiz_tooltip",
+      defaultMessage: "Generate an AI interactive quiz based on your sources",
+    }),
+  podcast: () =>
+    intl.formatMessage({
+      id: "studio_format_podcast_tooltip",
+      defaultMessage: "Generate an AI podcast based on your sources",
+    }),
+  image: () =>
+    intl.formatMessage({
+      id: "studio_format_image_tooltip",
+      defaultMessage: "Generate an AI image based on your sources",
+    }),
+  infographic: () =>
+    intl.formatMessage({
+      id: "studio_format_infographic_tooltip",
+      defaultMessage: "Generate an AI infographic based on your sources",
+    }),
 }
 
 function catalogFormats(formats: StudioFormat[]) {
-  if (formats.length === 0) return STUDIO_CATALOG
+  const catalog = studioCatalog()
+  if (formats.length === 0) return catalog
   const loaded = new Map(formats.map((entry) => [entry.key, entry]))
-  return STUDIO_CATALOG.map((entry) => loaded.get(entry.key) ?? entry)
+  return catalog.map((entry) => loaded.get(entry.key) ?? entry)
+}
+
+// Only for the catalog painted before the API answers; the backend's own
+// reason replaces it.
+const NEEDED_MODEL: Record<ModelType, () => string> = {
+  text_gen: () =>
+    intl.formatMessage({
+      id: "studio_format_needs_chat_model_label",
+      defaultMessage: "a chat model",
+    }),
+  image_gen: () =>
+    intl.formatMessage({
+      id: "studio_format_needs_image_model_label",
+      defaultMessage: "an image model",
+    }),
+  image_edit: () =>
+    intl.formatMessage({
+      id: "studio_format_needs_image_edit_model_label",
+      defaultMessage: "an image editing model",
+    }),
+  video_gen: () =>
+    intl.formatMessage({
+      id: "studio_format_needs_video_model_label",
+      defaultMessage: "a video model",
+    }),
+  audio_gen: () =>
+    intl.formatMessage({
+      id: "studio_format_needs_audio_model_label",
+      defaultMessage: "an audio model",
+    }),
 }
 
 function unavailableReason(entry: StudioFormat) {
-  return (
-    entry.unavailable_reason ??
-    `Needs a ${entry.requires_roles.join(" and ").replaceAll("_", " ")} model`
+  if (entry.unavailable_reason != null) return entry.unavailable_reason
+  const models = intl.formatList(
+    entry.requires_model_types.map((type) => NEEDED_MODEL[type]()),
+    { type: "conjunction" }
+  )
+  return intl.formatMessage(
+    {
+      id: "studio_format_unavailable_tooltip",
+      defaultMessage: "Needs {models}",
+    },
+    { models }
   )
 }
 
@@ -65,8 +155,16 @@ function formatHint(entry: StudioFormat) {
     return unavailableReason(entry)
   }
   return (
-    FORMAT_HINTS[entry.key] ??
-    `Generate a ${entry.label.toLowerCase()} based on your sources`
+    FORMAT_HINTS[entry.key]?.() ??
+    intl.formatMessage(
+      {
+        id: "studio_format_generic_tooltip",
+        defaultMessage: "Generate a {format} based on your sources",
+      },
+      {
+        format: entry.label.toLowerCase(),
+      }
+    )
   )
 }
 
@@ -123,7 +221,11 @@ function Composer({
               />
             ) : (
               <p className="text-sm text-muted-foreground">
-                {podcast.error ?? "Preparing the brief…"}
+                {podcast.error ??
+                  intl.formatMessage({
+                    id: "studio_composer_brief_status",
+                    defaultMessage: "Preparing the brief…",
+                  })}
               </p>
             )
           ) : null}
@@ -131,11 +233,17 @@ function Composer({
           {ready.length === 0 ? (
             <div className="space-y-2">
               <p className="text-xs font-medium text-muted-foreground">
-                Sources
+                {intl.formatMessage({
+                  id: "studio_composer_sources_label",
+                  defaultMessage: "Sources",
+                })}
               </p>
               <p className="text-sm text-muted-foreground">
-                Add and index a source first — only ready documents can be
-                used.
+                {intl.formatMessage({
+                  id: "studio_composer_sources_empty",
+                  defaultMessage:
+                    "Add and index a source first — only ready documents can be used.",
+                })}
               </p>
             </div>
           ) : (
@@ -146,7 +254,16 @@ function Composer({
               className="h-10 w-full justify-between px-2.5 font-normal"
             >
               <span className="min-w-0 flex-1 truncate text-left">
-                {selected.size} source{selected.size === 1 ? "" : "s"}
+                {intl.formatMessage(
+                  {
+                    id: "studio_composer_sources_button",
+                    defaultMessage:
+                      "{count, plural, one {# source} other {# sources}}",
+                  },
+                  {
+                    count: selected.size,
+                  }
+                )}
               </span>
               <ChevronRightIcon className="size-4 text-muted-foreground" />
             </Button>
@@ -154,12 +271,18 @@ function Composer({
 
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">
-              Prompt (optional)
+              {intl.formatMessage({
+                id: "studio_composer_prompt_label",
+                defaultMessage: "Prompt (optional)",
+              })}
             </p>
             <Input
               className="select-text"
               value={prompt}
-              placeholder="Steer the focus, e.g. emphasise the risks"
+              placeholder={intl.formatMessage({
+                id: "studio_composer_prompt_placeholder",
+                defaultMessage: "Steer the focus, e.g. emphasise the risks",
+              })}
               onChange={(event) => setPrompt(event.target.value)}
             />
           </div>
@@ -181,9 +304,12 @@ function Composer({
             {isCreating ? (
               <Spinner />
             ) : (
-              <SparklesIcon data-icon="inline-start" />
+              <AiSparklesIcon data-icon="inline-start" />
             )}
-            Generate
+            {intl.formatMessage({
+              id: "studio_composer_generate_button",
+              defaultMessage: "Generate",
+            })}
           </Button>
         </div>
       </div>
@@ -198,14 +324,24 @@ function Composer({
         aria-hidden={view !== "sources"}
       >
         <div className="flex shrink-0 items-center justify-between gap-2">
-          <button
+          <Button
             type="button"
+            variant="ghost"
+            size="sm"
+            className="-ml-2 text-muted-foreground"
             onClick={() => setView("main")}
-            className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
           >
-            <ArrowLeftIcon className="size-3.5" />
-            Sources ({selected.size} selected)
-          </button>
+            <ArrowLeftIcon data-icon="inline-start" />
+            {intl.formatMessage(
+              {
+                id: "studio_source_picker_back_button",
+                defaultMessage: "Sources ({count, number} selected)",
+              },
+              {
+                count: selected.size,
+              }
+            )}
+          </Button>
           {ready.length > 0 ? (
             <Button
               type="button"
@@ -214,42 +350,42 @@ function Composer({
               className="text-muted-foreground"
               onClick={onToggleAll}
             >
-              {allSelected ? "Deselect all" : "Select all"}
+              {allSelected
+                ? intl.formatMessage({
+                    id: "studio_source_picker_deselect_all_button",
+                    defaultMessage: "Deselect all",
+                  })
+                : intl.formatMessage({
+                    id: "studio_source_picker_select_all_button",
+                    defaultMessage: "Select all",
+                  })}
             </Button>
           ) : null}
         </div>
-        <ScrollShadow className="min-h-0 flex-1" viewportClassName="pr-2">
+        <ScrollFade className="min-h-0 flex-1" viewportClassName="pr-2">
           <div className="space-y-1">
             {ready.map((document) => {
               const on = selected.has(document.id)
               return (
-                <button
+                <label
                   key={document.id}
-                  type="button"
-                  onClick={() => toggle(document.id)}
                   className={cn(
                     "flex w-full cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-left text-sm",
                     on ? "border-primary bg-primary/5" : "hover:bg-accent"
                   )}
                 >
-                  <span
-                    className={cn(
-                      "flex size-4 items-center justify-center rounded border",
-                      on
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-muted-foreground/40"
-                    )}
-                  >
-                    {on ? <CheckIcon className="size-3" /> : null}
-                  </span>
+                  <Checkbox
+                    checked={on}
+                    onCheckedChange={() => toggle(document.id)}
+                  />
                   <span className="min-w-0 flex-1 truncate">
                     {document.title}
                   </span>
-                </button>
+                </label>
               )
             })}
           </div>
-        </ScrollShadow>
+        </ScrollFade>
       </div>
     </div>
   )
@@ -267,26 +403,28 @@ function FormatCard({
   const Icon = FORMAT_ICONS[entry.key] ?? FileIcon
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <button
-          type="button"
-          aria-disabled={!entry.available || undefined}
-          aria-pressed={entry.available ? selected : undefined}
-          className={cn(
-            "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
-            entry.available
-              ? "hover:bg-accent"
-              : "cursor-not-allowed opacity-50",
-            selected && "border-primary bg-primary/5"
-          )}
-          onClick={entry.available ? onSelect : undefined}
-        >
-          <Icon />
-          <span className="w-full truncate text-[11px] leading-4">
-            {entry.label}
-          </span>
-        </button>
-      </TooltipTrigger>
+      <TooltipTrigger
+        render={
+          <button
+            type="button"
+            aria-disabled={!entry.available || undefined}
+            aria-pressed={entry.available ? selected : undefined}
+            className={cn(
+              "flex min-w-0 cursor-pointer flex-col items-center gap-1 rounded-lg border border-transparent bg-muted/40 px-1 py-2 text-center [&_svg]:size-4",
+              entry.available
+                ? "hover:bg-accent"
+                : "cursor-not-allowed opacity-50",
+              selected && "border-primary bg-primary/5"
+            )}
+            onClick={entry.available ? onSelect : undefined}
+          >
+            <Icon />
+            <span className="w-full truncate text-[11px] leading-4">
+              {formatLabel(entry)}
+            </span>
+          </button>
+        }
+      />
       <TooltipContent side="top">{formatHint(entry)}</TooltipContent>
     </Tooltip>
   )
@@ -314,6 +452,7 @@ export function StudioPanel({
   onGenerate: (job: StudioJobCreate) => Promise<boolean>
 }) {
   const [format, setFormat] = useState<string | null>(null)
+  const [formatOpen, setFormatOpen] = useState(false)
   const catalog = catalogFormats(formats)
   const selectedFormat = catalog.find((entry) => entry.key === format)
 
@@ -321,27 +460,42 @@ export function StudioPanel({
     <>
       {error ? (
         <Alert variant="destructive">
-          <AlertTitle>Studio action failed</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({
+              id: "studio_panel_error_title",
+              defaultMessage: "Studio action failed",
+            })}
+          </AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 
-      <section className="space-y-2" aria-label="Studio formats">
+      <section
+        className="space-y-2"
+        aria-label={intl.formatMessage({
+          id: "studio_panel_formats_aria",
+          defaultMessage: "Studio formats",
+        })}
+      >
         <div className="grid grid-cols-3 gap-1.5">
           {catalog.map((entry) => (
             <FormatCard
               key={entry.key}
               entry={entry}
               selected={format === entry.key}
-              onSelect={() => setFormat(entry.key)}
+              onSelect={() => {
+                setFormat(entry.key)
+                setFormatOpen(true)
+              }}
             />
           ))}
         </div>
       </section>
 
       <Dialog
-        open={selectedFormat != null}
-        onOpenChange={(open) => {
+        open={formatOpen}
+        onOpenChange={setFormatOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setFormat(null)
         }}
       >
@@ -349,7 +503,7 @@ export function StudioPanel({
           {selectedFormat ? (
             <>
               <DialogHeader>
-                <DialogTitle>{selectedFormat.label}</DialogTitle>
+                <DialogTitle>{formatLabel(selectedFormat)}</DialogTitle>
                 <DialogDescription className="sr-only">
                   {formatHint(selectedFormat)}
                 </DialogDescription>
@@ -365,7 +519,7 @@ export function StudioPanel({
                 isCreating={isCreating}
                 onGenerate={(job) => {
                   void onGenerate(job).then((created) => {
-                    if (created) setFormat(null)
+                    if (created) setFormatOpen(false)
                   })
                 }}
               />

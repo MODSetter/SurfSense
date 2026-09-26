@@ -12,6 +12,13 @@ ipcRenderer.on("theme:system-changed", (_event, theme: unknown) => {
   if (theme === "dark" || theme === "light") systemTheme = theme
 })
 
+// main owns the interface language; the sync read gives the page its language
+// before first paint, and "locale:changed" keeps it live.
+let locale = ipcRenderer.sendSync("locale:get") as string
+ipcRenderer.on("locale:changed", (_event, next: unknown) => {
+  if (typeof next === "string") locale = next
+})
+
 // the renderer talks HTTP to this base and never sees Node or the sidecars
 contextBridge.exposeInMainWorld("surfsense", {
   apiUrl: arg ? arg.slice(FLAG.length) : "http://127.0.0.1:8000",
@@ -32,6 +39,12 @@ contextBridge.exposeInMainWorld("surfsense", {
       ipcRenderer.on("updates:state", wrapped)
       return () => ipcRenderer.removeListener("updates:state", wrapped)
     },
+    onCheckRequested: (listener: () => void) => {
+      const wrapped = () => listener()
+      ipcRenderer.on("updates:check-requested", wrapped)
+      return () =>
+        ipcRenderer.removeListener("updates:check-requested", wrapped)
+    },
   },
   setTitleBarOverlay: (overlay: {
     color: string
@@ -39,6 +52,32 @@ contextBridge.exposeInMainWorld("surfsense", {
   }): Promise<void> => ipcRenderer.invoke("shell:titlebar-overlay", overlay),
   openExternal: (url: string): Promise<void> =>
     ipcRenderer.invoke("shell:open-external", url),
+  about: {
+    details: () => ipcRenderer.invoke("about:details"),
+  },
+  sessionLog: {
+    read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
+  },
+  help: {
+    onReportIssue: (listener: () => void): (() => void) => {
+      const wrapped = () => listener()
+      ipcRenderer.on("help:report-issue", wrapped)
+      return () => ipcRenderer.removeListener("help:report-issue", wrapped)
+    },
+  },
+  locale: {
+    get: (): string => locale,
+    preference: (): Promise<string> => ipcRenderer.invoke("locale:preference"),
+    set: (preference: string): Promise<void> =>
+      ipcRenderer.invoke("locale:set", preference),
+    onChange: (listener: (locale: string) => void): (() => void) => {
+      const wrapped = (_event: unknown, next: unknown) => {
+        if (typeof next === "string") listener(next)
+      }
+      ipcRenderer.on("locale:changed", wrapped)
+      return () => ipcRenderer.removeListener("locale:changed", wrapped)
+    },
+  },
   theme: {
     set: (theme: "dark" | "light" | "system"): Promise<void> =>
       ipcRenderer.invoke("theme:set", theme),

@@ -16,6 +16,8 @@ export type ChatStreamEvent =
     }
   | { type: "thread-title-update"; title: string }
   | { type: "citation-catalog"; items: Citation[] }
+  | { type: "reasoning"; text: string }
+  | { type: "reasoning-end"; duration_ms: number }
   | { type: "delta"; text: string }
   | { type: "citations"; items: Citation[] }
   | { type: "completed"; assistant_completed_at: string; text?: string }
@@ -33,6 +35,8 @@ export type ChatErrorKind =
   | "provider_not_found"
   | "provider_rate_limited"
   | "provider_unavailable"
+  | "model_cannot_run"
+  | "context_too_long"
   | "network"
   | "timeout"
   | "unknown"

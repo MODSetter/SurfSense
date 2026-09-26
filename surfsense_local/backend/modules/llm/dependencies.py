@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 
 from modules.llm.providers import get_provider
-from modules.llm.providers.protocols import Generator, ModelStore
+from modules.llm.providers.protocols import Generator
 
 
 def get_provider_or_404(provider: str) -> Generator:
@@ -15,15 +15,3 @@ def get_provider_or_404(provider: str) -> Generator:
 
 
 ProviderDep = Annotated[Generator, Depends(get_provider_or_404)]
-
-
-def get_store_or_409(provider: ProviderDep) -> ModelStore:
-    """The provider as a local store, or a conflict for a remote API."""
-    if not isinstance(provider, ModelStore):
-        raise HTTPException(
-            status.HTTP_409_CONFLICT, f"{provider.name} does not manage local models"
-        )
-    return provider
-
-
-StoreDep = Annotated[ModelStore, Depends(get_store_or_409)]

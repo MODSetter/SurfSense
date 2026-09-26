@@ -5,20 +5,23 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections import discover_models
 from modules.llm.connections.router import allowed_connection
-from modules.llm.models import ModelRole, OnboardingCompletion, SelectedModel
+from modules.llm.model_type import ModelType
+from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.profile import Fingerprint, from_name
-from modules.llm.providers import get_provider
+from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.sdcpp import provider as sdcpp
+from modules.llm.selectable import selectable_for
 
 logger = logging.getLogger(__name__)
 
 
 async def choose_model(
     session: Session,
-    role: ModelRole,
+    model_type: ModelType,
     provider_name: str,
     model_name: str,
     *,
@@ -32,12 +35,16 @@ async def choose_model(
             "model name must not be empty",
         )
 
-    if provider_name == "ollama":
-        await _validate_local(role, model_name, connection_id)
+    if provider_name == llamacpp.PROVIDER:
+        await _validate_local(model_type, model_name, connection_id)
     elif provider_name == sdcpp.PROVIDER:
-        _validate_local_image(role, model_name, connection_id)
+        _validate_local_image(model_type, model_name, connection_id)
+    elif provider_name == audiocpp.PROVIDER:
+        _validate_local_audio(model_type, model_name, connection_id)
     elif provider_name == "openai_compatible":
-        await _validate_remote(session, role, model_name, connection_id, allow_unlisted)
+        await _validate_remote(
+            session, model_type, model_name, connection_id, allow_unlisted
+        )
     else:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -46,11 +53,17 @@ async def choose_model(
 
     fingerprint = await _collect(session, provider_name, model_name, connection_id)
     selected = await transact(
-        session, _store, role, provider_name, connection_id, model_name, fingerprint
+        session,
+        _store,
+        model_type,
+        provider_name,
+        connection_id,
+        model_name,
+        fingerprint,
     )
     logger.info(
         "llm: %s model %s/%s gets the %s prompt (params_b=%s vendor=%s line=%s)",
-        role.value,
+        model_type.value,
         provider_name,
         model_name,
         selected.tier,
@@ -69,8 +82,8 @@ async def _collect(
 ) -> Fingerprint:
     """Ask the provider what it knows, once, so generation never has to."""
     try:
-        if provider_name == "ollama":
-            provider = get_provider("ollama")
+        if provider_name == llamacpp.PROVIDER:
+            provider = get_provider(llamacpp.PROVIDER)
             return await provider.inspect(model_name)
         if provider_name == "openai_compatible":
             connection = await transact(session, allowed_connection, connection_id)
@@ -87,15 +100,15 @@ async def _collect(
 
 def _store(
     session: Session,
-    role: ModelRole,
+    model_type: ModelType,
     provider_name: str,
     connection_id: int | None,
     model_name: str,
     fingerprint: Fingerprint,
 ) -> SelectedModel:
-    selected = session.get(SelectedModel, role)
+    selected = session.get(SelectedModel, model_type)
     if selected is None:
-        selected = SelectedModel(role=role, name=model_name)
+        selected = SelectedModel(model_type=model_type, name=model_name)
         session.add(selected)
     selected.provider = provider_name
     selected.connection_id = connection_id
@@ -110,7 +123,7 @@ def _store(
 
 
 def complete_onboarding(session: Session) -> bool:
-    if session.get(SelectedModel, ModelRole.GENERATION) is None:
+    if session.get(SelectedModel, ModelType.TEXT_GEN) is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "chat model required",
@@ -122,48 +135,68 @@ def complete_onboarding(session: Session) -> bool:
 
 
 def _validate_local_image(
-    role: ModelRole, model_name: str, connection_id: int | None
+    model_type: ModelType, model_name: str, connection_id: int | None
 ) -> None:
-    """The bundled sd-server fills the image role, and only once downloaded."""
-    if role is not ModelRole.IMAGE_GENERATION:
+    """The bundled sd-server fills the slots the model's entry names, and only
+    once downloaded."""
+    if connection_id is not None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "the local image model does not answer chat",
+            "local selections must not include a connection",
+        )
+    image = get_local_catalog().sdcpp.installed_image(model_name)
+    if image is None:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"image model is not installed: {model_name}",
+        )
+    if model_type not in image.types:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"{image.label} does not serve {model_type}",
+        )
+
+
+def _validate_local_audio(
+    model_type: ModelType, model_name: str, connection_id: int | None
+) -> None:
+    """The bundled audio.cpp server fills the audio_gen slot, and only once
+    downloaded: Electron starts it on what `server.json` names."""
+    if model_type is not ModelType.AUDIO_GEN:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"the local audio runtime does not serve {model_type}",
         )
     if connection_id is not None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "local selections must not include a connection",
         )
-    model = sdcpp.find(model_name)
-    if model is None:
+    if not get_local_catalog().audiocpp.holds(model_name):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"unknown local image model: {model_name}",
-        )
-    if not sdcpp.installed(model):
-        raise HTTPException(
-            status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"{model.label} is not installed",
+            f"audio model is not installed: {model_name}",
         )
 
 
 async def _validate_local(
-    role: ModelRole, model_name: str, connection_id: int | None
+    model_type: ModelType, model_name: str, connection_id: int | None
 ) -> None:
-    if role is not ModelRole.GENERATION:
+    if model_type is not ModelType.TEXT_GEN:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Ollama does not provide image generation",
+            f"the local text runtime does not serve {model_type}",
         )
     if connection_id is not None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            "Ollama selections must not include a connection",
+            "a local selection must not name a connection",
         )
-    provider = get_provider("ollama")
+    provider = get_provider(llamacpp.PROVIDER)
     if provider is None:  # pragma: no cover - fixed registry invariant
-        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Ollama unavailable")
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE, "the local runtime is unavailable"
+        )
     model = next(
         (entry for entry in await provider.models() if entry.name == model_name),
         None,
@@ -173,16 +206,16 @@ async def _validate_local(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not installed: {model_name}",
         )
-    if "completion" not in model.capabilities:
+    if model_type not in selectable_for(model.types, model.known):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"model does not support generation: {model_name}",
+            f"model does not support {model_type.value}: {model_name}",
         )
 
 
 async def _validate_remote(
     session: Session,
-    role: ModelRole,
+    model_type: ModelType,
     model_name: str,
     connection_id: int | None,
     allow_unlisted: bool,
@@ -211,9 +244,8 @@ async def _validate_remote(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not listed by this connection: {model_name}",
         )
-    required = "completion" if role is ModelRole.GENERATION else "image_generation"
-    if model.capability_known and required not in model.capabilities:
+    if model_type not in selectable_for(model.types, model.capability_known):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"model does not support {role.value}: {model_name}",
+            f"model does not support {model_type.value}: {model_name}",
         )

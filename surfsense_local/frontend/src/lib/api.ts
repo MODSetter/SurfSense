@@ -1,3 +1,5 @@
+import { intl } from "@/i18n/intl"
+
 export type Health = {
   status: "ok"
 }
@@ -19,12 +21,32 @@ declare global {
         check: () => Promise<void>
         install: () => Promise<void>
         onState: (listener: (state: UpdateState) => void) => () => void
+        // The app menu's Check for Updates…. Mirrors electron/src/preload/index.ts.
+        onCheckRequested: (listener: () => void) => () => void
       }
       setTitleBarOverlay?: (overlay: {
         color: string
         symbolColor: string
       }) => Promise<void>
       openExternal?: (url: string) => Promise<void>
+      about?: {
+        details: () => Promise<AppDetails>
+      }
+      // This run's log, oldest line first. Mirrors electron/src/preload/index.ts.
+      sessionLog?: {
+        read: () => Promise<string[]>
+      }
+      // The app menu's Help › Report Issue…. Mirrors electron/src/preload/index.ts.
+      help?: {
+        onReportIssue: (listener: () => void) => () => void
+      }
+      // Mirrors electron/src/preload/index.ts; main resolves and owns the locale.
+      locale?: {
+        get: () => string
+        preference: () => Promise<string>
+        set: (preference: string) => Promise<void>
+        onChange: (listener: (locale: string) => void) => () => void
+      }
       theme?: {
         set: (theme: "dark" | "light" | "system") => Promise<void>
         getSystemTheme: () => "dark" | "light"
@@ -34,6 +56,16 @@ declare global {
       }
     }
   }
+}
+
+// Mirrors electron/src/main/about/app-details.ts.
+export type AppDetails = {
+  version: string
+  electron: string
+  chrome: string
+  node: string
+  os: string
+  arch: string
 }
 
 // Mirrors electron/src/main/updater.ts.
@@ -113,7 +145,18 @@ async function responseError(response: Response): Promise<ErrorDetails> {
         return {
           message:
             required !== null && available !== null
-              ? `${body.detail.message} (${(required / 1e9).toFixed(1)} GB required, ${(available / 1e9).toFixed(1)} GB available)`
+              ? intl.formatMessage(
+                  {
+                    id: "app_api_insufficient_space_error",
+                    defaultMessage:
+                      "{message} ({required, number, ::unit/gigabyte .#} required, {available, number, ::unit/gigabyte .#} available)",
+                  },
+                  {
+                    message: body.detail.message,
+                    required: required / 1e9,
+                    available: available / 1e9,
+                  }
+                )
               : body.detail.message,
           code:
             "code" in body.detail && typeof body.detail.code === "string"
@@ -129,7 +172,16 @@ async function responseError(response: Response): Promise<ErrorDetails> {
 
   return {
     message:
-      response.statusText || `Request failed with status ${response.status}`,
+      response.statusText ||
+      intl.formatMessage(
+        {
+          id: "app_api_request_failed_error",
+          defaultMessage: "Request failed with status {status}",
+        },
+        {
+          status: String(response.status),
+        }
+      ),
     code: null,
   }
 }

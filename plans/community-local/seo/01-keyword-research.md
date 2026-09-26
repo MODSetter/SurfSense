@@ -996,7 +996,7 @@ after the rewrite should be measured on the no-signup cluster, not on the
 **One build constraint follows from all of it**, and it is in the brief: every
 claim on the page has to be true of the shipped app, so the model roster
 renders from
-[`curated-models.json`](../../../surfsense_local/backend/modules/llm/recommendations/curated-models.json)
+[`catalog/local/manifest/models.json`](../../../surfsense_local/backend/modules/llm/catalog/local/manifest/models.json)
 rather than a hand-kept list. A page that cannot advertise a model the app
 cannot run cannot drift back into the hosted-era copy.
 

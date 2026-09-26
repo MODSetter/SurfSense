@@ -58,7 +58,10 @@ describe("flashcards viewer", () => {
         if (url === "/artifacts/1/files/primary") {
           return Response.json(deckFile)
         }
-        if (url === "/artifacts/1/flashcard-state/mark" && init?.method === "PUT") {
+        if (
+          url === "/artifacts/1/flashcard-state/mark" &&
+          init?.method === "PUT"
+        ) {
           const body = JSON.parse(init.body as string)
           state = {
             ...state,
@@ -74,10 +77,19 @@ describe("flashcards viewer", () => {
     render(<FlashcardsViewer artifact={artifact} actionsContainer={null} />)
 
     expect(await screen.findByText("Arrival year?")).toBeTruthy()
+    // Card 1 of 2: assistive tech hears how far through the deck this is.
+    expect(
+      screen
+        .getByRole("progressbar", { name: "Deck progress" })
+        .getAttribute("aria-valuenow")
+    ).toBe("50")
     // Both faces mount for the flip transition; only the front is exposed
     // to assistive tech until revealed.
     expect(
-      screen.getByText("2004").closest("[aria-hidden]")?.getAttribute("aria-hidden")
+      screen
+        .getByText("2004")
+        .closest("[aria-hidden]")
+        ?.getAttribute("aria-hidden")
     ).toBe("true")
 
     await user.click(screen.getByRole("button", { name: "Reveal answer" }))
@@ -85,7 +97,10 @@ describe("flashcards viewer", () => {
       await screen.findByRole("button", { name: "Show question" })
     ).toBeTruthy()
     expect(
-      screen.getByText("2004").closest("[aria-hidden]")?.getAttribute("aria-hidden")
+      screen
+        .getByText("2004")
+        .closest("[aria-hidden]")
+        ?.getAttribute("aria-hidden")
     ).toBe("false")
 
     await user.click(screen.getByRole("button", { name: /Got it/ }))

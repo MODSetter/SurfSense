@@ -9,6 +9,7 @@ import {
   LightbulbIcon,
   XIcon,
 } from "@/components/ui/icons"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import type { QuizState } from "../../api"
 import { StudyText } from "../study-text"
@@ -42,19 +43,36 @@ export function QuizReviewScreen({
     <section>
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <p className="text-muted-foreground text-sm">Review</p>
+          <p className="text-sm text-muted-foreground">
+            {intl.formatMessage({
+              id: "studio_quiz_review_title",
+              defaultMessage: "Review",
+            })}
+          </p>
           <p className="font-medium">
-            Question {index + 1} of {quiz.questions.length}
+            {intl.formatMessage(
+              {
+                id: "studio_quiz_review_position_label",
+                defaultMessage: "Question {number, number} of {total, number}",
+              },
+              {
+                number: index + 1,
+                total: quiz.questions.length,
+              }
+            )}
           </p>
         </div>
         <Button type="button" variant="secondary" size="sm" onClick={onExit}>
-          Exit review
+          {intl.formatMessage({
+            id: "studio_quiz_review_exit_button",
+            defaultMessage: "Exit review",
+          })}
         </Button>
       </div>
       <h2
         ref={headingRef}
         tabIndex={-1}
-        className="mb-6 font-semibold text-xl outline-none sm:text-2xl"
+        className="mb-6 text-xl font-semibold outline-none sm:text-2xl"
       >
         <StudyText content={question.question_text} />
       </h2>
@@ -83,12 +101,22 @@ export function QuizReviewScreen({
               {correct ? (
                 <span className="text-emerald-600">
                   <CheckIcon className="size-5" />
-                  <span className="sr-only">Correct answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_review_correct_aria",
+                      defaultMessage: "Correct answer",
+                    })}
+                  </span>
                 </span>
               ) : chosen ? (
                 <span className="text-destructive">
                   <XIcon className="size-5" />
-                  <span className="sr-only">Incorrect answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_review_incorrect_aria",
+                      defaultMessage: "Incorrect answer",
+                    })}
+                  </span>
                 </span>
               ) : null}
             </div>
@@ -97,7 +125,12 @@ export function QuizReviewScreen({
       </div>
       <Alert variant="secondary" className="mt-6 border-0">
         <LightbulbIcon />
-        <AlertTitle>Explanation</AlertTitle>
+        <AlertTitle>
+          {intl.formatMessage({
+            id: "studio_quiz_review_explanation_title",
+            defaultMessage: "Explanation",
+          })}
+        </AlertTitle>
         <AlertDescription>
           <StudyText content={question.explanation_text} />
         </AlertDescription>
@@ -109,7 +142,11 @@ export function QuizReviewScreen({
           disabled={index === 0}
           onClick={() => moveTo(index - 1)}
         >
-          <ArrowLeftIcon /> Previous
+          <ArrowLeftIcon />{" "}
+          {intl.formatMessage({
+            id: "studio_quiz_review_previous_button",
+            defaultMessage: "Previous",
+          })}
         </Button>
         <Button
           type="button"
@@ -117,7 +154,11 @@ export function QuizReviewScreen({
           disabled={index === quiz.questions.length - 1}
           onClick={() => moveTo(index + 1)}
         >
-          Next <ArrowRightIcon />
+          {intl.formatMessage({
+            id: "studio_quiz_review_next_button",
+            defaultMessage: "Next",
+          })}{" "}
+          <ArrowRightIcon />
         </Button>
       </div>
     </section>

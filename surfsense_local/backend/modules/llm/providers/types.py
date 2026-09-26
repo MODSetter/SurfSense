@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+from modules.llm.model_type import ModelType
+
 
 @dataclass(frozen=True)
 class Model:
@@ -9,16 +11,10 @@ class Model:
     installed: bool
     capabilities: tuple[str, ...] = ()
     display_name: str | None = None
-
-
-@dataclass(frozen=True)
-class CatalogEntry:
-    """A model a provider offers to download, and its size."""
-
-    name: str
-    label: str
-    size_gb: float
-    installed: bool = False
+    # What the model is for. `known` is False where nothing could say, and an
+    # unknown model fills every slot: the user can see it answer first.
+    types: tuple[ModelType, ...] = ()
+    known: bool = True
 
 
 @dataclass(frozen=True)
@@ -27,6 +23,14 @@ class Message:
 
     role: str
     content: str
+
+
+@dataclass(frozen=True)
+class Delta:
+    """One streamed piece of a reply: answer text, or the model's reasoning."""
+
+    text: str
+    reasoning: bool = False
 
 
 @dataclass(frozen=True)

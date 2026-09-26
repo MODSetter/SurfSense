@@ -7,21 +7,24 @@ from sqlalchemy.orm import Session
 from modules.artifacts.formats import FORMATS_BY_KEY
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus
-from modules.llm.models import ModelRole
+from modules.llm.model_type import ModelType
+from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
+from modules.llm.providers.protocols import TextToSpeech
 from modules.llm.resolution import (
     ModelResolutionError,
     ResolvedGeneration,
     ResolvedImageGeneration,
     resolve_generation,
     resolve_image_generation,
+    resolve_text_to_speech,
 )
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
-from worker.studio.shared import gather, persist
+from worker.studio.shared import cancellation, gather, persist
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +72,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
         kind = job_router.Kind(artifact.format)
         fmt = FORMATS_BY_KEY[kind]
         models = [
-            _choose_model(session, ModelRole(role)) for role in fmt.requires_roles
+            _choose_model(session, model_type)
+            for model_type in fmt.requires_model_types
         ]
         # Options were checked at job creation; only formats that take them get them.
         extras = [meta.get("options")] if fmt.validate_options else []
@@ -77,9 +81,9 @@ def _generate(session: Session, artifact: Artifact) -> None:
         session.commit()
         raise_if_cancelled(session, document)
 
-        # ponytail: a cancel during this call waits until the model returns.
-        # Thread-kill the HTTP client if waiting the rest of the reply is too long.
-        built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
+        # A cancel hangs up on a model mid-reply; other stages still finish first.
+        with cancellation.watching(lambda: raise_if_cancelled(session, document)):
+            built = job_router.pipeline_for(kind)(*models, sources, prompt, *extras)
         raise_if_cancelled(session, document)
 
         logger.info(
@@ -118,7 +122,8 @@ def _generate(session: Session, artifact: Artifact) -> None:
             time.monotonic() - started,
             document.error_message,
         )
-        if isinstance(failure, NonRetryableImageError):
+        # A retry would repeat minutes of drafting and fail the same way.
+        if isinstance(failure, NonRetryableImageError | NotEnoughMemoryError):
             return
         raise  # Huey retries; a later success clears the message.
 
@@ -132,12 +137,14 @@ def _reason(failure: Exception) -> str:
 
 
 def _choose_model(
-    session: Session, role: ModelRole
-) -> ResolvedGeneration | ResolvedImageGeneration:
-    """The model the user selected for one of the roles a format declares."""
+    session: Session, model_type: ModelType
+) -> ResolvedGeneration | ResolvedImageGeneration | TextToSpeech:
+    """The model the user selected for one of the types a format declares."""
     try:
-        if role is ModelRole.IMAGE_GENERATION:
+        if model_type is ModelType.IMAGE_GEN:
             return resolve_image_generation(session)
+        if model_type is ModelType.AUDIO_GEN:
+            return resolve_text_to_speech(session)
         return resolve_generation(session)
     except ModelResolutionError as error:
         raise NoModelSelectedError(str(error)) from error

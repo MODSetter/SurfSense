@@ -15,7 +15,7 @@ from modules.license import service, verify
 pytestmark = pytest.mark.integration
 
 SAMPLE = Path(__file__).resolve().parents[5] / (
-    "plans/community-local/contracts/license-sample"
+    "docs/contracts/license-sample"
 )
 # The fixtures were issued 2026-09-10 and the shortest one expires two weeks later.
 TODAY = datetime(2026, 9, 11, 12, 0, tzinfo=UTC)

@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { type ApiError, setEgressPrompt } from "@/lib/api"
 
 import {
@@ -19,89 +20,70 @@ import {
   destinationsQueryKey,
   setDestinationEnabled,
 } from "./api"
+import {
+  advanceEgressQueue,
+  askEgress,
+  settleEgress,
+  useEgressQuestion,
+  type Pending,
+} from "./ask-egress"
 
-type Pending = {
-  destination: string
-  host: string
-  // What Allow does. A refused request enables the destination and is retried;
-  // the updater talks to GitHub from Electron, so its consent is a pref there.
-  allow: () => Promise<unknown>
-  resolve: (allowed: boolean) => void
-}
-
-function pendingFrom(error: ApiError, resolve: Pending["resolve"]): Pending {
+function requestFrom(error: ApiError): Omit<Pending, "resolve"> {
   const { destination, host } = error.detail
   const key = typeof destination === "string" ? destination : ""
   return {
     destination: key,
     host: typeof host === "string" ? host : "",
     allow: () => setDestinationEnabled(key, true),
-    resolve,
   }
 }
 
-// Set while the dialog is mounted, for callers the API layer cannot speak for.
-let ask: ((request: Omit<Pending, "resolve">) => Promise<boolean>) | null = null
-
-/**
- * Ask about a destination no failed request can raise, because the call is not
- * the backend's to make. Resolves false when the prompt is not mounted, so a
- * caller outside the app shell simply gets no consent rather than an error.
- */
-export function askEgress(request: Omit<Pending, "resolve">): Promise<boolean> {
-  return ask ? ask(request) : Promise.resolve(false)
-}
-
+// An app dialog (`AppDialogs`), so it opens over whatever dialog asked.
 export function EgressPrompt() {
   const queryClient = useQueryClient()
-  const [queue, setQueue] = useState<Pending[]>([])
+  const { question, open } = useEgressQuestion()
   const [allowing, setAllowing] = useState(false)
-  const current = queue[0]
 
   useEffect(() => {
-    const enqueue = (pending: Pending) =>
-      setQueue((queue) => [...queue, pending])
-    setEgressPrompt(
-      (error) => new Promise((resolve) => enqueue(pendingFrom(error, resolve)))
-    )
-    ask = (request) =>
-      new Promise((resolve) => enqueue({ ...request, resolve }))
-    return () => {
-      setEgressPrompt(null)
-      ask = null
-    }
+    setEgressPrompt((error) => askEgress(requestFrom(error)))
+    return () => setEgressPrompt(null)
   }, [])
 
-  const settle = (allowed: boolean) => {
-    current?.resolve(allowed)
-    setQueue((queue) => queue.slice(1))
-  }
-
   const allow = async () => {
-    if (!current) return
+    if (!question) return
     setAllowing(true)
     try {
-      await current.allow()
+      await question.allow()
       void queryClient.invalidateQueries({ queryKey: destinationsQueryKey })
-      settle(true)
+      settleEgress(true)
     } catch {
-      settle(false)
+      settleEgress(false)
     } finally {
       setAllowing(false)
     }
   }
 
-  if (!current) return null
-  const copy = describeDestination(current.destination, current.host)
+  const copy = question
+    ? describeDestination(question.destination, question.host)
+    : null
   return (
-    <AlertDialog open onOpenChange={(open) => !open && settle(false)}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(open) => !open && settleEgress(false)}
+      onOpenChangeComplete={(open) => !open && advanceEgressQueue()}
+    >
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
-          <AlertDialogTitle>{copy.title}</AlertDialogTitle>
-          <AlertDialogDescription>{copy.body}</AlertDialogDescription>
+          <AlertDialogTitle>{copy?.title}</AlertDialogTitle>
+          <AlertDialogDescription>{copy?.body}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={allowing}>Cancel</AlertDialogCancel>
+          <AlertDialogCancel disabled={allowing}>
+            {intl.formatMessage({
+              id: "egress_prompt_cancel_button",
+              defaultMessage: "Cancel",
+            })}
+          </AlertDialogCancel>
           <AlertDialogAction
             disabled={allowing}
             onClick={(event) => {
@@ -110,7 +92,10 @@ export function EgressPrompt() {
             }}
           >
             {allowing ? <Spinner data-icon="inline-start" /> : null}
-            Allow
+            {intl.formatMessage({
+              id: "egress_prompt_allow_button",
+              defaultMessage: "Allow",
+            })}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

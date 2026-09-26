@@ -73,7 +73,10 @@ describe("quiz viewer", () => {
         if (url === "/artifacts/1/files/primary") {
           return Response.json(quizFile)
         }
-        if (url === "/artifacts/1/quiz-state/answer" && init?.method === "PUT") {
+        if (
+          url === "/artifacts/1/quiz-state/answer" &&
+          init?.method === "PUT"
+        ) {
           const body = JSON.parse(init.body as string)
           state = {
             ...state,
@@ -84,12 +87,27 @@ describe("quiz viewer", () => {
           }
           return Response.json(state)
         }
-        if (url === "/artifacts/1/quiz-state/retake" && init?.method === "PUT") {
+        if (
+          url === "/artifacts/1/quiz-state/retake" &&
+          init?.method === "PUT"
+        ) {
           const body = JSON.parse(init.body as string)
           state =
             body.mode === "missed"
-              ? { generation: 1, mode: "missed", active_question_indices: [0], answers: {}, skipped_question_indices: [] }
-              : { generation: 1, mode: "all", active_question_indices: [0, 1], answers: {}, skipped_question_indices: [] }
+              ? {
+                  generation: 1,
+                  mode: "missed",
+                  active_question_indices: [0],
+                  answers: {},
+                  skipped_question_indices: [],
+                }
+              : {
+                  generation: 1,
+                  mode: "all",
+                  active_question_indices: [0, 1],
+                  answers: {},
+                  skipped_question_indices: [],
+                }
           return Response.json(state)
         }
         throw new Error(`unhandled request: ${url}`)
@@ -118,7 +136,7 @@ describe("quiz viewer", () => {
 
     await user.click(screen.getByRole("button", { name: /Retake quiz/ }))
     await user.click(
-      screen.getByRole("menuitem", { name: "Retake missed questions" })
+      await screen.findByRole("menuitem", { name: "Retake missed questions" })
     )
 
     expect(await screen.findByText("Arrival at Saturn?")).toBeTruthy()

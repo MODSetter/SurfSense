@@ -1,12 +1,31 @@
 import { useQuery } from "@tanstack/react-query"
 import { useState } from "react"
 
-import { Button } from "@/components/ui/button"
+import { buttonVariants } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
 import { Download01Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
-import { fileUrl, readArtifact, type ArtifactDetail } from "./api"
+import { intl } from "@/i18n/intl"
+import {
+  fileUrl,
+  readArtifact,
+  type ArtifactDetail,
+  type ArtifactFile,
+} from "./api"
 import { getArtifactViewer } from "./viewers/registry"
+
+const DOWNLOAD_LABELS: Record<ArtifactFile["role"], () => string> = {
+  primary: () =>
+    intl.formatMessage({
+      id: "studio_artifact_panel_download_aria",
+      defaultMessage: "Download",
+    }),
+  preview: () =>
+    intl.formatMessage({
+      id: "studio_artifact_panel_download_preview_aria",
+      defaultMessage: "Download preview",
+    }),
+}
 
 export function ArtifactPanel({
   artifactId,
@@ -19,14 +38,32 @@ export function ArtifactPanel({
     queryKey: ["artifact-panel", artifactId],
     queryFn: ({ signal }) => readArtifact(artifactId, signal),
   })
-  const [actionsContainer, setActionsContainer] = useState<HTMLDivElement | null>(null)
+  const [actionsContainer, setActionsContainer] =
+    useState<HTMLDivElement | null>(null)
 
   return (
     <DetailPanel
-      title={data?.title ?? (isLoading ? "Loading…" : "Artifact")}
+      title={
+        data?.title ??
+        (isLoading
+          ? intl.formatMessage({
+              id: "studio_artifact_panel_loading_status",
+              defaultMessage: "Loading…",
+            })
+          : intl.formatMessage({
+              id: "studio_artifact_panel_title",
+              defaultMessage: "Artifact",
+            }))
+      }
       titleClassName="select-none"
-      ariaLabel="Artifact"
-      closeLabel="Close artifact"
+      ariaLabel={intl.formatMessage({
+        id: "studio_artifact_panel_aria",
+        defaultMessage: "Artifact",
+      })}
+      closeLabel={intl.formatMessage({
+        id: "studio_artifact_panel_close_aria",
+        defaultMessage: "Close artifact",
+      })}
       onClose={onClose}
       flush
       actions={
@@ -40,24 +77,19 @@ export function ArtifactPanel({
           data.format !== "flashcards" &&
           data.format !== "quiz"
             ? data.files.map((file) => (
-                <Button
+                // A plain link: Base UI's Button would give it role="button".
+                <a
                   key={file.role}
-                  variant="secondary"
-                  size="icon-sm"
-                  asChild
+                  href={fileUrl(data.id, file.role)}
+                  download
+                  aria-label={DOWNLOAD_LABELS[file.role]()}
+                  className={buttonVariants({
+                    variant: "secondary",
+                    size: "icon-sm",
+                  })}
                 >
-                  <a
-                    href={fileUrl(data.id, file.role)}
-                    download
-                    aria-label={
-                      file.role === "primary"
-                        ? "Download"
-                        : `Download ${file.role}`
-                    }
-                  >
-                    <Download01Icon />
-                  </a>
-                </Button>
+                  <Download01Icon />
+                </a>
               ))
             : null}
         </>
@@ -79,7 +111,10 @@ export function ArtifactPanel({
             <p className="text-sm text-destructive">
               {error instanceof Error
                 ? error.message
-                : "Failed to load artifact"}
+                : intl.formatMessage({
+                    id: "studio_artifact_panel_load_error",
+                    defaultMessage: "Failed to load artifact",
+                  })}
             </p>
           </div>
         ) : null}

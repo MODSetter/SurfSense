@@ -11,7 +11,10 @@ export function firstUnseenCard(state: FlashcardState): number {
   return 0
 }
 
-export function flashcardProgressCounts(state: FlashcardState, cardCount: number) {
+export function flashcardProgressCounts(
+  state: FlashcardState,
+  cardCount: number
+) {
   let remembered = 0
   let missed = 0
   for (let index = 0; index < cardCount; index += 1) {

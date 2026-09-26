@@ -9,8 +9,13 @@ from modules.artifacts.schemas import FormatRead, StudioJobCreate
 from modules.artifacts.tasks import studio_job
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.sources import load_selected_sources
-from modules.llm.models import ModelRole, SelectedModel
-from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
+from modules.llm.resolution import (
+    ModelResolutionError,
+    VoiceNotLocalError,
+    resolve_text_to_speech,
+)
 from modules.workspaces.models import Workspace
 from worker.jobs import cancel_studio_job
 
@@ -26,7 +31,7 @@ def list_formats(session: Session) -> list[FormatRead]:
             FormatRead(
                 key=fmt.key,
                 label=fmt.label,
-                requires_roles=list(fmt.requires_roles),
+                requires_model_types=list(fmt.requires_model_types),
                 available=available,
                 unavailable_reason=reason,
             )
@@ -56,7 +61,7 @@ def create_artifact_job(
         raise HTTPException(status.HTTP_409_CONFLICT, reason)
 
     documents = _resolve_sources(session, workspace.id, payload.document_ids)
-    options = _resolve_options(fmt, payload.options)
+    options = _resolve_options(session, fmt, payload.options)
 
     document = Document(
         workspace_id=workspace.id,
@@ -132,26 +137,63 @@ def _resolve_sources(
     return load_selected_sources(session, workspace_id, document_ids)
 
 
-def _resolve_options(fmt: Format, raw: dict | None) -> dict | None:
+def _resolve_options(session: Session, fmt: Format, raw: dict | None) -> dict | None:
     if fmt.validate_options is None:
         return raw
     try:
-        return fmt.validate_options(raw)
+        return fmt.validate_options(session, raw)
     except ValueError as error:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
         ) from error
 
 
+# What a model type is called in a sentence, carrying its own article so the
+# line reads whichever types it names. A format states the types it needs and
+# this turns them into the one line the screen shows, so the wording cannot
+# drift between formats that need the same thing.
+_TYPE_PHRASES: dict[ModelType, str] = {
+    ModelType.TEXT_GEN: "a chat model",
+    ModelType.IMAGE_GEN: "an image model",
+    ModelType.AUDIO_GEN: "an audio model",
+}
+
+# Sentence order, which is not the order a format lists its types in: the
+# pipeline takes them in the order it runs them, and a reader wants the same
+# phrasing whichever format they are looking at.
+_TYPE_ORDER: tuple[ModelType, ...] = (
+    ModelType.TEXT_GEN,
+    ModelType.IMAGE_GEN,
+    ModelType.AUDIO_GEN,
+)
+
+
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    for role in map(ModelRole, fmt.requires_roles):
-        if session.get(SelectedModel, role) is None:
-            if role is ModelRole.IMAGE_GENERATION:
-                return False, "Image model required"
-            return False, "Chat model required"
-    if fmt.requires_voice:
+    """Whether this format can run, and the one line saying why not.
+
+    Every missing type is named, not the first one noticed. A format needing
+    two of them reported only whichever `requires_model_types` happened to list
+    first, so selecting that one moved the reason to the other and read as the
+    gate shifting rather than as half of it being met.
+    """
+    missing = [
+        model_type
+        for model_type in fmt.requires_model_types
+        if session.get(SelectedModel, model_type) is None
+    ]
+    if missing:
+        return False, _required(missing)
+    if ModelType.AUDIO_GEN in fmt.requires_model_types:
         try:
-            resolve_text_to_speech()
+            resolve_text_to_speech(session)
+        except VoiceNotLocalError:
+            return False, "Needs an audio model on this computer"
         except ModelResolutionError:
-            return False, "Voice model required"
+            return False, _required([ModelType.AUDIO_GEN])
     return True, None
+
+
+def _required(missing: list[ModelType]) -> str:
+    """"Needs a chat model and an image model", in a fixed reading order."""
+    phrases = [_TYPE_PHRASES[kind] for kind in _TYPE_ORDER if kind in missing]
+    return f"Needs {' and '.join(phrases)}"

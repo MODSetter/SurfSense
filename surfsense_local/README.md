@@ -16,7 +16,8 @@ Local-first desktop app for research over your own documents. Runs fully offline
 |---|---|
 | Node.js | 22.12+ (Electron 44 engine floor) |
 | Python | 3.12+ |
-| Local LLM | [Ollama](https://ollama.com) or `llama.cpp` on `127.0.0.1` |
+| Local LLM | `llama.cpp` (`llama-server`, router mode) on `127.0.0.1` |
+| C++ toolchain | Podcast voices in development on Linux or Windows only: CMake with GCC 13+ (`sudo apt install build-essential cmake` on Ubuntu 24.04), or Visual Studio 2022 Build Tools. Without it the app runs without local audio. |
 
 ## Development
 
@@ -68,7 +69,7 @@ Electron ─┬─> FastAPI (127.0.0.1)        ──> surfsense.db
           ├─> Huey worker ingest (-w 1)  ──> surfsense.db, huey.db
           │                              └─> Docling, embeddings
           └─> Huey worker studio (-w 4)  ──> surfsense.db, huey.db
-Vite SPA  ───> FastAPI                       Ollama / llama.cpp
+Vite SPA  ───> FastAPI                       llama.cpp
 ```
 
 | Path | Contents |
@@ -80,7 +81,7 @@ Vite SPA  ───> FastAPI                       Ollama / llama.cpp
 | `backend/worker/` | Huey consumer, ingest and Studio pipelines |
 | `backend/shared/` | Engine, session, Alembic entrypoint |
 | `backend/alembic/` | Migration history; the only thing that creates schema |
-| `packaging/` | PyInstaller + electron-builder specs |
+| `backend/bundling/` | PyInstaller specs for the API and worker binaries; electron-builder's config is `electron/electron-builder.yml` |
 
 ## Data directory
 

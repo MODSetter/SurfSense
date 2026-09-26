@@ -1,18 +1,12 @@
-import enum
 from datetime import datetime
 
-from cryptography.fernet import InvalidToken
 from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column
 
+from modules.llm.model_type import ModelType
 from modules.llm.profile import Fingerprint, Line, Tier, classify, from_name
 from shared.db import Base, text_enum
 from shared.secrets import decrypt, encrypt
-
-
-class ModelRole(enum.StrEnum):
-    GENERATION = "generation"
-    IMAGE_GENERATION = "image_generation"
 
 
 class OnboardingCompletion(Base):
@@ -29,15 +23,26 @@ class SelectedModel(Base):
     __table_args__ = (
         CheckConstraint(
             # A connection is required exactly when the runtime is remote;
-            # Ollama and the bundled sd-server both answer on this machine.
-            "(provider IN ('ollama', 'sdcpp') AND connection_id IS NULL) OR "
+            # the local text runtime and the bundled sd-server and audio.cpp
+            # all answer on this machine, so none carries a connection.
+            "(provider IN ('llamacpp', 'sdcpp', 'audiocpp') AND connection_id IS NULL) OR "
             "(provider = 'openai_compatible' AND connection_id IS NOT NULL)",
             name="provider_connection",
         ),
+        CheckConstraint(
+            # Each local runtime serves its own types: llama.cpp answers text,
+            # sd-server draws, edits and animates, audio.cpp speaks.
+            "(provider <> 'llamacpp' OR model_type = 'text_gen') AND "
+            "(provider <> 'sdcpp' OR model_type IN ('image_gen', 'image_edit', 'video_gen')) AND "
+            "(provider <> 'audiocpp' OR model_type = 'audio_gen')",
+            name="local_runtime_type",
+        ),
     )
 
-    # One row per role, so the role is the key: choosing again updates in place.
-    role: Mapped[ModelRole] = mapped_column(text_enum(ModelRole), primary_key=True)
+    # One row per type, so the type is the key: choosing again updates in place.
+    model_type: Mapped[ModelType] = mapped_column(
+        text_enum(ModelType), primary_key=True
+    )
     provider: Mapped[str]
     connection_id: Mapped[int | None] = mapped_column(
         ForeignKey("provider_connections.id", ondelete="CASCADE"), nullable=True
@@ -82,6 +87,9 @@ class ProviderConnection(Base):
     label: Mapped[str] = mapped_column(String(collation="NOCASE"))
     provider: Mapped[str]
     base_url: Mapped[str]
+    # The manifest provider this reaches, so its models are read from that
+    # provider's own entries; `custom` for anything the manifest does not list.
+    catalog_provider: Mapped[str] = mapped_column(server_default="custom")
     api_key_ciphertext: Mapped[bytes | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -92,14 +100,10 @@ class ProviderConnection(Base):
     def api_key(self) -> str | None:
         if self.api_key_ciphertext is None:
             return None
-        try:
-            return decrypt(self.api_key_ciphertext)
-        except InvalidToken:
-            # ponytail: SURFSENSE_LOCAL_SECRET rotated (secret.bin reminted).
-            # Drop the unreadable blob so the UI asks for a new key; a 500
-            # here takes down model discovery for an otherwise healthy API.
-            self.api_key_ciphertext = None
-            return None
+        # A key this install's secret cannot open raises UnreadableSecretError,
+        # which the API answers as 409 `unreadable_secret`: kept, so the user is
+        # told to enter it again rather than finding it silently gone.
+        return decrypt(self.api_key_ciphertext)
 
     @api_key.setter
     def api_key(self, value: str | None) -> None:

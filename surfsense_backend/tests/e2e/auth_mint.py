@@ -8,7 +8,7 @@ to 5/min/IP in production). NEVER ships to production: this whole
 
 Authn: shared secret in ``X-E2E-Mint-Secret``. Same value is set on the
 backend container env (``docker/docker-compose.e2e.yml``) and exported
-to the Playwright runner (``.github/workflows/e2e-tests.yml``).
+to the Playwright runner (``.github/workflows/docker-tests.yml``).
 """
 
 from __future__ import annotations

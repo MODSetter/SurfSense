@@ -60,14 +60,17 @@ class SearchSettings(BaseSettings):
 
 
 class LLMSettings(BaseSettings):
-    """The generation runtime. Electron starts Ollama and passes its address."""
+    """The generation runtime. Electron starts llama-server and passes its address."""
 
     model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
 
-    # Dev fallback for a bare `ollama serve`. The packaged app never hits this:
-    # Electron runs Ollama on a port it chose and sets the env var.
-    ollama_base_url: str = "http://127.0.0.1:11434"
-    ollama_models_dir: Path | None = None
+    # llama-server in router mode. Electron picks the port, points the router at
+    # the models directory, and passes the staged library directory: the probe
+    # has to run from there, because ggml scans the running executable's own
+    # directory for backends and silently finds none anywhere else.
+    llamacpp_base_url: str = "http://127.0.0.1:8080"
+    llamacpp_models_dir: Path | None = None
+    llamacpp_library_dir: Path | None = None
 
     # The bundled sd-server, same arrangement: Electron picks the port and only
     # runs it once its model is downloaded. Absent models_dir means the host has
@@ -75,14 +78,15 @@ class LLMSettings(BaseSettings):
     image_base_url: str = "http://127.0.0.1:1234"
     image_models_dir: Path | None = None
 
-    # The packaged app passes an absolute resource path. Development resolves
-    # the command from PATH and degrades recommendations when it is absent.
-    llmfit_path: Path = Path("llmfit")
-    llmfit_expected_version: str = "1.1.11"
-    llmfit_timeout_seconds: float = 30.0
-    llmfit_max_context: int = 8192
-    # ponytail: calibration constant; replace with measured peak app overhead.
-    recommendation_reserve_gb: float = 2.0
+    # The bundled audio.cpp server's folder, where its models and the
+    # `server.json` Electron starts it from live. Absent means the host has no
+    # audio.cpp build, and local audio models are not offered.
+    audio_base_url: str = "http://127.0.0.1:8082"
+    audio_models_dir: Path | None = None
+    # The eSpeak-ng staged beside the server, which the API names in server.json
+    # for the families that do not read it from the server's environment.
+    audio_espeak_library: Path | None = None
+    audio_espeak_data: Path | None = None
 
 
 @lru_cache

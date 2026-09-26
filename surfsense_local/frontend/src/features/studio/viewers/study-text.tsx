@@ -55,7 +55,9 @@ export function StudyText({
   const segments = useMemo(() => parseStudyText(content), [content])
 
   if (!segments) {
-    return <span className={cn("whitespace-pre-wrap", className)}>{content}</span>
+    return (
+      <span className={cn("whitespace-pre-wrap", className)}>{content}</span>
+    )
   }
 
   return (

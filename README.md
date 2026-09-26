@@ -1,8 +1,8 @@
 <!--
   The sunset callout is time-boxed. Delete it on 18 October 2026 when the
   export window closes, along with the "Importing from the hosted app" link
-  further down. Do the same in README.es.md, README.pt-BR.md, README.hi.md and
-  README.zh-CN.md, which track this file section for section.
+  further down. Do the same in every README.<locale>.md. Those files track
+  this one section for section.
   Rationale for this page: plans/community-local/seo/06-repo-readme.md
 -->
 
@@ -36,7 +36,7 @@
   <a href="https://trendshift.io/repositories/13606" target="_blank"><img src="https://trendshift.io/api/badge/repositories/13606" alt="MODSetter/SurfSense | Trendshift" width="250" height="55" /></a>
 
   <p>
-    English | <a href="README.es.md">Español</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.zh-CN.md">简体中文</a>
+    English | <a href="README.ar.md">العربية</a> | <a href="README.de.md">Deutsch</a> | <a href="README.es.md">Español</a> | <a href="README.fr.md">Français</a> | <a href="README.hi.md">हिन्दी</a> | <a href="README.ja.md">日本語</a> | <a href="README.ko.md">한국어</a> | <a href="README.pt-BR.md">Português</a> | <a href="README.ru.md">Русский</a> | <a href="README.zh-CN.md">简体中文</a>
   </p>
 </div>
 
@@ -75,7 +75,7 @@ Pick some documents and a format. The app writes it from the sources you chose, 
 | **Spreadsheet** | An `.xlsx` of tables pulled from the sources | generation model |
 | **Web page** | A self-contained HTML page | generation model |
 | **PDF** | A typeset PDF | generation model |
-| **Podcast** | A two-host audio conversation, voiced offline by Kokoro-82M | generation model + bundled voice |
+| **Podcast** | A two-host audio conversation, voiced offline by Kokoro-82M | generation model + audio model |
 | **Image** | An illustration for the material | image model + generation model |
 | **Infographic** | A single-panel visual summary | image model + generation model |
 
@@ -127,7 +127,7 @@ You do not need Docker, a terminal, a GPU or a compose file.
 
 The download is the slow part, because the installer carries the parser, the retrieval model, the podcast voice and the local model servers, so the app works with the network off.
 
-## Docs, roadmap and community
+## Docs and community
 
 The app and its updates are free. A licence adds plugins and priority support and gates nothing else, so an expired licence still leaves you the app and every future update. See [pricing](https://www.surfsense.com/pricing).
 
@@ -136,11 +136,16 @@ The Docker stack in this repo (`surfsense_backend`, `surfsense_web`, compose fil
 - [Documentation](https://www.surfsense.com/docs) for install, models, Studio formats and self-hosting
 - [Importing from the hosted app](https://www.surfsense.com/sunset)
 - [MCP server](./surfsense_mcp) for the hosted scraper API
-- [Roadmap discussion](https://github.com/MODSetter/SurfSense/discussions/565) and the [project board](https://github.com/users/MODSetter/projects/3)
 - [Discord](https://discord.gg/ejRNvftDp9) for help and ideas, [Discussions](https://github.com/MODSetter/SurfSense/discussions) for direction, [Issues](https://github.com/MODSetter/SurfSense/issues) for reproducible bugs
 - **Star the repo** if you want to follow where this goes
 
-Pull requests welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md); the desktop app lives in [`surfsense_local/`](./surfsense_local) and its README covers the development loop.
+## Contributing
+
+Pull requests are welcome, and [CONTRIBUTING.md](CONTRIBUTING.md) walks through the whole flow. In short:
+
+- **Find something to work on:** an issue labelled [`good first issue`](https://github.com/MODSetter/SurfSense/labels/good%20first%20issue) or [`help wanted`](https://github.com/MODSetter/SurfSense/labels/help%20wanted), or a line from the Known gaps list at the end of each doc in [`docs/architecture/`](docs/architecture/overview.md).
+- **Read how it works first:** [`docs/`](docs/README.md) explains each feature and why it is built that way, and [`docs/ROADMAP.md`](docs/ROADMAP.md) shows what the maintainers are working on.
+- **Open a PR against `dev`.** Bug fixes and docs need no discussion first; a new feature starts with a short design proposal. The desktop app lives in [`surfsense_local/`](./surfsense_local), and its README covers the development loop.
 
 Thanks to all our Surfers:
 

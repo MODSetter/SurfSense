@@ -6,6 +6,7 @@ import { CheckIcon, XIcon } from "@/components/ui/icons"
 import { Progress } from "@/components/ui/progress"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import {
   answerQuizQuestion,
@@ -46,7 +47,11 @@ type Screen = "taking" | "score" | "review"
 // comes from the artifact itself (artifact.quiz_state), already persisted
 // server-side — see backend/modules/artifacts/quiz_progress.py.
 export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
-  const { data: quiz, isLoading, error } = useQuery({
+  const {
+    data: quiz,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: ["artifact-file", artifact.id],
     queryFn: ({ signal }) => readArtifactFile<Quiz>(artifact.id, signal),
   })
@@ -60,8 +65,13 @@ export function QuizViewer({ artifact }: { artifact: ArtifactDetail }) {
   }
   if (error || !quiz) {
     return (
-      <p className={`${VIEWER_PADDING} text-destructive text-sm`}>
-        {error instanceof Error ? error.message : "Failed to load this quiz"}
+      <p className={`${VIEWER_PADDING} text-sm text-destructive`}>
+        {error instanceof Error
+          ? error.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_load_error",
+              defaultMessage: "Failed to load this quiz",
+            })}
       </p>
     )
   }
@@ -92,15 +102,18 @@ function QuizRunner({
   const [message, setMessage] = useState("")
 
   const answer = useMutation({
-    mutationFn: (body: { question_index: number; selected_option_index: number }) =>
-      answerQuizQuestion(artifact.id, body),
+    mutationFn: (body: {
+      question_index: number
+      selected_option_index: number
+    }) => answerQuizQuestion(artifact.id, body),
   })
   const skip = useMutation({
     mutationFn: (body: { question_index: number }) =>
       skipQuizQuestion(artifact.id, body),
   })
   const retake = useMutation({
-    mutationFn: (body: { mode: QuizMode }) => retakeQuizRequest(artifact.id, body),
+    mutationFn: (body: { mode: QuizMode }) =>
+      retakeQuizRequest(artifact.id, body),
   })
   const saving = answer.isPending || skip.isPending
 
@@ -133,7 +146,14 @@ function QuizRunner({
       })
       applyState(next)
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Answer could not be saved")
+      setMessage(
+        err instanceof Error
+          ? err.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_answer_error",
+              defaultMessage: "Answer could not be saved",
+            })
+      )
     }
   }
 
@@ -155,7 +175,14 @@ function QuizRunner({
       applyState(next)
       moveForward()
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Question could not be skipped")
+      setMessage(
+        err instanceof Error
+          ? err.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_skip_error",
+              defaultMessage: "Question could not be skipped",
+            })
+      )
     }
   }
 
@@ -170,7 +197,14 @@ function QuizRunner({
       setScreen(quizRunComplete(next) ? "score" : "taking")
       requestAnimationFrame(() => headingRef.current?.focus())
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Quiz could not be restarted")
+      setMessage(
+        err instanceof Error
+          ? err.message
+          : intl.formatMessage({
+              id: "studio_quiz_viewer_retake_error",
+              defaultMessage: "Quiz could not be restarted",
+            })
+      )
     }
   }
 
@@ -209,10 +243,16 @@ function QuizRunner({
 
   return (
     <section aria-labelledby={headingId} className={VIEWER_PADDING}>
-      <div className="mb-6 flex items-center justify-between gap-4 text-muted-foreground text-sm">
-        <p className="truncate">Attempt your quiz</p>
+      <div className="mb-6 flex items-center justify-between gap-4 text-sm text-muted-foreground">
+        <p className="truncate">
+          {intl.formatMessage({
+            id: "studio_quiz_viewer_title",
+            defaultMessage: "Attempt your quiz",
+          })}
+        </p>
         <p className="shrink-0 tabular-nums">
-          {position + 1} / {state.active_question_indices.length}
+          {intl.formatNumber(position + 1)} /{" "}
+          {intl.formatNumber(state.active_question_indices.length)}
         </p>
       </div>
       <Progress
@@ -221,15 +261,17 @@ function QuizRunner({
             state.active_question_indices.length) *
           100
         }
-        className="mb-8 h-1.5"
-        role="progressbar"
-        aria-label="Quiz progress"
+        className="mb-8 *:data-[slot=progress-track]:h-1.5"
+        aria-label={intl.formatMessage({
+          id: "studio_quiz_viewer_progress_aria",
+          defaultMessage: "Quiz progress",
+        })}
       />
       <h2
         id={headingId}
         ref={headingRef}
         tabIndex={-1}
-        className="mb-6 font-semibold text-xl outline-none sm:text-2xl"
+        className="mb-6 text-xl font-semibold outline-none sm:text-2xl"
       >
         <StudyText content={question.question_text} />
       </h2>
@@ -240,7 +282,15 @@ function QuizRunner({
           void selectAnswer(Number(value))
         }}
         disabled={answerRevealed || saving}
-        aria-label={`Question ${questionIndex + 1} options`}
+        aria-label={intl.formatMessage(
+          {
+            id: "studio_quiz_viewer_options_aria",
+            defaultMessage: "Question {number, number} options",
+          },
+          {
+            number: questionIndex + 1,
+          }
+        )}
         className="gap-3"
       >
         {question.options.map((option, index) => {
@@ -274,12 +324,22 @@ function QuizRunner({
               {answerRevealed && isCorrect ? (
                 <span className="text-emerald-600">
                   <CheckIcon className="size-5" />
-                  <span className="sr-only">Correct answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_viewer_correct_aria",
+                      defaultMessage: "Correct answer",
+                    })}
+                  </span>
                 </span>
               ) : answerRevealed && isSubmitted ? (
                 <span className="text-destructive">
                   <XIcon className="size-5" />
-                  <span className="sr-only">Incorrect answer</span>
+                  <span className="sr-only">
+                    {intl.formatMessage({
+                      id: "studio_quiz_viewer_incorrect_aria",
+                      defaultMessage: "Incorrect answer",
+                    })}
+                  </span>
                 </span>
               ) : null}
             </label>
@@ -292,11 +352,24 @@ function QuizRunner({
           disabled={saving}
           onClick={answerRevealed ? moveForward : () => void skipQuestion()}
         >
-          {answerRevealed ? (isLastQuestion ? "Finish" : "Next") : "Skip"}
+          {answerRevealed
+            ? isLastQuestion
+              ? intl.formatMessage({
+                  id: "studio_quiz_viewer_finish_button",
+                  defaultMessage: "Finish",
+                })
+              : intl.formatMessage({
+                  id: "studio_quiz_viewer_next_button",
+                  defaultMessage: "Next",
+                })
+            : intl.formatMessage({
+                id: "studio_quiz_viewer_skip_button",
+                defaultMessage: "Skip",
+              })}
         </Button>
       </div>
       {message ? (
-        <p role="alert" className="mt-4 text-destructive text-sm">
+        <p role="alert" className="mt-4 text-sm text-destructive">
           {message}
         </p>
       ) : null}

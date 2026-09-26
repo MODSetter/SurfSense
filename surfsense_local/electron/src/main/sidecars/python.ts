@@ -1,11 +1,14 @@
 /**
  * The Python sidecars: the API, and the worker once per queue. Same shape: a
- * frozen onedir binary when packaged, `uv run` in dev, same SURFSENSE_LOCAL_*
- * env. Both reach Ollama, so both need the bundled address.
+ * frozen onedir binary when packaged, the backend's venv interpreter in dev,
+ * same SURFSENSE_LOCAL_* env. Both reach llama-server, so both need the bundled
+ * address.
  */
+import { existsSync } from "node:fs"
 import { join } from "node:path"
 
-import { exe } from "./platform.ts"
+import { binaryPath as audiocppBinary, espeakPaths } from "./audiocpp.ts"
+import { exe, isWindows } from "./platform.ts"
 import type { SidecarContext, SidecarSpec } from "./types.ts"
 
 function pythonEnv(ctx: SidecarContext): Record<string, string> {
@@ -17,14 +20,32 @@ function pythonEnv(ctx: SidecarContext): Record<string, string> {
     SURFSENSE_LOCAL_SECRET: ctx.secret,
     ...(ctx.modelsDir && { SURFSENSE_LOCAL_MODELS_DIR: ctx.modelsDir }),
     ...(ctx.packaged && { HF_HUB_OFFLINE: "1" }),
-    ...(ctx.ollamaUrl && { SURFSENSE_LOCAL_OLLAMA_BASE_URL: ctx.ollamaUrl }),
-    ...(ctx.ollamaModelsDir && {
-      SURFSENSE_LOCAL_OLLAMA_MODELS_DIR: ctx.ollamaModelsDir,
+    ...(ctx.llamacppUrl && { SURFSENSE_LOCAL_LLAMACPP_BASE_URL: ctx.llamacppUrl }),
+    ...(ctx.llamacppModelsDir && {
+      SURFSENSE_LOCAL_LLAMACPP_MODELS_DIR: ctx.llamacppModelsDir,
+    }),
+    // The API probes hardware by loading ggml from here. Without it the probe
+    // runs from the wrong directory, finds no backends, and reports a CPU-only
+    // machine with no error at all.
+    ...(ctx.llamacppBinariesDir && {
+      SURFSENSE_LOCAL_LLAMACPP_LIBRARY_DIR: ctx.llamacppBinariesDir,
     }),
     ...(ctx.imageUrl && { SURFSENSE_LOCAL_IMAGE_BASE_URL: ctx.imageUrl }),
     ...(ctx.imageModelsDir && {
       SURFSENSE_LOCAL_IMAGE_MODELS_DIR: ctx.imageModelsDir,
     }),
+    // Only where audio.cpp is staged: without it the API offers no audio models,
+    // and the Studio worker voices podcasts at the URL. The API names eSpeak in
+    // server.json for Kitten, which does not read the server's environment.
+    ...(ctx.audioModelsDir &&
+      ctx.audioUrl &&
+      ctx.audioBinariesDir &&
+      existsSync(audiocppBinary(ctx)) && {
+        SURFSENSE_LOCAL_AUDIO_MODELS_DIR: ctx.audioModelsDir,
+        SURFSENSE_LOCAL_AUDIO_BASE_URL: ctx.audioUrl,
+        SURFSENSE_LOCAL_AUDIO_ESPEAK_LIBRARY: espeakPaths(ctx.audioBinariesDir).library,
+        SURFSENSE_LOCAL_AUDIO_ESPEAK_DATA: espeakPaths(ctx.audioBinariesDir).data,
+      }),
   }
 }
 
@@ -34,9 +55,13 @@ function pythonCmd(
   devEntry: string,
   args: string[] = [],
 ): { cmd: string; args: string[]; cwd: string } {
+  // Not `uv run`: Windows kills the app's children with it but not theirs, and
+  // under uv Python is one of theirs, so a Ctrl-C left workers taking the next
+  // session's jobs. predev's own `uv run` scripts have synced this venv.
+  const venv = join(ctx.backendDir, ".venv", isWindows ? "Scripts" : "bin")
   return ctx.packaged
     ? { cmd: join(ctx.binariesDir, "backend", name, exe(name)), args, cwd: ctx.binariesDir }
-    : { cmd: "uv", args: ["run", devEntry, ...args], cwd: ctx.backendDir }
+    : { cmd: join(venv, exe("python")), args: [devEntry, ...args], cwd: ctx.backendDir }
 }
 
 export function apiSpec(ctx: SidecarContext): SidecarSpec {
@@ -45,8 +70,7 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
     ...pythonCmd(ctx, "api", "main.py"),
     env: {
       ...pythonEnv(ctx),
-      ...(ctx.llmfitPath && { SURFSENSE_LOCAL_LLMFIT_PATH: ctx.llmfitPath }),
-    },
+      },
   }
 }
 

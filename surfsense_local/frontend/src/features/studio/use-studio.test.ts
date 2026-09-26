@@ -107,10 +107,10 @@ describe("useStudio", () => {
 
     expect(toast.error).toHaveBeenCalledExactlyOnceWith(
       "Summary of the source failed",
-      {
+      expect.objectContaining({
         description:
-          "This artifact couldn't be generated. Retry it from the artifacts tab.",
-      }
+          "This artifact couldn’t be generated. Retry it from the artifacts tab.",
+      })
     )
     const [, options] = vi.mocked(toast.error).mock.calls[0]
     expect(String(options?.description)).not.toContain("HTTPStatusError")
@@ -139,10 +139,10 @@ describe("useStudio", () => {
 
     expect(toast.error).toHaveBeenCalledExactlyOnceWith(
       "Summary of the source failed",
-      {
+      expect.objectContaining({
         description:
-          "This artifact couldn't be generated. Retry it from the artifacts tab.",
-      }
+          "This artifact couldn’t be generated. Retry it from the artifacts tab.",
+      })
     )
   }, 8000)
 
@@ -164,4 +164,39 @@ describe("useStudio", () => {
     expect(toast.error).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
   }, 8000)
+})
+
+describe("useStudio formats freshness", () => {
+  it("asks again for the formats when the selected model changes", async () => {
+    // Availability is decided by the server from what is selected, and the
+    // client holds the answer. Without re-asking, choosing a chat model leaves
+    // every Studio tile disabled until the page is reloaded.
+    const fetchMock = vi.fn<(path: RequestInfo | URL) => Promise<Response>>(
+      async () => Response.json([])
+    )
+    vi.stubGlobal("fetch", fetchMock)
+
+    const { rerender } = renderHook(
+      ({ token }: { token: string }) => useStudio(1, token),
+      { initialProps: { token: "none" } }
+    )
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([path]) =>
+          String(path).includes("/studio/formats")
+        )
+      ).toHaveLength(1)
+    )
+
+    rerender({ token: "llamacpp:Qwen3-4B-Q4_K_M" })
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([path]) =>
+          String(path).includes("/studio/formats")
+        )
+      ).toHaveLength(2)
+    )
+  })
 })

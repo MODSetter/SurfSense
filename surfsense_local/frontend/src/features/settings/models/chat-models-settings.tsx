@@ -1,0 +1,56 @@
+import { DownloadChatModels } from "@/features/models/local/chat/download-chat-models"
+import { useDeleteLocalChatModel } from "@/features/models/local/chat/use-delete-local-chat-model"
+import type { ModelSelection } from "@/features/models/selection/api"
+import { useSelect } from "@/features/models/selection/use-selection"
+import { useChatModels } from "@/features/models/your-models/use-chat-models"
+import { usePendingInstalls } from "@/features/models/local/installs/pending-installs"
+import { intl } from "@/i18n/intl"
+
+import { ModelSlotSettings } from "./model-slot-settings"
+
+export function ChatModelsSettings({
+  onSelected,
+  onModelUnavailable,
+}: {
+  onSelected: (selection: ModelSelection) => void
+  onModelUnavailable: () => void
+}) {
+  const models = useChatModels()
+  const select = useSelect("text_gen")
+  const remove = useDeleteLocalChatModel(onModelUnavailable)
+  // Only downloads whose model can fill this slot, wherever they started.
+  const pending = usePendingInstalls("text_gen")
+
+  return (
+    <ModelSlotSettings
+      title={intl.formatMessage({
+        id: "settings_chat_models_title",
+        defaultMessage: "Text generation models",
+      })}
+      description={intl.formatMessage({
+        id: "settings_chat_models_body",
+        defaultMessage:
+          "The model that answers in chat. Run one on this computer, or use one from a server.",
+      })}
+      slot="chat"
+      modelType="text_gen"
+      models={models}
+      pending={pending}
+      download={
+        <DownloadChatModels
+          onSelected={onSelected}
+          onModelUnavailable={onModelUnavailable}
+        />
+      }
+      onSelected={onSelected}
+      onChatCleared={onModelUnavailable}
+      onUse={async (row) => {
+        if (!row.target) return
+        onSelected(await select.mutateAsync({ target: row.target }))
+      }}
+      onDelete={async (row) => {
+        if (row.removeId) await remove.mutateAsync(row.removeId)
+      }}
+    />
+  )
+}

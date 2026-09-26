@@ -30,9 +30,7 @@ describe("ChatsDialog", () => {
     render(<ChatsDialog {...baseProps()} />)
 
     expect(screen.getByRole("heading", { name: "Chats" })).toBeTruthy()
-    expect(
-      screen.getByText("Start a conversation to see it here")
-    ).toBeTruthy()
+    expect(screen.getByText("Start a conversation to see it here")).toBeTruthy()
   })
 
   it("selects a chat and closes the dialog", async () => {
@@ -68,7 +66,11 @@ describe("ChatsDialog", () => {
     const onOpenChange = vi.fn()
 
     render(
-      <ChatsDialog {...baseProps()} onNewChat={onNewChat} onOpenChange={onOpenChange} />
+      <ChatsDialog
+        {...baseProps()}
+        onNewChat={onNewChat}
+        onOpenChange={onOpenChange}
+      />
     )
 
     await user.click(screen.getByRole("button", { name: "New chat" }))
@@ -96,8 +98,10 @@ describe("ChatsDialog", () => {
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "Actions for Untitled" }))
-    await user.click(screen.getByRole("menuitem", { name: "Rename" }))
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Untitled" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
 
     const input = screen.getByRole("textbox", { name: "Chat name" })
     await user.clear(input)
@@ -126,9 +130,29 @@ describe("ChatsDialog", () => {
       />
     )
 
-    await user.click(screen.getByRole("button", { name: "Actions for Untitled" }))
-    await user.click(screen.getByRole("menuitem", { name: "Delete chat" }))
+    await user.click(
+      screen.getByRole("button", { name: "Actions for Untitled" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: "Delete chat" })
+    )
 
     expect(onDelete).toHaveBeenCalledWith(1)
+  })
+
+  it("clears the search from its own button and keeps focus in the box", async () => {
+    const user = userEvent.setup()
+    render(<ChatsDialog {...baseProps()} />)
+    const search = screen.getByRole<HTMLInputElement>("searchbox", {
+      name: "Search chats",
+    })
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
+
+    await user.type(search, "notes")
+    await user.click(screen.getByRole("button", { name: "Clear search" }))
+
+    expect(search.value).toBe("")
+    expect(document.activeElement).toBe(search)
+    expect(screen.queryByRole("button", { name: "Clear search" })).toBeNull()
   })
 })

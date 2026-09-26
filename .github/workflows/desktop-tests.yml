@@ -1,0 +1,204 @@
+name: Desktop Tests
+
+# surfsense_local, the desktop app. docker-tests.yml covers surfsense_backend
+# and surfsense_web; code-quality.yml the checks that belong to no product.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Filtered per job, not per workflow: a workflow skipped by its paths leaves
+  # its checks pending, while a skipped job reports success.
+  changes:
+    name: Changes
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    outputs:
+      backend: ${{ steps.filter.outputs.backend }}
+      frontend: ${{ steps.filter.outputs.frontend }}
+      electron: ${{ steps.filter.outputs.electron }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      # A manual run has no pull request to diff; it starts every job instead.
+      - name: Filter changed paths
+        id: filter
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            backend:
+              - 'surfsense_local/backend/**'
+              - 'docs/contracts/**'
+              - '.pre-commit-config.yaml'
+              - '.github/workflows/desktop-tests.yml'
+            frontend:
+              - 'surfsense_local/frontend/**'
+              - 'scripts/check_translations.mjs'
+              - '.github/workflows/desktop-tests.yml'
+            electron:
+              - 'surfsense_local/electron/**'
+              - 'surfsense_local/scripts/**'
+              - 'surfsense_local/packaging/**'
+              - 'surfsense_local/VERSION'
+              - '.github/workflows/desktop-tests.yml'
+
+  backend:
+    name: Backend
+    runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.backend == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      # Matches surfsense_local/backend/.python-version.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: surfsense_local/backend
+        run: uv sync
+
+      - name: Lint
+        working-directory: surfsense_local/backend
+        run: uv run ruff check .
+
+      # The hook in .pre-commit-config.yaml, so the rule lives in one place.
+      - name: Security scan
+        run: uvx pre-commit run bandit-desktop --all-files
+
+      - name: Run unit tests
+        working-directory: surfsense_local/backend
+        run: uv run pytest -m unit
+
+      # Tests that need the real embedding model skip without it.
+      - name: Run integration tests
+        working-directory: surfsense_local/backend
+        run: uv run pytest -m integration
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.frontend == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          # The desktop trees pin their own pnpm; surfsense_web pins its own.
+          package_json_file: surfsense_local/frontend/package.json
+
+      # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: surfsense_local/frontend/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: surfsense_local/frontend
+        run: pnpm install --frozen-lockfile
+
+      # Before typecheck, which regenerates en.json and would hide a stale one.
+      - name: Check en.json matches the code
+        working-directory: surfsense_local/frontend
+        run: |
+          pnpm translations:extract
+          git diff --exit-code -- translations/en.json
+
+      - name: Check every language has every message
+        working-directory: surfsense_local/frontend
+        run: pnpm translations:verify
+
+      - name: Check translation ids and layout
+        run: node scripts/check_translations.mjs
+
+      # Each script regenerates en.json and compiles the catalogs first.
+      - name: Typecheck
+        working-directory: surfsense_local/frontend
+        run: pnpm typecheck
+
+      - name: Lint
+        working-directory: surfsense_local/frontend
+        run: pnpm lint
+
+      - name: Run tests
+        working-directory: surfsense_local/frontend
+        run: pnpm test
+
+  electron:
+    name: Electron
+    runs-on: ubuntu-latest
+    needs: changes
+    if: github.event_name == 'workflow_dispatch' || needs.changes.outputs.electron == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          # The desktop trees pin their own pnpm; surfsense_web pins its own.
+          package_json_file: surfsense_local/electron/package.json
+
+      # Node 24 matches @types/node ^24 and the Node that Electron 44 embeds.
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: surfsense_local/electron/pnpm-lock.yaml
+
+      - name: Install dependencies
+        working-directory: surfsense_local/electron
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        working-directory: surfsense_local/electron
+        run: pnpm typecheck
+
+      - name: Run tests
+        working-directory: surfsense_local/electron
+        run: pnpm test
+
+  # A job skipped because its files did not change passes; a failed or
+  # cancelled one (a timeout included) does not.
+  gate:
+    name: Desktop Gate
+    runs-on: ubuntu-latest
+    needs: [changes, backend, frontend, electron]
+    if: always()
+
+    steps:
+      - name: Check every job
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          echo "Results: $RESULTS"
+          for result in $RESULTS; do
+            if [[ "$result" == "failure" || "$result" == "cancelled" ]]; then
+              echo "Desktop tests failed"
+              exit 1
+            fi
+          done
+          echo "All desktop tests passed"

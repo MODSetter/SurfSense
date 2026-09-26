@@ -1,0 +1,4554 @@
+{
+  "schema_version": 1,
+  "refreshed_at": "2026-09-25",
+  "models": [
+    {
+      "id": "qwen3-32b",
+      "name": "Qwen3 32B",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "description": "The strongest answers here, for machines with 24 GB or more",
+      "license": "apache-2.0",
+      "source_repo": "Qwen/Qwen3-32B",
+      "aliases": [
+        "Qwen/Qwen3-32B",
+        "Qwen/Qwen3-32B-GGUF",
+        "bartowski/Qwen_Qwen3-32B-GGUF"
+      ],
+      "evidence": {
+        "architecture": "qwen3",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 32.76
+      },
+      "context": 40960,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": {
+        "origin": "unsloth/Qwen3-32B-GGUF@931c84066f88693a02ab8de820cfcd066d913241/params",
+        "thinking": {
+          "temperature": 0.6,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0
+        },
+        "non_thinking": null
+      },
+      "image": null,
+      "shape": {
+        "block_count": 64,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0,
+        "embedding_length": 5120,
+        "feed_forward_length": 25600,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "Q2_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q2_K.gguf",
+              "size_bytes": 12344652448,
+              "sha256": "a44c487474fcbd04f0c9bdaf4396621585c738ffe43019efe58252ff43b7461a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-UD-Q2_K_XL.gguf",
+              "size_bytes": 12797352608,
+              "sha256": "b15da97c6f14ab076e858a3e493c708926bb9369212639bfd5f1383614616047"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q3_K_S.gguf",
+              "size_bytes": 14389739168,
+              "sha256": "5c07890c2c624971b10f69d80dc78ba05a66786cfacdd580e76820fd1f3affb4"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q3_K_M.gguf",
+              "size_bytes": 15971778208,
+              "sha256": "e0292684341bdb66d800f77985769d46af96089645ca3a05f1c71a7cd77d030b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-UD-Q3_K_XL.gguf",
+              "size_bytes": 16403102368,
+              "sha256": "cbfdb9471aaab2ed4beeb7419528137a00c5a4aec0519faeb95dcd41886622b8"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_XS",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-IQ4_XS.gguf",
+              "size_bytes": 17714805408,
+              "sha256": "3c4e43713e75b1c445f551fee3876be5529fe124a1adb49b2d192e74ac0e7a66"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_NL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-IQ4_NL.gguf",
+              "size_bytes": 18679495328,
+              "sha256": "e6b7faad5e1ec0bc2dc589a7b62e719715ae7cb98836a1354ef302eeeb37bab4"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q4_K_S.gguf",
+              "size_bytes": 18771245728,
+              "sha256": "359efe7aba13c3ad81311b47c101c62a0419eb21ccda7bea553c3fae045232ac"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q4_K_M.gguf",
+              "size_bytes": 19762150048,
+              "sha256": "8df67573b2c23484e02ec7af295e39bed7ee774f3771d5fda2978265b59370e7"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-UD-Q4_K_XL.gguf",
+              "size_bytes": 20021713568,
+              "sha256": "744e6b933517e18af3c2a9885bbfee2c7b6f6a4e2d7be348551e0180aaeceac4"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q5_K_S.gguf",
+              "size_bytes": 22635494048,
+              "sha256": "58d4cc51d0985c8779f878351c8b81f3b6b2d15869bcf122124fb58adc785104"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q5_K_M.gguf",
+              "size_bytes": 23214832288,
+              "sha256": "bc96ba6bc5ed7d78540d2ca7fe66234c71b821480496c6ac8d12d8c406429446"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-UD-Q5_K_XL.gguf",
+              "size_bytes": 23233551008,
+              "sha256": "ca5cc286a16eff7309453070cd9712e6e2509855f1cb8f3ab125f933d9738be9"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q6_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q6_K.gguf",
+              "size_bytes": 26883307168,
+              "sha256": "47eb3b57d774b7c4f730d3ca1d63c987e03a4c19c925145b777fdd530da4c447"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-UD-Q6_K_XL.gguf",
+              "size_bytes": 28961586848,
+              "sha256": "374c65fa25d0d0ccba519f4cff6870f0b69a5ce6793e747ef9e125482f0413a8"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-Q8_0.gguf",
+              "size_bytes": 34817719968,
+              "sha256": "893a858c12e891a53219e59dab3238de0db61567e2fbd0487d2c6348572d78ff"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "Qwen3-32B-UD-Q8_K_XL.gguf",
+              "size_bytes": 39481015968,
+              "sha256": "ae588534828a4ed716d6a7a24e664d92841607ac6078ad296b44691151045200"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "BF16/Qwen3-32B-BF16-00001-of-00002.gguf",
+              "size_bytes": 49871764512,
+              "sha256": "590cc676bffbccaafc2c3cf2b61955aa12e584b7843f9d45cc2930f2812dbb51"
+            },
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-32B-GGUF",
+              "upstream_repo": null,
+              "revision": "931c84066f88693a02ab8de820cfcd066d913241",
+              "path": "BF16/Qwen3-32B-BF16-00002-of-00002.gguf",
+              "size_bytes": 15659811424,
+              "sha256": "5fb0cbc5531c672fd178e57a43e1c16bef85f05e9ea60d7e4f46e02167a2a6c9"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen3-14b",
+      "name": "Qwen3 14B",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "description": "Careful answers from long documents, for 16 GB machines",
+      "license": "apache-2.0",
+      "source_repo": "Qwen/Qwen3-14B",
+      "aliases": [
+        "Qwen/Qwen3-14B",
+        "Qwen/Qwen3-14B-GGUF",
+        "bartowski/Qwen_Qwen3-14B-GGUF"
+      ],
+      "evidence": {
+        "architecture": "qwen3",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 14.77
+      },
+      "context": 40960,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": {
+        "origin": "unsloth/Qwen3-14B-GGUF@a04a82c4739b3ef5fa6da7d10261db2c67dd1985/params",
+        "thinking": {
+          "temperature": 0.6,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0
+        },
+        "non_thinking": null
+      },
+      "image": null,
+      "shape": {
+        "block_count": 40,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0,
+        "embedding_length": 5120,
+        "feed_forward_length": 17408,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "Q2_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q2_K.gguf",
+              "size_bytes": 5753984384,
+              "sha256": "7282a1791062c250b306c8b8c97c77cd130046898d3ac4c1ab3ccaa76fa721f0"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-UD-Q2_K_XL.gguf",
+              "size_bytes": 6067584384,
+              "sha256": "6abefcfb88de4157acc6109a711af65fdb5a6da2a77a1ac91bdada2ded22fd49"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q3_K_S.gguf",
+              "size_bytes": 6657106304,
+              "sha256": "b5dad229e5b047f2627bd90bc0ab1e6dfc02510b904aa1b13d1e152e067d8736"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q3_K_M.gguf",
+              "size_bytes": 7321313664,
+              "sha256": "9694f1db203d5a18bea6f19a36be01b2d2c79bf9b7f8df553a4cc5cff870b47e"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-UD-Q3_K_XL.gguf",
+              "size_bytes": 7593917824,
+              "sha256": "46b8c8a3fda3de374f465be47176c956e44c7ef56ceddf6aa8bafddb1c73d5b6"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_XS",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-IQ4_XS.gguf",
+              "size_bytes": 8135040384,
+              "sha256": "e24bdda1295a1bb7898b7af9300b86eba0ffba66d8f3dadbc90d00e98ecd5369"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_NL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-IQ4_NL.gguf",
+              "size_bytes": 8541363584,
+              "sha256": "e3d692d9e63af04bd212f8b4a1dcc6a49a0fce094343f0757ed0fd0b25473c39"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q4_K_S.gguf",
+              "size_bytes": 8573476224,
+              "sha256": "25b653915ea21da7a0983b3804be167b7e205646b87af8a3daa1d8bf2de46111"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q4_K_M.gguf",
+              "size_bytes": 9001753984,
+              "sha256": "5eaa0870bd81ed3b58a630a271234cfa604e43ffb3a19cd68e54a80dd9d52a66"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-UD-Q4_K_XL.gguf",
+              "size_bytes": 9159818624,
+              "sha256": "7f371adeaaf51dc97da927c61e6573e75e3ea33d76ec09dddb8cad00d0d5b6cb"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q5_K_S.gguf",
+              "size_bytes": 10263895424,
+              "sha256": "231f2cea7c4ffc2748cb5556ec7190eeef4e19a900d8ae55549d301d7518d26b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q5_K_M.gguf",
+              "size_bytes": 10514570624,
+              "sha256": "305309039ea44df963c01f66d65e949f8eebca238554916df437f02295a3a413"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-UD-Q5_K_XL.gguf",
+              "size_bytes": 10546437504,
+              "sha256": "f62da26805a70d9963400ca6160843c82e1aaadc714da8b299d0a676676741b8"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q6_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q6_K.gguf",
+              "size_bytes": 12121938304,
+              "sha256": "c34d749069d5f19b998498ce84884975c551529548fa6a56b883345d166289c2"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-UD-Q6_K_XL.gguf",
+              "size_bytes": 13285990784,
+              "sha256": "83e7dcec42952a4ed6e092977c587a9ab8d528d52d0db481df6d694d5181811b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-Q8_0.gguf",
+              "size_bytes": 15698534784,
+              "sha256": "90224247d4a8076c0a689e833910f4291bce05dec81f472ebcba321607168ea1"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-UD-Q8_K_XL.gguf",
+              "size_bytes": 18754560384,
+              "sha256": "2da4750f82103624cbc6f831a5907628670c9b2ba59c4d57e59186c19860f4b3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-14B-GGUF",
+              "upstream_repo": null,
+              "revision": "a04a82c4739b3ef5fa6da7d10261db2c67dd1985",
+              "path": "Qwen3-14B-BF16.gguf",
+              "size_bytes": 29543424160,
+              "sha256": "1d12adb9b56bea81a1b3b8b2eea0fcf5700307ba4ed5d56d2f64f222ec2d7b72"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen3-8b",
+      "name": "Qwen3 8B",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "description": "Balanced chat model for documents, fits most 12 GB machines",
+      "license": "apache-2.0",
+      "source_repo": "Qwen/Qwen3-8B",
+      "aliases": [
+        "Qwen/Qwen3-8B",
+        "Qwen/Qwen3-8B-GGUF",
+        "bartowski/Qwen_Qwen3-8B-GGUF"
+      ],
+      "evidence": {
+        "architecture": "qwen3",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 8.19
+      },
+      "context": 40960,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": {
+        "origin": "unsloth/Qwen3-8B-GGUF@a6adef130ffb23ddaf1a62fec9dced968c9bc482/params",
+        "thinking": {
+          "temperature": 0.6,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0
+        },
+        "non_thinking": null
+      },
+      "image": null,
+      "shape": {
+        "block_count": 36,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0,
+        "embedding_length": 4096,
+        "feed_forward_length": 12288,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "Q2_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q2_K.gguf",
+              "size_bytes": 3281733440,
+              "sha256": "7226e0183d31dca14d81c6f799ada2944be62160b8b7549a70254fba4124a5cf"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-UD-Q2_K_XL.gguf",
+              "size_bytes": 3501975360,
+              "sha256": "e1b3da4b0b69ece74bc46cbcc4e43177b16366508864230f49b226b800168b0c"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q3_K_S.gguf",
+              "size_bytes": 3769612096,
+              "sha256": "d9ba948815c357eb7c2c6013ddc22085fb0b2d7802a4fab138ac155c14827f15"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q3_K_M.gguf",
+              "size_bytes": 4124161856,
+              "sha256": "4924cf38a3b3c4b27ead5ccb93e27027f9418738506ac50a24a70dfe8581a007"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-UD-Q3_K_XL.gguf",
+              "size_bytes": 4307052352,
+              "sha256": "2d8549afad63087f6a78af667aff4834e71fba597830c8806b4edbf5af463e79"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_XS",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-IQ4_XS.gguf",
+              "size_bytes": 4581287744,
+              "sha256": "30a433372c4c986754e30cfaa05848ab78896d38d34b6b275b24c409857801cb"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_NL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-IQ4_NL.gguf",
+              "size_bytes": 4793624384,
+              "sha256": "07ffccc29bbbf5e11c608d82269bff77a2580ef3a6d60e84707a9f5af6b2e833"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q4_K_S.gguf",
+              "size_bytes": 4802012992,
+              "sha256": "a0f19938dcdc036ac66a817a34a694fc64d1e2301653a2aaa0380f35df3dcb3c"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q4_K_M.gguf",
+              "size_bytes": 5027784512,
+              "sha256": "120307ba529eb2439d6c430d94104dabd578497bc7bfe7e322b5d9933b449bd4"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-UD-Q4_K_XL.gguf",
+              "size_bytes": 5135722304,
+              "sha256": "34a514d08f7449cb4a694a707aaa2eedccb7bb68290121bf5e5a569b2abe71c3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q5_K_S.gguf",
+              "size_bytes": 5720762176,
+              "sha256": "fa08eab86c1d27dafcfb4357759de84b62eaade0a614fadcd644227e4ca0237a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q5_K_M.gguf",
+              "size_bytes": 5851113280,
+              "sha256": "159c694b93271e4edc1dc2a305b10cf981032c8f3035a7da00973312f0331504"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-UD-Q5_K_XL.gguf",
+              "size_bytes": 5878081344,
+              "sha256": "4b8feb9b20477613883ad2b6aa0a2e8a697fb9576d3a62d909f4f7991275c22e"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q6_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q6_K.gguf",
+              "size_bytes": 6725900096,
+              "sha256": "0eaec718fdeab0f429dfa0ec481c090388811f5e63785ddb582292f4ef3c3827"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-UD-Q6_K_XL.gguf",
+              "size_bytes": 7490549568,
+              "sha256": "61201e42b1c1021ce15936f23682e56e873bb4af3e8e5aae7558bc1c53a1dd91"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-Q8_0.gguf",
+              "size_bytes": 8709519168,
+              "sha256": "0cfbf745760f07a76ddeb358dd025a27f2e11d1ca9c9a4169a373d52990fe86e"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-UD-Q8_K_XL.gguf",
+              "size_bytes": 10824038208,
+              "sha256": "67df3caf1ccc9c9aacff028410e4d5ad9a3a4870f19822a22aa3ac14dcab051b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-8B-GGUF",
+              "upstream_repo": null,
+              "revision": "a6adef130ffb23ddaf1a62fec9dced968c9bc482",
+              "path": "Qwen3-8B-BF16.gguf",
+              "size_bytes": 16388044384,
+              "sha256": "5e416a2020fe63e76ea13c8979be35fc6070aaf3578f7876400c55c2f5c3eb30"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen3-4b",
+      "name": "Qwen3 4B",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "description": "Quick answers on 8 GB machines",
+      "license": "apache-2.0",
+      "source_repo": "Qwen/Qwen3-4B",
+      "aliases": [
+        "Qwen/Qwen3-4B",
+        "Qwen/Qwen3-4B-GGUF",
+        "bartowski/Qwen_Qwen3-4B-GGUF"
+      ],
+      "evidence": {
+        "architecture": "qwen3",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 4.02
+      },
+      "context": 40960,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": {
+        "origin": "unsloth/Qwen3-4B-GGUF@22c9fc8a8c7700b76a1789366280a6a5a1ad1120/params",
+        "thinking": {
+          "temperature": 0.6,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0
+        },
+        "non_thinking": null
+      },
+      "image": null,
+      "shape": {
+        "block_count": 36,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0,
+        "embedding_length": 2560,
+        "feed_forward_length": 9728,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "Q2_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q2_K.gguf",
+              "size_bytes": 1669500192,
+              "sha256": "a5f2398927fa06fe12074aa39086004300185b82de53a1d2623b0f015e3881b0"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-UD-Q2_K_XL.gguf",
+              "size_bytes": 1695724832,
+              "sha256": "a09c9695db755e5f3896b20323f16eb79554be6ad4637ef9787245bc212b53d7"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q3_K_S.gguf",
+              "size_bytes": 1886997792,
+              "sha256": "0f16e5ebc31514dbdb0e0c736ed6d28c2b086de689afb0f1ab1f7a2ad2eff43e"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q3_K_M.gguf",
+              "size_bytes": 2075618592,
+              "sha256": "e78ff54a67f3b3f57e637fbf0770d5b73c1e215ea7c0153980f1e8140c2b2486"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-UD-Q3_K_XL.gguf",
+              "size_bytes": 2131692832,
+              "sha256": "fd11f2a0741a8bad10d6892bac438326460844c09d8eaeb27419fb89360c8f55"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_XS",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-IQ4_XS.gguf",
+              "size_bytes": 2270752032,
+              "sha256": "82aa8394fd5b43eea0c287c88ae932b22f90e192e1288cff94bc39e2d5a97c01"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_NL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-IQ4_NL.gguf",
+              "size_bytes": 2381344032,
+              "sha256": "51fa8380d1c9a7dd47876dbed6c963fffeceec54a0065feeb6a8f3c113e1a562"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_K_S.gguf",
+              "size_bytes": 2383310112,
+              "sha256": "78cea0ccfd5fd7af5761f7dfdeebd2ec8f04328be0f1e6f70e2213a6f1309bc9"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_K_M.gguf",
+              "size_bytes": 2497281312,
+              "sha256": "f6f851777709861056efcdad3af01da38b31223a3ba26e61a4f8bf3a2195813a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-UD-Q4_K_XL.gguf",
+              "size_bytes": 2546341152,
+              "sha256": "f6e3fb6c2cdc869d16e66c719e94f2c02095d195967230e759a2d77fe814c71f"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q5_K_S.gguf",
+              "size_bytes": 2823712032,
+              "sha256": "7bc3b33f8439ef774adc4665f61c8c31132056a8616db6227a6664397a42563a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q5_K_M.gguf",
+              "size_bytes": 2889514272,
+              "sha256": "37edbd37f5b7a4d4e7a766400c57def1f790e809de03513b86bf11bb06979695"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-UD-Q5_K_XL.gguf",
+              "size_bytes": 2905253152,
+              "sha256": "bf8683da9e517b872859fdc8a0704a599021305380f5c08780c209b07ba26fe6"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q6_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q6_K.gguf",
+              "size_bytes": 3306261792,
+              "sha256": "002b8b61c298976afc2c9c3ca65f9dbb28deba22c4b6381853dfaa92b5690022"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-UD-Q6_K_XL.gguf",
+              "size_bytes": 3658223392,
+              "sha256": "ac0767b5e9c9f16efe57ce422253a33747970c166c3131c4d4d59d20511f07e1"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q8_0.gguf",
+              "size_bytes": 4280405792,
+              "sha256": "eed555233267a33c7e8ee31682762cc7751b3f6d224039086e0e846f05fffa5d"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-UD-Q8_K_XL.gguf",
+              "size_bytes": 5056700192,
+              "sha256": "93bc18247eac98a8265c80c78b1322a96cc9c83218351f5a6922fb9e6f8fb242"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-BF16.gguf",
+              "size_bytes": 8051285536,
+              "sha256": "f59dbdf0a0131f4bafe257e5eaf25137a88c89c7a009e9418b0e447accda58a8"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "gemma-3-4b",
+      "name": "Gemma 3 4B",
+      "family": "Gemma 3",
+      "publisher": "Google",
+      "description": "Small chat model that also reads images, for 8 GB machines",
+      "license": "gemma",
+      "source_repo": "google/gemma-3-4b-it",
+      "aliases": [
+        "google/gemma-3-4b-it",
+        "ggml-org/gemma-3-4b-it-GGUF",
+        "bartowski/google_gemma-3-4b-it-GGUF"
+      ],
+      "evidence": {
+        "architecture": "gemma3",
+        "pipeline_tag": "image-text-to-text",
+        "parameters_b": 3.88
+      },
+      "context": 131072,
+      "template": {
+        "tools": false,
+        "reasoning": false,
+        "system_role": true
+      },
+      "sampling": {
+        "origin": "unsloth/gemma-3-4b-it-GGUF@5a3566e716d80f709ed7b79817eaf7733d2a1fce/params",
+        "thinking": null,
+        "non_thinking": {
+          "temperature": 1.0,
+          "top_p": 0.95,
+          "top_k": 64,
+          "min_p": 0.01
+        }
+      },
+      "image": null,
+      "shape": {
+        "block_count": 34,
+        "head_count_kv": 4,
+        "key_length": 256,
+        "value_length": 256,
+        "n_vocab": 262208,
+        "sliding_window": 1024,
+        "expert_count": 0,
+        "embedding_length": 2560,
+        "feed_forward_length": 10240,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "Q2_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q2_K.gguf",
+              "size_bytes": 1729164416,
+              "sha256": "6bb299a8fae8c3ad385e898a1121e9eff8371d9c50b32756ddd710abf43bc235"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-UD-Q2_K_XL.gguf",
+              "size_bytes": 1769407616,
+              "sha256": "ccdbed9fddd87b82a1204eac86fa948c4c1f4d22285367fb0b404ff139f2c0ad"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q3_K_S.gguf",
+              "size_bytes": 1937364096,
+              "sha256": "52e835a8a7ec040f18eafd53582957627d973af1555fc4fb6cc2d15a58076ede"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q3_K_M.gguf",
+              "size_bytes": 2098459776,
+              "sha256": "cd0dc2ce517f0c2764a7a7d1274c935335fa56092bb62b39e06546fb599c382d"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-UD-Q3_K_XL.gguf",
+              "size_bytes": 2150929536,
+              "sha256": "37b7a0afffe5c39058bb08b4df581af40209a51682a2076b65d925000237cade"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_XS",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-IQ4_XS.gguf",
+              "size_bytes": 2263241856,
+              "sha256": "5afc930350e5578ab83cf25c4cbac7eef422852bfa1169a438b40fce059306ec"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_NL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-IQ4_NL.gguf",
+              "size_bytes": 2363511936,
+              "sha256": "e877abfe59690fb29bc12b47dd0731898900d1c194aa208359a490b39bd0554d"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q4_K_S.gguf",
+              "size_bytes": 2377929856,
+              "sha256": "c0c953884b42761ae320c07258c41cd196c0ce7207cbc93a7a25eeca22802247"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q4_K_M.gguf",
+              "size_bytes": 2489894016,
+              "sha256": "04a43a22e8d2003deda5acc262f68ec1005fa76c735a9962a8c77042a74a7d19"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-UD-Q4_K_XL.gguf",
+              "size_bytes": 2544288896,
+              "sha256": "c05bd745da387bf9200ffa7070665305d886d5093638c4f8b6c3862ea26ca8aa"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q5_K_S.gguf",
+              "size_bytes": 2764592256,
+              "sha256": "bc24cc4af7f37d9de1dccdfe563d8f88e85891d53e258d5ebee25d19702f505b"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q5_K_M.gguf",
+              "size_bytes": 2829698176,
+              "sha256": "974e5c2f13c321fc3258b6fbf2ce326a09d8ace511aa6846df1db62baf7df7d4"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-UD-Q5_K_XL.gguf",
+              "size_bytes": 2836231296,
+              "sha256": "e540df85f0c29966972d1ba6cd74aab44c7fc87c9df300f05656ee8d8f67c42c"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q6_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q6_K.gguf",
+              "size_bytes": 3190740096,
+              "sha256": "df3fb9a1449296d26258c0771d5280ceb71559ad98e2db658799a05218ed9fa1"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-UD-Q6_K_XL.gguf",
+              "size_bytes": 3566628736,
+              "sha256": "3c01c59551f0f56976827852dd30d6a36cd4535db0fc7e2da6c62759edc1d46b"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-Q8_0.gguf",
+              "size_bytes": 4130402176,
+              "sha256": "81bf0583ab5bad155a5a3b15d155a880a1a1e4f7de2de5c06f10f64ac49f8336"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-UD-Q8_K_XL.gguf",
+              "size_bytes": 5165205376,
+              "sha256": "76927465f1dcf991903ea4a47562bf9274a9f51ad05c981c74f0dfb44679ac57"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "gemma-3-4b-it-BF16.gguf",
+              "size_bytes": 7767803520,
+              "sha256": "7bcfca74279608552011d3c4d11e9298934502ffa410eb21b9047a6276b87ba6"
+            },
+            {
+              "role": "projector",
+              "repo": "unsloth/gemma-3-4b-it-GGUF",
+              "upstream_repo": null,
+              "revision": "5a3566e716d80f709ed7b79817eaf7733d2a1fce",
+              "path": "mmproj-F16.gguf",
+              "size_bytes": 851251328,
+              "sha256": "731199e016ec5f227b8293fef839899472e0ee4c51adf5f9e5cb66f6558fa142",
+              "gguf": {
+                "general.type": "clip-vision",
+                "general.architecture": "clip",
+                "clip.has_vision_encoder": true,
+                "clip.vision.projection_dim": 2560
+              }
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen3-1.7b",
+      "name": "Qwen3 1.7B",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "description": "Light enough for older laptops",
+      "license": "apache-2.0",
+      "source_repo": "Qwen/Qwen3-1.7B",
+      "aliases": [
+        "Qwen/Qwen3-1.7B",
+        "Qwen/Qwen3-1.7B-GGUF",
+        "bartowski/Qwen_Qwen3-1.7B-GGUF"
+      ],
+      "evidence": {
+        "architecture": "qwen3",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 1.72
+      },
+      "context": 40960,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": {
+        "origin": "unsloth/Qwen3-1.7B-GGUF@d7f544eead698dbd1f15126ef60b45a1e1933222/params",
+        "thinking": {
+          "temperature": 0.6,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0
+        },
+        "non_thinking": null
+      },
+      "image": null,
+      "shape": {
+        "block_count": 28,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0,
+        "embedding_length": 2048,
+        "feed_forward_length": 6144,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "Q2_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q2_K.gguf",
+              "size_bytes": 777796160,
+              "sha256": "62b3fb705434cb57fabc59d59aa7b4c6fb558fff7c7c4b2ce67456373bc30fd3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-UD-Q2_K_XL.gguf",
+              "size_bytes": 797866560,
+              "sha256": "4a76542930ebab924832e9fe5d1970122564c026411162ee48a4d503b1a16f5f"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q3_K_S.gguf",
+              "size_bytes": 867252800,
+              "sha256": "b6afc9f02da55f66c086ac00bc4483b7bb89bbfad87fc93602d359151362bf2d"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q3_K_M.gguf",
+              "size_bytes": 939539008,
+              "sha256": "8070f21b9763ef653289e20252592d0aab6680948f36eb5b4362d403fef09170"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-UD-Q3_K_XL.gguf",
+              "size_bytes": 968899136,
+              "sha256": "21499d25b4dfc46066caaeef39fff5b43a4bfab80aef7c70d1db1a31ec02ed58"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_XS",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-IQ4_XS.gguf",
+              "size_bytes": 1010383424,
+              "sha256": "a02e41d3208e97a7cb224297e8d3abb22e5bb8d664362c6be4f48948a3797eec"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_NL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-IQ4_NL.gguf",
+              "size_bytes": 1054423616,
+              "sha256": "54d4991db0f405c5d81c41a22094026cbc37bb2ee445b551bb1754204b5cb680"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q4_K_S.gguf",
+              "size_bytes": 1060190784,
+              "sha256": "71eed840867db10f14b3332e3e0bf0a36b98b762c5b0bf9e091a3e00ecd21805"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q4_K_M.gguf",
+              "size_bytes": 1107409472,
+              "sha256": "b139949c5bd74937ad8ed8c8cf3d9ffb1e99c866c823204dc42c0d91fa181897"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-UD-Q4_K_XL.gguf",
+              "size_bytes": 1132952128,
+              "sha256": "01977643b1d7292d09eb6ef75c7af8b084a3bbf2cb4e1d128ab76adeb8d75490"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q5_K_S.gguf",
+              "size_bytes": 1230584384,
+              "sha256": "43dc60ef9b7d27e43a61c05e13941503ab6d86944c306ef5207f164cb47cc982"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q5_K_M.gguf",
+              "size_bytes": 1257880128,
+              "sha256": "b0949de5b2e06cbed6aa96517f9bd8afb334584b6f95ee83479292ff4bdd8ed3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-UD-Q5_K_XL.gguf",
+              "size_bytes": 1262991936,
+              "sha256": "f2d3ad6203939ffcf169ac9fe4f7d7430ce227e024395850cd878fe646912c08"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q6_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q6_K.gguf",
+              "size_bytes": 1417755200,
+              "sha256": "6a9cadec4883df6f3efcf337103479dcc6a3efa9f5f8cc64a904dba57808207a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-UD-Q6_K_XL.gguf",
+              "size_bytes": 1610949184,
+              "sha256": "9e7232c93d12498a74a19826c367681314d86d5e468dacc6afe24bc6adbd7754"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-Q8_0.gguf",
+              "size_bytes": 1834426944,
+              "sha256": "0becaa825564295d82e9af4d008bca5f8b7f5f73bf1c6a0b58f7c53ef26b47fd"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-UD-Q8_K_XL.gguf",
+              "size_bytes": 2332582464,
+              "sha256": "7da8dded81945002c1024cb71cc95b6cc5013b82289353f352a47c99395de65c"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-1.7B-GGUF",
+              "upstream_repo": null,
+              "revision": "d7f544eead698dbd1f15126ef60b45a1e1933222",
+              "path": "Qwen3-1.7B-BF16.gguf",
+              "size_bytes": 3447349568,
+              "sha256": "3412cc86f04dd7b49cb5fe05249690a95d643ee0f1f980cd5e777a8f40eb37f9"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "qwen3-0.6b",
+      "name": "Qwen3 0.6B",
+      "family": "Qwen3",
+      "publisher": "Qwen",
+      "description": "The smallest that still answers, for any machine",
+      "license": "apache-2.0",
+      "source_repo": "Qwen/Qwen3-0.6B",
+      "aliases": [
+        "Qwen/Qwen3-0.6B",
+        "Qwen/Qwen3-0.6B-GGUF",
+        "bartowski/Qwen_Qwen3-0.6B-GGUF"
+      ],
+      "evidence": {
+        "architecture": "qwen3",
+        "pipeline_tag": "text-generation",
+        "parameters_b": 0.6
+      },
+      "context": 40960,
+      "template": {
+        "tools": true,
+        "reasoning": true,
+        "system_role": true
+      },
+      "sampling": {
+        "origin": "unsloth/Qwen3-0.6B-GGUF@50968a4468ef4233ed78cd7c3de230dd1d61a56b/params",
+        "thinking": {
+          "temperature": 0.6,
+          "top_p": 0.95,
+          "top_k": 20,
+          "min_p": 0.0
+        },
+        "non_thinking": null
+      },
+      "image": null,
+      "shape": {
+        "block_count": 28,
+        "head_count_kv": 8,
+        "key_length": 128,
+        "value_length": 128,
+        "n_vocab": 151936,
+        "sliding_window": 0,
+        "expert_count": 0,
+        "embedding_length": 1024,
+        "feed_forward_length": 3072,
+        "expert_feed_forward_length": 0,
+        "expert_shared_feed_forward_length": 0,
+        "expert_used_count": 0,
+        "sliding_window_pattern": 0,
+        "sliding_window_layers": [],
+        "key_length_swa": 0,
+        "value_length_swa": 0,
+        "head_count_kv_layers": [],
+        "shared_kv_layers": 0,
+        "kv_lora_rank": 0,
+        "key_length_mla": 0
+      },
+      "builds": [
+        {
+          "quantization": "Q2_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q2_K.gguf",
+              "size_bytes": 296238784,
+              "sha256": "26d035ea15c4a2853e8d20ffc56a76f6164e17dbb6c9e532c5766700c404519d"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q2_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-UD-Q2_K_XL.gguf",
+              "size_bytes": 301727424,
+              "sha256": "93a7ae9c1ddbebc9d754d855aa623c8109dad5ac2952de71300160122c1044b0"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q3_K_S.gguf",
+              "size_bytes": 323075776,
+              "sha256": "1d61e10a443e3e335a979eecde30bab6c2489a1e876632e22e0695178d368b67"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q3_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q3_K_M.gguf",
+              "size_bytes": 347127488,
+              "sha256": "30bb9f9222cf58c076277879881a24e7127a10be32076d76d8c70f8defc01f5d"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q3_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-UD-Q3_K_XL.gguf",
+              "size_bytes": 356622016,
+              "sha256": "401c23cd33883cb9403f14a941c0cb04b8d5bdbc240f0f9008b574a5dcb75b5e"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_XS",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-IQ4_XS.gguf",
+              "size_bytes": 367804096,
+              "sha256": "dacc1fe1dc6f4799f366ac3385299f71c7e02c58b8702448a174f14d91b1c64d"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "IQ4_NL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-IQ4_NL.gguf",
+              "size_bytes": 381566656,
+              "sha256": "f1b14e28a6de64f21672ddf2c8f24736c389da4c64ebf024b1204f4f43a4fd71"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q4_K_S.gguf",
+              "size_bytes": 383270592,
+              "sha256": "3e5495288a45c7891d32afeb4e7a1ed58a9a22fab83f8903b561204a89aae363"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q4_K_M.gguf",
+              "size_bytes": 396705472,
+              "sha256": "ac2d97712095a558e31573f62f466a3f9d93990898b0ec79d7c974c1780d524a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q4_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-UD-Q4_K_XL.gguf",
+              "size_bytes": 405372608,
+              "sha256": "ed2dd561f8aa5651cfb198be583269779e26ca6e28c40dba94fc2da4432bde2a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_S",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q5_K_S.gguf",
+              "size_bytes": 436616896,
+              "sha256": "222acaa0376ffd371c5673a98ff896d7aa82428a4fab92e4b858e7eb281467ad"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q5_K_M",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q5_K_M.gguf",
+              "size_bytes": 444415680,
+              "sha256": "03c6e2127d155b89c21a512954010486b1e00e1a9eebdfad650d03b53ab4c74a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q5_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-UD-Q5_K_XL.gguf",
+              "size_bytes": 446381760,
+              "sha256": "23604893990250423a7f1a08e9a8d16da71eaeb560352020f533c9e62e14badd"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q6_K",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q6_K.gguf",
+              "size_bytes": 495107776,
+              "sha256": "1c15a88244c9e852516e5ba0e394fc97f2182f1f2757413fb99fe6a9214c033b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q6_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-UD-Q6_K_XL.gguf",
+              "size_bytes": 576467648,
+              "sha256": "d7df206be8dfac0267b24b97b6f062b31a8655ef770a74e82a38c262efb570ba"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-Q8_0.gguf",
+              "size_bytes": 639447744,
+              "sha256": "e150ed544dfe6016930c026a93913a5e3184181ebfe6ab2223ae01dd0491784c"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "UD-Q8_K_XL",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-UD-Q8_K_XL.gguf",
+              "size_bytes": 844288704,
+              "sha256": "523982b2bb2ce75857aa0de6763c41e46ef2be5f79c26867f73be143f2ba8bad"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/Qwen3-0.6B-GGUF",
+              "upstream_repo": null,
+              "revision": "50968a4468ef4233ed78cd7c3de230dd1d61a56b",
+              "path": "Qwen3-0.6B-BF16.gguf",
+              "size_bytes": 1198182848,
+              "sha256": "f9c9f1d3c1e21755b82d4e165f88dbbbd4355646d632fb5d6cef7c66ed4ee04e"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "llama_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "flux2-klein-4b",
+      "name": "FLUX.2 klein 4B",
+      "family": "FLUX.2",
+      "publisher": "Black Forest Labs",
+      "description": "Current image quality in four steps, in the least memory.",
+      "license": "apache-2.0",
+      "source_repo": "black-forest-labs/FLUX.2-klein-4B",
+      "aliases": [
+        "black-forest-labs/FLUX.2-klein-4B"
+      ],
+      "evidence": {
+        "architecture": "flux2",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 3.88
+      },
+      "image": {
+        "origin": "black-forest-labs/FLUX.2-klein-4B model card; sd.cpp docs at master-869-07a85c7, flux2.md",
+        "tasks": [
+          "generate",
+          "edit"
+        ],
+        "resolution": 1024,
+        "steps": 4,
+        "cfg": 1.0,
+        "sampler": "euler"
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/FLUX.2-klein-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "3b1f5a9dc3abb32238b053aeb3d823c30afdacbd",
+              "path": "flux-2-klein-4b-Q4_0.gguf",
+              "size_bytes": 2460378560,
+              "sha256": "d1023499ef3f2f82ff7c50e6778495195c1b6cc34835741778868428111f9ff4"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/vae-text-encorder-for-flux-klein-4b",
+              "upstream_repo": "black-forest-labs/FLUX.2-klein-4B",
+              "revision": "5f526678002e43af5551dadb73ce2e8c91b43afe",
+              "path": "split_files/vae/flux2-vae.safetensors",
+              "size_bytes": 336211292,
+              "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/FLUX.2-klein-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "3b1f5a9dc3abb32238b053aeb3d823c30afdacbd",
+              "path": "flux-2-klein-4b-Q8_0.gguf",
+              "size_bytes": 4300629440,
+              "sha256": "0bba6951258ec8f92d51114a8fa13e66828297bfff58a738f52729b3ef66fa28"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/vae-text-encorder-for-flux-klein-4b",
+              "upstream_repo": "black-forest-labs/FLUX.2-klein-4B",
+              "revision": "5f526678002e43af5551dadb73ce2e8c91b43afe",
+              "path": "split_files/vae/flux2-vae.safetensors",
+              "size_bytes": 336211292,
+              "sha256": "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "z-image-turbo",
+      "name": "Z-Image Turbo",
+      "family": "Z-Image",
+      "publisher": "Tongyi-MAI",
+      "description": "Photographic detail in eight steps. Shares FLUX.2 klein's text encoder.",
+      "license": "apache-2.0",
+      "source_repo": "Tongyi-MAI/Z-Image-Turbo",
+      "aliases": [
+        "Tongyi-MAI/Z-Image-Turbo"
+      ],
+      "evidence": {
+        "architecture": "z_image",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 6.15
+      },
+      "image": {
+        "origin": "Tongyi-MAI/Z-Image-Turbo model card; sd.cpp docs at master-869-07a85c7, z_image.md",
+        "resolution": 1024,
+        "steps": 8,
+        "cfg": 1.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/Z-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "c61c0e422dc8b541b7548cf33a4ef8302b0f8085",
+              "path": "z_image_turbo-Q4_0.gguf",
+              "size_bytes": 3683370944,
+              "sha256": "2bc57986874c84f7ec6d02d9d7070a53b0029954a0e38a6e1342eb91095572f5"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "leejet/Z-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "c61c0e422dc8b541b7548cf33a4ef8302b0f8085",
+              "path": "z_image_turbo-Q8_0.gguf",
+              "size_bytes": 6577440704,
+              "sha256": "df1c5baa86d1398c979495a6072dbcee79444fdb884a2445582ba0769c44e9a1"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen3-4B-GGUF",
+              "upstream_repo": null,
+              "revision": "22c9fc8a8c7700b76a1789366280a6a5a1ad1120",
+              "path": "Qwen3-4B-Q4_0.gguf",
+              "size_bytes": 2375773472,
+              "sha256": "92f4a83cdfe691b216a949f915e47f35f0ed85b833aa03490c719160ac5cdf7a"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "ernie-image-turbo",
+      "name": "ERNIE-Image Turbo",
+      "family": "ERNIE-Image",
+      "publisher": "Baidu",
+      "description": "Lettering and posters in eight steps.",
+      "license": "apache-2.0",
+      "source_repo": "baidu/ERNIE-Image-Turbo",
+      "aliases": [
+        "baidu/ERNIE-Image-Turbo"
+      ],
+      "evidence": {
+        "architecture": "ernie_image",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 8.03
+      },
+      "image": {
+        "origin": "baidu/ERNIE-Image-Turbo model card; sd.cpp docs at master-869-07a85c7, ernie_image.md",
+        "resolution": 1024,
+        "steps": 8,
+        "cfg": 1.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/ERNIE-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "a38270280633a5d318a9f51c18ef95eefb07c423",
+              "path": "ernie-image-turbo-Q4_0.gguf",
+              "size_bytes": 4762747584,
+              "sha256": "b348c3727bc9f105d74026f42c9015d37bec3c9921b86015de853912dd34cd76"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Ministral-3-3B-Instruct-2512-GGUF",
+              "upstream_repo": null,
+              "revision": "7564922f37fa5bbb62b87f09a55c12f1f91d7a6a",
+              "path": "Ministral-3-3B-Instruct-2512-Q4_0.gguf",
+              "size_bytes": 2046375200,
+              "sha256": "bd1eef40a7fdb1ba9728ec977bd4aab40fb76993d6ec37377fd6522703dc88a5"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/ERNIE-Image",
+              "upstream_repo": "baidu/ERNIE-Image-Turbo",
+              "revision": "82fe29a5cd056f8b1deebc50570f125bcd4f4bea",
+              "path": "vae/flux2-vae.safetensors",
+              "size_bytes": 336213556,
+              "sha256": "d64f3a68e1cc4f9f4e29b6e0da38a0204fe9a49f2d4053f0ec1fa1ca02f9c4b5"
+            }
+          ],
+          "run": {
+            "args": [
+              "--vae-tiling",
+              "--vae-tile-size",
+              "16x16"
+            ]
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "unsloth/ERNIE-Image-Turbo-GGUF",
+              "upstream_repo": null,
+              "revision": "a38270280633a5d318a9f51c18ef95eefb07c423",
+              "path": "ernie-image-turbo-Q8_0.gguf",
+              "size_bytes": 8694907584,
+              "sha256": "c90af9c9a2cf6f7d0404c3fb17e84391c59b240362284f702168f8d71cfeba5d"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Ministral-3-3B-Instruct-2512-GGUF",
+              "upstream_repo": null,
+              "revision": "7564922f37fa5bbb62b87f09a55c12f1f91d7a6a",
+              "path": "Ministral-3-3B-Instruct-2512-Q4_0.gguf",
+              "size_bytes": 2046375200,
+              "sha256": "bd1eef40a7fdb1ba9728ec977bd4aab40fb76993d6ec37377fd6522703dc88a5"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/ERNIE-Image",
+              "upstream_repo": "baidu/ERNIE-Image-Turbo",
+              "revision": "82fe29a5cd056f8b1deebc50570f125bcd4f4bea",
+              "path": "vae/flux2-vae.safetensors",
+              "size_bytes": 336213556,
+              "sha256": "d64f3a68e1cc4f9f4e29b6e0da38a0204fe9a49f2d4053f0ec1fa1ca02f9c4b5"
+            }
+          ],
+          "run": {
+            "args": [
+              "--vae-tiling",
+              "--vae-tile-size",
+              "16x16"
+            ]
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "longcat-image",
+      "name": "LongCat-Image",
+      "family": "LongCat",
+      "publisher": "Meituan",
+      "description": "Photographic detail and exact lettering, in English or Chinese. Slower: 50 steps.",
+      "license": "apache-2.0",
+      "source_repo": "meituan-longcat/LongCat-Image",
+      "aliases": [
+        "meituan-longcat/LongCat-Image"
+      ],
+      "evidence": {
+        "architecture": "longcat",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 6.27
+      },
+      "image": {
+        "origin": "meituan-longcat/LongCat-Image model card; sd.cpp docs at master-869-07a85c7, longcat_image.md",
+        "resolution": 1024,
+        "steps": 50,
+        "cfg": 5.0,
+        "sampler": "euler",
+        "flow_shift": 3.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "vantagewithai/LongCat-Image-GGUF",
+              "upstream_repo": null,
+              "revision": "22f38d64150ed3a99454e5e3a3bbfcf639969b05",
+              "path": "comfy/LongCat-Image-Q4_0.gguf",
+              "size_bytes": 3591090400,
+              "sha256": "d494513ea95e82fb7069cdb914738f22dfc940fc770000fbbc8ad0a7a445f601"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+              "upstream_repo": null,
+              "revision": "68bb8bc4b7df5289c143aaec0ab477a7d4051aab",
+              "path": "Qwen2.5-VL-7B-Instruct-Q4_0.gguf",
+              "size_bytes": 4444119936,
+              "sha256": "7d450c23023b219e433fffdc1060f1c31f8f382be6d6ce78d5e4b679e18601ce"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "vantagewithai/LongCat-Image-GGUF",
+              "upstream_repo": null,
+              "revision": "22f38d64150ed3a99454e5e3a3bbfcf639969b05",
+              "path": "comfy/LongCat-Image-Q8_0.gguf",
+              "size_bytes": 6705361120,
+              "sha256": "e45928b01712af742ccec57ac515d54c97ba276e6f86b825022e866ae4f329a5"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "unsloth/Qwen2.5-VL-7B-Instruct-GGUF",
+              "upstream_repo": null,
+              "revision": "68bb8bc4b7df5289c143aaec0ab477a7d4051aab",
+              "path": "Qwen2.5-VL-7B-Instruct-Q4_0.gguf",
+              "size_bytes": 4444119936,
+              "sha256": "7d450c23023b219e433fffdc1060f1c31f8f382be6d6ce78d5e4b679e18601ce"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/z_image_turbo",
+              "upstream_repo": "black-forest-labs/FLUX.1-schnell",
+              "revision": "6fc90a3b1b653e935a0d175e260736de25b84df5",
+              "path": "split_files/vae/ae.safetensors",
+              "size_bytes": 335304388,
+              "sha256": "afc8e28272cd15db3919bacdb6918ce9c1ed22e96cb12c4d5ed0fba823529e38"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "stable-diffusion-1.5",
+      "name": "Stable Diffusion 1.5",
+      "family": "Stable Diffusion",
+      "publisher": "Runway",
+      "description": "Fastest, lowest memory. 512x512.",
+      "license": "creativeml-openrail-m",
+      "source_repo": "stable-diffusion-v1-5/stable-diffusion-v1-5",
+      "aliases": [
+        "stable-diffusion-v1-5/stable-diffusion-v1-5"
+      ],
+      "evidence": {
+        "architecture": "sd1",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 1.07
+      },
+      "image": {
+        "origin": "stable-diffusion-v1-5/stable-diffusion-v1-5 model card",
+        "resolution": 512
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "kostakoff/stable-diffusion-v1-5-GGUF",
+              "upstream_repo": null,
+              "revision": "101ff06c98bea9ac8affe6a2c867e9762958d219",
+              "path": "v1-5-pruned_Q4_0.gguf",
+              "size_bytes": 3051366272,
+              "sha256": "24bcd54c1d1f0354a1cd19d07ad9a20771d43fde8318d505d71bcd84b078f20a"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "sdxl-base-1.0",
+      "name": "Stable Diffusion XL",
+      "family": "Stable Diffusion",
+      "publisher": "Stability AI",
+      "description": "Higher detail at 1024x1024, and slower.",
+      "license": "openrail++",
+      "source_repo": "stabilityai/stable-diffusion-xl-base-1.0",
+      "aliases": [
+        "stabilityai/stable-diffusion-xl-base-1.0"
+      ],
+      "evidence": {
+        "architecture": "sdxl",
+        "pipeline_tag": "text-to-image",
+        "parameters_b": 3.47
+      },
+      "image": {
+        "origin": "SDXL report, arXiv:2307.01952",
+        "resolution": 1024
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "kostakoff/stable-diffusion-xl-base-1.0-GGUF",
+              "upstream_repo": null,
+              "revision": "ca58fb3aced770f3dffddabf01725b29207305ef",
+              "path": "sd_xl_base_1.0_0_Q4_0.gguf",
+              "size_bytes": 2709379488,
+              "sha256": "1f64d77cbd8aee3ee1a0ae6e58ea64ba39308721150f38cfaa5ee57e9d4fd106"
+            }
+          ],
+          "run": {
+            "args": [
+              "--backend",
+              "vae=cpu"
+            ]
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "wan2.1-t2v-1.3b",
+      "name": "Wan2.1 T2V 1.3B",
+      "family": "Wan",
+      "publisher": "Wan-AI",
+      "description": "Short clips from text, in the least memory.",
+      "license": "apache-2.0",
+      "source_repo": "Wan-AI/Wan2.1-T2V-1.3B",
+      "aliases": [
+        "Wan-AI/Wan2.1-T2V-1.3B"
+      ],
+      "evidence": {
+        "architecture": "wan",
+        "pipeline_tag": "text-to-video",
+        "parameters_b": 1.42
+      },
+      "video": {
+        "origin": "Wan-AI/Wan2.1-T2V-1.3B model card; sd.cpp docs at master-869-07a85c7, wan.md",
+        "tasks": [
+          "text"
+        ],
+        "width": 832,
+        "height": 480,
+        "frames": 33,
+        "fps": 16,
+        "cfg": 6.0,
+        "sampler": "euler",
+        "flow_shift": 3.0
+      },
+      "builds": [
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "samuelchristlie/Wan2.1-T2V-1.3B-GGUF",
+              "upstream_repo": null,
+              "revision": "5a512b15fc35d1b67a074cfe55a591be9e9ef9b5",
+              "path": "Wan2.1-T2V-1.3B-Q8_0.gguf",
+              "size_bytes": 1535768800,
+              "sha256": "30a44f695b4275a915810120360d6fd26152ec303c2226b5152ec33a93c380e4"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+              "upstream_repo": "Wan-AI/Wan2.1-T2V-1.3B",
+              "revision": "123acf1cc74bccbb9bfff8ac1ee72edc08c2341d",
+              "path": "split_files/vae/wan_2.1_vae.safetensors",
+              "size_bytes": 253815318,
+              "sha256": "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "samuelchristlie/Wan2.1-T2V-1.3B-GGUF",
+              "upstream_repo": null,
+              "revision": "5a512b15fc35d1b67a074cfe55a591be9e9ef9b5",
+              "path": "Wan2.1-T2V-1.3B-Q4_0.gguf",
+              "size_bytes": 865581280,
+              "sha256": "50f74e4597a214796ef9a6c8f19ae63b0046fe8b611b48d210d366a675fedcac"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.1_ComfyUI_repackaged",
+              "upstream_repo": "Wan-AI/Wan2.1-T2V-1.3B",
+              "revision": "123acf1cc74bccbb9bfff8ac1ee72edc08c2341d",
+              "path": "split_files/vae/wan_2.1_vae.safetensors",
+              "size_bytes": 253815318,
+              "sha256": "2fc39d31359a4b0a64f55876d8ff7fa8d780956ae2cb13463b0223e15148976b"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "wan2.2-ti2v-5b",
+      "name": "Wan2.2 TI2V 5B",
+      "family": "Wan",
+      "publisher": "Wan-AI",
+      "description": "Clips from text or an image, at 24 frames a second.",
+      "license": "apache-2.0",
+      "source_repo": "Wan-AI/Wan2.2-TI2V-5B",
+      "aliases": [
+        "Wan-AI/Wan2.2-TI2V-5B"
+      ],
+      "evidence": {
+        "architecture": "wan",
+        "pipeline_tag": "text-to-video",
+        "parameters_b": 5.0
+      },
+      "video": {
+        "origin": "Wan-AI/Wan2.2-TI2V-5B model card; sd.cpp docs at master-869-07a85c7, wan.md",
+        "tasks": [
+          "text",
+          "image"
+        ],
+        "width": 832,
+        "height": 480,
+        "frames": 33,
+        "fps": 24,
+        "cfg": 6.0,
+        "sampler": "euler",
+        "flow_shift": 3.0
+      },
+      "builds": [
+        {
+          "quantization": "Q4_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "QuantStack/Wan2.2-TI2V-5B-GGUF",
+              "upstream_repo": null,
+              "revision": "57437632ddd08bdcbd1508c866aa22e126ed51d2",
+              "path": "Wan2.2-TI2V-5B-Q4_0.gguf",
+              "size_bytes": 3029086560,
+              "sha256": "fcf40dd62cb5e15556eef5f975700ab0b071aacd1939607689276e88f81ba463"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+              "upstream_repo": "Wan-AI/Wan2.2-TI2V-5B",
+              "revision": "ee6f4a40737a995bf5818954cfce6d59443b0f04",
+              "path": "split_files/vae/wan2.2_vae.safetensors",
+              "size_bytes": 1409400960,
+              "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        },
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "QuantStack/Wan2.2-TI2V-5B-GGUF",
+              "upstream_repo": null,
+              "revision": "57437632ddd08bdcbd1508c866aa22e126ed51d2",
+              "path": "Wan2.2-TI2V-5B-Q8_0.gguf",
+              "size_bytes": 5400179040,
+              "sha256": "57bece983817ab2f957546683bb670f13be7d99022d45674840cd999a050ea8f"
+            },
+            {
+              "role": "text_encoder",
+              "repo": "city96/umt5-xxl-encoder-gguf",
+              "upstream_repo": null,
+              "revision": "b535255bee98c2b0a59ea7c0ae2dcd0c6657b3b7",
+              "path": "umt5-xxl-encoder-Q4_K_M.gguf",
+              "size_bytes": 3655145312,
+              "sha256": "17cf97a5bbbc60a646d6105b832b6f657ce904a8a1ad970e4b59df0c67584a40"
+            },
+            {
+              "role": "vae",
+              "repo": "Comfy-Org/Wan_2.2_ComfyUI_Repackaged",
+              "upstream_repo": "Wan-AI/Wan2.2-TI2V-5B",
+              "revision": "ee6f4a40737a995bf5818954cfce6d59443b0f04",
+              "path": "split_files/vae/wan2.2_vae.safetensors",
+              "size_bytes": 1409400960,
+              "sha256": "e40321bd36b9709991dae2530eb4ac303dd168276980d3e9bc4b6e2b75fed156"
+            }
+          ],
+          "run": {
+            "args": []
+          },
+          "validated": {
+            "sd_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "kokoro-82m",
+      "name": "Kokoro 82M",
+      "family": "Kokoro",
+      "publisher": "hexgrad",
+      "description": "46 natural voices in eight languages.",
+      "license": "apache-2.0",
+      "source_repo": "hexgrad/Kokoro-82M",
+      "aliases": [
+        "hexgrad/Kokoro-82M"
+      ],
+      "evidence": {
+        "architecture": "kokoro_tts",
+        "pipeline_tag": "text-to-speech"
+      },
+      "audio": {
+        "origin": "hexgrad/Kokoro-82M model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
+        "sample_rate": 24000,
+        "peak_mb": 2347,
+        "chunk_steps": [
+          {
+            "text_chunk_size": 120,
+            "peak_mb": 1442
+          },
+          {
+            "text_chunk_size": 60,
+            "peak_mb": 956
+          }
+        ],
+        "languages": [
+          "en-GB",
+          "en-US",
+          "es",
+          "fr",
+          "hi",
+          "it",
+          "pt-BR",
+          "zh"
+        ],
+        "voices": [
+          {
+            "id": "af_heart",
+            "label": "Heart",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_bella",
+            "label": "Bella",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_nicole",
+            "label": "Nicole",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_nova",
+            "label": "Nova",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_sarah",
+            "label": "Sarah",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_sky",
+            "label": "Sky",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_alloy",
+            "label": "Alloy",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_aoede",
+            "label": "Aoede",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_jessica",
+            "label": "Jessica",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_kore",
+            "label": "Kore",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "af_river",
+            "label": "River",
+            "gender": "female",
+            "language": "en-US"
+          },
+          {
+            "id": "am_adam",
+            "label": "Adam",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "am_echo",
+            "label": "Echo",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "am_eric",
+            "label": "Eric",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "am_liam",
+            "label": "Liam",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "am_michael",
+            "label": "Michael",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "am_onyx",
+            "label": "Onyx",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "am_puck",
+            "label": "Puck",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "am_fenrir",
+            "label": "Fenrir",
+            "gender": "male",
+            "language": "en-US"
+          },
+          {
+            "id": "bf_alice",
+            "label": "Alice",
+            "gender": "female",
+            "language": "en-GB"
+          },
+          {
+            "id": "bf_emma",
+            "label": "Emma",
+            "gender": "female",
+            "language": "en-GB"
+          },
+          {
+            "id": "bf_isabella",
+            "label": "Isabella",
+            "gender": "female",
+            "language": "en-GB"
+          },
+          {
+            "id": "bf_lily",
+            "label": "Lily",
+            "gender": "female",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_daniel",
+            "label": "Daniel",
+            "gender": "male",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_fable",
+            "label": "Fable",
+            "gender": "male",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_george",
+            "label": "George",
+            "gender": "male",
+            "language": "en-GB"
+          },
+          {
+            "id": "bm_lewis",
+            "label": "Lewis",
+            "gender": "male",
+            "language": "en-GB"
+          },
+          {
+            "id": "ef_dora",
+            "label": "Dora",
+            "gender": "female",
+            "language": "es"
+          },
+          {
+            "id": "em_alex",
+            "label": "Alex",
+            "gender": "male",
+            "language": "es"
+          },
+          {
+            "id": "ff_siwis",
+            "label": "Siwis",
+            "gender": "female",
+            "language": "fr"
+          },
+          {
+            "id": "hf_alpha",
+            "label": "Alpha",
+            "gender": "female",
+            "language": "hi"
+          },
+          {
+            "id": "hf_beta",
+            "label": "Beta",
+            "gender": "female",
+            "language": "hi"
+          },
+          {
+            "id": "hm_omega",
+            "label": "Omega",
+            "gender": "male",
+            "language": "hi"
+          },
+          {
+            "id": "hm_psi",
+            "label": "Psi",
+            "gender": "male",
+            "language": "hi"
+          },
+          {
+            "id": "if_sara",
+            "label": "Sara",
+            "gender": "female",
+            "language": "it"
+          },
+          {
+            "id": "im_nicola",
+            "label": "Nicola",
+            "gender": "male",
+            "language": "it"
+          },
+          {
+            "id": "pf_dora",
+            "label": "Dora",
+            "gender": "female",
+            "language": "pt-BR"
+          },
+          {
+            "id": "pm_alex",
+            "label": "Alex",
+            "gender": "male",
+            "language": "pt-BR"
+          },
+          {
+            "id": "zf_xiaobei",
+            "label": "Xiaobei",
+            "gender": "female",
+            "language": "zh"
+          },
+          {
+            "id": "zf_xiaoni",
+            "label": "Xiaoni",
+            "gender": "female",
+            "language": "zh"
+          },
+          {
+            "id": "zf_xiaoxiao",
+            "label": "Xiaoxiao",
+            "gender": "female",
+            "language": "zh"
+          },
+          {
+            "id": "zf_xiaoyi",
+            "label": "Xiaoyi",
+            "gender": "female",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunjian",
+            "label": "Yunjian",
+            "gender": "male",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunxi",
+            "label": "Yunxi",
+            "gender": "male",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunxia",
+            "label": "Yunxia",
+            "gender": "male",
+            "language": "zh"
+          },
+          {
+            "id": "zm_yunyang",
+            "label": "Yunyang",
+            "gender": "male",
+            "language": "zh"
+          }
+        ]
+      },
+      "builds": [
+        {
+          "quantization": "Q8_0",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Kokoro-82M-GGUF/kokoro-82m-q8_0.gguf",
+              "size_bytes": 189549408,
+              "sha256": "5d800fd204029302c10313daeafdb31c875c7c29ae31974d0d156cc7f512d1d0"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
+          }
+        },
+        {
+          "quantization": "BF16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Kokoro-82M-GGUF/kokoro-82m-bf16.gguf",
+              "size_bytes": 211954816,
+              "sha256": "51d10c63557d21f70ef5d607e91c11023cf408dbc3af24c283b18106778e1e67"
+            }
+          ],
+          "validated": {
+            "audio_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "supertonic-3",
+      "name": "Supertonic 3",
+      "family": "Supertonic",
+      "publisher": "Supertone",
+      "description": "Ten voices, each in 31 languages, in the least memory.",
+      "license": "openrail",
+      "source_repo": "Supertone/supertonic-3",
+      "aliases": [
+        "Supertone/supertonic-3"
+      ],
+      "evidence": {
+        "architecture": "supertonic",
+        "pipeline_tag": "text-to-speech"
+      },
+      "audio": {
+        "origin": "Supertone/supertonic-3 model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
+        "sample_rate": 44100,
+        "peak_mb": 486,
+        "languages": [
+          "en",
+          "ko",
+          "ja",
+          "ar",
+          "bg",
+          "cs",
+          "da",
+          "de",
+          "el",
+          "es",
+          "et",
+          "fi",
+          "fr",
+          "hi",
+          "hr",
+          "hu",
+          "id",
+          "it",
+          "lt",
+          "lv",
+          "nl",
+          "pl",
+          "pt",
+          "ro",
+          "ru",
+          "sk",
+          "sl",
+          "sv",
+          "tr",
+          "uk",
+          "vi"
+        ],
+        "voices": [
+          {
+            "id": "M1",
+            "label": "M1",
+            "gender": "male"
+          },
+          {
+            "id": "M2",
+            "label": "M2",
+            "gender": "male"
+          },
+          {
+            "id": "M3",
+            "label": "M3",
+            "gender": "male"
+          },
+          {
+            "id": "M4",
+            "label": "M4",
+            "gender": "male"
+          },
+          {
+            "id": "M5",
+            "label": "M5",
+            "gender": "male"
+          },
+          {
+            "id": "F1",
+            "label": "F1",
+            "gender": "female"
+          },
+          {
+            "id": "F2",
+            "label": "F2",
+            "gender": "female"
+          },
+          {
+            "id": "F3",
+            "label": "F3",
+            "gender": "female"
+          },
+          {
+            "id": "F4",
+            "label": "F4",
+            "gender": "female"
+          },
+          {
+            "id": "F5",
+            "label": "F5",
+            "gender": "female"
+          }
+        ]
+      },
+      "builds": [
+        {
+          "quantization": "F16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Supertonic-3-GGUF/supertonic-3-f16.gguf",
+              "size_bytes": 312784196,
+              "sha256": "b312b57797d40ac5c09d915893dbdbaf6405b7dc043f544776c5c95712dff88c"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
+          }
+        },
+        {
+          "quantization": "orig",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "Supertonic-3-GGUF/supertonic-3-orig.gguf",
+              "size_bytes": 454072836,
+              "sha256": "af814486a0bc9513fb36afabd9b1155ad14fb2c36a107ac6ffe62ea9adafb662"
+            }
+          ],
+          "validated": {
+            "audio_cpp": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "kitten-tts-mini-0.8",
+      "name": "KittenTTS Mini 0.8",
+      "family": "KittenTTS",
+      "publisher": "KittenML",
+      "description": "Eight English voices.",
+      "license": "apache-2.0",
+      "source_repo": "KittenML/kitten-tts-mini-0.8",
+      "aliases": [
+        "KittenML/kitten-tts-mini-0.8"
+      ],
+      "evidence": {
+        "architecture": "kitten_tts",
+        "pipeline_tag": "text-to-speech"
+      },
+      "audio": {
+        "origin": "KittenML/kitten-tts-mini-0.8 model card; memory measured on audio.cpp v0.8.2, 24 Sep 2026",
+        "sample_rate": 24000,
+        "peak_mb": 1863,
+        "chunk_steps": [
+          {
+            "text_chunk_size": 240,
+            "peak_mb": 1414
+          },
+          {
+            "text_chunk_size": 120,
+            "peak_mb": 1060
+          },
+          {
+            "text_chunk_size": 60,
+            "peak_mb": 852
+          }
+        ],
+        "languages": [
+          "en"
+        ],
+        "voices": [
+          {
+            "id": "Bella",
+            "label": "Bella",
+            "gender": "female",
+            "language": "en"
+          },
+          {
+            "id": "Jasper",
+            "label": "Jasper",
+            "gender": "male",
+            "language": "en"
+          },
+          {
+            "id": "Luna",
+            "label": "Luna",
+            "gender": "female",
+            "language": "en"
+          },
+          {
+            "id": "Bruno",
+            "label": "Bruno",
+            "gender": "male",
+            "language": "en"
+          },
+          {
+            "id": "Rosie",
+            "label": "Rosie",
+            "gender": "female",
+            "language": "en"
+          },
+          {
+            "id": "Hugo",
+            "label": "Hugo",
+            "gender": "male",
+            "language": "en"
+          },
+          {
+            "id": "Kiki",
+            "label": "Kiki",
+            "gender": "female",
+            "language": "en"
+          },
+          {
+            "id": "Leo",
+            "label": "Leo",
+            "gender": "male",
+            "language": "en"
+          }
+        ]
+      },
+      "builds": [
+        {
+          "quantization": "orig",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "audio-cpp/audio.cpp-gguf",
+              "upstream_repo": null,
+              "revision": "0a104324546d2622985e3c676a4b5550cc772127",
+              "path": "KittenTTS-GGUF/kitten-tts-mini-0.8-orig.gguf",
+              "size_bytes": 302167104,
+              "sha256": "8f015d32f30cab7b9eebdebb244b0124cfd855ffe543daa3c6967e496fd24336"
+            }
+          ],
+          "validated": {
+            "audio_cpp": "v0.8.2"
+          }
+        }
+      ]
+    }
+  ]
+}

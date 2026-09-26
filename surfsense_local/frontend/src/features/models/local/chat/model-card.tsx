@@ -1,0 +1,267 @@
+import { useId, useState } from "react"
+import {
+  ChevronDownIcon,
+  DotIcon,
+  StarAward02Icon,
+  Trash2Icon,
+} from "@/components/ui/icons"
+
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
+import { buildSize } from "../build-size"
+import type { InstallJob } from "../installs/api"
+import { jobFor } from "../installs/job-state"
+import type { LocalBuild, LocalRow } from "./api"
+import { BuildAction } from "./build-action"
+import { FitBadge, FitReason } from "./fit-badge"
+import { InstallProgress } from "./install-progress"
+
+const formatSize = (bytes: number) =>
+  intl.formatNumber(bytes / 1e9, {
+    style: "unit",
+    unit: "gigabyte",
+    maximumFractionDigits: 1,
+  })
+
+export function ModelCard({
+  row,
+  installs,
+  actionsDisabled,
+  runtimeAvailable,
+  onAction,
+  onCancel,
+  onDelete,
+}: {
+  row: LocalRow
+  installs: readonly InstallJob[]
+  actionsDisabled: boolean
+  runtimeAvailable: boolean
+  onAction: (build: LocalBuild) => void
+  onCancel: (jobId: string) => void
+  onDelete?: (build: LocalBuild) => void
+}) {
+  const buildsId = useId()
+  const [open, setOpen] = useState(false)
+  // The server chose it; the card only finds it among the builds it lists.
+  const lead = row.builds.find((b) => b.quantization === row.lead?.quantization)
+  if (!lead) return null
+
+  // The bar sits under whichever build is downloading, the lead or one listed
+  // under it, the same as a searched repo's builds.
+  const installing = (build: LocalBuild) => jobFor(installs, build.catalog_id)
+  const others = row.builds.filter((b) => b !== lead)
+  // Kept open while one of its builds downloads, so its bar cannot be hidden.
+  const expanded = open || others.some((build) => installing(build) != null)
+  const leadJob = installing(lead)
+
+  return (
+    <article className="px-3 py-2 transition-colors hover:bg-muted/20">
+      <div className="flex min-h-9 items-center justify-between gap-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <div className="flex min-w-0 items-center gap-2">
+            {row.recommended ? (
+              <Tooltip>
+                {/* A button, so the tooltip also opens from the keyboard. */}
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={intl.formatMessage({
+                        id: "models_model_card_recommended_aria",
+                        defaultMessage: "Recommended for your computer",
+                      })}
+                      className="inline-flex shrink-0 cursor-default rounded-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      <StarAward02Icon
+                        aria-hidden="true"
+                        className="size-5 text-recommended"
+                      />
+                    </button>
+                  }
+                />
+                <TooltipContent side="top">
+                  {intl.formatMessage({
+                    id: "models_model_card_recommended_tooltip",
+                    defaultMessage: "Recommended for your computer",
+                  })}
+                </TooltipContent>
+              </Tooltip>
+            ) : null}
+            <p className="truncate text-sm font-medium">{row.name}</p>
+            <FitBadge fit={lead.fit} copy={lead.badge} />
+            {row.support.reads_images ? (
+              <Badge variant="secondary">
+                {intl.formatMessage({
+                  id: "models_model_card_vision_label",
+                  defaultMessage: "Vision",
+                })}
+              </Badge>
+            ) : null}
+            <span className="flex shrink-0 items-center text-xs text-muted-foreground">
+              {lead.quantization}
+              <DotIcon aria-hidden="true" className="size-3 shrink-0" />
+              <span className="tabular-nums">
+                {formatSize(buildSize(lead))}
+              </span>
+            </span>
+          </div>
+          {row.runnable ? (
+            <FitReason copy={lead.badge} />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              {row.not_runnable_reason}
+            </p>
+          )}
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          {row.runnable ? (
+            <BuildAction
+              build={lead}
+              label={row.name}
+              installs={installs}
+              disabled={actionsDisabled}
+              runtimeAvailable={runtimeAvailable}
+              onAction={onAction}
+            />
+          ) : null}
+          {lead.installed_as && onDelete ? (
+            <Button
+              type="button"
+              size="icon-sm"
+              variant="destructive"
+              // The API refuses a delete while any install runs.
+              disabled={actionsDisabled || installs.length > 0}
+              aria-label={intl.formatMessage(
+                {
+                  id: "models_model_card_delete_aria",
+                  defaultMessage: "Delete {model}",
+                },
+                {
+                  model: row.name,
+                }
+              )}
+              onClick={() => onDelete(lead)}
+            >
+              <Trash2Icon />
+            </Button>
+          ) : null}
+        </div>
+      </div>
+
+      {leadJob ? (
+        <div className="mt-2">
+          <InstallProgress
+            event={leadJob.event}
+            onCancel={() => onCancel(leadJob.id)}
+          />
+        </div>
+      ) : null}
+
+      {others.length > 0 && row.runnable ? (
+        <div className="mt-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="xs"
+            aria-expanded={expanded}
+            aria-controls={buildsId}
+            // Keeps the chevron in line with the card's text above it.
+            className="-ml-1.5 text-muted-foreground"
+            onClick={() => setOpen((value) => !value)}
+          >
+            <ChevronDownIcon
+              aria-hidden="true"
+              data-icon="inline-start"
+              className={cn(
+                "size-3 transition-transform motion-reduce:transition-none",
+                expanded && "rotate-180"
+              )}
+            />
+            {expanded
+              ? intl.formatMessage({
+                  id: "models_model_card_hide_builds_button",
+                  defaultMessage: "Hide other builds",
+                })
+              : intl.formatMessage(
+                  {
+                    id: "models_model_card_show_builds_button",
+                    defaultMessage:
+                      "{count, plural, one {# other build} other {# other builds}}",
+                  },
+                  {
+                    count: others.length,
+                  }
+                )}
+          </Button>
+          {expanded ? (
+            <ul
+              id={buildsId}
+              className="mt-1 flex flex-col divide-y rounded-lg border"
+              aria-label={intl.formatMessage(
+                {
+                  id: "models_model_card_builds_aria",
+                  defaultMessage: "Builds of {model}",
+                },
+                {
+                  model: row.name,
+                }
+              )}
+            >
+              {others.map((build) => {
+                const job = installing(build)
+                return (
+                  <li
+                    key={build.catalog_id || build.quantization}
+                    className="flex flex-col gap-2 px-2.5 py-1.5"
+                  >
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <span className="font-mono text-xs">
+                          {build.quantization}
+                        </span>
+                        <FitBadge fit={build.fit} copy={build.badge} />
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {formatSize(buildSize(build))}
+                        </span>
+                      </div>
+                      <BuildAction
+                        build={build}
+                        label={row.name}
+                        installs={installs}
+                        disabled={actionsDisabled}
+                        runtimeAvailable={runtimeAvailable}
+                        onAction={onAction}
+                      />
+                    </div>
+                    {job ? (
+                      <InstallProgress
+                        event={job.event}
+                        onCancel={() => onCancel(job.id)}
+                      />
+                    ) : null}
+                  </li>
+                )
+              })}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
+
+      {!runtimeAvailable ? (
+        <p className="mt-2 text-xs text-destructive">
+          {intl.formatMessage({
+            id: "models_model_card_runtime_unavailable_error",
+            defaultMessage: "The local runtime is unavailable.",
+          })}
+        </p>
+      ) : null}
+    </article>
+  )
+}

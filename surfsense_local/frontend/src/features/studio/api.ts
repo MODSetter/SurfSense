@@ -1,10 +1,11 @@
 import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 import type { DocumentStatus } from "@/features/sources/api"
+import type { ModelType } from "@/features/models/model-type"
 
 export type StudioFormat = {
   key: string
   label: string
-  requires_roles: ("generation" | "image_generation")[]
+  requires_model_types: ModelType[]
   available: boolean
   unavailable_reason: string | null
 }
@@ -96,7 +97,16 @@ export type PodcastBrief = {
   speakers: PodcastSpeaker[]
 }
 
-export type Voice = { id: string; label: string; language: string }
+export const VOICE_GENDERS = ["female", "male"] as const
+
+/** One voice, and the languages it speaks: every one of the model's for a
+ *  Supertonic voice. */
+export type Voice = {
+  id: string
+  label: string
+  gender: (typeof VOICE_GENDERS)[number]
+  languages: string[]
+}
 
 export function readPodcastBrief(
   workspaceId: number,

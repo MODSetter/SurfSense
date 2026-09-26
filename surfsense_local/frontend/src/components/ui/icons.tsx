@@ -2,14 +2,17 @@ import * as React from "react"
 import {
   Alert02Icon as Alert02IconData,
   AlertCircleIcon,
+  AiImageEditIcon as AiImageEditIconData,
   AiSearchLinesIcon as AiSearchLinesIconData,
   ArrowDownIcon as ArrowDownIconData,
   ArrowExpand01Icon as ArrowExpand01IconData,
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
   ArrowUp02Icon as ArrowUp02IconData,
+  AudioWaveformIcon as AudioWaveformIconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
+  Bug01Icon as Bug01IconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
   Cards01Icon as Cards01IconData,
   ChartHistogramIcon as ChartHistogramIconData,
@@ -29,7 +32,7 @@ import {
   DotIcon as DotIconData,
   EllipsisIcon as EllipsisIconData,
   File02Icon as File02IconData,
-  FileAddIcon,
+  FilePlusCornerIcon,
   FileIcon as FileIconData,
   FileTextIcon as FileTextIconData,
   FilterIcon as FilterIconData,
@@ -38,6 +41,7 @@ import {
   InformationCircleIcon as InformationCircleIconData,
   LayoutGridIcon as LayoutGridIconData,
   LicenseIcon as LicenseIconData,
+  LinkSquare02Icon as LinkSquare02IconData,
   LightbulbIcon as LightbulbIconData,
   Loading03Icon,
   Moon02Icon as Moon02IconData,
@@ -52,16 +56,19 @@ import {
   Quiz02Icon as Quiz02IconData,
   RefreshCwIcon as RefreshCwIconData,
   Search01Icon,
+  ServerIcon as ServerIconData,
   ServerOffIcon as ServerOffIconData,
   SidebarRight01Icon as SidebarRight01IconData,
   Settings02Icon,
   ShuffleIcon as ShuffleIconData,
-  SparklesIcon as SparklesIconData,
+  AiSparklesIcon as AiSparklesIconData,
+  StarAward02Icon as StarAward02IconData,
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
   UnplugIcon as UnplugIconData,
   Upload01Icon as Upload01IconData,
+  Video01Icon as Video01IconData,
   ComputerIcon as ComputerIconData,
   ViewIcon as ViewIconData,
   WebDesign01Icon as WebDesign01IconData,
@@ -104,6 +111,7 @@ function createIcon(icon: IconData, defaultClassName?: string) {
 }
 
 export const Alert02Icon = createIcon(Alert02IconData)
+export const AiImageEditIcon = createIcon(AiImageEditIconData)
 export const AiSearchLinesIcon = createIcon(AiSearchLinesIconData)
 export const ArrowDownIcon = createIcon(ArrowDownIconData)
 export const ArrowExpand01Icon = createIcon(ArrowExpand01IconData)
@@ -112,6 +120,7 @@ export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
 export const BrainCircuitIcon = createIcon(BrainCircuitIconData)
+export const BugIcon = createIcon(Bug01IconData)
 export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
 export const ChartHistogramIcon = createIcon(ChartHistogramIconData)
@@ -134,14 +143,16 @@ export const DotIcon = createIcon(DotIconData)
 export const EllipsisIcon = createIcon(EllipsisIconData)
 export const File02Icon = createIcon(File02IconData)
 export const FileIcon = createIcon(FileIconData)
-export const FilePlus2Icon = createIcon(FileAddIcon)
+export const FilePlus2Icon = createIcon(FilePlusCornerIcon)
 export const FileTextIcon = createIcon(FileTextIconData)
 export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
+export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
+export const ExternalLinkIcon = createIcon(LinkSquare02IconData)
 export const LightbulbIcon = createIcon(LightbulbIconData)
 export const Loader2Icon = createIcon(Loading03Icon)
 export const MoonIcon = createIcon(Moon02IconData)
@@ -156,15 +167,18 @@ export const Presentation02Icon = createIcon(Presentation02IconData)
 export const Quiz02Icon = createIcon(Quiz02IconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const SearchIcon = createIcon(Search01Icon)
+export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)
 export const SidebarRightIcon = createIcon(SidebarRight01IconData)
 export const Settings2Icon = createIcon(Settings02Icon)
 export const ShuffleIcon = createIcon(ShuffleIconData)
-export const SparklesIcon = createIcon(SparklesIconData)
+export const AiSparklesIcon = createIcon(AiSparklesIconData)
+export const StarAward02Icon = createIcon(StarAward02IconData)
 export const SunIcon = createIcon(Sun03IconData)
 export const UnplugIcon = createIcon(UnplugIconData)
 export const Upload01Icon = createIcon(Upload01IconData)
+export const Video01Icon = createIcon(Video01IconData)
 export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(
   SquareDashedMousePointerIconData

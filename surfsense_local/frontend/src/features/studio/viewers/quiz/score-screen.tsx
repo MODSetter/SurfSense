@@ -13,6 +13,7 @@ import {
   RefreshCwIcon,
 } from "@/components/ui/icons"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 import type { QuizMode } from "../../api"
 import { StudyText } from "../study-text"
@@ -33,9 +34,7 @@ function QuestionSection({
 }) {
   return (
     <section>
-      <h3 className="font-medium text-sm">
-        {title} ({indices.length})
-      </h3>
+      <h3 className="text-sm font-medium">{title}</h3>
       {indices.length > 0 ? (
         <ol className="mt-2 space-y-1">
           {indices.map((index) => (
@@ -43,11 +42,19 @@ function QuestionSection({
               <button
                 type="button"
                 onClick={() => onReview(index)}
-                aria-label={`Review question ${index + 1}`}
-                className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-muted-foreground text-sm transition-colors hover:bg-muted hover:text-foreground"
+                aria-label={intl.formatMessage(
+                  {
+                    id: "studio_quiz_score_review_question_aria",
+                    defaultMessage: "Review question {number, number}",
+                  },
+                  {
+                    number: index + 1,
+                  }
+                )}
+                className="flex w-full items-start gap-3 rounded-lg p-2 text-left text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               >
                 <span className="font-medium text-foreground">
-                  {index + 1}.
+                  {intl.formatNumber(index + 1)}.
                 </span>
                 <span className="min-w-0 flex-1">
                   <StudyText content={quiz.questions[index].question_text} />
@@ -58,7 +65,12 @@ function QuestionSection({
           ))}
         </ol>
       ) : (
-        <p className="mt-2 text-muted-foreground text-sm">None</p>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {intl.formatMessage({
+            id: "studio_quiz_score_section_empty",
+            defaultMessage: "None",
+          })}
+        </p>
       )}
     </section>
   )
@@ -99,14 +111,22 @@ export function QuizScoreScreen({
     <section>
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <p className="text-muted-foreground text-sm">Your score</p>
+          <p className="text-sm text-muted-foreground">
+            {intl.formatMessage({
+              id: "studio_quiz_score_title",
+              defaultMessage: "Your score",
+            })}
+          </p>
           <h2
             ref={headingRef}
             tabIndex={-1}
-            className="mt-1 font-semibold text-4xl tracking-tight outline-none"
+            className="mt-1 text-4xl font-semibold tracking-tight outline-none"
           >
-            {correct}/{quiz.questions.length}{" "}
-            <span className="text-muted-foreground">({percentage}%)</span>
+            {intl.formatNumber(correct)}/
+            {intl.formatNumber(quiz.questions.length)}{" "}
+            <span className="text-muted-foreground">
+              ({intl.formatNumber(percentage / 100, { style: "percent" })})
+            </span>
           </h2>
         </div>
         <Button
@@ -115,14 +135,31 @@ export function QuizScoreScreen({
           size="sm"
           onClick={() => onReview(0)}
         >
-          Review
+          {intl.formatMessage({
+            id: "studio_quiz_score_review_button",
+            defaultMessage: "Review",
+          })}
         </Button>
       </div>
       <fieldset className="mt-7 flex h-5 overflow-hidden rounded-full bg-muted">
-        <legend className="sr-only">Score breakdown</legend>
+        <legend className="sr-only">
+          {intl.formatMessage({
+            id: "studio_quiz_score_breakdown_aria",
+            defaultMessage: "Score breakdown",
+          })}
+        </legend>
         <button
           type="button"
-          aria-label={`Show ${correct} correct questions`}
+          aria-label={intl.formatMessage(
+            {
+              id: "studio_quiz_score_show_correct_aria",
+              defaultMessage:
+                "Show {count, plural, one {# correct question} other {# correct questions}}",
+            },
+            {
+              count: correct,
+            }
+          )}
           onClick={() => setCategory("correct")}
           className={cn(
             "rounded-l-full border-2 border-transparent bg-emerald-600 transition-opacity hover:opacity-90",
@@ -133,7 +170,16 @@ export function QuizScoreScreen({
         />
         <button
           type="button"
-          aria-label={`Show ${missed.length} missed questions`}
+          aria-label={intl.formatMessage(
+            {
+              id: "studio_quiz_score_show_missed_aria",
+              defaultMessage:
+                "Show {count, plural, one {# missed question} other {# missed questions}}",
+            },
+            {
+              count: missed.length,
+            }
+          )}
           onClick={() => setCategory("missed")}
           className={cn(
             "border-2 border-transparent bg-red-600/40 transition-colors hover:bg-red-600/55",
@@ -145,7 +191,16 @@ export function QuizScoreScreen({
         />
         <button
           type="button"
-          aria-label={`Show ${skipped.length} skipped questions`}
+          aria-label={intl.formatMessage(
+            {
+              id: "studio_quiz_score_show_skipped_aria",
+              defaultMessage:
+                "Show {count, plural, one {# skipped question} other {# skipped questions}}",
+            },
+            {
+              count: skipped.length,
+            }
+          )}
           onClick={() => setCategory("skipped")}
           className={cn(
             "min-w-0 flex-1 rounded-r-full border-2 border-transparent bg-muted-foreground/20 transition-colors hover:bg-muted-foreground/30",
@@ -155,33 +210,63 @@ export function QuizScoreScreen({
         />
       </fieldset>
       <Tabs value={category} onValueChange={selectCategory} className="mt-4">
-        <TabsList className="h-auto w-auto justify-center gap-0.5 bg-transparent p-0 sm:gap-2">
+        <TabsList className="w-auto justify-center gap-0.5 bg-transparent p-0 group-data-horizontal/tabs:h-auto sm:gap-2">
           <TabsTrigger
             value="correct"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-transparent data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="h-auto flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground dark:data-active:border-transparent dark:data-active:bg-secondary dark:data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-emerald-600 sm:size-2.5" />
-            {correct} correct
+            {intl.formatMessage(
+              {
+                id: "studio_quiz_score_correct_tab_label",
+                defaultMessage: "{count, number} correct",
+              },
+              { count: correct }
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="missed"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-transparent data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="h-auto flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground dark:data-active:border-transparent dark:data-active:bg-secondary dark:data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-red-600 sm:size-2.5" />
-            {missed.length} missed
+            {intl.formatMessage(
+              {
+                id: "studio_quiz_score_missed_tab_label",
+                defaultMessage: "{count, number} missed",
+              },
+              {
+                count: missed.length,
+              }
+            )}
           </TabsTrigger>
           <TabsTrigger
             value="skipped"
-            className="flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs data-[state=active]:border-transparent data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm"
+            className="h-auto flex-none items-center gap-0.5 rounded-full border border-transparent px-1.5 py-1 text-xs sm:gap-1.5 sm:px-3 sm:py-1.5 sm:text-sm data-active:border-transparent data-active:bg-secondary data-active:text-secondary-foreground dark:data-active:border-transparent dark:data-active:bg-secondary dark:data-active:text-secondary-foreground"
           >
             <span className="size-2 shrink-0 rounded-full bg-muted-foreground sm:size-2.5" />
-            {skipped.length} skipped
+            {intl.formatMessage(
+              {
+                id: "studio_quiz_score_skipped_tab_label",
+                defaultMessage: "{count, number} skipped",
+              },
+              {
+                count: skipped.length,
+              }
+            )}
           </TabsTrigger>
         </TabsList>
         <div className="mt-7 h-72 overflow-y-auto border-t pt-5 pr-2">
           <TabsContent value="correct" className="mt-0">
             <QuestionSection
-              title="Correct"
+              title={intl.formatMessage(
+                {
+                  id: "studio_quiz_score_correct_section_title",
+                  defaultMessage: "Correct ({count, number})",
+                },
+                {
+                  count: correctIndices.length,
+                }
+              )}
               indices={correctIndices}
               quiz={quiz}
               onReview={onReview}
@@ -189,7 +274,15 @@ export function QuizScoreScreen({
           </TabsContent>
           <TabsContent value="missed" className="mt-0">
             <QuestionSection
-              title="Missed"
+              title={intl.formatMessage(
+                {
+                  id: "studio_quiz_score_missed_section_title",
+                  defaultMessage: "Missed ({count, number})",
+                },
+                {
+                  count: missed.length,
+                }
+              )}
               indices={missed}
               quiz={quiz}
               onReview={onReview}
@@ -197,7 +290,15 @@ export function QuizScoreScreen({
           </TabsContent>
           <TabsContent value="skipped" className="mt-0">
             <QuestionSection
-              title="Skipped"
+              title={intl.formatMessage(
+                {
+                  id: "studio_quiz_score_skipped_section_title",
+                  defaultMessage: "Skipped ({count, number})",
+                },
+                {
+                  count: skipped.length,
+                }
+              )}
               indices={skipped}
               quiz={quiz}
               onReview={onReview}
@@ -207,20 +308,33 @@ export function QuizScoreScreen({
       </Tabs>
       <div className="mt-7 flex justify-end border-t pt-5">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button type="button" variant="secondary">
-              <RefreshCwIcon /> Retake quiz <ChevronDownIcon />
-            </Button>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <Button type="button" variant="secondary">
+                <RefreshCwIcon />{" "}
+                {intl.formatMessage({
+                  id: "studio_quiz_score_retake_button",
+                  defaultMessage: "Retake quiz",
+                })}{" "}
+                <ChevronDownIcon />
+              </Button>
+            }
+          />
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem
               disabled={missed.length + skipped.length === 0}
-              onSelect={() => onRetake("missed")}
+              onClick={() => onRetake("missed")}
             >
-              Retake missed questions
+              {intl.formatMessage({
+                id: "studio_quiz_score_retake_missed_label",
+                defaultMessage: "Retake missed questions",
+              })}
             </DropdownMenuItem>
-            <DropdownMenuItem onSelect={() => onRetake("all")}>
-              Retake all questions
+            <DropdownMenuItem onClick={() => onRetake("all")}>
+              {intl.formatMessage({
+                id: "studio_quiz_score_retake_all_label",
+                defaultMessage: "Retake all questions",
+              })}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

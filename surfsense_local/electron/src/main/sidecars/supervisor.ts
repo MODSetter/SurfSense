@@ -2,7 +2,9 @@
  * The mechanism: spawn a set of sidecars, forward their logs, and reap them.
  */
 import { type ChildProcess, spawn } from "node:child_process"
+import { createInterface } from "node:readline"
 
+import { sessionLog } from "../session-log/session-log.ts"
 import { isWindows } from "./platform.ts"
 import type { CrashHandler, SidecarSpec } from "./types.ts"
 
@@ -21,12 +23,23 @@ function spawnOne(spec: SidecarSpec, onCrash?: CrashHandler): ChildProcess {
   })
   child.stdout?.on("data", (b: Buffer) => process.stdout.write(`[${spec.name}] ${b}`))
   child.stderr?.on("data", (b: Buffer) => process.stderr.write(`[${spec.name}] ${b}`))
+  // Whole lines for Report issue: a packaged app has no terminal to read.
+  for (const stream of [child.stdout, child.stderr]) {
+    if (!stream) continue
+    createInterface({ input: stream, crlfDelay: Infinity }).on("line", (line) =>
+      sessionLog.append(spec.name, line),
+    )
+  }
+  const note = (text: string) => {
+    process.stderr.write(`[${spec.name}] ${text}\n`)
+    sessionLog.append(spec.name, text)
+  }
   child.on("exit", (code, signal) => {
     if (stopping.has(child)) {
-      process.stderr.write(`[${spec.name}] stopped (code=${code} signal=${signal})\n`)
+      note(`stopped (code=${code} signal=${signal})`)
       return
     }
-    process.stderr.write(`[${spec.name}] crashed (code=${code} signal=${signal})\n`)
+    note(`crashed (code=${code} signal=${signal})`)
     onCrash?.(spec.name, code)
   })
   return child

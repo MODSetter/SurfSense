@@ -6,6 +6,7 @@ import {
   PencilIcon,
   SearchIcon,
   Trash2Icon,
+  XIcon,
 } from "@/components/ui/icons"
 
 import { Button } from "@/components/ui/button"
@@ -25,25 +26,42 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { ScrollShadow } from "@/components/ui/scroll-shadow"
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group"
+import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { RelativeTime } from "@/components/relative-time"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
 import type { ChatThread } from "./api"
 
 export function RenameChatDialog({
+  open,
   thread,
-  onClose,
+  onOpenChange,
+  onOpenChangeComplete,
   onRename,
 }: {
+  open: boolean
   thread: ChatThread
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
+  onOpenChangeComplete: (open: boolean) => void
   onRename: (id: number, title: string) => Promise<boolean>
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
-  const [title, setTitle] = useState(thread.title || "New chat")
+  const [title, setTitle] = useState(
+    thread.title ||
+      intl.formatMessage({
+        id: "chat_rename_dialog_untitled_label",
+        defaultMessage: "New chat",
+      })
+  )
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const submit = async (event: SubmitEvent) => {
@@ -52,27 +70,37 @@ export function RenameChatDialog({
     if (!normalized) return
 
     setIsSubmitting(true)
-    if (await onRename(thread.id, normalized)) onClose()
+    if (await onRename(thread.id, normalized)) onOpenChange(false)
     setIsSubmitting(false)
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent
         className="select-none"
-        onOpenAutoFocus={(event) => {
-          event.preventDefault()
-          const input = inputRef.current
-          if (!input) return
-          input.focus()
-          input.select()
+        initialFocus={() => {
+          inputRef.current?.select()
+          return inputRef.current
         }}
       >
         <form onSubmit={(event) => void submit(event)}>
           <DialogHeader>
-            <DialogTitle>Rename chat</DialogTitle>
+            <DialogTitle>
+              {intl.formatMessage({
+                id: "chat_rename_dialog_title",
+                defaultMessage: "Rename chat",
+              })}
+            </DialogTitle>
             <DialogDescription>
-              Choose a short name that identifies this conversation.
+              {intl.formatMessage({
+                id: "chat_rename_dialog_body",
+                defaultMessage:
+                  "Choose a short name that identifies this conversation.",
+              })}
             </DialogDescription>
           </DialogHeader>
           <Input
@@ -80,15 +108,33 @@ export function RenameChatDialog({
             className="my-4"
             value={title}
             onChange={(event) => setTitle(event.target.value)}
-            aria-label="Chat name"
+            aria-label={intl.formatMessage({
+              id: "chat_rename_dialog_name_aria",
+              defaultMessage: "Chat name",
+            })}
             maxLength={200}
           />
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
+              {intl.formatMessage({
+                id: "chat_rename_dialog_cancel_button",
+                defaultMessage: "Cancel",
+              })}
             </Button>
             <Button type="submit" disabled={!title.trim() || isSubmitting}>
-              {isSubmitting ? "Saving..." : "Rename"}
+              {isSubmitting
+                ? intl.formatMessage({
+                    id: "chat_rename_dialog_saving_status",
+                    defaultMessage: "Saving...",
+                  })
+                : intl.formatMessage({
+                    id: "chat_rename_dialog_rename_button",
+                    defaultMessage: "Rename",
+                  })}
             </Button>
           </DialogFooter>
         </form>
@@ -130,6 +176,7 @@ export function ChatsDialog({
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
+  const [renameOpen, setRenameOpen] = useState(false)
   const [query, setQuery] = useState("")
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -140,9 +187,13 @@ export function ChatsDialog({
     thread != null && (thread.id === hoveredId || thread.id === openDropdownId)
 
   const needle = query.trim().toLowerCase()
+  const untitled = intl.formatMessage({
+    id: "chat_chats_dialog_untitled_label",
+    defaultMessage: "New chat",
+  })
   const visibleThreads = needle
     ? threads.filter((thread) =>
-        (thread.title || "New chat").toLowerCase().includes(needle)
+        (thread.title || untitled).toLowerCase().includes(needle)
       )
     : threads
 
@@ -150,37 +201,68 @@ export function ChatsDialog({
     <>
       <Dialog
         open={open}
-        onOpenChange={(nextOpen) => {
-          onOpenChange(nextOpen)
-          if (!nextOpen) setQuery("")
+        onOpenChange={onOpenChange}
+        onOpenChangeComplete={(open) => {
+          if (!open) setQuery("")
         }}
       >
         <DialogContent
           className="select-none sm:max-w-3xl"
-          onOpenAutoFocus={(event) => {
-            event.preventDefault()
-            searchRef.current?.focus()
-          }}
+          initialFocus={searchRef}
         >
           <DialogHeader>
-            <DialogTitle className="text-xl">Chats</DialogTitle>
+            <DialogTitle className="text-xl">
+              {intl.formatMessage({
+                id: "chat_chats_dialog_title",
+                defaultMessage: "Chats",
+              })}
+            </DialogTitle>
             <DialogDescription className="sr-only">
-              Every chat in this workspace.
+              {intl.formatMessage({
+                id: "chat_chats_dialog_body",
+                defaultMessage: "Every chat in this workspace.",
+              })}
             </DialogDescription>
           </DialogHeader>
-          <div className="relative mt-4">
-            <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
+          <InputGroup className="mt-4 h-10 border-0">
+            <InputGroupAddon>
+              <SearchIcon />
+            </InputGroupAddon>
+            <InputGroupInput
               ref={searchRef}
               type="search"
               value={query}
-              placeholder="Search chats"
-              aria-label="Search chats"
-              className="h-10 border-0 bg-secondary pl-9 focus-visible:border-0 dark:bg-secondary"
+              placeholder={intl.formatMessage({
+                id: "chat_chats_dialog_search_placeholder",
+                defaultMessage: "Search chats",
+              })}
+              aria-label={intl.formatMessage({
+                id: "chat_chats_dialog_search_aria",
+                defaultMessage: "Search chats",
+              })}
+              // The clear button below replaces the browser's own.
+              className="[&::-webkit-search-cancel-button]:appearance-none"
               onChange={(event) => setQuery(event.target.value)}
             />
-          </div>
-          <ScrollShadow
+            {query ? (
+              <InputGroupAddon align="inline-end">
+                <InputGroupButton
+                  size="icon-xs"
+                  aria-label={intl.formatMessage({
+                    id: "chat_chats_dialog_search_clear_aria",
+                    defaultMessage: "Clear search",
+                  })}
+                  onClick={() => {
+                    setQuery("")
+                    searchRef.current?.focus()
+                  }}
+                >
+                  <XIcon />
+                </InputGroupButton>
+              </InputGroupAddon>
+            ) : null}
+          </InputGroup>
+          <ScrollFade
             className="h-[32rem] min-w-0"
             viewportClassName="overflow-x-hidden"
           >
@@ -189,13 +271,19 @@ export function ChatsDialog({
               {!isLoading && visibleThreads.length === 0 ? (
                 <p className="px-2 py-1 text-sm text-muted-foreground select-none">
                   {needle
-                    ? "No chats match your search"
-                    : "Start a conversation to see it here"}
+                    ? intl.formatMessage({
+                        id: "chat_chats_dialog_no_match_empty",
+                        defaultMessage: "No chats match your search",
+                      })
+                    : intl.formatMessage({
+                        id: "chat_chats_dialog_empty",
+                        defaultMessage: "Start a conversation to see it here",
+                      })}
                 </p>
               ) : null}
               {visibleThreads.map((thread, index) => {
                 const selected = thread.id === activeThreadId
-                const title = thread.title || "New chat"
+                const title = thread.title || untitled
                 const showSeparator =
                   index > 0 &&
                   !rowActive(thread) &&
@@ -235,6 +323,11 @@ export function ChatsDialog({
                           "bg-muted dark:bg-muted/50"
                       )}
                       aria-current={selected ? "page" : undefined}
+                      // Named by the title alone: read as content, the time
+                      // runs into it ("Q3 rollup2 weeks ago"). It stays a
+                      // description, so a screen reader still hears it.
+                      aria-label={title}
+                      aria-describedby={`chat-row-time-${thread.id}`}
                       onClick={() => {
                         onSelect(thread.id)
                         onOpenChange(false)
@@ -256,6 +349,7 @@ export function ChatsDialog({
                         />
                       </span>
                       <RelativeTime
+                        id={`chat-row-time-${thread.id}`}
                         date={new Date(thread.updated_at)}
                         showTooltip={false}
                         className={cn(
@@ -273,44 +367,61 @@ export function ChatsDialog({
                           setOpenDropdownId(open ? thread.id : null)
                         }
                       >
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            size="icon-sm"
-                            className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-[state=open]:bg-accent data-[state=open]:opacity-100"
-                            aria-label={`Actions for ${title}`}
-                            onMouseEnter={onRowMouseEnter}
-                            onMouseLeave={onRowMouseLeave}
-                          >
-                            <EllipsisIcon />
-                          </Button>
-                        </DropdownMenuTrigger>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon-sm"
+                              className="size-6 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 hover:bg-transparent active:translate-y-px data-popup-open:bg-accent data-popup-open:opacity-100"
+                              aria-label={intl.formatMessage(
+                                {
+                                  id: "chat_chats_dialog_row_actions_aria",
+                                  defaultMessage: "Actions for {title}",
+                                },
+                                {
+                                  title,
+                                }
+                              )}
+                              onMouseEnter={onRowMouseEnter}
+                              onMouseLeave={onRowMouseLeave}
+                            >
+                              <EllipsisIcon />
+                            </Button>
+                          }
+                        />
                         <DropdownMenuContent
                           align="end"
                           sideOffset={8}
                           className="w-36"
-                          onCloseAutoFocus={(event) => event.preventDefault()}
+                          finalFocus={false}
                         >
                           <DropdownMenuGroup>
                             <DropdownMenuItem
                               disabled={thread.id === autoNamingThreadId}
-                              onSelect={() => {
+                              onClick={() => {
                                 setOpenDropdownId(null)
                                 setRenaming(thread)
+                                setRenameOpen(true)
                               }}
                             >
                               <PencilIcon />
-                              Rename
+                              {intl.formatMessage({
+                                id: "chat_chats_dialog_rename_label",
+                                defaultMessage: "Rename",
+                              })}
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               variant="destructive"
-                              onSelect={() => {
+                              onClick={() => {
                                 setOpenDropdownId(null)
                                 void onDelete(thread.id)
                               }}
                             >
                               <Trash2Icon />
-                              Delete chat
+                              {intl.formatMessage({
+                                id: "chat_chats_dialog_delete_label",
+                                defaultMessage: "Delete chat",
+                              })}
                             </DropdownMenuItem>
                           </DropdownMenuGroup>
                         </DropdownMenuContent>
@@ -320,8 +431,8 @@ export function ChatsDialog({
                 )
               })}
             </div>
-          </ScrollShadow>
-          <DialogFooter>
+          </ScrollFade>
+          <DialogFooter className="-mt-4">
             <Button
               type="button"
               variant="ghost"
@@ -332,19 +443,27 @@ export function ChatsDialog({
               }}
             >
               <PencilEdit02Icon />
-              New chat
+              {intl.formatMessage({
+                id: "chat_chats_dialog_new_chat_button",
+                defaultMessage: "New chat",
+              })}
             </Button>
           </DialogFooter>
+          {/* Inside the popup, so Base UI nests it and this dialog steps back. */}
+          {renaming ? (
+            <RenameChatDialog
+              key={renaming.id}
+              open={renameOpen}
+              thread={renaming}
+              onOpenChange={setRenameOpen}
+              onOpenChangeComplete={(open) => {
+                if (!open) setRenaming(null)
+              }}
+              onRename={onRename}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
-      {renaming ? (
-        <RenameChatDialog
-          key={renaming.id}
-          thread={renaming}
-          onClose={() => setRenaming(null)}
-          onRename={onRename}
-        />
-      ) : null}
     </>
   )
 }

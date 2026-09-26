@@ -1,43 +1,55 @@
-import { lazy, Suspense, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ServerOffIcon } from "@/components/ui/icons"
 import {
   getGenerationSelection,
-  getConnectionModels,
-  getOnboardingStatus,
-  getProviderModels,
   type ModelSelection,
-} from "@/features/model-selection/api"
+} from "@/features/models/selection/api"
+import {
+  checkAvailability,
+  type Availability,
+} from "@/features/models/selection/availability"
+import { getOnboardingStatus } from "@/features/onboarding/api"
 import { OnboardingPage } from "@/features/onboarding/onboarding-page"
+import { intl } from "@/i18n/intl"
+
 import { listWorkspaces, type Workspace } from "@/features/workspaces/api"
 
-const DashboardPage = lazy(() =>
-  import("@/features/dashboard/dashboard-page").then((module) => ({
-    default: module.DashboardPage,
-  }))
-)
+import { loadDashboard, type DashboardComponent } from "./load-dashboard"
+import { LogoFillLoader } from "./logo-fill-loader"
 
 type BootstrapState =
   | { status: "loading" }
   | { status: "onboarding-required" }
   | {
       status: "ready"
+      /** Loaded before the state turns ready, so it renders without suspending. */
+      Dashboard: DashboardComponent
+      // The saved choice, kept whatever its status: clearing it to say it
+      // can't be used would leave nothing to check again once it can.
       selection: ModelSelection | null
-      providerAvailable: boolean
+      availability: Availability
       workspaces: Workspace[]
     }
   | { status: "error"; message: string }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "app_bootstrap_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
-const ASCII_FRAMES = ["|", "/", "-", "\\"] as const
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)"
-
 async function fetchBootstrapState(): Promise<BootstrapState> {
+  // Fetched alongside the data rather than after it: one wait, one loader.
+  const dashboard = loadDashboard()
+  // Handled where it is awaited; this only keeps an early exit from leaving
+  // a rejection unobserved.
+  void dashboard.catch(() => undefined)
   try {
     const onboarding = await getOnboardingStatus()
     if (!onboarding.completed) {
@@ -47,30 +59,16 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
       getGenerationSelection(),
       listWorkspaces(),
     ])
-    let currentSelection: ModelSelection | null = null
-    if (selection?.provider === "openai_compatible") {
-      const models =
-        selection.connection_id === null
-          ? []
-          : await getConnectionModels(selection.connection_id)
-      currentSelection = models.some((model) => model.name === selection.name)
-        ? selection
-        : null
-    } else if (selection) {
-      const models = await getProviderModels(selection.provider)
-      currentSelection = models.some(
-        (model) =>
-          model.installed &&
-          model.capabilities.includes("completion") &&
-          model.name === selection.name
-      )
-        ? selection
-        : null
-    }
+    // Never fails startup: a model that can't be used opens the app without
+    // it, and the dashboard says why.
+    const availability: Availability = selection
+      ? await checkAvailability(selection)
+      : { status: "gone" }
     return {
       status: "ready",
-      selection: currentSelection,
-      providerAvailable: currentSelection !== null,
+      Dashboard: await dashboard,
+      selection,
+      availability,
       workspaces,
     }
   } catch (error) {
@@ -79,30 +77,16 @@ async function fetchBootstrapState(): Promise<BootstrapState> {
 }
 
 function GlobalLoader() {
-  const [frame, setFrame] = useState(0)
-
-  useEffect(() => {
-    if (window.matchMedia?.(REDUCED_MOTION_QUERY).matches) return
-
-    const interval = window.setInterval(
-      () => setFrame((current) => (current + 1) % ASCII_FRAMES.length),
-      120
-    )
-    return () => window.clearInterval(interval)
-  }, [])
-
   return (
     <main
       className="flex h-full items-center justify-center bg-app-shell select-none"
       role="status"
-      aria-label="Starting SurfSense"
+      aria-label={intl.formatMessage({
+        id: "app_bootstrap_loader_aria",
+        defaultMessage: "Starting SurfSense",
+      })}
     >
-      <span
-        aria-hidden="true"
-        className="font-mono text-2xl text-foreground tabular-nums"
-      >
-        [{ASCII_FRAMES[frame]}]
-      </span>
+      <LogoFillLoader />
     </main>
   )
 }
@@ -129,12 +113,13 @@ export function AppBootstrap() {
       <OnboardingPage
         onComplete={(selection) => {
           setState({ status: "loading" })
-          void listWorkspaces()
-            .then((workspaces) =>
+          void Promise.all([listWorkspaces(), loadDashboard()])
+            .then(([workspaces, Dashboard]) =>
               setState({
                 status: "ready",
+                Dashboard,
                 selection,
-                providerAvailable: true,
+                availability: { status: "available" },
                 workspaces,
               })
             )
@@ -148,10 +133,15 @@ export function AppBootstrap() {
 
   if (state.status === "error") {
     return (
-      <main className="flex min-h-full items-center justify-center bg-muted/30 p-8">
+      <main className="flex h-full items-center justify-center bg-app-shell p-8">
         <Alert variant="destructive" className="max-w-lg">
           <ServerOffIcon />
-          <AlertTitle>SurfSense could not start</AlertTitle>
+          <AlertTitle>
+            {intl.formatMessage({
+              id: "app_bootstrap_start_failed_title",
+              defaultMessage: "SurfSense could not start",
+            })}
+          </AlertTitle>
           <AlertDescription>
             <p>{state.message}</p>
             <Button
@@ -162,7 +152,10 @@ export function AppBootstrap() {
                 void fetchBootstrapState().then(setState)
               }}
             >
-              Retry
+              {intl.formatMessage({
+                id: "app_bootstrap_retry_button",
+                defaultMessage: "Retry",
+              })}
             </Button>
           </AlertDescription>
         </Alert>
@@ -170,25 +163,24 @@ export function AppBootstrap() {
     )
   }
 
+  // No Suspense: the dashboard's code is already here, so there is no second
+  // loader to flash between startup and the first screen.
+  const { Dashboard } = state
   return (
-    <Suspense fallback={<GlobalLoader />}>
-      <DashboardPage
-        selection={state.selection}
-        initialProviderAvailable={state.providerAvailable}
-        initialWorkspaces={state.workspaces}
-        onModelUnavailable={() =>
-          setState((current) =>
-            current.status === "ready"
-              ? { ...current, selection: null }
-              : current
-          )
-        }
-        onModelSelected={(selection) =>
-          setState((current) =>
-            current.status === "ready" ? { ...current, selection } : current
-          )
-        }
-      />
-    </Suspense>
+    <Dashboard
+      selection={state.selection}
+      initialAvailability={state.availability}
+      initialWorkspaces={state.workspaces}
+      onModelUnavailable={() =>
+        setState((current) =>
+          current.status === "ready" ? { ...current, selection: null } : current
+        )
+      }
+      onModelSelected={(selection) =>
+        setState((current) =>
+          current.status === "ready" ? { ...current, selection } : current
+        )
+      }
+    />
   )
 }

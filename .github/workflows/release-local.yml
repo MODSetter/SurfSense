@@ -31,25 +31,33 @@ permissions:
   contents: write
 
 jobs:
+  # Windows and Linux compile it; macOS downloads upstream's in its own job.
+  audiocpp:
+    uses: ./.github/workflows/build-audiocpp.yml
+
+  # Linux and macOS compile it; Windows downloads upstream's in its own job.
+  sdcpp:
+    uses: ./.github/workflows/build-sdcpp.yml
+
   build:
+    needs: [audiocpp, sdcpp]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          # Pinned: `ubuntu-latest` migrates to 26.04 and would silently raise
+          # the AppImage's glibc floor. llama.cpp's Vulkan build needs 2.34.
+          - os: ubuntu-22.04
             platform: --linux
             electron_cache: ~/.cache/electron
-            llmfit_resource: release/linux-unpacked/resources/llmfit/llmfit
           # Apple Silicon only: torch (2.3+) and onnxruntime (1.24+) no longer ship Intel Mac wheels.
           - os: macos-15
             platform: --mac
             electron_cache: ~/Library/Caches/electron
-            llmfit_resource: release/mac-arm64/SurfSense.app/Contents/Resources/llmfit/llmfit
           - os: windows-latest
             platform: --win
             electron_cache: ~\AppData\Local\electron\Cache
-            llmfit_resource: release/win-unpacked/resources/llmfit/llmfit.exe
 
     defaults:
       run:
@@ -118,7 +126,10 @@ jobs:
           python-version: "3.12"
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v5
+        uses: pnpm/action-setup@v6
+        with:
+          # Both desktop trees pin the same pnpm; the root one is the web app's.
+          package_json_file: surfsense_local/electron/package.json
 
       - name: Setup Node.js
         uses: actions/setup-node@v5
@@ -179,7 +190,7 @@ jobs:
         working-directory: surfsense_local/backend
         run: |
           uv run scripts/fetch_embedding_model.py models
-          uv run scripts/fetch_kokoro_model.py models
+          uv run scripts/fetch_bundled_voice.py models
           uv run scripts/fetch_docling_models.py models
 
       - name: Build frontend SPA
@@ -194,15 +205,35 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build
 
-      - name: Stage Ollama
+      - name: Stage llama.cpp
         working-directory: surfsense_local/electron
-        run: node scripts/fetch-ollama.mjs
+        run: node scripts/fetch-llamacpp.mjs
 
-      - name: Stage and smoke llmfit
+      - name: Fetch the audio.cpp build
+        if: runner.os != 'macOS'
+        uses: actions/download-artifact@v4
+        with:
+          name: audiocpp-${{ runner.os }}
+          path: surfsense_local/electron
+
+      - name: Stage audio.cpp
         working-directory: surfsense_local/electron
         run: |
-          node scripts/fetch-llmfit.mjs
-          node scripts/check-llmfit.mjs
+          if [ -f audiocpp.tar ]; then tar -xf audiocpp.tar && rm audiocpp.tar; fi
+          node scripts/audiocpp/stage.mjs --strict
+
+      - name: Fetch the sd.cpp build
+        if: runner.os != 'Windows'
+        uses: actions/download-artifact@v4
+        with:
+          name: sdcpp-${{ runner.os }}
+          path: surfsense_local/electron
+
+      - name: Stage sd.cpp
+        working-directory: surfsense_local/electron
+        run: |
+          if [ -f sdcpp.tar ]; then tar -xf sdcpp.tar && rm sdcpp.tar; fi
+          node scripts/sdcpp/stage.mjs --strict
 
       - name: Package installer
         working-directory: surfsense_local/electron
@@ -239,12 +270,8 @@ jobs:
 
           "${CMD[@]}"
 
-      - name: Smoke llmfit from final resources
-        working-directory: surfsense_local/electron
-        run: node scripts/check-llmfit.mjs "${{ matrix.llmfit_resource }}"
-
       - name: Smoke the frozen API (Linux)
-        if: matrix.os == 'ubuntu-latest'
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           set -e
           export SURFSENSE_LOCAL_DATA_DIR="$RUNNER_TEMP/ss-smoke"
@@ -259,20 +286,45 @@ jobs:
           done
           echo "::error::packaged API never became healthy"; kill $API; exit 1
 
-      - name: Smoke the bundled Ollama (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Smoke the bundled llama.cpp (Linux)
+        if: matrix.os == 'ubuntu-22.04'
         run: |
           set -e
-          export OLLAMA_HOST=127.0.0.1:11565
-          ./surfsense_local/electron/release/linux-unpacked/resources/ollama/bin/ollama serve &
-          OLL=$!
-          for i in $(seq 1 30); do
-            if curl -fsS "http://127.0.0.1:11565/" >/dev/null; then
-              echo "ollama OK"; kill $OLL; exit 0
-            fi
-            sleep 1
-          done
-          echo "::error::bundled ollama never responded"; kill $OLL; exit 1
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/llamacpp
+          # Run from the library directory: ggml scans the running executable's
+          # own directory for backends and silently reports none anywhere else,
+          # which is indistinguishable from a machine with no GPU.
+          OUT=$(cd "$DIR" && ./llama-server --list-devices 2>&1)
+          echo "$OUT"
+          if ! grep -qiE "Available devices|no devices found" <<<"$OUT"; then
+            echo "::error::packaged llama-server could not list devices"; exit 1
+          fi
+
+      - name: Smoke the bundled audio.cpp (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          set -e
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/audiocpp
+          # From its own directory, where ggml looks for its backends.
+          OUT=$(cd "$DIR" && ./audiocpp_server --list-devices 2>&1)
+          echo "$OUT"
+          if ! grep -q "^available_devices=" <<<"$OUT"; then
+            echo "::error::packaged audiocpp_server could not list devices"; exit 1
+          fi
+          # Kokoro and Kitten cannot phonemise without it.
+          test -f "$DIR/espeak/libespeak-ng.so"
+          test -d "$DIR/espeak/espeak-ng-data"
+          test -f "$DIR/espeak/COPYING"
+
+      - name: Smoke the bundled sd.cpp (Linux)
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          set -e
+          DIR=./surfsense_local/electron/release/linux-unpacked/resources/sdcpp
+          # From its own directory, where ggml looks for its backends.
+          (cd "$DIR" && ./sd-server --help > /dev/null)
+          test -f "$DIR/libggml-vulkan.so"
+          test -f "$DIR/stable-diffusion.cpp.txt"
 
       - name: Upload installers
         uses: actions/upload-artifact@v4

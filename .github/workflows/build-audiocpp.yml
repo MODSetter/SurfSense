@@ -1,0 +1,150 @@
+# Compile audio.cpp's server for Windows and Linux with the recipe in
+# surfsense_local/electron/scripts/audiocpp/, check it against the app's
+# floors, and hand the staged folder to the desktop release as an artifact.
+# A pull request that changes the recipe, or the app code that drives the
+# server, runs it too.
+#
+# TODO: ask upstream (0xShug0/audio.cpp) to publish Linux archives built on
+# Ubuntu 22.04 and Windows ones with per-CPU ggml libraries, as llama.cpp does.
+# Once a release does, download those and delete this workflow.
+name: Build audio.cpp
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - surfsense_local/electron/scripts/audiocpp/**
+      - surfsense_local/electron/scripts/not-staged/**
+      - surfsense_local/electron/scripts/msvc-runtime.mjs
+      - surfsense_local/electron/scripts/pinned-download.mjs
+      - surfsense_local/backend/modules/llm/providers/audiocpp/**
+      - surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/**
+      - surfsense_local/backend/modules/llm/catalog/local/manifest/models.json
+      - surfsense_local/backend/tests/packaging/test_audiocpp_voicing.py
+      - .github/workflows/build-audiocpp.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The release's Linux runner: its glibc is the AppImage's floor.
+          - os: ubuntu-22.04
+            name: Linux x64
+          - os: windows-latest
+            name: Windows x64
+    defaults:
+      run:
+        shell: bash
+        working-directory: surfsense_local/electron
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          # The scripts need Node only, not the app's pnpm install.
+          package-manager-cache: false
+
+      # A release that does not change the recipe reuses the last checked build.
+      - id: cache
+        uses: actions/cache@v5
+        with:
+          path: surfsense_local/electron/audiocpp
+          key: audiocpp-${{ runner.os }}-${{ hashFiles('surfsense_local/electron/scripts/audiocpp/*.mjs', 'surfsense_local/electron/scripts/msvc-runtime.mjs', 'surfsense_local/electron/scripts/pinned-download.mjs') }}
+
+      - name: Install GCC 13
+        # audio.cpp requires it, and 22.04 has GCC 11. This job, not the
+        # release's, takes the PPA's newer libstdc++, so the frozen Python
+        # binaries never bundle it.
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        run: |
+          sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+          sudo apt-get update
+          sudo apt-get install -y gcc-13 g++-13 ninja-build
+          echo "CC=gcc-13" >> "$GITHUB_ENV"
+          echo "CXX=g++-13" >> "$GITHUB_ENV"
+
+      - name: Compile and stage
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: node scripts/audiocpp/stage.mjs --strict
+
+      - name: Gate on the app's Linux floor
+        if: runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_local/electron/audiocpp
+        # The floor is glibc 2.34, RHEL 9, whose libgcc_s is GCC 11's: nothing
+        # after GCC_7.0.0. The runner's libstdc++ is the PPA's, newer than a
+        # user's, so only this gate, not the voicing test, catches a dynamic one.
+        run: |
+          files=$(for f in audiocpp_server *.so*; do [ -L "$f" ] || echo "$f"; done)
+          too_new=$(for f in $files; do objdump -T "$f"; done | grep -oE '(GLIBC|GCC)_[0-9.]+[0-9]' | sort -Vu | while read -r v; do
+            case "$v" in GLIBC_*) floor=GLIBC_2.34 ;; GCC_*) floor=GCC_7.0.0 ;; esac
+            [ "$(printf '%s\n%s\n' "$v" "$floor" | sort -V | tail -1)" = "$floor" ] || echo "$v"
+          done)
+          if [ -n "$too_new" ]; then
+            for f in $files; do objdump -T "$f" | grep -wF "$too_new" | sed "s|^|$f: |"; done
+            exit 1
+          fi
+          needs=$(for f in $files; do objdump -p "$f" | awk -v f="$f" '$1 == "NEEDED" && $2 ~ /^lib(stdc\+\+|gomp|vulkan)/ {print f ": " $2}'; done)
+          if [ -n "$needs" ]; then echo "$needs"; exit 1; fi
+          ls libggml-cpu-*.so | tee /dev/stderr | grep -q haswell
+
+      - name: Gate on per-CPU ggml libraries (Windows)
+        if: runner.os == 'Windows' && steps.cache.outputs.cache-hit != 'true'
+        working-directory: surfsense_local/electron/audiocpp
+        # Git Bash has no /dev/stderr, so no tee as on Linux.
+        run: |
+          ls ggml-cpu-*.dll
+          ls ggml-cpu-*haswell*.dll
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v8.1.0
+        with:
+          enable-cache: true
+          python-version: "3.12"
+
+      # Each curated model voices through the app's adapter, from the
+      # server.json the app writes, with the sidecar's flags and eSpeak, and is
+      # unloaded after. The test checks each file against the manifest's hash.
+      # A cached build runs it too: the app's side changes more often.
+      - name: Gate on every curated model voicing
+        working-directory: surfsense_local/backend
+        env:
+          SURFSENSE_TEST_AUDIOCPP_DIR: ${{ github.workspace }}/surfsense_local/electron/audiocpp
+          SURFSENSE_TEST_AUDIO_MODELS: ${{ runner.temp }}/audio-models
+        run: |
+          uv sync
+          uv run python - <<'EOF'
+          import os
+          import urllib.request
+          from pathlib import Path
+
+          from modules.llm.catalog.local.manifest import load_local_manifest
+
+          folder = Path(os.environ["SURFSENSE_TEST_AUDIO_MODELS"])
+          folder.mkdir(parents=True, exist_ok=True)
+          for model in load_local_manifest().models:
+              if model.audio is not None:
+                  pinned = model.builds[0].files[0]
+                  url = f"https://huggingface.co/{pinned.repo}/resolve/{pinned.revision}/{pinned.path}"
+                  print(url, flush=True)
+                  urllib.request.urlretrieve(url, folder / pinned.path.rsplit("/", 1)[-1])
+          EOF
+          # addopts pins -m 'not packaging'; the later -m on the command line wins.
+          uv run pytest tests/packaging/test_audiocpp_voicing.py -m packaging
+
+      # An artifact drops symlinks and file modes; a tar keeps both.
+      - name: Pack
+        run: tar -cf audiocpp.tar audiocpp
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audiocpp-${{ runner.os }}
+          path: surfsense_local/electron/audiocpp.tar
+          retention-days: 7

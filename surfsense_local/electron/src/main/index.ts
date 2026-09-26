@@ -1,3 +1,4 @@
+import { existsSync, mkdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -14,13 +15,28 @@ import {
 // undefined). require() honours it, and the getter is lazy so dev pays nothing.
 import { autoUpdater } from "electron-updater"
 
+import {
+  applyDevAppIdentity,
+  devWindowIcon,
+  nameDevBuild,
+} from "./dev-app-identity.ts"
 import { managedOriginalPath } from "./document-files.ts"
+import { allowedExternalUrl } from "./external-url.ts"
 import { getFreePort, waitForHealth } from "./net.ts"
 import { loadSecret } from "./secret.ts"
-import { ollamaSpec } from "./sidecars/ollama.ts"
-import { exe } from "./sidecars/platform.ts"
+import {
+  llamacppSpec,
+  LLAMACPP_SIDECAR,
+  PRESET_FILE,
+} from "./sidecars/llamacpp.ts"
+import {
+  audiocppSpec,
+  AUDIOCPP_SIDECAR,
+  SERVER_CONFIG,
+} from "./sidecars/audiocpp.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import {
+  binaryPath as sdcppBinaryPath,
   sdcppSpec,
   SDCPP_SIDECAR,
   type ImageRuntime,
@@ -46,29 +62,23 @@ import {
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
+import { applyLocalePreference } from "./i18n/app-locale.ts"
+import { loadLocalePreference } from "./i18n/locale-prefs.ts"
+import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
+import { registerAboutHandlers } from "./about/about-ipc.ts"
+import { sessionLog } from "./session-log/session-log.ts"
+import { registerSessionLogHandlers } from "./session-log/session-log-ipc.ts"
+import { appMenu } from "./menu/app-menu.ts"
+import { helpMenu } from "./menu/help-menu.ts"
 
 const DEV_RENDERER_URL = "http://localhost:5173"
-
-function allowedExternalUrl(url: string): string | null {
-  try {
-    const parsed = new URL(url)
-    if (
-      parsed.protocol === "https:" &&
-      (parsed.hostname === "surfsense.com" ||
-        parsed.hostname === "www.surfsense.com")
-    ) {
-      return parsed.href
-    }
-  } catch {
-    return null
-  }
-  return null
-}
 
 function openAllowedExternal(url: string): void {
   const allowed = allowedExternalUrl(url)
   if (allowed) void shell.openExternal(allowed)
 }
+
+nameDevBuild()
 
 // Dev keeps its own dir so testing never leaks into the real install's ~/.surfsense.
 const DATA_DIR = join(
@@ -100,7 +110,7 @@ function onSidecarCrash(name: string, code: number | null): void {
 // needs no IPC channel of its own; a change is user-initiated and rare, so the
 // few seconds of lag are not felt.
 function watchImageModel(ctx: SidecarContext): void {
-  if (!ctx.packaged || ctx.imageModelsDir == null) return
+  if (ctx.imageModelsDir == null) return
   const endpoint = `http://${ctx.host}:${ctx.apiPort}/llm/image/local/runtime`
   let current: string | null = null
 
@@ -127,6 +137,73 @@ function watchImageModel(ctx: SidecarContext): void {
   timer.unref()
 }
 
+// llama-server reads its per-model arguments from a preset INI **once, at
+// startup**: appending a section while it runs does not surface the model,
+// measured. The API rewrites that file whenever it installs a model or reprices
+// one, so the router has to be restarted to see it. Same shape as
+// watchImageModel, and for the same reason: the API is the authority, and a
+// change is user-initiated and rare.
+function watchGenerationPreset(ctx: SidecarContext): void {
+  if (ctx.llamacppModelsDir == null) return
+  const preset = join(ctx.llamacppModelsDir, PRESET_FILE)
+  let current = presetStamp(preset)
+
+  const reconcile = async () => {
+    if (!sidecars || shuttingDown) return
+    const stamp = presetStamp(preset)
+    if (stamp === current) return
+    current = stamp
+
+    if (sidecars.has(LLAMACPP_SIDECAR)) await stopNamed(sidecars, LLAMACPP_SIDECAR)
+    const spec = llamacppSpec(ctx)
+    if (spec) startOne(sidecars, spec, onSidecarCrash)
+  }
+
+  const timer = setInterval(() => {
+    void reconcile().catch(() => {
+      // Mid-write or mid-restart; the next tick tries again.
+    })
+  }, 5000)
+  timer.unref()
+}
+
+// audio.cpp's server refuses an empty model list, so it runs only while the API's
+// config names a model. The API rewrites that file on every audio install and
+// delete, and removes it with the last model; follow it, as for the preset.
+function watchAudioModels(ctx: SidecarContext): void {
+  if (ctx.audioModelsDir == null) return
+  const config = join(ctx.audioModelsDir, SERVER_CONFIG)
+  let current = presetStamp(config)
+
+  const reconcile = async () => {
+    if (!sidecars || shuttingDown) return
+    const stamp = presetStamp(config)
+    if (stamp === current) return
+    current = stamp
+
+    if (sidecars.has(AUDIOCPP_SIDECAR)) await stopNamed(sidecars, AUDIOCPP_SIDECAR)
+    const spec = audiocppSpec(ctx)
+    if (spec) startOne(sidecars, spec, onSidecarCrash)
+  }
+
+  const timer = setInterval(() => {
+    void reconcile().catch(() => {
+      // Mid-write or mid-restart; the next tick tries again.
+    })
+  }, 5000)
+  timer.unref()
+}
+
+/** Size and mtime, which is enough to notice a rewrite and costs no read. */
+function presetStamp(path: string): string {
+  try {
+    const stats = statSync(path)
+    return `${stats.size}:${stats.mtimeMs}`
+  } catch {
+    return "absent"
+  }
+}
+
 async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   const host = "127.0.0.1"
   const packaged = app.isPackaged
@@ -149,34 +226,65 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     modelsDir: packaged
       ? join(process.resourcesPath, "models")
       : join(app.getAppPath(), "..", "backend", "models"),
-    llmfitPath: packaged
-      ? join(process.resourcesPath, "llmfit", exe("llmfit"))
-      : join(app.getAppPath(), "llmfit", exe("llmfit")),
+    // The staged llama.cpp build, same bytes either way: `fetch-llamacpp.mjs`
+    // writes electron/llamacpp/ and packaging copies that folder verbatim.
+    llamacppBinariesDir: packaged
+      ? join(process.resourcesPath, "llamacpp")
+      : join(app.getAppPath(), "llamacpp"),
+    // The staged audio.cpp build, same bytes either way, as for llama.cpp.
+    audioBinariesDir: packaged
+      ? join(process.resourcesPath, "audiocpp")
+      : join(app.getAppPath(), "audiocpp"),
   }
-  if (packaged) {
-    ctx.ollamaPort = await getFreePort(host)
-    ctx.ollamaModelsDir = join(dataDir, "ollama")
-    ctx.ollamaUrl = `http://${host}:${ctx.ollamaPort}`
+  // Unconditional, because dev needs a runtime too and DATA_DIR already keeps
+  // dev models out of the real install (~/.surfsense-dev).
+  ctx.llamacppPort = await getFreePort(host)
+  ctx.llamacppModelsDir = join(dataDir, "models")
+  ctx.llamacppUrl = `http://${host}:${ctx.llamacppPort}`
+  // llama-server exits 1 when --models-dir does not exist, and on a clean
+  // install nothing has created it yet: only a download would, and a download
+  // needs the runtime. Measured: "failed to initialize router models: error:
+  // '<path>' does not exist or is not a directory".
+  mkdirSync(ctx.llamacppModelsDir, { recursive: true })
+
+  // Dev too, as for llama.cpp: podcasts are voiced by the binary that ships.
+  ctx.audioPort = await getFreePort(host)
+  ctx.audioUrl = `http://${host}:${ctx.audioPort}`
+  ctx.audioModelsDir = join(dataDir, "audio")
+  mkdirSync(ctx.audioModelsDir, { recursive: true })
+
+  // Same staging in both modes, like llama.cpp. Only a host with a staged
+  // sd-server gets an images dir: without one the API offers no image models,
+  // rather than downloads that can never run.
+  const sdcppBinariesDir = packaged
+    ? join(process.resourcesPath, "sdcpp")
+    : join(app.getAppPath(), "sdcpp")
+  if (existsSync(sdcppBinaryPath({ ...ctx, sdcppBinariesDir }))) {
+    ctx.sdcppBinariesDir = sdcppBinariesDir
     ctx.imagePort = await getFreePort(host)
     ctx.imageModelsDir = join(dataDir, "images")
     ctx.imageUrl = `http://${host}:${ctx.imagePort}`
   }
 
-  // ollamaSpec is null in dev (the developer runs their own `ollama serve`).
-  // sd-server is absent here on purpose: watchImageModel owns it, because only
-  // the API knows which model was chosen.
+  // llamacppSpec is null in dev, where no binary is staged. sd-server is absent
+  // here on purpose: watchImageModel owns it, because only the API knows which
+  // model was chosen.
   const specs = [
     apiSpec(ctx),
     workerSpec(ctx, "ingest"),
     workerSpec(ctx, "studio"),
-    ollamaSpec(ctx),
+    llamacppSpec(ctx),
+    // Null until the API's config names an audio model.
+    audiocppSpec(ctx),
   ].filter(
     (s): s is SidecarSpec => s !== null
   )
   sidecars = startAll(specs, onSidecarCrash)
   watchImageModel(ctx)
+  watchGenerationPreset(ctx)
+  watchAudioModels(ctx)
 
-  // gate on the API only; fail fast if it dies during startup. Ollama is
+  // gate on the API only; fail fast if it dies during startup. llama-server is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
   await waitForHealth(host, apiPort, { child: sidecars.get("api") })
   return { apiUrl: `http://${host}:${apiPort}`, dataDir }
@@ -271,6 +379,9 @@ async function registerUpdateHandlers(): Promise<void> {
   if (app.isPackaged) {
     // GitHub's CDN rejects the multi-range requests differential updates need.
     autoUpdater.disableDifferentialDownload = true
+    // Its default logger is the console, which a packaged app shows nowhere.
+    const log = (message: unknown) => sessionLog.append("updater", String(message))
+    autoUpdater.logger = { info: log, warn: log, error: log }
     updates = attachUpdater(autoUpdater, broadcast)
   } else {
     // ponytail: dev has no signed build to update; expose the same surface
@@ -344,33 +455,34 @@ function applyBackgroundColorToAllWindows(theme: ThemePreference): void {
   for (const win of currentWindows()) win.setBackgroundColor(color)
 }
 
-// Packaged only. Dev keeps Electron's default View menu (reload + DevTools).
-// https://www.electronjs.org/docs/latest/tutorial/application-menu
-function installProductionMenu(): void {
-  if (!app.isPackaged) return
+// A menu action the window carries out, shown first in case it was hidden.
+function sendToWindow(channel: string): void {
+  if (!mainWindow) return
+  mainWindow.show()
+  mainWindow.webContents.send(channel)
+}
 
+// One menu in dev and packaged builds. Role labels come from Electron and the
+// OS; the few items of ours are English. DevTools only unpackaged.
+// https://www.electronjs.org/docs/latest/tutorial/application-menu
+function installMenu(): void {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
-      ...(process.platform === "darwin" ? [{ role: "appMenu" as const }] : []),
+      ...(process.platform === "darwin"
+        ? [
+            appMenu({
+              checkForUpdates: () => sendToWindow("updates:check-requested"),
+            }),
+          ]
+        : []),
       { role: "fileMenu" },
       { role: "editMenu" },
       {
-        label: "View",
+        role: "viewMenu",
         submenu: [
-          {
-            label: "Reload",
-            click: (_item, win) => {
-              if (win instanceof BrowserWindow) win.reload()
-            },
-          },
-          {
-            label: "Force Reload",
-            click: (_item, win) => {
-              if (win instanceof BrowserWindow) {
-                win.webContents.reloadIgnoringCache()
-              }
-            },
-          },
+          { role: "reload" },
+          { role: "forceReload" },
+          ...(app.isPackaged ? [] : [{ role: "toggleDevTools" as const }]),
           { type: "separator" },
           { role: "resetZoom" },
           { role: "zoomIn" },
@@ -380,14 +492,21 @@ function installProductionMenu(): void {
         ],
       },
       { role: "windowMenu" },
+      helpMenu({
+        version: app.getVersion(),
+        openExternal: openAllowedExternal,
+        reportIssue: () => sendToWindow("help:report-issue"),
+      }),
     ])
   )
 }
 
 function createWindow(apiUrl: string): void {
-  const savedState = app.isPackaged ? loadWindowState() : null
+  // Dev keeps its own copy under .surfsense-dev, so it never moves the packaged window.
+  const savedState = loadWindowState()
   const win = new BrowserWindow({
     ...(savedState?.bounds ?? { width: 1280, height: 800 }),
+    ...devWindowIcon(),
     backgroundColor: resolveBackgroundColor(loadThemePreference()),
     show: false,
     // https://www.electronjs.org/docs/latest/tutorial/custom-title-bar
@@ -404,13 +523,15 @@ function createWindow(apiUrl: string): void {
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null
   })
+  // Its info level is React's and Vite's development chatter.
+  win.webContents.on("console-message", ({ level, message }) => {
+    if (level === "warning" || level === "error") sessionLog.append("renderer", message)
+  })
 
-  if (app.isPackaged) {
-    win.on("close", () => saveWindowState(win))
-  }
+  win.on("close", () => saveWindowState(win))
 
   win.once("ready-to-show", () => {
-    if (app.isPackaged && (savedState?.maximized ?? true)) {
+    if (savedState?.maximized ?? true) {
       win.maximize()
     }
     win.show()
@@ -468,9 +589,20 @@ function main(): void {
   app
     .whenReady()
     .then(async () => {
+      applyLocalePreference(loadLocalePreference())
+      applyDevAppIdentity()
       const boot = await bootSidecars()
       registerDocumentHandlers(boot.dataDir)
-      installProductionMenu()
+      registerLocaleHandlers({
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
+      registerAboutHandlers()
+      registerSessionLogHandlers({
+        isTrusted: (sender) =>
+          mainWindow !== null && sender === mainWindow.webContents,
+      })
+      installMenu()
       createWindow(boot.apiUrl)
       await registerUpdateHandlers()
       app.on("activate", () => {

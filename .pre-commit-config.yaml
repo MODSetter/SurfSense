@@ -4,7 +4,7 @@
 repos:
   # General file quality hooks
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-yaml
         args: [--multi, --unsafe]
@@ -36,12 +36,15 @@ repos:
             .*alembic\.ini|
             .*alembic/versions/.*\.py|
             .*\.mdx$|
-            .*/messages/.*\.json$
+            .*/messages/.*\.json$|
+            surfsense_local/backend/modules/llm/catalog/(local|remote)/manifest/models\.json
           )$
 
-  # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting
+  # Python Backend Hooks (surfsense_backend) - Using Ruff for linting and formatting.
+  # Same ruff as surfsense_backend/uv.lock, so the hook and `uv run ruff` agree;
+  # bump both together.
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.12.5
+    rev: v0.15.8
     hooks:
       - id: ruff
         name: ruff-check
@@ -53,30 +56,85 @@ repos:
         files: ^surfsense_backend/
         exclude: ^surfsense_backend/(test_.*\.py|.*test.*\.py)
 
+  # One hook per product, each with an alias, so each product's CI runs only
+  # its own: `pre-commit run bandit-docker` or `pre-commit run bandit-desktop`.
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.6
+    rev: 1.9.4
     hooks:
       - id: bandit
+        alias: bandit-docker
+        name: bandit (surfsense_backend)
         files: ^surfsense_backend/
         args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
         exclude: ^surfsense_backend/(tests/|test_.*\.py|.*test.*\.py|alembic/)
+      - id: bandit
+        alias: bandit-desktop
+        name: bandit (surfsense_local/backend)
+        files: ^surfsense_local/backend/
+        args: ['-f', 'json', '--severity-level', 'high', '--confidence-level', 'high']
+        exclude: ^surfsense_local/backend/(tests/|alembic/)
 
   # Biome hooks for TypeScript/JavaScript projects
   - repo: local
     hooks:
-      # Biome check for surfsense_web
+      # Biome check for surfsense_web. Runs only when a commit touches
+      # surfsense_web, then checks the whole app. The app's own Biome, so its
+      # version lives only in surfsense_web/package.json, as Biome's docs
+      # recommend; `pnpm exec` fails rather than fetch another version when
+      # the app's dependencies are not installed.
       - id: biome-check-web
         name: biome-check-web
-        entry: bash -c 'cd surfsense_web && npx @biomejs/biome@2.4.6 check --diagnostic-level=error .'
+        entry: bash -c 'cd surfsense_web && pnpm exec biome check --diagnostic-level=error .'
         language: system
         files: ^surfsense_web/
+        pass_filenames: false
+        stages: [pre-commit]
+
+  # Links, tables and proposal status across docs/ and plans/. Every file, every
+  # run: a deleted or renamed file breaks links in docs nobody touched.
+  - repo: local
+    hooks:
+      - id: check-docs
+        name: check-docs
+        entry: python scripts/check_docs.py
+        language: python
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
 
+  # The desktop app's translation catalogs. formatjs-extract regenerates
+  # en.json from the code, so a stale en.json fails the commit as a modified
+  # file. formatjs-verify: every key translated, no extra keys, the same
+  # placeholders and tags. check-translations adds the SurfSense rules. The
+  # first two run the app's own scripts, so @formatjs/cli's version lives only
+  # in surfsense_local/frontend/package.json.
+  - repo: local
+    hooks:
+      - id: formatjs-extract
+        name: formatjs-extract
+        entry: pnpm --dir surfsense_local/frontend translations:extract
+        language: system
+        files: ^surfsense_local/frontend/(src/|translations/en\.json)
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: formatjs-verify
+        name: formatjs-verify
+        entry: pnpm --dir surfsense_local/frontend translations:verify
+        language: system
+        files: ^surfsense_local/frontend/translations/
+        pass_filenames: false
+        stages: [pre-commit]
+      - id: check-translations
+        name: check-translations
+        entry: node scripts/check_translations.mjs
+        language: system
+        files: ^surfsense_local/frontend/(translations/|src/features/)
+        pass_filenames: false
+        stages: [pre-commit]
+
   # Commit message linting
   - repo: https://github.com/commitizen-tools/commitizen
-    rev: v4.8.3
+    rev: v4.19.0
     hooks:
       - id: commitizen
         stages: [commit-msg]

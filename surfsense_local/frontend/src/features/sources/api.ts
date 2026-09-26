@@ -1,11 +1,7 @@
 import { requestJson, requestVoid } from "@/lib/api"
 
 export type DocumentStatus =
-  | "pending"
-  | "processing"
-  | "ready"
-  | "failed"
-  | "cancelled"
+  "pending" | "processing" | "ready" | "failed" | "cancelled"
 
 export type WorkspaceDocument = {
   id: number

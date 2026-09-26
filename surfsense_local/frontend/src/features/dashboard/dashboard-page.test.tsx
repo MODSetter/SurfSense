@@ -84,7 +84,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -122,8 +122,8 @@ describe("dashboard chat", () => {
           <DashboardPage
             initialProviderAvailable={true}
             selection={{
-              role: "generation",
-              provider: "ollama",
+              model_type: "text_gen",
+              provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
@@ -176,7 +176,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -203,8 +203,8 @@ describe("dashboard chat", () => {
           <DashboardPage
             initialProviderAvailable={true}
             selection={{
-              role: "generation",
-              provider: "ollama",
+              model_type: "text_gen",
+              provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
@@ -259,7 +259,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -309,8 +309,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -342,27 +342,10 @@ describe("dashboard chat", () => {
     expect(addSources.className).not.toContain("-mr-1.5")
     const conversation = screen.getByRole("region", { name: "Conversation" })
     const viewport = conversation.querySelector("[data-chat-viewport]")
-    const topShadow = conversation.querySelector(
-      '[data-slot="scroll-shadow-top"]'
-    )
     expect(conversation.parentElement?.className).toContain("flex-1")
     expect(conversation.querySelector("header")).toBeTruthy()
-    expect(topShadow).toBeTruthy()
-    expect(
-      conversation.querySelector('[data-slot="scroll-shadow-bottom"]')
-    ).toBeNull()
-    Object.defineProperties(viewport, {
-      clientHeight: { configurable: true, value: 400 },
-      scrollHeight: { configurable: true, value: 800 },
-      scrollTop: { configurable: true, value: 0, writable: true },
-    })
-    fireEvent.scroll(viewport as HTMLElement)
-    expect(topShadow?.className).toContain("opacity-0")
-    ;(viewport as HTMLElement).scrollTop = 80
-    fireEvent.scroll(viewport as HTMLElement)
-    await waitFor(() => {
-      expect(topShadow?.className).toContain("opacity-100")
-    })
+    // Top edge only, so the sticky composer at the bottom is never masked.
+    expect(viewport?.className).toContain("scroll-fade-t")
 
     await user.type(input, "Start a chat")
     await user.click(screen.getByRole("button", { name: "Send message" }))
@@ -432,7 +415,7 @@ describe("dashboard chat", () => {
       const path = String(input)
       if (path === "/llm/providers") {
         return Response.json([
-          { name: "ollama", healthy: true, can_download: true },
+          { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
       if (
@@ -452,8 +435,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -515,7 +498,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -537,8 +520,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -582,7 +565,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (path === "/workspaces/1/chat/threads" && !init?.method) {
@@ -689,8 +672,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -771,7 +754,7 @@ describe("dashboard chat", () => {
       const path = String(input)
       if (path === "/llm/providers") {
         return Response.json([
-          { name: "ollama", healthy: true, can_download: true },
+          { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
       if (path.includes("/chat/threads")) {
@@ -791,8 +774,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -825,28 +808,22 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
-        if (path === "/llm/selection/generation") {
+        if (path === "/llm/selection/text_gen") {
           return Response.json({
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
           })
         }
-        if (path === "/llm/catalog") {
+        if (path === "/llm/catalog/local") {
           return Response.json({
-            hardware: null,
-            llmfit_version: "1.1.11",
-            curated: [],
-            explore: [],
-            installed: [],
-            scanned: true,
-            warnings: [],
-            runtime_status: {},
+            rows: [],
+            recommended_id: null,
           })
         }
         if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
@@ -867,6 +844,9 @@ describe("dashboard chat", () => {
             { status: 201 }
           )
         }
+        if (path === "/license/status") {
+          return Response.json({ state: "none" })
+        }
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           return Response.json({ detail: "Provider crashed" }, { status: 500 })
         }
@@ -881,8 +861,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -900,10 +880,15 @@ describe("dashboard chat", () => {
     )
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
-    expect(await screen.findByText("Provider crashed")).toBeTruthy()
-    expect(screen.getByText("Chat could not continue")).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Model setup" }))
-    expect(await screen.findByRole("heading", { name: "Models" })).toBeTruthy()
+    // Failing before the stream, the request has no kind to classify it, so it
+    // reads as `unknown`: the generic line and Retry, never Model setup.
+    expect(
+      await screen.findByText(
+        "Something went wrong generating a reply. Try again."
+      )
+    ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Model setup" })).toBeNull()
   })
 
   it("aborts the active stream when stop is pressed", async () => {
@@ -913,7 +898,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (path.endsWith("/documents?document_type=FILE&document_type=NOTE")) {
@@ -960,8 +945,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -995,7 +980,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -1024,8 +1009,8 @@ describe("dashboard chat", () => {
           <DashboardPage
             initialProviderAvailable={true}
             selection={{
-              role: "generation",
-              provider: "ollama",
+              model_type: "text_gen",
+              provider: "llamacpp",
               connection_id: null,
               name: "llama3.2:1b",
               updated_at: "2026-09-05T00:00:00Z",
@@ -1065,7 +1050,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -1115,8 +1100,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -1127,22 +1112,12 @@ describe("dashboard chat", () => {
       </TooltipProvider>
     )
 
-    const count = await screen.findByRole("button", {
-      name: "2 sources included in this chat",
-    })
+    // A plain count, not a control: ff1aa3e53 took away its click.
+    const count = await screen.findByText("2 sources")
     expect(count.closest('[data-composer-placement="center"]')).toBeTruthy()
 
     await user.click(screen.getByRole("checkbox", { name: "Select Guide.txt" }))
-    expect(
-      screen.getByRole("button", { name: "1 source included in this chat" })
-    ).toBeTruthy()
-
-    // Sources live in the always-visible left sidebar now, so the click just
-    // brings that list into view instead of switching a tab.
-    await user.click(
-      screen.getByRole("button", { name: "1 source included in this chat" })
-    )
-    expect(HTMLElement.prototype.scrollIntoView).toHaveBeenCalled()
+    expect(screen.getByText("1 source")).toBeTruthy()
   })
 
   it("opens a generated artifact in the detail rail", async () => {
@@ -1152,7 +1127,7 @@ describe("dashboard chat", () => {
         const path = String(input)
         if (path === "/llm/providers") {
           return Response.json([
-            { name: "ollama", healthy: true, can_download: true },
+            { name: "llamacpp", healthy: true, can_download: true },
           ])
         }
         if (
@@ -1169,7 +1144,7 @@ describe("dashboard chat", () => {
             {
               key: "summary",
               label: "Summary",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },
@@ -1215,8 +1190,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -1232,7 +1207,7 @@ describe("dashboard chat", () => {
       name: "Workspace sources",
     })
     const sourcesScroll = sourcesPanel.querySelector(
-      '[data-slot="scroll-shadow-viewport"]'
+      '[data-slot="scroll-fade-viewport"]'
     )
     expect(
       sourcesScroll?.contains(screen.getByRole("heading", { name: "Sources" }))
@@ -1247,7 +1222,7 @@ describe("dashboard chat", () => {
       name: "Workspace artifacts",
     })
     const artifactsScroll = artifactsPanel.querySelector(
-      '[data-slot="scroll-shadow-viewport"]'
+      '[data-slot="scroll-fade-viewport"]'
     )
     const weeklySummary = await screen.findByRole("button", {
       name: /^Weekly summary/,
@@ -1277,7 +1252,7 @@ describe("dashboard chat", () => {
       const path = String(input)
       if (path === "/llm/providers") {
         return Response.json([
-          { name: "ollama", healthy: true, can_download: true },
+          { name: "llamacpp", healthy: true, can_download: true },
         ])
       }
       if (
@@ -1297,8 +1272,8 @@ describe("dashboard chat", () => {
         <DashboardPage
           initialProviderAvailable={true}
           selection={{
-            role: "generation",
-            provider: "ollama",
+            model_type: "text_gen",
+            provider: "llamacpp",
             connection_id: null,
             name: "llama3.2:1b",
             updated_at: "2026-09-05T00:00:00Z",
@@ -1327,5 +1302,77 @@ describe("dashboard chat", () => {
     expect(
       screen.getByRole("button", { name: "Show right panel" })
     ).toBeTruthy()
+  })
+  it("shows the egress notice only while a model on the refused host is selected", async () => {
+    // Egress is per host: a model on another, allowed host must not inherit
+    // the notice, and coming back to the refused one must bring it back.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/connections/1/models") {
+          return Response.json(
+            {
+              detail: {
+                code: "egress_disabled",
+                message: "sending data to openrouter.ai is off",
+                destination: "host:openrouter.ai",
+                host: "openrouter.ai",
+              },
+            },
+            { status: 403 }
+          )
+        }
+        if (path === "/llm/connections/2/models") {
+          return Response.json([
+            {
+              connection_id: 2,
+              connection_label: "OpenAI",
+              name: "gpt-5",
+              types: ["text_gen"],
+              capability_source: "catalog",
+              selectable_for: ["text_gen"],
+            },
+          ])
+        }
+        if (path === "/license/status") return Response.json({ state: "none" })
+        return Response.json([])
+      })
+    )
+    const onOpenRouter = {
+      model_type: "text_gen" as const,
+      provider: "openai_compatible",
+      connection_id: 1,
+      name: "anthropic/claude-fable-5",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const onOpenAI = {
+      ...onOpenRouter,
+      connection_id: 2,
+      name: "gpt-5",
+    }
+    const page = (selection: typeof onOpenRouter) => (
+      <TooltipProvider>
+        <DashboardPage
+          selection={selection}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+    const refused = "Sending data to openrouter.ai is off."
+
+    const { rerender } = render(page(onOpenRouter))
+    expect(await screen.findByText(refused)).toBeTruthy()
+
+    rerender(page(onOpenAI))
+    await waitFor(() => expect(screen.queryByText(refused)).toBeNull())
+    expect(
+      screen.getByRole<HTMLTextAreaElement>("textbox", { name: "Message" })
+        .disabled
+    ).toBe(false)
+
+    rerender(page(onOpenRouter))
+    expect(await screen.findByText(refused)).toBeTruthy()
   })
 })

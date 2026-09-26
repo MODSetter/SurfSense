@@ -21,11 +21,21 @@ from common import BACKEND, database_inputs
 datas, binaries, hiddenimports = database_inputs()
 
 # The worker reaches parse_models through studio/job.py -> openai_compatible ->
-# chat.py, so it needs the capability table the api binary also ships.
+# chat.py, so it needs the remote model manifest the api binary also ships.
 datas.append(
     (
-        str(BACKEND / "modules" / "llm" / "connections" / "model-capabilities.json"),
-        "modules/llm/connections",
+        str(BACKEND / "modules" / "llm" / "catalog" / "remote" / "manifest" / "models.json"),
+        "modules/llm/catalog/remote/manifest",
+    )
+)
+
+# Studio resolves its chosen image and audio models through the local catalog,
+# which knows a curated model only from this manifest; without it an installed,
+# chosen model reads as "not installed".
+datas.append(
+    (
+        str(BACKEND / "modules" / "llm" / "catalog" / "local" / "manifest" / "models.json"),
+        "modules/llm/catalog/local/manifest",
     )
 )
 
@@ -50,12 +60,6 @@ for package in (
     "pptx",
     "xlsxwriter",
     "reportlab",
-    # Studio podcast: kokoro-onnx loads its ONNX model by path and phonemises
-    # through espeak data shipped as package files, neither visible to the
-    # analyser. espeakng_loader carries the espeak-ng-data; phonemizer is its g2p.
-    "kokoro_onnx",
-    "espeakng_loader",
-    "phonemizer",
 ):
     pkg_datas, pkg_binaries, pkg_hidden = collect_all(package)
     datas += pkg_datas

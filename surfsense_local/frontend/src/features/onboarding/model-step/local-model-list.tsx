@@ -1,0 +1,152 @@
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { DotIcon, Trash2Icon } from "@/components/ui/icons"
+import { ScrollFade } from "@/components/ui/scroll-fade"
+import { buildSize } from "@/features/models/local/build-size"
+import type { LocalRow } from "@/features/models/local/chat/api"
+import { BuildAction } from "@/features/models/local/chat/build-action"
+import { FitBadge } from "@/features/models/local/chat/fit-badge"
+import { InstallProgress } from "@/features/models/local/chat/install-progress"
+import type { InstallJob } from "@/features/models/local/installs/api"
+import { jobFor } from "@/features/models/local/installs/job-state"
+import { intl } from "@/i18n/intl"
+
+import { leadBuild } from "./local-choices"
+
+const formatSize = (bytes: number) =>
+  intl.formatNumber(bytes / 1e9, {
+    style: "unit",
+    unit: "gigabyte",
+    maximumFractionDigits: 1,
+  })
+
+/**
+ * Every model this computer can run, one line each, the recommended one first.
+ * Deliberately short of Settings' catalog: no other builds, no search. Its
+ * actions are Settings' own, and a download shows under the row it belongs to.
+ */
+export function LocalModelList({
+  rows,
+  installs,
+  disabled,
+  onDownload,
+  onUse,
+  onCancel,
+  onDelete,
+}: {
+  rows: LocalRow[]
+  installs: readonly InstallJob[]
+  disabled: boolean
+  onDownload: (row: LocalRow) => void
+  onUse: (row: LocalRow) => void
+  onCancel: (jobId: string) => void
+  onDelete: (row: LocalRow) => void
+}) {
+  return (
+    <ScrollFade
+      className="overflow-hidden rounded-xl border bg-card"
+      // Four rows and half of the next: the cut row says the list scrolls.
+      viewportClassName="max-h-72"
+    >
+      <ul
+        className="divide-y"
+        aria-label={intl.formatMessage({
+          id: "onboarding_model_list_aria",
+          defaultMessage: "Models for this computer",
+        })}
+      >
+        {rows.map((row) => {
+          const build = leadBuild(row)
+          if (!build) return null
+          const installed = build.installed_as !== null
+          const job = jobFor(installs, build.catalog_id)
+          return (
+            <li key={row.id} className="flex flex-col gap-2 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex min-w-0 flex-col gap-0.5">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="truncate text-sm font-medium">
+                      {row.name}
+                    </span>
+                    {row.recommended ? (
+                      <Badge variant="secondary">
+                        {intl.formatMessage({
+                          id: "onboarding_model_list_recommended_label",
+                          defaultMessage: "Recommended",
+                        })}
+                      </Badge>
+                    ) : null}
+                    {row.support.reads_images ? (
+                      <Badge variant="secondary">
+                        {intl.formatMessage({
+                          id: "onboarding_model_list_vision_label",
+                          defaultMessage: "Vision",
+                        })}
+                      </Badge>
+                    ) : null}
+                    <FitBadge fit={build.fit} copy={build.badge} />
+                  </div>
+                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <span>{build.quantization}</span>
+                    <DotIcon aria-hidden="true" className="size-3" />
+                    <span className="tabular-nums">
+                      {formatSize(buildSize(build))}
+                    </span>
+                    {installed ? (
+                      <>
+                        <DotIcon aria-hidden="true" className="size-3" />
+                        <span>
+                          {intl.formatMessage({
+                            id: "onboarding_model_list_installed_label",
+                            defaultMessage: "On this computer",
+                          })}
+                        </span>
+                      </>
+                    ) : null}
+                  </p>
+                </div>
+                <div className="flex shrink-0 items-center gap-1">
+                  <BuildAction
+                    build={build}
+                    label={row.name}
+                    installs={installs}
+                    disabled={disabled}
+                    runtimeAvailable
+                    onAction={() => (installed ? onUse(row) : onDownload(row))}
+                  />
+                  {installed ? (
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="destructive"
+                      // The API refuses a delete while any install runs.
+                      disabled={disabled || installs.length > 0}
+                      aria-label={intl.formatMessage(
+                        {
+                          id: "onboarding_model_list_delete_aria",
+                          defaultMessage: "Delete {name}",
+                        },
+                        {
+                          name: row.name,
+                        }
+                      )}
+                      onClick={() => onDelete(row)}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+              {job ? (
+                <InstallProgress
+                  event={job.event}
+                  onCancel={() => onCancel(job.id)}
+                />
+              ) : null}
+            </li>
+          )
+        })}
+      </ul>
+    </ScrollFade>
+  )
+}

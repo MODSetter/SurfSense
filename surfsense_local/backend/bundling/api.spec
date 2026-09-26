@@ -19,18 +19,20 @@ sys.path.insert(0, SPECPATH)
 from common import BACKEND, database_inputs
 
 datas, binaries, hiddenimports = database_inputs()
+# Read by path, so the analyser cannot see it. Without it a frozen build has no
+# curated list, and the model screen is empty on the machine that most needs it.
 datas.append(
     (
-            str(BACKEND / "modules" / "llm" / "recommendations" / "curated-models.json"),
-        "modules/llm/recommendations",
+        str(BACKEND / "modules" / "llm" / "catalog" / "local" / "manifest" / "models.json"),
+        "modules/llm/catalog/local/manifest",
     )
 )
 # Read by path, so the analyser cannot see it. Without this every remote model
-# reports its capability as unknown in a frozen build only.
+# reads as unknown in a frozen build only.
 datas.append(
     (
-        str(BACKEND / "modules" / "llm" / "connections" / "model-capabilities.json"),
-        "modules/llm/connections",
+        str(BACKEND / "modules" / "llm" / "catalog" / "remote" / "manifest" / "models.json"),
+        "modules/llm/catalog/remote/manifest",
     )
 )
 

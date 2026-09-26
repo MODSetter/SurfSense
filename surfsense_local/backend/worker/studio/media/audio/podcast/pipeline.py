@@ -1,9 +1,9 @@
 import asyncio
 import logging
 
-from modules.artifacts.podcast.brief import PodcastBrief
-from modules.llm.providers.protocols import SpokenTurn
-from modules.llm.resolution import ResolvedGeneration, resolve_text_to_speech
+from modules.artifacts.podcast.brief import PodcastBrief, Speaker
+from modules.llm.providers.protocols import SpokenTurn, TextToSpeech
+from modules.llm.resolution import ResolvedGeneration
 from worker.studio.media.audio.podcast import draft, outline
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
@@ -18,13 +18,14 @@ MIN_TURNS = 2
 
 def render(
     model: ResolvedGeneration,
+    voice: TextToSpeech,
     sources: list[Source],
     user_prompt: str | None,
     options: dict,
 ) -> Built:
     """Plan the episode, draft it segment by segment, then voice every line."""
-    # The voice engine is checked first so a missing one never costs a model call.
-    voice = resolve_text_to_speech()
+    # Drafting takes minutes; a machine that cannot voice the result hears so first.
+    asyncio.run(voice.check_memory())
     brief = PodcastBrief.model_validate(options)
 
     plan = outline.parse(
@@ -45,7 +46,7 @@ def render(
         len(spoken),
         sum(len(turn.text) for turn in spoken),
     )
-    audio = asyncio.run(voice.synthesize(spoken))
+    audio = asyncio.run(voice.synthesize(spoken, brief.language))
     return Built(
         title=plan.title,
         markdown=_transcript(plan.title, brief, turns),
@@ -57,8 +58,15 @@ def render(
 
 
 def _transcript(title: str, brief: PodcastBrief, turns: list[draft.Turn]) -> str:
-    cast = ", ".join(f"{s.name} ({s.role.value})" for s in brief.speakers)
+    cast = ", ".join(_cast_member(s) for s in brief.speakers)
     lines = [f"# {title}", "", f"_{cast}_", ""]
     for turn in turns:
         lines += [f"**{brief.speakers[turn.speaker - 1].name}:** {turn.text}", ""]
     return "\n".join(lines).strip()
+
+
+def _cast_member(speaker: Speaker) -> str:
+    """The role only where the name does not already say it: "Co-host" is cohost."""
+    if speaker.name.casefold().replace("-", "") == speaker.role.value:
+        return speaker.name
+    return f"{speaker.name} ({speaker.role.value})"

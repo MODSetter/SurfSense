@@ -1,18 +1,37 @@
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
+from typing import Literal, Protocol
 
-from modules.llm.providers.types import CatalogEntry, DownloadProgress, Message, Model
+from modules.llm.providers.types import Delta, Message, Model
 
 
 class Generator(Protocol):
-    """Anything that can answer. Ollama today, other backends later."""
+    """Anything that can answer. llama.cpp locally, or a remote endpoint."""
 
     name: str
 
     async def health(self) -> bool: ...
 
     async def models(self) -> list[Model]: ...
+
+    async def context_tokens(self, model: str) -> int | None:
+        """The window this model was loaded with, or None when it is not known.
+
+        None is a fact, not a zero: a remote endpoint this app does not run
+        rarely states its window at all, and callers that budget a prompt from
+        this must treat that as "unknown" rather than "narrow".
+        """
+        ...
+
+    async def token_count(self, model: str, text: str) -> int | None:
+        """This text's exact cost by the model's own tokenizer, or None.
+
+        None on anything short of a clean count: no such endpoint, a transient
+        failure, or a model this generator does not run. A caller pricing a
+        prompt from this must fall back to an estimate rather than treat None
+        as zero tokens.
+        """
+        ...
 
     def chat(
         self,
@@ -22,7 +41,21 @@ class Generator(Protocol):
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning: bool | None = None,
-    ) -> AsyncIterator[str]: ...
+    ) -> AsyncIterator[str]:
+        """The answer text alone; a thinking model's trace is left out."""
+        ...
+
+    def chat_deltas(
+        self,
+        model: str,
+        messages: list[Message],
+        *,
+        max_tokens: int | None = None,
+        temperature: float | None = None,
+        reasoning: bool | None = None,
+    ) -> AsyncIterator[Delta]:
+        """The reply as it streams, with the trace marked apart from the answer."""
+        ...
 
 
 @dataclass(frozen=True)
@@ -39,7 +72,10 @@ class ImageGenerator(Protocol):
 class Voice:
     id: str
     label: str
-    language: str  # BCP-47, e.g. "en-US", "pt-BR"
+    gender: Literal["female", "male"]
+    # The languages this voice speaks, as the model's entry names them: one for
+    # a Kokoro voice, every one the model speaks for a Supertonic voice.
+    languages: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -57,27 +93,14 @@ class SynthesizedAudio:
 
 
 class TextToSpeech(Protocol):
-    """Anything that voices a script. Kokoro on this CPU today, hosted APIs later."""
+    """Anything that voices a script: audio.cpp on this computer today."""
 
     def voices(self) -> list[Voice]: ...
 
-    async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio: ...
+    async def check_memory(self) -> None:
+        """Raise, with the sentence a person reads, when voicing cannot fit."""
+        ...
 
-
-@runtime_checkable
-class ModelStore(Protocol):
-    """Only runtimes that keep models on disk can fetch them.
-
-    Checked with isinstance, so a remote API that cannot download simply does
-    not satisfy it and the download UI is hidden without naming a provider.
-    """
-
-    name: str
-
-    async def models(self) -> list[Model]: ...
-
-    def catalog(self) -> list[CatalogEntry]: ...
-
-    def pull(self, name: str) -> AsyncIterator[DownloadProgress]: ...
-
-    async def delete(self, name: str) -> None: ...
+    async def synthesize(
+        self, turns: list[SpokenTurn], language: str
+    ) -> SynthesizedAudio: ...

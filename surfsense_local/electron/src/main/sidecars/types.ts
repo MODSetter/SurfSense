@@ -25,14 +25,36 @@ export interface SidecarContext {
   secret: string
   /** Packaged: read-only bundled embedding, voice, and Docling parser packs. */
   modelsDir?: string
-  /** Packaged: absolute path to the pinned llmfit executable. */
-  llmfitPath?: string
-  /** Packaged: the bundled Ollama's port, model dir, and URL for API + worker. */
-  ollamaPort?: number
-  ollamaModelsDir?: string
-  ollamaUrl?: string
-  /** Packaged: the bundled sd-server's port, model dir, and URL for API + worker. */
+  /**
+   * llama-server's router port, models dir, and URL for API + worker.
+   *
+   * Set in dev and packaged both: only `llamacppBinariesDir` differs between
+   * them, the same way `modelsDir` and the Python sidecars already work.
+   */
+  llamacppPort?: number
+  llamacppModelsDir?: string
+  llamacppUrl?: string
+  /**
+   * Where the staged llama.cpp build lives.
+   *
+   * The backend needs this as well as Electron: its hardware probe loads ggml
+   * by ctypes and must run from this directory, because ggml scans the running
+   * executable's own directory for backends and silently finds none anywhere
+   * else. Unset, every machine badges as having no GPU and nothing says why.
+   */
+  llamacppBinariesDir?: string
+  /** Where the staged sd-server build lives: `scripts/sdcpp/stage.mjs` writes it. */
+  sdcppBinariesDir?: string
+  /**
+   * sd-server's port, model dir, and URL for API + worker. Unset when no build
+   * is staged for this host, so the API offers no image models it cannot run.
+   */
   imagePort?: number
   imageModelsDir?: string
   imageUrl?: string
+  /** audio.cpp's server: its port and URL, the audio models folder, and its staged build. */
+  audioPort?: number
+  audioUrl?: string
+  audioModelsDir?: string
+  audioBinariesDir?: string
 }

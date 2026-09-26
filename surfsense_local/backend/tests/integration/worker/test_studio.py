@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import (
     GeneratedImage,
@@ -400,20 +401,28 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
         '{"turns": [{"speaker": 2, "text": "Remarkable."}]}',
     )
     spoken: list[SpokenTurn] = []
+    languages: list[str] = []
 
     class FakeVoice:
         def voices(self) -> list[Voice]:
             return [
-                Voice("af_heart", "Heart", "en-US"),
-                Voice("am_adam", "Adam", "en-US"),
+                Voice("af_heart", "Heart", "female", ("en-US",)),
+                Voice("am_adam", "Adam", "male", ("en-US",)),
             ]
 
-        async def synthesize(self, turns: list[SpokenTurn]) -> SynthesizedAudio:
+        async def check_memory(self) -> None:
+            pass
+
+        async def synthesize(
+            self, turns: list[SpokenTurn], language: str
+        ) -> SynthesizedAudio:
             spoken.extend(turns)
+            languages.append(language)
             return SynthesizedAudio(b"RIFF" + b"\x00" * 40, "audio/wav")
 
+    # The audio model is resolved by the job, like every type a format declares.
     monkeypatch.setattr(
-        "worker.studio.media.audio.podcast.pipeline.resolve_text_to_speech", FakeVoice
+        "worker.studio.job.resolve_text_to_speech", lambda _session: FakeVoice()
     )
     brief = {
         "language": "en-US",
@@ -437,7 +446,106 @@ def test_podcast_plans_drafts_and_voices_the_reviewed_brief(
     _one_file(artifact, "audio/wav", b"RIFF")
     assert len(seen) == 3 and "keep it short" in seen[0] and "Ada (host)" in seen[1]
     assert [turn.voice for turn in spoken] == ["am_adam", "af_heart"]
+    assert languages == ["en-US"]
     assert "**Bea:** Remarkable." in artifact.document.content
+
+
+SHORT = "Voicing needs about 3.5 GB free; this computer has 1.1 GB."
+BRIEF = {
+    "language": "en-US",
+    "speakers": [
+        {"name": "Ada", "role": "host", "voice": "am_adam"},
+        {"name": "Bea", "role": "expert", "voice": "af_heart"},
+    ],
+}
+
+
+class ShortOfMemory:
+    """A voice engine on a machine that cannot hold the model while voicing."""
+
+    def voices(self) -> list[Voice]:
+        return [
+            Voice("af_heart", "Heart", "female", ("en-US",)),
+            Voice("am_adam", "Adam", "male", ("en-US",)),
+        ]
+
+    async def check_memory(self) -> None:
+        raise NotEnoughMemoryError(SHORT)
+
+    async def synthesize(self, turns: list[SpokenTurn], language: str):
+        raise AssertionError("voicing was reached")
+
+
+def test_a_podcast_short_of_memory_refuses_before_any_drafting(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Drafting takes minutes of the chat model; a machine that cannot voice
+    the result hears so first."""
+    seen = _capture_model(monkeypatch, '{"title": "T", "segments": []}')
+    monkeypatch.setattr(
+        "worker.studio.job.resolve_text_to_speech", lambda _session: ShortOfMemory()
+    )
+    artifact = make_artifact(session, fmt="podcast", options=BRIEF)
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == SHORT
+    assert seen == []
+
+
+class ShortOfMemoryAtVoicing(ShortOfMemory):
+    """Memory that was there before drafting and is gone by voicing."""
+
+    async def check_memory(self) -> None:
+        pass
+
+    async def synthesize(self, turns: list[SpokenTurn], language: str):
+        raise NotEnoughMemoryError(SHORT)
+
+
+def test_a_memory_refusal_is_not_retried(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retry would draft the whole episode again and refuse again."""
+    _capture_model(
+        monkeypatch,
+        '{"title": "T", "segments": [{"title": "One"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Hello."}]}',
+    )
+    monkeypatch.setattr(
+        "worker.studio.job.resolve_text_to_speech",
+        lambda _session: ShortOfMemoryAtVoicing(),
+    )
+    artifact = make_artifact(session, fmt="podcast", options=BRIEF)
+
+    run(artifact.id)  # returning, not raising, is what spares a Huey retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == SHORT
+
+
+def test_a_podcast_without_an_audio_model_never_calls_the_chat_model(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every model a format declares is resolved first, so a missing voice
+    fails before any chat tokens are spent."""
+    seen = _capture_model(monkeypatch, '{"title": "T", "segments": []}')
+    brief = {
+        "language": "en-US",
+        "speakers": [{"name": "Ada", "role": "host", "voice": "af_heart"}],
+    }
+    artifact = make_artifact(session, fmt="podcast", options=brief)
+
+    with pytest.raises(RuntimeError, match="no audio model selected"):
+        run(artifact.id)
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert artifact.document.error_message == "no audio model selected"
+    assert seen == []
 
 
 def test_image_draws_a_png_over_the_selected_connection(

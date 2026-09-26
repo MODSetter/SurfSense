@@ -4,6 +4,7 @@ import { createPortal } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { FileIcon, ZoomInIcon, ZoomOutIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
+import { intl } from "@/i18n/intl"
 import { fileUrl, type ArtifactDetail } from "../api"
 
 /** Reject before docx-preview allocates — keep below the server file limit. */
@@ -45,12 +46,31 @@ export function DocxViewer({
       try {
         if (primary.size_bytes > MAX_VIEWER_BYTES) {
           throw new Error(
-            `Document is too large to preview (${primary.size_bytes} bytes)`
+            intl.formatMessage(
+              {
+                id: "studio_docx_viewer_oversize_error",
+                defaultMessage:
+                  "Document is too large to preview ({size, number, ::unit/megabyte .#})",
+              },
+              {
+                size: primary.size_bytes / 1e6,
+              }
+            )
           )
         }
         const response = await fetch(fileUrl(artifact.id, "primary"))
         if (!response.ok) {
-          throw new Error(`Could not load document (${response.status})`)
+          throw new Error(
+            intl.formatMessage(
+              {
+                id: "studio_docx_viewer_load_error",
+                defaultMessage: "Could not load document ({status})",
+              },
+              {
+                status: String(response.status),
+              }
+            )
+          )
         }
         const buffer = await response.arrayBuffer()
         // docx-preview has no top-level import cost worth paying eagerly —
@@ -106,7 +126,10 @@ export function DocxViewer({
       setZoom((current) =>
         Math.min(
           MAX_ZOOM,
-          Math.max(MIN_ZOOM, current * (event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP))
+          Math.max(
+            MIN_ZOOM,
+            current * (event.deltaY < 0 ? ZOOM_STEP : 1 / ZOOM_STEP)
+          )
         )
       )
     }
@@ -131,7 +154,10 @@ export function DocxViewer({
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label="Zoom out"
+        aria-label={intl.formatMessage({
+          id: "studio_docx_viewer_zoom_out_aria",
+          defaultMessage: "Zoom out",
+        })}
         onClick={zoomOut}
       >
         <ZoomOutIcon />
@@ -140,7 +166,10 @@ export function DocxViewer({
         type="button"
         variant="ghost"
         size="icon-sm"
-        aria-label="Zoom in"
+        aria-label={intl.formatMessage({
+          id: "studio_docx_viewer_zoom_in_aria",
+          defaultMessage: "Zoom in",
+        })}
         onClick={zoomIn}
       >
         <ZoomInIcon />
@@ -163,11 +192,20 @@ export function DocxViewer({
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white px-5 py-4 text-center">
           <FileIcon className="size-8 text-muted-foreground" />
           <div>
-            <p className="text-sm font-medium">Couldn't open this document</p>
+            <p className="text-sm font-medium">
+              {intl.formatMessage({
+                id: "studio_docx_viewer_error_title",
+                defaultMessage: "Couldn’t open this document",
+              })}
+            </p>
             <p className="mt-1 text-xs text-muted-foreground">
               {error instanceof Error
                 ? error.message
-                : "This document can't be previewed here. Download it to open it."}
+                : intl.formatMessage({
+                    id: "studio_docx_viewer_error_body",
+                    defaultMessage:
+                      "This document can’t be previewed here. Download it to open it.",
+                  })}
             </p>
           </div>
           <Button
@@ -176,7 +214,10 @@ export function DocxViewer({
             size="sm"
             onClick={() => setRetryKey((key) => key + 1)}
           >
-            Try again
+            {intl.formatMessage({
+              id: "studio_docx_viewer_retry_button",
+              defaultMessage: "Try again",
+            })}
           </Button>
         </div>
       ) : null}

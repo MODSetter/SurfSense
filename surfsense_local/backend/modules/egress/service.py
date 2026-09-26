@@ -8,13 +8,15 @@ from sqlalchemy.orm import Session
 from modules.egress.models import EgressDestination
 from modules.llm.models import ProviderConnection
 
-OLLAMA_PULL = "ollama_pull"
-IMAGE_MODEL_PULL = "image_model_pull"
 HOST_PREFIX = "host:"
-# Named, not host:-prefixed, so downloading weights is listed and revocable in
-# Settings > Network like any other call, and reads as a download rather than as
-# a connection that would carry prompts and documents.
-HOSTS = {OLLAMA_PULL: "registry.ollama.ai", IMAGE_MODEL_PULL: "huggingface.co"}
+# One row per host, by construction: the key *is* the hostname, so a destination
+# cannot be added twice under two names. Searching, downloading weights and
+# downloading an image model all reach this one, and the panel asks about the
+# host rather than about each errand sent to it.
+HUGGINGFACE = f"{HOST_PREFIX}huggingface.co"
+# Contacted whether or not a connection points at them, so they are listed with
+# no connection to discover them from.
+BUILT_IN = (HUGGINGFACE,)
 
 
 class EgressDeniedError(Exception):
@@ -25,20 +27,11 @@ class EgressDeniedError(Exception):
 
 
 def host_of(destination: str) -> str:
-    return HOSTS.get(destination) or destination.removeprefix(HOST_PREFIX)
-
-
-def ollama_pull_host(model_name: str) -> str:
-    """Ollama fetches an `hf.co/<repo>` pull straight from Hugging Face, not its own registry."""
-    if model_name.startswith("hf.co/"):
-        return "huggingface.co"
-    return HOSTS[OLLAMA_PULL]
+    return destination.removeprefix(HOST_PREFIX)
 
 
 def is_destination(value: str) -> bool:
-    return value in HOSTS or (
-        value.startswith(HOST_PREFIX) and len(value) > len(HOST_PREFIX)
-    )
+    return value.startswith(HOST_PREFIX) and len(value) > len(HOST_PREFIX)
 
 
 def host_destination(base_url: str) -> str | None:
@@ -88,5 +81,5 @@ def list_destinations(session: Session) -> list[EgressDestination]:
     return [
         rows.get(destination)
         or EgressDestination(destination=destination, enabled=False)
-        for destination in [OLLAMA_PULL, IMAGE_MODEL_PULL, *sorted(hosts)]
+        for destination in [*BUILT_IN, *sorted(hosts - set(BUILT_IN))]
     ]

@@ -80,7 +80,10 @@ describe("the license row", () => {
   })
 
   it("stays out of the way until the status arrives", async () => {
-    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>(() => {})))
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise<Response>(() => {}))
+    )
     const { container } = renderFooter()
 
     // No bridge and nothing known yet: the strip goes rather than leaving a

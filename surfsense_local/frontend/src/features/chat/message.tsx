@@ -19,14 +19,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { intl } from "@/i18n/intl"
 
 import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
-import {
-  CitationProvider,
-  InlineCitation,
-  useCitationContext,
-} from "./inline-citation"
+import { useCitationContext } from "./citation-context"
+import { CitationProvider, InlineCitation } from "./inline-citation"
+import { ReplyThinking, type ReplyReasoning } from "./reply-thinking"
 import type { Citation } from "./sse"
 
 const streamdownPlugins = {
@@ -64,6 +63,35 @@ function MarkdownText() {
 }
 
 const assistantMessageParts = { Text: MarkdownText }
+
+function reasoningFrom(custom: unknown): ReplyReasoning | null {
+  if (typeof custom === "object" && custom !== null && "reasoning" in custom) {
+    return (custom.reasoning as ReplyReasoning | null) ?? null
+  }
+  return null
+}
+
+function MessageThinking() {
+  const running = useAuiState(
+    ({ message }) => message.status?.type === "running"
+  )
+  const answerStarted = useAuiState(({ message }) =>
+    message.content.some(
+      (part) => part.type === "text" && part.text.trim().length > 0
+    )
+  )
+  const reasoning = useAuiState(({ message }) =>
+    reasoningFrom(message.metadata.custom)
+  )
+
+  return (
+    <ReplyThinking
+      running={running}
+      answerStarted={answerStarted}
+      reasoning={reasoning}
+    />
+  )
+}
 
 function MessageTimestamp() {
   const createdAt = useAuiState(({ message }) => message.createdAt)
@@ -110,23 +138,45 @@ function MessageActions({
       <ActionBarPrimitive.Root hideWhenRunning={hideWhenRunning}>
         <Tooltip>
           <ActionBarPrimitive.Copy copiedDuration={2_000} asChild>
-            <TooltipTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label={isCopied ? "Copied" : "Copy message"}
-              >
-                <AuiIf condition={({ message }) => message.isCopied}>
-                  <CheckIcon />
-                </AuiIf>
-                <AuiIf condition={({ message }) => !message.isCopied}>
-                  <CopyIcon />
-                </AuiIf>
-              </Button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  aria-label={
+                    isCopied
+                      ? intl.formatMessage({
+                          id: "chat_message_copied_aria",
+                          defaultMessage: "Copied",
+                        })
+                      : intl.formatMessage({
+                          id: "chat_message_copy_aria",
+                          defaultMessage: "Copy message",
+                        })
+                  }
+                >
+                  <AuiIf condition={({ message }) => message.isCopied}>
+                    <CheckIcon />
+                  </AuiIf>
+                  <AuiIf condition={({ message }) => !message.isCopied}>
+                    <CopyIcon />
+                  </AuiIf>
+                </Button>
+              }
+            />
           </ActionBarPrimitive.Copy>
-          <TooltipContent>{isCopied ? "Copied" : "Copy"}</TooltipContent>
+          <TooltipContent>
+            {isCopied
+              ? intl.formatMessage({
+                  id: "chat_message_copied_tooltip",
+                  defaultMessage: "Copied",
+                })
+              : intl.formatMessage({
+                  id: "chat_message_copy_tooltip",
+                  defaultMessage: "Copy",
+                })}
+          </TooltipContent>
         </Tooltip>
       </ActionBarPrimitive.Root>
       {timestampRight ? timestamp : null}
@@ -160,6 +210,7 @@ export function AssistantMessage({
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-xl min-w-0 flex-col items-start px-6 py-4">
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
+          <MessageThinking />
           <MessagePrimitive.Parts components={assistantMessageParts} />
         </div>
       </CitationProvider>

@@ -139,7 +139,7 @@ describe("studio panel", () => {
             {
               key: "summary",
               label: "Summary",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },
@@ -196,8 +196,8 @@ describe("studio panel", () => {
       ],
     }
     const voices = [
-      { id: "af_heart", label: "Heart", language: "en-US" },
-      { id: "am_adam", label: "Adam", language: "en-US" },
+      { id: "af_heart", label: "Heart", languages: ["en-US"] },
+      { id: "am_adam", label: "Adam", languages: ["en-US"] },
     ]
     let openBrief = () => {}
     const briefGate = new Promise<void>((resolve) => {
@@ -211,7 +211,7 @@ describe("studio panel", () => {
             {
               key: "podcast",
               label: "Podcast",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },
@@ -274,7 +274,7 @@ describe("studio panel", () => {
           {
             key: "summary",
             label: "Summary",
-            requires_roles: ["generation"],
+            requires_model_types: ["text_gen"],
             available: true,
             unavailable_reason: null,
           },
@@ -299,6 +299,11 @@ describe("studio panel", () => {
     expect(screen.getByText("Sources (0 selected)")).toBeTruthy()
     await user.click(screen.getByRole("button", { name: "Select all" }))
     expect(screen.getByText("Sources (2 selected)")).toBeTruthy()
+    const titan = screen.getByRole("checkbox", { name: "Titan notes" })
+    expect(titan.getAttribute("aria-checked")).toBe("true")
+    await user.click(screen.getByText("Titan notes"))
+    expect(titan.getAttribute("aria-checked")).toBe("false")
+    expect(screen.getByText("Sources (1 selected)")).toBeTruthy()
   })
 
   it("explains why an unavailable image format is disabled", async () => {
@@ -311,9 +316,9 @@ describe("studio panel", () => {
             {
               key: "image",
               label: "Image",
-              requires_roles: ["image_generation", "generation"],
+              requires_model_types: ["image_gen", "text_gen"],
               available: false,
-              unavailable_reason: "Image model required",
+              unavailable_reason: "Needs an image model",
             },
           ])
         }
@@ -328,11 +333,7 @@ describe("studio panel", () => {
     const image = await screen.findByRole("button", { name: "Image" })
     expect(image.getAttribute("aria-disabled")).toBe("true")
     await user.hover(image)
-    expect(
-      await screen.findByRole("tooltip", {
-        name: "Image model required",
-      })
-    ).toBeTruthy()
+    expect(await screen.findByText("Needs an image model")).toBeTruthy()
   })
 
   it("shows an explanation tooltip on an available artifact", async () => {
@@ -345,7 +346,7 @@ describe("studio panel", () => {
             {
               key: "quiz",
               label: "Quiz",
-              requires_roles: ["generation"],
+              requires_model_types: ["text_gen"],
               available: true,
               unavailable_reason: null,
             },
@@ -362,9 +363,9 @@ describe("studio panel", () => {
     const quiz = await screen.findByRole("button", { name: "Quiz" })
     await user.hover(quiz)
     expect(
-      await screen.findByRole("tooltip", {
-        name: "Generate an AI interactive quiz based on your sources",
-      })
+      await screen.findByText(
+        "Generate an AI interactive quiz based on your sources"
+      )
     ).toBeTruthy()
   })
 })

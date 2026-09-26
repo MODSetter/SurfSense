@@ -5,9 +5,10 @@ import {
   type ThreadMessageLike,
 } from "@assistant-ui/react"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { toast } from "sonner"
 
+import { errorToast } from "@/features/feedback/error-toast"
 import { ApiError } from "@/lib/api"
+import { intl } from "@/i18n/intl"
 
 import {
   createThread,
@@ -30,7 +31,12 @@ export type ChatTurnError = {
 }
 
 function messageFrom(error: unknown) {
-  return error instanceof Error ? error.message : "An unexpected error occurred"
+  return error instanceof Error
+    ? error.message
+    : intl.formatMessage({
+        id: "chat_runtime_unexpected_error",
+        defaultMessage: "An unexpected error occurred",
+      })
 }
 
 function isAbort(error: unknown) {
@@ -85,11 +91,11 @@ function readStoredView(workspaceId: number): ConversationView {
 }
 
 function hasCanonicalTurn(
-  messages: ChatMessage[],
+  threadMessages: ChatMessage[],
   userMessageId: number,
   assistantMessageId: number
 ) {
-  const ids = new Set(messages.map((message) => message.id))
+  const ids = new Set(threadMessages.map((message) => message.id))
   return ids.has(userMessageId) && ids.has(assistantMessageId)
 }
 
@@ -125,6 +131,12 @@ function toRuntimeMessage(
     metadata: {
       custom: {
         citations: message.content.citations ?? [],
+        reasoning: message.content.reasoning
+          ? {
+              text: message.content.reasoning.text,
+              durationMs: message.content.reasoning.duration_ms,
+            }
+          : null,
       },
     },
   }
@@ -179,7 +191,7 @@ export function useChatRuntime({
   const usesLiveMessages =
     liveMessages !== null &&
     (isRunning || !areLiveMessagesPersisted(liveMessages, persistedMessages))
-  const messages = usesLiveMessages ? liveMessages : persistedMessages
+  const threadMessages = usesLiveMessages ? liveMessages : persistedMessages
 
   const createThreadMutation = useMutation({
     mutationFn: ({ title, signal }: { title: string; signal: AbortSignal }) =>
@@ -261,7 +273,15 @@ export function useChatRuntime({
         }
       }
     } catch (cause) {
-      toast.error("Couldn’t delete chat", { description: messageFrom(cause) })
+      errorToast(
+        intl.formatMessage({
+          id: "chat_runtime_delete_toast",
+          defaultMessage: "Couldn’t delete chat",
+        }),
+        {
+          description: messageFrom(cause),
+        }
+      )
     }
   }
 
@@ -279,7 +299,15 @@ export function useChatRuntime({
       )
       return true
     } catch (cause) {
-      toast.error("Couldn’t rename chat", { description: messageFrom(cause) })
+      errorToast(
+        intl.formatMessage({
+          id: "chat_runtime_rename_toast",
+          defaultMessage: "Couldn’t rename chat",
+        }),
+        {
+          description: messageFrom(cause),
+        }
+      )
       return false
     }
   }
@@ -440,6 +468,46 @@ export function useChatRuntime({
                       : message
                   ) ?? null
               )
+            } else if (event.type === "reasoning") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            reasoning: {
+                              text:
+                                (message.content.reasoning?.text ?? "") +
+                                event.text,
+                              duration_ms: null,
+                            },
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "reasoning-end") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId && message.content.reasoning
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            reasoning: {
+                              ...message.content.reasoning,
+                              duration_ms: event.duration_ms,
+                            },
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
             } else if (event.type === "delta") {
               setAutoNamingThreadId(null)
               const targetId = assistantId
@@ -571,22 +639,34 @@ export function useChatRuntime({
 
   useEffect(() => {
     if (threadsQuery.error) {
-      toast.error("Couldn’t load your chats", {
-        description: messageFrom(threadsQuery.error),
-      })
+      errorToast(
+        intl.formatMessage({
+          id: "chat_runtime_load_threads_toast",
+          defaultMessage: "Couldn’t load your chats",
+        }),
+        {
+          description: messageFrom(threadsQuery.error),
+        }
+      )
     }
   }, [threadsQuery.error])
 
   useEffect(() => {
     if (messagesQuery.error) {
-      toast.error("Couldn’t load this chat", {
-        description: messageFrom(messagesQuery.error),
-      })
+      errorToast(
+        intl.formatMessage({
+          id: "chat_runtime_load_messages_toast",
+          defaultMessage: "Couldn’t load this chat",
+        }),
+        {
+          description: messageFrom(messagesQuery.error),
+        }
+      )
     }
   }, [messagesQuery.error])
 
   const runtime = useExternalStoreRuntime<ChatMessage>({
-    messages,
+    messages: threadMessages,
     convertMessage: (message) => toRuntimeMessage(message, chatErrors),
     onNew,
     isRunning,
@@ -605,7 +685,7 @@ export function useChatRuntime({
     conversationView,
     activeThread,
     activeThreadId,
-    messages,
+    messages: threadMessages,
     isLoadingThreads,
     isLoadingMessages,
     isRunning,
