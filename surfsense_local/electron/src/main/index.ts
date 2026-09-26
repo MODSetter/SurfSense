@@ -502,7 +502,8 @@ function installMenu(): void {
 }
 
 function createWindow(apiUrl: string): void {
-  const savedState = app.isPackaged ? loadWindowState() : null
+  // Dev keeps its own copy under .surfsense-dev, so it never moves the packaged window.
+  const savedState = loadWindowState()
   const win = new BrowserWindow({
     ...(savedState?.bounds ?? { width: 1280, height: 800 }),
     ...devWindowIcon(),
@@ -527,12 +528,10 @@ function createWindow(apiUrl: string): void {
     if (level === "warning" || level === "error") sessionLog.append("renderer", message)
   })
 
-  if (app.isPackaged) {
-    win.on("close", () => saveWindowState(win))
-  }
+  win.on("close", () => saveWindowState(win))
 
   win.once("ready-to-show", () => {
-    if (app.isPackaged && (savedState?.maximized ?? true)) {
+    if (savedState?.maximized ?? true) {
       win.maximize()
     }
     win.show()
