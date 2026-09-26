@@ -1,8 +1,9 @@
+import { useEffect, useSyncExternalStore } from "react"
+
 /**
- * The handle a mounted prompt leaves for callers that have no refused request
- * to speak for them. It mirrors `setEgressPrompt` in `lib/api`, from the other
- * direction: the API layer routes refusals to the dialog, and this routes
- * questions asked before any call is made.
+ * The questions waiting on the egress prompt. Refused requests
+ * (`setEgressPrompt` in `lib/api`) and `askEgress` both queue here, outside
+ * the prompt, which remounts wherever the innermost open dialog is.
  */
 
 export type Pending = {
@@ -14,18 +15,23 @@ export type Pending = {
   resolve: (allowed: boolean) => void
 }
 
-export type AskHandler = (request: Omit<Pending, "resolve">) => Promise<boolean>
+// The first question stays shown after it is answered, until the prompt has
+// finished closing (`advanceEgressQueue`).
+let state: { queue: Pending[]; answered: boolean } = {
+  queue: [],
+  answered: false,
+}
+let prompts = 0
+const listeners = new Set<() => void>()
 
-// One per mounted prompt; the innermost answers, so a prompt inside an open
-// dialog opens as that dialog's nested dialog.
-const handlers: AskHandler[] = []
+function publish(next: typeof state) {
+  state = next
+  listeners.forEach((listener) => listener())
+}
 
-export function registerAskHandler(handler: AskHandler): () => void {
-  handlers.push(handler)
-  return () => {
-    const index = handlers.lastIndexOf(handler)
-    if (index !== -1) handlers.splice(index, 1)
-  }
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  return () => void listeners.delete(listener)
 }
 
 /**
@@ -38,6 +44,39 @@ export function registerAskHandler(handler: AskHandler): () => void {
  * shell simply gets no consent rather than an error.
  */
 export function askEgress(request: Omit<Pending, "resolve">): Promise<boolean> {
-  const ask = handlers.at(-1)
-  return ask ? ask(request) : Promise.resolve(false)
+  if (prompts === 0) return Promise.resolve(false)
+  return new Promise((resolve) =>
+    publish({ ...state, queue: [...state.queue, { ...request, resolve }] })
+  )
+}
+
+export function settleEgress(allowed: boolean) {
+  if (state.answered || !state.queue[0]) return
+  state.queue[0].resolve(allowed)
+  publish({ ...state, answered: true })
+}
+
+export function advanceEgressQueue() {
+  if (!state.answered) return
+  publish({ queue: state.queue.slice(1), answered: false })
+}
+
+// The question a mounted prompt shows, and whether it is still waiting.
+export function useEgressQuestion() {
+  useEffect(() => {
+    prompts += 1
+    // A prompt that moved mid-close never reports the close finishing.
+    advanceEgressQueue()
+    return () => {
+      prompts -= 1
+      // After the commit, so moving to another dialog is not an unmount.
+      queueMicrotask(() => {
+        if (prompts > 0) return
+        state.queue.forEach((pending) => pending.resolve(false))
+        publish({ queue: [], answered: false })
+      })
+    }
+  }, [])
+  const { queue, answered } = useSyncExternalStore(subscribe, () => state)
+  return { question: queue[0], open: queue[0] !== undefined && !answered }
 }

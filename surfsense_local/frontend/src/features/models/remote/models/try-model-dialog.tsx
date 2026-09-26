@@ -85,14 +85,16 @@ export function TryModelDialog({
   modelType,
   model,
   unlisted,
-  onClose,
+  onOpenChange,
+  onOpenChangeComplete,
   onSelected,
 }: {
   open: boolean
   modelType: ModelType
   model: ConnectionModel
   unlisted: boolean
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
+  onOpenChangeComplete: (open: boolean) => void
   onSelected?: (selection: ModelSelection) => void
 }) {
   const select = useSelect(modelType)
@@ -101,6 +103,7 @@ export function TryModelDialog({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirmUnlisted, setConfirmUnlisted] = useState<string | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   useEffect(
     () => () => {
@@ -136,7 +139,7 @@ export function TryModelDialog({
       })
       .then((selection) => {
         onSelected?.(selection)
-        onClose()
+        onOpenChange(false)
       })
       .catch((cause: unknown) => {
         if (
@@ -145,6 +148,7 @@ export function TryModelDialog({
           cause.status === 422
         ) {
           setConfirmUnlisted(messageFrom(cause))
+          setConfirmOpen(true)
         } else {
           setError(messageFrom(cause))
         }
@@ -152,7 +156,11 @@ export function TryModelDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       {/* Wide enough for the longest footer (Russian) on one row. */}
       <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
@@ -196,7 +204,7 @@ export function TryModelDialog({
         ) : null}
         {error ? <p className="text-sm text-destructive">{error}</p> : null}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             {intl.formatMessage({
               id: "models_try_dialog_cancel_button",
               defaultMessage: "Cancel",
@@ -229,8 +237,11 @@ export function TryModelDialog({
         </DialogFooter>
         {/* Inside the popup, so Base UI nests it and this dialog steps back. */}
         <AlertDialog
-          open={confirmUnlisted !== null}
-          onOpenChange={(open) => !open && setConfirmUnlisted(null)}
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setConfirmUnlisted(null)
+          }}
         >
           <AlertDialogContent>
             <AlertDialogHeader>

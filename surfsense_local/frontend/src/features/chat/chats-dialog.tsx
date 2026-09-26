@@ -34,7 +34,6 @@ import {
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
-import { useDialogPayload } from "@/components/ui/use-dialog-payload"
 import { RelativeTime } from "@/components/relative-time"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
@@ -45,12 +44,14 @@ import type { ChatThread } from "./api"
 export function RenameChatDialog({
   open,
   thread,
-  onClose,
+  onOpenChange,
+  onOpenChangeComplete,
   onRename,
 }: {
   open: boolean
   thread: ChatThread
-  onClose: () => void
+  onOpenChange: (open: boolean) => void
+  onOpenChangeComplete: (open: boolean) => void
   onRename: (id: number, title: string) => Promise<boolean>
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -69,12 +70,16 @@ export function RenameChatDialog({
     if (!normalized) return
 
     setIsSubmitting(true)
-    if (await onRename(thread.id, normalized)) onClose()
+    if (await onRename(thread.id, normalized)) onOpenChange(false)
     setIsSubmitting(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent
         className="select-none"
         initialFocus={() => {
@@ -110,7 +115,11 @@ export function RenameChatDialog({
             maxLength={200}
           />
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+            >
               {intl.formatMessage({
                 id: "chat_rename_dialog_cancel_button",
                 defaultMessage: "Cancel",
@@ -167,7 +176,7 @@ export function ChatsDialog({
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
-  const rename = useDialogPayload(renaming)
+  const [renameOpen, setRenameOpen] = useState(false)
   const [query, setQuery] = useState("")
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -192,9 +201,9 @@ export function ChatsDialog({
     <>
       <Dialog
         open={open}
-        onOpenChange={(nextOpen) => {
-          onOpenChange(nextOpen)
-          if (!nextOpen) setQuery("")
+        onOpenChange={onOpenChange}
+        onOpenChangeComplete={(open) => {
+          if (!open) setQuery("")
         }}
       >
         <DialogContent
@@ -392,6 +401,7 @@ export function ChatsDialog({
                               onClick={() => {
                                 setOpenDropdownId(null)
                                 setRenaming(thread)
+                                setRenameOpen(true)
                               }}
                             >
                               <PencilIcon />
@@ -440,12 +450,15 @@ export function ChatsDialog({
             </Button>
           </DialogFooter>
           {/* Inside the popup, so Base UI nests it and this dialog steps back. */}
-          {rename.payload ? (
+          {renaming ? (
             <RenameChatDialog
-              key={rename.opening}
-              open={renaming !== null}
-              thread={rename.payload}
-              onClose={() => setRenaming(null)}
+              key={renaming.id}
+              open={renameOpen}
+              thread={renaming}
+              onOpenChange={setRenameOpen}
+              onOpenChangeComplete={(open) => {
+                if (!open) setRenaming(null)
+              }}
               onRename={onRename}
             />
           ) : null}

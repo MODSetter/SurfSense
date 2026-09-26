@@ -40,10 +40,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
-import {
-  useDialogOpening,
-  useDialogPayload,
-} from "@/components/ui/use-dialog-payload"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -68,6 +64,7 @@ function WorkspaceNameDialog({
   initialName,
   submitLabel,
   onOpenChange,
+  onOpenChangeComplete,
   onSubmit,
 }: {
   open: boolean
@@ -76,6 +73,7 @@ function WorkspaceNameDialog({
   initialName: string
   submitLabel: string
   onOpenChange: (open: boolean) => void
+  onOpenChangeComplete: (open: boolean) => void
   onSubmit: (name: string) => Promise<boolean>
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
@@ -96,7 +94,11 @@ function WorkspaceNameDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent
         className="select-none"
         initialFocus={() => {
@@ -165,12 +167,16 @@ export function WorkspaceRail({
   onDelete: (id: number) => Promise<boolean>
   onOpenSettings: () => void
 }) {
-  const [createOpen, setCreateOpen] = useState(false)
-  const [renaming, setRenaming] = useState<Workspace | null>(null)
+  // The name dialog, creating ("new") or renaming; cleared once it has closed.
+  const [naming, setNaming] = useState<Workspace | "new" | null>(null)
+  const [namingOpen, setNamingOpen] = useState(false)
   const [deleting, setDeleting] = useState<Workspace | null>(null)
-  const createOpening = useDialogOpening(createOpen)
-  const rename = useDialogPayload(renaming)
-  const renameTarget = rename.payload
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const openNaming = (target: Workspace | "new") => {
+    setNaming(target)
+    setNamingOpen(true)
+  }
 
   return (
     <nav
@@ -224,7 +230,7 @@ export function WorkspaceRail({
                 />
                 <ContextMenuContent className="w-36" finalFocus={false}>
                   <ContextMenuGroup>
-                    <ContextMenuItem onClick={() => setRenaming(workspace)}>
+                    <ContextMenuItem onClick={() => openNaming(workspace)}>
                       <PencilIcon />
                       {intl.formatMessage({
                         id: "workspaces_rail_rename_label",
@@ -233,7 +239,10 @@ export function WorkspaceRail({
                     </ContextMenuItem>
                     <ContextMenuItem
                       variant="destructive"
-                      onClick={() => setDeleting(workspace)}
+                      onClick={() => {
+                        setDeleting(workspace)
+                        setDeleteOpen(true)
+                      }}
                     >
                       <Trash2Icon />
                       {intl.formatMessage({
@@ -258,7 +267,7 @@ export function WorkspaceRail({
                     id: "workspaces_rail_create_aria",
                     defaultMessage: "Create workspace",
                   })}
-                  onClick={() => setCreateOpen(true)}
+                  onClick={() => openNaming("new")}
                 >
                   <PlusIcon />
                 </Button>
@@ -299,29 +308,32 @@ export function WorkspaceRail({
         </TooltipContent>
       </Tooltip>
 
-      <WorkspaceNameDialog
-        key={createOpening}
-        open={createOpen}
-        title={intl.formatMessage({
-          id: "workspaces_create_dialog_title",
-          defaultMessage: "Create workspace",
-        })}
-        description={intl.formatMessage({
-          id: "workspaces_create_dialog_body",
-          defaultMessage: "Keep a separate source library and set of chats.",
-        })}
-        initialName=""
-        submitLabel={intl.formatMessage({
-          id: "workspaces_create_dialog_submit_button",
-          defaultMessage: "Create",
-        })}
-        onOpenChange={setCreateOpen}
-        onSubmit={onCreate}
-      />
-      {renameTarget ? (
+      {naming === "new" ? (
         <WorkspaceNameDialog
-          key={rename.opening}
-          open={renaming !== null}
+          open={namingOpen}
+          title={intl.formatMessage({
+            id: "workspaces_create_dialog_title",
+            defaultMessage: "Create workspace",
+          })}
+          description={intl.formatMessage({
+            id: "workspaces_create_dialog_body",
+            defaultMessage: "Keep a separate source library and set of chats.",
+          })}
+          initialName=""
+          submitLabel={intl.formatMessage({
+            id: "workspaces_create_dialog_submit_button",
+            defaultMessage: "Create",
+          })}
+          onOpenChange={setNamingOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setNaming(null)
+          }}
+          onSubmit={onCreate}
+        />
+      ) : naming ? (
+        <WorkspaceNameDialog
+          key={naming.id}
+          open={namingOpen}
           title={intl.formatMessage({
             id: "workspaces_rename_dialog_title",
             defaultMessage: "Rename workspace",
@@ -331,20 +343,22 @@ export function WorkspaceRail({
             defaultMessage:
               "Choose a name that identifies this research context.",
           })}
-          initialName={renameTarget.name}
+          initialName={naming.name}
           submitLabel={intl.formatMessage({
             id: "workspaces_rename_dialog_submit_button",
             defaultMessage: "Rename",
           })}
-          onOpenChange={(open) => {
-            if (!open) setRenaming(null)
+          onOpenChange={setNamingOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setNaming(null)
           }}
-          onSubmit={(name) => onRename(renameTarget.id, name)}
+          onSubmit={(name) => onRename(naming.id, name)}
         />
       ) : null}
       <AlertDialog
-        open={deleting !== null}
-        onOpenChange={(open) => {
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setDeleting(null)
         }}
       >
@@ -380,7 +394,6 @@ export function WorkspaceRail({
               variant="destructive"
               onClick={() => {
                 if (deleting) void onDelete(deleting.id)
-                setDeleting(null)
               }}
             >
               {intl.formatMessage({

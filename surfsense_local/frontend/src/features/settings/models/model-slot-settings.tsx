@@ -65,6 +65,7 @@ export function ModelSlotSettings({
   const [page, setPage] = useState<Page>("list")
   // Edited in a dialog over the list; saving leaves the list as it was.
   const [editing, setEditing] = useState<Connection | null>(null)
+  const [editOpen, setEditOpen] = useState(false)
   // A server just added: back on the list with its models open, since
   // choosing one of them is why it was added.
   const [openServerId, setOpenServerId] = useState<number | null>(null)
@@ -184,7 +185,10 @@ export function ModelSlotSettings({
             <ServerModelPicker
               modelType={modelType}
               openServerId={openServerId}
-              onEdit={setEditing}
+              onEdit={(connection) => {
+                setEditing(connection)
+                setEditOpen(true)
+              }}
               onSelected={onSelected}
               onChatCleared={onChatCleared}
             />
@@ -192,9 +196,10 @@ export function ModelSlotSettings({
         </div>
       )}
       <ConnectionDialog
-        open={editing !== null}
+        open={editOpen}
         connection={editing ?? undefined}
-        onOpenChange={(open) => {
+        onOpenChange={setEditOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setEditing(null)
         }}
       />

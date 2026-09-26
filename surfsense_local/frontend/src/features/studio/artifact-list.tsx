@@ -438,6 +438,7 @@ export function ArtifactList({
     [formats]
   )
   const [deleteTarget, setDeleteTarget] = useState<Artifact | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [selectedFormats, setSelectedFormats] = useState<string[]>(() =>
     readStoredFormats(workspaceId)
   )
@@ -562,15 +563,19 @@ export function ArtifactList({
                 onOpen={() => onOpen(artifact.id)}
                 onRegenerate={() => onRegenerate(artifact.id)}
                 onCancel={() => onCancel(artifact.id)}
-                onDelete={() => setDeleteTarget(artifact)}
+                onDelete={() => {
+                  setDeleteTarget(artifact)
+                  setDeleteOpen(true)
+                }}
               />
             ))}
           </ul>
         )}
       </ScrollFade>
       <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setDeleteTarget(null)
         }}
       >

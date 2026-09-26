@@ -192,6 +192,7 @@ export function ModelStep({
     removeId: string
     row: YourModelRow
   } | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const installing = installState.status === "installing"
@@ -241,6 +242,7 @@ export function ModelStep({
         removeId: build.installed_as,
       },
     })
+    setDeleteOpen(true)
   }
 
   const confirmDelete = () => {
@@ -248,7 +250,7 @@ export function ModelStep({
     setDeleteError(null)
     remove
       .mutateAsync(deleting.removeId)
-      .then(() => setDeleting(null))
+      .then(() => setDeleteOpen(false))
       .catch((cause: unknown) =>
         setDeleteError(
           cause instanceof Error
@@ -462,11 +464,15 @@ export function ModelStep({
         }}
       />
       <DeleteModelDialog
+        open={deleteOpen}
         row={deleting?.row ?? null}
         pending={remove.isPending}
         error={deleteError}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleting(null)}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
+          if (!open) setDeleting(null)
+        }}
       />
     </Card>
   )

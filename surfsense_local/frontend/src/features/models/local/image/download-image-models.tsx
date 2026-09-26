@@ -80,6 +80,7 @@ export function DownloadImageModels({
     removeId: string
     row: YourModelRow
   } | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   if (catalog.isPending) return null
@@ -140,7 +141,7 @@ export function DownloadImageModels({
     setDeleteError(null)
     remove
       .mutateAsync(deleting.removeId)
-      .then(() => setDeleting(null))
+      .then(() => setDeleteOpen(false))
       .catch((cause: unknown) => setDeleteError(messageFrom(cause)))
   }
 
@@ -167,6 +168,7 @@ export function DownloadImageModels({
                   if (!target?.removeId) return
                   setDeleteError(null)
                   setDeleting({ removeId: target.removeId, row: target })
+                  setDeleteOpen(true)
                 }}
               />
             </li>
@@ -179,11 +181,15 @@ export function DownloadImageModels({
       ) : null}
 
       <DeleteModelDialog
+        open={deleteOpen}
         row={deleting?.row ?? null}
         pending={remove.isPending}
         error={deleteError}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleting(null)}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
+          if (!open) setDeleting(null)
+        }}
       />
     </div>
   )

@@ -34,6 +34,7 @@ export function LocalModelsGroup({
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<YourModelRow | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const run = (action: () => Promise<unknown>) => {
@@ -51,7 +52,7 @@ export function LocalModelsGroup({
     if (!deleting) return
     setDeleteError(null)
     run(() => onDelete(deleting))
-      .then(() => setDeleting(null))
+      .then(() => setDeleteOpen(false))
       .catch((cause: unknown) => setDeleteError(messageFrom(cause)))
   }
 
@@ -96,6 +97,7 @@ export function LocalModelsGroup({
               onDelete={() => {
                 setDeleteError(null)
                 setDeleting(row)
+                setDeleteOpen(true)
               }}
             />
           ))}
@@ -109,11 +111,15 @@ export function LocalModelsGroup({
       ) : null}
 
       <DeleteModelDialog
+        open={deleteOpen}
         row={deleting}
         pending={busy}
         error={deleteError}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleting(null)}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
+          if (!open) setDeleting(null)
+        }}
       />
     </section>
   )

@@ -17,7 +17,6 @@ import { CircleAlertIcon, DotIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
-import { useDialogPayload } from "@/components/ui/use-dialog-payload"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
@@ -99,11 +98,13 @@ function LicenseFormDialog({
   open,
   replacing,
   onOpenChange,
+  onOpenChangeComplete,
   onImported,
 }: {
   open: boolean
   replacing: boolean
   onOpenChange: (open: boolean) => void
+  onOpenChangeComplete: (open: boolean) => void
   onImported: (status: LicenseStatus) => void
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
@@ -133,7 +134,11 @@ function LicenseFormDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -240,7 +245,11 @@ export function LicenseSettings() {
   const queryClient = useQueryClient()
   const license = useLicense()
   const [editor, setEditor] = useState<"add" | "replace" | null>(null)
-  const shownEditor = useDialogPayload(editor)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const openEditor = (mode: "add" | "replace") => {
+    setEditor(mode)
+    setEditorOpen(true)
+  }
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -295,7 +304,7 @@ export function LicenseSettings() {
               defaultMessage: "No license on this device",
             })}
           </p>
-          <Button type="button" onClick={() => setEditor("add")}>
+          <Button type="button" onClick={() => openEditor("add")}>
             {intl.formatMessage({
               id: "license_settings_add_button",
               defaultMessage: "Add license",
@@ -371,7 +380,7 @@ export function LicenseSettings() {
               type="button"
               variant="outline"
               disabled={busy}
-              onClick={() => setEditor("replace")}
+              onClick={() => openEditor("replace")}
             >
               {intl.formatMessage({
                 id: "license_settings_replace_button",
@@ -408,12 +417,13 @@ export function LicenseSettings() {
         </p>
       ) : null}
 
-      {shownEditor.payload ? (
+      {editor ? (
         <LicenseFormDialog
-          key={shownEditor.opening}
-          open={editor !== null}
-          replacing={shownEditor.payload === "replace"}
-          onOpenChange={(open) => {
+          key={editor}
+          open={editorOpen}
+          replacing={editor === "replace"}
+          onOpenChange={setEditorOpen}
+          onOpenChangeComplete={(open) => {
             if (!open) setEditor(null)
           }}
           onImported={publish}

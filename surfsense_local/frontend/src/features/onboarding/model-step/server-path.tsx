@@ -24,6 +24,11 @@ export function ServerPath({
 }) {
   const connections = useConnections()
   const [dialog, setDialog] = useState<Connection | "new" | null>(null)
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const openDialog = (target: Connection | "new") => {
+    setDialog(target)
+    setDialogOpen(true)
+  }
   const [openServerId, setOpenServerId] = useState(initialOpenServerId)
 
   if (connections.isPending) return null
@@ -35,7 +40,7 @@ export function ServerPath({
         <ServerModelPicker
           modelType={modelType}
           openServerId={openServerId}
-          onEdit={setDialog}
+          onEdit={openDialog}
         />
       ) : (
         <p className="rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
@@ -49,7 +54,7 @@ export function ServerPath({
         type="button"
         variant="ghost"
         className="self-start"
-        onClick={() => setDialog("new")}
+        onClick={() => openDialog("new")}
       >
         <PlusIcon data-icon="inline-start" />
         {servers.length
@@ -63,9 +68,10 @@ export function ServerPath({
             })}
       </Button>
       <ConnectionDialog
-        open={dialog !== null}
+        open={dialogOpen}
         connection={dialog !== null && dialog !== "new" ? dialog : undefined}
-        onOpenChange={(open) => {
+        onOpenChange={setDialogOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setDialog(null)
         }}
         onCreated={(connection) => setOpenServerId(connection.id)}

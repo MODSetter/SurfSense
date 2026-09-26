@@ -5,7 +5,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { intl } from "@/i18n/intl"
 
 import { useRefreshModels } from "../../models-query"
@@ -20,22 +19,27 @@ export function ConnectionDialog({
   open,
   connection,
   onOpenChange,
+  onOpenChangeComplete,
   onCreated,
 }: {
   open: boolean
   /** The server to edit; absent to add one. */
   connection?: Connection
   onOpenChange: (open: boolean) => void
+  /** Where a caller clears `connection`, once the dialog has finished closing. */
+  onOpenChangeComplete?: (open: boolean) => void
   /** A server just added, whose models are what the user wants next. */
   onCreated?: (connection: Connection) => void
 }) {
   const refresh = useRefreshModels()
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent className="select-none sm:max-w-md">
-        {/* Saving probes the server's host, which may first need consent. */}
-        <EgressPrompt nested />
         <DialogHeader>
           <DialogTitle>
             {connection

@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
-import { useDialogPayload } from "@/components/ui/use-dialog-payload"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
@@ -98,7 +97,7 @@ export function ServerModels({
     model: ConnectionModel
     unlisted: boolean
   } | null>(null)
-  const tryDialog = useDialogPayload(trying)
+  const [tryOpen, setTryOpen] = useState(false)
   const models = useConnectionModels(connection.id, open)
   const selection = useSelection(modelType)
 
@@ -115,6 +114,7 @@ export function ServerModels({
   const tryManual = () => {
     const name = manualName.trim()
     if (!name) return
+    setTryOpen(true)
     setTrying({
       unlisted: true,
       model: {
@@ -378,7 +378,10 @@ export function ServerModels({
                               model: model.name,
                             }
                           )}
-                          onClick={() => setTrying({ model, unlisted: false })}
+                          onClick={() => {
+                            setTrying({ model, unlisted: false })
+                            setTryOpen(true)
+                          }}
                         >
                           {intl.formatMessage({
                             id: "models_server_models_use_button",
@@ -456,14 +459,17 @@ export function ServerModels({
         ) : null}
       </div>
 
-      {tryDialog.payload ? (
+      {trying ? (
         <TryModelDialog
-          key={tryDialog.opening}
-          open={trying !== null}
+          key={trying.model.name}
+          open={tryOpen}
           modelType={modelType}
-          model={tryDialog.payload.model}
-          unlisted={tryDialog.payload.unlisted}
-          onClose={() => setTrying(null)}
+          model={trying.model}
+          unlisted={trying.unlisted}
+          onOpenChange={setTryOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setTrying(null)
+          }}
           onSelected={onSelected}
         />
       ) : null}

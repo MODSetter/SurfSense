@@ -46,6 +46,7 @@ export function DownloadAudioModels() {
   const select = useSelect("audio_gen")
   const remove = useDeleteLocalAudioModel()
   const [deleting, setDeleting] = useState<YourModelRow | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   if (catalog.isPending) return null
@@ -105,7 +106,7 @@ export function DownloadAudioModels() {
     setDeleteError(null)
     remove
       .mutateAsync(deleting.removeId)
-      .then(() => setDeleting(null))
+      .then(() => setDeleteOpen(false))
       .catch((cause: unknown) => setDeleteError(messageFrom(cause)))
   }
 
@@ -163,6 +164,7 @@ export function DownloadAudioModels() {
                       onClick={() => {
                         setDeleteError(null)
                         setDeleting(deletableRow(model))
+                        setDeleteOpen(true)
                       }}
                     >
                       <Trash2Icon />
@@ -186,11 +188,15 @@ export function DownloadAudioModels() {
       ) : null}
 
       <DeleteModelDialog
+        open={deleteOpen}
         row={deleting}
         pending={remove.isPending}
         error={deleteError}
         onConfirm={confirmDelete}
-        onCancel={() => setDeleting(null)}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
+          if (!open) setDeleting(null)
+        }}
       />
     </div>
   )

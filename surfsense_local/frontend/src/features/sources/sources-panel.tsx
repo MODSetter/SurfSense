@@ -415,6 +415,7 @@ export function SourcesPanel({
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
   >(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const deleteCount =
     deleteTarget === "selected"
       ? selectedDocumentIds.length
@@ -512,7 +513,10 @@ export function SourcesPanel({
                   onReveal={() => onReveal(document.id)}
                   onRetry={() => onRetry(document.id)}
                   onCancel={() => onCancel(document.id)}
-                  onDelete={() => setDeleteTarget(document)}
+                  onDelete={() => {
+                    setDeleteTarget(document)
+                    setDeleteOpen(true)
+                  }}
                   isDeleting={isDeleting}
                   onSelectedChange={(selected) =>
                     onSelectionChange(document.id, selected)
@@ -545,8 +549,9 @@ export function SourcesPanel({
         </ScrollFade>
       </section>
       <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(open) => {
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setDeleteTarget(null)
         }}
       >
