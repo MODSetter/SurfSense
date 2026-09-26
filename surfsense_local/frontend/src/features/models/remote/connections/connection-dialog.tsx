@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { intl } from "@/i18n/intl"
 
 import { useRefreshModels } from "../../models-query"
@@ -33,6 +34,8 @@ export function ConnectionDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="select-none sm:max-w-md">
+        {/* Saving probes the server's host, which may first need consent. */}
+        <EgressPrompt nested />
         <DialogHeader>
           <DialogTitle>
             {connection
@@ -64,19 +67,17 @@ export function ConnectionDialog({
                 })}
           </DialogDescription>
         </DialogHeader>
-        {/* Mounted per opening, so a closed dialog forgets what was typed. */}
-        {open ? (
-          <ConnectionForm
-            key={connection?.id ?? "new"}
-            connection={connection}
-            onCancel={() => onOpenChange(false)}
-            onSaved={(saved) => {
-              void refresh()
-              onOpenChange(false)
-              if (!connection) onCreated?.(saved)
-            }}
-          />
-        ) : null}
+        {/* The popup unmounts after closing, so each opening starts blank. */}
+        <ConnectionForm
+          key={connection?.id ?? "new"}
+          connection={connection}
+          onCancel={() => onOpenChange(false)}
+          onSaved={(saved) => {
+            void refresh()
+            onOpenChange(false)
+            if (!connection) onCreated?.(saved)
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

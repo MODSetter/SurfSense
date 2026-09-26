@@ -40,6 +40,10 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  useDialogOpening,
+  useDialogPayload,
+} from "@/components/ui/use-dialog-payload"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -164,6 +168,9 @@ export function WorkspaceRail({
   const [createOpen, setCreateOpen] = useState(false)
   const [renaming, setRenaming] = useState<Workspace | null>(null)
   const [deleting, setDeleting] = useState<Workspace | null>(null)
+  const createOpening = useDialogOpening(createOpen)
+  const rename = useDialogPayload(renaming)
+  const renameTarget = rename.payload
 
   return (
     <nav
@@ -293,7 +300,7 @@ export function WorkspaceRail({
       </Tooltip>
 
       <WorkspaceNameDialog
-        key={`create-${createOpen}`}
+        key={createOpening}
         open={createOpen}
         title={intl.formatMessage({
           id: "workspaces_create_dialog_title",
@@ -311,10 +318,10 @@ export function WorkspaceRail({
         onOpenChange={setCreateOpen}
         onSubmit={onCreate}
       />
-      {renaming ? (
+      {renameTarget ? (
         <WorkspaceNameDialog
-          key={renaming.id}
-          open
+          key={rename.opening}
+          open={renaming !== null}
           title={intl.formatMessage({
             id: "workspaces_rename_dialog_title",
             defaultMessage: "Rename workspace",
@@ -324,7 +331,7 @@ export function WorkspaceRail({
             defaultMessage:
               "Choose a name that identifies this research context.",
           })}
-          initialName={renaming.name}
+          initialName={renameTarget.name}
           submitLabel={intl.formatMessage({
             id: "workspaces_rename_dialog_submit_button",
             defaultMessage: "Rename",
@@ -332,7 +339,7 @@ export function WorkspaceRail({
           onOpenChange={(open) => {
             if (!open) setRenaming(null)
           }}
-          onSubmit={(name) => onRename(renaming.id, name)}
+          onSubmit={(name) => onRename(renameTarget.id, name)}
         />
       ) : null}
       <AlertDialog

@@ -33,6 +33,12 @@ These are the rules that compile fine and still break. Check
 - `AlertDialogAction` closes the dialog unless its click handler calls
   `event.preventDefault()`. The local wrapper keeps this Radix contract on
   purpose; the stock base-nova Action does not close at all.
+- A controlled `DialogContent` / `AlertDialogContent` keeps its last open
+  children through the exit animation, so `open={target !== null}` with
+  content read from `target` is safe. Never unmount a dialog on close
+  (`{target ? <Dialog open/> : null}`): keep it mounted with
+  `useDialogPayload` from `components/ui/use-dialog-payload`, keyed by its
+  `opening` so its form resets when it opens.
 - A nested dialog renders no backdrop. The parent dims and shrinks through
   `data-nested-dialog-open` and `--nested-dialogs`, already in the wrappers.
 - A popup inside a modal dialog (the combobox, through `container`) portals

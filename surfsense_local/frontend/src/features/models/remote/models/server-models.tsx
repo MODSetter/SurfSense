@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Spinner } from "@/components/ui/spinner"
+import { useDialogPayload } from "@/components/ui/use-dialog-payload"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
@@ -97,6 +98,7 @@ export function ServerModels({
     model: ConnectionModel
     unlisted: boolean
   } | null>(null)
+  const tryDialog = useDialogPayload(trying)
   const models = useConnectionModels(connection.id, open)
   const selection = useSelection(modelType)
 
@@ -454,11 +456,13 @@ export function ServerModels({
         ) : null}
       </div>
 
-      {trying ? (
+      {tryDialog.payload ? (
         <TryModelDialog
+          key={tryDialog.opening}
+          open={trying !== null}
           modelType={modelType}
-          model={trying.model}
-          unlisted={trying.unlisted}
+          model={tryDialog.payload.model}
+          unlisted={tryDialog.payload.unlisted}
           onClose={() => setTrying(null)}
           onSelected={onSelected}
         />

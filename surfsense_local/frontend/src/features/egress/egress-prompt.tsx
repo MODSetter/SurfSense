@@ -12,6 +12,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { Spinner } from "@/components/ui/spinner"
+import { useDialogPayload } from "@/components/ui/use-dialog-payload"
 import { intl } from "@/i18n/intl"
 import { type ApiError, setEgressPrompt } from "@/lib/api"
 
@@ -20,26 +21,26 @@ import {
   destinationsQueryKey,
   setDestinationEnabled,
 } from "./api"
-import { registerAskHandler, type Pending } from "./ask-egress"
+import { askEgress, registerAskHandler, type Pending } from "./ask-egress"
 
-function pendingFrom(error: ApiError, resolve: Pending["resolve"]): Pending {
+function requestFrom(error: ApiError): Omit<Pending, "resolve"> {
   const { destination, host } = error.detail
   const key = typeof destination === "string" ? destination : ""
   return {
     destination: key,
     host: typeof host === "string" ? host : "",
     allow: () => setDestinationEnabled(key, true),
-    resolve,
   }
 }
 
-// `nested`: rendered inside another dialog, it answers only questions asked
-// while that dialog is open; refused API calls stay with the app's prompt.
+// `nested`: rendered inside another dialog, it answers every question raised
+// while that dialog is open, so the prompt opens as that dialog's nested one.
 export function EgressPrompt({ nested = false }: { nested?: boolean }) {
   const queryClient = useQueryClient()
   const [queue, setQueue] = useState<Pending[]>([])
   const [allowing, setAllowing] = useState(false)
   const current = queue[0]
+  const shown = useDialogPayload(current ?? null).payload
 
   useEffect(() => {
     const enqueue = (pending: Pending) =>
@@ -48,9 +49,8 @@ export function EgressPrompt({ nested = false }: { nested?: boolean }) {
       (request) => new Promise((resolve) => enqueue({ ...request, resolve }))
     )
     if (nested) return unregister
-    setEgressPrompt(
-      (error) => new Promise((resolve) => enqueue(pendingFrom(error, resolve)))
-    )
+    // Refusals take the same route as askEgress, so the innermost prompt answers.
+    setEgressPrompt((error) => askEgress(requestFrom(error)))
     return () => {
       setEgressPrompt(null)
       unregister()
@@ -76,10 +76,13 @@ export function EgressPrompt({ nested = false }: { nested?: boolean }) {
     }
   }
 
-  if (!current) return null
-  const copy = describeDestination(current.destination, current.host)
+  if (!shown) return null
+  const copy = describeDestination(shown.destination, shown.host)
   return (
-    <AlertDialog open onOpenChange={(open) => !open && settle(false)}>
+    <AlertDialog
+      open={current !== undefined}
+      onOpenChange={(open) => !open && settle(false)}
+    >
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
           <AlertDialogTitle>{copy.title}</AlertDialogTitle>

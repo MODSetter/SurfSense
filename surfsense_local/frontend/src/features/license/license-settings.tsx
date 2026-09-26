@@ -17,6 +17,7 @@ import { CircleAlertIcon, DotIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import { useDialogPayload } from "@/components/ui/use-dialog-payload"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
@@ -95,10 +96,12 @@ function notice(
 }
 
 function LicenseFormDialog({
+  open,
   replacing,
   onOpenChange,
   onImported,
 }: {
+  open: boolean
   replacing: boolean
   onOpenChange: (open: boolean) => void
   onImported: (status: LicenseStatus) => void
@@ -130,7 +133,7 @@ function LicenseFormDialog({
   }
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -237,6 +240,7 @@ export function LicenseSettings() {
   const queryClient = useQueryClient()
   const license = useLicense()
   const [editor, setEditor] = useState<"add" | "replace" | null>(null)
+  const shownEditor = useDialogPayload(editor)
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -404,9 +408,11 @@ export function LicenseSettings() {
         </p>
       ) : null}
 
-      {editor !== null ? (
+      {shownEditor.payload ? (
         <LicenseFormDialog
-          replacing={editor === "replace"}
+          key={shownEditor.opening}
+          open={editor !== null}
+          replacing={shownEditor.payload === "replace"}
           onOpenChange={(open) => {
             if (!open) setEditor(null)
           }}

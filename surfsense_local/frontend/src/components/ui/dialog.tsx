@@ -4,12 +4,20 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import type * as React from "react"
 
 import { Button } from "@/components/ui/button"
+import {
+  DialogOpenScope,
+  useContentThroughExit,
+} from "@/components/ui/dialog-exit-content"
 import { XIcon } from "@/components/ui/icons"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />
+  return (
+    <DialogOpenScope open={props.open}>
+      <DialogPrimitive.Root data-slot="dialog" {...props} />
+    </DialogOpenScope>
+  )
 }
 
 function DialogTrigger({ ...props }: DialogPrimitive.Trigger.Props) {
@@ -48,6 +56,7 @@ function DialogContent({
 }: DialogPrimitive.Popup.Props & {
   showCloseButton?: boolean
 }) {
+  const content = useContentThroughExit(children)
   return (
     <DialogPortal>
       <DialogOverlay />
@@ -61,7 +70,7 @@ function DialogContent({
         )}
         {...props}
       >
-        {children}
+        {content}
         {showCloseButton && (
           <DialogPrimitive.Close
             data-slot="dialog-close"

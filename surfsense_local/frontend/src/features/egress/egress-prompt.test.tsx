@@ -141,6 +141,33 @@ describe("egress prompt", () => {
     )
   })
 
+  it("asks about a refused request from inside an open dialog as its nested dialog", async () => {
+    stubApi()
+    render(
+      <>
+        <EgressPrompt />
+        <Dialog open>
+          <DialogContent>
+            <DialogTitle>Connect a server</DialogTitle>
+            <EgressPrompt nested />
+          </DialogContent>
+        </Dialog>
+      </>
+    )
+
+    void requestVoid("/llm/connections", { method: "POST" }).catch(() => {})
+
+    await screen.findByRole("alertdialog")
+    expect(screen.getAllByRole("alertdialog")).toHaveLength(1)
+    await waitFor(() =>
+      expect(
+        document
+          .querySelector('[role="dialog"]')
+          ?.hasAttribute("data-nested-dialog-open")
+      ).toBe(true)
+    )
+  })
+
   it("hands questions back to the app once the dialog closes", async () => {
     const view = render(
       <>

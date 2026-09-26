@@ -34,6 +34,7 @@ import {
 } from "@/components/ui/input-group"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
+import { useDialogPayload } from "@/components/ui/use-dialog-payload"
 import { RelativeTime } from "@/components/relative-time"
 import { TypewriterText } from "@/components/typewriter-text"
 import { cn } from "@/lib/utils"
@@ -42,10 +43,12 @@ import { intl } from "@/i18n/intl"
 import type { ChatThread } from "./api"
 
 export function RenameChatDialog({
+  open,
   thread,
   onClose,
   onRename,
 }: {
+  open: boolean
   thread: ChatThread
   onClose: () => void
   onRename: (id: number, title: string) => Promise<boolean>
@@ -71,7 +74,7 @@ export function RenameChatDialog({
   }
 
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
+    <Dialog open={open} onOpenChange={(open) => !open && onClose()}>
       <DialogContent
         className="select-none"
         initialFocus={() => {
@@ -164,6 +167,7 @@ export function ChatsDialog({
   const [openDropdownId, setOpenDropdownId] = useState<number | null>(null)
   const [hoveredId, setHoveredId] = useState<number | null>(null)
   const [renaming, setRenaming] = useState<ChatThread | null>(null)
+  const rename = useDialogPayload(renaming)
   const [query, setQuery] = useState("")
   const searchRef = useRef<HTMLInputElement>(null)
 
@@ -435,16 +439,18 @@ export function ChatsDialog({
               })}
             </Button>
           </DialogFooter>
+          {/* Inside the popup, so Base UI nests it and this dialog steps back. */}
+          {rename.payload ? (
+            <RenameChatDialog
+              key={rename.opening}
+              open={renaming !== null}
+              thread={rename.payload}
+              onClose={() => setRenaming(null)}
+              onRename={onRename}
+            />
+          ) : null}
         </DialogContent>
       </Dialog>
-      {renaming ? (
-        <RenameChatDialog
-          key={renaming.id}
-          thread={renaming}
-          onClose={() => setRenaming(null)}
-          onRename={onRename}
-        />
-      ) : null}
     </>
   )
 }

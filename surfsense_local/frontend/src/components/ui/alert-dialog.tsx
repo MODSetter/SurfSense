@@ -5,9 +5,17 @@ import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog
 import { cn } from "@/lib/utils"
 
 import { Button } from "@/components/ui/button"
+import {
+  DialogOpenScope,
+  useContentThroughExit,
+} from "@/components/ui/dialog-exit-content"
 
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
-  return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+  return (
+    <DialogOpenScope open={props.open}>
+      <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
+    </DialogOpenScope>
+  )
 }
 
 function AlertDialogTrigger({ ...props }: AlertDialogPrimitive.Trigger.Props) {
@@ -41,10 +49,12 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  children,
   ...props
 }: AlertDialogPrimitive.Popup.Props & {
   size?: "default" | "sm"
 }) {
+  const content = useContentThroughExit(children)
   return (
     <AlertDialogPortal>
       <AlertDialogOverlay />
@@ -58,7 +68,9 @@ function AlertDialogContent({
           className
         )}
         {...props}
-      />
+      >
+        {content}
+      </AlertDialogPrimitive.Popup>
     </AlertDialogPortal>
   )
 }
