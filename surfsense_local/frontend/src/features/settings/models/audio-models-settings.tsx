@@ -27,8 +27,7 @@ export function AudioModelsSettings({
       })}
       description={intl.formatMessage({
         id: "settings_audio_models_body",
-        defaultMessage:
-          "The model that voices podcasts in Studio. Run one on this computer, or use one from a server.",
+        defaultMessage: "The model that voices podcasts in Studio.",
       })}
       slot="audio"
       modelType="audio_gen"
@@ -46,6 +45,8 @@ export function AudioModelsSettings({
       }
       download={<DownloadAudioModels />}
       onChatCleared={onModelUnavailable}
+      // Hidden until a server model can voice podcasts.
+      servers={false}
       onUse={async (row) => {
         if (row.target) await select.mutateAsync({ target: row.target })
       }}

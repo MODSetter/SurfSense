@@ -45,6 +45,7 @@ export function ModelSlotSettings({
   onDelete,
   onSelected,
   onChatCleared,
+  servers = true,
 }: {
   title: string
   description: string
@@ -57,6 +58,8 @@ export function ModelSlotSettings({
   onDelete: (row: YourModelRow) => Promise<unknown>
   onSelected?: (selection: ModelSelection) => void
   onChatCleared?: () => void
+  /** Off where no server model can do the slot's job yet. */
+  servers?: boolean
 }) {
   const connections = useConnections()
   const [page, setPage] = useState<Page>("list")
@@ -82,22 +85,29 @@ export function ModelSlotSettings({
           },
           { slot }
         )}
-        description={intl.formatMessage({
-          id: "settings_models_add_page_body",
-          defaultMessage:
-            "Run one on this computer, or use one from a server you already run.",
-        })}
+        description={
+          servers
+            ? intl.formatMessage({
+                id: "settings_models_add_page_body",
+                defaultMessage:
+                  "Run one on this computer, or use one from a server you already run.",
+              })
+            : undefined
+        }
         back={back}
         scrollable="all"
       >
-        <AddModelOptions download={download} onConnected={showNewServer} />
+        <AddModelOptions
+          download={download}
+          onConnected={servers ? showNewServer : undefined}
+        />
       </SettingsSection>
     )
   }
 
   const empty =
     !models.isPending &&
-    connections.data?.length === 0 &&
+    (!servers || connections.data?.length === 0) &&
     models.local.length === 0 &&
     !pending &&
     models.inUse === null
@@ -136,18 +146,20 @@ export function ModelSlotSettings({
                 { slot }
               )}
             </EmptyTitle>
-            <EmptyDescription>
-              {models.canDownload
-                ? intl.formatMessage({
-                    id: "settings_models_empty_download_body",
-                    defaultMessage:
-                      "Download one to run on this computer, or use one from a server you already run.",
-                  })
-                : intl.formatMessage({
-                    id: "settings_models_empty_server_body",
-                    defaultMessage: "Use one from a server you already run.",
-                  })}
-            </EmptyDescription>
+            {servers ? (
+              <EmptyDescription>
+                {models.canDownload
+                  ? intl.formatMessage({
+                      id: "settings_models_empty_download_body",
+                      defaultMessage:
+                        "Download one to run on this computer, or use one from a server you already run.",
+                    })
+                  : intl.formatMessage({
+                      id: "settings_models_empty_server_body",
+                      defaultMessage: "Use one from a server you already run.",
+                    })}
+              </EmptyDescription>
+            ) : null}
           </EmptyHeader>
           <EmptyContent>{add}</EmptyContent>
         </Empty>
@@ -168,13 +180,15 @@ export function ModelSlotSettings({
             />
           ) : null}
 
-          <ServerModelPicker
-            modelType={modelType}
-            openServerId={openServerId}
-            onEdit={setEditing}
-            onSelected={onSelected}
-            onChatCleared={onChatCleared}
-          />
+          {servers ? (
+            <ServerModelPicker
+              modelType={modelType}
+              openServerId={openServerId}
+              onEdit={setEditing}
+              onSelected={onSelected}
+              onChatCleared={onChatCleared}
+            />
+          ) : null}
         </div>
       )}
       <ConnectionDialog

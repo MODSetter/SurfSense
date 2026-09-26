@@ -18,12 +18,17 @@ export function AddModelOptions({
 }: {
   /** The slot's catalog for this computer. */
   download: ReactNode
-  onConnected: (connection: Connection) => void
+  /** Absent where the slot offers no server. */
+  onConnected?: (connection: Connection) => void
 }) {
   return (
     <div className="flex flex-col gap-6">
-      <ServerCard onConnected={onConnected} />
-      <Separator />
+      {onConnected ? (
+        <>
+          <ServerCard onConnected={onConnected} />
+          <Separator />
+        </>
+      ) : null}
       <section
         className="flex flex-col gap-3"
         aria-label={intl.formatMessage({

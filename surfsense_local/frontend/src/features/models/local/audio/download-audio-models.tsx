@@ -76,13 +76,6 @@ export function DownloadAudioModels() {
             defaultMessage: "Audio models cannot run on this computer",
           })}
         </AlertTitle>
-        <AlertDescription>
-          {intl.formatMessage({
-            id: "models_download_audio_unsupported_body",
-            defaultMessage:
-              "This build has no local audio runtime. Use a server above instead.",
-          })}
-        </AlertDescription>
       </Alert>
     )
   }
