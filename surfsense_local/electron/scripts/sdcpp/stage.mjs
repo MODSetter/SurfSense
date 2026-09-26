@@ -2,7 +2,7 @@
 // electron/sdcpp, swapped in whole once it starts from its own folder.
 // Windows downloads upstream's archive; Linux and macOS compile the pinned
 // source. Without a toolchain the app runs without local images, unless
-// --strict, which release CI passes.
+// --strict, which release CI and `pnpm dist` pass.
 import { execFileSync } from "node:child_process"
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, renameSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
@@ -10,6 +10,9 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 import { copyMsvcRuntime, visualStudio } from "../msvc-runtime.mjs"
+import { NotStaged, notStaged } from "../not-staged/message.mjs"
+import { packageManager } from "../not-staged/package-manager.mjs"
+import { VISUAL_STUDIO } from "../not-staged/tools.mjs"
 import { compile, missingToolchain } from "./compile.mjs"
 import { TAG } from "./pins.mjs"
 import { copyServerFiles, SERVER } from "./server-files.mjs"
@@ -44,18 +47,26 @@ async function main() {
   }
 
   const host = `${process.platform}-${process.arch}`
-  const missing = !HOSTS.includes(host)
-    ? `a supported host, not ${host}`
+  const reason = !HOSTS.includes(host)
+    ? `sd-server is not staged: it has no build for ${host}.`
     : process.platform === "win32"
-      ? visualStudio()
-        ? null
-        : "Visual Studio 2022 or newer with the C++ tools, for the runtime it ships"
-      : missingToolchain()
-  if (missing) {
-    if (strict) throw new Error(`staging sd-server needs ${missing}`)
+      ? notStaged(
+          "sd-server",
+          "on Windows it ships Visual Studio's C++ runtime",
+          visualStudio() ? [] : [VISUAL_STUDIO],
+          packageManager()
+        )
+      : notStaged(
+          "sd-server",
+          `on ${process.platform === "darwin" ? "macOS" : "Linux"} it is compiled from source`,
+          missingToolchain(),
+          packageManager()
+        )
+  if (reason) {
+    if (strict) throw new NotStaged(reason)
     // Empty, so the packager still finds the folder; the sidecar never starts.
     mkdirSync(OUT, { recursive: true })
-    console.warn(`sd-server not staged: it needs ${missing}. Local images are unavailable.`)
+    console.warn(`${reason}\n\nThe app runs without local images.`)
     return
   }
 
@@ -90,6 +101,6 @@ async function main() {
 }
 
 main().catch((error) => {
-  console.error(error)
+  console.error(error instanceof NotStaged ? error.message : error)
   process.exitCode = 1
 })

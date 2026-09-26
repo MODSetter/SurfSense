@@ -14,6 +14,7 @@ on:
   pull_request:
     paths:
       - surfsense_local/electron/scripts/audiocpp/**
+      - surfsense_local/electron/scripts/not-staged/**
       - surfsense_local/electron/scripts/msvc-runtime.mjs
       - surfsense_local/electron/scripts/pinned-download.mjs
       - surfsense_local/backend/modules/llm/providers/audiocpp/**
