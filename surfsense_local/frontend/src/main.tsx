@@ -6,6 +6,7 @@ import { RawIntlProvider } from "react-intl"
 import "./index.css"
 import App from "./App.tsx"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
+import { AppDialogs } from "@/components/ui/app-dialog-slot.tsx"
 import { Toaster } from "@/components/ui/sonner.tsx"
 import { TooltipProvider } from "@/components/ui/tooltip.tsx"
 import { EgressPrompt } from "@/features/egress/egress-prompt.tsx"
@@ -29,15 +30,18 @@ if (window.surfsense?.platform) {
 
 followMainLocale()
 
+// Open over any dialog as its nested dialog, or on their own when none is open.
+const APP_DIALOGS = [EgressPrompt, IssueReportDialog]
+
 createRoot(root).render(
   <StrictMode>
     <RawIntlProvider value={intl}>
       <QueryClientProvider client={queryClient}>
         <ThemeProvider>
           <TooltipProvider>
-            <App />
-            <EgressPrompt />
-            <IssueReportDialog />
+            <AppDialogs dialogs={APP_DIALOGS}>
+              <App />
+            </AppDialogs>
             <MenuUpdateCheck />
             <Toaster position="top-right" />
           </TooltipProvider>

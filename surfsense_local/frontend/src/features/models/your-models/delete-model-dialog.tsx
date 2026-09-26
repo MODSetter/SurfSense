@@ -14,24 +14,30 @@ import { intl } from "@/i18n/intl"
 import type { YourModelRow } from "./your-model-row"
 
 export function DeleteModelDialog({
+  open,
   row,
   pending,
   error,
   onConfirm,
-  onCancel,
+  onOpenChange,
+  onOpenChangeComplete,
 }: {
+  open: boolean
   row: YourModelRow | null
   pending: boolean
   error: string | null
   onConfirm: () => void
-  onCancel: () => void
+  onOpenChange: (open: boolean) => void
+  /** Where the caller clears `row`, once the dialog has finished closing. */
+  onOpenChangeComplete: (open: boolean) => void
 }) {
   return (
     <AlertDialog
-      open={row !== null}
+      open={open}
       onOpenChange={(open) => {
-        if (!open && !pending) onCancel()
+        if (!pending) onOpenChange(open)
       }}
+      onOpenChangeComplete={onOpenChangeComplete}
     >
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>

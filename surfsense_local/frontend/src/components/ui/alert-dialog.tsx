@@ -4,6 +4,7 @@ import * as React from "react"
 import { AlertDialog as AlertDialogPrimitive } from "@base-ui/react/alert-dialog"
 import { cn } from "@/lib/utils"
 
+import { AppDialogHost } from "@/components/ui/app-dialog-slot"
 import { Button } from "@/components/ui/button"
 
 function AlertDialog({ ...props }: AlertDialogPrimitive.Root.Props) {
@@ -41,6 +42,7 @@ function AlertDialogOverlay({
 function AlertDialogContent({
   className,
   size = "default",
+  children,
   ...props
 }: AlertDialogPrimitive.Popup.Props & {
   size?: "default" | "sm"
@@ -58,7 +60,9 @@ function AlertDialogContent({
           className
         )}
         {...props}
-      />
+      >
+        <AppDialogHost>{children}</AppDialogHost>
+      </AlertDialogPrimitive.Popup>
     </AlertDialogPortal>
   )
 }

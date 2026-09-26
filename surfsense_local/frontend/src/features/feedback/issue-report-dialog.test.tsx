@@ -3,12 +3,14 @@ import { act, cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent, { type UserEvent } from "@testing-library/user-event"
 import { Toaster } from "sonner"
 
+import { AppDialogs } from "@/components/ui/app-dialog-slot"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
 
 import { errorToast } from "./error-toast"
 import { IssueReportDialog } from "./issue-report-dialog"
-import { openIssueReport } from "./open-issue-report"
+import { openIssueReport } from "./issue-report-state"
 
 const DETAILS = {
   version: "2.0.2",
@@ -101,6 +103,32 @@ describe("issue report", () => {
     expect(
       await screen.findByRole("dialog", { name: "Report an issue" })
     ).toBeTruthy()
+  })
+
+  it("keeps the draft when the dialog it opened over closes", async () => {
+    stubBridge()
+    const user = userEvent.setup()
+    const withSettings = (open: boolean) => (
+      <AppDialogs dialogs={[IssueReportDialog]}>
+        <Dialog open={open}>
+          <DialogContent>
+            <DialogTitle>Settings</DialogTitle>
+          </DialogContent>
+        </Dialog>
+      </AppDialogs>
+    )
+    const view = render(withSettings(true))
+    act(() => openIssueReport())
+    await describeIssue(user)
+    await user.keyboard("{Escape}")
+
+    view.rerender(withSettings(false))
+    act(() => openIssueReport())
+
+    const draft = await screen.findByRole<HTMLTextAreaElement>("textbox", {
+      name: "What went wrong?",
+    })
+    expect(draft.value).toBe("Chat never answers")
   })
 
   it("shows this session's log", async () => {

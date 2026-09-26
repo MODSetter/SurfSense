@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { act, cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { AppDialogs } from "@/components/ui/app-dialog-slot"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { requestVoid } from "@/lib/api"
 import { render } from "@/test-utils"
@@ -108,26 +109,19 @@ describe("egress prompt", () => {
     expect(calls).toEqual(["POST /chat/threads/1/messages"])
   })
 
-  it("asks from inside an open dialog as its nested dialog", async () => {
+  it("asks about a refused request as the open dialog's nested dialog", async () => {
+    stubApi()
     render(
-      <>
-        <EgressPrompt />
+      <AppDialogs dialogs={[EgressPrompt]}>
         <Dialog open>
           <DialogContent>
-            <DialogTitle>Settings</DialogTitle>
-            <EgressPrompt nested />
+            <DialogTitle>Connect a server</DialogTitle>
           </DialogContent>
         </Dialog>
-      </>
+      </AppDialogs>
     )
 
-    act(() => {
-      void askEgress({
-        destination: "app_updates",
-        host: "github.com",
-        allow: async () => undefined,
-      })
-    })
+    void requestVoid("/llm/connections", { method: "POST" }).catch(() => {})
 
     await screen.findByRole("alertdialog")
     expect(screen.getAllByRole("alertdialog")).toHaveLength(1)
@@ -141,23 +135,48 @@ describe("egress prompt", () => {
     )
   })
 
-  it("hands questions back to the app once the dialog closes", async () => {
-    const view = render(
-      <>
-        <EgressPrompt />
-        <EgressPrompt nested />
-      </>
-    )
-    view.rerender(<EgressPrompt />)
-
+  it("asks queued questions one after another", async () => {
+    const user = userEvent.setup()
+    render(<EgressPrompt />)
+    const ask = (host: string) =>
+      askEgress({
+        destination: `host:${host}`,
+        host,
+        allow: async () => undefined,
+      })
+    let first: Promise<boolean> = Promise.resolve(true)
     act(() => {
-      void askEgress({
+      first = ask("a.example")
+      void ask("b.example")
+    })
+
+    await screen.findByRole("alertdialog", {
+      name: "Allow sending data to a.example?",
+    })
+    await user.click(screen.getByRole("button", { name: "Cancel" }))
+
+    await expect(first).resolves.toBe(false)
+    expect(
+      await screen.findByRole("alertdialog", {
+        name: "Allow sending data to b.example?",
+      })
+    ).toBeTruthy()
+  })
+
+  it("answers no to a question left open when the prompt goes away", async () => {
+    const view = render(<EgressPrompt />)
+    let answer: Promise<boolean> = Promise.resolve(true)
+    act(() => {
+      answer = askEgress({
         destination: "app_updates",
         host: "github.com",
         allow: async () => undefined,
       })
     })
+    await screen.findByRole("alertdialog")
 
-    expect(await screen.findByRole("alertdialog")).toBeTruthy()
+    view.unmount()
+
+    await expect(answer).resolves.toBe(false)
   })
 })

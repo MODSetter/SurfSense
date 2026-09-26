@@ -45,8 +45,6 @@ export function AudioModelsSettings({
       }
       download={<DownloadAudioModels />}
       onChatCleared={onModelUnavailable}
-      // Hidden until a server model can voice podcasts.
-      servers={false}
       onUse={async (row) => {
         if (row.target) await select.mutateAsync({ target: row.target })
       }}

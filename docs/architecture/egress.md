@@ -58,7 +58,7 @@ Studio resolves its model in the worker, where no dialog can reach the user, so 
 - **Updates**, because their call is not the backend's to refuse: Check now asks while `automatic` is off, and Allow turns it on.
 - **Model search**, because the answer is wanted before the request: focusing the search box asks while `host:huggingface.co` is off, once per visit to the screen, so a refused search is not the first news that search is off. After Cancel, search says it needs `huggingface.co`, while curated and installed models keep working.
 
-While Settings is open, a second prompt inside it answers `askEgress()`, so the question opens as Settings' nested dialog and Settings steps back behind it. Refused requests still go to the app's prompt.
+Refused requests and `askEgress()` queue for one prompt, an app dialog (`AppDialogs` in `components/ui/app-dialog-slot.tsx`): it renders inside the innermost open dialog, so the question opens as that dialog's nested dialog and the dialog steps back behind it, or on its own when none is open. Questions still waiting when no prompt is mounted are answered no.
 
 Settings › Network lists the App updates row and every destination with its host and last call. Unticking one refuses the next call outright.
 

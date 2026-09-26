@@ -19,19 +19,26 @@ export function ConnectionDialog({
   open,
   connection,
   onOpenChange,
+  onOpenChangeComplete,
   onCreated,
 }: {
   open: boolean
   /** The server to edit; absent to add one. */
   connection?: Connection
   onOpenChange: (open: boolean) => void
+  /** Where a caller clears `connection`, once the dialog has finished closing. */
+  onOpenChangeComplete?: (open: boolean) => void
   /** A server just added, whose models are what the user wants next. */
   onCreated?: (connection: Connection) => void
 }) {
   const refresh = useRefreshModels()
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -64,19 +71,17 @@ export function ConnectionDialog({
                 })}
           </DialogDescription>
         </DialogHeader>
-        {/* Mounted per opening, so a closed dialog forgets what was typed. */}
-        {open ? (
-          <ConnectionForm
-            key={connection?.id ?? "new"}
-            connection={connection}
-            onCancel={() => onOpenChange(false)}
-            onSaved={(saved) => {
-              void refresh()
-              onOpenChange(false)
-              if (!connection) onCreated?.(saved)
-            }}
-          />
-        ) : null}
+        {/* The popup unmounts after closing, so each opening starts blank. */}
+        <ConnectionForm
+          key={connection?.id ?? "new"}
+          connection={connection}
+          onCancel={() => onOpenChange(false)}
+          onSaved={(saved) => {
+            void refresh()
+            onOpenChange(false)
+            if (!connection) onCreated?.(saved)
+          }}
+        />
       </DialogContent>
     </Dialog>
   )

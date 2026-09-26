@@ -20,70 +20,62 @@ import {
   destinationsQueryKey,
   setDestinationEnabled,
 } from "./api"
-import { registerAskHandler, type Pending } from "./ask-egress"
+import {
+  advanceEgressQueue,
+  askEgress,
+  settleEgress,
+  useEgressQuestion,
+  type Pending,
+} from "./ask-egress"
 
-function pendingFrom(error: ApiError, resolve: Pending["resolve"]): Pending {
+function requestFrom(error: ApiError): Omit<Pending, "resolve"> {
   const { destination, host } = error.detail
   const key = typeof destination === "string" ? destination : ""
   return {
     destination: key,
     host: typeof host === "string" ? host : "",
     allow: () => setDestinationEnabled(key, true),
-    resolve,
   }
 }
 
-// `nested`: rendered inside another dialog, it answers only questions asked
-// while that dialog is open; refused API calls stay with the app's prompt.
-export function EgressPrompt({ nested = false }: { nested?: boolean }) {
+// An app dialog (`AppDialogs`), so it opens over whatever dialog asked.
+export function EgressPrompt() {
   const queryClient = useQueryClient()
-  const [queue, setQueue] = useState<Pending[]>([])
+  const { question, open } = useEgressQuestion()
   const [allowing, setAllowing] = useState(false)
-  const current = queue[0]
 
   useEffect(() => {
-    const enqueue = (pending: Pending) =>
-      setQueue((queue) => [...queue, pending])
-    const unregister = registerAskHandler(
-      (request) => new Promise((resolve) => enqueue({ ...request, resolve }))
-    )
-    if (nested) return unregister
-    setEgressPrompt(
-      (error) => new Promise((resolve) => enqueue(pendingFrom(error, resolve)))
-    )
-    return () => {
-      setEgressPrompt(null)
-      unregister()
-    }
-  }, [nested])
-
-  const settle = (allowed: boolean) => {
-    current?.resolve(allowed)
-    setQueue((queue) => queue.slice(1))
-  }
+    setEgressPrompt((error) => askEgress(requestFrom(error)))
+    return () => setEgressPrompt(null)
+  }, [])
 
   const allow = async () => {
-    if (!current) return
+    if (!question) return
     setAllowing(true)
     try {
-      await current.allow()
+      await question.allow()
       void queryClient.invalidateQueries({ queryKey: destinationsQueryKey })
-      settle(true)
+      settleEgress(true)
     } catch {
-      settle(false)
+      settleEgress(false)
     } finally {
       setAllowing(false)
     }
   }
 
-  if (!current) return null
-  const copy = describeDestination(current.destination, current.host)
+  const copy = question
+    ? describeDestination(question.destination, question.host)
+    : null
   return (
-    <AlertDialog open onOpenChange={(open) => !open && settle(false)}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(open) => !open && settleEgress(false)}
+      onOpenChangeComplete={(open) => !open && advanceEgressQueue()}
+    >
       <AlertDialogContent className="select-none">
         <AlertDialogHeader>
-          <AlertDialogTitle>{copy.title}</AlertDialogTitle>
-          <AlertDialogDescription>{copy.body}</AlertDialogDescription>
+          <AlertDialogTitle>{copy?.title}</AlertDialogTitle>
+          <AlertDialogDescription>{copy?.body}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel disabled={allowing}>

@@ -33,6 +33,17 @@ These are the rules that compile fine and still break. Check
 - `AlertDialogAction` closes the dialog unless its click handler calls
   `event.preventDefault()`. The local wrapper keeps this Radix contract on
   purpose; the stock base-nova Action does not close at all.
+- Keep "open" apart from "what it shows". Closing only sets `open` false;
+  clear the data in `onOpenChangeComplete`, which fires once the exit
+  animation is done. `open={target !== null}` with content read from
+  `target` blanks the dialog before it fades. A dialog mounted only while it
+  has data (`{target ? <Dialog/> : null}`) is unmounted the same way, from
+  `onOpenChangeComplete`, never on close.
+- A dialog opened from inside another renders inside its `DialogContent`,
+  so Base UI nests it. A dialog the whole app can raise over any dialog
+  goes in `APP_DIALOGS` in `main.tsx` instead of being mounted: the deepest
+  open popup renders it, so it remounts as dialogs open and close and keeps
+  its state in a store (see `features/egress/ask-egress.ts`).
 - A nested dialog renders no backdrop. The parent dims and shrinks through
   `data-nested-dialog-open` and `--nested-dialogs`, already in the wrappers.
 - A popup inside a modal dialog (the combobox, through `container`) portals

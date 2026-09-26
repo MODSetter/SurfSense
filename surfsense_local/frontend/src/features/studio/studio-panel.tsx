@@ -452,6 +452,7 @@ export function StudioPanel({
   onGenerate: (job: StudioJobCreate) => Promise<boolean>
 }) {
   const [format, setFormat] = useState<string | null>(null)
+  const [formatOpen, setFormatOpen] = useState(false)
   const catalog = catalogFormats(formats)
   const selectedFormat = catalog.find((entry) => entry.key === format)
 
@@ -482,15 +483,19 @@ export function StudioPanel({
               key={entry.key}
               entry={entry}
               selected={format === entry.key}
-              onSelect={() => setFormat(entry.key)}
+              onSelect={() => {
+                setFormat(entry.key)
+                setFormatOpen(true)
+              }}
             />
           ))}
         </div>
       </section>
 
       <Dialog
-        open={selectedFormat != null}
-        onOpenChange={(open) => {
+        open={formatOpen}
+        onOpenChange={setFormatOpen}
+        onOpenChangeComplete={(open) => {
           if (!open) setFormat(null)
         }}
       >
@@ -514,7 +519,7 @@ export function StudioPanel({
                 isCreating={isCreating}
                 onGenerate={(job) => {
                   void onGenerate(job).then((created) => {
-                    if (created) setFormat(null)
+                    if (created) setFormatOpen(false)
                   })
                 }}
               />

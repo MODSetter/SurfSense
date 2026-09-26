@@ -95,12 +95,16 @@ function notice(
 }
 
 function LicenseFormDialog({
+  open,
   replacing,
   onOpenChange,
+  onOpenChangeComplete,
   onImported,
 }: {
+  open: boolean
   replacing: boolean
   onOpenChange: (open: boolean) => void
+  onOpenChangeComplete: (open: boolean) => void
   onImported: (status: LicenseStatus) => void
 }) {
   const fileInput = useRef<HTMLInputElement>(null)
@@ -130,7 +134,11 @@ function LicenseFormDialog({
   }
 
   return (
-    <Dialog open onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={onOpenChange}
+      onOpenChangeComplete={onOpenChangeComplete}
+    >
       <DialogContent className="select-none sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -237,6 +245,11 @@ export function LicenseSettings() {
   const queryClient = useQueryClient()
   const license = useLicense()
   const [editor, setEditor] = useState<"add" | "replace" | null>(null)
+  const [editorOpen, setEditorOpen] = useState(false)
+  const openEditor = (mode: "add" | "replace") => {
+    setEditor(mode)
+    setEditorOpen(true)
+  }
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
 
@@ -291,7 +304,7 @@ export function LicenseSettings() {
               defaultMessage: "No license on this device",
             })}
           </p>
-          <Button type="button" onClick={() => setEditor("add")}>
+          <Button type="button" onClick={() => openEditor("add")}>
             {intl.formatMessage({
               id: "license_settings_add_button",
               defaultMessage: "Add license",
@@ -367,7 +380,7 @@ export function LicenseSettings() {
               type="button"
               variant="outline"
               disabled={busy}
-              onClick={() => setEditor("replace")}
+              onClick={() => openEditor("replace")}
             >
               {intl.formatMessage({
                 id: "license_settings_replace_button",
@@ -404,10 +417,13 @@ export function LicenseSettings() {
         </p>
       ) : null}
 
-      {editor !== null ? (
+      {editor ? (
         <LicenseFormDialog
+          key={editor}
+          open={editorOpen}
           replacing={editor === "replace"}
-          onOpenChange={(open) => {
+          onOpenChange={setEditorOpen}
+          onOpenChangeComplete={(open) => {
             if (!open) setEditor(null)
           }}
           onImported={publish}

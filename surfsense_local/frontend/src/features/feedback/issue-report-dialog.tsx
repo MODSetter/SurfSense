@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type SubmitEvent } from "react"
+import { useEffect, useId, useRef, type SubmitEvent } from "react"
 import { toast } from "sonner"
 
 import { Button } from "@/components/ui/button"
@@ -24,38 +24,31 @@ import { systemInfo } from "@/features/about/system-info"
 import { useAppDetails } from "@/features/about/use-app-details"
 import { intl } from "@/i18n/intl"
 
-import { type ReportContext, setOpenHandler } from "./open-issue-report"
+import {
+  openIssueReport,
+  updateIssueReport,
+  useIssueReport,
+} from "./issue-report-state"
 import { prefilledIssue } from "./prefilled-issue"
 import { SessionLogView } from "./session-log-view"
 import { sessionLogBridge, useSessionLog } from "./use-session-log"
 
+// An app dialog (`AppDialogs`), so it opens over whatever dialog is open.
 export function IssueReportDialog() {
   const descriptionId = useId()
   const includeLogId = useId()
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
-  const [open, setOpen] = useState(false)
-  const [context, setContext] = useState<ReportContext>({})
-  // Outlives the dialog, so a stray Escape does not lose a half-written report.
-  const [description, setDescription] = useState("")
-  const [includeLog, setIncludeLog] = useState(true)
-  const [copyFailed, setCopyFailed] = useState(false)
+  const { open, context, description, includeLog, copyFailed } =
+    useIssueReport()
+  const setOpen = (open: boolean) => updateIssueReport({ open })
   const hasLog = sessionLogBridge() !== undefined
   const log = useSessionLog(open)
   const details = useAppDetails()
 
-  useEffect(() => {
-    const openWith = (next: ReportContext) => {
-      setContext(next)
-      setCopyFailed(false)
-      setOpen(true)
-    }
-    setOpenHandler(openWith)
-    const stopMenu = window.surfsense?.help?.onReportIssue(() => openWith({}))
-    return () => {
-      setOpenHandler(null)
-      stopMenu?.()
-    }
-  }, [])
+  useEffect(
+    () => window.surfsense?.help?.onReportIssue(() => openIssueReport()),
+    []
+  )
 
   const submit = async (event: SubmitEvent) => {
     event.preventDefault()
@@ -71,7 +64,7 @@ export function IssueReportDialog() {
         await navigator.clipboard.writeText(issue.paste.text)
       } catch {
         // GitHub would open with whatever was copied before, ready to paste into a public issue.
-        setCopyFailed(true)
+        updateIssueReport({ copyFailed: true })
         return
       }
     }
@@ -96,8 +89,7 @@ export function IssueReportDialog() {
         })
       )
     }
-    setDescription("")
-    setOpen(false)
+    updateIssueReport({ description: "", open: false })
   }
 
   return (
@@ -149,7 +141,9 @@ export function IssueReportDialog() {
               id={descriptionId}
               className="max-h-40"
               value={description}
-              onChange={(event) => setDescription(event.target.value)}
+              onChange={(event) =>
+                updateIssueReport({ description: event.target.value })
+              }
               placeholder={intl.formatMessage({
                 id: "feedback_form_description_placeholder",
                 defaultMessage:
@@ -163,7 +157,9 @@ export function IssueReportDialog() {
               <Checkbox
                 id={includeLogId}
                 checked={includeLog}
-                onCheckedChange={(checked) => setIncludeLog(checked === true)}
+                onCheckedChange={(checked) =>
+                  updateIssueReport({ includeLog: checked === true })
+                }
               />
               <FieldContent>
                 <FieldLabel htmlFor={includeLogId}>

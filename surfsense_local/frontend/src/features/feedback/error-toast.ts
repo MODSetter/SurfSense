@@ -2,7 +2,7 @@ import { type ExternalToast, toast } from "sonner"
 
 import { intl } from "@/i18n/intl"
 
-import { openIssueReport } from "./open-issue-report"
+import { openIssueReport } from "./issue-report-state"
 
 /** An error toast that offers Report issue, carrying what it said. */
 export function errorToast(title: string, options: ExternalToast = {}) {

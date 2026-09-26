@@ -97,6 +97,7 @@ export function ServerModels({
     model: ConnectionModel
     unlisted: boolean
   } | null>(null)
+  const [tryOpen, setTryOpen] = useState(false)
   const models = useConnectionModels(connection.id, open)
   const selection = useSelection(modelType)
 
@@ -113,6 +114,7 @@ export function ServerModels({
   const tryManual = () => {
     const name = manualName.trim()
     if (!name) return
+    setTryOpen(true)
     setTrying({
       unlisted: true,
       model: {
@@ -376,7 +378,10 @@ export function ServerModels({
                               model: model.name,
                             }
                           )}
-                          onClick={() => setTrying({ model, unlisted: false })}
+                          onClick={() => {
+                            setTrying({ model, unlisted: false })
+                            setTryOpen(true)
+                          }}
                         >
                           {intl.formatMessage({
                             id: "models_server_models_use_button",
@@ -456,10 +461,15 @@ export function ServerModels({
 
       {trying ? (
         <TryModelDialog
+          key={trying.model.name}
+          open={tryOpen}
           modelType={modelType}
           model={trying.model}
           unlisted={trying.unlisted}
-          onClose={() => setTrying(null)}
+          onOpenChange={setTryOpen}
+          onOpenChangeComplete={(open) => {
+            if (!open) setTrying(null)
+          }}
           onSelected={onSelected}
         />
       ) : null}
