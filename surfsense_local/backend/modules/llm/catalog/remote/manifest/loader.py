@@ -14,7 +14,9 @@ MANIFEST = Path(__file__).with_name("models.json")
 
 
 def load_remote_manifest(path: Path | None = None) -> RemoteManifest:
-    return RemoteManifest.model_validate_json((path or MANIFEST).read_text())
+    return RemoteManifest.model_validate_json(
+        (path or MANIFEST).read_text(encoding="utf-8")
+    )
 
 
 @lru_cache

@@ -1,5 +1,8 @@
 """The committed manifest is the one every remote label comes from."""
 
+import subprocess
+import sys
+
 import pytest
 
 from modules.llm.catalog.remote.manifest.loader import (
@@ -17,6 +20,31 @@ def test_the_shipped_manifest_loads() -> None:
 
     assert "openai" in manifest.providers
     assert "openrouter" in manifest.providers
+
+
+def test_the_shipped_manifest_loads_without_the_system_encoding() -> None:
+    """Windows reads cp1252 by default, and the manifest's UTF-8 left it empty."""
+    load = (
+        "from modules.llm.catalog.remote.manifest.loader import load_remote_manifest;"
+        "load_remote_manifest()"
+    )
+    run = subprocess.run(
+        [
+            sys.executable,
+            "-X",
+            "warn_default_encoding",
+            "-W",
+            "error::EncodingWarning",
+            "-c",
+            load,
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+    )
+
+    assert run.returncode == 0, run.stderr
 
 
 def test_the_shipped_manifest_knows_an_embedder_is_not_a_chat_model() -> None:
