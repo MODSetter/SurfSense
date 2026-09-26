@@ -8,7 +8,9 @@ MANIFEST_PATH = Path(__file__).with_name("models.json")
 
 
 def load_local_manifest(path: Path | None = None) -> LocalManifest:
-    return LocalManifest.model_validate_json((path or MANIFEST_PATH).read_text())
+    return LocalManifest.model_validate_json(
+        (path or MANIFEST_PATH).read_text(encoding="utf-8")
+    )
 
 
 def empty_manifest() -> LocalManifest:
