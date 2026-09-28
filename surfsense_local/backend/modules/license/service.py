@@ -42,7 +42,7 @@ def status(session: Session) -> LicenseStatus:
     row = _row(session, instant)
     if row.certificate is None:
         return LicenseStatus(state="none")
-    return _status(row, verify(row.certificate, instant), instant)
+    return _status(row, verify(row.certificate, max(instant, row.clock_watermark)), instant)
 
 
 def _status(row: LicenseState, verified: Verified, instant: datetime) -> LicenseStatus:

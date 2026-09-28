@@ -194,6 +194,23 @@ async def test_a_clock_set_back_is_untrusted_until_it_catches_up(
     assert (rolled_back, caught_up) == ("clock_untrusted", "active")
 
 
+async def test_status_reports_clock_untrusted_for_a_stored_future_certificate(
+    client: AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A stored file ahead of the clock is a status state, not a server error."""
+    clock = {"now": TODAY}
+    monkeypatch.setattr(service, "now", lambda: clock["now"])
+    certificate = signed(payload(TODAY.isoformat()))
+
+    assert (await put_license(client, certificate)).status_code == 200
+
+    clock["now"] = TODAY - verify.MAX_CLOCK_DRIFT - timedelta(seconds=1)
+    response = await client.get("/license/status")
+
+    assert response.status_code == 200
+    assert response.json()["state"] == "clock_untrusted"
+
+
 async def test_a_fresh_install_has_no_license(client: AsyncClient) -> None:
     """Nothing imported, nothing to show; the free app does not nag."""
     assert (await client.get("/license/status")).json() == {

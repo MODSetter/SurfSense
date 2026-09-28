@@ -58,4 +58,3 @@ The release workflow's step "Refuse to build with the test signing key" runs `te
 ## Known gaps
 
 - Settings has no "Start trial" or "Buy" link, and its expired-license notice says to renew "from your account", which the portal does not have.
-- A stored file whose `meta.issued` is more than five minutes ahead of the clock makes `GET /license/status` fail with 500 instead of answering `clock_untrusted`: `status()` re-runs `verify()`, and nothing catches its rejection.
