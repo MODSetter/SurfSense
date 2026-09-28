@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@11.27.1",
   "version": "2.0.3",
-  "description": "Electron shell: spawns the API + worker sidecars, loads the Vite SPA",
+  "description": "Air gapped, privacy focused open source NotebookLM alternative.",
   "author": {
     "name": "SurfSense",
     "email": "noreply@surfsense.app"
