@@ -54,13 +54,13 @@ export function SiteFooter() {
 			<div className="ss-home-pad flex flex-col gap-12 py-16 lg:flex-row lg:justify-between lg:gap-16">
 				<div className="flex max-w-sm shrink-0 flex-col justify-between gap-12">
 					<div>
-						<Link href="/" className="inline-flex items-center gap-1.5">
+						<Link href="/" className="select-none inline-flex items-center gap-1.5">
 							<Image
 								src="/icon-128.svg"
 								alt=""
 								width={28}
 								height={28}
-								className="size-6 select-none invert"
+								className="size-6 invert"
 							/>
 							<span className="ss-home-wordmark text-xl text-[#e8e3da]">SurfSense</span>
 						</Link>

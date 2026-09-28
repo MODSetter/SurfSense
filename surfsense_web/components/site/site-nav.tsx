@@ -33,7 +33,7 @@ function Wordmark() {
 	return (
 		<Link
 			href="/"
-			className="flex shrink-0 items-center gap-1.5 rounded-[2px] px-1 py-1 transition-colors duration-100 hover:text-[color:var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--ring)]"
+			className="select-none flex shrink-0 items-center gap-1.5 rounded-[2px] px-1 py-1 transition-colors duration-100 hover:text-[color:var(--muted-foreground)] focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[color:var(--ring)]"
 		>
 			<Image
 				src="/icon-128.svg"
@@ -41,7 +41,7 @@ function Wordmark() {
 				width={20}
 				height={20}
 				priority
-				className="size-6 select-none dark:invert"
+				className="size-6 dark:invert"
 			/>
 			<span className="ss-home-wordmark text-lg text-[color:var(--foreground)]">
 				SurfSense

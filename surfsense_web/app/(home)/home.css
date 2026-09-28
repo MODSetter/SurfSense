@@ -1293,14 +1293,19 @@
 	outline-offset: 4px;
 }
 
-/* A plus that becomes a minus. The rotation is decorative; the open state is
- * already exposed by details/summary itself, so assistive technology and a
- * reduced-motion visitor both still get the state. */
+/* A plus that turns into a close cross. The rotation is decorative; the open
+ * state is already exposed by details/summary itself, so assistive technology
+ * and a reduced-motion visitor both still get the state. */
 .ss-home-faq-marker {
 	position: relative;
 	flex: none;
 	width: 0.75rem;
 	height: 0.75rem;
+	transition: transform 150ms ease-out;
+}
+
+.ss-home-faq[open] .ss-home-faq-marker {
+	transform: rotate(45deg);
 }
 
 .ss-home-faq-marker::before,
@@ -1310,15 +1315,10 @@
 	inset: 50% 0 auto;
 	height: 1px;
 	background: currentColor;
-	transition: transform 150ms ease-out;
 }
 
 .ss-home-faq-marker::after {
 	transform: rotate(90deg);
-}
-
-.ss-home-faq[open] .ss-home-faq-marker::after {
-	transform: rotate(0deg);
 }
 
 /* ---------------------------------------------------------------------------
