@@ -7,6 +7,7 @@ import httpx
 
 from modules.llm.catalog.remote.manifest.loader import remote_lookup
 from modules.llm.catalog.remote.rows import CUSTOM
+from modules.llm.connections.key_headers import key_headers
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection
 
@@ -59,10 +60,6 @@ def normalize_base_url(value: str) -> str:
     netloc = f"{host}:{port}" if port is not None else host
     path = parsed.path.rstrip("/")
     return urlunsplit((parsed.scheme, netloc, path, "", ""))
-
-
-def _headers(api_key: str | None) -> dict[str, str]:
-    return {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
 
 def _modalities(entry: dict) -> set[str]:
@@ -140,7 +137,7 @@ async def _request_entries(
     params = {"output_modalities": "image"} if image_only else None
     async with httpx.AsyncClient(
         timeout=DISCOVERY_TIMEOUT,
-        headers=_headers(api_key),
+        headers=key_headers(base_url, api_key),
     ) as client:
         reply = await client.get(f"{base_url}/models", params=params)
         reply.raise_for_status()
