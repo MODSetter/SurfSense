@@ -20,7 +20,7 @@
   --secondary: #f1f0ec;
   --background: #f7f6f2;
   --app-shell: #f3f2ee;
-  --font-serif: "Newsreader", serif;
+  --font-brand: "Fraunces", serif;
   --foreground: #1e1e1e;
   --destructive: #dc2626;
   --notice: #3f74c8;
@@ -70,7 +70,7 @@
   --secondary: #222222;
   --background: #141414;
   --app-shell: #101010;
-  --font-serif: "Newsreader", serif;
+  --font-brand: "Fraunces", serif;
   --foreground: #e8e3da;
   --destructive: #ef4444;
   --notice: #3f74c8;
@@ -120,7 +120,7 @@
   --color-secondary: var(--secondary);
   --color-background: var(--background);
   --color-app-shell: var(--app-shell);
-  --color-font-serif: var(--font-serif);
+  --color-font-brand: var(--font-brand);
   --color-foreground: var(--foreground);
   --color-destructive: var(--destructive);
   --color-notice: var(--notice);

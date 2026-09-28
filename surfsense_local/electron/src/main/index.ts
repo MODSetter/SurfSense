@@ -630,6 +630,12 @@ function main(): void {
   }
 }
 
+// Thin, auto-hiding scrollbars on every scroll container; must be set before whenReady().
+app.commandLine.appendSwitch(
+  "enable-features",
+  "OverlayScrollbar,FluentScrollbar,FluentOverlayScrollbars"
+)
+
 // one app, one set of sidecars: a second instance would fight over the SQLite
 // file and the port, so hand off to the primary window and quit
 if (app.requestSingleInstanceLock()) {

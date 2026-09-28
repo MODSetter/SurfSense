@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense，可物理隔离运行的开源 NotebookLM 替代品" src="surfsense_web/public/homepage/icon.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense，可物理隔离运行的开源 NotebookLM 替代品" src="surfsense_web/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="SurfSense 桌面应用，已打开 Studio 并选中 Qwen，正在把本地来源变成成品" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="SurfSense 桌面应用，已打开 Studio 并选中 Qwen，正在把本地来源变成成品" />
 </p>
 
 SurfSense 是一款免费开源的桌面应用，专为你手头已有的文档而做。把文档拖进来提问，得到的答案都会标注出处；同一批文档还能直接变成简报、幻灯片、报告、学习指南或播客。这一切都在你自己的电脑上完成：索引存在你的硬盘里，模型由你来选，应用不上传任何东西。也不需要注册账号。

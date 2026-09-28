@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प" src="surfsense_web/public/homepage/icon.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, एयर-गैप्ड, ओपन-सोर्स NotebookLM विकल्प" src="surfsense_web/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="SurfSense डेस्कटॉप ऐप, जिसमें Studio खुला है और Qwen चुना गया है, लोकल स्रोतों को आर्टिफैक्ट में बदलते हुए" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="SurfSense डेस्कटॉप ऐप, जिसमें Studio खुला है और Qwen चुना गया है, लोकल स्रोतों को आर्टिफैक्ट में बदलते हुए" />
 </p>
 
 SurfSense एक मुफ़्त, ओपन-सोर्स डेस्कटॉप ऐप है, उन दस्तावेज़ों के लिए जो पहले से आपके पास हैं। उन्हें ऐप में डालें, सवाल पूछें और ऐसे जवाब पाएँ जो अपने स्रोत का हवाला देते हैं; फिर उन्हीं दस्तावेज़ों को ब्रीफ़िंग, स्लाइड डेक, रिपोर्ट, स्टडी गाइड या पॉडकास्ट में बदल दें। यह सब आपकी अपनी मशीन पर चलता है: इंडेक्स आपकी डिस्क पर रहता है, मॉडल आप चुनते हैं, और ऐप कुछ भी अपलोड नहीं करता। कोई अकाउंट बनाने की ज़रूरत नहीं।

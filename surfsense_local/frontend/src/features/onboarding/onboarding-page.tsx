@@ -44,7 +44,9 @@ function OnboardingBrand() {
           maskSize: "contain",
         }}
       />
-      <span className="font-heading text-2xl font-medium">SurfSense</span>
+      <span className="brand-wordmark -translate-y-[0.08em] text-2xl">
+        SurfSense
+      </span>
     </div>
   )
 }

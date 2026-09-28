@@ -1,4 +1,4 @@
-import { IconBrandGithub } from "@tabler/icons-react";
+import { GithubLogo } from "@/components/homepage/icons/github-logo";
 
 /**
  * GitHub star count in the site navigation.
@@ -39,7 +39,7 @@ export function SiteStars({ count, href }: { count: number | null; href: string 
 					: `SurfSense on GitHub, ${count.toLocaleString("en-US")} stars`
 			}
 		>
-			<IconBrandGithub aria-hidden="true" className="size-4 shrink-0" />
+			<GithubLogo aria-hidden="true" className="size-4 shrink-0" />
 			<span aria-hidden="true" className="ss-home-nav-stars-count">
 				{count === null ? "" : compact(count)}
 			</span>

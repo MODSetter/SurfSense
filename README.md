@@ -14,7 +14,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="surfsense_web/public/homepage/icon.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense, the air-gapped open-source NotebookLM alternative" src="surfsense_web/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -41,7 +41,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="SurfSense desktop app with Studio open and Qwen selected, turning local sources into artifacts" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="SurfSense desktop app with Studio open and Qwen selected, turning local sources into artifacts" />
 </p>
 
 SurfSense is a free, open-source desktop app for the documents you already have. Drop them in, ask questions and get answers that cite their sources, then turn the same documents into a briefing, a slide deck, a report, a study guide or a podcast. All of it runs on your own machine: the index sits on your disk, you pick the model, and the app uploads nothing. There is no account to create.

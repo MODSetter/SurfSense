@@ -13,7 +13,7 @@
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue)](LICENSE)
 [![Discord](https://img.shields.io/discord/1359368468260192417?label=Discord)](https://discord.gg/ejRNvftDp9)
 
-  <a href="https://www.surfsense.com/"><img width="128" height="128" alt="SurfSense، بديل NotebookLM مفتوح المصدر والمعزول عن الشبكة" src="surfsense_web/public/homepage/icon.png" /></a>
+  <a href="https://www.surfsense.com/"><img alt="SurfSense، بديل NotebookLM مفتوح المصدر والمعزول عن الشبكة" src="surfsense_web/public/homepage/banner.png" /></a>
 
   <h1>SurfSense</h1>
 
@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="تطبيق SurfSense لسطح المكتب مع Studio مفتوحًا وQwen محددًا، يحوّل المصادر المحلية إلى مخرجات" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="تطبيق SurfSense لسطح المكتب مع Studio مفتوحًا وQwen محددًا، يحوّل المصادر المحلية إلى مخرجات" />
 </p>
 
 SurfSense تطبيق سطح مكتب مجاني ومفتوح المصدر للمستندات الموجودة أصلًا. تُلقى في التطبيق، وتُطرح الأسئلة، وتأتي الإجابات مع ذكر المصدر، ثم تصير المستندات نفسها إحاطة أو عرض شرائح أو تقريرًا أو دليل دراسة أو بودكاست. كل ذلك يجري على الجهاز: الفهرس يقيم على القرص، والنموذج يُختار هناك، والتطبيق لا يرفع شيئًا. لا حساب يُنشأ.

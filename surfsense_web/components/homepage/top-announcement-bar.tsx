@@ -64,11 +64,18 @@ export function TopAnnouncementBar() {
 			    `--home-max`, bordered on the sides. Filling *this* box with the
 			    notice color (rather than the full-bleed strip around it) is what
 			    keeps the banner reading as the same width as the nav. */}
-			<div className="relative mx-auto flex max-w-(--home-max) items-center justify-center gap-2 border-x border-border bg-(--notice,#3f74c8) px-4 py-2.5 text-center text-sm font-medium text-white">
+			<div className="relative mx-auto flex max-w-(--home-max) items-center justify-center gap-2 border-x border-border bg-(--notice,#3f74c8) px-10 py-2.5 sm:px-4 text-center text-sm font-medium text-white">
+				{/* On mobile the whole bar is the link, so the text stays one line
+				    instead of wrapping around a separate "Read announcement". */}
+				<Link
+					href="/sunset"
+					aria-label="Read announcement"
+					className="absolute inset-0 sm:hidden"
+				/>
 				<span>SurfSense is moving to a local app.</span>
 				<Link
 					href="/sunset"
-					className="inline-flex items-center gap-1 underline underline-offset-2 hover:opacity-90"
+					className="hidden items-center sm:inline-flex gap-1 underline underline-offset-2 hover:opacity-90"
 				>
 					Read announcement
 					<LinkSquare02Icon className="size-3.5" />
@@ -77,7 +84,7 @@ export function TopAnnouncementBar() {
 					type="button"
 					onClick={handleDismiss}
 					aria-label="Dismiss announcement"
-					className="absolute right-2 top-1/2 -translate-y-1/2 rounded-[2px] p-1 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+					className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-[2px] p-1 hover:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
 				>
 					<Cancel01Icon className="size-4" />
 				</button>
