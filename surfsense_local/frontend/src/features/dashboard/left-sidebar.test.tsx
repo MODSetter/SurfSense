@@ -35,7 +35,7 @@ describe("LeftSidebar", () => {
     render(<LeftSidebar {...baseProps()} />)
 
     const brand = screen.getByRole("heading", { name: "SurfSense" })
-    expect(brand.className).toContain("font-heading")
+    expect(brand.className).toContain("brand-wordmark")
     expect(brand.className).toContain("select-none")
 
     const newChat = screen.getByRole("button", { name: "New chat" })

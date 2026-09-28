@@ -31,7 +31,7 @@ function AppIdentity({ version }: { version?: string }) {
         }}
       />
       <div className="flex flex-col">
-        <span className="font-heading text-lg font-medium">SurfSense</span>
+        <span className="brand-wordmark text-xl">SurfSense</span>
         {version ? (
           <div className="flex items-center gap-1">
             <span className="text-sm text-muted-foreground tabular-nums">

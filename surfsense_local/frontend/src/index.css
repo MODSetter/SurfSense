@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/instrument-sans";
-@import "@fontsource-variable/newsreader";
+@import "@fontsource-variable/fraunces/full.css";
 @import "@fontsource/ibm-plex-mono/400.css";
 @import "katex/dist/katex.min.css";
 
@@ -15,8 +15,8 @@
 @theme inline {
   --font-heading: var(--font-sans);
   --font-sans: "Instrument Sans Variable", sans-serif;
-  --font-serif: "Newsreader Variable", serif;
   --font-mono: "IBM Plex Mono", monospace;
+  --font-brand: "Fraunces Variable", serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -157,6 +157,17 @@
   --sidebar-accent-foreground: #d1cfc0;
   --sidebar-border: #2c2c2c;
   --sidebar-ring: #d1cfc0;
+}
+
+/* The product name only. Headings stay on --font-heading so the name reads as
+ * the brand, not as one more title. */
+@utility brand-wordmark {
+  font-family: var(--font-brand);
+  font-weight: 600;
+  font-optical-sizing: auto;
+  font-variation-settings:
+    "SOFT" 75,
+    "WONK" 1;
 }
 
 @layer base {
