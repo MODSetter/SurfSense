@@ -145,10 +145,6 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 
 ## Known gaps
 
-- `build-sdcpp.yml` has not run yet, so no release has built or packaged sd.cpp: the Linux and macOS compiles and the Windows runtime copy have not run; only the build recipe is unit-tested.
 - No CI job generates an image with the staged `sd-server`; its gates are `--help` and the platform floors, not a picture.
-- No tagged release has built the llama.cpp runtime: the v2.0.2 run staged Ollama and llmfit instead.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
-- No release has built or packaged audio.cpp yet, and nothing has staged its macOS archive on a Mac.
-- No workflow runs the `surfsense_local` unit or integration tests on pull requests; only the two packaging tests above run in CI.
 - No test ingests a PDF with networking disabled.
