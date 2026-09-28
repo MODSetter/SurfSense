@@ -414,6 +414,87 @@
 	pointer-events: none;
 }
 
+.ss-home-features-tab-chevron {
+	display: none;
+}
+
+/* Mobile accordion. The list and the panel stack dissolve (`display: contents`)
+ * so triggers and panels become siblings, interleaved by their inline `order`.
+ * The trigger already shows the story heading, so the H2 is visually hidden
+ * rather than removed: the SEO brief still needs it in the markup. */
+@media (max-width: 767px) {
+	.ss-home-features {
+		display: flex;
+		flex-direction: column;
+		gap: 1px;
+		background-color: var(--border);
+	}
+
+	.ss-home-features-tablist,
+	.ss-home-features-panels {
+		display: contents;
+	}
+
+	.ss-home-features-tab {
+		flex-direction: row;
+		align-items: center;
+		gap: 0.875rem;
+		width: 100%;
+		padding-block: 1rem;
+		border-top: 0;
+		border-left: 2px solid transparent;
+		background-color: var(--background);
+		white-space: normal;
+	}
+
+	.ss-home-features-tab[data-state="active"] {
+		border-left-color: var(--home-accent);
+	}
+
+	.ss-home-features-tab-title {
+		flex: 1;
+	}
+
+	.ss-home-features-tab-chevron {
+		display: block;
+		flex-shrink: 0;
+		color: var(--muted-foreground);
+		transition: transform 150ms ease-out;
+	}
+
+	.ss-home-features-tab[data-state="active"] .ss-home-features-tab-chevron {
+		transform: rotate(180deg);
+	}
+
+	.ss-home-features-panels > * {
+		margin-top: 0;
+	}
+
+	.ss-home-features-panels > [data-state="inactive"] {
+		display: none;
+	}
+
+	.ss-home-features .ss-home-statement {
+		/* The hidden H2 leaves the body's own mt-5 as the top gap. */
+		padding-block: 0 1.5rem;
+	}
+
+	.ss-home-features-heading {
+		position: absolute;
+		width: 1px;
+		height: 1px;
+		overflow: hidden;
+		clip-path: inset(50%);
+		white-space: nowrap;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.ss-home-features-tab-chevron {
+		transition: none;
+	}
+}
+
 /* ---------------------------------------------------------------------------
  * Type
  *

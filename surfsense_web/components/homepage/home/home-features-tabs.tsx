@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useRef } from "react";
 import { PROOF_POINTS, STORIES } from "@/components/homepage/home/home-content";
-import { ArrowRightIcon, CheckIcon } from "@/components/ui/icons";
+import { ArrowRightIcon, CheckIcon, ChevronDownIcon } from "@/components/ui/icons";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Matches the max-width of the accordion block in home.css.
+const ACCORDION_QUERY = "(max-width: 767px)";
 
 /**
  * H2 #5, #6, #7 as a tabbed switcher rather than three stacked rows.
@@ -14,24 +18,56 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
  * stacked in one grid cell so the section's height is always the tallest
  * panel's height: switching tabs never changes it, so nothing below the
  * section moves.
+ *
+ * Below 768px the same tabs lay out as an accordion: the `order` pairs each
+ * panel with its trigger once CSS flattens the list. One component rather than
+ * a second accordion, so the three H2s appear once.
  */
 export function HomeFeaturesTabs() {
+	const triggers = useRef(new Map<string, HTMLButtonElement>());
+
+	// Closing the panel above the tapped row pulls that row up, possibly off screen.
+	const keepOpenedRowInView = (value: string) => {
+		if (!window.matchMedia(ACCORDION_QUERY).matches) return;
+		requestAnimationFrame(() => triggers.current.get(value)?.scrollIntoView({ block: "nearest" }));
+	};
+
 	return (
-		<Tabs defaultValue={STORIES[0].key}>
+		<Tabs
+			defaultValue={STORIES[0].key}
+			onValueChange={keepOpenedRowInView}
+			className="ss-home-features"
+		>
 			<TabsList className="ss-home-features-tablist ss-home-grid ss-home-grid-3">
 				{STORIES.map((story, index) => (
-					<TabsTrigger key={story.key} value={story.key} className="ss-home-features-tab">
+					<TabsTrigger
+						key={story.key}
+						value={story.key}
+						ref={(node) => {
+							if (node) triggers.current.set(story.key, node);
+							else triggers.current.delete(story.key);
+						}}
+						style={{ order: index * 2 }}
+						className="ss-home-features-tab"
+					>
 						<span className="ss-home-features-tab-num">{String(index + 1).padStart(2, "0")}</span>
 						<span className="ss-home-features-tab-title">{story.heading}</span>
+						<ChevronDownIcon aria-hidden="true" className="ss-home-features-tab-chevron size-4" />
 					</TabsTrigger>
 				))}
 			</TabsList>
 
 			<div className="ss-home-features-panels">
-				{STORIES.map((story) => (
-					<TabsContent key={story.key} value={story.key} forceMount className="ss-home-split">
+				{STORIES.map((story, index) => (
+					<TabsContent
+						key={story.key}
+						value={story.key}
+						forceMount
+						style={{ order: index * 2 + 1 }}
+						className="ss-home-split"
+					>
 						<div className="ss-home-statement">
-							<h2 className="ss-home-h2">{story.heading}</h2>
+							<h2 className="ss-home-h2 ss-home-features-heading">{story.heading}</h2>
 							<div className="ss-home-body mt-5 flex flex-col gap-4">
 								{story.body.map((paragraph) => (
 									<p key={paragraph}>{paragraph}</p>

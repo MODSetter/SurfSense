@@ -1,5 +1,6 @@
-import { Fraunces, Instrument_Sans } from "next/font/google";
+import { Fraunces } from "next/font/google";
 import { getStarCount, STARS_HREF } from "@/components/site/github-stars";
+import { siteSansFont } from "@/components/site/site-sans-font";
 import { SiteShell } from "@/components/site/site-shell";
 import "./home.css";
 
@@ -9,14 +10,6 @@ const fraunces = Fraunces({
 	axes: ["SOFT", "WONK", "opsz"],
 	display: "swap",
 	variable: "--font-brand",
-});
-
-// The marketing routes' text font; the rest of the site stays on Roboto.
-// Taking over --font-sans here keeps `font-sans` utilities on it too.
-const instrumentSans = Instrument_Sans({
-	subsets: ["latin"],
-	display: "optional",
-	variable: "--font-sans",
 });
 
 /**
@@ -35,7 +28,7 @@ export default async function HomePageLayout({ children }: { children: React.Rea
 
 	return (
 		<div
-			className={`${fraunces.variable} ${instrumentSans.variable} ${instrumentSans.className} contents`}
+			className={`${fraunces.variable} ${siteSansFont.variable} ${siteSansFont.className} contents`}
 		>
 			<SiteShell starCount={starCount} starsHref={STARS_HREF}>
 				{children}

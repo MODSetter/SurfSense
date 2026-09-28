@@ -194,6 +194,7 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 			<div
 				data-state={menuOpen ? "open" : "closed"}
 				inert={!menuOpen}
+				data-lenis-prevent
 				className="ss-home-nav-drawer"
 			>
 				<div className="flex flex-col gap-0.5 px-4 py-3">
