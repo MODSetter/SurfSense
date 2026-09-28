@@ -1,6 +1,15 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import Link from "next/link";
+import { AmazonLogo } from "@/components/homepage/icons/amazon-logo";
+import { GoogleMapsLogo } from "@/components/homepage/icons/google-maps-logo";
+import { GoogleSearchLogo } from "@/components/homepage/icons/google-search-logo";
+import { IndeedLogo } from "@/components/homepage/icons/indeed-logo";
+import { InstagramLogo } from "@/components/homepage/icons/instagram-logo";
+import { RedditLogo } from "@/components/homepage/icons/reddit-logo";
+import { TiktokLogo } from "@/components/homepage/icons/tiktok-logo";
+import { WalmartLogo } from "@/components/homepage/icons/walmart-logo";
+import { WebCrawlLogo } from "@/components/homepage/icons/web-crawl-logo";
+import { YoutubeLogo } from "@/components/homepage/icons/youtube-logo";
 import { Badge } from "@/components/ui/badge";
 import { ArrowUpRight01Icon } from "@/components/ui/icons";
 
@@ -21,9 +30,10 @@ import { ArrowUpRight01Icon } from "@/components/ui/icons";
  * `lib/connectors-marketing` — the plugin itself is not live yet, but the page
  * explaining what it will do already is.
  *
- * Logos are the same brand SVGs the product's own connector picker uses (see
- * `contracts/enums/connectorIcons.tsx`), read from `public/connectors/`, rather
- * than a second icon set drawn just for this page.
+ * Logos are inline components from `components/homepage/icons/`, so they
+ * arrive in the HTML and paint with the page instead of loading one request
+ * each afterwards. They are the marketing site's own copies of the brand
+ * marks the product's connector picker reads from `public/connectors/`.
  *
  * Replaces the old `/connectors` index, which now redirects here from
  * `next.config.ts`.
@@ -58,16 +68,16 @@ export const metadata: Metadata = {
 };
 
 const PLUGINS = [
-	{ name: "Reddit", href: "/reddit", logo: "/connectors/reddit.svg" },
-	{ name: "YouTube", href: "/youtube", logo: "/connectors/youtube.svg" },
-	{ name: "Instagram", href: "/instagram", logo: "/connectors/instagram.svg" },
-	{ name: "TikTok", href: "/tiktok", logo: "/connectors/tiktok.svg" },
-	{ name: "Google Maps", href: "/google-maps", logo: "/connectors/google-maps.svg" },
-	{ name: "Google Search", href: "/google-search", logo: "/connectors/google-search.svg" },
-	{ name: "Indeed", href: "/indeed", logo: "/connectors/indeed.svg" },
-	{ name: "Amazon", href: "/amazon", logo: "/connectors/amazon.svg" },
-	{ name: "Walmart", href: "/walmart", logo: "/connectors/walmart.svg" },
-	{ name: "Web Crawl", href: "/web-crawl", logo: "/connectors/web.svg" },
+	{ name: "Reddit", href: "/reddit", Logo: RedditLogo },
+	{ name: "YouTube", href: "/youtube", Logo: YoutubeLogo },
+	{ name: "Instagram", href: "/instagram", Logo: InstagramLogo },
+	{ name: "TikTok", href: "/tiktok", Logo: TiktokLogo },
+	{ name: "Google Maps", href: "/google-maps", Logo: GoogleMapsLogo },
+	{ name: "Google Search", href: "/google-search", Logo: GoogleSearchLogo },
+	{ name: "Indeed", href: "/indeed", Logo: IndeedLogo },
+	{ name: "Amazon", href: "/amazon", Logo: AmazonLogo },
+	{ name: "Walmart", href: "/walmart", Logo: WalmartLogo },
+	{ name: "Web Crawl", href: "/web-crawl", Logo: WebCrawlLogo },
 ];
 
 export default function PluginsPage() {
@@ -100,13 +110,7 @@ export default function PluginsPage() {
 					{PLUGINS.map((plugin) => (
 						<li key={plugin.name}>
 							<Link href={plugin.href} className="ss-home-cell ss-home-cell-link">
-								<Image
-									src={plugin.logo}
-									alt=""
-									width={20}
-									height={20}
-									className="size-5 shrink-0"
-								/>
+								<plugin.Logo className="size-5 shrink-0" />
 								<span className="ss-home-h3">{plugin.name}</span>
 								<ArrowUpRight01Icon
 									aria-hidden="true"

@@ -1,6 +1,6 @@
 "use client";
 
-import { IconChevronDown, IconMenu2, IconX } from "@tabler/icons-react";
+import { IconChevronDown } from "@tabler/icons-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -150,63 +150,69 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 						}}
 						aria-label={menuOpen ? "Close menu" : "Open menu"}
 						aria-expanded={menuOpen}
+						data-state={menuOpen ? "open" : "closed"}
 						className="ss-home-nav-link ss-home-nav-toggle"
 					>
-						{menuOpen ? (
-							<IconX aria-hidden="true" className="size-4" />
-						) : (
-							<IconMenu2 aria-hidden="true" className="size-4" />
-						)}
+						{/* One icon whose bars morph between menu and close, rather than
+						    two icons swapped in a single frame. */}
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							strokeWidth={2}
+							strokeLinecap="round"
+							aria-hidden="true"
+							className="ss-home-nav-burger size-4"
+						>
+							<line x1="4" y1="6" x2="20" y2="6" />
+							<line x1="4" y1="12" x2="20" y2="12" />
+							<line x1="4" y1="18" x2="20" y2="18" />
+						</svg>
 					</button>
 				</div>
 			</div>
 
-			{menuOpen ? (
-				<>
-					{/* Tap-to-dismiss ground. It is decorative: Escape and the toggle
-					    both already close the menu, so a keyboard user loses nothing by
-					    it being unreachable. */}
-					<button
-						type="button"
-						aria-hidden="true"
-						tabIndex={-1}
-						className="ss-home-nav-scrim"
-						onClick={closeAll}
-					/>
+			{/* The scrim and drawer stay mounted so opening and closing can
+			    animate; `inert` keeps the closed drawer out of the tab order and
+			    the accessibility tree.
 
-					{/* No Sign in here: the bar's own button stays visible while the
-					    drawer is open, so repeating it would show the same control
-					    twice on one screen. */}
-					<div className="ss-home-nav-drawer">
-						<div className="flex flex-col gap-0.5 px-4 py-3">
-							{NAV_LINKS.map((link) => (
-								<Link
-									key={link.href}
-									href={link.href}
-									onClick={closeAll}
-									className="ss-home-nav-link"
-								>
-									{link.name}
-								</Link>
-							))}
+			    The scrim is a tap-to-dismiss ground. It is decorative: Escape and
+			    the toggle both already close the menu, so a keyboard user loses
+			    nothing by it being unreachable. */}
+			<button
+				type="button"
+				aria-hidden="true"
+				tabIndex={-1}
+				data-state={menuOpen ? "open" : "closed"}
+				className="ss-home-nav-scrim"
+				onClick={closeAll}
+			/>
 
-							<div className="my-1.5 border-t border-[color:var(--border)]" />
-							<p className="ss-home-eyebrow px-2.5 pt-1 pb-1">Resources</p>
+			{/* No Sign in here: the bar's own button stays visible while the
+			    drawer is open, so repeating it would show the same control twice
+			    on one screen. */}
+			<div
+				data-state={menuOpen ? "open" : "closed"}
+				inert={!menuOpen}
+				className="ss-home-nav-drawer"
+			>
+				<div className="flex flex-col gap-0.5 px-4 py-3">
+					{NAV_LINKS.map((link) => (
+						<Link key={link.href} href={link.href} onClick={closeAll} className="ss-home-nav-link">
+							{link.name}
+						</Link>
+					))}
 
-							{NAV_RESOURCES.map((item) => (
-								<Link
-									key={item.href}
-									href={item.href}
-									onClick={closeAll}
-									className="ss-home-nav-link"
-								>
-									{item.name}
-								</Link>
-							))}
-						</div>
-					</div>
-				</>
-			) : null}
+					<div className="my-1.5 border-t border-[color:var(--border)]" />
+					<p className="ss-home-eyebrow px-2.5 pt-1 pb-1">Resources</p>
+
+					{NAV_RESOURCES.map((item) => (
+						<Link key={item.href} href={item.href} onClick={closeAll} className="ss-home-nav-link">
+							{item.name}
+						</Link>
+					))}
+				</div>
+			</div>
 		</header>
 	);
 }
