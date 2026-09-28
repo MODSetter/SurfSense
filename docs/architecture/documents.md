@@ -66,7 +66,7 @@ A note is a document the user writes, with no file behind it. Creating one commi
 - **Retry** accepts a `failed` or `cancelled` document: it sets `pending`, clears `error_message` and enqueues. Without it those states would be terminal, since re-uploading the same bytes is a duplicate.
 - **Cancel** accepts a `pending` or `processing` document and answers `409` otherwise. It marks the row `cancelled`, clears `error_message` and revokes any queued copy of the job (`revoke_pending`). A running job is not killed: the pipeline checks between steps and unwinds at the next one, so a long Docling parse finishes first.
 - **Delete** refuses a `processing` document with `409`. Otherwise the row goes, its chunks cascade, the triggers clear both index tables, and the document's directory is removed after the commit; removing it first would leave a row describing a missing file if the transaction rolled back.
-- Delete also accepts an `ARTIFACT` document, but it removes only `documents/<id>/`, so the artifact's files under `artifacts/<id>/` stay on disk. `DELETE /artifacts/{id}` removes both ([`studio.md`](studio.md)).
+- Delete also accepts an `ARTIFACT` document, and removes the artifact's files under `artifacts/<id>/` as well as `documents/<id>/`, since a Studio output keeps its rendered blobs under the artifact's own id rather than the document's. `DELETE /artifacts/{id}` removes the same two ([`studio.md`](studio.md)).
 
 ## The original file
 
@@ -103,5 +103,4 @@ Cancellation is checked after parsing and after embedding. On any other failure 
 
 - There is no `GET /workspaces/{id}/documents/{doc}`. The list omits `content` by design, and `DocumentDetail`, the row plus its `content`, is returned only when a note is created, so no route returns the body of a file or a note.
 - The frontend has no way to write or edit a note, or to rename a document; the API routes exist.
-- Deleting an `ARTIFACT` document through `DELETE /workspaces/{id}/documents/{doc}` removes its rows but leaves its files under `artifacts/<id>/`; only `DELETE /artifacts/{id}` removes them.
 - Documents have no folders (`folder_id`); import keeps the hosted folder path in `document_metadata`. This needs a design.
