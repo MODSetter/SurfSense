@@ -8,7 +8,7 @@ from app.config import config
 # A table block starts with a | at the beginning of a line and ends when a
 # non-table line (or end of string) is encountered.
 _TABLE_BLOCK_RE = re.compile(
-    r"(?:(?:^|\n)(?=[ \t]*\|)(?:[ \t]*\|[^\n]*\n)+)",
+    r"(?:(?:^|\n)(?=[ \t]*\|)(?:[ \t]*\|[^\n]*(?:\n|\Z))+)",
     re.MULTILINE,
 )
 
