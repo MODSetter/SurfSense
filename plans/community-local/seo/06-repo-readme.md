@@ -408,7 +408,7 @@ RBAC or connector feature from the hosted product, all of which are sunset.
       "open web research" banner. A wide wordmark is still nicer if one
       exists later; this ships without stretching the old asset.
 - [x] **Studio visual.** Still of the desktop app with Studio open and Qwen
-      selected (`surfsense_web/public/homepage/offline-studio.png`) stands in
+      selected (`surfsense_web/public/homepage/desktop.png`) stands in
       until a podcast demo GIF exists.
 - [ ] **Verify the competitor claim on the day.** The draft says the local chat
       apps do not produce artifacts. True as of the 17 Sep re-pull; it is a

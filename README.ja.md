@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="Studio を開き Qwen を選んだ SurfSense デスクトップアプリ。手元の資料から成果物を作っている" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="Studio を開き Qwen を選んだ SurfSense デスクトップアプリ。手元の資料から成果物を作っている" />
 </p>
 
 SurfSense は、すでに持っている文書のための、無料のオープンソース・デスクトップアプリです。ドロップして質問すると、出典を付けた答えが返ります。同じ文書から、ブリーフィング、スライド、レポート、学習ガイド、ポッドキャストも作れます。処理はすべて自分のマシンで行われます。索引はディスク上にあり、モデルは自分で選び、アプリは何もアップロードしません。アカウントも要りません。

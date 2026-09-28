@@ -41,7 +41,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="O aplicativo desktop SurfSense com o Studio aberto e o Qwen selecionado, transformando fontes locais em artefatos" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="O aplicativo desktop SurfSense com o Studio aberto e o Qwen selecionado, transformando fontes locais em artefatos" />
 </p>
 
 O SurfSense é um aplicativo de desktop gratuito e open source para os documentos que você já tem. Arraste-os para dentro, faça perguntas e receba respostas que citam as fontes; depois transforme os mesmos documentos em um briefing, uma apresentação de slides, um relatório, um guia de estudo ou um podcast. Tudo roda na sua própria máquina: o índice fica no seu disco, você escolhe o modelo e o aplicativo não envia nada para fora. Não há conta para criar.

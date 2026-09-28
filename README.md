@@ -41,7 +41,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="SurfSense desktop app with Studio open and Qwen selected, turning local sources into artifacts" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="SurfSense desktop app with Studio open and Qwen selected, turning local sources into artifacts" />
 </p>
 
 SurfSense is a free, open-source desktop app for the documents you already have. Drop them in, ask questions and get answers that cite their sources, then turn the same documents into a briefing, a slide deck, a report, a study guide or a podcast. All of it runs on your own machine: the index sits on your disk, you pick the model, and the app uploads nothing. There is no account to create.

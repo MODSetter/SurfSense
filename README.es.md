@@ -41,7 +41,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="La aplicación de escritorio SurfSense con Studio abierto y Qwen seleccionado, convirtiendo fuentes locales en artefactos" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="La aplicación de escritorio SurfSense con Studio abierto y Qwen seleccionado, convirtiendo fuentes locales en artefactos" />
 </p>
 
 SurfSense es una aplicación de escritorio gratuita y de código abierto para los documentos que ya tienes. Arrástralos a la aplicación, haz preguntas y obtén respuestas que citan sus fuentes; después convierte esos mismos documentos en un resumen ejecutivo, una presentación, un informe, una guía de estudio o un pódcast. Todo se ejecuta en tu propio equipo: el índice está en tu disco, tú eliges el modelo y la aplicación no sube nada. No hay ninguna cuenta que crear.

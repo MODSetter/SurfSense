@@ -40,7 +40,7 @@
 </div>
 
 <p align="center">
-  <img src="surfsense_web/public/homepage/offline-studio.png" alt="L'application de bureau SurfSense avec Studio ouvert et Qwen sélectionné, qui transforme des sources locales en livrables" />
+  <img src="surfsense_web/public/homepage/desktop.png" alt="L'application de bureau SurfSense avec Studio ouvert et Qwen sélectionné, qui transforme des sources locales en livrables" />
 </p>
 
 SurfSense est une application de bureau gratuite et open source pour les documents que vous avez déjà. Déposez-les, posez des questions et obtenez des réponses qui citent leur source, puis transformez les mêmes documents en synthèse, présentation, rapport, guide d'étude ou podcast. Tout tourne sur votre propre machine : l'index est sur votre disque, vous choisissez le modèle, et l'application ne téléverse rien. Il n'y a pas de compte à créer.
