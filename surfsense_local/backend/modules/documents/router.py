@@ -333,7 +333,13 @@ def read_original(document: DocumentDep) -> FileResponse:
 def delete_document(document: DocumentDep, session: SessionDep) -> Response:
     # Chunks cascade and their triggers clear both indexes. Only the bytes are
     # beyond the database, and go after the commit a rollback would undo.
-    directory = get_storage_settings().document_dir(document.workspace_id, document.id)
+    storage = get_storage_settings()
+    directories = [storage.document_dir(document.workspace_id, document.id)]
+    # A Studio output keeps its rendered blobs under its artifact's own id.
+    if document.artifact is not None:
+        directories.append(
+            storage.artifact_dir(document.workspace_id, document.artifact.id)
+        )
 
     deleted = session.execute(
         delete(Document).where(
@@ -349,5 +355,6 @@ def delete_document(document: DocumentDep, session: SessionDep) -> Response:
         )
     session.commit()
 
-    shutil.rmtree(directory, ignore_errors=True)
+    for directory in directories:
+        shutil.rmtree(directory, ignore_errors=True)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
