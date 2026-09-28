@@ -11,7 +11,7 @@ from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
-from shared.config import get_llm_settings
+from shared.config import get_llm_settings, get_storage_settings
 from shared.db import create_session_factory
 from shared.queue import studio_queue
 
@@ -436,6 +436,30 @@ async def test_an_artifact_can_be_deleted(
 
     gone = await client.get(f"/artifacts/{artifact_id}")
     assert gone.status_code == 404
+
+
+async def test_deleting_an_artifact_through_its_document_takes_its_files(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """The sources list deletes a Studio output as a document; its blobs go too."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    artifact_id = created.json()["id"]
+    document_id = created.json()["document_id"]
+    with create_session_factory(engine)() as session:
+        session.get(Document, document_id).status = DocumentStatus.READY
+        session.commit()
+    directory = get_storage_settings().artifact_dir(workspace_id, artifact_id)
+    directory.mkdir(parents=True)
+    (directory / "summary.md").write_text("Saturn has rings.")
+
+    deleted = await client.delete(f"/workspaces/{workspace_id}/documents/{document_id}")
+
+    assert deleted.status_code == 204
+    assert not directory.exists()
 
 
 async def test_a_failed_artifact_can_be_regenerated(

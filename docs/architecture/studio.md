@@ -172,5 +172,4 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 - DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed and without asking the user; the 120-second limit cannot stop a runaway thread.
 - Grounding is the first 24,000 characters of the selected documents in selection order, not retrieval over them, so a large selection is cut off.
 - A podcast is WAV. The design encodes MP3 with a bundled ffmpeg, which is not built.
-- Deleting an artifact through `DELETE /workspaces/{id}/documents/{doc}` removes its rows but leaves `artifacts/<id>/` on disk; only `DELETE /artifacts/{id}` removes the folder.
 - The format picker's list of keys is hard-coded in `studio-formats.ts`. The API's catalog fills in each listed format's details and availability, so a format added to `formats.py` is not offered until the frontend lists it too.
