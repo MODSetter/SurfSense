@@ -3,6 +3,7 @@ from collections.abc import AsyncIterator
 
 import httpx
 
+from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.stream_deadline import with_deadlines
@@ -51,7 +52,7 @@ class OpenAICompatibleChatProvider:
         self._thinking_off = thinking_off
 
     def _client(self, timeout: httpx.Timeout = LISTING_TIMEOUT) -> httpx.AsyncClient:
-        headers = {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
+        headers = key_headers(self._base_url, self._api_key)
         return httpx.AsyncClient(
             timeout=timeout, headers=headers, transport=self._transport
         )

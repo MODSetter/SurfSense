@@ -153,6 +153,19 @@ def test_a_hosted_provider_models_dev_gives_no_url_takes_the_reviewed_one(
     }
 
 
+def test_anthropic_is_reached_directly_through_its_openai_compatibility_layer(
+    api: dict,
+) -> None:
+    """Anthropic's own SDK hides its URL; a key alone should still connect."""
+    anthropic = _connect(api, "anthropic")
+
+    assert (anthropic["status"], anthropic["base_url"], anthropic["base_url_origin"]) == (
+        "ready",
+        "https://api.anthropic.com/v1",
+        "reviewed",
+    )
+
+
 def test_a_url_models_dev_states_with_the_openai_protocol_is_used_as_is(
     api: dict,
 ) -> None:

@@ -5,6 +5,7 @@ from urllib.parse import urlsplit
 
 import httpx
 
+from modules.llm.connections.key_headers import key_headers
 from modules.llm.providers.protocols import GeneratedImage
 
 TIMEOUT = httpx.Timeout(180.0, connect=5.0)
@@ -32,9 +33,7 @@ class OpenAICompatibleImageProvider:
         self._api_key = api_key
 
     def _headers(self) -> dict[str, str]:
-        return (
-            {"Authorization": f"Bearer {self._api_key}"} if self._api_key else {}
-        )
+        return key_headers(self._base_url, self._api_key)
 
     async def generate(self, model: str, prompt: str) -> GeneratedImage:
         key = (self._connection_id, self._base_url)

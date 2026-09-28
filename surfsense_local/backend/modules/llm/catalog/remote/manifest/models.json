@@ -948,7 +948,7 @@
   "anthropic": {
    "name": "Anthropic",
    "doc": "https://docs.anthropic.com/en/docs/about-claude/models",
-   "connect": {"status": "needs_url", "base_url": null, "base_url_origin": null, "account_fields": [], "key": "required", "local": false, "reason": null},
+   "connect": {"status": "ready", "base_url": "https://api.anthropic.com/v1", "base_url_origin": "reviewed", "account_fields": [], "key": "required", "local": false, "reason": null},
    "models": {
     "claude-fable-5": {"name": "Claude Fable 5", "family": "claude-fable", "description": "Claude model for creative writing, analysis, and controlled agent workflows", "release_date": "2026-06-07", "status": null, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}, "context": 1000000, "output_limit": 128000, "tool_call": true, "reasoning": true, "reasoning_options": [{"type": "effort", "values": ["low", "medium", "high", "xhigh", "max"]}], "structured_output": true, "temperature": false, "call": null},
     "claude-fable-5-1": {"name": "Claude Fable 5.1", "family": "claude-fable", "description": "Claude model for demanding reasoning and long-horizon agentic work", "release_date": "2026-09-01", "status": null, "modalities": {"input": ["text", "image", "pdf"], "output": ["text"]}, "context": 1000000, "output_limit": 128000, "tool_call": true, "reasoning": true, "reasoning_options": [{"type": "effort", "values": ["low", "medium", "high", "xhigh", "max"]}], "structured_output": true, "temperature": false, "call": null},
