@@ -41,9 +41,9 @@ function Wordmark() {
 				width={20}
 				height={20}
 				priority
-				className="size-5 select-none dark:invert"
+				className="size-6 select-none dark:invert"
 			/>
-			<span className="text-[0.9375rem] font-semibold tracking-tight text-[color:var(--foreground)]">
+			<span className="ss-home-wordmark text-lg text-[color:var(--foreground)]">
 				SurfSense
 			</span>
 		</Link>
@@ -139,7 +139,7 @@ export function SiteNav({ starCount, starsHref }: { starCount: number | null; st
 					</div>
 				</nav>
 
-				<div className="flex items-center gap-1">
+				<div className="ss-home-nav-actions flex items-center gap-1">
 					<SiteStars count={starCount} href={starsHref} />
 
 					<button

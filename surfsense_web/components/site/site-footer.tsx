@@ -60,9 +60,9 @@ export function SiteFooter() {
 								alt=""
 								width={28}
 								height={28}
-								className="size-7 select-none invert"
+								className="size-6 select-none invert"
 							/>
-							<span className="text-xl font-semibold tracking-tight text-[#e8e3da]">SurfSense</span>
+							<span className="ss-home-wordmark text-xl text-[#e8e3da]">SurfSense</span>
 						</Link>
 
 						<p className="mt-4 text-lg font-medium leading-snug text-[#e8e3da]/90">

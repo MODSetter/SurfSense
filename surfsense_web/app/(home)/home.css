@@ -421,6 +421,16 @@
  * shape with size rather than one tracking value everywhere.
  * ------------------------------------------------------------------------ */
 
+/* The product name only, matching the desktop app's brand-wordmark. */
+.ss-home-wordmark {
+	font-family: var(--font-brand), serif;
+	font-weight: 600;
+	font-optical-sizing: auto;
+	font-variation-settings:
+		"SOFT" 75,
+		"WONK" 0;
+}
+
 .ss-home-display {
 	font-size: clamp(2.25rem, 6vw, 3.75rem);
 	line-height: 1.05;
@@ -997,18 +1007,32 @@
 	background-color: var(--background);
 }
 
+/* Equal side columns keep the links on the bar's true center, whatever the
+ * wordmark or star count measure. */
 .ss-home-nav-bar {
 	margin-inline: auto;
 	width: 100%;
 	max-width: var(--home-max);
-	display: flex;
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
 	height: 3.25rem;
 	align-items: center;
-	justify-content: space-between;
 	gap: 1rem;
 	padding-inline: 1rem;
 	border-inline: 1px solid var(--border);
 	border-bottom: 1px solid var(--border);
+}
+
+/* Pinned to the last column: below md the links are hidden and would
+ * otherwise pull this group into the middle one. */
+.ss-home-nav-actions {
+	grid-column: 3;
+	justify-self: end;
+}
+
+/* Keeps the wordmark's hover and focus box to its content, not the column. */
+.ss-home-nav-bar > :first-child {
+	justify-self: start;
 }
 
 .ss-home-nav-link {
