@@ -22,7 +22,7 @@ from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
 from modules.llm.catalog.local.installs import forget_install
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
-from modules.llm.fit import HardwareBudget
+from modules.llm.fit import HardwareBudget, ModelShape
 from modules.llm.hardware import (
     BudgetMode,
     Device,
@@ -75,6 +75,13 @@ class LocalCatalogService:
         self._tickets = TicketStore()
         self._curated_ids: dict[str, tuple[Build, str]] = {}
         self._curated_tokens: dict[tuple[str, str], str] = {}
+        # The shape each curated build was committed with, by the key an id is
+        # minted on, so an install can be priced where the manifest is known.
+        self._curated_shapes: dict[tuple[str, str], ModelShape | None] = {
+            (build.weights.repo, build.weights.path): model.model_shape
+            for model in manifest.models
+            for build in model.as_builds()
+        }
         # One pull at a time: two downloads compete for one disk and one bar.
         self._install_lock = asyncio.Lock()
         self._install_jobs = InstallJobs(self._install_lock)
@@ -182,7 +189,8 @@ class LocalCatalogService:
         curated = self._curated_ids.get(catalog_id)
         if curated is not None:
             build, engine = curated
-            return InstallPlan(build.runtime_name, build, engine)
+            shape = self._curated_shapes.get((build.weights.repo, build.weights.path))
+            return InstallPlan(build.runtime_name, build, engine, shape=shape)
         ticket = self._tickets.resolve(catalog_id)
         if ticket is None:
             return None

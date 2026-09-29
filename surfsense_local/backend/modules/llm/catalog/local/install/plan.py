@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from modules.llm.catalog.local.build import Build
+from modules.llm.fit import ModelShape
 
 
 class InstallRefusedError(Exception):
@@ -19,3 +20,6 @@ class InstallPlan:
     # read when the manifest was refreshed.
     needs_check: bool = False
     pipeline_tag: str | None = None
+    # A curated chat build's committed shape, so whether it fits here is priced
+    # from the manifest, as its row is, with no header read.
+    shape: ModelShape | None = None

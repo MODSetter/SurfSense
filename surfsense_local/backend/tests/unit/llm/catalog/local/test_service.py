@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from modules.llm.catalog.local import service as service_module
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.install import download as download_module
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
@@ -406,6 +407,43 @@ def test_a_curated_id_resolves_to_its_pinned_build_without_a_check(service) -> N
     assert plan.build == build.build
     assert not plan.needs_check
     assert service.resolve_install("never-minted") is None
+
+
+MIB = 1024**2
+
+
+def curated_plan(service: LocalCatalogService, row_id: str) -> InstallPlan:
+    """The row's leading build, resolved the way the install route does it."""
+    row = next(r for r in service.catalog().rows if r.id == row_id)
+    plan = service.resolve_install(row.builds[0].catalog_id)
+    assert plan is not None
+    return plan
+
+
+async def test_a_curated_build_that_will_not_fit_is_refused_before_download(
+    service, monkeypatch, fake_hub
+) -> None:
+    """The screen's disabled Download is not the only thing in the way: a plan
+    that reaches the route from anywhere else is priced from its committed
+    shape and refused as a searched build is, before any bytes move."""
+    monkeypatch.setattr(service_module, "available_bytes", lambda: 256 * MIB)
+    plan = curated_plan(service, "qwen3-32b")
+
+    with pytest.raises(InstallRefusedError, match="too big"):
+        await service.check(plan)
+
+    assert fake_hub == []
+
+
+async def test_a_curated_build_that_merely_spills_installs_with_no_confirmation(
+    service, monkeypatch
+) -> None:
+    """Only TOO_BIG blocks. A build that runs slower is the user's to choose,
+    and refusing it would make a working model unreachable."""
+    monkeypatch.setattr(service_module, "available_bytes", lambda: 64 * 1024 * MIB)
+    plan = curated_plan(service, "qwen3-0.6b")
+
+    assert await service.check(plan) == plan
 
 
 def header(architecture: str = "qwen3", *, too_big: bool = False) -> bytes:
