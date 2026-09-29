@@ -80,6 +80,7 @@
   "chat_error_provider_unavailable": "El proveedor de modelos no está disponible temporalmente. Inténtalo de nuevo en breve.",
   "chat_error_timeout": "El modelo tardó demasiado en responder. Inténtalo de nuevo.",
   "chat_error_unknown": "Algo salió mal al generar la respuesta. Inténtalo de nuevo.",
+  "chat_error_unknown_detail": "Algo salió mal al generar la respuesta: {detail}",
   "chat_failed_reply_model_setup_button": "Ajustes del modelo",
   "chat_failed_reply_retry_button": "Reintentar",
   "chat_inline_citation_aria": "Ver el fragmento citado {id}",

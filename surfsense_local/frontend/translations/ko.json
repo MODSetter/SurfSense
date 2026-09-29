@@ -80,6 +80,7 @@
   "chat_error_provider_unavailable": "모델 제공업체를 일시적으로 사용할 수 없습니다. 잠시 후 다시 시도하세요.",
   "chat_error_timeout": "모델의 응답이 너무 오래 걸렸습니다. 다시 시도하세요.",
   "chat_error_unknown": "답변을 생성하는 중 문제가 발생했습니다. 다시 시도하세요.",
+  "chat_error_unknown_detail": "답변을 생성하는 중 문제가 발생했습니다: {detail}",
   "chat_failed_reply_model_setup_button": "모델 설정",
   "chat_failed_reply_retry_button": "다시 시도",
   "chat_inline_citation_aria": "인용된 청크 {id} 보기",

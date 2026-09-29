@@ -80,6 +80,7 @@
   "chat_error_provider_unavailable": "モデルプロバイダーは一時的に利用できません。しばらくしてからもう一度お試しください。",
   "chat_error_timeout": "モデルの応答に時間がかかりすぎました。もう一度お試しください。",
   "chat_error_unknown": "返信の生成中に問題が発生しました。もう一度お試しください。",
+  "chat_error_unknown_detail": "返信の生成中に問題が発生しました：{detail}",
   "chat_failed_reply_model_setup_button": "モデル設定",
   "chat_failed_reply_retry_button": "再試行",
   "chat_inline_citation_aria": "引用されたチャンク{id}を表示",

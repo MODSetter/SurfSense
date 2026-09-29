@@ -584,7 +584,7 @@ export function useChatRuntime({
             ...current,
             [String(assistantId)]: {
               kind: "unknown",
-              message: messageFrom(cause),
+              message: cause instanceof Error ? cause.message : "",
               provider: "",
               retryText: text,
             },
