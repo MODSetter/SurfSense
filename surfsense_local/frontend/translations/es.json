@@ -62,6 +62,7 @@
   "chat_composer_disclaimer_body": "SurfSense puede equivocarse. Comprueba las respuestas importantes.",
   "chat_composer_egress_off_placeholder": "Permite el envío a {host} para chatear",
   "chat_composer_follow_up_placeholder": "Pregunta más sobre esta respuesta",
+  "chat_composer_length_limit_status": "Los mensajes están limitados a {max, number} caracteres.",
   "chat_composer_message_aria": "Mensaje",
   "chat_composer_provider_offline_body": "Los chats anteriores siguen disponibles mientras el proveedor esté sin conexión.",
   "chat_composer_provider_offline_placeholder": "Vuelve a conectar tu proveedor de modelos para enviar",
