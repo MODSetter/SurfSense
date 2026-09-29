@@ -6,9 +6,29 @@ A plugin has two things: context handed to it before it starts, and verbs it cal
 
 This file exists so nobody adds a channel. If a change does not fit one of the two shapes below, it replaces the protocol rather than extending it, and that is a conversation.
 
+## Growing the SDK together
+
+Contributions are welcome everywhere, the SDK included, and a plugin that needs something new is the best reason to add it. Two habits keep that safe for every other plugin and every installed app:
+
+- **A change starts from a plugin that needs it.** The pull request, or the issue before it, names that plugin. The SDK grows from what plugins use, not from what one might one day want, which keeps it small enough for every author to learn.
+- **SDK and lifecycle changes get a maintainer's review.** Every published plugin relies on the SDK, and a verb, once shipped, stays for as long as any plugin calls it. Lifecycle files steer CI, publishing and every installed app.
+
+| Kind | What it covers | How a change lands |
+|---|---|---|
+| SDK surface | What an author calls or declares for their own plugin: a verb, an accessor, an input kind, a way to report progress. | Anyone can open the pull request, ideally beside the plugin that needs it. A maintainer reviews the shape with the author. |
+| Lifecycle | What the checks, the build, publishing, the catalog, install or the runner act on: `sdk`, `access`, `hosts`, `platforms`, `timeout_seconds`, the catalog's `downloads` and `yanked`, the size cap and its exceptions, reserved ids, the run's environment. | Maintainers design these, since one change reaches CI, the catalog and every installed app at once. An idea starts best as an issue, so the design is agreed before the code. |
+
+The repository asks for that review rather than leaving it to memory. `.github/CODEOWNERS` names the maintainers for `plugins/sdk/`, `plugins/build/`, `plugins/targets.json`, `plugins/RESERVED`, `plugins/YANKED`, `plugins/SIZE-EXCEPTIONS` and the `plugin-*.yml` workflows, and a rule on `dev` requires code-owner approval. If that rule cannot be set, a job in `plugin-check.yml` stands in, weaker because a pull request can edit it ([`catalog/01-manifest-and-ci.md`](catalog/01-manifest-and-ci.md)).
+
+An SDK change ships this way:
+
+1. The author finds the SDK cannot do what the plugin needs, after checking the plugin cannot simply do it itself (next section).
+2. The change lands as this file describes, with its tests, and with the app route behind it when there is one. It may travel with the plugin or come first.
+3. The pull request raises the minor version in `plugins/sdk/VERSION`, and the plugin's `sdk` range names that version. The capability reaches users with the next app release, and until then apps list the plugin as needing a newer SurfSense rather than running it without what it needs.
+
 ## Check first: the plugin already can
 
-It is ordinary Python with the user's permissions. It fetches anything, parses anything, drives a browser it pinned, reads and writes files, spawns its own processes. We neither grant nor mediate any of that, and it is the answer to a capability request more often than not.
+It is ordinary Python with the user's permissions. It fetches from any host it declares, parses anything, drives a browser it pinned, reads and writes files, spawns its own processes. We neither grant nor mediate any of that beyond the host check in `http`, and it is the answer to a capability request more often than not.
 
 ## Adding a verb
 
@@ -58,6 +78,8 @@ Additive by construction:
 - A new environment variable is invisible to a plugin that does not read it.
 - Unknown manifest fields are ignored, so a new field does not break an older app.
 
+A field that changes what an app lists, installs or runs is safe to add too, as long as the plugin that uses it declares the SDK version that added it: an older app then lists that plugin as needing a newer SurfSense instead of ignoring the field and running it wrongly. What cannot come later is the shape of the catalog itself, which every app reads whatever its plugins declare. That is why `downloads` and `yanked` are fixed before the first release.
+
 Not additive, and a bump of the `sdk` range plus a note here: removing a verb, changing what one returns, changing an argument, or changing how a plugin is spawned.
 
 Anything that reads context should raise with the reason when it is absent, the way `secret` does. That is what lets a plugin written for a newer app fail legibly on an older one instead of reading an empty string and carrying on.
@@ -66,14 +88,12 @@ Anything that reads context should raise with the reason when it is absent, the 
 
 | Domain | Covers | State |
 |---|---|---|
-| `document` | the library: `add`, `list`, `update` | built |
-| `workspace` | the run's workspace, and its settings | not built |
-| `artifact` | files the plugin produced, backed by `modules/artifacts/` | not built |
-| `model` | the text and image models the user selected, and calling them | not built |
+| `document` | the library: `add`, `list`, `update` | v1 |
+| `workspace` | the run's workspace, and its settings | later: needs routes shaped for a plugin |
+| `artifact` | files the plugin produced, backed by `modules/artifacts/` | later: the only route generates an artifact from documents |
+| `model` | the text and image models the user selected, and calling them | later: no route lets a plugin call a model |
 
-Three holes in `document`. One is a bug in waiting, two are deliberate:
-
-- **Provenance.** `add()` cannot say which plugin wrote a note, because the route takes only a title and content. The column is there; the schema is not. Until that lands, nothing in the library records where it came from — see [Caught while specifying](README.md#caught-while-specifying).
+Two holes in `document`, both deliberate. Provenance, which was a third, is part of v1 ([`app/01-api.md`](app/01-api.md)).
 
 - **Reading a document's body.** There is no route for it. `DocumentRead` omits content on purpose — it would bloat every poll the UI makes — and the only reads that return a body are `by-chunk` and `original`. A plugin that wants to enrich what it finds needs a route the app does not have yet, so this is an app change first and a verb second.
 - **Deleting.** One line to add, and left out on purpose: a plugin removing the user's documents is a different question from a plugin adding some, and nothing has asked for it. Add it when a syncing plugin does, not to tick off the domain.
