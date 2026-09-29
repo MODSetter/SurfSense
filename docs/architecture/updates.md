@@ -54,5 +54,4 @@ Artifact names carry no version, so the root README's links to `/releases/latest
 
 ## Known gaps
 
-- The workflow accepts a version with a prerelease suffix, which this app must never publish.
 - The deb build likely auto-updates, although the launch plan said it would not: electron-builder writes `resources/package-type` for a deb, electron-updater picks its deb updater from that file, and v2.0.2's `stable-linux.yml` on the release lists `SurfSense.deb`. Not checked on an installed deb.

@@ -14,12 +14,12 @@ import { cn } from "@/lib/utils"
  * tested list above is enough for most people.
  */
 export function HuggingFaceSearch({
-  installs,
+  jobs,
   disabled,
   onInstall,
   onCancel,
 }: {
-  installs: readonly InstallJob[]
+  jobs: readonly InstallJob[]
   disabled: boolean
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
@@ -61,7 +61,7 @@ export function HuggingFaceSearch({
             autoFocus
             onInstall={onInstall}
             onCancel={onCancel}
-            installs={installs}
+            jobs={jobs}
             disabled={disabled}
           />
         </div>

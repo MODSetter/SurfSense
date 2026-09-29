@@ -27,6 +27,28 @@ def test_a_row_with_no_published_repo_names_its_vendor() -> None:
     assert fingerprint.line is None
 
 
+def test_a_featherless_row_with_no_repo_still_reads_the_size_in_its_id() -> None:
+    """Featherless lists every model with no `hugging_face_id`, size or not."""
+    fingerprint = from_remote(
+        "qwen/qwen3-4b",
+        [{"id": "qwen/qwen3-4b", "owned_by": "Feather", "hugging_face_id": None}],
+    )
+
+    assert fingerprint.params_b == 4.0
+    assert fingerprint.vendor is None
+
+
+def test_a_row_with_no_repo_no_size_and_no_slash_names_no_vendor() -> None:
+    """An empty vendor is no vendor: `rpartition` on a slashless id gives ""."""
+    fingerprint = from_remote(
+        "localmodel",
+        [{"id": "localmodel", "hugging_face_id": None}],
+    )
+
+    assert fingerprint.params_b is None
+    assert fingerprint.vendor is None
+
+
 def test_the_published_repo_states_a_count_the_id_leaves_out() -> None:
     """`:free` selects a routing tier, not a model, so the row is the same row."""
     fingerprint = from_remote(

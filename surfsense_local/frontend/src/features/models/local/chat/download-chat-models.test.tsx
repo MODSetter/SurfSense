@@ -576,9 +576,12 @@ describe("model catalog", () => {
   it("lists search results and a repo's builds from its listing", async () => {
     // Opening a repo reads its listing only. No header is read to draw the
     // list, so each fit is an estimate and says so.
+    const installs = fakeInstallApi({
+      labels: { "ticket-1": "unsloth/Qwen3-8B-GGUF Q4_K_M" },
+    })
     vi.stubGlobal(
       "fetch",
-      serving(catalog(), (path) => {
+      serving(catalog(), (path, init) => {
         if (path.startsWith("/llm/catalog/local/search?")) {
           return Response.json({
             results: [
@@ -616,7 +619,17 @@ describe("model catalog", () => {
               [
                 build({
                   catalog_id: "ticket-1",
-                  fit: fit({ approximate: true }),
+                  fit: fit({
+                    state: "too_big",
+                    offload_fraction: 1,
+                    approximate: true,
+                  }),
+                  badge: {
+                    level: "refuse",
+                    verdict: "Won't fit",
+                    reason: "Estimated to need more memory than is available.",
+                  },
+                  can_install: true,
                   reads_images: true,
                   projector_checked: false,
                   bundled: false,
@@ -625,7 +638,7 @@ describe("model catalog", () => {
             ),
           })
         }
-        return null
+        return installs.handle(path, init)
       })
     )
     const user = userEvent.setup()
@@ -648,7 +661,21 @@ describe("model catalog", () => {
     })
     expect(within(builds).getByText("Q4_K_M")).toBeTruthy()
     expect(
-      screen.getByText(/Fit is estimated and checked before download/)
+      within(builds).getByText(/Fit is estimated and checked before download/)
+    ).toBeTruthy()
+    const download = within(builds).getByRole("button", {
+      name: "Download unsloth/Qwen3-8B-GGUF Q4_K_M",
+    })
+    expect(download.hasAttribute("disabled")).toBe(false)
+    await user.click(download)
+    installs.move({
+      type: "error",
+      message: "This build is too big for this computer. Pick a smaller one.",
+    })
+    expect(
+      await within(builds).findByText(
+        "This build is too big for this computer. Pick a smaller one."
+      )
     ).toBeTruthy()
     expect(
       within(builds).queryByText("Recommended for your computer")

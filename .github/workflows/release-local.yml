@@ -86,6 +86,12 @@ jobs:
             echo "::error::Version '$VERSION' is not semver (expected X.Y.Z); fix the tag."
             exit 1
           fi
+          # updater.ts sets allowPrerelease, so a published prerelease is offered
+          # to every installed app. The default dry run (0.0.0-test) never publishes.
+          if [ "${{ inputs.publish || 'always' }}" = "always" ] && ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "::error::Version '$VERSION' has a prerelease suffix, and this app never publishes one: allowPrerelease would offer it to every installed app. Tag X.Y.Z."
+            exit 1
+          fi
           if [ "${{ github.event_name }}" = "push" ]; then
             TRACKED="$(tr -d '[:space:]' < surfsense_local/VERSION)"
             if [ "$VERSION" != "$TRACKED" ]; then

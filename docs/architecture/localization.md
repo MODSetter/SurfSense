@@ -87,5 +87,4 @@ Developers write English only, inline in the `formatMessage` call; `pnpm transla
 
 - `enforce-placeholders` checks values only when they are passed as an object literal; a call that passes a variable, as `model-ready.tsx` does, is not checked.
 - Backend prose without a code stays English in every language: model install messages, fit verdicts, `not_runnable_reason`, a Studio format's `unavailable_reason`, and the disk-space `detail` that `lib/api.ts` wraps in a translated sentence.
-- Studio's fallback "Needs {models}" joins translated noun phrases with `formatList`, so German case agreement is not guaranteed. It shows only when a format lacks the backend's `unavailable_reason`.
 - A chat failure caught before the stream starts shows the `unknown` kind's text, not the error's own detail.
