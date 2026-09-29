@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from api.dependencies import SessionDep, transact
 from modules.chat.budget import answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
-from modules.chat.errors import classify_chat_error
+from modules.chat.errors import classify_chat_error, empty_reply_error
 from modules.chat.history import TokenCounter, build_messages
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
@@ -217,7 +217,9 @@ async def send_message(
                 )
                 failed = True
         finally:
-            if failed and not parts:
+            # No answer text is no reply, whether it failed, closed cleanly or
+            # only thought: keeping it would leave a blank bubble and a rename.
+            if not parts:
                 await transact(
                     session, _discard_turn, user_message, assistant_message
                 )
@@ -240,7 +242,19 @@ async def send_message(
                 )
                 assistant_completed_at = _iso(assistant_message.completed_at)
 
-        if failed and not parts:
+        if not parts:
+            if not failed:
+                # Discarding the turn removes the person's own message too, so
+                # say so rather than close in silence.
+                kind, message = empty_reply_error()
+                yield _frame(
+                    {
+                        "type": "error",
+                        "kind": kind,
+                        "message": message,
+                        "provider": selected.provider,
+                    }
+                )
             yield _DONE
             return
 

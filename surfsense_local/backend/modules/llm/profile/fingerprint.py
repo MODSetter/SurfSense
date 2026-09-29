@@ -47,10 +47,13 @@ def from_remote(name: str, rows: list[dict]) -> Fingerprint:
     described = (row.get("id") or name).partition(":")[0]
     repo = row.get("hugging_face_id")
     if not repo:
+        size = _largest_size_b(described)
+        if size is not None:
+            return Fingerprint(provider="openai_compatible", name=name, params_b=size)
         return Fingerprint(
             provider="openai_compatible",
             name=name,
-            vendor=row.get("owned_by") or described.rpartition("/")[0],
+            vendor=row.get("owned_by") or described.rpartition("/")[0] or None,
         )
     return Fingerprint(
         provider="openai_compatible",

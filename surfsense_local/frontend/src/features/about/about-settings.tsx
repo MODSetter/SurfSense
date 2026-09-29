@@ -8,12 +8,11 @@ import {
   DOCS_URL,
   GITHUB_URL,
   LICENSE_URL,
-  bugReportUrl,
   releaseNotesUrl,
 } from "./about-links"
 import { CopyVersionButton } from "./copy-version-button"
 import { ExternalLink } from "./external-link"
-import { systemInfo } from "./system-info"
+import { ReportIssueButton } from "./report-issue-button"
 import { Troubleshooting } from "./troubleshooting"
 import { useAppDetails } from "./use-app-details"
 
@@ -104,16 +103,7 @@ export function AboutSettings() {
               defaultMessage: "Community on Discord",
             })}
           </ExternalLink>
-          {details ? (
-            <ExternalLink
-              href={bugReportUrl(`\n\n---\n${systemInfo(details)}`)}
-            >
-              {intl.formatMessage({
-                id: "about_report_issue_link",
-                defaultMessage: "Report an issue",
-              })}
-            </ExternalLink>
-          ) : null}
+          {details ? <ReportIssueButton /> : null}
         </div>
       </div>
 

@@ -26,6 +26,10 @@ _TOKENS_PER_WORD: int | None = None
 # as llama-server does under `--reasoning-format deepseek`. Empty: no thinking.
 _REASONING: list[str] = []
 
+# The answer the stub streams, or None for REPLY_DELTAS. Empty: a model that
+# closes its stream without writing anything.
+_ANSWER: list[str] | None = None
+
 
 class StubRouterChat(BaseHTTPRequestHandler):
     """The router's OpenAI chat endpoint, streaming its reply as SSE.
@@ -80,6 +84,8 @@ class StubRouterChat(BaseHTTPRequestHandler):
             ["Revenue ", "Growth"]
             if request.get("max_tokens") == 12
             else REPLY_DELTAS
+            if _ANSWER is None
+            else _ANSWER
         )
         trace = [] if request.get("max_tokens") == 12 else _REASONING
         chunks = (
@@ -109,9 +115,10 @@ class StubRouterChat(BaseHTTPRequestHandler):
 @pytest.fixture
 def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     """A real llama-server stand-in on a real port; yields the requests it sees."""
-    global _PROPS_N_CTX, _TOKENS_PER_WORD
+    global _PROPS_N_CTX, _TOKENS_PER_WORD, _ANSWER
     _REQUESTS.clear()
     _REASONING.clear()
+    _ANSWER = None
     _PROPS_N_CTX = None
     _TOKENS_PER_WORD = None
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubRouterChat)
@@ -168,6 +175,12 @@ def set_tokens_per_word(tokens_per_word: int) -> None:
 def set_reasoning(pieces: list[str]) -> None:
     """Make the `llamacpp_server` answer think out loud before it replies."""
     _REASONING[:] = pieces
+
+
+def set_answer(pieces: list[str]) -> None:
+    """Make the `llamacpp_server` answer with these deltas instead of the default."""
+    global _ANSWER
+    _ANSWER = pieces
 
 
 @pytest.fixture

@@ -4,6 +4,8 @@ import pytest
 
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
+from shared import cancellation
+from worker.jobs import JobCancelledError
 from worker.studio.office import pipeline as office
 from worker.studio.office import runner
 from worker.studio.office.docx import docx
@@ -130,6 +132,31 @@ def test_render_stops_after_three_code_failures(
     with pytest.raises(RuntimeError, match="still broken"):
         office.render(pdf, MODEL, [], None)
     assert calls == 3
+
+
+def test_a_cancel_during_a_failed_attempt_asks_for_no_retry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The script ran to its end after the user cancelled; asking the model to
+    fix it would spend another generation on a job nobody wants."""
+    calls = 0
+    cancelled = False
+
+    def fake_model(*_a: object, **_k: object) -> str:
+        nonlocal calls, cancelled
+        calls += 1
+        cancelled = True
+        return "raise ValueError('broken')"
+
+    def check() -> None:
+        if cancelled:
+            raise JobCancelledError
+
+    monkeypatch.setattr(generate, "run_model", fake_model)
+
+    with cancellation.watching(check), pytest.raises(JobCancelledError):
+        office.render(pdf, MODEL, [], None)
+    assert calls == 1
 
 
 def test_execute_times_out_a_hanging_script(monkeypatch: pytest.MonkeyPatch) -> None:

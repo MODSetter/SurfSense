@@ -27,6 +27,7 @@ A workspace holds a library of sources: uploaded files, notes written in the app
 | `GET` | `/workspaces/{workspace_id}/documents` | list (below) |
 | `POST` | `/workspaces/{workspace_id}/documents` | write a note; `201` with its body |
 | `POST` | `/workspaces/{workspace_id}/documents/upload` | upload files; `201` with `created`, `duplicates` and `rejected` |
+| `GET` | `/workspaces/{workspace_id}/documents/{document_id}` | one document with its `content`; `null` for a `FILE` the worker has not written yet |
 | `PATCH` | `/workspaces/{workspace_id}/documents/{document_id}` | rename; edit a note's content |
 | `DELETE` | `/workspaces/{workspace_id}/documents/{document_id}` | delete; `409` while `processing` |
 | `POST` | `/workspaces/{workspace_id}/documents/{document_id}/retry` | requeue a `failed` or `cancelled` document |
@@ -40,7 +41,7 @@ Chunks have no router of their own.
 
 - Filters are `?document_type=` and `?status=`, both repeatable. Paging is `?limit=` (default 50, at most 200) and `?offset=`. Rows come oldest first.
 - `ARTIFACT` rows are included and the caller filters them out. The sources panel asks for `document_type=FILE&document_type=NOTE`, so Studio output does not look like something the user uploaded.
-- A row carries `id`, `title`, `document_type`, `status`, `error_message` and timestamps, but no `content`. The list is polled while ingest runs, and a body per row would ride along on every poll.
+- A row carries `id`, `title`, `document_type`, `status`, `error_message` and timestamps, but no `content`. The list is polled while ingest runs, and a body per row would ride along on every poll; `GET .../documents/{document_id}` returns one row with it.
 
 ## What is editable
 
@@ -101,6 +102,5 @@ Cancellation is checked after parsing and after embedding. On any other failure 
 
 ## Known gaps
 
-- There is no `GET /workspaces/{id}/documents/{doc}`. The list omits `content` by design, and `DocumentDetail`, the row plus its `content`, is returned only when a note is created, so no route returns the body of a file or a note.
 - The frontend has no way to write or edit a note, or to rename a document; the API routes exist.
 - Documents have no folders (`folder_id`); import keeps the hosted folder path in `document_metadata`. This needs a design.

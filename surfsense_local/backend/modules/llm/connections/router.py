@@ -195,6 +195,7 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
     session.delete(connection)
     session.flush()
+    egress.forget_if_unused(session, egress.host_destination(connection.base_url))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

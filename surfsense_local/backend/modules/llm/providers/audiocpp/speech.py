@@ -18,6 +18,7 @@ from modules.llm.providers.audiocpp.memory import (
 )
 from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import SpokenTurn, SynthesizedAudio, Voice
+from shared import cancellation
 
 __all__ = [
     "AudioCppSpeech",
@@ -124,6 +125,8 @@ class AudioCppSpeech:
     ) -> list[bytes]:
         voiced = []
         for index, turn in enumerate(turns, start=1):
+            # A request in flight cannot be stopped; a turn not yet sent can.
+            cancellation.raise_if_cancelled()
             logger.info(
                 "audiocpp: turn %s/%s voice=%s %s chars",
                 index,
