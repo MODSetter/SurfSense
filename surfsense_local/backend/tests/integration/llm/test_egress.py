@@ -96,3 +96,69 @@ async def test_one_grant_covers_everything_sent_to_huggingface(
     assert {refused.json()["detail"]["destination"] for refused in refusals} == {
         "host:huggingface.co"
     }
+
+
+def _store(engine: Engine, *connections: dict) -> None:
+    with create_session_factory(engine)() as session:
+        session.add_all(ProviderConnection(**connection) for connection in connections)
+        session.commit()
+
+
+async def _allow(client: AsyncClient, destination: str) -> None:
+    reply = await client.put(f"/egress/{destination}", json={"enabled": True})
+    assert reply.status_code == 200, reply.text
+
+
+async def test_deleting_one_of_two_connections_to_a_host_keeps_its_grant(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """The other connection is still there, and the user still consented to it."""
+    _store(engine, REMOTE, {**REMOTE, "label": "Cloud images"})
+    await _allow(client, "host:api.provider.example")
+
+    assert (await client.delete("/llm/connections/1")).status_code == 204
+
+    assert (await _destinations(client))["host:api.provider.example"]["enabled"]
+
+
+async def test_deleting_the_last_connection_to_a_host_withdraws_its_grant(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """A later connection to the same host asks again instead of inheriting it."""
+    _store(engine, REMOTE)
+    await _allow(client, "host:api.provider.example")
+
+    assert (await client.delete("/llm/connections/1")).status_code == 204
+
+    assert set(await _destinations(client)) == {"host:huggingface.co"}
+    refused = await client.post("/llm/connections", json=REMOTE)
+    assert refused.status_code == 403
+    assert refused.json()["detail"]["destination"] == "host:api.provider.example"
+
+
+async def test_deleting_a_loopback_connection_touches_no_grant(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """A provider on this machine had no destination, so none is left behind."""
+    created = await client.post(
+        "/llm/connections",
+        json={**REMOTE, "label": "Local", "base_url": openai_server},
+    )
+    assert created.status_code == 201, created.text
+
+    deleted = await client.delete(f"/llm/connections/{created.json()['id']}")
+
+    assert deleted.status_code == 204
+    assert set(await _destinations(client)) == {"host:huggingface.co"}
+
+
+async def test_deleting_a_connection_to_huggingface_keeps_the_built_in_grant(
+    client: AsyncClient, engine: Engine
+) -> None:
+    """Model downloads reach huggingface.co with or without a connection there."""
+    _store(engine, {**REMOTE, "base_url": "https://huggingface.co/v1"})
+    await _allow(client, "host:huggingface.co")
+
+    assert (await client.delete("/llm/connections/1")).status_code == 204
+
+    assert (await _destinations(client))["host:huggingface.co"]["enabled"]
