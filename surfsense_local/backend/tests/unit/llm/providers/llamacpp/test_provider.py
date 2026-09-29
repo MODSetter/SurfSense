@@ -179,6 +179,18 @@ async def test_capabilities_are_cached_for_a_resident_model() -> None:
 
 
 @pytest.mark.asyncio
+async def test_inspect_uses_the_parameter_count_reported_by_the_runtime() -> None:
+    """Selection asks the runtime once, so a renamed model keeps its real size."""
+    fake = FakeRouter(["renamed-8b"])
+    fake.model_info = {"general.parameter_count": 70_000_000_000}
+
+    fingerprint = await provider_for(fake).inspect("renamed-8b")
+
+    assert fingerprint.params_b == 70.0
+    assert fake.props_calls == 1
+
+
+@pytest.mark.asyncio
 async def test_the_capability_cache_cannot_outlive_its_adapter() -> None:
     """Why nothing invalidates it any more.
 
