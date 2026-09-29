@@ -111,7 +111,6 @@ export function LocalModelList({
                     label={row.name}
                     installs={installs}
                     disabled={disabled}
-                    runtimeAvailable
                     onAction={() => (installed ? onUse(row) : onDownload(row))}
                   />
                   {installed ? (

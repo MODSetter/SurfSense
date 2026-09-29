@@ -245,6 +245,78 @@ describe("model catalog", () => {
     expect(screen.queryByText("Runs on your processor")).toBeNull()
   })
 
+  it("says once that the local runtime is down, and still offers Download", async () => {
+    // The runtime doc's failure list: an install still downloads while
+    // llama-server is down and ends with an honest message, so the outage is
+    // a notice on the screen, not a refusal on every row.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(),
+            row({ id: "qwen3-4b", name: "Qwen3 4B" }, [
+              build({ catalog_id: "opaque-qwen-4b" }),
+            ]),
+          ],
+        }),
+        (path) =>
+          path === "/llm/providers"
+            ? Response.json([
+                {
+                  name: "llamacpp",
+                  healthy: false,
+                  can_download: true,
+                  requires_key: false,
+                  configured: true,
+                },
+              ])
+            : null
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(
+      await screen.findByText("The local runtime is unavailable")
+    ).toBeTruthy()
+    expect(screen.getAllByText(/local runtime is unavailable/)).toHaveLength(1)
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Download Qwen3 8B Q4_K_M",
+      }).disabled
+    ).toBe(false)
+  })
+
+  it("says nothing about the runtime while it answers", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) =>
+        path === "/llm/providers"
+          ? Response.json([
+              {
+                name: "llamacpp",
+                healthy: true,
+                can_download: true,
+                requires_key: false,
+                configured: true,
+              },
+            ])
+          : null
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(await screen.findByText("Qwen3 8B")).toBeTruthy()
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.map((c) => String(c[0]))).toContain(
+        "/llm/providers"
+      )
+    )
+    expect(screen.queryByText(/local runtime is unavailable/)).toBeNull()
+  })
+
   it("installs with only the opaque id, and does not select", async () => {
     // The renderer never sends a repo, file, URL, path or quantization. A
     // download does not choose the model either: Use does, same as image.
