@@ -99,10 +99,7 @@ const FORMAT_HINTS: Record<string, () => string> = {
 }
 
 function catalogFormats(formats: StudioFormat[]) {
-  const catalog = studioCatalog()
-  if (formats.length === 0) return catalog
-  const loaded = new Map(formats.map((entry) => [entry.key, entry]))
-  return catalog.map((entry) => loaded.get(entry.key) ?? entry)
+  return formats.length === 0 ? studioCatalog() : formats
 }
 
 // Only for the catalog painted before the API answers; the backend's own
