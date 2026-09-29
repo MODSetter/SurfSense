@@ -42,7 +42,13 @@ def status(session: Session) -> LicenseStatus:
     row = _row(session, instant)
     if row.certificate is None:
         return LicenseStatus(state="none")
-    return _status(row, verify(row.certificate, max(instant, row.clock_watermark)), instant)
+    rolled_back = instant < row.clock_watermark - MAX_CLOCK_DRIFT
+    verified = verify(
+        row.certificate,
+        max(instant, row.clock_watermark),
+        ignore_file_expiry=rolled_back,
+    )
+    return _status(row, verified, instant)
 
 
 def _status(row: LicenseState, verified: Verified, instant: datetime) -> LicenseStatus:

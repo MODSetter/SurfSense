@@ -42,7 +42,9 @@ class Verified:
     issued: datetime
 
 
-def verify(certificate: str, now: datetime) -> Verified:
+def verify(
+    certificate: str, now: datetime, *, ignore_file_expiry: bool = False
+) -> Verified:
     """Contract 1 consumer steps, in order, stopping at the first failure."""
     try:
         body = base64.b64decode(re.sub(r"\s+", "", _PEM_MARKERS.sub("", certificate)))
@@ -70,7 +72,11 @@ def verify(certificate: str, now: datetime) -> Verified:
 
     if _instant(meta["issued"]) > now + MAX_CLOCK_DRIFT:
         raise LicenseRejectedError("clock_untrusted")
-    if meta["expiry"] is not None and _instant(meta["expiry"]) < now:
+    if (
+        not ignore_file_expiry
+        and meta["expiry"] is not None
+        and _instant(meta["expiry"]) < now
+    ):
         raise LicenseRejectedError("file_expired")
 
     return Verified(
