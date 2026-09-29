@@ -2,13 +2,17 @@ import json
 import time
 from collections.abc import Iterator
 
+import httpx
 import pytest
 from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact, ArtifactFileRole
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
+from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
+from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.openai_compatible import NonRetryableImageError
 from modules.llm.providers.protocols import (
     GeneratedImage,
@@ -20,6 +24,7 @@ from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
 from modules.workspaces.models import Workspace
 from shared.config import get_storage_settings
 from shared.db import create_session_factory
+from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 from worker.studio import run
 from worker.studio.office.docx import docx
 from worker.studio.office.pdf import pdf
@@ -101,9 +106,7 @@ def _capture_model(monkeypatch: pytest.MonkeyPatch, *replies: str) -> list[str]:
     """
     seen: list[str] = []
 
-    def fake(
-        _session: object, system: str, _sources: object, **_retry: object
-    ) -> str:
+    def fake(_session: object, system: str, _sources: object, **_retry: object) -> str:
         seen.append(system)
         return replies[min(len(seen), len(replies)) - 1]
 
@@ -525,6 +528,50 @@ def test_a_memory_refusal_is_not_retried(
     session.expire_all()
     assert artifact.document.status is DocumentStatus.FAILED
     assert artifact.document.error_message == SHORT
+
+
+def test_a_podcast_cancelled_while_voicing_stops_at_the_next_turn(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Voicing is the longest step: a cancel after the first line must not voice
+    the rest, and the artifact lands cancelled with no file."""
+    _capture_model(
+        monkeypatch,
+        '{"title": "T", "segments": [{"title": "One"}]}',
+        '{"turns": [{"speaker": 1, "text": "One."}, {"speaker": 2, "text": "Two."},'
+        ' {"speaker": 1, "text": "Three."}]}',
+    )
+    artifact = make_artifact(session, fmt="podcast", options=BRIEF)
+    voiced: list[str] = []
+
+    def audio_server(request: httpx.Request) -> httpx.Response:
+        if request.url.path != "/v1/audio/speech":
+            return httpx.Response(200, json={})
+        voiced.append(json.loads(request.content)["input"])
+        # The user presses Cancel while the first line is being voiced.
+        with create_session_factory(session.get_bind())() as other:
+            other.get(Document, artifact.document_id).status = DocumentStatus.CANCELLED
+            other.commit()
+        return httpx.Response(200, content=b"RIFF")
+
+    kokoro = next(m for m in load_local_manifest().models if m.id == "kokoro-82m")
+    voice = AudioCppSpeech(
+        VoicedModel("kokoro-82m", kokoro.audio),
+        base_url="http://audio",
+        chat_runtime=RouterClient("http://router", transport=FakeRouter().transport()),
+        transport=httpx.MockTransport(audio_server),
+        available=lambda: 64 * 2**30,
+    )
+    monkeypatch.setattr(
+        "worker.studio.job.resolve_text_to_speech", lambda _session: voice
+    )
+
+    run(artifact.id)
+
+    session.expire_all()
+    assert voiced == ["One."]
+    assert artifact.document.status is DocumentStatus.CANCELLED
+    assert artifact.files == []
 
 
 def test_a_podcast_without_an_audio_model_never_calls_the_chat_model(

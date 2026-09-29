@@ -16,6 +16,7 @@ from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
 from tests.integration.chat.conftest import (
     REPLY_DELTAS,
+    set_answer,
     set_props_n_ctx,
     set_reasoning,
     set_tokens_per_word,
@@ -426,7 +427,10 @@ async def test_a_reply_the_client_hangs_up_on_frees_the_model(
     assert free
 
 
-@pytest.mark.xfail(strict=True, reason=DISCONNECT_LOSES_REPLY)
+# Not strict: the failure is a race between the disconnect's cancellation and
+# the save, so a slow runner could let the save win, and under `-x` an XPASS
+# would stop the whole suite.
+@pytest.mark.xfail(strict=False, reason=DISCONNECT_LOSES_REPLY)
 async def test_a_reply_the_client_hangs_up_on_keeps_its_text(
     live_url: str, engine: Engine, real_model: object, llamacpp_server: list[dict]
 ) -> None:
@@ -439,8 +443,37 @@ async def test_a_reply_the_client_hangs_up_on_keeps_its_text(
         stored = await _settled_messages(client, thread_id)
         release.set()
 
+    # The turn is kept, not discarded: text streamed, so the empty-reply
+    # guard does not apply. Checked first so a discard fails here, by name.
+    assert [message["role"] for message in stored] == ["user", "assistant"]
     assert stored[1]["content"]["text"].startswith("Revenue climbed after the launch")
     assert stored[1]["completed_at"]
+
+
+@pytest.mark.parametrize("reasoning", [[], ["The note says ", "nothing useful."]])
+async def test_a_reply_with_no_text_leaves_no_trace(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+    reasoning: list[str],
+) -> None:
+    """A stream that closes cleanly with no answer, even after thinking, is discarded."""
+    set_reasoning(reasoning)
+    set_answer([])
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened?")
+
+    error = next(event for event in events if event["type"] == "error")
+    assert error["kind"] == "unknown"
+    assert not any(event["type"] == "completed" for event in events)
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored == []
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "New chat"
 
 
 async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> None:

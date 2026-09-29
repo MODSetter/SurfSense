@@ -19,12 +19,13 @@ from modules.llm.resolution import (
     resolve_image_generation,
     resolve_text_to_speech,
 )
+from shared import cancellation
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_artifact_updates
 from worker.studio import job_router
-from worker.studio.shared import cancellation, gather, persist
+from worker.studio.shared import gather, persist
 
 logger = logging.getLogger(__name__)
 

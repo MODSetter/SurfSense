@@ -22,7 +22,9 @@ The [plugins proposal](../../proposals/plugins/README.md) specifies that a paid 
 3. The signature over `"license/" + enc` must verify with one of the compiled keys, or the file is `bad_signature`. `enc` is not decoded until this passes.
 4. `meta.issued` more than `MAX_CLOCK_DRIFT`, five minutes, in the future is `clock_untrusted`; a non-null `meta.expiry` in the past is `file_expired`. The portal checks files out with `meta.expiry: null`.
 
-The five minutes are there because a laptop clock running a few minutes fast is not tampering. A passing file yields its key, plan, email, license expiry, `maxUsers` and `meta.issued`. `PUT /license` answers a rejection with 422 and `{code, message}`; the messages are in `router.py`.
+The five minutes are there because a laptop clock running a few minutes fast is not tampering. A passing file yields its key, plan, email, license expiry, `maxUsers`, `meta.issued` and `meta.expiry`. `PUT /license` answers a rejection with 422 and `{code, message}`; the messages are in `router.py`.
+
+`verify_signature()` is steps 1 to 3 plus the decode; `verify()` adds step 4 and is what import runs. A status read of a stored file runs only `verify_signature()`: the time checks were passed when the file was imported, and from then on the clock is the watermark's business (below). The file TTL is not re-checked on a read either, since the portal always issues `meta.expiry: null` (contract 1); import still refuses a file whose TTL has lapsed. The other three rejections stay errors on a read: a stored file passed the same three checks at import and the key list only grows, so they can only mean the row was edited by hand, which is corruption to notice rather than a state to show.
 
 `KEYGEN_PUBLIC_KEYS_HEX` is a tuple, newest first, and a file signed by any key in it is accepted. Rotating the Keygen account key is therefore a release that trusts both keys, not a recall of every license already issued. The keys are source code, never read from configuration, environment or disk; tests swap in the fixture key by patching the constant.
 
@@ -35,9 +37,9 @@ The singleton row `license_state` holds the file as imported, when it was import
 | `none` | no file is stored |
 | `active` | the license expiry is in the future |
 | `license_expired` | the license expiry has passed; the file stays stored and shown |
-| `clock_untrusted` | the clock is more than five minutes behind the watermark, whatever the expiry |
+| `clock_untrusted` | the clock is more than five minutes behind the watermark, which includes the stored file's `meta.issued`, whatever the expiry |
 
-Every import, and every status read of a stored file that verifies, moves the watermark to `max(watermark, now, meta.issued)`. A clock wound back therefore reads as `clock_untrusted` until time catches up, instead of reviving an expiring license. The watermark lives in SQLite the user can edit, so a `ponytail:` comment calls it honesty for the UI, not enforcement.
+Every import, and every status read of a stored file whose signature verifies, moves the watermark to `max(watermark, now, meta.issued)`. A clock wound back, or behind the time the stored file was issued, therefore reads as `clock_untrusted` until time catches up, instead of reviving an expiring license or failing the read. The watermark lives in SQLite the user can edit, so a `ponytail:` comment calls it honesty for the UI, not enforcement.
 
 There is one slot: importing a valid file replaces whatever was stored. That is what contract 1's rule 7 needs, since a resend checks out a fresh file for the same license with a later `meta.issued`, and it takes the old one's place.
 
@@ -58,4 +60,3 @@ The release workflow's step "Refuse to build with the test signing key" runs `te
 ## Known gaps
 
 - Settings has no "Start trial" or "Buy" link, and its expired-license notice says to renew "from your account", which the portal does not have.
-- A stored file whose `meta.issued` is more than five minutes ahead of the clock makes `GET /license/status` fail with 500 instead of answering `clock_untrusted`: `status()` re-runs `verify()`, and nothing catches its rejection.
