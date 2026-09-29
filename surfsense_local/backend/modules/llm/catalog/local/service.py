@@ -22,7 +22,7 @@ from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
 from modules.llm.catalog.local.installs import forget_install
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
-from modules.llm.fit import HardwareBudget
+from modules.llm.fit import HardwareBudget, ModelShape
 from modules.llm.hardware import (
     BudgetMode,
     Device,
@@ -182,7 +182,9 @@ class LocalCatalogService:
         curated = self._curated_ids.get(catalog_id)
         if curated is not None:
             build, engine = curated
-            return InstallPlan(build.runtime_name, build, engine)
+            return InstallPlan(
+                build.runtime_name, build, engine, shape=self._curated_shape(build)
+            )
         ticket = self._tickets.resolve(catalog_id)
         if ticket is None:
             return None
@@ -193,6 +195,18 @@ class LocalCatalogService:
             self.llamacpp.name,
             needs_check=True,
             pipeline_tag=ticket.pipeline_tag,
+        )
+
+    def _curated_shape(self, build: Build) -> ModelShape | None:
+        """The manifest entry's shape, looked up here where the manifest is in
+        scope: an id is minted from a build alone."""
+        return next(
+            (
+                model.model_shape
+                for model in self._manifest.models
+                if any(b.weights == build.weights for b in model.as_builds())
+            ),
+            None,
         )
 
     async def check(self, plan: InstallPlan) -> InstallPlan:

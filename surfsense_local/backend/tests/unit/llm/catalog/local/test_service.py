@@ -8,14 +8,15 @@ from pathlib import Path
 import httpx
 import pytest
 
+from modules.llm.catalog.local import service as service_module
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.install import download as download_module
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.installs import projector_filename, read_installs
 from modules.llm.catalog.local.manifest import load_local_manifest
-from modules.llm.catalog.local.rows import Origin
+from modules.llm.catalog.local.rows import BuildRow, Origin
 from modules.llm.catalog.local.service import LocalCatalogService
-from modules.llm.fit import BadgeLevel
+from modules.llm.fit import BadgeLevel, FitState
 from modules.llm.hardware import GpuStatus
 from modules.llm.providers.types import DownloadProgress
 from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
@@ -485,6 +486,41 @@ async def test_a_searched_build_too_big_for_the_machine_is_refused(
 
     with pytest.raises(InstallRefusedError, match="too big"):
         await service.check(searched(huge))
+
+
+def curated_chat_builds(service: LocalCatalogService) -> list[BuildRow]:
+    """Every curated llama.cpp build as the screen prices it."""
+    return [
+        build
+        for row in service.catalog().rows
+        if row.origin is Origin.CURATED and row.engine == "llamacpp"
+        for build in row.builds
+    ]
+
+
+async def test_a_curated_build_too_big_for_the_machine_is_refused(
+    service, monkeypatch
+) -> None:
+    """The screen disables its Download; any other caller is refused the same way."""
+    monkeypatch.setattr(service_module, "available_bytes", lambda: 2 * 1024**3)
+    too_big = next(
+        b for b in curated_chat_builds(service) if b.fit.state is FitState.TOO_BIG
+    )
+
+    with pytest.raises(InstallRefusedError, match="too big"):
+        await service.check(service.resolve_install(too_big.catalog_id))
+
+
+async def test_a_curated_build_that_fits_is_not_refused(service, monkeypatch) -> None:
+    """Only a refusal blocks: the check prices a curated build, it does not gate it."""
+    monkeypatch.setattr(service_module, "available_bytes", lambda: 2 * 1024**3)
+    fitting = [
+        b for b in curated_chat_builds(service) if b.fit.state is not FitState.TOO_BIG
+    ]
+    fits = min(fitting, key=lambda b: b.build.footprint_bytes)
+    plan = service.resolve_install(fits.catalog_id)
+
+    assert await service.check(plan) == plan
 
 
 async def test_a_projector_that_does_not_belong_is_dropped_by_the_check(

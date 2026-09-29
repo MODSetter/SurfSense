@@ -16,6 +16,7 @@ from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     DownloadedModel,
     scan,
 )
+from modules.llm.catalog.local.engines.llamacpp.pricing import price
 from modules.llm.catalog.local.engines.llamacpp.rows.catalog import local_catalog
 from modules.llm.catalog.local.engines.llamacpp.search.exact_check import check_build
 from modules.llm.catalog.local.engines.llamacpp.search.hits import (
@@ -32,6 +33,8 @@ from modules.llm.fit import FitState, HardwareBudget
 from modules.llm.hardware import BudgetMode
 from modules.llm.model_type import ModelType
 from modules.llm.providers.llamacpp import PROVIDER
+
+TOO_BIG = "This build is too big for this computer. Pick a smaller one."
 
 
 class LlamaCppEngine:
@@ -95,9 +98,11 @@ class LlamaCppEngine:
         )
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
-        """Read a searched build's headers and refuse what cannot run, before any
-        bytes move. Returns the plan with a failed projector dropped."""
+        """Refuse what cannot run here, before any bytes move: a curated build by
+        its committed shape, a searched one by reading its headers. Returns the
+        plan with a failed projector dropped."""
         if not plan.needs_check:
+            self._refuse_curated_too_big(plan)
             return plan
         async with httpx.AsyncClient(follow_redirects=True) as client:
             checked = await check_build(
@@ -110,12 +115,23 @@ class LlamaCppEngine:
                 checked.classification.reason or "SurfSense cannot run this model."
             )
         if checked.fit.state is FitState.TOO_BIG:
-            raise InstallRefusedError(
-                "This build is too big for this computer. Pick a smaller one."
-            )
+            raise InstallRefusedError(TOO_BIG)
         return InstallPlan(
             plan.model_id, checked.build, self.name, pipeline_tag=plan.pipeline_tag
         )
+
+    def _refuse_curated_too_big(self, plan: InstallPlan) -> None:
+        # Priced exactly as its row is, so the server refuses what the screen
+        # disables. Only TOO_BIG blocks: a build that spills still installs.
+        projector = plan.build.projector
+        fit = price(
+            plan.shape,
+            plan.build.weights_bytes,
+            projector.size_bytes if projector else 0,
+            self._budget(BudgetMode.CAPACITY),
+        )
+        if fit.state is FitState.TOO_BIG:
+            raise InstallRefusedError(TOO_BIG)
 
     async def after_install(self, model_id: str) -> AsyncIterator[InstallStep]:
         # The router only learns about a model by restarting, and reporting

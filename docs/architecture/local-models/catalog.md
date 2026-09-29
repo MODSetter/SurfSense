@@ -424,6 +424,10 @@ arbitrary download. A curated build's id is minted once per process and keyed on
 its repo and weights path; a searched build's is a ticket holding the whole build
 and the repo's tag, kept for 300 s, the window the screen's search cache uses.
 Both fail the same way: `422 catalog id is stale or unknown; refresh the catalog`.
+A curated id resolves with its manifest entry's committed shape, so the install's
+check prices the build with the same `price()` its row uses and refuses one that
+is `TOO_BIG` here, with the searched path's sentence, before any bytes move. A
+build that only spills still installs.
 
 ## Install jobs
 
@@ -640,7 +644,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
-- `POST /llm/installs` does not refuse a curated build that will not fit; only the screen's disabled Download does.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
