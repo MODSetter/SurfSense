@@ -11,8 +11,9 @@ fi
 
 VERSION="$(tr -d '[:space:]' < "$VERSION_FILE")"
 
-if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$'; then
-  echo "ERROR: '$VERSION' is not valid semver (expected X.Y.Z)" >&2
+# No prerelease suffix: the app sets allowPrerelease, so one would reach every user.
+if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+  echo "ERROR: '$VERSION' is not a release version (expected X.Y.Z, no prerelease suffix)" >&2
   exit 1
 fi
 
