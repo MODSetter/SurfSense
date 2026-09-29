@@ -1,5 +1,5 @@
 import { useRef, type ChangeEvent, type ReactNode } from "react"
-import { ComposerPrimitive } from "@assistant-ui/react"
+import { ComposerPrimitive, useAuiState } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
 import { ArrowUp02Icon, CircleStopIcon, PlusIcon } from "@/components/ui/icons"
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
+import { QUESTION_MAX_CHARS } from "./question-limit"
 
 function ModelControl({
   model,
@@ -205,6 +206,20 @@ export function ChatComposer({
   onModelSelected: (selection: ModelSelection) => void
   onUpload: (files: File[]) => void
 }) {
+  // Said only once the cap is reached: that is the moment typing, or the tail
+  // of a paste, stops landing, and the one moment it needs explaining.
+  const atLimit = useAuiState(
+    ({ composer }) => composer.text.length >= QUESTION_MAX_CHARS
+  )
+  const limitNotice = atLimit
+    ? intl.formatMessage(
+        {
+          id: "chat_composer_length_limit_status",
+          defaultMessage: "Messages are limited to {max, number} characters.",
+        },
+        { max: QUESTION_MAX_CHARS }
+      )
+    : null
   return (
     <div
       className="relative mx-auto w-full max-w-xl"
@@ -262,6 +277,7 @@ export function ChatComposer({
           }
           submitMode="enter"
           rows={1}
+          maxLength={QUESTION_MAX_CHARS}
           aria-label={intl.formatMessage({
             id: "chat_composer_message_aria",
             defaultMessage: "Message",
@@ -291,22 +307,34 @@ export function ChatComposer({
           </>
         )}
       </ComposerPrimitive.Root>
+      {placement === "center" && limitNotice ? (
+        <p
+          role="status"
+          className="mt-1 px-2 text-[11px] text-muted-foreground select-none"
+        >
+          {limitNotice}
+        </p>
+      ) : null}
       {placement === "bottom" ? (
         <div className="mt-1 flex min-h-7 items-center justify-between gap-3 px-2">
           {/* Keeps its line and leaves the model name what is left, never less
           than 7rem, so a long translation truncates the name before wrapping. */}
           <p className="max-w-[calc(100%-7rem)] shrink-0 text-left text-[11px] text-muted-foreground select-none">
-            {!model || providerAvailable
-              ? intl.formatMessage({
-                  id: "chat_composer_disclaimer_body",
-                  defaultMessage:
-                    "SurfSense can make mistakes. Check important answers.",
-                })
-              : intl.formatMessage({
-                  id: "chat_composer_provider_offline_body",
-                  defaultMessage:
-                    "Historical chats remain available while the provider is offline.",
-                })}
+            {limitNotice ? (
+              <span role="status">{limitNotice}</span>
+            ) : !model || providerAvailable ? (
+              intl.formatMessage({
+                id: "chat_composer_disclaimer_body",
+                defaultMessage:
+                  "SurfSense can make mistakes. Check important answers.",
+              })
+            ) : (
+              intl.formatMessage({
+                id: "chat_composer_provider_offline_body",
+                defaultMessage:
+                  "Historical chats remain available while the provider is offline.",
+              })
+            )}
           </p>
           <ModelControl
             model={model}

@@ -49,7 +49,7 @@ The list handed to the generator is `[system, *history within budget, user]`.
 
 - **History** is the thread's stored turns in `created_at` order, flattened to role and text. Stored citations and reasoning are for the UI, not the model.
 - **Sliding window.** The system message and the new user message are pinned; the most recent prior turns that fit the history budget are kept and older ones dropped.
-- **Budget** ([`budget.py`](../../surfsense_local/backend/modules/chat/budget.py)). One context window is shared by the system prompt (priced at 400 tokens), the excerpts (2,400: five hits of up to 480 tokens), the question (1,024) and a 1,024-token answer reserve, which is claimed first because llama.cpp stops a reply wherever the window runs out. History gets what remains of the model's window, floored at zero, so a narrow window means a shorter history rather than an overflowing turn. llama.cpp reports the window it actually allocated; an OpenAI-compatible endpoint reports none, and then history gets 3,000 tokens and `max_tokens` is left to the endpoint.
+- **Budget** ([`budget.py`](../../surfsense_local/backend/modules/chat/budget.py)). One context window is shared by the system prompt (priced at 400 tokens), the excerpts (2,400: five hits of up to 480 tokens), the question (1,024, which `MessageText` enforces at the wire as 4,096 characters at the same four-characters-a-token estimate, refusing more with a 422 before any model is resolved) and a 1,024-token answer reserve, which is claimed first because llama.cpp stops a reply wherever the window runs out. History gets what remains of the model's window, floored at zero, so a narrow window means a shorter history rather than an overflowing turn. llama.cpp reports the window it actually allocated; an OpenAI-compatible endpoint reports none, and then history gets 3,000 tokens and `max_tokens` is left to the endpoint.
 - Each prior turn is priced by the local runtime's own tokenizer when it answers, and by `len(text) // 4` otherwise.
 - **Retrieval query** is the new user message.
 
@@ -126,7 +126,6 @@ The list handed to the generator is `[system, *history within budget, user]`.
 
 ## Known gaps
 
-- `budget.py` prices the question at 1,024 tokens and says `MessageText` enforces that, but `MessageText` has no length limit, so a long question can push a turn past the model's window.
 - No live region announces streamed text, and focus does not move to the conversation heading after a thread switch; the dashboard design asks for both.
 - No test covers a client disconnecting mid-reply. The assistant's text is written only when generation ends, inside the stream, so whether a disconnected reply is kept is unverified.
 - A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. The trace now shows, so an empty answer is no longer unexplained, but how often it happens is unmeasured.

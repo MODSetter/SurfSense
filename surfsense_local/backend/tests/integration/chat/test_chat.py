@@ -6,7 +6,7 @@ import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
 
-from modules.chat.budget import ANSWER_RESERVE_TOKENS
+from modules.chat.budget import ANSWER_RESERVE_TOKENS, QUESTION_CHARS
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
@@ -401,6 +401,22 @@ async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> 
     )
 
     assert reply.status_code == 409
+
+
+async def test_a_question_past_its_share_is_refused_at_the_wire(
+    client: AsyncClient,
+) -> None:
+    """Refused before a model is resolved or retrieval runs: with no model
+    selected, a message that got past the schema would be the 409 above."""
+    workspace = (await client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(client, workspace["id"])
+
+    reply = await client.post(
+        f"/chat/threads/{thread_id}/messages",
+        json={"text": "x" * (QUESTION_CHARS + 1)},
+    )
+
+    assert reply.status_code == 422
 
 
 async def test_missing_embedding_assets_are_an_actionable_503(
