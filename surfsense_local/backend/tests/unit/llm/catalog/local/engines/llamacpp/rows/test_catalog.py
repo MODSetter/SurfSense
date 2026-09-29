@@ -227,6 +227,31 @@ def test_a_curated_model_downloaded_from_an_alias_repo_is_recognised(
     ]
 
 
+def test_a_build_still_missing_a_file_is_not_installed_yet(tmp_path: Path) -> None:
+    """An install cut off between the weights and the projector left the weights
+    under their final name. Its record names what is still to come, so the row
+    keeps offering Download rather than reading installed and loading as text."""
+    model = next(m for m in CURATED if m.id == "gemma-3-4b")
+    build = model.as_builds()[0]
+    assert build.projector is not None
+    a_model(tmp_path / build.weights.name)
+    unfinished = InstalledBuild(
+        build.runtime_name,
+        model.source_repo,
+        "r",
+        build.quantization,
+        (build.weights.name,),
+        pending=(projector_filename(build.runtime_name),),
+    )
+
+    result = catalog(
+        BUDGETS["discrete-24gb"], scan(tmp_path, {unfinished.model_id: unfinished})
+    )
+
+    row = next(r for r in result.rows if r.id == "gemma-3-4b")
+    assert [b.installed_as for b in row.builds if b.installed_as] == []
+
+
 def test_any_other_file_is_its_own_row_judged_by_its_header(tmp_path: Path) -> None:
     """Any other file is its own row judged by its header."""
     a_model(tmp_path / "mystery-Q5_K_M.gguf")

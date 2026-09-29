@@ -188,6 +188,54 @@ async def test_a_build_installs_as_its_whole_file_set_pinned_and_recorded(
     assert record.projector_gguf["clip.has_vision_encoder"] is True
 
 
+@pytest.fixture
+def cut_off_hub(monkeypatch):
+    """Serve the weights, drop the connection on the projector once, then serve it."""
+    asked: list[str] = []
+    dropped = False
+
+    async def download(url, destination, *, sha256=None, transport=None):
+        nonlocal dropped
+        asked.append(url)
+        if "mmproj" in url and not dropped:
+            dropped = True
+            raise httpx.ReadError("connection dropped")
+        data = PROJECTOR if "mmproj" in url else WEIGHTS
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+        yield DownloadProgress("complete", len(data), len(data))
+
+    monkeypatch.setattr(download_module, "download_gguf", download)
+    return asked
+
+
+async def test_an_install_cut_off_before_its_projector_is_recorded_as_unfinished(
+    service, tmp_path, cut_off_hub
+) -> None:
+    """The weights landed under their final name, so with no record the build
+    would read installed by name and load as text only. The record is written
+    as each file lands and names what is still to come; the retry fetches only
+    that, and the record is whole once it has."""
+    plan = InstallPlan("gemma-Q4_K_M", vision_build(), "llamacpp")
+
+    with pytest.raises(httpx.ReadError):
+        [step async for step in service.install(plan)]
+
+    models = tmp_path / "models"
+    unfinished = read_installs(models)["gemma-Q4_K_M"]
+    assert unfinished.weights == ("gemma-Q4_K_M.gguf",)
+    assert unfinished.projector is None
+    assert unfinished.pending == (projector_filename("gemma-Q4_K_M"),)
+
+    asked_before = len(cut_off_hub)
+    [step async for step in service.install(plan)]
+
+    assert [url for url in cut_off_hub[asked_before:] if "mmproj" not in url] == []
+    finished = read_installs(models)["gemma-Q4_K_M"]
+    assert finished.projector == projector_filename("gemma-Q4_K_M")
+    assert finished.pending == ()
+
+
 async def test_an_image_build_lands_in_sd_servers_folder_not_llama_servers(
     tmp_path, fake_hub
 ) -> None:
