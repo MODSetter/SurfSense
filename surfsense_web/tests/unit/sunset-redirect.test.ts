@@ -31,32 +31,45 @@ const PORTAL_ROUTES = [
 test("with the flag unset, nothing redirects", () => {
 	// The launch gate: self-hosters run this code forever with no flag set.
 	for (const pathname of [...APP_ROUTES, ...PORTAL_ROUTES]) {
-		assert.equal(shouldRedirectToSunset(pathname, undefined), false, pathname);
-		assert.equal(shouldRedirectToSunset(pathname, ""), false, pathname);
+		assert.equal(shouldRedirectToSunset(pathname, undefined, "cloud"), false, pathname);
+		assert.equal(shouldRedirectToSunset(pathname, "", "cloud"), false, pathname);
 	}
 });
 
 test("a flag that does not mean yes redirects nothing", () => {
 	for (const value of ["0", "false", "no", "off", "  "]) {
-		assert.equal(shouldRedirectToSunset("/dashboard/12", value), false, value);
+		assert.equal(shouldRedirectToSunset("/dashboard/12", value, "cloud"), false, value);
+	}
+});
+
+test("self-hosted ignores a stray flag", () => {
+	// Mirrors is_sunset_mode(): only a cloud deployment can be sunset.
+	for (const mode of [undefined, null, "", "self-hosted"]) {
+		for (const pathname of APP_ROUTES) {
+			assert.equal(
+				shouldRedirectToSunset(pathname, "1", mode),
+				false,
+				`${String(mode)} ${pathname}`
+			);
+		}
 	}
 });
 
 test("with the flag on, app routes go to /sunset", () => {
 	for (const pathname of APP_ROUTES) {
-		assert.equal(shouldRedirectToSunset(pathname, "1"), true, pathname);
+		assert.equal(shouldRedirectToSunset(pathname, "1", "cloud"), true, pathname);
 	}
 });
 
 test("with the flag on, the wind-down portal stays reachable", () => {
 	for (const pathname of PORTAL_ROUTES) {
-		assert.equal(shouldRedirectToSunset(pathname, "1"), false, pathname);
+		assert.equal(shouldRedirectToSunset(pathname, "1", "cloud"), false, pathname);
 	}
 });
 
 test("/sunset never redirects to itself", () => {
 	// A redirect loop here would take down the one page that still has a job.
-	assert.equal(shouldRedirectToSunset("/sunset", "1"), false);
+	assert.equal(shouldRedirectToSunset("/sunset", "1", "cloud"), false);
 });
 
 test("every spelling the backend accepts is accepted here too", () => {

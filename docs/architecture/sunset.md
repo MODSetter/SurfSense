@@ -1,6 +1,6 @@
 # Hosted sunset
 
-The hosted service went export-only on 18 Sep 2026 (T-0), and its user data is purged once the export window closes on 18 Oct 2026 (T+30). Every sunset behaviour sits behind flags read at runtime, because the same `surfsense_backend` and `surfsense_web` code is also the self-host stack, the scraper API and the license portal: with the flags unset nothing changes, and on the backend the flag takes effect only on a `DEPLOYMENT_MODE=cloud` deployment. Writes are refused and app routes redirect to `/sunset`, while reads, sign-in, export, the license business, PATs and the scraper API keep working.
+The hosted service went export-only on 18 Sep 2026 (T-0), and its user data is purged once the export window closes on 18 Oct 2026 (T+30). Every sunset behaviour sits behind flags read at runtime, because the same `surfsense_backend` and `surfsense_web` code is also the self-host stack, the scraper API and the license portal: with the flags unset nothing changes, and the flag takes effect only on a `DEPLOYMENT_MODE=cloud` deployment. Writes are refused and app routes redirect to `/sunset`, while reads, sign-in, export, the license business, PATs and the scraper API keep working.
 
 **Code:** [`surfsense_backend/app/sunset.py`](../../surfsense_backend/app/sunset.py), [`surfsense_web/proxy.ts`](../../surfsense_web/proxy.ts), [`surfsense_web/lib/sunset.ts`](../../surfsense_web/lib/sunset.ts), [`surfsense_backend/scripts/purge_hosted_accounts.py`](../../surfsense_backend/scripts/purge_hosted_accounts.py)
 **Decisions:** [ADR 0023](../adr/0023-sunset-behind-flags.md)
@@ -11,7 +11,7 @@ The operational steps are in the [sunset runbook](../../plans/community-local/su
 
 `is_sunset_mode()` reads `SUNSET_MODE` from the environment on every call, so throwing it takes a restart, never a rebuild or a deploy. It accepts `1`, `true`, `yes` and `on` in any case, because the switch is thrown once under time pressure, and a spelling that silently read as false would leave the service running with nothing to show it had failed. It returns false unless `DEPLOYMENT_MODE=cloud` ([PR #1815](https://github.com/MODSetter/SurfSense/pull/1815)), so a stray `SUNSET_MODE=1` copied into a self-hosted `.env` is a no-op rather than an outage. Production sets `DEPLOYMENT_MODE=cloud`.
 
-The web app reads its own `SUNSET_MODE`, with the same spellings, in `proxy.ts` on every request. It is deliberately not `NEXT_PUBLIC_SUNSET_MODE`: `NEXT_PUBLIC_*` values are inlined at build time, and nothing reads that name. So one variable is set in two places, the backend's `.env` and the web app's, and setting only one gives a half-sunset: a backend refusing writes behind an app that still looks open, or the reverse.
+The web app reads its own `SUNSET_MODE`, with the same spellings, in `proxy.ts` on every request. Like the backend, it counts only when `DEPLOYMENT_MODE` is `cloud`, resolved the way the runtime config resolves it: the runtime `DEPLOYMENT_MODE`, falling back to the build-time `NEXT_PUBLIC_DEPLOYMENT_MODE`. It is deliberately not `NEXT_PUBLIC_SUNSET_MODE`: `NEXT_PUBLIC_*` values are inlined at build time, and nothing reads that name. So one variable is set in two places, the backend's `.env` and the web app's, and setting only one gives a half-sunset: a backend refusing writes behind an app that still looks open, or the reverse.
 
 ## Refusing writes
 
@@ -48,7 +48,6 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 
 ## Known gaps
 
-- The web redirect is not gated on `DEPLOYMENT_MODE`: a self-hosted web app with `SUNSET_MODE` set redirects to `/sunset`.
 - The 410 body carries no `sunset_url`.
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
 - The purge script has no test.

@@ -1,12 +1,18 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { BUILD_TIME_AUTH_TYPE } from "@/lib/env-config";
+import { BUILD_TIME_AUTH_TYPE, BUILD_TIME_DEPLOYMENT_MODE } from "@/lib/env-config";
 import { RUNTIME_AUTH_TYPE_COOKIE_NAME, resolveRuntimeAuthUiMode } from "@/lib/runtime-auth-config";
 import { shouldRedirectToSunset } from "@/lib/sunset";
 
 export function proxy(request: NextRequest) {
 	// Read per request, so the hosted wind-down is a flag change rather than a
-	// redeploy. Unset -- every self-host install -- costs one set lookup.
-	if (shouldRedirectToSunset(request.nextUrl.pathname, process.env.SUNSET_MODE)) {
+	// redeploy. A self-host install costs one string comparison.
+	if (
+		shouldRedirectToSunset(
+			request.nextUrl.pathname,
+			process.env.SUNSET_MODE,
+			process.env.DEPLOYMENT_MODE ?? BUILD_TIME_DEPLOYMENT_MODE
+		)
+	) {
 		const destination = request.nextUrl.clone();
 		destination.pathname = "/sunset";
 		destination.search = "";
