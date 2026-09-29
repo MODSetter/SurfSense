@@ -109,11 +109,16 @@ POST /chat/threads/{thread_id}/messages
 - When the model reads images and retrieval returns chunks of a document whose `mime_type` is `image/*`, the original is loaded through `original_path()` ([`original_file.py`](../../../surfsense_local/backend/modules/documents/original_file.py)), normalised as in decision 3, and attached to the current user turn beside its OCR text.
 - At most 2 per turn, the highest ranked distinct documents, priced like attachments.
 - Not stored in the message row: they come from sources, not the person, and are loaded again whenever retrieval returns them. A missing original is skipped and the turn goes on as text.
-- Works for image sources indexed before this, in either on-disk layout ([documents](../../architecture/documents.md)).
+- Needs nothing from indexing: the original is read at question time, so image sources indexed before this work unchanged, in either on-disk layout ([documents](../../architecture/documents.md)), and nothing is re-indexed.
 
 ### 7. The UI
 
-- The composer offers attach, paste and drop only when `reads_images` is true, with a thumbnail and remove control per image, built on assistant-ui's attachment adapter (installed, unused today).
+- Attachments are assistant-ui's own, nothing built from scratch. At the installed `@assistant-ui/react` 0.15.18:
+  - the runtime takes `adapters.attachments`, set to `SimpleImageAttachmentAdapter` only when `reads_images` is true, so a model that cannot see has no adapter and the composer accepts no image;
+  - `ComposerPrimitive.AddAttachment` opens the picker, `ComposerPrimitive.AttachmentDropzone` takes a drop, and `ComposerPrimitive.Input` adds a pasted file itself (`addAttachmentOnPaste`, on by default);
+  - `ComposerPrimitive.Attachments` lists pending images, each drawn with `AttachmentPrimitive.Root`, `Thumb`, `Name` and `Remove`;
+  - `MessagePrimitive.Attachments` draws a sent turn's images in the user bubble.
+- Our own code is the styling of those primitives and the mapping between assistant-ui's attachments and the request in decision 3.
 - `submittedText()` stops dropping image parts, and retry resends a failed turn's images.
 - The thread renders stored images in the user bubble through the route in decision 4.
 - A Vision badge marks remote models that read images, as local ones already have. The connection's model list ([`schemas.py`](../../../surfsense_local/backend/modules/llm/schemas.py) `ConnectionModelRead`) gains `reads_images`, and the row shows a Vision chip beside its type chip, reusing the existing `models_your_models_vision_label` string.
@@ -131,10 +136,10 @@ A remote model receives images over the connection the person already consented 
 
 ## Later
 
-Each builds on decision 1's answer and decision 2's image parts, and each changes ingest or adds tools, so each needs its own design:
+Each builds on decision 1's answer and decision 2's image parts, and each changes ingest or adds tools, so each needs its own design. Documents indexed before one of them ships stay as they were indexed: nothing re-parses them in the background, and a document gains the new data only when it is ingested again.
 
 - **Figures at indexing.** Docling's picture description (`PictureDescriptionApiOptions`) pointed at llama-server's local vision model, so charts and diagrams in PDFs and slides become searchable text for every model. Opt-in, since it slows ingest.
-- **Page per chunk.** Record each chunk's page and region at ingest, for citations that open the page and, with a vision model, for showing the page itself. Already-indexed documents gain it by re-parsing their stored originals.
+- **Page per chunk.** Record each chunk's page and region at ingest, for citations that open the page and, with a vision model, for showing the page itself.
 - **Looking at a page on demand.** An agent tool that renders one page for a model that reads images ([agent](../agent/README.md), where figure understanding is out of scope today).
 
 Not planned: sending whole PDFs natively to providers that accept them, which is provider-specific, costly per turn and no help to local models.
