@@ -94,7 +94,7 @@ Ingest writes the `chunk_vectors` row itself, because only ingest holds the vect
 | `chat_threads` | `id`, `workspace_id`, `title`, `created_at`, `updated_at` | `title` is nullable; the API defaults it to "New chat" |
 | `chat_messages` | `id`, `chat_thread_id`, `role`, `content`, `created_at`, `completed_at` | `role` is `user`, `assistant` or `system`; `completed_at` arrived in `0002` |
 
-`content` is JSON: `{"text"}` for a user turn and `{"text", "citations"}` for an assistant turn, whose text carries `[citation:<chunk_id>]` markers. The server reads only `text`, to build the model's history; the citations are for the UI. Imported user turns also carry an empty `citations` list. Messages are indexed on `(chat_thread_id, created_at)` and cascade with their thread. Visibility, authorship, cloning, turn ids, token usage and LangGraph checkpoints are left out. See [`chat.md`](chat.md).
+`content` is JSON: `{"text"}` for a user turn, plus `images: [{"key", "mime", "size_bytes", "sha256"}]` when it carried any, and `{"text", "citations"}` for an assistant turn, whose text carries `[citation:<chunk_id>]` markers. The server reads `text` to build the model's history, and a user turn's `images` for the newest turn that carried some; the citations are for the UI. Imported user turns also carry an empty `citations` list. Messages are indexed on `(chat_thread_id, created_at)` and cascade with their thread. Visibility, authorship, cloning, turn ids, token usage and LangGraph checkpoints are left out. See [`chat.md`](chat.md).
 
 ### `artifacts` and `artifact_files`
 
@@ -146,11 +146,13 @@ A destination is `host:<hostname>`: `host:huggingface.co` for model search and d
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/
         │   └── <file name>       an uploaded or imported file, under its own name
+        ├── chats/<thread_id>/
+        │   └── <sha256>.<ext>    an image a turn carried, normalised to PNG or JPEG
         └── artifacts/<artifact_id>/
             └── primary.<ext>     the rendered file; a preview would sit beside it
 ```
 
-Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. Deleting a workspace removes its whole directory after the commit, and deleting a document or an artifact removes its own directory. The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
+Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. A chat image is named by its content hash, so one picture attached twice in a thread is one file ([`chat.md`](chat.md#images)). Deleting a workspace removes its whole directory after the commit, and deleting a document, an artifact or a thread removes its own directory. The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
 
 ## Entity graph
 

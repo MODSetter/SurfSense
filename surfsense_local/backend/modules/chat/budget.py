@@ -36,6 +36,12 @@ EXCERPTS_TOKENS = 2400
 # this at the wire (modules/chat/schemas.py).
 QUESTION_TOKENS = 1024
 
+# What one attached image costs the window. The curated vision model, Gemma 3,
+# spends a fixed 256; Qwen2.5-VL, downloadable from search, spends ~1,340 at the
+# 1024 px cap (modules/chat/images/intake.py). Priced at the larger, so the trim
+# drops a turn rather than overflowing the window.
+IMAGE_TOKENS = 1400
+
 # Today's number, kept as the fallback for a window this module cannot see:
 # unchanged so a remote model with no reported `n_ctx` behaves exactly as it
 # did before this budget existed.

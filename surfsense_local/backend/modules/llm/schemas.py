@@ -65,6 +65,7 @@ class ConnectionModelRead(BaseModel):
     capability_source: CapabilitySource
     # Decided here, never in the renderer, so every picker offers the same set.
     selectable_for: list[ModelType]
+    reads_images: bool
 
 
 class RuntimeFileRead(BaseModel):
@@ -113,6 +114,8 @@ class SelectionRead(BaseModel):
     name: str
     tier: Tier
     updated_at: datetime
+    # Whether the composer offers images; worked out per read, never stored.
+    reads_images: bool = False
 
 
 class OnboardingStatusRead(BaseModel):

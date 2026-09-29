@@ -4,6 +4,7 @@ It satisfies the same protocol the previous runtime did, so nothing above it lea
 the runtime changed.
 """
 
+import httpx
 import pytest
 
 from modules.llm.providers.llamacpp import LlamaCppProvider
@@ -255,3 +256,29 @@ async def test_each_model_is_typed_from_its_own_header(tmp_path) -> None:
     assert models["chat"].types == (ModelType.TEXT_GEN,)
     assert models["embedder"].types == ()
     assert models["embedder"].known
+
+
+async def test_whether_a_model_sees_is_llama_cpps_own_answer() -> None:
+    """Read from `/models`, which lists `image` for a model whose projector reads
+    images, loaded or not, so no answer of ours can drift from the runtime's."""
+    fake = FakeRouter(["gemma", "qwen"])
+    fake.sees = {"gemma"}
+    provider = LlamaCppProvider("http://127.0.0.1:1234", transport=fake.transport())
+
+    assert await provider.sees_images("gemma") is True
+    assert await provider.sees_images("qwen") is False
+    assert fake.loaded == set()
+
+
+async def test_an_unreachable_router_is_no_answer_rather_than_no() -> None:
+    """A refusal here would hide attach behind a transient hiccup; llama-server's
+    own error still stops an image it cannot take."""
+
+    def down(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("refused")
+
+    provider = LlamaCppProvider(
+        "http://127.0.0.1:1234", transport=httpx.MockTransport(down)
+    )
+
+    assert await provider.sees_images("gemma") is None

@@ -215,17 +215,28 @@ into the first non-system turn, keeping that turn's role, rather than losing it.
 seam, so `modules/chat` assembles one conversation and never learns that
 templates differ.
 
-`vision` requires both halves: `image` among the accepted inputs and
-`supports_typed_content` from the template. A model can accept images
-architecturally while its template takes only string content, which leaves no
-way to send it one. It is the only capability meant to reach a person;
+`vision` is `image` among the accepted inputs, llama.cpp's own answer: the
+router reads the header of the projector the preset gave a model and lists
+`image` whether or not the model is loaded. The template's
+`supports_typed_content` does not decide it, because at `b11050` llama-server
+swaps each image for a media marker before templating and keeps the marker when
+it joins parts for a string-only template ([ADR
+0034](../../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).
+`sees_images()` reads it from `/models` alone, so nothing is loaded to ask; an
+unreadable `/models` is no answer rather than no. It is the only capability
+meant to reach a person;
 `system_role`, `typed_content` and `tools` change how a request is built and mean
 nothing to one. `Modality` carries only text and image, so an audio-capable model
 is not detected as one; audio and video are deliberately not modelled, because
 nothing can feed them.
 
 A remote endpoint reports none of this. Its models' capabilities come from its
-`/models` listing ([`../connections.md`](../connections.md)).
+`/models` listing, and whether one reads images from the catalog
+([`../connections.md`](../connections.md)).
+
+`GET` and `PUT /llm/selection/{model_type}` add `reads_images` to the choice,
+worked out per read from those two answers and stored nowhere, so the composer
+knows before anything is sent ([`../chat.md`](../chat.md#images)).
 
 ## Constrained decoding
 
@@ -253,5 +264,4 @@ over HTTP.
 - A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts. Featherless lists every model this way (`"owned_by": "Feather"`, no `hugging_face_id`), so every model there, Qwen3 0.6B included, gets frontier prompts.
 - Local fingerprints come from the filename only: `LlamaCppProvider` has no `inspect()`, so `from_llamacpp()`, which reads `general.parameter_count` from `/props`, is never called.
 - No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
-- Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

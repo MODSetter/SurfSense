@@ -17,6 +17,9 @@ from modules.llm.catalog.local.engines.llamacpp.builds.choice import (
     default_build,
     recommended_build,
 )
+from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
+    pairs_projector,
+)
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     DownloadedModel,
 )
@@ -107,9 +110,14 @@ def _curated_row(
     for build in builds:
         on_disk = _installed_as(build, repos, downloaded)
         if on_disk:
-            installed.add(on_disk)
-        reads = build.projector is not None and projector_reads_images(
-            build.projector.gguf
+            installed.add(on_disk.model_id)
+        # Installed, the load decides: the preset's own rule, which is what
+        # llama.cpp's `/models` then reports. Otherwise the manifest predicts.
+        reads = (
+            pairs_projector(on_disk)
+            if on_disk
+            else build.projector is not None
+            and projector_reads_images(build.projector.gguf)
         )
         fit = fits[build.quantization]
         rows.append(
@@ -118,7 +126,7 @@ def _curated_row(
                 build=build,
                 fit=fit,
                 badge=badge(fit, budget),
-                installed_as=on_disk,
+                installed_as=on_disk.model_id if on_disk else None,
                 recommended=build is pick,
                 reads_images=reads,
                 projector_checked=True,
@@ -157,16 +165,16 @@ def _runs_here(model: CuratedModel) -> bool:
 
 def _installed_as(
     build: Build, repos: set[str], downloaded: Sequence[DownloadedModel]
-) -> str | None:
-    """The runtime's name for this build if it is on disk, or None."""
+) -> DownloadedModel | None:
+    """This build as it sits on disk, or None."""
     basename = build.weights.path.rsplit("/", 1)[-1]
     for d in downloaded:
         record = d.record
         if record is not None:
             if record.repo in repos and record.quantization == build.quantization:
-                return d.model_id
+                return d
         elif d.path.name == basename:
-            return d.model_id
+            return d
     return None
 
 

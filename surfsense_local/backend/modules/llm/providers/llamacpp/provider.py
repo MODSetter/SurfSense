@@ -74,6 +74,22 @@ class LlamaCppProvider:
     async def health(self) -> bool:
         return await self._router.health()
 
+    async def sees_images(self, model: str) -> bool | None:
+        """llama.cpp's own answer, or None when the router cannot be read.
+
+        `/models` lists `image` for a model whose preset projector reads images,
+        loaded or not, so nothing is loaded to ask and nothing is stored.
+        """
+        try:
+            payload = await self._router.raw_models()
+        except (httpx.HTTPError, ValueError):
+            return None
+        row = next((r for r in payload.get("data", []) if r.get("id") == model), None)
+        if row is None:
+            return None
+        inputs = (row.get("architecture") or {}).get("input_modalities") or []
+        return "image" in inputs
+
     async def capabilities(self, model: str) -> Capabilities:
         """What this model accepts and what its template can express.
 

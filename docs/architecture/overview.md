@@ -75,6 +75,7 @@ The rules that keep the processes out of each other's way:
 ├── electron/                 Electron's userData: secret.bin, updates.json, window and theme prefs
 └── data/workspaces/<id>/
     ├── documents/<id>/       the upload, under its own name
+    ├── chats/<id>/           images a thread's turns carried
     └── artifacts/<id>/       an artifact's rendered file, named by role
 ```
 

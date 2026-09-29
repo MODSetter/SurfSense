@@ -9,7 +9,7 @@ import pytest
 
 from modules.llm.providers.llamacpp import Capabilities, Modality
 from modules.llm.providers.llamacpp.messages import for_template
-from modules.llm.providers.types import Message
+from modules.llm.providers.types import Image, Message
 
 pytestmark = pytest.mark.unit
 
@@ -73,3 +73,44 @@ def test_history_after_the_system_message_survives_the_fold() -> None:
 
     assert [m.role for m in adjusted] == ["user", "assistant", "user"]
     assert adjusted[-1].content == "second"
+
+
+PNG = Image("image/png", b"\x89PNG\r\n\x1a\nfake")
+
+
+def seeing(system_role: bool) -> Capabilities:
+    """A vision model whose template may or may not carry a system role."""
+    return Capabilities(
+        inputs=(Modality.TEXT, Modality.IMAGE),
+        system_role=system_role,
+        typed_content=False,
+        tools=False,
+        context_tokens=16384,
+    )
+
+
+def test_folding_keeps_the_first_turns_images() -> None:
+    """The fold rebuilds the first user turn; its picture must survive that."""
+    turns = [Message("system", GROUNDING), Message("user", "what is this?", (PNG,))]
+
+    (folded,) = for_template(turns, seeing(system_role=False))
+
+    assert folded.images == (PNG,)
+
+
+def test_a_model_that_cannot_see_gets_the_text_alone() -> None:
+    """A thread keeps its pictures after a switch to a text model, and carries on
+    as text instead of failing on every turn."""
+    turns = [Message("user", "earlier", (PNG,)), Message("user", "now")]
+
+    adjusted = for_template(turns, caps(system_role=True))
+
+    assert [m.images for m in adjusted] == [(), ()]
+    assert [m.content for m in adjusted] == ["earlier", "now"]
+
+
+def test_a_model_that_can_see_keeps_its_images() -> None:
+    """Nothing to strip, so the turn is passed through unchanged."""
+    turns = [Message("user", "what is this?", (PNG,))]
+
+    assert for_template(turns, seeing(system_role=True)) == turns

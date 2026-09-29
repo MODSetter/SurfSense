@@ -36,12 +36,13 @@ class Capabilities:
 
     @property
     def can_see(self) -> bool:
-        """Both halves, because either alone is a lie.
+        """Whether llama-server loads a projector that reads images for it.
 
-        A model can accept images architecturally while its template takes only
-        string content, which leaves no way to send it one.
+        Not the template's content shape: at b11050 the server swaps each image
+        for a media marker before templating and keeps it when a string-only
+        template joins the parts (common/chat.cpp, concat_content_parts).
         """
-        return Modality.IMAGE in self.inputs and self.typed_content
+        return Modality.IMAGE in self.inputs
 
     @property
     def user_facing(self) -> tuple[str, ...]:

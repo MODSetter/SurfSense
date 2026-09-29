@@ -23,6 +23,14 @@ class Generator(Protocol):
         """
         ...
 
+    async def sees_images(self, model: str) -> bool | None:
+        """Whether this model takes images, or None when it cannot be told.
+
+        None is not no: a caller refusing images on it would hide them behind a
+        hiccup, while the runtime still refuses what it cannot take.
+        """
+        ...
+
     async def token_count(self, model: str, text: str) -> int | None:
         """This text's exact cost by the model's own tokenizer, or None.
 

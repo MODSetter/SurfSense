@@ -332,7 +332,9 @@ describe("dashboard chat", () => {
 
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
-    const addSources = screen.getByRole("button", { name: "Add sources" })
+    const addSources = screen.getByRole("button", {
+      name: "Attach images",
+    })
     expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
     expect(
@@ -357,11 +359,13 @@ describe("dashboard chat", () => {
       expect(bottomComposer?.closest("[data-chat-viewport]")).toBeTruthy()
       expect(
         screen
-          .getByRole("button", { name: "Add sources" })
+          .getByRole("button", { name: "Attach images" })
           .closest('[data-composer-placement="bottom"]')
       ).toBeTruthy()
       expect(
-        screen.getByRole("button", { name: "Add sources" }).className
+        screen.getByRole("button", {
+          name: "Attach images",
+        }).className
       ).toContain("-mr-1.5")
     })
 
@@ -901,7 +905,8 @@ describe("dashboard chat", () => {
           ])
         }
         if (
-          path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
         ) {
           return Response.json([])
         }

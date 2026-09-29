@@ -16,6 +16,9 @@ dependencies = [
     "httpx>=0.28.1",
     "huey>=3.3.4",
     "onnxruntime>=1.20",
+    # Chat images are normalised before they are stored or sent
+    # (modules/chat/images). Docling brings it too; named so it cannot vanish.
+    "pillow>=12",
     "pathvalidate>=3.2",
     "pydantic-settings>=2.7.0",
     "python-docx>=1.2.0",

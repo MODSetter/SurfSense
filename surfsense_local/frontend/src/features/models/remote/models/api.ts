@@ -17,6 +17,8 @@ export type ConnectionModel = {
   capability_source: CapabilitySource
   /** The slots the backend says this model can fill; pickers never decide it. */
   selectable_for: ModelType[]
+  /** From the catalog, the same answer the chat composer gets on selection. */
+  reads_images: boolean
 }
 
 export function getConnectionModels(

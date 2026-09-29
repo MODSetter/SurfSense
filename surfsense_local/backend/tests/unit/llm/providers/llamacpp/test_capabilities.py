@@ -38,16 +38,13 @@ def test_a_text_model_reports_no_vision() -> None:
     assert not caps().can_see
 
 
-def test_vision_needs_the_model_and_the_template_to_agree() -> None:
-    """A model can accept images architecturally while its template takes only
-    string content, leaving no way to hand it one. Checking `input_modalities`
-    alone puts a vision badge on a model that cannot be sent a picture.
+def test_a_string_only_template_still_sees() -> None:
+    """llama-server swaps each image for a media marker before templating, and
+    keeps the marker when it joins parts for a string-only template, so the
+    template's content shape never decides vision (b11050, common/chat.cpp).
     """
-    both = caps(inputs=["text", "image"], typed_content=True)
-    architecture_only = caps(inputs=["text", "image"], typed_content=False)
-
-    assert both.can_see
-    assert not architecture_only.can_see
+    assert caps(inputs=["text", "image"], typed_content=True).can_see
+    assert caps(inputs=["text", "image"], typed_content=False).can_see
 
 
 def test_a_template_without_a_system_role_is_recorded() -> None:

@@ -50,6 +50,7 @@ class SupportsRead(BaseModel):
     reasoning: bool | None
     structured_output: bool | None
     context_window: int | None
+    reads_images: bool | None
 
 
 class RemoteRowRead(BaseModel):

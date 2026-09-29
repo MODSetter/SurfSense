@@ -1,18 +1,14 @@
-import { useRef, type ChangeEvent, type ReactNode } from "react"
+import { type ReactNode } from "react"
 import { ComposerPrimitive } from "@assistant-ui/react"
 
 import { Button } from "@/components/ui/button"
-import { ArrowUp02Icon, CircleStopIcon, PlusIcon } from "@/components/ui/icons"
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip"
+import { ArrowUp02Icon, CircleStopIcon } from "@/components/ui/icons"
 import type { ModelSelection } from "@/features/models/selection/api"
-import { SOURCE_FILE_ACCEPT } from "@/features/sources/api"
 import { cn } from "@/lib/utils"
 import { intl } from "@/i18n/intl"
 
+import { AttachImagesButton } from "./attach-images-button"
+import { ComposerImage } from "./attached-image"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
 
 function ModelControl({
@@ -118,84 +114,22 @@ function SourceCount({
   )
 }
 
-function AddSourcesButton({
-  isUploading,
-  onUpload,
-  className,
-}: {
-  isUploading: boolean
-  onUpload: (files: File[]) => void
-  className?: string
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const upload = (event: ChangeEvent<HTMLInputElement>) => {
-    onUpload(Array.from(event.target.files ?? []))
-    event.target.value = ""
-  }
-
-  return (
-    <>
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        accept={SOURCE_FILE_ACCEPT}
-        className="sr-only"
-        aria-label={intl.formatMessage({
-          id: "chat_composer_add_files_aria",
-          defaultMessage: "Add source files",
-        })}
-        disabled={isUploading}
-        onChange={upload}
-      />
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button
-              type="button"
-              size="icon-lg"
-              variant="ghost"
-              className={cn("rounded-xl", className)}
-              disabled={isUploading}
-              aria-label={intl.formatMessage({
-                id: "chat_composer_add_sources_aria",
-                defaultMessage: "Add sources",
-              })}
-              onClick={() => inputRef.current?.click()}
-            >
-              <PlusIcon className="size-5" />
-            </Button>
-          }
-        />
-        <TooltipContent side="top">
-          {intl.formatMessage({
-            id: "chat_composer_add_sources_tooltip",
-            defaultMessage: "Add sources",
-          })}
-        </TooltipContent>
-      </Tooltip>
-    </>
-  )
-}
-
 export function ChatComposer({
   placement,
   model,
   sourceCount,
   isRunning,
-  isUploading,
   providerAvailable,
   notice,
   blockedPlaceholder,
   onModelSetup,
   onModelSelected,
-  onUpload,
+  readsImages,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
   sourceCount: number
   isRunning: boolean
-  isUploading: boolean
   providerAvailable: boolean
   // Above the composer: why the saved model could not be used at startup.
   notice?: ReactNode
@@ -203,7 +137,8 @@ export function ChatComposer({
   blockedPlaceholder?: string
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
-  onUpload: (files: File[]) => void
+  // Attach and paste take images only while the selected model reads them.
+  readsImages: boolean
 }) {
   return (
     <div
@@ -215,6 +150,13 @@ export function ChatComposer({
         // flow, so the composer keeps its place and its own shape.
         <div className="absolute inset-x-0 bottom-full -mb-4">{notice}</div>
       ) : null}
+      {readsImages ? (
+        <div className="mb-2 flex flex-wrap gap-2 px-1 empty:hidden">
+          <ComposerPrimitive.Attachments
+            components={{ Image: ComposerImage, Attachment: ComposerImage }}
+          />
+        </div>
+      ) : null}
       <ComposerPrimitive.Root
         className={cn(
           "relative rounded-2xl border bg-card p-1.5 shadow-sm transition-colors focus-within:border-ring/40 hover:border-ring/40",
@@ -222,9 +164,8 @@ export function ChatComposer({
         )}
       >
         {placement === "bottom" ? (
-          <AddSourcesButton
-            isUploading={isUploading}
-            onUpload={onUpload}
+          <AttachImagesButton
+            readsImages={readsImages}
             className="-mr-1.5 mb-0.5"
           />
         ) : null}
@@ -261,6 +202,7 @@ export function ChatComposer({
                   })
           }
           submitMode="enter"
+          addAttachmentOnPaste={readsImages}
           rows={1}
           aria-label={intl.formatMessage({
             id: "chat_composer_message_aria",
@@ -269,9 +211,8 @@ export function ChatComposer({
         />
         {placement === "center" ? (
           <>
-            <AddSourcesButton
-              isUploading={isUploading}
-              onUpload={onUpload}
+            <AttachImagesButton
+              readsImages={readsImages}
               className="absolute bottom-2 left-1.5"
             />
             <div className="absolute right-1.5 bottom-2 flex items-center gap-2">

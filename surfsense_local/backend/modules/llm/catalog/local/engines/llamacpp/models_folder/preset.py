@@ -33,7 +33,7 @@ def write_preset(
             # runtime dead over a file nobody asked it to load.
             logger.warning("skipping unreadable model %s", model.path.name)
             continue
-        projector = model.projector if _pairs(model) else None
+        projector = model.projector if pairs_projector(model) else None
         mmproj_bytes = projector.stat().st_size if projector else 0
         plan = plan_load(
             model.shape,
@@ -55,7 +55,7 @@ def write_preset(
     write_presets(models_dir / PRESET_FILE, presets)
 
 
-def _pairs(model: DownloadedModel) -> bool:
+def pairs_projector(model: DownloadedModel) -> bool:
     """The recorded or name-matched projector, only when it sees and fits."""
     return (
         model.projector is not None

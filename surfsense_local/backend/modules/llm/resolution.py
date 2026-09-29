@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import get_local_catalog
+from modules.llm.catalog.remote.reads_images import remote_reads_images
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.profile import Tier
@@ -56,7 +57,13 @@ def resolve_generation(session: Session) -> ResolvedGeneration:
     connection = _connection(session, selected)
     return ResolvedGeneration(
         selected,
-        OpenAICompatibleChatProvider(connection.base_url, connection.api_key),
+        OpenAICompatibleChatProvider(
+            connection.base_url,
+            connection.api_key,
+            reads_images=remote_reads_images(
+                selected.name, connection.catalog_provider
+            ),
+        ),
     )
 
 

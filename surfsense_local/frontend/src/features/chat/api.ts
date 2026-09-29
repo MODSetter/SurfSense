@@ -10,11 +10,25 @@ export type ChatThread = {
   updated_at: string
 }
 
+/** An image a stored turn carried; the bytes are served by the image route. */
+export type StoredImage = {
+  key: string
+  mime: string
+  size_bytes: number
+  sha256: string
+}
+
+/** One attached image as the send request carries it. `mime` is advisory. */
+export type ImageUpload = { mime: string | null; data: string }
+
 export type MessageContent = {
   text?: string
   citations?: Citation[]
   // A thinking model's trace, shown folded above the answer.
   reasoning?: { text: string; duration_ms: number | null }
+  images?: StoredImage[]
+  // Client only: what a turn not yet stored shows in place of `images`.
+  previews?: string[]
 }
 
 export type ChatMessage = {
@@ -82,6 +96,7 @@ export function renameThread(
 export async function streamMessage(
   threadId: number,
   text: string,
+  images: ImageUpload[],
   documentIds: number[],
   signal: AbortSignal,
   onEvent: (event: ChatStreamEvent) => void
@@ -95,6 +110,8 @@ export async function streamMessage(
     body: JSON.stringify({
       text,
       document_ids: documentIds,
+      // Only when there are some, so a text turn sends exactly what it did.
+      ...(images.length > 0 ? { images } : {}),
     }),
     signal,
   })
