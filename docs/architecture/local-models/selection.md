@@ -120,15 +120,18 @@ names the prompt file.
 | `params_b` ≥ 100.0 | `frontier` |
 | no count, but a `vendor` | `frontier` |
 | no count, `line` is flagship / small | `frontier` / `capable` |
-| nothing, and the provider is `llamacpp` | `compact` |
-| nothing, any other provider | `capable` |
+| nothing, and the endpoint is on this machine (`llamacpp`, or a connection on a loopback host) | `compact` |
+| nothing, and the endpoint is hosted | `capable` |
 
 The thresholds encode a claim about scaffolding, not about quality: below the
 first a model loses accuracy when asked to follow a structure, between the two it
 gains from one, and above the second it writes better from judgement than from
 steps. The last two rows are the same bet: a hosted endpoint runs models too big
 for a laptop, and a local one runs the laptop. `Fingerprint.local` decides which
-applies, and it returns `provider == "llamacpp"`.
+applies: true for `llamacpp`, which has no URL of its own, and for a connection
+whose host `host_destination()` reports as loopback, such as LM Studio or Ollama
+on `localhost`. `SelectedModel.fingerprint` sets that from its connection, which
+the row loads joined so reading the tier never queries lazily.
 
 The tier is not stored. `SelectedModel.tier` calls `classify()` on read, and
 `ResolvedGeneration.tier` hands it to chat and to every Studio format, so
@@ -258,7 +261,6 @@ over HTTP.
 
 ## Known gaps
 
-- The tier fallback keys on the provider name, not on loopback: `Fingerprint.local` is `provider == "llamacpp"`, so a local endpoint reached through a connection falls to `capable` when nothing else is known; the decision is to key on `host_destination()`, which already computes loopback.
 - Only the quiz passes `json_schema`: mind map, flashcards, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
 - Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

@@ -26,6 +26,9 @@ class Fingerprint:
     params_b: float | None = None
     vendor: str | None = None
     line: Line | None = None
+    # The endpoint answers on this machine: set from the connection's host where
+    # the fingerprint is built, never stored, so it follows the connection.
+    loopback: bool = False
 
     @property
     def local(self) -> bool:
@@ -33,6 +36,7 @@ class Fingerprint:
 
         The fallback tier keys on this rather than on the provider's name: a
         hosted endpoint runs models too big for a laptop, a local one runs the
-        laptop, and that is a fact about where the endpoint is.
+        laptop, and that is a fact about where the endpoint is. The bundled
+        runtime has no URL of its own, so it is local by construction.
         """
-        return self.provider == "llamacpp"
+        return self.provider == "llamacpp" or self.loopback
