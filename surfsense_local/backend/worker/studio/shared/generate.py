@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
-from worker.studio.shared import cancellation
+from shared import cancellation
 from worker.studio.shared.artifact import Source
 
 logger = logging.getLogger(__name__)

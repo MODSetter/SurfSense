@@ -9,9 +9,10 @@ import pytest
 
 from modules.llm.providers.llamacpp import LlamaCppProvider
 from modules.llm.resolution import ResolvedGeneration
+from shared import cancellation
 from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
 from worker.jobs import JobCancelledError
-from worker.studio.shared import cancellation, generate
+from worker.studio.shared import generate
 
 pytestmark = pytest.mark.unit
 
