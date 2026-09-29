@@ -34,8 +34,16 @@ export function isSunsetMode(value: string | undefined | null): boolean {
  * `/pricing`, the landing page, the blog. Those have to stay reachable, since
  * they are where a sunset user is being sent. Everything else is the app,
  * which has no hosted service left behind it.
+ *
+ * Like the backend's `is_sunset_mode()`, the flag only counts on a cloud
+ * deployment, so a stray `SUNSET_MODE` in a self-hosted `.env` is a no-op.
  */
-export function shouldRedirectToSunset(pathname: string, flag: string | undefined | null): boolean {
+export function shouldRedirectToSunset(
+	pathname: string,
+	flag: string | undefined | null,
+	deploymentMode: string | undefined | null
+): boolean {
+	if (deploymentMode !== "cloud") return false;
 	if (!isSunsetMode(flag)) return false;
 	return !isPublicRoute(pathname);
 }
