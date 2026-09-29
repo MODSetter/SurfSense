@@ -18,13 +18,13 @@ Contributions are welcome everywhere, the SDK included, and a plugin that needs 
 | SDK surface | What an author calls or declares for their own plugin: a verb, an accessor, an input kind, a way to report progress. | Anyone can open the pull request, ideally beside the plugin that needs it. A maintainer reviews the shape with the author. |
 | Lifecycle | What the checks, the build, publishing, the catalog, install or the runner act on: `sdk`, `access`, `hosts`, `platforms`, `timeout_seconds`, the catalog's `downloads` and `yanked`, the size cap and its exceptions, reserved ids, the run's environment. | Maintainers design these, since one change reaches CI, the catalog and every installed app at once. An idea starts best as an issue, so the design is agreed before the code. |
 
-The repository asks for that review rather than leaving it to memory. `.github/CODEOWNERS` names the maintainers for `plugins/sdk/`, `plugins/build/`, `plugins/targets.json`, `plugins/RESERVED`, `plugins/YANKED`, `plugins/SIZE-EXCEPTIONS` and the `plugin-*.yml` workflows, and a rule on `dev` requires code-owner approval. If that rule cannot be set, a job in `plugin-check.yml` stands in, weaker because a pull request can edit it ([`catalog/01-manifest-and-ci.md`](catalog/01-manifest-and-ci.md)).
+The repository asks for that review rather than leaving it to memory. `.github/CODEOWNERS` names the maintainers for `plugins/core/`, which holds the SDK, the build tool and every lifecycle file, and for the `plugin-*.yml` workflows, and a rule on `dev` requires code-owner approval. If that rule cannot be set, a job in `plugin-check.yml` stands in, weaker because a pull request can edit it ([`catalog/01-manifest-and-ci.md`](catalog/01-manifest-and-ci.md)).
 
 An SDK change ships this way:
 
 1. The author finds the SDK cannot do what the plugin needs, after checking the plugin cannot simply do it itself (next section).
 2. The change lands as this file describes, with its tests, and with the app route behind it when there is one. It may travel with the plugin or come first.
-3. The pull request raises the minor version in `plugins/sdk/VERSION`, and the plugin's `sdk` range names that version. The capability reaches users with the next app release, and until then apps list the plugin as needing a newer SurfSense rather than running it without what it needs.
+3. The pull request raises the minor version in `plugins/core/sdk/VERSION`, and the plugin's `sdk` range names that version. The capability reaches users with the next app release, and until then apps list the plugin as needing a newer SurfSense rather than running it without what it needs.
 
 ## Check first: the plugin already can
 
@@ -46,8 +46,8 @@ A wrapper that mirrors its route one-to-one bought nothing, and we may as well h
 
 | File | Change |
 |---|---|
-| `plugins/sdk/surfsense_plugin/<domain>.py` | the verb, in its domain's file |
-| `plugins/sdk/tests/unit/test_<domain>.py` | a plugin that calls it against a stub app, and one that calls it with no app |
+| `plugins/core/sdk/surfsense_plugin/<domain>.py` | the verb, in its domain's file |
+| `plugins/core/sdk/tests/unit/test_<domain>.py` | a plugin that calls it against a stub app, and one that calls it with no app |
 | [`01-protocol.md`](01-protocol.md) | only when the domain itself is new |
 | `plugins/README.md` | the verb, under the domain |
 
@@ -64,8 +64,8 @@ Something the plugin should know before it starts: an id, a URL, a setting the u
 | [`01-protocol.md`](01-protocol.md) | one row in the context table |
 | `modules/plugins/runner.py` | put it in the spawn environment |
 | `modules/plugins/manifest.py` | a rule, if the plugin has to declare it first |
-| `plugins/sdk/surfsense_plugin/<name>.py` | one accessor, its own file, exported from `__init__` |
-| `plugins/sdk/tests/unit/` | a plugin that reads it, and one that runs without it |
+| `plugins/core/sdk/surfsense_plugin/<name>.py` | one accessor, its own file, exported from `__init__` |
+| `plugins/core/sdk/tests/unit/` | a plugin that reads it, and one that runs without it |
 | `plugins/README.md` | the name, under the public surface |
 
 Prefer a verb when the answer can change during a run, and context when it cannot. The workspace id is context. What is in the workspace is a verb.
@@ -110,8 +110,8 @@ Handing over a URL would be the wrong shape. What an author wants is not a port,
 
 | File | Change |
 |---|---|
-| `plugins/sdk/surfsense_plugin/model.py` | `generate(prompt) -> str` and `image(prompt) -> bytes`, over the app's own LLM routes |
-| `plugins/sdk/tests/unit/test_model.py` | a plugin that generates against a stub, and one that runs with no app |
+| `plugins/core/sdk/surfsense_plugin/model.py` | `generate(prompt) -> str` and `image(prompt) -> bytes`, over the app's own LLM routes |
+| `plugins/core/sdk/tests/unit/test_model.py` | a plugin that generates against a stub, and one that runs with no app |
 | [`01-protocol.md`](01-protocol.md) | the `model` domain, once |
 | `plugins/README.md` | the two verbs |
 

@@ -4,9 +4,24 @@ The contract the SDK, the runtime, the catalog, and the app all implement. A cha
 
 Version is `1`. The `sdk` range in a manifest is how a plugin says which version of the surface it was written against. Adding to that surface is additive. Changing or removing anything in it is a bump.
 
-The SDK's version lives in one file, `plugins/sdk/VERSION`, semver, starting at `1.0.0`. The SDK reports it as `surfsense_plugin.__version__`, and the app reads the same file from the SDK folder it ships. A new verb, domain or context variable raises the minor version; anything [`02-extending.md`](02-extending.md) calls not additive raises the major.
+The SDK's version lives in one file, `plugins/core/sdk/VERSION`, semver, starting at `1.0.0`. The SDK reports it as `surfsense_plugin.__version__`, and the app reads the same file from the SDK folder it ships. A new verb, domain or context variable raises the minor version; anything [`02-extending.md`](02-extending.md) calls not additive raises the major.
 
 ## On disk
+
+```
+plugins/
+  core/               # everything maintainers own, under one CODEOWNERS line
+    sdk/              # the SDK, shipped inside the app
+    build/            # the tool CI builds and checks plugins with
+    targets.json
+    RESERVED
+    YANKED
+    SIZE-EXCEPTIONS
+  README.md           # the contributor guide
+  <id>/               # one folder per plugin; nothing else sits beside core/
+```
+
+A plugin's folder:
 
 ```
 plugins/<id>/
@@ -49,7 +64,7 @@ It pins every transitive dependency for every platform, with a sha256 per file, 
 | `access` | `free` or `paid`. Only a reserved id may be `paid`. |
 | `hosts` | Array of exact hostnames: no scheme, path, port or wildcard, and never a loopback name. Shown in the catalog. Each one needs the user's consent before the plugin's first run, and the SDK's `http` refuses any host not listed. |
 | `secrets` | Optional array of what the user enters once, in Settings, stored encrypted and never shown again: an API token, a password. Each is `{ "name", "title", "description" }`: `name` matches `^[a-z][a-z0-9_]{0,63}$` so it is a legal variable name, `title` is the label, and the optional `description` says where to get it. Every declared secret is required. Values are never in this file. |
-| `platforms` | Optional. A non-empty subset of the platform keys in `plugins/targets.json`. Absent means all of them. On any other system the app does not list the plugin. |
+| `platforms` | Optional. A non-empty subset of the platform keys in `plugins/core/targets.json`. Absent means all of them. On any other system the app does not list the plugin. |
 | `entries` | At least one. |
 
 An entry:
@@ -76,7 +91,7 @@ More kinds of input, and settings that are not secret, come the way any capabili
 
 ### Targets
 
-`plugins/targets.json` is the one list of what plugins are built for: the CPython version the app ships, and each platform with the `uv` target that picks wheels old enough for the app's oldest supported systems, Ubuntu 22.04, RHEL 9 and macOS 13.3 ([packaging](../../architecture/packaging.md)).
+`plugins/core/targets.json` is the one list of what plugins are built for: the CPython version the app ships, and each platform with the `uv` target that picks wheels old enough for the app's oldest supported systems, Ubuntu 22.04, RHEL 9 and macOS 13.3 ([packaging](../../architecture/packaging.md)).
 
 ```json
 {
@@ -95,7 +110,7 @@ The interpreter fetch script, the build tool and the checker all read it. There 
 
 A download key is `any`, or `cp<major><minor>-<platform>` such as `cp312-linux-x64`, because compiled code runs only on the platform and the Python it was built for. CI builds one `any` tarball when the dependencies install to the same files on every target in `platforms`, and one tarball per target otherwise.
 
-`<id>-<version>-<key>.tar.gz`. One top-level directory `<id>-<version>/` containing the folder above plus `site-packages/` when there are dependencies. The `plugin.json` inside the tarball must deep-equal the catalog entry's manifest fields (`id`, `name`, `description`, `author`, `version`, `sdk`, `access`, `hosts`, `secrets`, `platforms`, `entries`). A mismatch rejects the install. The sha256 is of the gzip bytes, and it is also the file's address in the registry. A tarball is at most 100 MB unless `plugins/SIZE-EXCEPTIONS` names the plugin.
+`<id>-<version>-<key>.tar.gz`. One top-level directory `<id>-<version>/` containing the folder above plus `site-packages/` when there are dependencies. The `plugin.json` inside the tarball must deep-equal the catalog entry's manifest fields (`id`, `name`, `description`, `author`, `version`, `sdk`, `access`, `hosts`, `secrets`, `platforms`, `entries`). A mismatch rejects the install. The sha256 is of the gzip bytes, and it is also the file's address in the registry. A tarball is at most 100 MB unless `plugins/core/SIZE-EXCEPTIONS` names the plugin.
 
 A published version never changes. Publishing a version that already exists fails.
 
@@ -142,9 +157,24 @@ One JSON file, `catalog.json`:
 - One entry per plugin, at its latest version.
 - The app takes the download for its own key, else `any`. With neither, it cannot install the plugin and does not list it.
 - `yanked` maps a withdrawn version to the reason shown to the user. It survives later versions, so an installed copy of a withdrawn version stays refused after a fix ships.
-- Every `url` starts with `https://ghcr.io/v2/modsetter/surfsense/plugins/`. The app drops an entry whose `url` does not.
+- Every `url` starts with `https://ghcr.io/v2/modsetter/surfsense/plugins/<id>/blobs/`, the entry's own package. The app drops an entry whose `url` does not.
 
-The app ships a copy taken at desktop build time. A refresh fetches `ghcr.io/modsetter/surfsense/plugins/catalog:latest`, a reference compiled into the app, and keeps it on disk. Of the bundled and the refreshed copy, the one with the later `generated_at` wins.
+The app ships a copy taken at desktop build time. A refresh fetches `ghcr.io/modsetter/surfsense/plugins:latest`, a reference compiled into the app, and keeps it on disk. Of the bundled and the refreshed copy, the one with the later `generated_at` wins.
+
+### In the registry
+
+One package for the catalog, at the root, and one package per plugin under it, the way Dev Container Features lays out its features and their collection:
+
+```
+ghcr.io/modsetter/surfsense/plugins              the catalog
+  latest              → the newest catalog.json
+  20261001T120000Z    → one tag per publish, so earlier catalogs stay readable
+ghcr.io/modsetter/surfsense/plugins/<id>          one plugin
+  <version>           → one file when the download is `any`
+  <version>           → or an index with one file per platform, as Homebrew tags its bottles
+```
+
+A tag is a plugin version and nothing else. A plugin file has the type `application/vnd.surfsense.plugin.v1.tar+gzip`, and the catalog `application/vnd.surfsense.plugin.catalog.v1+json`. Every package carries `org.opencontainers.image.source` pointing at this repository. The app never reads tags or indexes: it reads the catalog and downloads each file by its sha256. They are for people and for CI's own checks.
 
 ## How a run starts
 

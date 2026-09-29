@@ -15,7 +15,7 @@
 | Set up | Settings shows a field for each secret the plugin declares. Until every one has a value, its sidebar actions read "Set up". | [screen](app/02-screen.md), [API](app/01-api.md) |
 | Run | A sidebar action opens a dialog drawn from the entry's declared inputs. The first run asks consent for every declared host at once. The plugin runs as its own process, writes through the app's API, and is stopped by cancel, by its timeout, or by the app quitting. | [runtime](runtime/01-process.md), [screen](app/02-screen.md) |
 | Update | The user clicks Update. The new version replaces the old one, which is deleted; the plugin's data stays. | [install](catalog/03-install.md) |
-| Yank | A maintainer withdraws a bad version in `plugins/YANKED`. Once an app has a catalog that says so, after a refresh or with its next update, its installed copy stops running and shows the reason. The author publishes a fix. | [publish](catalog/02-publish.md), [install](catalog/03-install.md) |
+| Yank | A maintainer withdraws a bad version in `plugins/core/YANKED`. Once an app has a catalog that says so, after a refresh or with its next update, its installed copy stops running and shows the reason. The author publishes a fix. | [publish](catalog/02-publish.md), [install](catalog/03-install.md) |
 | Uninstall | Runs stop; the plugin's files, data and secrets are deleted. The notes it created stay. | [install](catalog/03-install.md) |
 
 ## What holds at every stage
