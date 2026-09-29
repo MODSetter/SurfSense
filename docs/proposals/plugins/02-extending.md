@@ -16,15 +16,15 @@ Contributions are welcome everywhere, the SDK included, and a plugin that needs 
 | Kind | What it covers | How a change lands |
 |---|---|---|
 | SDK surface | What an author calls or declares for their own plugin: a verb, an accessor, an input kind, a way to report progress. | Anyone can open the pull request, ideally beside the plugin that needs it. A maintainer reviews the shape with the author. |
-| Lifecycle | What the checks, the build, publishing, the catalog, install or the runner act on: `sdk`, `access`, `hosts`, `platforms`, `timeout_seconds`, the catalog's `downloads` and `yanked`, the size cap and its exceptions, reserved ids, the run's environment. | Maintainers design these, since one change reaches CI, the catalog and every installed app at once. An idea starts best as an issue, so the design is agreed before the code. |
+| Lifecycle | What the checks, packaging, publishing, the catalog, install or the runner act on: `access`, `hosts`, `platforms`, `timeout_seconds`, the catalog's structure (`versions`, `downloads`, `blocked`, `schema_version`), how versions are stamped, the size limit and its exceptions, reserved ids, withdrawals, the run's environment. | Maintainers design these, since one change reaches CI, the catalog and every installed app at once. An idea starts best as an issue, so the design is agreed before the code. |
 
-The repository asks for that review rather than leaving it to memory. `.github/CODEOWNERS` names the maintainers for `plugins/core/`, which holds the SDK, the build tool and every lifecycle file, and for the `plugin-*.yml` workflows, and a rule on `dev` requires code-owner approval. If that rule cannot be set, a job in `plugin-check.yml` stands in, weaker because a pull request can edit it ([`catalog/01-manifest-and-ci.md`](catalog/01-manifest-and-ci.md)).
+The repository asks for that review rather than leaving it to memory. `.github/CODEOWNERS` names the maintainers for `plugins/`, where the SDK, the tooling and the policy lists sit in `core/`, for the app's plugin modules in `surfsense_local/backend/modules/plugins/`, and for the `plugins-*.yml` workflows, and a rule on `dev` requires code-owner approval. If that rule cannot be set, a job in `plugins-pull-request-checks.yml` stands in, weaker because a pull request can edit it ([`release/02-pull-request-checks.md`](release/02-pull-request-checks.md)). The checks back the review with two machines: every plugin is type-checked against every SDK change, and the contract tests run the SDK against the real app.
 
 An SDK change ships this way:
 
 1. The author finds the SDK cannot do what the plugin needs, after checking the plugin cannot simply do it itself (next section).
-2. The change lands as this file describes, with its tests, and with the app route behind it when there is one. It may travel with the plugin or come first.
-3. The pull request raises the minor version in `plugins/core/sdk/VERSION`, and the plugin's `sdk` range names that version. The capability reaches users with the next app release, and until then apps list the plugin as needing a newer SurfSense rather than running it without what it needs.
+2. The change lands as this file describes, with its tests, its contract test, and the app route behind it when there is one. It may travel with the plugin or come first.
+3. It ships with the next app release. A plugin that uses it is stamped with that release's version, so no older app ever runs it ([`04-versioning.md`](04-versioning.md)). Nobody writes a version.
 
 ## Check first: the plugin already can
 
@@ -48,6 +48,7 @@ A wrapper that mirrors its route one-to-one bought nothing, and we may as well h
 |---|---|
 | `plugins/core/sdk/surfsense_plugin/<domain>.py` | the verb, in its domain's file |
 | `plugins/core/sdk/tests/unit/test_<domain>.py` | a plugin that calls it against a stub app, and one that calls it with no app |
+| `plugins/core/sdk/tests/contract/` | the verb against the real app; the coverage test fails without it |
 | [`01-protocol.md`](01-protocol.md) | only when the domain itself is new |
 | `plugins/README.md` | the verb, under the domain |
 
@@ -63,7 +64,7 @@ Something the plugin should know before it starts: an id, a URL, a setting the u
 |---|---|
 | [`01-protocol.md`](01-protocol.md) | one row in the context table |
 | `modules/plugins/runner.py` | put it in the spawn environment |
-| `modules/plugins/manifest.py` | a rule, if the plugin has to declare it first |
+| `plugins/core/manifest/` | a rule, if the plugin has to declare it first |
 | `plugins/core/sdk/surfsense_plugin/<name>.py` | one accessor, its own file, exported from `__init__` |
 | `plugins/core/sdk/tests/unit/` | a plugin that reads it, and one that runs without it |
 | `plugins/README.md` | the name, under the public surface |
@@ -78,9 +79,9 @@ Additive by construction:
 - A new environment variable is invisible to a plugin that does not read it.
 - Unknown manifest fields are ignored, so a new field does not break an older app.
 
-A field that changes what an app lists, installs or runs is safe to add too, as long as the plugin that uses it declares the SDK version that added it: an older app then lists that plugin as needing a newer SurfSense instead of ignoring the field and running it wrongly. What cannot come later is the shape of the catalog itself, which every app reads whatever its plugins declare. That is why `downloads` and `yanked` are fixed before the first release.
+A field that changes what an app lists, installs or runs is safe to add too: the plugin that uses it is stamped with the release that added it, and no app runs a plugin version newer than itself, so no older app ignores the field and runs the plugin wrongly. What cannot come later is the structure of the catalog itself, which every app reads, whatever its age. That is why `versions`, `downloads` and `blocked` are fixed before the first release, and why the catalog carries a `schema_version`.
 
-Not additive, and a bump of the `sdk` range plus a note here: removing a verb, changing what one returns, changing an argument, or changing how a plugin is spawned.
+Not additive: removing a verb, changing what one returns, changing an argument, or changing how a plugin is spawned. The checks refuse such a change until every plugin it breaks is updated in the same pull request, and the release blocks the old versions of those plugins from the new app ([`04-versioning.md`](04-versioning.md#why-an-unchanged-plugin-cannot-break-silently)).
 
 Anything that reads context should raise with the reason when it is absent, the way `secret` does. That is what lets a plugin written for a newer app fail legibly on an older one instead of reading an empty string and carrying on.
 

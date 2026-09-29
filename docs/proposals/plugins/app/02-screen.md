@@ -13,9 +13,14 @@ Maya installs a plugin from a list, then uses it where she already works. An ent
 - The dialog shows waiting while the run is `queued`, then running, then how it ended, with the log tail and a cancel button. A failed run says why in words: the exit code, "took longer than its limit of N minutes" with the entry's timeout, or "SurfSense was closed during this run". The log tail sits right below, since that is where a plugin explains itself.
 - The dialog does not draw what the run produced. A plugin writes through the app's own API, so a note it added appears in the sources list the way any other note does, while the run is still going.
 - Settings holds the catalog, not the run. It shows what `GET /plugins` returns and never a plugin this computer cannot run. Each row: name, `description`, author, version, the `hosts` list or the word "none", `free` or `paid`, download size, and installed version when present.
-- Each row has one button that fits its state: Install, Update when `update` is set, and Uninstall once installed. A row with `needs_newer_app` says "Needs a newer SurfSense" with Install disabled. A `paid` row that is locked explains that a SurfSense license is required and links to the existing license settings, with Install disabled. An installed row with `withdrawn` shows "Withdrawn:" and the reason, and its sidebar actions are disabled.
+- Each row has one button that fits its state: Install, Update when `update` is set, and Uninstall once installed. A `paid` row that is locked explains that a SurfSense license is required and links to the existing license settings, with Install disabled.
+- An installed plugin with `cannot_run` shows why and the way out, on its row and in place of its sidebar actions, with one button that installs the `offer`:
+  - `withdrawn`: "hn-search 2.4.0 was withdrawn: " and the maintainer's reason, as written;
+  - `incompatible`: "hn-search 2.4.0 doesn't work with SurfSense 2.6. Update to 2.6.0.";
+  - `newer_than_app`: "hn-search 2.6.0 needs SurfSense 2.6. Use 2.4.0 instead."
 - The egress prompt (`features/egress/egress-prompt.tsx`) reads one `destination` and `host` today. It learns to read `hosts` and to list several, with one Allow that grants each, so `request()` in `lib/api.ts` still retries once. A refusal with one host looks as it does now.
-- Install, Update and Refresh need `ghcr.io` and `pkg-containers.githubusercontent.com`. Their 403 opens that prompt once for both hosts, naming the errands, and retries once on Allow. The list is already on screen from the bundled catalog before either host is allowed.
+- Settings → Plugins has a Refresh button. Install and Update refresh first on their own.
+- Install, Update and Refresh need `github.com` and `release-assets.githubusercontent.com`. Their 403 opens that prompt once for both hosts, naming the errands, and retries once on Allow. The list is already on screen from the bundled catalog before either host is allowed.
 - The first run of a plugin that declares `hosts` gets a 403 listing every host not yet allowed, and the same prompt asks for all of them at once.
 - Settings → Network shows a plugin's hosts with the plugin's name beside them, so a grant made for a plugin can be seen and revoked there like any other.
 - An installed plugin with secrets shows a field per secret in Settings, labelled with its `title`, with its `description` as help text. Saving calls `PUT`. The field shows only whether it is set and never redisplays the value. While a declared secret has no value, each of the plugin's sidebar actions is replaced by a "Set up" action that opens those fields.
@@ -37,6 +42,7 @@ The app's own words on these screens are interface strings and follow the transl
 - A plugin with a secret not yet set shows "Set up" in the sidebar, and runs once it is saved.
 - A run that exits with a reason on stderr shows that reason in the log tail under the failure.
 - A `paid` plugin with no license on disk cannot be installed from the screen.
+- Each `cannot_run` case shows its sentence, and its button installs the offered version, after which the plugin runs.
 
 ## Needs from
 
