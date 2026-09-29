@@ -244,6 +244,14 @@ async def _validate_remote(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             f"model is not listed by this connection: {model_name}",
         )
+    # The same override as an unlisted model: a deliberate confirmation, never
+    # the default, keeps a model the manifest cannot call reachable on purpose.
+    if model.unusable_reason and not allow_unlisted:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
+            f"model cannot be used through this connection: {model_name}: "
+            f"{model.unusable_reason}; confirm manual selection to choose it anyway",
+        )
     if model_type not in selectable_for(model.types, model.capability_known):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,

@@ -217,7 +217,10 @@ async def list_connection_models(
             name=model.name,
             types=list(model.types),
             capability_source=model.capability_source,
-            selectable_for=selectable_for(model.types, model.capability_known),
+            selectable_for=[]
+            if model.unusable_reason
+            else selectable_for(model.types, model.capability_known),
+            unusable_reason=model.unusable_reason,
         )
         for model in models
     ]

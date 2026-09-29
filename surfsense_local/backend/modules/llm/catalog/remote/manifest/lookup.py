@@ -11,7 +11,7 @@ from collections import defaultdict
 from dataclasses import dataclass, fields
 
 from modules.llm.catalog.remote.classifier import classify
-from modules.llm.catalog.remote.manifest.schema import RemoteManifest, RemoteModel
+from modules.llm.catalog.remote.manifest.schema import Call, RemoteManifest, RemoteModel
 from modules.llm.catalog.remote.support import Supports, supports
 from modules.llm.model_type import ModelType
 
@@ -53,6 +53,24 @@ class RemoteLookup:
                     return _one(candidate, served.models[candidate])
         return self._maker(model_id) or self._agreed(candidates) or UNKNOWN
 
+    def unusable_reason(self, model_id: str, provider: str | None) -> str | None:
+        """Why a model the manifest knows cannot be called here, or None.
+
+        Only the provider a connection names is consulted: what some other
+        provider cannot call says nothing about a custom endpoint, and a model
+        no entry describes is unknown, not unusable.
+        """
+        served = self._manifest.providers.get(provider) if provider else None
+        if served is None:
+            return None
+        for candidate in _candidates(model_id):
+            model = served.models.get(candidate)
+            if model is not None:
+                if served.connect.status == "unreachable":
+                    return served.connect.reason
+                return call_reason(model.call)
+        return None
+
     def _maker(self, model_id: str) -> RemoteClassification | None:
         maker, _, rest = model_id.partition("/")
         entries = self._manifest.providers.get(maker) if rest else None
@@ -76,6 +94,15 @@ class RemoteLookup:
                     supports=_agreed_supports([supports(m) for m in carriers]),
                 )
         return None
+
+
+def call_reason(call: Call | None) -> str | None:
+    """Why a model's own `call` puts it out of reach, or None."""
+    if call is None:
+        return None
+    if call.route == "responses":
+        return "Only served on /responses, which SurfSense does not call yet"
+    return f"Served through the {call.protocol} protocol, which SurfSense does not speak"
 
 
 def _candidates(model_id: str) -> tuple[str, ...]:
