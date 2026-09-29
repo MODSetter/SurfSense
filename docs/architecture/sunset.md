@@ -25,7 +25,7 @@ The web app reads its own `SUNSET_MODE`, with the same spellings, in `proxy.ts` 
 | `/api/v1/pats*` | PATs keep working until the T+30 purge, for MCP clients among others |
 | `/api/v1/workspaces/<id>/scrapers/` | the scraper API outlives the wind-down |
 
-Reads are never refused. That is why the middleware checks the method rather than listing every route that mutates something: export is a `GET`. The refusal's body is `{"detail": "SurfSense is export-only while the hosted service winds down. Your data is still available to export."}`.
+Reads are never refused. That is why the middleware checks the method rather than listing every route that mutates something: export is a `GET`. The refusal's body is `{"detail": "SurfSense is export-only while the hosted service winds down. Your data is still available to export.", "sunset_url": "https://surfsense.com/sunset"}`, where `sunset_url` comes from the same `sunset_url()` that `GET /health` reads, so setting `SUNSET_URL` changes both.
 
 ## Telling clients
 
@@ -49,7 +49,6 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 ## Known gaps
 
 - The web redirect is not gated on `DEPLOYMENT_MODE`: a self-hosted web app with `SUNSET_MODE` set redirects to `/sunset`.
-- The 410 body carries no `sunset_url`.
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
 - The purge script has no test.
 - Celery beat keeps scheduling its periodic tasks, connector indexing checks and automation triggers among them, and none checks `is_sunset_mode()`; the middleware covers HTTP only.

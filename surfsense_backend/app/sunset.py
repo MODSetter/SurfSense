@@ -113,6 +113,6 @@ class SunsetWriteBlockMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         return JSONResponse(
-            {"detail": _DETAIL},
+            {"detail": _DETAIL, "sunset_url": sunset_url()},
             status_code=status.HTTP_410_GONE,
         )
