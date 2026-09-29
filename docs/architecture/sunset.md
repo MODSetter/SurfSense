@@ -13,6 +13,10 @@ The operational steps are in the [sunset runbook](../../plans/community-local/su
 
 The web app reads its own `SUNSET_MODE`, with the same spellings, in `proxy.ts` on every request. It is deliberately not `NEXT_PUBLIC_SUNSET_MODE`: `NEXT_PUBLIC_*` values are inlined at build time, and nothing reads that name. So one variable is set in two places, the backend's `.env` and the web app's, and setting only one gives a half-sunset: a backend refusing writes behind an app that still looks open, or the reverse.
 
+## Scheduled background work
+
+Celery Beat keeps its entries registered during the wind-down. The connector-indexing check (`check_periodic_schedules`), scheduled automation selector (`automation_schedule_select`), knowledge-store reindex sweep (`reindex_drifted_workspaces`) and drift check (`check_knowledge_store_drift`) return without starting user work when `is_sunset_mode()` is true. The same tasks keep their normal behavior when `is_sunset_mode()` is false and on self-hosted deployments. Billing reconciliation, gateway inbox/health/retention, queued-deliverable recovery, model-compatibility checks, stale-notification cleanup, refresh-token purging, cache eviction and knowledge-store working-copy pruning continue to run.
+
 ## Refusing writes
 
 `SunsetWriteBlockMiddleware` answers `410 Gone` to `POST`, `PUT`, `PATCH` and `DELETE` while the flag is on, except on an allowlist:
@@ -52,7 +56,6 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 - The 410 body carries no `sunset_url`.
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
 - The purge script has no test.
-- Celery beat keeps scheduling its periodic tasks, connector indexing checks and automation triggers among them, and none checks `is_sunset_mode()`; the middleware covers HTTP only.
 - The synchronous export has no size warning and no timeout.
 - The web app's unit tests, `tests/unit/sunset-redirect.test.ts` among them, are not run in CI.
 - The runbooks do not mention `DEPLOYMENT_MODE`, which the flag and therefore the purge script both depend on.

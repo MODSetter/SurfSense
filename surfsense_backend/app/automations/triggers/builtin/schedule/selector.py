@@ -22,6 +22,7 @@ from app.automations.dispatch import launch_run
 from app.automations.persistence.enums.trigger_type import TriggerType
 from app.automations.persistence.models.trigger import AutomationTrigger
 from app.celery_app import celery_app
+from app.sunset import is_sunset_mode
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 from .cron import InvalidCronError, compute_next_fire_at
@@ -47,6 +48,8 @@ class _Claim:
 @celery_app.task(name=TASK_NAME)
 def automation_schedule_select() -> None:
     """Tick once: self-heal NULL next_fire_at, claim due rows, start each."""
+    if is_sunset_mode():
+        return None
     return run_async_celery_task(_tick)
 
 
