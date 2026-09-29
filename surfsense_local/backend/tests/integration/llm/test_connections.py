@@ -321,6 +321,31 @@ async def test_a_hosted_models_tier_is_read_from_the_listing_it_came_from(
     assert selected.json()["tier"] == "frontier"
 
 
+async def test_a_model_on_this_machine_gets_the_compact_prompt_through_a_connection(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stub listens on loopback, as LM Studio does; its id states no size or vendor."""
+    monkeypatch.setattr(
+        conftest,
+        "REMOTE_MODELS",
+        [*conftest.REMOTE_MODELS, {"id": "local-model"}],
+    )
+    connection = await _connect(client, openai_server)
+
+    selected = await client.put(
+        "/llm/selection/text_gen",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": connection["id"],
+            "name": "local-model",
+        },
+    )
+
+    assert selected.status_code == 200, selected.text
+    assert selected.json()["tier"] == "compact"
+    assert (await client.get("/llm/selection/text_gen")).json()["tier"] == "compact"
+
+
 async def test_chat_test_answers_without_selecting_or_running_up_a_bill(
     client: AsyncClient, openai_server: str
 ) -> None:
