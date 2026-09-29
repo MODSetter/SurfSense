@@ -119,4 +119,3 @@ The rules that keep the processes out of each other's way:
 ## Known gaps
 
 - The frontend never subscribes to `GET /workspaces/{id}/events`; the sources and Studio lists poll every 1.5 seconds instead of invalidating on the events the workers already send.
-

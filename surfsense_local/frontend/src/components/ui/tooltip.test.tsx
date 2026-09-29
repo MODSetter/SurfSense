@@ -65,12 +65,12 @@ describe("Tooltip accessibility", () => {
     expect(tooltipElement?.textContent).toContain("Tooltip explanation")
   })
 
-  it("supports custom id on TooltipContent", () => {
+  it("supports explicit id on Tooltip", () => {
     render(
       <TooltipProvider>
-        <Tooltip defaultOpen>
+        <Tooltip id="custom-tooltip-id" defaultOpen>
           <TooltipTrigger render={<button type="button">Trigger</button>} />
-          <TooltipContent id="custom-tooltip-id">
+          <TooltipContent>
             Custom ID content
           </TooltipContent>
         </Tooltip>

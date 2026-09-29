@@ -5,12 +5,7 @@ import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 
 import { cn } from "@/lib/utils"
 
-interface TooltipContextValue {
-  contentId: string
-  setContentId: (id: string) => void
-}
-
-const TooltipContext = React.createContext<TooltipContextValue | null>(null)
+const TooltipContext = React.createContext<string | null>(null)
 
 function TooltipProvider({
   delay = 350,
@@ -35,10 +30,10 @@ function Tooltip({
   ...props
 }: TooltipPrimitive.Root.Props & { id?: string }) {
   const generatedId = React.useId()
-  const [contentId, setContentId] = React.useState(idProp ?? generatedId)
+  const tooltipId = idProp ?? generatedId
 
   return (
-    <TooltipContext.Provider value={{ contentId, setContentId }}>
+    <TooltipContext.Provider value={tooltipId}>
       <TooltipPrimitive.Root
         data-slot="tooltip"
         disableHoverablePopup={disableHoverablePopup}
@@ -54,9 +49,9 @@ function TooltipTrigger({
   "aria-describedby": ariaDescribedByProp,
   ...props
 }: TooltipPrimitive.Trigger.Props) {
-  const context = React.useContext(TooltipContext)
+  const tooltipId = React.useContext(TooltipContext)
   const ariaDescribedBy =
-    [ariaDescribedByProp, context?.contentId].filter(Boolean).join(" ") ||
+    [ariaDescribedByProp, tooltipId].filter(Boolean).join(" ") ||
     undefined
 
   return (
@@ -76,7 +71,6 @@ function TooltipContent({
   alignOffset = 0,
   collisionPadding,
   children,
-  id,
   role = "tooltip",
   ...props
 }: TooltipPrimitive.Popup.Props &
@@ -84,15 +78,7 @@ function TooltipContent({
     TooltipPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "collisionPadding"
   >) {
-  const context = React.useContext(TooltipContext)
-
-  React.useLayoutEffect(() => {
-    if (id && context && context.contentId !== id) {
-      context.setContentId(id)
-    }
-  }, [id, context])
-
-  const contentId = id ?? context?.contentId
+  const tooltipId = React.useContext(TooltipContext)
 
   return (
     <TooltipPrimitive.Portal>
@@ -105,7 +91,7 @@ function TooltipContent({
         className="isolate z-50"
       >
         <TooltipPrimitive.Popup
-          id={contentId}
+          id={tooltipId ?? undefined}
           role={role}
           data-slot="tooltip-content"
           className={cn(
