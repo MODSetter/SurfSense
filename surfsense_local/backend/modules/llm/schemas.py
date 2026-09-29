@@ -65,6 +65,9 @@ class ConnectionModelRead(BaseModel):
     capability_source: CapabilitySource
     # Decided here, never in the renderer, so every picker offers the same set.
     selectable_for: list[ModelType]
+    # Set when the manifest says this model cannot be called through the
+    # provider the connection names; the row stays, filling no slot.
+    unusable_reason: str | None = None
 
 
 class RuntimeFileRead(BaseModel):
