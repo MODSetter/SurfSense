@@ -183,6 +183,84 @@ async def test_a_cited_chunk_returns_its_document_window(
     assert missing.status_code == 404
 
 
+async def test_a_note_reads_back_by_id(client: AsyncClient, workspace_id: int) -> None:
+    """Reopening a note the user wrote yesterday reads its body from the row."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "# Kickoff\n\nagreed to ship"},
+    )
+    document_id = created.json()["id"]
+
+    response = await client.get(f"/workspaces/{workspace_id}/documents/{document_id}")
+
+    assert response.status_code == 200
+    assert response.json()["document_type"] == "NOTE"
+    assert response.json()["content"] == "# Kickoff\n\nagreed to ship"
+
+
+async def test_a_document_is_not_reachable_from_another_workspace(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """One workspace's id must not read another workspace's document."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "x"},
+    )
+    other = (await client.post("/workspaces", json={"name": "Other"})).json()["id"]
+
+    response = await client.get(f"/workspaces/{other}/documents/{created.json()['id']}")
+
+    assert response.status_code == 404
+
+
+async def test_a_file_reads_back_with_its_extracted_body(
+    client: AsyncClient, workspace_id: int, engine: Engine
+) -> None:
+    """A file's body is what the worker extracted; a fresh upload has none yet.
+
+    An artifact is an ordinary document (ADR 0003) and comes back the same way.
+    """
+    with engine.begin() as connection:
+        for row in (
+            {
+                "id": 1,
+                "title": "report.pdf",
+                "status": DocumentStatus.READY,
+                "content": "extracted",
+            },
+            {
+                "id": 2,
+                "title": "fresh.pdf",
+                "status": DocumentStatus.PENDING,
+                "content": None,
+            },
+        ):
+            connection.execute(
+                insert(Document).values(
+                    workspace_id=workspace_id, document_type=DocumentType.FILE, **row
+                )
+            )
+        connection.execute(
+            insert(Document).values(
+                id=3,
+                workspace_id=workspace_id,
+                title="Summary",
+                document_type=DocumentType.ARTIFACT,
+                status=DocumentStatus.READY,
+                content="# Summary",
+            )
+        )
+
+    ready = await client.get(f"/workspaces/{workspace_id}/documents/1")
+    pending = await client.get(f"/workspaces/{workspace_id}/documents/2")
+    artifact = await client.get(f"/workspaces/{workspace_id}/documents/3")
+
+    assert (ready.status_code, ready.json()["content"]) == (200, "extracted")
+    assert pending.status_code == 200
+    assert (pending.json()["status"], pending.json()["content"]) == ("pending", None)
+    assert (artifact.status_code, artifact.json()["content"]) == (200, "# Summary")
+
+
 async def test_a_processing_document_cannot_be_deleted(
     client: AsyncClient, workspace_id: int, engine: Engine
 ) -> None:
