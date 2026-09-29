@@ -56,6 +56,5 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
 - The purge script has no test.
 - The synchronous export has no size warning and no timeout.
-- The web app's unit tests, `tests/unit/sunset-redirect.test.ts` among them, are not run in CI.
 - The runbooks do not mention `DEPLOYMENT_MODE`, which the flag and therefore the purge script both depend on.
 - `/sunset` has the export button, download links and import steps, but not the deletion date (18 Oct 2026), the refund-or-discount offer or the change for MCP users, which the launch plan put on it.
