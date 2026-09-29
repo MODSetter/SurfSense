@@ -574,6 +574,13 @@ same.
 The chat catalog, from the top:
 
 - **A hardware line**, on first paint, with no scan and no button.
+- **A runtime notice**, only while `GET /llm/providers` reports llama.cpp
+  unhealthy, asked again every 15 s and when the window comes back: said once,
+  above the rows, never per row. Download stays offered, because an install
+  still downloads while the runtime is down and ends with an honest message
+  ([`runtime.md`](runtime.md#failure-behavior)); the notice says so and that a
+  restart of SurfSense starts the runtime. The image and audio pages read no
+  server state; whether sd-server is up is its own gap below.
 - **Tested by SurfSense**: the curated rows, grouped by family. Each shows the
   star when it is the one for this computer, its name, a badge only when it warns,
   **Vision** when it reads images, the build it leads with and its size, and one
@@ -644,7 +651,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
-- The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
 - Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it only when a Studio job needs it. The hard-coded list's route reported that, and went with it.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.

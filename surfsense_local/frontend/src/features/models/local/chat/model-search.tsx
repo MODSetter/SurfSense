@@ -170,7 +170,6 @@ function RepoBuilds({
                   label={repo}
                   installs={jobs}
                   disabled={disabled}
-                  runtimeAvailable
                   onAction={onInstall}
                 />
               </div>

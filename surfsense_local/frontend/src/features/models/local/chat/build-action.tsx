@@ -19,20 +19,19 @@ export function BuildAction({
   label,
   installs,
   disabled,
-  runtimeAvailable,
   onAction,
 }: {
   build: LocalBuild
   label: string
   installs: readonly InstallJob[]
   disabled: boolean
-  runtimeAvailable: boolean
   onAction: (build: LocalBuild) => void
 }) {
   const job = jobFor(installs, build.catalog_id)
   const installed = build.installed_as !== null
-  // Only physics refuses. Reduced speed installs exactly like full speed.
-  const cannotInstall = !installed && (!build.can_install || !runtimeAvailable)
+  // Only physics refuses. Reduced speed installs exactly like full speed, and
+  // so does a download while the runtime is down: the API fetches the file.
+  const cannotInstall = !installed && !build.can_install
 
   if (build.selected) {
     return (

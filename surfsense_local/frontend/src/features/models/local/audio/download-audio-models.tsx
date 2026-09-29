@@ -141,7 +141,6 @@ export function DownloadAudioModels() {
                     label={model.label}
                     installs={installs}
                     disabled={busy}
-                    runtimeAvailable
                     onAction={() => act(model)}
                   />
                   {/* The app's own voice is part of the install. */}
