@@ -58,6 +58,14 @@ function stubApi(initial: LicenseStatus, onPut: () => Response) {
   return calls
 }
 
+function stubBridge() {
+  const openExternal = vi.fn<(url: string) => Promise<void>>(
+    async () => undefined
+  )
+  window.surfsense = { ...window.surfsense!, openExternal }
+  return { openExternal }
+}
+
 async function openAddDialog(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: "Add license" }))
   return screen.getByRole("dialog", { name: /Add license/ })
@@ -95,6 +103,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup()
+  delete window.surfsense
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
@@ -178,6 +187,41 @@ describe("License settings", () => {
     expect(await screen.findByText("Trial plan")).toBeTruthy()
     expect(screen.getByRole("status").textContent).toContain("Expiring soon")
     expect(screen.getByRole("status").textContent).toContain("9 days")
+  })
+
+  it("offers the trial and the pricing page when there is no license", async () => {
+    stubApi(NONE, () => Response.json(ACTIVE))
+    const bridge = stubBridge()
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    await screen.findByText("No license on this device")
+    await user.click(screen.getByRole("link", { name: "Start a free trial" }))
+    await user.click(screen.getByRole("link", { name: "See pricing" }))
+
+    expect(bridge.openExternal.mock.calls).toEqual([
+      ["https://www.surfsense.com/downloads"],
+      ["https://www.surfsense.com/pricing"],
+    ])
+  })
+
+  it("sends an expired license to pricing, not to an account", async () => {
+    stubApi({ ...ACTIVE, state: "license_expired" }, () =>
+      Response.json(ACTIVE)
+    )
+    const bridge = stubBridge()
+    const user = userEvent.setup()
+    render(<Harness />)
+
+    const status = await screen.findByRole("status")
+    expect(status.textContent).not.toContain("account")
+    await user.click(
+      within(status).getByRole("link", { name: "Renew license" })
+    )
+
+    expect(bridge.openExternal).toHaveBeenCalledExactlyOnceWith(
+      "https://www.surfsense.com/pricing"
+    )
   })
 
   it("tells an expired license from an untrusted clock", async () => {
