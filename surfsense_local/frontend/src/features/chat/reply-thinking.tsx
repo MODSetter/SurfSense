@@ -1,14 +1,39 @@
 import { useScrollLock } from "@assistant-ui/react"
 import { useId, useLayoutEffect, useRef, useState } from "react"
+import { Streamdown, defaultRehypePlugins } from "streamdown"
 
 import { ChevronRightIcon } from "@/components/ui/icons"
 import { ScrollFade } from "@/components/ui/scroll-fade"
+import { streamdownPlugins } from "@/features/studio/viewers/streamdown-config"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
 import { ThinkingIndicator } from "./thinking-indicator"
 
 export type ReplyReasoning = { text: string; durationMs: number | null }
+
+// Streamdown's default rehype pass is raw, sanitize, then harden with every
+// link and image allowed. The trace is model output from the same stream as
+// the answer, so it takes the answer's harden limits instead (message.tsx),
+// the way the assistant-ui primitive builds them.
+type RehypePluggable = (typeof defaultRehypePlugins)[string]
+const [harden] = defaultRehypePlugins.harden as Extract<
+  RehypePluggable,
+  readonly unknown[]
+>
+const traceRehypePlugins: RehypePluggable[] = [
+  defaultRehypePlugins.raw,
+  defaultRehypePlugins.sanitize,
+  [
+    harden,
+    {
+      allowedLinkPrefixes: ["*"],
+      allowedImagePrefixes: [],
+      allowedProtocols: ["http", "https", "mailto"],
+      allowDataImages: false,
+    },
+  ] as RehypePluggable,
+]
 
 // How close to the bottom still counts as reading the newest line.
 const FOLLOW_SLACK_PX = 16
@@ -135,7 +160,7 @@ function ReplyHeader({
           <div className="min-h-0 overflow-hidden">
             <ScrollFade
               className="mt-2 rounded-lg border border-border/60 bg-muted/20 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring/50"
-              viewportClassName="max-h-52 rounded-lg px-3 py-2 text-sm leading-6 wrap-break-word whitespace-pre-wrap text-muted-foreground outline-none"
+              viewportClassName="max-h-52 rounded-lg px-3 py-2 text-sm leading-6 wrap-break-word text-muted-foreground outline-none"
               id={traceId}
               ref={traceRef}
               role="region"
@@ -151,7 +176,15 @@ function ReplyHeader({
                   FOLLOW_SLACK_PX
               }}
             >
-              {reasoning.text}
+              {/* Default mode: the trace streams in, unlike a viewer's
+                  finished artifact. */}
+              <Streamdown
+                plugins={streamdownPlugins}
+                rehypePlugins={traceRehypePlugins}
+                linkSafety={{ enabled: true }}
+              >
+                {reasoning.text}
+              </Streamdown>
             </ScrollFade>
           </div>
         </div>
