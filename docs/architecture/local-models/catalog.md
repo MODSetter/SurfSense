@@ -452,7 +452,7 @@ Event types:
 ```text
 queued       "Waiting for the download ahead of it"   only while another install runs; it starts when that one ends
 starting     "Checking the model"              every install; only a searched build's headers are read
-error        the reason, and the job ends      when the exact check or the disk refuses
+error        the reason, and the job ends      when the exact check, a curated build's fit, or the disk refuses
 starting     "Preparing download"
 downloading  completed / total, repeated       across every file of the build
 verifying    "Checking the model"              each file with a hash was checked as it landed
@@ -475,8 +475,12 @@ only when whole and verified, a cancelled download resumes with a `Range`
 request, and a file already where it lands with its pinned hash is not fetched
 again. One install runs at a time: a second job starts as `queued` and waits
 rather than failing, so a model chosen while another downloads still comes.
-Before any byte moves, the files not yet on disk plus 1 GiB must fit in the
-disk's free space, or the job ends with how much room the download needs.
+A curated chat build is priced first, from the shape its entry commits and
+through the same estimate its row shows, and one that is `TOO_BIG` here ends the
+job with the refusal a searched build gets; a build that only spills installs
+with no confirmation, as the screen's own rule says. Before any byte moves, the
+files not yet on disk plus 1 GiB must fit in the disk's free space, or the job
+ends with how much room the download needs.
 Then the install record is written,
 `reprice()` rewrites the preset, the job waits for the router to list the
 model and forwards its load progress, and with `select` the model becomes the
@@ -640,7 +644,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
-- `POST /llm/installs` does not refuse a curated build that will not fit; only the screen's disabled Download does.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
