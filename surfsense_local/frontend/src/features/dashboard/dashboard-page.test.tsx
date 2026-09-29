@@ -891,6 +891,85 @@ describe("dashboard chat", () => {
     expect(screen.queryByRole("button", { name: "Model setup" })).toBeNull()
   })
 
+  it("offers no Retry for a context-too-long failure it cannot fix", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && !init?.method) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "Too long",
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          return new Response(
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"error","kind":"context_too_long","message":"context window exceeded","provider":"llamacpp"}\n\ndata: [DONE]\n\n',
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "llamacpp",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByRole("textbox", { name: "Message" })
+    await user.type(
+      screen.getByRole("textbox", { name: "Message" }),
+      "Too long"
+    )
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(
+      await screen.findByText(
+        "This conversation is too long for the model’s context window. Start a new chat or pick a model with a larger window."
+      )
+    ).toBeTruthy()
+    // Retry resends the identical message to the identical model and fails
+    // identically — it cannot fix an oversized context window.
+    const retryButton = screen.queryByRole("button", { name: "Retry" })
+    expect(retryButton, "context_too_long must not offer Retry").toBeNull()
+  })
+
   it("aborts the active stream when stop is pressed", async () => {
     const captured: { signal: AbortSignal | null } = { signal: null }
     const fetchMock = vi.fn(
