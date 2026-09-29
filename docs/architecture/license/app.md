@@ -51,7 +51,7 @@ There is one slot: importing a valid file replaces whatever was stored. That is 
 
 ## Settings and the sidebar
 
-Settings › License adds a license by choosing a `.lic` file or pasting its text, which the renderer sends to `PUT /license`. It shows the plan, the email, "Expires" or "Ended" with the date, the seat count when there is one, and Replace and Remove buttons, plus a notice when the clock is off, when the license has expired, and when it runs out within 14 days. The sidebar footer carries one status row: green for `active`, red for every state that leaves plugins locked.
+Settings › License adds a license by choosing a `.lic` file or pasting its text, which the renderer sends to `PUT /license`. It shows the plan, the email, "Expires" or "Ended" with the date, the seat count when there is one, and Replace and Remove buttons, plus a notice when the clock is off, when the license has expired, and when it runs out within 14 days. With no license stored it links to the trial form on `/downloads` and to `/pricing`, and the expired notice links to `/pricing` and says a renewal comes as a new file to add here; both go through the About section's `ExternalLink` to the OS browser. The [portal](portal.md) has no accounts ([ADR 0024](../../adr/0024-portal-without-accounts.md)), so no string in the app sends the user to one. The links are an offer, never a wall. The sidebar footer carries one status row: green for `active`, red for every state that leaves plugins locked.
 
 ## The compiled key
 
@@ -59,4 +59,4 @@ The release workflow's step "Refuse to build with the test signing key" runs `te
 
 ## Known gaps
 
-- Settings has no "Start trial" or "Buy" link, and its expired-license notice says to renew "from your account", which the portal does not have.
+None.
