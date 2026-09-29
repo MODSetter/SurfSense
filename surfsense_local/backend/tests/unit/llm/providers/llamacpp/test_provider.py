@@ -39,6 +39,7 @@ def test_it_answers_and_keeps_inventory_without_pulling_its_own_weights() -> Non
     assert callable(provider.models)
     assert callable(provider.chat)
     assert callable(provider.delete)
+    assert callable(provider.inspect)
 
 
 @pytest.mark.asyncio
@@ -202,6 +203,37 @@ async def test_the_capability_cache_cannot_outlive_its_adapter() -> None:
     assert fake.props_calls == 2, "a new adapter carries nothing over"
 
 
+@pytest.mark.asyncio
+async def test_inspect_uses_the_count_the_runtime_states() -> None:
+    """A file whose name states no size still tiers from what llama.cpp reports.
+
+    Selection used to catch AttributeError on the missing inspect() and fall
+    through to the filename. The runtime already states general.parameter_count
+    on /props; that is the count that should win.
+    """
+    fake = FakeRouter(["renamed-weights"])
+    fake.parameter_count = 70_000_000_000
+
+    fingerprint = await provider_for(fake).inspect("renamed-weights")
+
+    assert fingerprint.params_b == 70.0
+    assert fingerprint.provider == "llamacpp"
+    assert fake.props_calls == 1
+
+
+@pytest.mark.asyncio
+async def test_inspect_does_not_share_the_capabilities_cache() -> None:
+    """inspect() runs once at selection; capabilities() is a per-turn chat call."""
+    fake = FakeRouter(["qwen3"])
+    fake.parameter_count = 8_000_000_000
+    provider = provider_for(fake)
+
+    await provider.inspect("qwen3")
+    await provider.capabilities("qwen3")
+
+    assert fake.props_calls == 2
+
+
 async def test_a_turn_never_asks_the_router_to_load(anyio_backend) -> None:
     """The router loads on demand and we stop having an opinion about it.
 
@@ -222,7 +254,7 @@ async def test_a_turn_never_asks_the_router_to_load(anyio_backend) -> None:
 
 
 async def test_a_load_that_lost_the_race_is_not_an_error(anyio_backend) -> None:
-    """For the callers that do mean "load now", such as a warm up after an
+    """For the callers that do mean \"load now\", such as a warm up after an
     install. `model is already running` is the state they wanted, and anything
     crossing this socket can be beaten to it."""
     fake = FakeRouter(["Qwen3-1.7B-Q4_K_M"])
