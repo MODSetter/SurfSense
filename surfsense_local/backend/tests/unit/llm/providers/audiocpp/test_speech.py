@@ -19,7 +19,9 @@ from modules.llm.providers.audiocpp.speech import (
 )
 from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.protocols import SpokenTurn
+from shared import cancellation
 from tests.unit.llm.providers.llamacpp.fake_router import FakeRouter
+from worker.jobs import JobCancelledError
 
 pytestmark = pytest.mark.unit
 
@@ -176,6 +178,23 @@ def test_the_model_is_unloaded_when_voicing_ends(fail_on: int | None) -> None:
         with pytest.raises(VoicingError):
             speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), server, turns)
 
+    assert server.requests[-1][0] == "/v1/tasks/unload_all_models"
+
+
+def test_a_cancel_stops_voicing_at_the_next_turn() -> None:
+    """Voicing is the longest step; a cancel after turn two must not sit through
+    the rest of the episode, and the model's memory is still given back."""
+    server = StubServer()
+    turns = [SpokenTurn("af_heart", f"Line {n}.") for n in range(1, 5)]
+
+    def cancel_after_two() -> None:
+        if len(server.speech()) == 2:
+            raise JobCancelledError
+
+    with cancellation.watching(cancel_after_two), pytest.raises(JobCancelledError):
+        speak(voiced("kokoro-82m", "kokoro-82m-q8_0"), server, turns)
+
+    assert [body["input"] for body in server.speech()] == ["Line 1.", "Line 2."]
     assert server.requests[-1][0] == "/v1/tasks/unload_all_models"
 
 
