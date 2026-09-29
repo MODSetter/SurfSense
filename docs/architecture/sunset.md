@@ -51,7 +51,6 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 - The web redirect is not gated on `DEPLOYMENT_MODE`: a self-hosted web app with `SUNSET_MODE` set redirects to `/sunset`.
 - The 410 body carries no `sunset_url`.
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
-- The purge script has no test.
 - Celery beat keeps scheduling its periodic tasks, connector indexing checks and automation triggers among them, and none checks `is_sunset_mode()`; the middleware covers HTTP only.
 - The synchronous export has no size warning and no timeout.
 - The web app's unit tests, `tests/unit/sunset-redirect.test.ts` among them, are not run in CI.
