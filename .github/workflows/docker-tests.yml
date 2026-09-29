@@ -112,7 +112,9 @@ jobs:
           exit $status
 
   # Biome through the pre-commit hook, which checks all of surfsense_web at
-  # error level with the app's own Biome, so its dependencies come first.
+  # error level with the app's own Biome, so its dependencies come first. The
+  # web unit tests run here too: same `web` filter, same install, and a job of
+  # its own would repeat both to run eight seconds of `tsx --test`.
   web-lint:
     name: Web Lint
     runs-on: ubuntu-latest
@@ -145,6 +147,13 @@ jobs:
       - name: Install web dependencies
         working-directory: surfsense_web
         run: pnpm install --frozen-lockfile
+
+      # tsx --test: no browser, no database, no services. Before this step
+      # nothing ran these twenty-two files, so a PR could break the sunset
+      # redirect or the chat streaming state and still report green.
+      - name: Run web unit tests
+        working-directory: surfsense_web
+        run: pnpm test:unit
 
       - name: Install pre-commit
         run: pip install pre-commit
