@@ -19,6 +19,7 @@ from app.knowledge_store.settings import (
     knowledge_store_enabled_for,
     load_knowledge_store_settings,
 )
+from app.sunset import is_sunset_mode
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 
 logger = logging.getLogger(__name__)
@@ -61,6 +62,8 @@ def reindex_knowledge_store(workspace_id: int) -> int:
 @celery_app.task(name="reindex_drifted_workspaces")
 def reindex_drifted_workspaces() -> int:
     """Enqueue indexing for flipped workspaces whose stamp trails their store."""
+    if is_sunset_mode():
+        return 0
     if not load_knowledge_store_settings().enabled:
         return 0
     return run_async_celery_task(_sweep)

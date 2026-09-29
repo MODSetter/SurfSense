@@ -94,8 +94,9 @@ generation never has to:
 - **Remote**: `inspect()` reads the endpoint's `/models` row for the model. With
   a `hugging_face_id`, `params_b` is the largest size stated in the id or the
   repo name, and `line` defaults to `flagship`, because published weights with no
-  size word are a vendor's full-size model. Without one, `vendor` is the row's
-  `owned_by`, or the part of the id before its last `/`.
+  size word are a vendor's full-size model. Without one, `params_b` is the
+  largest size stated in the id, and `vendor` is the row's `owned_by`, or the
+  part of the id before its last `/`, when the id states no size.
 - **Local text**: `inspect()` reads `general.parameter_count` from the
   llama.cpp router's `/props`; when the runtime states no count, the filename
   supplies it.
@@ -239,6 +240,13 @@ a `json_schema` request, which
 some templates, is retried once unconstrained. Chat prose is deliberately
 unconstrained.
 
+Studio passes a schema through `run_model()`
+([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
+each format's beside its prompts, as the quiz's
+([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
+A reply that arrives unconstrained, from an endpoint that ignores
+`response_format` or from the 400 retry, is still read by `parse_json()`.
+
 ## How it is tested
 
 [`surfsense_local/backend/tests/unit/llm/profile/`](../../../surfsense_local/backend/tests/unit/llm/profile/)
@@ -251,7 +259,6 @@ over HTTP.
 ## Known gaps
 
 - The tier fallback keys on the provider name, not on loopback: `Fingerprint.local` is `provider == "llamacpp"`, so a local endpoint reached through a connection falls to `capable` when nothing else is known; the decision is to key on `host_destination()`, which already computes loopback.
-- A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts. Featherless lists every model this way (`"owned_by": "Feather"`, no `hugging_face_id`), so every model there, Qwen3 0.6B included, gets frontier prompts.
-- No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
+- Only the quiz passes `json_schema`: mind map, flashcards, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
 - Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

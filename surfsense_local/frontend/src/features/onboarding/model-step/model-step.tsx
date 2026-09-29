@@ -211,7 +211,7 @@ export function ModelStep({
   const copy = COPY[modelType]
   const models = slotModels[modelType]()
   // Onboarding selects what it installs, so a first model takes one click.
-  const { installs, install, cancel } = useInstall({
+  const { jobs, installs, install, cancel } = useInstall({
     select: true,
     modelType,
   })
@@ -359,7 +359,7 @@ export function ModelStep({
           )}
           {copy.searchable ? (
             <HuggingFaceSearch
-              installs={installs}
+              jobs={jobs}
               disabled={busy}
               onInstall={downloadBuild}
               onCancel={cancel}

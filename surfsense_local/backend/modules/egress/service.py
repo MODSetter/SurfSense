@@ -70,13 +70,31 @@ def set_enabled(session: Session, destination: str, enabled: bool) -> EgressDest
     return row
 
 
-def list_destinations(session: Session) -> list[EgressDestination]:
-    """Includes destinations never allowed, so the panel can show them off."""
-    hosts = {
+def _connection_hosts(session: Session) -> set[str]:
+    return {
         destination
         for base_url in session.scalars(select(ProviderConnection.base_url))
         if (destination := host_destination(base_url)) is not None
     }
+
+
+def forget_if_unused(session: Session, destination: str | None) -> None:
+    """Drop a grant once no stored connection reaches its host, so the next
+    connection there asks again. Built-in destinations are never dropped.
+    """
+    if destination is None or destination in BUILT_IN:
+        return
+    if destination in _connection_hosts(session):
+        return
+    row = session.get(EgressDestination, destination)
+    if row is not None:
+        session.delete(row)
+        session.flush()
+
+
+def list_destinations(session: Session) -> list[EgressDestination]:
+    """Includes destinations never allowed, so the panel can show them off."""
+    hosts = _connection_hosts(session)
     rows = {row.destination: row for row in session.scalars(select(EgressDestination))}
     return [
         rows.get(destination)

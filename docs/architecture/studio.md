@@ -53,7 +53,7 @@ Eight formats follow it:
 - **summary**: the model's markdown is the body, titled by its first `# ` heading.
 - **mindmap**: JSON nodes, at most 10 branches, become a markdown outline, an H1 over nested bullets, which Markmap draws on the client and which stays readable as text.
 - **flashcards**: JSON cards, at most 20, become a deck JSON file and a markdown body.
-- **quiz**: JSON questions, at most 10, each kept only with exactly four options and an answer among them, become a quiz JSON file and a markdown body.
+- **quiz**: JSON questions, written under a schema ([`schema.py`](../../surfsense_local/backend/worker/studio/content/quiz/schema.py)), at most 10, each kept only with exactly four options and an answer among them, become a quiz JSON file and a markdown body.
 - **html**: a JSON title and sections, at most 10. Every value is HTML-escaped into a fixed template, so the page cannot carry a script.
 - **podcast**: the model outlines the episode from the brief, then drafts it segment by segment, each reply capped at 12 tokens per word of the segment's target, and never under a planned 250-word segment's worth. Uncapped, Qwen3 1.7B looped on a 225-word segment until its 40,960-token window was full, and the JSON retry, which replays the failed reply, could not fit. The target is the outline's own guess: Qwen3 1.7B once gave a segment 20 words, wrote past them, and a 240-token cap ended both replies mid-JSON. The chosen audio model voices every line through audio.cpp's server, and the transcript is the body.
 - **image**: the model writes a title and an image prompt, and the image model paints the prompt.
@@ -94,7 +94,7 @@ worker/studio/
     └── visual/           image, infographic
 ```
 
-Every pipeline returns a `Built`: a `title`, the `markdown` that is always the indexed body, and an optional `primary` (and `preview`) with its MIME type and filename. Adding a format is a folder with a `render`, a `case` in `job_router.py` and a row in `formats.py`, plus the frontend entries below.
+Every pipeline returns a `Built`: a `title`, the `markdown` that is always the indexed body, and an optional `primary` (and `preview`) with its MIME type and filename. Adding a format is a folder with a `render`, a `case` in `job_router.py` and a row in `formats.py`. Frontend entries below customize its translated label, icon, tooltip and viewer; an unknown key still appears with the server's label, a file icon, the generic tooltip and the document viewer.
 
 ## Jobs
 
@@ -103,7 +103,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 - [`persist.py`](../../surfsense_local/backend/worker/studio/shared/persist.py) sets the document's title and markdown, then chunks, embeds and indexes that body with the ingest code, so the artifact is searchable and citable. If the format has a file, it clears the artifact's folder and file rows and writes the file named by its role, recording its size and SHA-256. No pipeline writes a `preview` yet.
 - The document is created without a `dedup_key`, so it is never deduplicated against another document.
 - A failure rolls back and writes `failed` with a reason cut to 500 characters: the error's first line, or for an HTTP error its whole message after "The model could not be reached: ". The job is then re-raised for Huey's one retry, except an image error, since the endpoint may already have generated, and billed, an image, and a podcast refused for memory, since a retry would draft the episode again and refuse again.
-- **Cancel** marks the document `cancelled` and revokes a queued copy. A running job stops at its next check. During a model call it checks every second, while tokens stream and while the model is still reading the prompt, and hangs up; closing the request stops llama-server within 1.5 seconds, measured through the router ([`generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py)).
+- **Cancel** marks the document `cancelled` and revokes a queued copy. A running job stops at its next check. During a model call it checks every second, while tokens stream and while the model is still reading the prompt, and hangs up; closing the request stops llama-server within 1.5 seconds, measured through the router ([`generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py)). A podcast checks before voicing each turn, so the rest of the episode is never sent, and an office job checks before each attempt, so a cancelled job asks the model for no retry. The check is a context variable ([`shared/cancellation.py`](../../surfsense_local/backend/shared/cancellation.py)), in `shared/` because the audio.cpp provider reads it too.
 - Every Studio model call turns thinking off. Measured on Qwen3 1.7B: with it on, a mindmap over a 12,000-token prompt thought past 15,000 tokens without answering, holding the runtime's only slot so chat queued behind it.
 - **Regenerate** refuses a job still `pending` or `processing`, rechecks availability, resets the document to `pending`, clears the error, increments `generation` and re-enqueues with the same sources, prompt and options. The new run replaces the files and the indexed body; the artifact and its document keep their ids.
 - Each transition the Studio worker makes sends an `artifacts` event keyed by artifact id; the API's own changes, to `pending` and `cancelled`, send none. The frontend does not listen yet; the artifact list refetches every 1.5 seconds while one is running ([`overview.md`](overview.md#freshness)).
@@ -168,8 +168,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 ## Known gaps
 
-- A cancel reaches only the model call. Voicing a podcast, running office code and ingest's parsing and embedding run to the end of their step first, because jobs are threads that cannot be killed; stopping everything means running each job in a process the worker can kill.
+- Outside a model call, a cancel stops a job only between steps. The podcast turn being voiced, an office script already running and ingest's parsing and embedding run to their end first, because jobs are threads that cannot be killed; stopping a step in flight means running each job in a process the worker can kill.
 - DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed and without asking the user; the 120-second limit cannot stop a runaway thread.
 - Grounding is the first 24,000 characters of the selected documents in selection order, not retrieval over them, so a large selection is cut off.
 - A podcast is WAV. The design encodes MP3 with a bundled ffmpeg, which is not built.
-- The format picker's list of keys is hard-coded in `studio-formats.ts`. The API's catalog fills in each listed format's details and availability, so a format added to `formats.py` is not offered until the frontend lists it too.

@@ -40,10 +40,21 @@ class Verified:
     expiry: datetime
     max_users: int | None
     issued: datetime
+    file_expiry: datetime | None
 
 
 def verify(certificate: str, now: datetime) -> Verified:
     """Contract 1 consumer steps, in order, stopping at the first failure."""
+    verified = verify_signature(certificate)
+    if verified.issued > now + MAX_CLOCK_DRIFT:
+        raise LicenseRejectedError("clock_untrusted")
+    if verified.file_expiry is not None and verified.file_expiry < now:
+        raise LicenseRejectedError("file_expired")
+    return verified
+
+
+def verify_signature(certificate: str) -> Verified:
+    """What the file says once its signature is trusted; the clock is not consulted."""
     try:
         body = base64.b64decode(re.sub(r"\s+", "", _PEM_MARKERS.sub("", certificate)))
         outer = json.loads(body)
@@ -68,11 +79,6 @@ def verify(certificate: str, now: datetime) -> Verified:
     payload = json.loads(base64.b64decode(enc))
     meta, attributes = payload["meta"], payload["data"]["attributes"]
 
-    if _instant(meta["issued"]) > now + MAX_CLOCK_DRIFT:
-        raise LicenseRejectedError("clock_untrusted")
-    if meta["expiry"] is not None and _instant(meta["expiry"]) < now:
-        raise LicenseRejectedError("file_expired")
-
     return Verified(
         key=attributes["key"],
         plan=attributes["metadata"]["plan"],
@@ -80,6 +86,7 @@ def verify(certificate: str, now: datetime) -> Verified:
         expiry=_instant(attributes["expiry"]),
         max_users=attributes["maxUsers"],
         issued=_instant(meta["issued"]),
+        file_expiry=None if meta["expiry"] is None else _instant(meta["expiry"]),
     )
 
 

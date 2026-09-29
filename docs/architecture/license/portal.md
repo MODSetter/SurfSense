@@ -26,7 +26,7 @@ The success page's download. It lists Keygen licenses whose `metadata[checkoutSe
 
 ### `POST /license/resend`
 
-1. `503` when `SMTP_ENABLED` is false, before anything else.
+1. `503` when `SMTP_ENABLED` is false or the SMTP configuration is invalid, before anything else.
 2. The rate limits below; `429` when either bucket is empty.
 3. List licenses by `metadata[email]`, skip `SUSPENDED` and `BANNED` ones, check out a fresh file for each and mail them all in one message.
 4. `200` with "If a license is registered to that address, it is on its way.", whether it found three licenses or none, and also when the recipient's server refused the address.
@@ -35,7 +35,7 @@ After the success page this is the only way to get a license back, so an answer 
 
 ### `POST /license/trial`
 
-1. `404` when `LICENSE_TRIAL_ENABLED` is off; `503` when mail is off.
+1. `404` when `LICENSE_TRIAL_ENABLED` is off; `503` when mail is off or misconfigured.
 2. The rate limits, then `400` for a disposable domain: a built-in list, extended by `LICENSE_DISPOSABLE_EMAIL_DOMAINS`.
 3. `409` when a license on the trial policy already carries this address's folded form in `metadata[trialKey]`.
 4. Create the trial under a derived id with an explicit expiry, check it out and mail it: `200`.
@@ -98,9 +98,9 @@ The client IP comes from `get_real_client_ip()`, which prefers `CF-Connecting-IP
 
 `app/mailer/` is a port with one transport: `protocol.py` holds the `Mailer` protocol, the frozen `OutboundEmail` and `Attachment` payloads and the two errors; `factory.py` builds the mailer; `smtp.py` sends. The connection is deployment-wide (`SMTP_*`), not license-specific, and each feature stamps its own sender on its messages. SMTP is the transport because every transactional provider speaks it, Resend, Postmark, SendGrid, Mailgun, SES and Brevo among them, so choosing a vendor is filling in host, port, username, password and a From address. The sender is stdlib (`email.message` and `smtplib` through `asyncio.to_thread`), one connection per send, and adds no dependency.
 
-- `SMTP_ENABLED` defaults to false, and there is no pretend-to-send mode. Both POST routes check it first and answer 503, because a resend that always answers 200 over a mailer that silently drops mail would make a broken deployment look like a working one.
+- `SMTP_ENABLED` defaults to false, and there is no pretend-to-send mode. Both POST routes check it first and answer 503, because a resend that always answers 200 over a mailer that silently drops mail would make a broken deployment look like a working one. The same check builds the mailer, so a bad `SMTP_*` setting also answers 503, before any Keygen call. Failing at startup instead would take every route down over a mail setting.
 - `SMTP_SECURITY` is explicit, `starttls` by default, `tls` or `none`, never guessed from the port. `none` is refused when a username is set, so credentials never cross in the clear; without one it only logs a warning for a non-loopback host.
-- Every send failure maps to one of two errors; a configuration error is neither, since the mailer is built at the first send and a bad setting raises `ValueError` there (Known gaps). `MailerUnavailableError` covers connect failures, timeouts, 4xx replies, authentication failures and a refused sender, all ours to fix. `MailerRejectedError` is a permanent 5xx refusal during the conversation, of the recipient or of the message. A hard bounce arrives after a 250 accept, so trial promises "sent", never "delivered".
+- Every send failure maps to one of two errors; a configuration error is neither: a bad setting raises `ValueError` when the mailer is built, which the routes turn into the 503 above. `MailerUnavailableError` covers connect failures, timeouts, 4xx replies, authentication failures and a refused sender, all ours to fix. `MailerRejectedError` is a permanent 5xx refusal during the conversation, of the recipient or of the message. A hard bounce arrives after a 250 accept, so trial promises "sent", never "delivered".
 - `OutboundEmail.idempotency_key` is carried and ignored by SMTP, so a future API transport can dedupe retries without changing any caller.
 
 `app/license/email/message.py` builds the three license messages, `purchase`, `resend` and `trial`, sent from `SMTP_LICENSE_FROM` or else `SMTP_FROM`, with `SMTP_LICENSE_REPLY_TO`. The file travels as `surfsense.lic`, numbered when one resend carries several, typed `application/octet-stream` so no mail client renders it inline and mangles its line endings. The install steps link the installers of the release pinned in `app/license/release.py`, looked up through the GitHub API and cached for an hour, or the release page when that lookup fails; pinning by tag keeps a mail already sent naming the build it was sent for ([updates](../updates.md)).
@@ -163,11 +163,10 @@ The script matches on the payment, never on how alike two addresses look: `check
 
 ## Tests
 
-`tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and the release lookup. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. The route and rate-limit suites, and the Keygen and mailer fakes they stood on, were deleted on 15 Sep 2026 in commit `7f1195c76`.
+`tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and the release lookup; `test_mail_guard.py` covers the mail check both POST routes run before Keygen. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. The route and rate-limit suites, and the Keygen and mailer fakes they stood on, were deleted on 15 Sep 2026 in commit `7f1195c76`.
 
 ## Known gaps
 
 - A refund suspends every license the Stripe customer holds, partial refunds included.
-- A bad SMTP configuration raises on the first send, not at startup, so `/license/trial` can create the trial and then fail with 500.
-- No test covers the license routes or their rate limits, and no contract test runs the Keygen client against a real Keygen.
+- No test covers the license routes beyond their mail check, or their rate limits, and no contract test runs the Keygen client against a real Keygen.
 - `correct_license_email.py` finds a license only by `--session`, so a trial's address cannot be corrected through it.

@@ -23,6 +23,7 @@ from app.celery_app import celery_app
 from app.knowledge_store.migrate import MigrationReport, migrate_workspace
 from app.knowledge_store.settings import load_knowledge_store_settings
 from app.observability.domains import knowledge_store
+from app.sunset import is_sunset_mode
 from app.tasks.celery_tasks.knowledge_store.index_tasks import reindex_knowledge_store
 
 logger = logging.getLogger(__name__)
@@ -42,6 +43,8 @@ REPAIR_ENQUEUE_CAP = 10
 @celery_app.task(name="check_knowledge_store_drift")
 def check_knowledge_store_drift() -> dict[str, int]:
     """Return status counts, e.g. ``{"ok": 12, "drift": 1}``."""
+    if is_sunset_mode():
+        return {}
     if not load_knowledge_store_settings().enabled:
         return {}
     return asyncio.run(_check_flipped_workspaces())
