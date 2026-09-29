@@ -4,27 +4,34 @@
 > wind-down is and why; this is the ordered list of commands and checks for doing it on production.
 > The purge that follows a month later is [`purge-runbook.md`](purge-runbook.md).
 
-**Read the safety property first.** Every sunset behaviour is behind `SUNSET_MODE`, which defaults
-off in the backend (`app/sunset.py`) and in the web app (`lib/sunset.ts`). Both treat unset and
-empty as off, so the self-host stack and the pre-sunset hosted service take the same branch. Stages
-1 to 4 are therefore reversible by unsetting a variable and restarting a process; stage 5 is the
-first one that stops something, and stage 6 is the first that users cannot un-see.
+**Read the safety property first.** Every sunset behaviour is behind flags. On the backend
+(`app/sunset.py`) `is_sunset_mode()` is two variables, not one: `SUNSET_MODE` must be truthy **and**
+`DEPLOYMENT_MODE` must be `cloud`. Production already sets `DEPLOYMENT_MODE=cloud`; the half that is
+easy to lose is that value when you work from a different shell, container or checkout. The web app
+(`lib/sunset.ts`) only reads `SUNSET_MODE`. Unset and empty count as off, so the self-host stack
+and the pre-sunset hosted service take the same branch. Stages 1 to 4 are therefore reversible by
+unsetting a variable and restarting a process; stage 5 is the first one that stops something, and
+stage 6 is the first that users cannot un-see.
 
 Stage numbering is the execution order. Each stage lists **checks** (verify before moving on) and
 **stop conditions** (abort, do not continue).
 
 Substitute your own host for `$API` and `$WEB` throughout.
 
-## One variable, two places
+## Two variables on the backend, one name in two places
 
 `SUNSET_MODE` is a single name set in two files, and setting one is the likeliest way to get a
 half-sunset: a backend refusing writes behind an app that still looks open, or an app redirecting to
 `/sunset` while the backend happily accepts writes.
 
+The backend flag is not `SUNSET_MODE` alone. `is_sunset_mode()` also requires `DEPLOYMENT_MODE=cloud`.
+That value is already set on production. It is the half that is easy to lose when you export a
+shell, hop into a container, or work from a checkout whose `.env` was never loaded.
+
 | Set it in | Reaches | Turns on |
 |---|---|---|
-| `surfsense_backend/.env` | the API process | `sunset: true` on `/health`, writes return 410 |
-| `surfsense_web/.env` | the Next process | app routes redirect to `/sunset` |
+| `surfsense_backend/.env` (`SUNSET_MODE` **and** `DEPLOYMENT_MODE=cloud`) | the API process | `sunset: true` on `/health`, writes return 410 |
+| `surfsense_web/.env` (`SUNSET_MODE` only) | the Next process | app routes redirect to `/sunset` |
 
 Both are read at **runtime**, per request — the backend through `os.getenv`, the web app in
 `proxy.ts`. Neither is baked into a build, which is why the web one is not a `NEXT_PUBLIC_*`
@@ -62,6 +69,8 @@ find out what before continuing.
 
 ```bash
 # surfsense_backend/.env
+# DEPLOYMENT_MODE=cloud is already set on production (ADR 0023).
+# Confirm it is still in this process environment before relying on SUNSET_MODE alone.
 SUNSET_MODE=1
 ```
 
@@ -78,6 +87,12 @@ curl -s -o /dev/null -w '%{http_code}\n' $API/api/v1/export                 # 40
 ```
 
 Export must answer 401 rather than 410: it is a `GET`, and it is the only thing users have left.
+
+If `/health` still reports `sunset: false` after the restart, do not treat that as "the flag did
+not take". Confirm the API process has `DEPLOYMENT_MODE=cloud` in its environment. A copied
+`.env`, a container without that key, or a shell that never sourced the file leaves
+`is_sunset_mode()` false even with `SUNSET_MODE=1`. The same pairing is documented beside
+`SUNSET_MODE` in `surfsense_backend/.env.example`.
 
 **Stop condition:** export or login returns 410. Unset the flag, restart, and work out why before
 retrying — a sunset that blocks export is worse than no sunset at all.
