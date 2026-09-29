@@ -336,6 +336,51 @@ describe("studio panel", () => {
     expect(await screen.findByText("Needs an image model")).toBeTruthy()
   })
 
+  it("uses complete messages for both model fallback shapes", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <StudioPanel
+          workspaceId={1}
+          documents={[]}
+          selectedDocumentIds={[]}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+          formats={[
+            {
+              key: "summary",
+              label: "Summary",
+              requires_model_types: ["text_gen"],
+              available: false,
+              unavailable_reason: null,
+            },
+            {
+              key: "image",
+              label: "Image",
+              requires_model_types: ["image_gen", "text_gen"],
+              available: false,
+              unavailable_reason: null,
+            },
+          ]}
+          isCreating={false}
+          error={null}
+          onGenerate={async () => false}
+        />
+      </TooltipProvider>
+    )
+
+    const image = screen.getByRole("button", { name: "Image" })
+    await user.hover(image)
+    expect(
+      await screen.findByText("Needs a chat model and an image model.")
+    ).toBeTruthy()
+    await user.unhover(image)
+    const summary = screen.getByRole("button", { name: "Summary" })
+    await user.hover(summary)
+    expect(await screen.findByText("Needs a chat model.")).toBeTruthy()
+  })
+
   it("shows an explanation tooltip on an available artifact", async () => {
     vi.stubGlobal(
       "fetch",

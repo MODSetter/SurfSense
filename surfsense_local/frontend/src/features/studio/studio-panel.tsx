@@ -25,9 +25,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import type { WorkspaceDocument } from "@/features/sources/api"
-import { cn } from "@/lib/utils"
-import type { ModelType } from "@/features/models/model-type"
 import { intl } from "@/i18n/intl"
+import { cn } from "@/lib/utils"
 
 import type { StudioFormat, StudioJobCreate } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
@@ -105,49 +104,17 @@ function catalogFormats(formats: StudioFormat[]) {
   return catalog.map((entry) => loaded.get(entry.key) ?? entry)
 }
 
-// Only for the catalog painted before the API answers; the backend's own
-// reason replaces it.
-const NEEDED_MODEL: Record<ModelType, () => string> = {
-  text_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_chat_model_label",
-      defaultMessage: "a chat model",
-    }),
-  image_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_image_model_label",
-      defaultMessage: "an image model",
-    }),
-  image_edit: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_image_edit_model_label",
-      defaultMessage: "an image editing model",
-    }),
-  video_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_video_model_label",
-      defaultMessage: "a video model",
-    }),
-  audio_gen: () =>
-    intl.formatMessage({
-      id: "studio_format_needs_audio_model_label",
-      defaultMessage: "an audio model",
-    }),
-}
-
 function unavailableReason(entry: StudioFormat) {
   if (entry.unavailable_reason != null) return entry.unavailable_reason
-  const models = intl.formatList(
-    entry.requires_model_types.map((type) => NEEDED_MODEL[type]()),
-    { type: "conjunction" }
-  )
-  return intl.formatMessage(
-    {
-      id: "studio_format_unavailable_tooltip",
-      defaultMessage: "Needs {models}",
-    },
-    { models }
-  )
+  return entry.requires_model_types.includes("image_gen")
+    ? intl.formatMessage({
+        id: "studio_format_unavailable_chat_image_tooltip",
+        defaultMessage: "Needs a chat model and an image model.",
+      })
+    : intl.formatMessage({
+        id: "studio_format_unavailable_chat_tooltip",
+        defaultMessage: "Needs a chat model.",
+      })
 }
 
 function formatHint(entry: StudioFormat) {
