@@ -1,8 +1,16 @@
 "use client"
 
+import * as React from "react"
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip"
 
 import { cn } from "@/lib/utils"
+
+interface TooltipContextValue {
+  contentId: string
+  setContentId: (id: string) => void
+}
+
+const TooltipContext = React.createContext<TooltipContextValue | null>(null)
 
 function TooltipProvider({
   delay = 350,
@@ -21,20 +29,43 @@ function TooltipProvider({
 
 // Hoverable popups are off per tooltip: Base UI has no provider-wide switch.
 function Tooltip({
+  id: idProp,
   disableHoverablePopup = true,
+  children,
   ...props
-}: TooltipPrimitive.Root.Props) {
+}: TooltipPrimitive.Root.Props & { id?: string }) {
+  const generatedId = React.useId()
+  const [contentId, setContentId] = React.useState(idProp ?? generatedId)
+
   return (
-    <TooltipPrimitive.Root
-      data-slot="tooltip"
-      disableHoverablePopup={disableHoverablePopup}
-      {...props}
-    />
+    <TooltipContext.Provider value={{ contentId, setContentId }}>
+      <TooltipPrimitive.Root
+        data-slot="tooltip"
+        disableHoverablePopup={disableHoverablePopup}
+        {...props}
+      >
+        {children}
+      </TooltipPrimitive.Root>
+    </TooltipContext.Provider>
   )
 }
 
-function TooltipTrigger({ ...props }: TooltipPrimitive.Trigger.Props) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />
+function TooltipTrigger({
+  "aria-describedby": ariaDescribedByProp,
+  ...props
+}: TooltipPrimitive.Trigger.Props) {
+  const context = React.useContext(TooltipContext)
+  const ariaDescribedBy =
+    [ariaDescribedByProp, context?.contentId].filter(Boolean).join(" ") ||
+    undefined
+
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      aria-describedby={ariaDescribedBy}
+      {...props}
+    />
+  )
 }
 
 function TooltipContent({
@@ -45,12 +76,24 @@ function TooltipContent({
   alignOffset = 0,
   collisionPadding,
   children,
+  id,
+  role = "tooltip",
   ...props
 }: TooltipPrimitive.Popup.Props &
   Pick<
     TooltipPrimitive.Positioner.Props,
     "align" | "alignOffset" | "side" | "sideOffset" | "collisionPadding"
   >) {
+  const context = React.useContext(TooltipContext)
+
+  React.useLayoutEffect(() => {
+    if (id && context && context.contentId !== id) {
+      context.setContentId(id)
+    }
+  }, [id, context])
+
+  const contentId = id ?? context?.contentId
+
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Positioner
@@ -62,6 +105,8 @@ function TooltipContent({
         className="isolate z-50"
       >
         <TooltipPrimitive.Popup
+          id={contentId}
+          role={role}
           data-slot="tooltip-content"
           className={cn(
             "pointer-events-none z-50 w-fit origin-(--transform-origin) rounded-md border border-border bg-popover px-3 py-1.5 text-xs font-medium text-pretty text-popover-foreground select-none data-instant:animate-none data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
