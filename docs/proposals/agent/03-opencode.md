@@ -92,7 +92,7 @@ opencode's working folder belongs to SurfSense, not the user:
 - **A text view:** each ready source's extracted markdown as a `.md` file. opencode's own `read`, `grep` and `glob` then work on Docling text. The agent can only read it.
 - **An output folder** the agent can write to.
 
-Uploads exist on disk only as `original.<ext>` in folders named by row ids ([documents](../../architecture/documents.md)), so the text view has to name them. Sources from a linked folder keep their relative paths ([`05-sources-folder.md`](05-sources-folder.md)).
+Uploads keep their sanitized filenames in folders named by row ids, and older ones are `original.<ext>` ([documents](../../architecture/documents.md)), so the text view still has to name them. Sources from a linked folder keep their relative paths ([`05-sources-folder.md`](05-sources-folder.md)).
 
 A custom tool named `read` replaces the built-in one. Custom tools load from a `tool/` or `tools/` folder in a config folder and are keyed by id, with custom tools added after built-ins ([`opencode/src/tool/registry.ts`](https://github.com/anomalyco/opencode/blob/v1.18.32/packages/opencode/src/tool/registry.ts), [`opencode/src/session/tools.ts`](https://github.com/anomalyco/opencode/blob/v1.18.32/packages/opencode/src/session/tools.ts)). That is the fallback if the text view is not enough.
 

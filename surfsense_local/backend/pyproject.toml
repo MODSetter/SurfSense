@@ -16,6 +16,7 @@ dependencies = [
     "httpx>=0.28.1",
     "huey>=3.3.4",
     "onnxruntime>=1.20",
+    "pathvalidate>=3.2",
     "pydantic-settings>=2.7.0",
     "python-docx>=1.2.0",
     "python-multipart>=0.0.32",

@@ -10,6 +10,7 @@ from api.dependencies import SessionDep
 from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.documents.original_file import original_path, stored_name
 from modules.documents.schemas import (
     DocumentByChunkRead,
     DocumentDetail,
@@ -23,7 +24,6 @@ from modules.documents.schemas import (
 from modules.documents.storage import (
     SUPPORTED_UPLOAD_SUFFIXES,
     StreamedUpload,
-    original_path,
     stream_upload,
     suffix_of,
     title_of,
@@ -230,7 +230,7 @@ def upload_documents(
     for document, streamed, suffix in accepted:
         destination = storage.document_dir(workspace.id, document.id)
         destination.mkdir(parents=True, exist_ok=True)
-        streamed.path.replace(destination / f"original{suffix}")
+        streamed.path.replace(destination / stored_name(document.title, suffix))
 
     # Before enqueueing, not by the session dependency afterwards: the worker is
     # another process and would look for a row this request had not written yet.
@@ -312,7 +312,7 @@ def cancel_ingest(document: DocumentDep, session: SessionDep) -> Document:
 def read_original(document: DocumentDep) -> FileResponse:
     path = original_path(document)
 
-    if not path.is_file():
+    if path is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no file behind this document")
 
     # Never inline: a stored html or svg would run its script on this origin.

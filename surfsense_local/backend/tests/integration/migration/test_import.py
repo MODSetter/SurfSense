@@ -70,6 +70,23 @@ async def test_listed_documents_are_created_pending_and_queued(
     )
 
 
+async def test_an_imported_document_is_stored_under_its_title(
+    client: AsyncClient, tmp_path: Path, data_dir: Path
+) -> None:
+    """The bundle's Notes_2.md is the export's dedup, not a name the user chose."""
+    response = await import_bundle(client, bundle(tmp_path))
+    research = response.json()["workspaces"][0]["id"]
+
+    documents = data_dir / "data" / "workspaces" / str(research) / "documents"
+    assert sorted(path.name for path in documents.rglob("*") if path.is_file()) == [
+        "Notes.md",
+        "Notes.md",
+        "Reading list.md",
+        "Résumé de réunion.md",
+        "index.md",
+    ]
+
+
 async def test_threads_arrive_with_their_turns_and_sources_as_text(
     client: AsyncClient, tmp_path: Path
 ) -> None:

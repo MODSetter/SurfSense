@@ -6,7 +6,6 @@ from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from modules.documents.storage import original_path
 from modules.workspaces.models import Workspace
 from shared.config import get_search_settings, get_storage_settings
 from shared.db import create_session_factory
@@ -116,17 +115,17 @@ def test_an_uploaded_file_is_read_from_disk(session: Session, stub_model: None) 
     session.add(document)
     session.commit()
 
-    path = original_path(document)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(NOTE, encoding="utf-8")
+    folder = get_storage_settings().document_dir(workspace.id, document.id)
+    folder.mkdir(parents=True)
+    (folder / "notes.md").write_text(NOTE, encoding="utf-8")
 
     run(document.id)
 
     session.expire_all()
     assert document.status is DocumentStatus.READY
     assert document.content == NOTE
-    # Kept so a reindex after a chunker change costs no parsing.
-    assert (path.parent / "extracted.md").read_text(encoding="utf-8") == NOTE
+    # The text lives in the row; a copy on disk would be a second truth.
+    assert [path.name for path in folder.iterdir()] == ["notes.md"]
 
 
 def test_a_second_run_replaces_the_first_ones_chunks(

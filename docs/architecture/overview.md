@@ -74,7 +74,7 @@ The rules that keep the processes out of each other's way:
 ├── images/                   sd-server weights (hosts with sd-server staged)
 ├── electron/                 Electron's userData: secret.bin, updates.json, window and theme prefs
 └── data/workspaces/<id>/
-    ├── documents/<id>/       original.<ext>, extracted.md
+    ├── documents/<id>/       the upload, under its own name
     └── artifacts/<id>/       an artifact's rendered file, named by role
 ```
 

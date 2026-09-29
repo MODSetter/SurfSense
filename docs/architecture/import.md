@@ -20,7 +20,7 @@ The rest runs as a FastAPI `BackgroundTasks` job in the API process, with its ow
 
 - The member streams into the workspace directory through `stream_upload()`, which hashes it on the way, and `validate_upload()` checks the bytes are UTF-8 text. A file that fails is skipped with a warning in the log.
 - A document in the same workspace with that hash as its `dedup_key` means it was already imported, and the new copy is dropped.
-- Otherwise it becomes a `FILE` document with the original, unsanitised title. `document_metadata` carries `folder_path` (the directory under `documents/`), `source` (the hosted `DocumentType`, kept as an opaque label) and `cloud: {workspace_id, document_id}`, beside the usual `mime_type`, `size_bytes` and `suffix`.
+- Otherwise it becomes a `FILE` document with the original, unsanitised title, and the file is stored under that title plus its extension, made safe as an upload's name is ([documents](documents.md#upload)). The bundle's own disambiguated name, such as `Notes_2.md`, is not kept. `document_metadata` carries `folder_path` (the directory under `documents/`), `source` (the hosted `DocumentType`, kept as an opaque label) and `cloud: {workspace_id, document_id}`, beside the usual `mime_type`, `size_bytes` and `suffix`.
 - The file moves into the document's directory, the row commits, and the existing `ingest_document` task goes on the ingest queue.
 
 The local schema has no folder table, so the hierarchy is kept as data. Markdown is in `TEXT_SUFFIXES`, so ingest reads the file directly and never starts Docling: an import is chunking and embedding only. The staged bundle is deleted when the job ends.

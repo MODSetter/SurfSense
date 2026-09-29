@@ -145,13 +145,12 @@ A destination is `host:<hostname>`: `host:huggingface.co` for model search and d
 └── data/
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/
-        │   ├── original.<ext>    an uploaded or imported file
-        │   └── extracted.md      the markdown parsed from it
+        │   └── <file name>       an uploaded or imported file, under its own name
         └── artifacts/<artifact_id>/
             └── primary.<ext>     the rendered file; a preview would sit beside it
 ```
 
-Directories are keyed by row id; the extension is the only part of a filename that reaches the disk. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. Deleting a workspace removes its whole directory after the commit, and deleting a document or an artifact removes its own directory. The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
+Directories are keyed by row id. An upload keeps its sanitized filename inside its document's directory, and no row stores that name: the directory holds the one file ([`documents.md`](documents.md#the-original-file)). Directories written earlier hold `original.<ext>` and an unread `extracted.md`, and are left as they are. An artifact's files are named by role, with an extension when the MIME type is one the Studio worker knows. Deleting a workspace removes its whole directory after the commit, and deleting a document or an artifact removes its own directory. The rest of the data directory is described in [`overview.md`](overview.md#data-directory).
 
 ## Entity graph
 
