@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen } from "@testing-library/react"
+import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { stubUpdateBridge } from "@/features/updates/stub-bridge"
 import { render } from "@/test-utils"
 
@@ -18,7 +19,9 @@ const DETAILS = {
 
 function stubAboutBridge() {
   stubUpdateBridge({ automatic: true, state: { status: "idle" } })
-  const openExternal = vi.fn(async () => undefined)
+  const openExternal = vi.fn<(url: string) => Promise<void>>(
+    async () => undefined
+  )
   window.surfsense = {
     ...window.surfsense!,
     openExternal,
@@ -80,6 +83,35 @@ describe("AboutSettings", () => {
     expect(copied).toContain("macOS 15.4 (arm64)")
     expect(copied).toContain("Electron 44.0.0")
     expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy()
+  })
+
+  it("reports an issue through the dialog, with the system details", async () => {
+    const bridge = stubAboutBridge()
+    const user = userEvent.setup()
+    render(
+      <>
+        <AboutSettings />
+        <IssueReportDialog />
+      </>
+    )
+
+    await user.click(
+      await screen.findByRole("button", { name: "Report an issue" })
+    )
+    expect(bridge.openExternal).not.toHaveBeenCalled()
+    await user.type(
+      await screen.findByRole("textbox", { name: "What went wrong?" }),
+      "Settings freezes"
+    )
+    await user.click(screen.getByRole("button", { name: "Continue on GitHub" }))
+
+    await waitFor(() => expect(bridge.openExternal).toHaveBeenCalledOnce())
+    const what =
+      new URL(bridge.openExternal.mock.calls[0][0]).searchParams.get("what") ??
+      ""
+    expect(what).toContain("Settings freezes")
+    expect(what).toContain("SurfSense 2.0.2")
+    expect(what).toContain("macOS 15.4 (arm64)")
   })
 
   it("copies the bare version from beside it", async () => {
