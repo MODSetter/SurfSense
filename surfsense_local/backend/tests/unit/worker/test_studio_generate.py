@@ -43,6 +43,29 @@ def test_a_cap_reaches_llama_server() -> None:
     assert fake.chat_bodies[-1]["max_tokens"] == 1200
 
 
+def test_a_schema_reaches_llama_server() -> None:
+    """A format that asks for JSON gets a grammar, not only a request in prose."""
+    fake = FakeRouter(["qwen3"])
+    provider = LlamaCppProvider("http://127.0.0.1:1234", transport=fake.transport())
+    schema = {"type": "object", "properties": {"title": {"type": "string"}}}
+
+    generate.run_model(
+        ResolvedGeneration(SELECTION, provider), "system", [], json_schema=schema
+    )
+
+    assert fake.chat_bodies[-1]["response_format"]["json_schema"]["schema"] == schema
+
+
+def test_a_format_that_asks_for_no_schema_sends_none() -> None:
+    """Office writes Python and the summary writes markdown; neither is JSON."""
+    fake = FakeRouter(["qwen3"])
+    provider = LlamaCppProvider("http://127.0.0.1:1234", transport=fake.transport())
+
+    generate.run_model(ResolvedGeneration(SELECTION, provider), "system", [])
+
+    assert "response_format" not in fake.chat_bodies[-1]
+
+
 class _ModelThatNeverFinishes:
     """Streams forever, or reads its prompt forever, until the caller hangs up."""
 
