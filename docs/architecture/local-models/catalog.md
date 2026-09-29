@@ -370,7 +370,11 @@ per row.
   naming each model's weights and projector, and saves the projector as
   `mmproj-<model>.gguf` so two vision models never share or overwrite one. A file
   copied in by hand pairs under that name too. A projector merely sitting beside a
-  model is never attached to it.
+  model is never attached to it. The record is written as each file lands, with
+  the files still to come under `pending`, so an install cut off between the
+  weights and the projector is a build the catalog knows is unfinished: its row
+  keeps offering Download rather than reading installed by name and loading as
+  text only, and the retry fetches only what is missing.
 - **Both halves download, price and load together.** The footprint includes the
   projector, `estimate()` charges it, and the preset names it ([`runtime.md`](runtime.md)).
 - **It says the model can see, not that chat will show it an image.** Chat sends
@@ -637,7 +641,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - Chat sends text only, so a model that reads images never receives one.
 - Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
-- An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - `POST /llm/installs` does not refuse a curated build that will not fit; only the screen's disabled Download does.

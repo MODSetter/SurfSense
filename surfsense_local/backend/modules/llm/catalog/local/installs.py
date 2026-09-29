@@ -36,6 +36,10 @@ class InstalledBuild:
     projector_gguf: Mapping[str, Any] = field(default_factory=dict)
     # A VAE or a text encoder, which other installed builds may name too.
     companions: tuple[str, ...] = ()
+    # The build's files that have not landed yet. Written as each one lands, so
+    # an install cut off part way is a build still missing something, never
+    # one that reads installed by name and loads without its projector.
+    pending: tuple[str, ...] = ()
 
     @property
     def files(self) -> tuple[str, ...]:
@@ -57,6 +61,7 @@ def read_installs(models_dir: Path) -> dict[str, InstalledBuild]:
         try:
             item["weights"] = tuple(item["weights"])
             item["companions"] = tuple(item.get("companions", ()))
+            item["pending"] = tuple(item.get("pending", ()))
             build = InstalledBuild(**item)
         except (KeyError, TypeError):
             continue
@@ -99,5 +104,6 @@ def _plain(build: InstalledBuild) -> dict[str, Any]:
     plain = asdict(build)
     plain["weights"] = list(build.weights)
     plain["companions"] = list(build.companions)
+    plain["pending"] = list(build.pending)
     plain["projector_gguf"] = dict(build.projector_gguf)
     return plain

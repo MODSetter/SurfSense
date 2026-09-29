@@ -1,4 +1,4 @@
-"""Fetch a build's files into a folder, pinned and verified, then record it."""
+"""Fetch a build's files into a folder, pinned and verified, recorded as each lands."""
 
 import asyncio
 import hashlib
@@ -28,45 +28,55 @@ async def download_build(
     before failing."""
     total = plan.build.footprint_bytes
     done = 0
+    landings = [(file, landing(file)) for file in plan.build.files]
     weights: list[str] = []
     companions: list[str] = []
     projector: str | None = None
-    for file in plan.build.files:
-        name = landing(file)
+    for index, (file, name) in enumerate(landings):
+        if not (
+            file.sha256 and await asyncio.to_thread(_holds, folder / name, file.sha256)
+        ):
+            url = RESOLVE.format(repo=file.repo, revision=file.revision, path=file.path)
+            finished = 0
+            async for step in download_gguf(
+                url, folder / name, sha256=file.sha256, transport=transport
+            ):
+                finished = step.completed
+                yield DownloadProgress(
+                    step.status, done + step.completed, max(total, done + step.total)
+                )
+            done += finished
+        else:
+            done += file.size_bytes
+            yield DownloadProgress("downloading", done, total)
         if file.role is FileRole.WEIGHTS:
             weights.append(name)
         elif file.role is FileRole.PROJECTOR:
             projector = name
         else:
             companions.append(name)
-        if file.sha256 and await asyncio.to_thread(_holds, folder / name, file.sha256):
-            done += file.size_bytes
-            yield DownloadProgress("downloading", done, total)
-            continue
-        url = RESOLVE.format(repo=file.repo, revision=file.revision, path=file.path)
-        finished = 0
-        async for step in download_gguf(
-            url, folder / name, sha256=file.sha256, transport=transport
-        ):
-            finished = step.completed
-            yield DownloadProgress(
-                step.status, done + step.completed, max(total, done + step.total)
-            )
-        done += finished
-    projector_file = plan.build.projector
-    record_install(
-        folder,
-        InstalledBuild(
-            model_id=plan.model_id,
-            repo=plan.build.weights.repo,
-            revision=plan.build.weights.revision,
-            quantization=plan.build.quantization,
-            weights=tuple(weights),
-            projector=projector,
-            projector_gguf=dict(projector_file.gguf) if projector_file else {},
-            companions=tuple(companions),
-        ),
-    )
+        # The record after every file, naming the rest: a connection that drops
+        # between two files leaves a build the catalog knows is unfinished.
+        record_install(
+            folder,
+            InstalledBuild(
+                model_id=plan.model_id,
+                repo=plan.build.weights.repo,
+                revision=plan.build.weights.revision,
+                quantization=plan.build.quantization,
+                weights=tuple(weights),
+                projector=projector,
+                projector_gguf=_projector_gguf(plan, projector),
+                companions=tuple(companions),
+                pending=tuple(n for _, n in landings[index + 1 :]),
+            ),
+        )
+
+
+def _projector_gguf(plan: InstallPlan, landed: str | None) -> dict:
+    """The projector's committed keys once it has landed, else nothing."""
+    projector = plan.build.projector
+    return dict(projector.gguf) if projector and landed else {}
 
 
 def _holds(path: Path, sha256: str) -> bool:
