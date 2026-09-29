@@ -36,6 +36,9 @@ class FakeRouter:
         # How many times `/props` was actually asked, so a test can tell a
         # cached read apart from a fresh round trip.
         self.props_calls = 0
+        # What `/props` reports as `general.parameter_count`. None means the
+        # runtime stated no count, so fingerprinting must fall back to the name.
+        self.parameter_count: int | float | None = None
         # Whether the router already holds this model. The real one answers 400
         # `model is already running` to a load in that state, which is what a
         # check-then-act across this socket races into.
@@ -55,14 +58,16 @@ class FakeRouter:
             return httpx.Response(200, json={"status": "ok"})
         if path == "/props":
             self.props_calls += 1
-            return httpx.Response(
-                200,
-                json={
-                    "role": "router",
-                    "chat_template_caps": self.template_caps,
-                    "default_generation_settings": {"n_ctx": 16384},
-                },
-            )
+            payload: dict = {
+                "role": "router",
+                "chat_template_caps": self.template_caps,
+                "default_generation_settings": {"n_ctx": 16384},
+            }
+            if self.parameter_count is not None:
+                payload["model_info"] = {
+                    "general.parameter_count": self.parameter_count
+                }
+            return httpx.Response(200, json=payload)
         if path == "/models" and request.method == "GET":
             return httpx.Response(
                 200,

@@ -31,12 +31,14 @@ import httpx
 from modules.llm.catalog.local.classifier import classify
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import read_cached
 from modules.llm.gguf.file_kind import FileKind, kind_of
+from modules.llm.profile.fingerprint import from_llamacpp
 from modules.llm.providers.llamacpp.capabilities import Capabilities, read_capabilities
 from modules.llm.providers.llamacpp.messages import for_template
 from modules.llm.providers.llamacpp.router_client import RouterClient
 from modules.llm.providers.llamacpp.thinking import THINKING_OFF
 from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
 from modules.llm.providers.types import Delta, Message, Model
+from modules.llm.profile.types import Fingerprint
 
 PROVIDER = "llamacpp"
 # The first part of a split build is listed as a shard; it is the model.
@@ -100,6 +102,15 @@ class LlamaCppProvider:
         capabilities already makes. Not the window we requested: what the
         fitter actually allocated, in case it differs."""
         return (await self.capabilities(model)).context_tokens
+
+    async def inspect(self, name: str) -> Fingerprint:
+        """What the runtime states about this model, for prompt tiering.
+
+        Selection-time only: `_collect()` calls this once when a model is
+        chosen. It does not share the capabilities cache, which exists because
+        chat reads `/props` on every turn.
+        """
+        return from_llamacpp(name, await self._router.props(name))
 
     async def token_count(self, model: str, text: str) -> int | None:
         """The exact cost of this text, by the router's own tokenizer.
