@@ -21,6 +21,7 @@ class FakeRouter:
         # What `/props` reports about the chat template. Defaults to a template
         # that carries everything, which is the common case.
         self.template_caps: dict = {"supports_system_role": True}
+        self.model_info: dict = {}
         # llama.cpp issue #29006: some templates 400 on a json_schema request.
         self.reject_response_format = False
         self.fail_chat_with: int | None = None
@@ -59,6 +60,7 @@ class FakeRouter:
                 200,
                 json={
                     "role": "router",
+                    "model_info": self.model_info,
                     "chat_template_caps": self.template_caps,
                     "default_generation_settings": {"n_ctx": 16384},
                 },

@@ -31,6 +31,7 @@ import httpx
 from modules.llm.catalog.local.classifier import classify
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import read_cached
 from modules.llm.gguf.file_kind import FileKind, kind_of
+from modules.llm.profile import Fingerprint, from_llamacpp
 from modules.llm.providers.llamacpp.capabilities import Capabilities, read_capabilities
 from modules.llm.providers.llamacpp.messages import for_template
 from modules.llm.providers.llamacpp.router_client import RouterClient
@@ -100,6 +101,10 @@ class LlamaCppProvider:
         capabilities already makes. Not the window we requested: what the
         fitter actually allocated, in case it differs."""
         return (await self.capabilities(model)).context_tokens
+
+    async def inspect(self, model: str) -> Fingerprint:
+        """The model size reported by the local runtime, for prompt tiering."""
+        return from_llamacpp(model, await self._router.props(model))
 
     async def token_count(self, model: str, text: str) -> int | None:
         """The exact cost of this text, by the router's own tokenizer.

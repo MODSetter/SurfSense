@@ -97,15 +97,16 @@ generation never has to:
   size word are a vendor's full-size model. Without one, `params_b` is the
   largest size stated in the id, and `vendor` is the row's `owned_by`, or the
   part of the id before its last `/`, when the id states no size.
-- **Anything else, or a failed read**: `from_name()` takes the largest `<n>b`
+- **Local text**: `inspect()` reads `general.parameter_count` from the
+  llama.cpp router's `/props`; when the runtime states no count, the filename
+  supplies it.
+- **Anything else, or a failed provider read**: `from_name()` takes the largest `<n>b`
   count in the name, so a mixture of experts reads its total rather than its
   active size and `llama-3.3-70b` is not 3B, and failing that a line word such as
   `mini`, `flash`, `pro` or `max`.
 
-A local model is fingerprinted from its filename. `LlamaCppProvider` has no
-`inspect()`, so the call fails, the failure is caught, and `from_name()` reads
-8 from `Qwen3-8B-Q4_K_M`. A row with all three facts null, such as one chosen
-before tiering existed, is fingerprinted from its name on read.
+A row with all three facts null, such as one chosen before tiering existed, is
+fingerprinted from its name on read.
 
 ## Prompt tiers
 
@@ -258,7 +259,6 @@ over HTTP.
 ## Known gaps
 
 - The tier fallback keys on the provider name, not on loopback: `Fingerprint.local` is `provider == "llamacpp"`, so a local endpoint reached through a connection falls to `capable` when nothing else is known; the decision is to key on `host_destination()`, which already computes loopback.
-- Local fingerprints come from the filename only: `LlamaCppProvider` has no `inspect()`, so `from_llamacpp()`, which reads `general.parameter_count` from `/props`, is never called.
 - Only the quiz passes `json_schema`: mind map, flashcards, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
 - Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.
