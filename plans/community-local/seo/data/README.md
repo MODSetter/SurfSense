@@ -55,6 +55,11 @@ redirecting stdout).
 | `intl/lists.json` | config | the keyword lists behind the international pass (`en-core` 43, `en-extended` 70, one translated list per language) and a `markets` map of `location_code`, `language_code` and which lists each market gets |
 | `intl/<market>.json` | `keyword_overview/live`, compacted | 27 pulls for 26 markets (Canada in English and in French), same lists, same day; see [International pulls](#international-pulls) |
 | `intl/markets.csv` | derived | market × keyword long table: `recent`, `volume`, `cpc`, `kd`, `concept`, `variant_of`; regenerate with the command below |
+| `b2b/overview-*.json.gz`, `b2b/suggestions-*.json.gz` | `keyword_overview/live`, `keyword_suggestions/live` | **pulled 29 Sep 2026** for [`../08-b2b-artifact-jobs.md`](../08-b2b-artifact-jobs.md): B2B artifact-job, software and profession terms; see [B2B artifact jobs](#b2b-artifact-jobs) |
+| `b2b/clickstream-*.json*` | `keywords_data/clickstream_data/bulk_search_volume/live` | **29 Sep 2026**: exact-phrase volumes for 389 of those terms, the check on merged Ads records and on the summer step |
+| `b2b/ranked-<vendor>.json.gz` | `dataforseo_labs/google/ranked_keywords/live` | **29 Sep 2026**: top 200 non-brand keywords of 15 AI-agent and vertical vendors |
+| `b2b/competitors-b2b-heads.json.gz` | `dataforseo_labs/google/serp_competitors/live` | **29 Sep 2026**: who ranks across the B2B heads, 1,000 domains |
+| `b2b/use-cases.json` | config | the 98 use cases with their play and terms, the exclusions with reasons, the profession regex per play, and two watch lists |
 
 ## Methodology notes
 
@@ -64,6 +69,9 @@ overstates the year and understates today. `parse.py` reports `recent` as the
 median of the last three months (capped at the reported figure) and flags
 `spike` when the peak month exceeds 4x the 12-month median. A row with `spike`
 whose `recent` still equals `volume` has held its new level for three months.
+Clickstream pulled 29 Sep 2026 shows no such step in the same phrases
+([B2B artifact jobs](#b2b-artifact-jobs)), so treat the step as unconfirmed
+until a re-pull after mid-October.
 
 **Seasonality.** The study clusters (study, flashcards, quiz, and less so
 summary and slides) follow the academic year: peaks in September-October and
@@ -285,6 +293,64 @@ The Studio-output list was run separately in four of these markets
 They sit outside `intl/` because they are not on the shared lists and would
 skew the market totals; render them with the default metrics mode.
 
+## B2B artifact jobs
+
+The pulls behind [`../08-b2b-artifact-jobs.md`](../08-b2b-artifact-jobs.md)
+sit in [`b2b/`](b2b/), all **29 Sep 2026**, Google US. They are in a subfolder
+because `parse.py` would read `keyword-overview-*` files in this folder into
+`master-keywords.csv`, and these terms are not on its lists.
+
+| files | what they hold |
+|---|---|
+| `overview-sales-marketing`, `-finance-legal-consulting`, `-operations-hr-health`, `-editing-office`, `-templates` | the first pass, by business function: 70-90 rows each |
+| `overview-jobs-a`, `overview-jobs-b` | the second pass, terms for the 96 use cases that came before the vendor pass: 433 and 422 rows |
+| `overview-vendor-jobs` | job terms taken from the vendors' ranking pages, which added two use cases: 128 rows |
+| `suggestions-ai-for`, `suggestions-ai-agent-for` | discovery on the seeds `ai for` (150 of 1,012 rows saved) and `ai agent for` (100 of 142) |
+| `clickstream-top-terms`, `-privacy-heads`, `-vendor-jobs` | 332, 16 and 41 terms; 376 came back with a series |
+| `ranked-<vendor>` | gamma.app, manus.im, genspark.ai, skywork.ai, spellbook.com, inventive.ai, conveyor.com, vanta.com, bluej.com, rogo.ai (34 rows), fieldguide.io, govdash.com, magicschool.ai, evenuplaw.com, datarails.com |
+
+[`b2b/rollup.py`](b2b/rollup.py) turns them into the tables in `08`, reading
+[`b2b/use-cases.json`](b2b/use-cases.json) for the mapping. Its rules (the
+three term classes, the exclusions, the trend window) are in `08`, under "How
+this was counted".
+
+**Clickstream.** `bulk_search_volume` counts the exact phrase from a browsing
+panel, in steps of about 50. A term below the floor comes back with months
+missing or no `search_volume` at all. Across 307 non-profession terms, the
+median Ads volume is 1.34 times clickstream. AI-tool and brand terms run the
+other way, 5-20 times above Ads (`kimi ai` 221,674 against 40,500). An Ads
+record at ten times its clickstream or more has absorbed other phrases. The
+rollup rescales it to clickstream × the median ratio, summed over every
+measured spelling of that record. `ai for <profession>` records are families
+by design and are left alone.
+
+Re-pulling, one call each. Clickstream takes up to 1,000 keywords of at least
+three characters, and no `language_code`:
+
+```json
+[{ "location_code": 2840, "keywords": ["hecvat", "caiq", "..."] }]
+```
+
+Ranked keywords, with the brand word filtered out:
+
+```json
+[{ "target": "spellbook.com", "location_code": 2840, "language_code": "en", "limit": 200,
+   "order_by": ["ranked_serp_element.serp_item.etv,desc"],
+   "filters": [["keyword_data.keyword", "not_like", "%spellbook%"], "and",
+               ["keyword_data.keyword_info.search_volume", ">=", 30]] }]
+```
+
+The volume floor was 50 for gamma, manus, genspark, skywork, vanta and
+magicschool and 30 for the rest. The brand filters were the brand word, except
+`%blue j%` for bluej.com, `%magic%` for magicschool.ai and `%evenup%` for
+evenuplaw.com.
+
+```bash
+python parse.py --mode urls b2b/ranked-spellbook.json.gz   # a vendor's ranking pages
+python parse.py b2b/overview-vendor-jobs.json.gz            # metrics for one overview pull
+cd b2b && python rollup.py --self-check && python rollup.py
+```
+
 ## Not saved here
 
 - **The professional list in Mexico (`2484`, `es`) and Brazil (`2076`, `pt`)**,
@@ -310,3 +376,8 @@ skew the market totals; render them with the default metrics mode.
   one predates the decision to keep them.
 
 Both go stale within days and are cheap to re-pull.
+
+- **`evenup.ai`'s ranked keywords** (29 Sep 2026) came back empty. The
+  company's site is evenuplaw.com, archived as `b2b/ranked-evenup.json.gz`.
+- **The practitioner threads** cited in `08` are linked there, not archived.
+  They are public Reddit posts, and they get edited and deleted.

@@ -1,0 +1,1947 @@
+{
+ "plays": {
+  "Legal": "lawyer|attorney|law firm|legal|litigat|paralegal|counsel",
+  "Accounting and tax": "account|\\btax|\\bcpa|audit|bookkeep",
+  "Insurance": "insur|underwrit|claims",
+  "Finance and banking": "financ|bank|\\bcfo|wealth|invest|credit|lend|fp&a|private equity|\\bfund",
+  "Security, privacy and compliance": "cyber|complian|risk|security|\\bgrc|privacy",
+  "Healthcare": "health|hospital|doctor|nurse|therap|mental|clinic|pharm|dental|medical|veterinar",
+  "Real estate and construction": "real estate|propert|construction|architect|contractor|interior|realtor",
+  "HR": "\\bhr\\b|recruit|talent|hiring|human resources",
+  "Education": "teacher|school|educat|professor|student|tutor",
+  "Government": "government|public sector|police|federal|military|municipal",
+  "Nonprofit": "nonprofit|non-profit|grant|charit",
+  "Proposals, sales and procurement": "sales|customer success|revops|proposal|rfp|procurement",
+  "Marketing": "marketing|agenc|\\bpr\\b|publisher|journalist|writer|ecommerce|retail",
+  "Operations and quality": "manufactur|supply chain|logistic|quality|operations|oil and gas|energy|utilit",
+  "Product and technical writing": "product manager|project manager|program manager|engineer|developer|researcher",
+  "Consulting and strategy": "consult|professional services",
+  "Format agents": null
+ },
+ "cases": {
+  "RFP, proposal and security-questionnaire response": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "rfp software",
+    "ai rfp",
+    "rfp ai",
+    "rfp automation",
+    "rfp response",
+    "rfp response ai",
+    "ai rfp response",
+    "proposal software",
+    "proposal management software",
+    "ai proposal generator",
+    "ai proposal writer",
+    "proposal generator",
+    "business proposal generator",
+    "ai business proposal generator",
+    "proposal writing software",
+    "sales proposal software",
+    "ddq software",
+    "tender software",
+    "ai bid writing",
+    "government proposal software",
+    "rfp template",
+    "rfp response template",
+    "proposal template",
+    "business proposal template",
+    "project proposal template",
+    "bid writing",
+    "tender writing",
+    "bid writing software",
+    "tender response",
+    "rfp response software",
+    "rfi response",
+    "proposal writing ai",
+    "ai proposal writing",
+    "ai proposal writing software"
+   ]
+  },
+  "Grant proposals": {
+   "play": "Nonprofit",
+   "terms": [
+    "ai grant writing",
+    "grant writing ai",
+    "ai grant writer",
+    "grant proposal template",
+    "grant writing software",
+    "grant writing",
+    "ai for grant writing"
+   ]
+  },
+  "Construction proposals, SOWs and change orders": {
+   "play": "Real estate and construction",
+   "terms": [
+    "construction proposal software",
+    "change order template",
+    "scope of work template",
+    "ai for construction",
+    "sow template",
+    "sow generator",
+    "statement of work generator"
+   ]
+  },
+  "Sales and QBR decks": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "sales deck",
+    "ai sales deck",
+    "ai sales presentation",
+    "sales presentation ai",
+    "sales deck template",
+    "qbr deck",
+    "qbr presentation",
+    "qbr template",
+    "account plan template"
+   ]
+  },
+  "Battlecards, one-pagers and case studies": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "battlecard",
+    "competitive battlecards",
+    "sales battlecard",
+    "battle card template",
+    "one pager template",
+    "ai one pager",
+    "sell sheet",
+    "case study generator",
+    "ai case study generator",
+    "case study template",
+    "sales enablement content"
+   ]
+  },
+  "Pitch decks and board materials": {
+   "play": "Consulting and strategy",
+   "terms": [
+    "pitch deck generator",
+    "ai pitch deck generator",
+    "ai pitch deck",
+    "pitch deck ai",
+    "pitch deck template",
+    "board meeting minutes template"
+   ]
+  },
+  "Financial models and statements (xlsx)": {
+   "play": "Finance and banking",
+   "terms": [
+    "ai financial model",
+    "financial modeling ai",
+    "ai financial analysis",
+    "ai financial statement analysis",
+    "ai financial report generator",
+    "financial model template",
+    "financial statement template",
+    "income statement template",
+    "balance sheet template",
+    "cash flow template",
+    "ai for cfos"
+   ]
+  },
+  "Spreadsheet agent: edit and analyse Excel": {
+   "play": "Format agents",
+   "terms": [
+    "claude for excel",
+    "copilot in excel",
+    "copilot excel",
+    "excel ai",
+    "ai for excel",
+    "ai excel",
+    "chatgpt excel",
+    "excel formula generator",
+    "ai excel formula",
+    "ai spreadsheet",
+    "ai spreadsheet editor",
+    "ai excel editor",
+    "excel ai add in",
+    "ai excel add in",
+    "ai agent for excel",
+    "shortcut ai excel",
+    "excel automation",
+    "ai data analysis excel",
+    "ai excel analysis",
+    "ai agent for data analysis"
+   ]
+  },
+  "Slides agent: edit and redesign PowerPoint": {
+   "play": "Format agents",
+   "terms": [
+    "powerpoint ai",
+    "ai for powerpoint",
+    "copilot powerpoint",
+    "copilot in powerpoint",
+    "powerpoint designer",
+    "ai powerpoint designer",
+    "ai powerpoint editor",
+    "ai slide editor",
+    "ai presentation editor",
+    "ai powerpoint template",
+    "ai agent for powerpoint",
+    "powerpoint automation",
+    "make powerpoint look better",
+    "improve powerpoint with ai",
+    "powerpoint ai add in",
+    "gamma alternative",
+    "beautiful ai alternative",
+    "consulting slides",
+    "strategy deck"
+   ]
+  },
+  "Word agent: edit, compare and redline documents": {
+   "play": "Format agents",
+   "terms": [
+    "copilot in word",
+    "copilot word",
+    "ai for word",
+    "ai word document editor",
+    "ai document editor",
+    "ai rewrite document",
+    "compare documents",
+    "compare two word documents",
+    "compare pdf files",
+    "document comparison software",
+    "ai redline",
+    "ai document review",
+    "document review software"
+   ]
+  },
+  "PDF editing and form filling": {
+   "play": "Format agents",
+   "terms": [
+    "ai pdf editor",
+    "edit pdf with ai",
+    "ai pdf",
+    "pdf form filler",
+    "fill pdf form ai",
+    "ai form filler"
+   ]
+  },
+  "Document translation (layout kept)": {
+   "play": "Format agents",
+   "terms": [
+    "translate pdf",
+    "document translation",
+    "translate word document",
+    "translate excel",
+    "translate powerpoint",
+    "translate pptx",
+    "ai document translation",
+    "document translation software"
+   ]
+  },
+  "Contracts: drafting and redlining": {
+   "play": "Legal",
+   "terms": [
+    "ai contract drafting",
+    "contract drafting software",
+    "ai contract generator",
+    "contract generator",
+    "contract template",
+    "nda template",
+    "nda generator",
+    "ai nda generator",
+    "consulting agreement template",
+    "legal drafting software",
+    "ai legal drafting",
+    "ai legal writing",
+    "ai legal document generator",
+    "contract review software",
+    "contract redlining software",
+    "ai redlining",
+    "ai for lawyers",
+    "ai for law firms",
+    "ai contract review",
+    "contract review ai",
+    "ai contract review software",
+    "contract redlining",
+    "redline contract",
+    "legal drafting ai",
+    "contract playbook",
+    "ai legal document review"
+   ]
+  },
+  "Litigation: demand letters, med chronologies, depo summaries": {
+   "play": "Legal",
+   "terms": [
+    "ai medical chronology",
+    "medical chronology software",
+    "deposition summary",
+    "ai deposition summary",
+    "ai demand letter",
+    "demand letter generator",
+    "demand letter template",
+    "ai for personal injury lawyers",
+    "ai for paralegals",
+    "medical records summary",
+    "medical record summary template",
+    "medical record review software",
+    "ai medical record review",
+    "medical records summarization",
+    "ai medical records summary",
+    "personal injury demand letter",
+    "settlement demand letter",
+    "ai for personal injury",
+    "personal injury software",
+    "medical record review for attorneys",
+    "demand letter",
+    "demand letter ai",
+    "medical chronology",
+    "ai medical chronology software",
+    "medical record review",
+    "deposition summary template",
+    "case chronology"
+   ]
+  },
+  "Legal research memos": {
+   "play": "Legal",
+   "terms": [
+    "ai legal research",
+    "legal memo template"
+   ]
+  },
+  "Lease abstraction and property reports": {
+   "play": "Real estate and construction",
+   "terms": [
+    "lease abstraction",
+    "ai lease abstraction",
+    "ai for property management",
+    "ai for real estate agents",
+    "ai listing description generator",
+    "lease abstract",
+    "lease abstract template",
+    "estoppel certificate"
+   ]
+  },
+  "Investment memos, CIMs and due diligence": {
+   "play": "Finance and banking",
+   "terms": [
+    "investment memo",
+    "investment memo template",
+    "investment committee memo",
+    "ai due diligence",
+    "due diligence report",
+    "due diligence checklist",
+    "ai for private equity",
+    "ai for investment banking",
+    "ai for venture capital",
+    "ai equity research"
+   ]
+  },
+  "Advisor and wealth client reports": {
+   "play": "Finance and banking",
+   "terms": [
+    "ai for wealth management",
+    "ai for financial advisors",
+    "financial plan template",
+    "financial planning report",
+    "investment policy statement template",
+    "investment policy statement",
+    "ai for rias",
+    "ai for financial planners",
+    "financial advisor report",
+    "client review report",
+    "ai financial plan"
+   ]
+  },
+  "Accounting, tax and audit workpapers": {
+   "play": "Accounting and tax",
+   "terms": [
+    "ai for accounting",
+    "ai for cpas",
+    "ai for tax",
+    "ai tax research",
+    "ai audit",
+    "audit workpapers",
+    "audit report template",
+    "ai for bookkeeping",
+    "ai agent for accounting",
+    "engagement letter template",
+    "audit workpaper software",
+    "audit documentation software",
+    "ai audit software",
+    "audit software",
+    "ai for auditors",
+    "management letter audit",
+    "ai for accounting firms",
+    "ai for cpa firms",
+    "audit workpaper template",
+    "tax workpapers",
+    "ai workpapers"
+   ]
+  },
+  "SOPs, work instructions and manuals": {
+   "play": "Operations and quality",
+   "terms": [
+    "sop template",
+    "sop software",
+    "sop generator",
+    "ai sop generator",
+    "work instructions software",
+    "work instruction template",
+    "training manual template",
+    "ai training manual",
+    "user manual template",
+    "user manual generator",
+    "ai user manual generator",
+    "ai course creator"
+   ]
+  },
+  "Policies, compliance docs and risk assessments": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "policy management software",
+    "policy template",
+    "policy generator",
+    "ai policy generator",
+    "compliance documentation",
+    "soc 2 policies",
+    "soc 2 policy templates",
+    "iso 27001 policies",
+    "ai risk assessment",
+    "risk assessment template",
+    "risk register template",
+    "employee handbook template",
+    "employee handbook generator"
+   ]
+  },
+  "HR documents: JDs, offers, reviews": {
+   "play": "HR",
+   "terms": [
+    "job description template",
+    "job description generator",
+    "ai job description generator",
+    "offer letter template",
+    "offer letter generator",
+    "performance review template",
+    "ai performance review",
+    "performance review generator",
+    "onboarding checklist template",
+    "ai for hr",
+    "organizational chart maker"
+   ]
+  },
+  "Product and engineering docs: PRDs, specs, runbooks": {
+   "play": "Product and technical writing",
+   "terms": [
+    "prd template",
+    "ai prd",
+    "prd generator",
+    "technical specification template",
+    "release notes template",
+    "release notes generator",
+    "ai release notes",
+    "technical documentation software",
+    "ai documentation generator",
+    "ai technical documentation",
+    "product roadmap template",
+    "postmortem template",
+    "runbook template",
+    "business requirements document template",
+    "brd template"
+   ]
+  },
+  "Meeting minutes, status reports and memos": {
+   "play": "Consulting and strategy",
+   "terms": [
+    "meeting minutes template",
+    "ai meeting minutes",
+    "meeting minutes generator",
+    "status report template",
+    "project status report template",
+    "weekly report template",
+    "monthly report template",
+    "status report generator",
+    "memo template",
+    "ai memo generator",
+    "executive summary template",
+    "executive summary generator",
+    "ai executive summary generator"
+   ]
+  },
+  "Business plans, strategy and market research": {
+   "play": "Consulting and strategy",
+   "terms": [
+    "ai business plan generator",
+    "business plan generator",
+    "strategic plan template",
+    "swot analysis template",
+    "swot analysis generator",
+    "ai swot analysis",
+    "competitive analysis template",
+    "ai competitive analysis",
+    "competitor analysis tool",
+    "market analysis template",
+    "ai market research",
+    "market research report",
+    "ai market research report",
+    "business case template",
+    "ai for consulting",
+    "ai for management consultants",
+    "market research report template"
+   ]
+  },
+  "Marketing collateral: press, white papers, brochures": {
+   "play": "Marketing",
+   "terms": [
+    "press release template",
+    "press release generator",
+    "ai press release generator",
+    "white paper template",
+    "white paper generator",
+    "ai white paper generator",
+    "brochure template",
+    "brochure maker",
+    "ai brochure maker",
+    "newsletter template",
+    "ai newsletter generator",
+    "ai ebook generator",
+    "brand guidelines template",
+    "ai brand guidelines",
+    "creative brief template",
+    "content brief generator",
+    "marketing plan template",
+    "marketing plan generator",
+    "marketing report template"
+   ]
+  },
+  "Clinical letters and notes": {
+   "play": "Healthcare",
+   "terms": [
+    "soap note template",
+    "soap note generator",
+    "ai soap notes",
+    "ai clinical documentation",
+    "clinical documentation software",
+    "ai prior authorization",
+    "letter of medical necessity template",
+    "letter of medical necessity generator",
+    "ai discharge summary",
+    "ai medical writing",
+    "medical writing ai"
+   ]
+  },
+  "Document generation from templates at scale": {
+   "play": "Format agents",
+   "terms": [
+    "document automation software",
+    "document automation",
+    "document generation software",
+    "automated document generation",
+    "ai document generator",
+    "report automation",
+    "report automation software",
+    "automated report generation"
+   ]
+  },
+  "Patent drafting and office-action responses": {
+   "play": "Legal",
+   "terms": [
+    "patent drafting software",
+    "ai patent drafting",
+    "patent drafting ai",
+    "ai patent writing",
+    "ai patent application",
+    "patent application drafting",
+    "office action response",
+    "ai office action response",
+    "office action response template",
+    "provisional patent application template",
+    "patent claim drafting",
+    "patent drafting tool",
+    "ai for patent attorneys",
+    "ai for patent lawyers",
+    "patent writing software"
+   ]
+  },
+  "Immigration petitions and RFE responses": {
+   "play": "Legal",
+   "terms": [
+    "ai for immigration lawyers",
+    "ai for immigration",
+    "rfe response",
+    "uscis rfe response",
+    "rfe response template",
+    "petition letter",
+    "eb1 petition letter",
+    "niw petition letter",
+    "o1 recommendation letter",
+    "recommendation letter for o1 visa",
+    "immigration petition software",
+    "immigration forms software",
+    "ai immigration petition",
+    "support letter immigration"
+   ]
+  },
+  "Discovery responses and privilege logs": {
+   "play": "Legal",
+   "terms": [
+    "discovery responses",
+    "ai discovery responses",
+    "responses to interrogatories",
+    "interrogatory responses template",
+    "requests for production responses",
+    "privilege log",
+    "privilege log template",
+    "privilege log software",
+    "ai privilege log",
+    "discovery response software",
+    "ai for discovery",
+    "ediscovery ai"
+   ]
+  },
+  "Motions, briefs and pleadings": {
+   "play": "Legal",
+   "terms": [
+    "ai legal brief",
+    "ai brief writing",
+    "legal brief writing software",
+    "ai motion drafting",
+    "motion drafting software",
+    "ai for litigators",
+    "ai for litigation",
+    "litigation drafting software",
+    "ai legal writing assistant",
+    "legal writing software",
+    "complaint drafting ai",
+    "ai pleading drafting",
+    "pleading template"
+   ]
+  },
+  "Estate-planning documents": {
+   "play": "Legal",
+   "terms": [
+    "estate planning software",
+    "estate planning document software",
+    "will drafting software",
+    "ai will generator",
+    "will generator",
+    "trust drafting software",
+    "ai for estate planning attorneys",
+    "ai estate planning",
+    "living trust template",
+    "estate planning templates"
+   ]
+  },
+  "Family-law documents": {
+   "play": "Legal",
+   "terms": [
+    "ai for family law",
+    "ai for family lawyers",
+    "financial affidavit",
+    "parenting plan template",
+    "divorce settlement agreement template",
+    "marital settlement agreement template",
+    "family law software"
+   ]
+  },
+  "Contract abstraction and obligation extraction": {
+   "play": "Legal",
+   "terms": [
+    "contract abstraction",
+    "contract data extraction",
+    "ai contract analysis",
+    "contract analysis software",
+    "ai contract summary",
+    "contract summary template",
+    "contract summarizer",
+    "ai contract management",
+    "contract management software",
+    "obligation management software",
+    "clause extraction",
+    "ai contract extraction"
+   ]
+  },
+  "Business legal letters: cease-and-desist, collections": {
+   "play": "Legal",
+   "terms": [
+    "cease and desist letter template",
+    "ai cease and desist letter",
+    "cease and desist letter generator",
+    "legal letter generator",
+    "ai legal letter",
+    "demand for payment letter template",
+    "collection letter template"
+   ]
+  },
+  "Legal document assembly and court forms": {
+   "play": "Legal",
+   "terms": [
+    "legal forms software",
+    "court forms software",
+    "legal document automation",
+    "ai legal forms",
+    "document assembly software",
+    "legal document assembly"
+   ]
+  },
+  "Regulatory change and compliance memos": {
+   "play": "Legal",
+   "terms": [
+    "regulatory change management software",
+    "ai regulatory compliance",
+    "regulatory compliance software",
+    "ai for regulatory compliance",
+    "compliance memo",
+    "regulatory impact assessment"
+   ]
+  },
+  "Employment agreements": {
+   "play": "Legal",
+   "terms": [
+    "employment agreement template",
+    "employment contract template",
+    "severance agreement template",
+    "independent contractor agreement template",
+    "non compete agreement template",
+    "ai employment contract"
+   ]
+  },
+  "Tax research memos and planning reports": {
+   "play": "Accounting and tax",
+   "terms": [
+    "tax memo",
+    "tax research memo",
+    "tax memo template",
+    "ai tax memo",
+    "tax planning software",
+    "tax planning report",
+    "tax projection software",
+    "ai tax planning",
+    "ai for tax professionals",
+    "ai for tax preparers",
+    "ai for tax advisors",
+    "tax research software",
+    "ai tax assistant"
+   ]
+  },
+  "IRS notice responses and penalty abatement": {
+   "play": "Accounting and tax",
+   "terms": [
+    "irs notice response",
+    "irs letter response",
+    "ai irs notice",
+    "penalty abatement letter",
+    "penalty abatement letter template",
+    "irs response letter template",
+    "tax resolution software",
+    "reasonable cause letter",
+    "first time abatement letter"
+   ]
+  },
+  "R&D credit, transfer-pricing and cost-seg studies": {
+   "play": "Accounting and tax",
+   "terms": [
+    "r&d tax credit software",
+    "r&d tax credit study",
+    "r&d tax credit documentation",
+    "transfer pricing documentation",
+    "transfer pricing software",
+    "transfer pricing report",
+    "cost segregation study",
+    "cost segregation software"
+   ]
+  },
+  "Internal audit and SOX documentation": {
+   "play": "Accounting and tax",
+   "terms": [
+    "internal audit report template",
+    "internal audit software",
+    "audit management software",
+    "sox compliance software",
+    "sox documentation",
+    "risk and control matrix",
+    "risk control matrix template",
+    "process narrative template",
+    "audit findings report",
+    "ai for internal audit",
+    "ai internal audit",
+    "internal audit report",
+    "rcsa",
+    "audit plan template",
+    "sox compliance checklist"
+   ]
+  },
+  "Month-end close, variance and management commentary": {
+   "play": "Finance and banking",
+   "terms": [
+    "month end close software",
+    "month end close checklist",
+    "variance analysis",
+    "variance analysis template",
+    "flux analysis",
+    "ai variance analysis",
+    "variance commentary",
+    "management commentary",
+    "budget vs actual template",
+    "ai for fp&a",
+    "fp&a software",
+    "ai for controllers",
+    "ai for finance teams",
+    "financial reporting software",
+    "ai financial reporting",
+    "management reporting software",
+    "board reporting software",
+    "ai for finance",
+    "budget variance report",
+    "financial close checklist",
+    "ai month end close",
+    "month end close ai",
+    "ai flux analysis",
+    "ai journal entries",
+    "ai reconciliation",
+    "ai bank reconciliation",
+    "fp&a ai",
+    "ai budget tool"
+   ]
+  },
+  "Financial statements, footnotes and client advisory": {
+   "play": "Accounting and tax",
+   "terms": [
+    "financial statement preparation software",
+    "ai financial statements",
+    "financial statement footnotes",
+    "notes to financial statements template",
+    "compilation report",
+    "ai for bookkeepers",
+    "client advisory services",
+    "monthly financial report template",
+    "financial report template"
+   ]
+  },
+  "Credit memos and loan write-ups": {
+   "play": "Finance and banking",
+   "terms": [
+    "credit memo",
+    "credit memo template",
+    "ai credit memo",
+    "credit memorandum",
+    "credit memorandum template",
+    "loan memo",
+    "credit analysis software",
+    "commercial lending software",
+    "ai for commercial lending",
+    "ai for credit analysts",
+    "ai credit analysis",
+    "financial spreading software",
+    "financial spreading",
+    "ai for banks",
+    "ai for community banks",
+    "ai for credit unions",
+    "ai in banking",
+    "loan underwriting software",
+    "loan underwriting memo",
+    "credit analysis memo",
+    "commercial loan write up",
+    "credit write up",
+    "ai for credit memos"
+   ]
+  },
+  "Pitch books, CIMs and teasers": {
+   "play": "Finance and banking",
+   "terms": [
+    "pitch book investment banking",
+    "investment banking pitch book",
+    "confidential information memorandum",
+    "cim template",
+    "confidential information memorandum template",
+    "teaser template",
+    "ai for bankers",
+    "ai pitch book",
+    "ai for m&a",
+    "m&a software",
+    "ai for mergers and acquisitions",
+    "sell side cim",
+    "ai cim",
+    "cim writing"
+   ]
+  },
+  "LP reports, investor letters and fund DDQs": {
+   "play": "Finance and banking",
+   "terms": [
+    "lp report",
+    "lp reporting",
+    "investor update template",
+    "investor update",
+    "quarterly investor letter",
+    "investor letter template",
+    "fund reporting software",
+    "investor reporting software",
+    "due diligence questionnaire",
+    "ilpa ddq",
+    "ddq response",
+    "ai ddq",
+    "portfolio monitoring software",
+    "ai for hedge funds",
+    "ai for asset management",
+    "ai for asset managers",
+    "ai for family offices",
+    "ai investor update",
+    "lp letter"
+   ]
+  },
+  "Equity research and earnings summaries": {
+   "play": "Finance and banking",
+   "terms": [
+    "equity research report",
+    "equity research report template",
+    "earnings call summary",
+    "ai earnings call summary",
+    "10k summary",
+    "ai 10k analysis",
+    "sec filing analysis",
+    "ai sec filings",
+    "earnings report summary",
+    "ai for equity research",
+    "ai for investors"
+   ]
+  },
+  "Insurance proposals and coverage comparisons": {
+   "play": "Insurance",
+   "terms": [
+    "insurance proposal template",
+    "insurance proposal software",
+    "coverage comparison",
+    "insurance coverage comparison",
+    "insurance policy comparison",
+    "policy comparison tool",
+    "insurance quote comparison template",
+    "ai for insurance agents",
+    "ai for insurance brokers",
+    "ai for insurance agencies",
+    "insurance agency software",
+    "benefits proposal",
+    "employee benefits proposal template",
+    "insurance proposal",
+    "coverage comparison chart",
+    "ai for insurance proposals",
+    "policy comparison"
+   ]
+  },
+  "Insurance policy checking and COI review": {
+   "play": "Insurance",
+   "terms": [
+    "policy checking",
+    "insurance policy checking",
+    "policy checking software",
+    "certificate of insurance tracking",
+    "coi tracking software",
+    "certificate of insurance review",
+    "insurance policy review",
+    "ai insurance policy review",
+    "insurance policy summary",
+    "ai insurance policy analysis",
+    "acord forms",
+    "acord form filler",
+    "coi review",
+    "ai coi review"
+   ]
+  },
+  "Underwriting submissions and loss runs": {
+   "play": "Insurance",
+   "terms": [
+    "ai for underwriting",
+    "ai underwriting",
+    "underwriting software",
+    "insurance underwriting software",
+    "submission intake",
+    "insurance submission",
+    "loss run",
+    "loss run analysis",
+    "loss run report",
+    "ai for underwriters",
+    "underwriting report",
+    "underwriting memo"
+   ]
+  },
+  "Claims summaries and adjuster reports": {
+   "play": "Insurance",
+   "terms": [
+    "claims summary",
+    "ai claims processing",
+    "claims processing software",
+    "claims adjuster report",
+    "adjuster report template",
+    "ai for claims adjusters",
+    "ai for insurance claims",
+    "insurance claim letter",
+    "claim appeal letter",
+    "public adjuster software",
+    "ai claims summary"
+   ]
+  },
+  "Mortgage documentation": {
+   "play": "Finance and banking",
+   "terms": [
+    "ai for mortgage",
+    "ai for mortgage brokers",
+    "ai for loan officers",
+    "mortgage underwriting software",
+    "loan processing software",
+    "mortgage processing software",
+    "letter of explanation",
+    "letter of explanation template",
+    "mortgage letter of explanation",
+    "income calculation software",
+    "ai mortgage underwriting"
+   ]
+  },
+  "Consulting deliverables and client decks": {
+   "play": "Consulting and strategy",
+   "terms": [
+    "consulting report template",
+    "consulting report",
+    "consulting proposal template",
+    "consulting deliverables",
+    "ai for strategy consultants",
+    "ai consulting tools",
+    "think cell alternative",
+    "think cell",
+    "powerpoint add in for consultants",
+    "consulting presentation template",
+    "steering committee presentation",
+    "executive presentation template",
+    "market sizing template",
+    "tam sam som template",
+    "benchmarking report template"
+   ]
+  },
+  "Quotes, order forms and CPQ": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "sales quote template",
+    "quote template",
+    "cpq software",
+    "ai cpq",
+    "configure price quote",
+    "quote automation",
+    "proposal automation",
+    "order form template",
+    "msa template",
+    "master service agreement template",
+    "pricing proposal template",
+    "ai quotation",
+    "quotation generator",
+    "ai quote generator",
+    "quotation template"
+   ]
+  },
+  "Business cases, ROI and success plans": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "roi calculator template",
+    "roi analysis template",
+    "value proposition template",
+    "mutual action plan template",
+    "mutual action plan",
+    "sales business case",
+    "ai business case generator",
+    "executive business review template",
+    "customer success plan template",
+    "success plan template",
+    "renewal proposal template"
+   ]
+  },
+  "Account research and call-prep briefs": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "account research",
+    "ai account research",
+    "account research tool",
+    "sales call prep",
+    "meeting prep ai",
+    "prospect research tool",
+    "ai prospect research",
+    "company research ai",
+    "ai sales research",
+    "account plan ai"
+   ]
+  },
+  "Agency client reports and proposals": {
+   "play": "Marketing",
+   "terms": [
+    "client reporting software",
+    "client report template",
+    "seo report template",
+    "seo audit report",
+    "ai seo report",
+    "agency reporting software",
+    "marketing agency reporting",
+    "social media report template",
+    "monthly marketing report",
+    "ppc report template",
+    "google ads report template",
+    "marketing agency proposal template",
+    "agency proposal template",
+    "ai for marketing agencies",
+    "ai for agencies"
+   ]
+  },
+  "Campaign plans and GTM docs": {
+   "play": "Marketing",
+   "terms": [
+    "media plan template",
+    "campaign brief template",
+    "campaign plan template",
+    "go to market plan template",
+    "gtm plan template",
+    "product launch plan template",
+    "content calendar template",
+    "messaging framework template",
+    "positioning statement template"
+   ]
+  },
+  "Government proposals, compliance matrices and capability statements": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "government proposal writing",
+    "govcon proposal software",
+    "government contract proposal",
+    "ai for government contractors",
+    "ai govcon",
+    "govcon ai",
+    "compliance matrix",
+    "compliance matrix template",
+    "rfp compliance matrix",
+    "capability statement",
+    "capability statement template",
+    "past performance write up",
+    "sources sought response",
+    "proposal writing for government contracts",
+    "sbir proposal",
+    "sbir proposal writing",
+    "ai for sbir",
+    "federal proposal software",
+    "proposal compliance matrix",
+    "go no go decision template",
+    "capture plan template",
+    "technical volume proposal"
+   ]
+  },
+  "System security plans, CMMC and FedRAMP packages": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "system security plan",
+    "system security plan template",
+    "ssp template",
+    "nist 800-171 ssp template",
+    "cmmc documentation",
+    "cmmc ssp",
+    "cmmc policies",
+    "cmmc policy templates",
+    "poam template",
+    "plan of action and milestones template",
+    "fedramp documentation",
+    "fedramp ssp",
+    "nist 800-53 ssp",
+    "cmmc compliance software",
+    "ai for cmmc"
+   ]
+  },
+  "SOC 2 and ISO 27001 documentation, security policies": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "soc 2 documentation",
+    "soc 2 report",
+    "soc 2 report template",
+    "iso 27001 documentation",
+    "iso 27001 templates",
+    "information security policy template",
+    "information security policy",
+    "acceptable use policy template",
+    "security policy template",
+    "incident response plan template",
+    "business continuity plan template",
+    "disaster recovery plan template",
+    "ai compliance documentation",
+    "grc software",
+    "ai for grc",
+    "compliance automation software",
+    "soc 2 compliance checklist",
+    "access control policy template",
+    "ai soc 2",
+    "soc 2 system description"
+   ]
+  },
+  "Vendor risk assessments (buyer side of questionnaires)": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "vendor risk assessment",
+    "vendor risk assessment template",
+    "third party risk management",
+    "tprm software",
+    "vendor risk management software",
+    "vendor security assessment",
+    "vendor due diligence questionnaire",
+    "ai vendor risk assessment",
+    "third party risk assessment template",
+    "vendor assessment template"
+   ]
+  },
+  "Pen-test and vulnerability reports": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "pen test report",
+    "penetration testing report",
+    "penetration testing report template",
+    "pentest report generator",
+    "ai pentest report",
+    "vulnerability assessment report",
+    "vulnerability report template",
+    "security assessment report template",
+    "pentest reporting tool"
+   ]
+  },
+  "Privacy documents: DPIAs, RoPAs, DPAs, HIPAA": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "dpia template",
+    "privacy impact assessment template",
+    "data protection impact assessment",
+    "ropa template",
+    "record of processing activities template",
+    "data processing agreement template",
+    "dpa template",
+    "privacy policy generator",
+    "gdpr documentation",
+    "privacy assessment",
+    "ai privacy assessment",
+    "hipaa policies and procedures",
+    "hipaa risk assessment",
+    "hipaa risk assessment template"
+   ]
+  },
+  "MSP documentation and client QBRs": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "ai for msps",
+    "msp qbr",
+    "msp qbr template",
+    "msp documentation",
+    "it documentation software",
+    "network documentation",
+    "it documentation",
+    "msp proposal template",
+    "managed services proposal",
+    "it assessment report",
+    "technology assessment report",
+    "ai for it"
+   ]
+  },
+  "Denial appeals and prior-auth letters": {
+   "play": "Healthcare",
+   "terms": [
+    "appeal letter",
+    "insurance appeal letter",
+    "denial appeal letter",
+    "claim denial appeal letter",
+    "ai appeal letter",
+    "medical appeal letter template",
+    "prior authorization letter",
+    "prior authorization letter template",
+    "claim denial management",
+    "denial management software",
+    "ai for medical billing",
+    "ai for revenue cycle management",
+    "ai denial management",
+    "peer to peer review"
+   ]
+  },
+  "Dental insurance narratives": {
+   "play": "Healthcare",
+   "terms": [
+    "dental narrative",
+    "dental insurance narrative",
+    "dental narratives for insurance",
+    "ai for dentists",
+    "ai for dental practices",
+    "dental claim narrative"
+   ]
+  },
+  "Therapy progress notes and treatment plans": {
+   "play": "Healthcare",
+   "terms": [
+    "ai for therapists",
+    "therapy progress notes",
+    "ai progress notes",
+    "treatment plan template",
+    "therapy notes ai",
+    "ai for mental health",
+    "dap notes template",
+    "birp notes"
+   ]
+  },
+  "Regulatory and medical writing": {
+   "play": "Healthcare",
+   "terms": [
+    "regulatory writing",
+    "medical writing software",
+    "clinical study report",
+    "clinical study report template",
+    "regulatory submission software",
+    "ai regulatory submissions",
+    "ai for regulatory affairs",
+    "510k submission",
+    "510k template",
+    "ind submission",
+    "ectd software",
+    "clinical trial protocol template",
+    "protocol writing",
+    "informed consent form template",
+    "pharmacovigilance narrative",
+    "clinical evaluation report",
+    "ai for medical writers",
+    "ai for pharma",
+    "ai for life sciences"
+   ]
+  },
+  "Quality records: CAPA, 8D, FMEA, deviations": {
+   "play": "Operations and quality",
+   "terms": [
+    "8d report",
+    "8d report template",
+    "capa template",
+    "capa report",
+    "capa software",
+    "fmea template",
+    "pfmea template",
+    "control plan template",
+    "ppap documentation",
+    "nonconformance report template",
+    "ncr template",
+    "root cause analysis template",
+    "rca template",
+    "deviation report template",
+    "ai root cause analysis",
+    "ai for quality management",
+    "ai for manufacturing",
+    "quality management software"
+   ]
+  },
+  "Validation protocols and technical files": {
+   "play": "Operations and quality",
+   "terms": [
+    "validation protocol template",
+    "iq oq pq template",
+    "computer system validation",
+    "csv documentation",
+    "design history file",
+    "technical file mdr",
+    "technical documentation mdr",
+    "risk management file",
+    "iso 14971 risk management",
+    "validation master plan template",
+    "test protocol template"
+   ]
+  },
+  "ISO 9001 manuals and document control": {
+   "play": "Operations and quality",
+   "terms": [
+    "quality manual template",
+    "iso 9001 templates",
+    "iso 9001 documentation",
+    "iso 9001 procedures",
+    "iso 9001 quality manual",
+    "document control software",
+    "document control procedure",
+    "iso documentation software"
+   ]
+  },
+  "EHS: safety plans, JHAs, SDS": {
+   "play": "Operations and quality",
+   "terms": [
+    "job hazard analysis template",
+    "jha template",
+    "jsa template",
+    "safety plan template",
+    "site specific safety plan template",
+    "safety manual template",
+    "method statement template",
+    "sds authoring software",
+    "safety data sheet authoring",
+    "ehs software",
+    "ai for safety",
+    "ai for ehs",
+    "incident investigation report template",
+    "near miss report template"
+   ]
+  },
+  "Submittals, RFIs and specifications": {
+   "play": "Real estate and construction",
+   "terms": [
+    "construction submittals",
+    "submittal software",
+    "submittal log template",
+    "submittal review",
+    "ai submittal review",
+    "rfi template",
+    "construction rfi software",
+    "construction specifications",
+    "spec writing software",
+    "specification writing software",
+    "ai spec writing",
+    "construction documentation software",
+    "ai for architects",
+    "ai for engineers",
+    "ai for civil engineers",
+    "ai for mep engineers",
+    "ai for construction project managers",
+    "rfi in construction",
+    "construction rfi",
+    "rfi construction",
+    "ai rfi"
+   ]
+  },
+  "Daily reports, inspections and closeout": {
+   "play": "Real estate and construction",
+   "terms": [
+    "construction daily report template",
+    "daily report construction",
+    "daily log construction",
+    "punch list template",
+    "inspection report template",
+    "ai inspection report",
+    "field report template",
+    "site visit report template",
+    "closeout documents construction",
+    "o&m manual template",
+    "operation and maintenance manual",
+    "field service report template",
+    "service report template",
+    "field service report software",
+    "engineering report template"
+   ]
+  },
+  "Bids and estimates": {
+   "play": "Real estate and construction",
+   "terms": [
+    "construction estimate template",
+    "bid proposal template",
+    "construction bid template",
+    "bid proposal software",
+    "ai construction estimating",
+    "construction estimating software",
+    "estimate template contractor",
+    "ai estimating"
+   ]
+  },
+  "Offering memorandums and BOVs": {
+   "play": "Real estate and construction",
+   "terms": [
+    "offering memorandum",
+    "offering memorandum template",
+    "ai offering memorandum",
+    "commercial real estate offering memorandum",
+    "broker opinion of value",
+    "bov template",
+    "ai for commercial real estate",
+    "ai for cre",
+    "cre underwriting",
+    "real estate underwriting software",
+    "real estate investment memo",
+    "real estate pitch deck",
+    "ai for real estate investors",
+    "ai for commercial real estate brokers",
+    "ai underwriting real estate"
+   ]
+  },
+  "CMAs, listing presentations and appraisal reports": {
+   "play": "Real estate and construction",
+   "terms": [
+    "cma report",
+    "comparative market analysis template",
+    "ai cma",
+    "cma software",
+    "listing presentation template",
+    "ai listing presentation",
+    "appraisal report",
+    "appraisal report template",
+    "ai for appraisers",
+    "appraisal software",
+    "ai for realtors",
+    "real estate market report",
+    "ai real estate market report"
+   ]
+  },
+  "Property-management reports and rent rolls": {
+   "play": "Real estate and construction",
+   "terms": [
+    "rent roll template",
+    "rent roll",
+    "owner report property management",
+    "property management report template",
+    "property inspection report template",
+    "move in inspection checklist",
+    "ai for landlords",
+    "lease renewal letter template",
+    "ai lease review",
+    "rent roll analysis"
+   ]
+  },
+  "Home inspection reports": {
+   "play": "Real estate and construction",
+   "terms": [
+    "home inspection report",
+    "home inspection report template",
+    "home inspection software",
+    "ai home inspection report",
+    "ai for home inspectors",
+    "inspection report writing software"
+   ]
+  },
+  "Workplace investigations and disciplinary documents": {
+   "play": "HR",
+   "terms": [
+    "hr investigation report template",
+    "workplace investigation report",
+    "investigation report template",
+    "termination letter template",
+    "written warning template",
+    "performance improvement plan template",
+    "pip template",
+    "disciplinary letter template",
+    "ai for employee relations",
+    "hr investigation software"
+   ]
+  },
+  "Recruiting: candidate summaries and interview kits": {
+   "play": "HR",
+   "terms": [
+    "ai for recruiters",
+    "ai for recruiting",
+    "ai for staffing agencies",
+    "candidate summary",
+    "candidate submission template",
+    "interview guide template",
+    "interview scorecard template",
+    "ai interview questions generator",
+    "interview questions generator",
+    "reference check template",
+    "candidate profile template"
+   ]
+  },
+  "Training and L&D content": {
+   "play": "HR",
+   "terms": [
+    "ai for l&d",
+    "ai for instructional design",
+    "instructional design software",
+    "training materials",
+    "ai training materials",
+    "training presentation",
+    "ai course generator",
+    "elearning authoring tool",
+    "ai elearning",
+    "training needs analysis template",
+    "compliance training content"
+   ]
+  },
+  "IEPs and special-education paperwork": {
+   "play": "Education",
+   "terms": [
+    "iep writing",
+    "ai iep",
+    "ai iep writer",
+    "iep generator",
+    "iep goal bank",
+    "iep goals",
+    "ai for special education",
+    "ai for special education teachers",
+    "504 plan template",
+    "iep progress report",
+    "iep software",
+    "present levels of performance examples"
+   ]
+  },
+  "Teacher planning documents": {
+   "play": "Education",
+   "terms": [
+    "ai lesson plan generator",
+    "lesson plan generator",
+    "ai for teachers",
+    "report card comments generator",
+    "ai report card comments",
+    "rubric generator",
+    "ai rubric generator",
+    "unit plan template",
+    "curriculum map template",
+    "syllabus generator",
+    "ai for school administrators",
+    "school improvement plan template",
+    "worksheet generator",
+    "report card comments"
+   ]
+  },
+  "Police and incident reports": {
+   "play": "Government",
+   "terms": [
+    "police report writing",
+    "ai police report",
+    "ai report writing for police",
+    "police report software",
+    "ai for police",
+    "ai for law enforcement",
+    "incident report template",
+    "ai incident report",
+    "incident report writing",
+    "ai for first responders",
+    "fire report writing",
+    "ems report writing"
+   ]
+  },
+  "Government and council documents": {
+   "play": "Government",
+   "terms": [
+    "ai for government",
+    "ai for local government",
+    "ai for public sector",
+    "council meeting minutes",
+    "ai for city government",
+    "public comment analysis",
+    "foia response",
+    "foia software",
+    "policy brief template",
+    "ai policy brief"
+   ]
+  },
+  "Nonprofit reports and grant reporting": {
+   "play": "Nonprofit",
+   "terms": [
+    "grant report template",
+    "grant reporting",
+    "impact report template",
+    "annual report template nonprofit",
+    "nonprofit annual report",
+    "donor report template",
+    "ai for nonprofits",
+    "grant management software",
+    "ai for fundraising",
+    "case for support template",
+    "letter of inquiry template"
+   ]
+  },
+  "Technical writing and help-center content": {
+   "play": "Product and technical writing",
+   "terms": [
+    "technical writing software",
+    "ai technical writing",
+    "ai for technical writers",
+    "user guide template",
+    "installation guide template",
+    "knowledge base article template",
+    "ai knowledge base article",
+    "help center article ai",
+    "api documentation generator",
+    "documentation tool",
+    "ai documentation tool",
+    "standard work template"
+   ]
+  },
+  "Trade and shipping documents": {
+   "play": "Operations and quality",
+   "terms": [
+    "commercial invoice template",
+    "packing list template",
+    "bill of lading template",
+    "certificate of origin template",
+    "customs documentation",
+    "shipping documents",
+    "ai for freight forwarders",
+    "ai for logistics",
+    "trade document automation",
+    "export documentation software"
+   ]
+  },
+  "ESG reports and sustainability questionnaires": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "esg report",
+    "esg reporting software",
+    "sustainability report template",
+    "ai esg reporting",
+    "csrd reporting software",
+    "cdp questionnaire",
+    "ecovadis questionnaire",
+    "ecovadis assessment",
+    "sustainability questionnaire",
+    "ghg inventory report",
+    "carbon footprint report",
+    "esg questionnaire",
+    "supplier sustainability questionnaire",
+    "ai for esg",
+    "ai for sustainability"
+   ]
+  },
+  "Buyer-side RFPs and vendor evaluations": {
+   "play": "Proposals, sales and procurement",
+   "terms": [
+    "rfp generator",
+    "ai rfp generator",
+    "rfp writing",
+    "how to write an rfp",
+    "rfp creation software",
+    "vendor comparison template",
+    "vendor evaluation template",
+    "bid evaluation template",
+    "tender evaluation",
+    "supplier evaluation template",
+    "ai for procurement",
+    "procurement software",
+    "sourcing software",
+    "ai sourcing"
+   ]
+  },
+  "Board packs and executive briefings": {
+   "play": "Consulting and strategy",
+   "terms": [
+    "board pack",
+    "board book",
+    "board pack template",
+    "board deck template",
+    "board report template",
+    "briefing document",
+    "briefing book",
+    "briefing memo template",
+    "ai briefing",
+    "executive briefing template",
+    "ai for executives",
+    "ai for executive assistants",
+    "ai for chief of staff",
+    "investor presentation template",
+    "annual report template",
+    "ai board report"
+   ]
+  },
+  "Recurring KPI and business reports": {
+   "play": "Consulting and strategy",
+   "terms": [
+    "kpi report template",
+    "kpi report",
+    "automated reporting",
+    "automated reporting software",
+    "business report template",
+    "ai report writing",
+    "ai report writer",
+    "ai report generator",
+    "excel report automation",
+    "monthly business review template",
+    "weekly business review",
+    "operations report template",
+    "ai report",
+    "ai report maker",
+    "management report template"
+   ]
+  },
+  "Security questionnaires: HECVAT, CAIQ, SIG, SAQ": {
+   "play": "Security, privacy and compliance",
+   "terms": [
+    "security questionnaire automation",
+    "security questionnaire software",
+    "security questionnaire",
+    "vendor security questionnaire",
+    "security questionnaire ai",
+    "ai security questionnaire",
+    "sig questionnaire",
+    "caiq",
+    "hecvat",
+    "vendor security assessment questionnaire",
+    "pci saq",
+    "pci self assessment questionnaire",
+    "trust center"
+   ]
+  },
+  "Clause drafting and clause libraries": {
+   "play": "Legal",
+   "terms": [
+    "non compete clause",
+    "indemnification clause",
+    "force majeure clause",
+    "limitation of liability clause",
+    "confidentiality clause",
+    "termination clause",
+    "assignment clause",
+    "change of control clause",
+    "survival clause",
+    "jurisdiction clause",
+    "governing law clause",
+    "representations and warranties",
+    "clause library"
+   ]
+  }
+ },
+ "software": [
+  "trust center"
+ ],
+ "exclude": {
+  "board book": "a children's book format",
+  "think cell": "a brand, searched to find the product",
+  "family law software": "also the name of a product",
+  "credit memo": "mostly the accounting credit note, not a bank's loan write-up",
+  "credit memo template": "mostly the accounting credit note, not a bank's loan write-up",
+  "credit memorandum": "mostly the accounting credit note, not a bank's loan write-up",
+  "credit memorandum template": "mostly the accounting credit note, not a bank's loan write-up",
+  "appeal letter": "generic: school, benefit and job appeals",
+  "support letter immigration": "written by friends and family, not practitioners",
+  "ai for investors": "retail investors",
+  "financial affidavit": "filed by the parties themselves",
+  "parenting plan template": "filed by the parties themselves",
+  "living trust template": "written by the people it protects",
+  "letter of explanation": "written by borrowers, not lenders",
+  "letter of explanation template": "written by borrowers, not lenders",
+  "mortgage letter of explanation": "written by borrowers, not lenders",
+  "cost segregation study": "owners buying a study; the writers are a few specialist firms",
+  "ai quote generator": "mostly sayings, not price quotes"
+ },
+ "professions": [
+  "ai for attorneys",
+  "ai for in house counsel",
+  "ai for legal departments",
+  "ai for legal operations",
+  "legal ai tools",
+  "ai legal assistant",
+  "ai legal software",
+  "legal ai software",
+  "best ai for lawyers",
+  "ai for solo attorneys",
+  "ai for small law firms",
+  "chatgpt for lawyers",
+  "claude for lawyers",
+  "claude for legal",
+  "chatgpt for legal",
+  "ai for compliance officers",
+  "ai for compliance",
+  "ai for risk management",
+  "ai for accountants",
+  "ai for audit",
+  "ai for cfo",
+  "ai for financial services",
+  "ai for banking",
+  "ai for investment management",
+  "ai for private credit",
+  "ai for insurance companies",
+  "ai for insurance underwriting",
+  "ai for consultants",
+  "ai for professional services",
+  "ai for project managers",
+  "ai for program managers",
+  "ai for supply chain",
+  "ai for construction companies",
+  "ai for contractors",
+  "ai for architecture",
+  "ai for engineering firms",
+  "ai for pharma companies",
+  "ai for clinical research",
+  "ai for healthcare",
+  "ai for hospitals",
+  "ai for nurses",
+  "ai for doctors",
+  "ai for hr teams",
+  "ai for sales teams",
+  "ai for customer success",
+  "ai for marketing",
+  "ai for pr",
+  "ai for real estate",
+  "ai for real estate developers",
+  "ai for property managers",
+  "ai for cybersecurity",
+  "ai for security teams",
+  "ai for it teams",
+  "ai for product managers",
+  "ai for startups",
+  "ai for founders",
+  "ai for small business owners",
+  "ai for business",
+  "ai for professionals",
+  "ai for knowledge workers",
+  "ai for researchers",
+  "ai for universities",
+  "ai for schools",
+  "ai for energy",
+  "ai for utilities",
+  "ai for oil and gas",
+  "ai for manufacturing companies",
+  "ai for logistics companies",
+  "ai for retail",
+  "ai for ecommerce",
+  "ai for translators",
+  "ai for writers",
+  "ai for journalists",
+  "ai for publishers",
+  "ai for event planners",
+  "ai for travel agents",
+  "ai for interior designers",
+  "ai for veterinarians",
+  "ai for pharmacists"
+ ],
+ "watch": {
+  "category": [
+   "ai agent for documents",
+   "ai document agent",
+   "document ai agent",
+   "ai office agent",
+   "ai agent for office",
+   "ai agent for word",
+   "ai agent for pdf",
+   "office ai agent",
+   "ai coworker",
+   "ai employee",
+   "ai agent for reports",
+   "ai report agent",
+   "deep research ai",
+   "deep research agent",
+   "chatgpt agent",
+   "chatgpt agent mode",
+   "skywork ai",
+   "flowith",
+   "minimax agent",
+   "kimi ai",
+   "ai slides",
+   "chatgpt slides",
+   "claude powerpoint",
+   "claude pptx",
+   "claude docx",
+   "chatgpt word document",
+   "copilot agent mode",
+   "copilot researcher agent",
+   "microsoft 365 copilot agent",
+   "claude code for non developers",
+   "cowork",
+   "claude cowork use cases",
+   "manus ai use cases",
+   "genspark ai slides",
+   "genspark ai sheets",
+   "ai docs",
+   "ai sheets",
+   "ai agent use cases",
+   "ai agents for small business",
+   "ai agent for work"
+  ],
+  "privacy": [
+   "private ai for lawyers",
+   "local ai for lawyers",
+   "on premise ai for law firms",
+   "secure ai for law firms",
+   "private chatgpt for law firms",
+   "ai for law firms data privacy",
+   "confidential ai",
+   "private ai for accountants",
+   "secure ai for accountants",
+   "offline ai for accountants",
+   "private ai for finance",
+   "secure ai for finance",
+   "private ai for healthcare",
+   "hipaa compliant ai for therapists",
+   "hipaa compliant ai tools",
+   "private ai for consultants",
+   "private ai for government",
+   "air gapped ai for defense",
+   "cmmc compliant ai",
+   "itar compliant ai",
+   "ai that doesn't train on your data",
+   "chatgpt confidentiality lawyers",
+   "is chatgpt safe for confidential documents",
+   "ai for confidential documents",
+   "private document ai"
+  ]
+ }
+}
