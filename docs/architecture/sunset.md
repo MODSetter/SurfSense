@@ -29,7 +29,7 @@ Celery Beat keeps its entries registered during the wind-down. The connector-ind
 | `/api/v1/pats*` | PATs keep working until the T+30 purge, for MCP clients among others |
 | `/api/v1/workspaces/<id>/scrapers/` | the scraper API outlives the wind-down |
 
-Reads are never refused. That is why the middleware checks the method rather than listing every route that mutates something: export is a `GET`. The refusal's body is `{"detail": "SurfSense is export-only while the hosted service winds down. Your data is still available to export."}`.
+Reads are never refused. That is why the middleware checks the method rather than listing every route that mutates something: export is a `GET`. The refusal's body is `{"detail": "SurfSense is export-only while the hosted service winds down. Your data is still available to export.", "sunset_url": "https://surfsense.com/sunset"}`, where `sunset_url` comes from the same `sunset_url()` that `GET /health` reads, so setting `SUNSET_URL` changes both.
 
 ## Telling clients
 
@@ -52,7 +52,6 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 
 ## Known gaps
 
-- The 410 body carries no `sunset_url`.
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
 - The purge script has no test.
 - The synchronous export has no size warning and no timeout.
