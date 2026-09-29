@@ -397,11 +397,13 @@ the file tree, fetched together. Every build is listed smallest first with its
 exact size and an estimated fit, whose badge is marked `~`, which over-charges
 on purpose (the weights plus 15% and a gibibyte, in
 [`pricing.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/pricing.py))
-so it never calls a spill resident. The type comes from the repo's tag and
+so it never calls a spill resident. Each build says that this is an estimate
+and that the exact check runs before download. The type comes from the repo's tag and
 Hugging Face's parsed architecture, ignored when it names a projector, and is
 marked approximate. An estimated fit never refuses, because the exact answer
-comes before any bytes move. A repo whose type is not `TEXT_GEN` gets no install
-ids, so none of its builds can be downloaded.
+comes before any bytes move. If that check refuses, its reason remains under the
+build as well as appearing in the error toast. A repo whose type is not
+`TEXT_GEN` gets no install ids, so none of its builds can be downloaded.
 
 **Installing a searched build reads it exactly.**
 [`exact_check.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/search/exact_check.py)
@@ -593,7 +595,8 @@ Rules the screen holds:
   the API refuses one then.
 - Reduced speed installs like any other build, with no confirmation. Only a
   refusal blocks.
-- Install errors, including the exact check's refusals, show as a toast.
+- Install errors show as a toast; a searched build also keeps the exact check's
+  refusal under its own row for the job's 60-second retention window.
 - An install belongs to the API, not the page that started it: leaving the
   Add model page, closing Settings or reloading does not cancel it. Each
   section's list shows the jobs whose model can fill its slot, wherever they
@@ -637,7 +640,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
-- A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
 - `POST /llm/installs` does not refuse a curated build that will not fit; only the screen's disabled Download does.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.

@@ -63,7 +63,7 @@ export function DownloadChatModels({
   const headingId = useId()
   const catalog = useLocalChatCatalog()
   // Downloading does not select: a model is chosen with Use once it is on disk.
-  const { installs, install, cancel } = useInstall({ select: false })
+  const { jobs, installs, install, cancel } = useInstall({ select: false })
   const select = useSelect("text_gen")
   const remove = useDeleteLocalChatModel(onModelUnavailable)
   const [deleting, setDeleting] = useState<{
@@ -204,7 +204,7 @@ export function DownloadChatModels({
       <ModelSearch
         onInstall={act}
         onCancel={cancel}
-        installs={installs}
+        jobs={jobs}
         disabled={busy}
       />
 
