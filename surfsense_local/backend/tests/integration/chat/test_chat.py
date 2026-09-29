@@ -13,6 +13,7 @@ from modules.llm.models import SelectedModel
 from modules.workspaces.models import Workspace
 from shared.db import create_session_factory
 from tests.integration.chat.conftest import (
+    set_answer,
     set_props_n_ctx,
     set_reasoning,
     set_tokens_per_word,
@@ -357,6 +358,32 @@ async def test_a_failed_reply_is_classified_and_leaves_no_trace(
     assert "401" not in error["message"]
     assert not any(event["type"] == "completed" for event in events)
     assert not any(event["type"] == "thread-title-update" for event in events)
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored == []
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert threads[0]["title"] == "New chat"
+
+
+@pytest.mark.parametrize("reasoning", [[], ["The note says ", "nothing useful."]])
+async def test_a_reply_with_no_text_leaves_no_trace(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+    reasoning: list[str],
+) -> None:
+    """A stream that closes cleanly with no answer, even after thinking, is discarded."""
+    set_reasoning(reasoning)
+    set_answer([])
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened?")
+
+    error = next(event for event in events if event["type"] == "error")
+    assert error["kind"] == "unknown"
+    assert not any(event["type"] == "completed" for event in events)
 
     stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
     assert stored == []

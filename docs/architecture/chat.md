@@ -77,7 +77,7 @@ The list handed to the generator is `[system, *history within budget, user]`.
 | `completed` | last | `assistant_completed_at`, the final `text` |
 
 - Every frame is `data: {json}\n\n`, and the stream ends with `data: [DONE]\n\n` so a client can tell completion from a dropped connection. The response sends `Cache-Control: no-cache` and `X-Accel-Buffering: no` so nothing buffers it into one late blob.
-- A turn that fails before producing any text is deleted, both halves, and the stream goes from `error` straight to `[DONE]`, even if the model had reasoned. A turn that fails midway keeps its partial text.
+- A turn that ends without any answer text is deleted, both halves, and the stream goes from `error` straight to `[DONE]`, even if the model had reasoned. That holds whether generation failed or closed cleanly with nothing to say; the clean case is sent as `unknown`, because discarding the turn also removes the person's own message and silence would hide that. A turn that fails midway keeps its partial text.
 - The trace comes from the provider's `chat_deltas()`, which marks each chunk as answer or reasoning ([`connections.md`](connections.md#runtime)). It never reaches `resolve_citations()`, so a `[n]` inside it is neither rewritten nor stored as a citation.
 - Errors are sorted by exception type, HTTP status and provider, and for a 400 by the body's `error.type` ([`errors.py`](../../surfsense_local/backend/modules/chat/errors.py)), into `provider_auth`, `provider_not_found`, `provider_rate_limited`, `provider_unavailable`, `model_cannot_run`, `context_too_long`, `network`, `timeout` and `unknown`, each with a plain-language English message. The frontend shows its own translated text per kind ([`chat-error-text.ts`](../../surfsense_local/frontend/src/features/chat/chat-error-text.ts)) and falls back to the backend's message for a kind it does not know.
 
@@ -126,7 +126,6 @@ The list handed to the generator is `[system, *history within budget, user]`.
 
 ## Known gaps
 
-- A stream that ends without an error but yields no text still renames the thread and stores an empty assistant turn; the discard guard is `failed and not parts`.
 - `budget.py` prices the question at 1,024 tokens and says `MessageText` enforces that, but `MessageText` has no length limit, so a long question can push a turn past the model's window.
 - No live region announces streamed text, and focus does not move to the conversation heading after a thread switch; the dashboard design asks for both.
 - No test covers a client disconnecting mid-reply. The assistant's text is written only when generation ends, inside the stream, so whether a disconnected reply is kept is unverified.
