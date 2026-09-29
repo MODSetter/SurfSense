@@ -130,6 +130,35 @@ describe("studio panel", () => {
     expect(document.querySelector("[data-slot=skeleton]")).toBeNull()
   })
 
+  it("uses API-only formats after the catalog loads", () => {
+    render(
+      <TooltipProvider>
+        <StudioPanel
+          workspaceId={1}
+          documents={[]}
+          selectedDocumentIds={[]}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+          formats={[
+            {
+              key: "timeline",
+              label: "Timeline",
+              requires_model_types: ["text_gen"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ]}
+          isCreating={false}
+          error={null}
+          onGenerate={async () => false}
+        />
+      </TooltipProvider>
+    )
+
+    expect(screen.getByRole("button", { name: "Timeline" })).toBeTruthy()
+    expect(screen.queryByRole("button", { name: "Summary" })).toBeNull()
+  })
+
   it("submits a job for the chosen format and sources", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
