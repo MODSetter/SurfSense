@@ -1,6 +1,6 @@
 # Issue reports
 
-Report issue, below Plugins in the sidebar, on every error toast and under Help › Report Issue… in the macOS menu bar (Windows and Linux draw no menu bar), shows what this run of the app has logged and turns the user's description into a GitHub bug report.
+Report issue, below Plugins in the sidebar, under Links in Settings › About, on every error toast and under Help › Report Issue… in the macOS menu bar (Windows and Linux draw no menu bar), shows what this run of the app has logged and turns the user's description into a GitHub bug report.
 
 **Code:** [`surfsense_local/frontend/src/features/feedback/`](../../surfsense_local/frontend/src/features/feedback/), [`surfsense_local/electron/src/main/session-log/`](../../surfsense_local/electron/src/main/session-log/), [`surfsense_local/electron/src/main/menu/`](../../surfsense_local/electron/src/main/menu/), [`.github/ISSUE_TEMPLATE/bug.yml`](../../.github/ISSUE_TEMPLATE/bug.yml)
 
@@ -22,6 +22,5 @@ Report issue, below Plugins in the sidebar, on every error toast and under Help 
 
 ## Known gaps
 
-- About's Report an issue link still opens the bare form, without the log.
 - A sidecar crash reaches the log, but no screen shows it: main sends `sidecar:crashed` and nothing in the renderer listens, so no toast offers Report issue.
 - The main process's own warnings, such as a preference file it could not read, still go to the terminal only.
