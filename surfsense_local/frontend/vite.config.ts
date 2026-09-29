@@ -27,6 +27,12 @@ export default defineConfig({
   },
   test: {
     setupFiles: ["./src/test-setup.ts"],
+    // Dates in tests are UTC instants and the assertions spell out the day
+    // (license-settings.test.tsx expects "Sep 10, 2027" for
+    // 2027-09-10T00:00:00Z). Formatted in a machine's local zone west of
+    // UTC that reads as the 9th, so the suite fails on a laptop and passes
+    // in CI. Pin the zone tests run in instead of pinning every assertion.
+    env: { TZ: "UTC" },
   },
   server: {
     host: "127.0.0.1",
