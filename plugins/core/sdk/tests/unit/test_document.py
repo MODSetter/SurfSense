@@ -42,7 +42,7 @@ def echo(text: str) -> None:
     assert request.body == {
         "title": "Note hi",
         "content": "hi",
-        "metadata": {
+        "document_metadata": {
             "plugin_id": "example",
             "plugin_version": None,
             "action": "echo",

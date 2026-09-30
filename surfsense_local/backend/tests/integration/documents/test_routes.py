@@ -70,6 +70,89 @@ async def test_a_note_starts_pending(client: AsyncClient, workspace_id: int) -> 
     assert response.json()["content"] == "# Kickoff\n\nagreed to ship"
 
 
+PLUGIN_NOTE_METADATA = {
+    "plugin_id": "example",
+    "plugin_version": None,
+    "action": "count-words",
+    "run_id": 41,
+}
+
+
+async def test_a_note_keeps_the_document_metadata_it_was_written_with(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A plugin names itself on the notes it adds, and reading the note gives it back."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={
+            "title": "Word count #1",
+            "content": "a b a",
+            "document_metadata": PLUGIN_NOTE_METADATA,
+        },
+    )
+
+    read = await client.get(
+        f"/workspaces/{workspace_id}/documents/{created.json()['id']}"
+    )
+
+    assert created.status_code == 201
+    assert read.json()["document_metadata"] == PLUGIN_NOTE_METADATA
+
+
+async def test_a_note_written_without_document_metadata_has_none(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A note the user writes in the app says nothing about where it came from."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "x"},
+    )
+
+    read = await client.get(
+        f"/workspaces/{workspace_id}/documents/{created.json()['id']}"
+    )
+
+    assert read.json()["document_metadata"] is None
+
+
+async def test_editing_a_note_keeps_its_document_metadata(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """The note still came from the plugin after its text changes."""
+    created = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={
+            "title": "Word count #1",
+            "content": "a b a",
+            "document_metadata": PLUGIN_NOTE_METADATA,
+        },
+    )
+    document_id = created.json()["id"]
+
+    await client.patch(
+        f"/workspaces/{workspace_id}/documents/{document_id}",
+        json={"title": "Word count #2", "content": "b a b"},
+    )
+    read = await client.get(f"/workspaces/{workspace_id}/documents/{document_id}")
+
+    assert read.json()["document_metadata"] == PLUGIN_NOTE_METADATA
+
+
+async def test_a_note_with_a_field_the_app_does_not_know_is_refused(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A client and the app that disagree on a name find out at once, not by losing it."""
+    response = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={"title": "Kickoff", "content": "x", "metadata": {"plugin_id": "x"}},
+    )
+    listed = await client.get(f"/workspaces/{workspace_id}/documents")
+
+    assert response.status_code == 422
+    assert response.json()["detail"][0]["loc"] == ["body", "metadata"]
+    assert listed.json() == []
+
+
 async def test_the_list_omits_document_content(
     client: AsyncClient, workspace_id: int
 ) -> None:

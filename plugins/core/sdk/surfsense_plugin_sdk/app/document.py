@@ -44,7 +44,7 @@ def add(title: str, content: str) -> Document:
         {
             "title": title,
             "content": content,
-            "metadata": {
+            "document_metadata": {
                 "plugin_id": run.manifest["id"],
                 "plugin_version": run.manifest.get("version"),
                 "action": run.action,
