@@ -11,6 +11,7 @@ _LABEL = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
 
 
 def _host(value: str) -> str:
+    """What the user consents to: a bare public name or address, never loopback."""
     if _is_loopback(value):
         raise ValueError("loopback is the app itself, not egress, so it is not a host")
     if not (_is_address(value) or _is_hostname(value)):
@@ -21,12 +22,14 @@ def _host(value: str) -> str:
 
 
 def _is_loopback(value: str) -> bool:
+    """Names and addresses that reach the app's own machine."""
     if value == "localhost" or value.endswith(".localhost"):
         return True
     return _is_address(value) and ip_address(value).is_loopback
 
 
 def _is_address(value: str) -> bool:
+    """An IP address, which is a host as it stands."""
     try:
         ip_address(value)
     except ValueError:
@@ -35,6 +38,7 @@ def _is_address(value: str) -> bool:
 
 
 def _is_hostname(value: str) -> bool:
+    """A lowercase DNS name with no scheme, port, path or wildcard."""
     labels = value.split(".")
     return len(value) <= 253 and all(_LABEL.fullmatch(label) for label in labels)
 

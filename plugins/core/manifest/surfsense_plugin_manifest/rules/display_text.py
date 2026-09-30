@@ -6,7 +6,10 @@ from pydantic import AfterValidator
 
 
 def _between_1_and(most: int) -> AfterValidator:
+    """A length rule for text a list shows, so the list stays readable."""
+
     def check(value: str) -> str:
+        """Refuses text that is empty or longer than the list can show."""
         if not 1 <= len(value) <= most:
             raise ValueError(f"must be 1 to {most} characters")
         return value
