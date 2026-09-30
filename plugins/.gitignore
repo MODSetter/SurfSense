@@ -1,0 +1,5 @@
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+# The harness installs a plugin's dependencies here; packaging builds its own.
+/*/site-packages/
