@@ -141,6 +141,7 @@ function Composer({
   onToggleAll,
   isCreating,
   onGenerate,
+  onSetUpVoices,
 }: {
   workspaceId: number
   format: string
@@ -150,6 +151,7 @@ function Composer({
   onToggleAll: () => void
   isCreating: boolean
   onGenerate: (job: StudioJobCreate) => void
+  onSetUpVoices: () => void
 }) {
   const ready = documents.filter((document) => document.status === "ready")
   const selected = new Set(selectedDocumentIds)
@@ -161,7 +163,12 @@ function Composer({
   const toggle = (id: number) => onSelectionChange(id, !selected.has(id))
 
   // A podcast is generated from its reviewed brief, so it waits for the brief.
-  const briefReady = format !== "podcast" || podcast.brief != null
+  // A server model with no voices yet can voice nothing: set them up first.
+  const needsVoices =
+    podcast.opened?.voices_source === "saved" &&
+    podcast.opened.voices.length === 0
+  const briefReady =
+    format !== "podcast" || (podcast.brief != null && !needsVoices)
   const canGenerate = selected.size > 0 && !isCreating && briefReady
 
   return (
@@ -177,10 +184,14 @@ function Composer({
       >
         <div className="space-y-3">
           {format === "podcast" ? (
-            podcast.brief ? (
+            podcast.brief && podcast.opened ? (
               <PodcastBriefForm
                 brief={podcast.brief}
-                voices={podcast.voices}
+                voices={podcast.opened.voices}
+                languages={podcast.opened.languages}
+                voicesSource={podcast.opened.voices_source}
+                voicedBy={podcast.opened.voiced_by}
+                onSetUpVoices={onSetUpVoices}
                 onChange={podcast.setBrief}
               />
             ) : (
@@ -404,6 +415,7 @@ export function StudioPanel({
   isCreating,
   error,
   onGenerate,
+  onSetUpVoices,
 }: {
   workspaceId: number
   documents: WorkspaceDocument[]
@@ -414,6 +426,8 @@ export function StudioPanel({
   isCreating: boolean
   error: string | null
   onGenerate: (job: StudioJobCreate) => Promise<boolean>
+  /** Opens Settings where a server audio model's voices are added. */
+  onSetUpVoices: () => void
 }) {
   const [format, setFormat] = useState<string | null>(null)
   const [formatOpen, setFormatOpen] = useState(false)
@@ -485,6 +499,10 @@ export function StudioPanel({
                   void onGenerate(job).then((created) => {
                     if (created) setFormatOpen(false)
                   })
+                }}
+                onSetUpVoices={() => {
+                  setFormatOpen(false)
+                  onSetUpVoices()
                 }}
               />
             </>

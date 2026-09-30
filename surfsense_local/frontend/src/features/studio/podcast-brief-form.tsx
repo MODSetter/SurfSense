@@ -15,12 +15,14 @@ import {
   type PodcastBrief,
   type PodcastSpeaker,
   type Voice,
+  type VoicedBy,
+  type VoicesSource,
 } from "./api"
 
 type PodcastStyle = PodcastBrief["style"]
 type PodcastDuration = PodcastBrief["duration"]
 type PodcastRole = PodcastSpeaker["role"]
-type VoiceGender = Voice["gender"]
+type VoiceGender = NonNullable<Voice["gender"]>
 
 const STYLE_LABELS: Record<PodcastStyle, () => string> = {
   conversational: () =>
@@ -132,25 +134,34 @@ const title = (word: string) => word[0].toUpperCase() + word.slice(1)
 export function PodcastBriefForm({
   brief,
   voices,
+  languages: codes,
+  voicesSource,
+  voicedBy,
+  onSetUpVoices,
   onChange,
 }: {
   brief: PodcastBrief
   voices: Voice[]
+  languages: string[]
+  voicesSource: VoicesSource
+  /** The server that voices it; null for a model on this computer. */
+  voicedBy: VoicedBy | null
+  /** Opens where a server model's voices are added. */
+  onSetUpVoices: () => void
   onChange: (brief: PodcastBrief) => void
 }) {
   const id = useId()
   // By the name shown, in the interface language: the model's order is its own.
-  const languages = [...new Set(voices.flatMap((voice) => voice.languages))]
+  const languages = codes
     .map((code) => ({
       code,
       name: intl.formatDisplayName(code, { type: "language" }) ?? code,
     }))
     .sort((a, b) => a.name.localeCompare(b.name, intl.locale))
-  const spoken = voices.filter((voice) =>
-    voice.languages.includes(brief.language)
-  )
+  const spoken = voices.filter((voice) => speaks(voice, brief.language))
   const taken = new Set(brief.speakers.map((speaker) => speaker.voice))
   const free = spoken.find((voice) => !taken.has(voice.id))
+  const canAdd = free !== undefined
 
   const update = (patch: Partial<PodcastBrief>) =>
     onChange({ ...brief, ...patch })
@@ -158,7 +169,7 @@ export function PodcastBriefForm({
   // A speaker keeps a voice that speaks the new language, as a Supertonic
   // voice speaks all of them; the rest take that language's free voices.
   const changeLanguage = (language: string) => {
-    const next = voices.filter((voice) => voice.languages.includes(language))
+    const next = voices.filter((voice) => speaks(voice, language))
     const kept = new Set(
       brief.speakers
         .map((speaker) => speaker.voice)
@@ -185,7 +196,7 @@ export function PodcastBriefForm({
     })
 
   const addSpeaker = () => {
-    if (!free) return
+    if (!canAdd) return
     const slot = brief.speakers.length
     const role = ROLE_BY_SLOT[slot] ?? "guest"
     update({
@@ -194,7 +205,7 @@ export function PodcastBriefForm({
         {
           name: title(role === "cohost" ? "co-host" : role),
           role,
-          voice: free.id,
+          voice: free?.id ?? "",
         },
       ],
     })
@@ -203,8 +214,34 @@ export function PodcastBriefForm({
   const removeSpeaker = (index: number) =>
     update({ speakers: brief.speakers.filter((_, at) => at !== index) })
 
+  const server = voicedBy ? <VoicedByLine voicedBy={voicedBy} /> : null
+
+  if (voicesSource === "saved" && voices.length === 0) {
+    return (
+      <div className="space-y-3">
+        {server}
+        <div className="space-y-3 rounded-xl border border-dashed p-5 text-sm">
+          <p className="text-muted-foreground">
+            {intl.formatMessage({
+              id: "studio_podcast_brief_no_voices_body",
+              defaultMessage:
+                "This model needs voices before it can voice a podcast. The server doesn’t list them, so add the ones you want.",
+            })}
+          </p>
+          <Button type="button" size="sm" onClick={onSetUpVoices}>
+            {intl.formatMessage({
+              id: "studio_podcast_brief_set_up_voices_button",
+              defaultMessage: "Set up voices",
+            })}
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-3">
+      {server}
       <div className="grid grid-cols-2 gap-2">
         <Field
           label={intl.formatMessage({
@@ -288,7 +325,7 @@ export function PodcastBriefForm({
             type="button"
             variant="ghost"
             size="xs"
-            disabled={!free || brief.speakers.length >= MAX_SPEAKERS}
+            disabled={!canAdd || brief.speakers.length >= MAX_SPEAKERS}
             onClick={addSpeaker}
           >
             <PlusIcon data-icon="inline-start" />
@@ -357,19 +394,27 @@ export function PodcastBriefForm({
                 return group.length ? (
                   <optgroup key={gender} label={GENDER_LABELS[gender]()}>
                     {group.map((voice) => (
-                      <option
+                      <VoiceOption
                         key={voice.id}
-                        value={voice.id}
+                        voice={voice}
                         disabled={
                           taken.has(voice.id) && voice.id !== speaker.voice
                         }
-                      >
-                        {voice.label}
-                      </option>
+                      />
                     ))}
                   </optgroup>
                 ) : null
               })}
+              {/* A provider that never states a gender gets one plain list. */}
+              {spoken
+                .filter((voice) => voice.gender === null)
+                .map((voice) => (
+                  <VoiceOption
+                    key={voice.id}
+                    voice={voice}
+                    disabled={taken.has(voice.id) && voice.id !== speaker.voice}
+                  />
+                ))}
             </Select>
             {brief.speakers.length > 1 ? (
               <Button
@@ -396,6 +441,34 @@ export function PodcastBriefForm({
         ))}
       </div>
     </div>
+  )
+}
+
+/** A voice that states no language, as a server's listed id, is not refused one. */
+function speaks(voice: Voice, language: string) {
+  return voice.languages.length === 0 || voice.languages.includes(language)
+}
+
+function VoicedByLine({ voicedBy }: { voicedBy: VoicedBy }) {
+  return (
+    <p className="text-sm text-muted-foreground">
+      {intl.formatMessage(
+        {
+          id: "studio_podcast_brief_voiced_by_body",
+          defaultMessage:
+            "Voiced by {model} on {server}. Each line is billed by the provider.",
+        },
+        { model: voicedBy.model, server: voicedBy.server }
+      )}
+    </p>
+  )
+}
+
+function VoiceOption({ voice, disabled }: { voice: Voice; disabled: boolean }) {
+  return (
+    <option value={voice.id} disabled={disabled}>
+      {voice.label}
+    </option>
   )
 }
 

@@ -110,6 +110,13 @@ def _store(
     if selected is None:
         selected = SelectedModel(model_type=model_type, name=model_name)
         session.add(selected)
+    elif (selected.provider, selected.connection_id, selected.name) != (
+        provider_name,
+        connection_id,
+        model_name,
+    ):
+        # Settings are the model's own; another model starts without them.
+        selected.settings = None
     selected.provider = provider_name
     selected.connection_id = connection_id
     selected.name = model_name

@@ -124,7 +124,7 @@ function serving(
 }
 
 describe("audio model settings", () => {
-  it("says audio models cannot run where no audio runtime shipped", async () => {
+  it("offers a server where no audio runtime shipped", async () => {
     // No audio.cpp staged: the catalog carries chat rows and no audio rows.
     vi.stubGlobal("fetch", serving([chatRow]))
     const user = userEvent.setup()
@@ -136,6 +136,7 @@ describe("audio model settings", () => {
     expect(
       screen.getByRole("heading", { name: "Add an audio model" })
     ).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Connect" })).toBeTruthy()
     expect(
       await screen.findByText("Audio models cannot run on this computer")
     ).toBeTruthy()

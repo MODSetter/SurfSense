@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { cleanup, render, screen, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
@@ -28,9 +28,24 @@ function Harness({ initial = brief }: { initial?: PodcastBrief }) {
   return <Controlled initial={initial} />
 }
 
+/** What the server sends beside a roster: the languages its voices speak. */
+const spokenBy = (roster: Voice[]) => [
+  ...new Set(roster.flatMap((voice) => voice.languages)),
+]
+
 function Controlled({ initial }: { initial: PodcastBrief }) {
   const [value, setValue] = useState(initial)
-  return <PodcastBriefForm brief={value} voices={voices} onChange={setValue} />
+  return (
+    <PodcastBriefForm
+      brief={value}
+      voices={voices}
+      languages={spokenBy(voices)}
+      voicesSource="local"
+      voicedBy={null}
+      onSetUpVoices={() => undefined}
+      onChange={setValue}
+    />
+  )
 }
 
 afterEach(cleanup)
@@ -165,6 +180,10 @@ describe("podcast brief form", () => {
         <PodcastBriefForm
           brief={value}
           voices={multilingual}
+          languages={spokenBy(multilingual)}
+          voicesSource="local"
+          voicedBy={null}
+          onSetUpVoices={() => undefined}
           onChange={setValue}
         />
       )
@@ -176,5 +195,146 @@ describe("podcast brief form", () => {
     const rows = screen.getAllByRole("group", { name: /Speaker \d/ })
     expect(value(within(rows[0]).getByLabelText("Voice"))).toBe("M1")
     expect(value(within(rows[1]).getByLabelText("Voice"))).toBe("F1")
+  })
+
+  it("lists voices whose gender nobody documents in one list", () => {
+    // OpenAI names its voices and nothing else about them.
+    const openai: Voice[] = [
+      { id: "alloy", label: "Alloy", gender: null, languages: ["en"] },
+      { id: "ash", label: "Ash", gender: null, languages: ["en"] },
+    ]
+    render(
+      <PodcastBriefForm
+        brief={{
+          ...brief,
+          language: "en",
+          speakers: [{ name: "Host", role: "host", voice: "alloy" }],
+        }}
+        voices={openai}
+        languages={["en"]}
+        voicesSource="saved"
+        voicedBy={{ server: "OpenAI", model: "tts-1" }}
+        onSetUpVoices={() => undefined}
+        onChange={() => undefined}
+      />
+    )
+
+    const voice = screen.getByLabelText("Voice")
+    expect(within(voice).queryAllByRole("group")).toEqual([])
+    expect(
+      within(voice)
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["Alloy", "Ash"])
+  })
+
+  it("offers a server's listed voices in every language, as they state none", async () => {
+    // Kokoro-FastAPI lists ids alone.
+    const listed: Voice[] = [
+      { id: "af_heart", label: "af_heart", gender: null, languages: [] },
+      { id: "am_adam", label: "am_adam", gender: null, languages: [] },
+    ]
+    const user = userEvent.setup()
+    function Listed() {
+      const [value, setValue] = useState<PodcastBrief>({
+        ...brief,
+        language: "en",
+        speakers: [{ name: "Host", role: "host", voice: "af_heart" }],
+      })
+      return (
+        <PodcastBriefForm
+          brief={value}
+          voices={listed}
+          languages={["en", "fr"]}
+          voicesSource="server"
+          voicedBy={{ server: "Kokoro", model: "kokoro" }}
+          onSetUpVoices={() => undefined}
+          onChange={setValue}
+        />
+      )
+    }
+    render(<Listed />)
+
+    await user.selectOptions(screen.getByLabelText("Language"), "fr")
+
+    const voice = screen.getByLabelText("Voice")
+    expect(value(voice)).toBe("af_heart")
+    expect(
+      within(voice)
+        .getAllByRole("option")
+        .map((option) => option.textContent)
+    ).toEqual(["af_heart", "am_adam"])
+    expect(
+      screen
+        .getByRole("button", { name: "Add speaker" })
+        .hasAttribute("disabled")
+    ).toBe(false)
+  })
+
+  it("says a server voices it, and reads like the local form otherwise", () => {
+    render(
+      <PodcastBriefForm
+        brief={{
+          ...brief,
+          language: "en",
+          speakers: [{ name: "Host", role: "host", voice: "en_paul" }],
+        }}
+        voices={[
+          { id: "en_paul", label: "en_paul", gender: null, languages: [] },
+        ]}
+        languages={["en", "fr"]}
+        voicesSource="saved"
+        voicedBy={{ server: "OpenRouter", model: "seed-audio-1-0" }}
+        onSetUpVoices={() => undefined}
+        onChange={() => undefined}
+      />
+    )
+
+    expect(
+      screen.getByText(
+        "Voiced by seed-audio-1-0 on OpenRouter. Each line is billed by the provider."
+      )
+    ).toBeTruthy()
+    expect(screen.getByLabelText("Language")).toBeTruthy()
+    expect(screen.getByText("Speakers")).toBeTruthy()
+    expect(screen.queryByText("Script language")).toBeNull()
+    expect(screen.queryByText("Your voices for this model")).toBeNull()
+    expect(screen.queryByText("Listed by the server")).toBeNull()
+  })
+
+  it("asks for voices before anything else when the server model has none", async () => {
+    const user = userEvent.setup()
+    const setUp = vi.fn()
+    render(
+      <PodcastBriefForm
+        brief={{
+          ...brief,
+          language: "en",
+          speakers: [{ name: "Host", role: "host", voice: "" }],
+        }}
+        voices={[]}
+        languages={["en"]}
+        voicesSource="saved"
+        voicedBy={{ server: "OpenRouter", model: "seed-audio-1-0" }}
+        onSetUpVoices={setUp}
+        onChange={() => undefined}
+      />
+    )
+
+    expect(
+      screen.getByText(
+        "This model needs voices before it can voice a podcast. The server doesn’t list them, so add the ones you want."
+      )
+    ).toBeTruthy()
+    expect(screen.queryByRole("group", { name: /Speaker \d/ })).toBeNull()
+    await user.click(screen.getByRole("button", { name: "Set up voices" }))
+    expect(setUp).toHaveBeenCalledOnce()
+  })
+
+  it("says nothing about a server for a model on this computer", () => {
+    render(<Harness />)
+
+    expect(screen.queryByText(/Voiced by/)).toBeNull()
+    expect(screen.getByLabelText("Language")).toBeTruthy()
   })
 })

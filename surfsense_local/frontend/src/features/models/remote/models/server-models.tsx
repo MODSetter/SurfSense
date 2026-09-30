@@ -24,6 +24,7 @@ import { intl } from "@/i18n/intl"
 import type { ModelType } from "../../model-type"
 import type { ModelSelection } from "../../selection/api"
 import { useSelection } from "../../selection/use-selection"
+import { ServerVoices } from "../voices/server-voices"
 import type { Connection } from "../connections/api"
 import { DisconnectButton } from "../connections/disconnect-button"
 import type { ConnectionModel } from "./api"
@@ -186,6 +187,12 @@ export function ServerModels({
                 defaultMessage: "In use",
               })}
             </Button>
+          </div>
+        ) : null}
+        {current && modelType === "audio_gen" ? (
+          // Its voices belong to this server's model, so they are set up here.
+          <div className="border-b px-3 py-3">
+            <ServerVoices />
           </div>
         ) : null}
         <button

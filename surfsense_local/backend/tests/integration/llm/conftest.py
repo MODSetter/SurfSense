@@ -1,5 +1,7 @@
+import io
 import json
 import threading
+import wave
 from collections.abc import Iterator
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
@@ -203,6 +205,11 @@ REMOTE_REQUESTS: list[tuple[str, str]] = []
 # Set to an HTTP status to make /models refuse, as a provider rejecting the key
 # or rate-limiting would; the fixture resets it.
 MODELS_STATUS: int | None = None
+# The voices GET /audio/voices lists, as Kokoro-FastAPI does; None is a 404,
+# as OpenAI, Groq and OpenRouter answer.
+AUDIO_VOICES: list[str] | None = None
+# Voices /audio/speech refuses with a 400, as a server answers an unknown one.
+REFUSED_VOICES: set[str] = set()
 
 
 class StubOpenAICompatible(BaseHTTPRequestHandler):
@@ -210,11 +217,15 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
-        if parsed.path == "/models" and MODELS_STATUS is not None:
+        if parsed.path == "/audio/voices" and AUDIO_VOICES is not None:
+            self._json({"voices": [{"id": voice} for voice in AUDIO_VOICES]})
+        elif parsed.path == "/models" and MODELS_STATUS is not None:
             self.send_error(MODELS_STATUS)
         elif parsed.path == "/models":
-            image_only = parse_qs(parsed.query).get("output_modalities") == ["image"]
-            models = REMOTE_MODELS[1:] if image_only else REMOTE_MODELS[:1]
+            # As OpenRouter: the default listing holds only the chat models,
+            # and `output_modalities=all` every model it serves.
+            every = parse_qs(parsed.query).get("output_modalities") == ["all"]
+            models = REMOTE_MODELS if every else REMOTE_MODELS[:1]
             self._json({"object": "list", "data": models})
         else:
             self.send_error(404)
@@ -235,6 +246,23 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
             ]
             frames.append("data: [DONE]\n\n")
             self._send("".join(frames).encode())
+        elif (
+            self.path == "/audio/speech"
+            and json.loads(body).get("voice") in REFUSED_VOICES
+        ):
+            self.send_response(400)
+            error = json.dumps({"error": {"message": "unknown voice"}}).encode()
+            self.send_header("Content-Length", str(len(error)))
+            self.end_headers()
+            self.wfile.write(error)
+        elif self.path == "/audio/speech":
+            out = io.BytesIO()
+            with wave.open(out, "wb") as clip:
+                clip.setnchannels(1)
+                clip.setsampwidth(2)
+                clip.setframerate(24000)
+                clip.writeframes(b"\x00\x00" * 2400)
+            self._send(out.getvalue())
         elif self.path == "/images/generations":
             encoded = "iVBORw0KGgpmYWtl"
             self._json({"data": [{"b64_json": encoded, "media_type": "image/png"}]})
@@ -257,9 +285,11 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
 @pytest.fixture
 def openai_server() -> Iterator[str]:
     """A real OpenAI-compatible endpoint on a real port."""
-    global MODELS_STATUS
+    global MODELS_STATUS, AUDIO_VOICES, REFUSED_VOICES
     REMOTE_REQUESTS.clear()
     MODELS_STATUS = None
+    AUDIO_VOICES = None
+    REFUSED_VOICES = set()
     server = ThreadingHTTPServer(("127.0.0.1", 0), StubOpenAICompatible)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     url = f"http://127.0.0.1:{server.server_port}"
