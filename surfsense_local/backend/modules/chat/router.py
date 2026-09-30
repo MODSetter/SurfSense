@@ -4,6 +4,7 @@ from collections.abc import AsyncIterator, Sequence
 from dataclasses import asdict
 from datetime import UTC, datetime
 
+import anyio
 from fastapi import APIRouter, HTTPException, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
@@ -217,30 +218,34 @@ async def send_message(
                 )
                 failed = True
         finally:
-            # No answer text is no reply, whether it failed, closed cleanly or
-            # only thought: keeping it would leave a blank bubble and a rename.
-            if not parts:
-                await transact(
-                    session, _discard_turn, user_message, assistant_message
-                )
-            else:
-                # A turn worth keeping: commit the deferred rename alongside
-                # it, so a thread is never renamed unless it ends up with a
-                # real first reply.
-                if should_generate_title and title:
-                    await transact(session, _rename, thread, title)
-                # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
-                answer, used = resolve_citations("".join(parts), citations)
-                cited = [asdict(citation) for citation in used]
-                await transact(
-                    session,
-                    _complete,
-                    assistant_message,
-                    answer,
-                    cited,
-                    trace.stored(),
-                )
-                assistant_completed_at = _iso(assistant_message.completed_at)
+            # Starlette cancels the response task on disconnect. The turn still
+            # has to settle before the request scope disappears.
+            with anyio.CancelScope(shield=True):
+                # No answer text is no reply, whether it failed, closed cleanly
+                # or only thought: keeping it would leave a blank bubble and a
+                # rename.
+                if not parts:
+                    await transact(
+                        session, _discard_turn, user_message, assistant_message
+                    )
+                else:
+                    # A turn worth keeping: commit the deferred rename alongside
+                    # it, so a thread is never renamed unless it ends up with a
+                    # real first reply.
+                    if should_generate_title and title:
+                        await transact(session, _rename, thread, title)
+                    # Rewrite [n] to [citation:<chunk_id>]. Invented tokens are dropped.
+                    answer, used = resolve_citations("".join(parts), citations)
+                    cited = [asdict(citation) for citation in used]
+                    await transact(
+                        session,
+                        _complete,
+                        assistant_message,
+                        answer,
+                        cited,
+                        trace.stored(),
+                    )
+                    assistant_completed_at = _iso(assistant_message.completed_at)
 
         if not parts:
             if not failed:
@@ -288,7 +293,8 @@ async def _release_model_after(
         async for frame in frames:
             yield frame
     finally:
-        await model_activity.release_use(key)
+        with anyio.CancelScope(shield=True):
+            await model_activity.release_use(key)
 
 
 # The stream's session work, each piece one short transaction off the event loop.
