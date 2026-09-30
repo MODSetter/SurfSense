@@ -52,7 +52,7 @@ Eight formats follow it:
 
 - **summary**: the model's markdown is the body, titled by its first `# ` heading.
 - **mindmap**: JSON nodes, at most 10 branches, become a markdown outline, an H1 over nested bullets, which Markmap draws on the client and which stays readable as text.
-- **flashcards**: JSON cards, at most 20, become a deck JSON file and a markdown body.
+- **flashcards**: JSON cards, written under a schema ([`schema.py`](../../surfsense_local/backend/worker/studio/content/flashcards/schema.py)), at most 20, become a deck JSON file and a markdown body.
 - **quiz**: JSON questions, written under a schema ([`schema.py`](../../surfsense_local/backend/worker/studio/content/quiz/schema.py)), at most 10, each kept only with exactly four options and an answer among them, become a quiz JSON file and a markdown body.
 - **html**: a JSON title and sections, at most 10. Every value is HTML-escaped into a fixed template, so the page cannot carry a script.
 - **podcast**: the model outlines the episode from the brief, then drafts it segment by segment, each reply capped at 12 tokens per word of the segment's target, and never under a planned 250-word segment's worth. Uncapped, Qwen3 1.7B looped on a 225-word segment until its 40,960-token window was full, and the JSON retry, which replays the failed reply, could not fit. The target is the outline's own guess: Qwen3 1.7B once gave a segment 20 words, wrote past them, and a 240-token cap ended both replies mid-JSON. The chosen audio model voices every line through audio.cpp's server, and the transcript is the body.
