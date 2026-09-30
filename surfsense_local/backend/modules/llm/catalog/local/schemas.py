@@ -133,11 +133,19 @@ class LocalRowRead(BaseModel):
     voicing: VoicingRead | None = None
 
 
+class ProjectorNoticeRead(BaseModel):
+    kind: str
+    projector: str
+    model_id: str | None
+    rename_to: str | None
+
+
 class LocalCatalogRead(BaseModel):
     budget: BudgetRead
     gpu_status: str
     rows: list[LocalRowRead]
     recommended_id: str | None
+    projector_notices: list[ProjectorNoticeRead]
 
 
 class SearchHitRead(BaseModel):

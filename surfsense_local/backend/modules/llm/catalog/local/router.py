@@ -70,6 +70,15 @@ def read_local_catalog(service: LocalCatalogDep, session: SessionDep) -> dict:
         "gpu_status": catalog.gpu_status.value,
         "rows": [_row(row, in_use) for row in catalog.rows],
         "recommended_id": catalog.recommended_id,
+        "projector_notices": [
+            {
+                "kind": notice.kind.value,
+                "projector": notice.projector,
+                "model_id": notice.model_id,
+                "rename_to": notice.rename_to,
+            }
+            for notice in catalog.projector_notices
+        ],
     }
 
 

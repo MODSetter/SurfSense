@@ -8,11 +8,17 @@ size and modification time, so a folder of large files is read once.
 
 import logging
 import re
+from collections import Counter
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
 from modules.llm.catalog.local.classifier import Classification, classify
+from modules.llm.catalog.local.engines.llamacpp.support import (
+    projector_identifies_model,
+    projector_reads_images,
+)
 from modules.llm.catalog.local.installs import InstalledBuild, projector_filename
 from modules.llm.fit import ModelShape
 from modules.llm.gguf import GgufHeader, header_from_file, to_shape
@@ -41,6 +47,20 @@ class DownloadedModel:
     @property
     def projector_bytes(self) -> int:
         return self.projector.stat().st_size if self.projector else 0
+
+
+class ProjectorNoticeKind(StrEnum):
+    RENAME = "rename"
+    NO_MATCH = "no_match"
+    AMBIGUOUS = "ambiguous"
+
+
+@dataclass(frozen=True)
+class ProjectorNotice:
+    kind: ProjectorNoticeKind
+    projector: str
+    model_id: str | None = None
+    rename_to: str | None = None
 
 
 def scan(
@@ -77,6 +97,59 @@ def scan(
             )
         )
     return found
+
+
+def projector_notices(
+    models_dir: Path, installed: list[DownloadedModel]
+) -> tuple[ProjectorNotice, ...]:
+    """Advice for visible projectors not paired by an install or exact name."""
+    paired = {model.projector for model in installed if model.projector is not None}
+    candidates = []
+    for path in sorted(models_dir.glob("*.gguf")):
+        if path in paired:
+            continue
+        header = read_cached(path)
+        projector_kv = dict(header.metadata) if header else {}
+        if not projector_reads_images(projector_kv):
+            continue
+        all_matches = tuple(
+            model
+            for model in installed
+            if projector_identifies_model(projector_kv, model.model_kv)
+        )
+        matches = tuple(model for model in all_matches if model.projector is None)
+        # A second projector for a model already paired is harmless and has no
+        # useful rename target.
+        if not matches and all_matches:
+            continue
+        candidates.append((path, matches))
+
+    match_counts = Counter(
+        model.model_id for _, matches in candidates for model in matches
+    )
+    notices = []
+    for path, matches in candidates:
+        unique = len(matches) == 1 and match_counts[matches[0].model_id] == 1
+        if unique:
+            model_id = matches[0].model_id
+            notices.append(
+                ProjectorNotice(
+                    ProjectorNoticeKind.RENAME,
+                    path.name,
+                    model_id,
+                    projector_filename(model_id),
+                )
+            )
+        else:
+            notices.append(
+                ProjectorNotice(
+                    ProjectorNoticeKind.NO_MATCH
+                    if not matches
+                    else ProjectorNoticeKind.AMBIGUOUS,
+                    path.name,
+                )
+            )
+    return tuple(notices)
 
 
 def read_cached(path: Path) -> GgufHeader | None:

@@ -162,6 +162,7 @@ export function ModelSlotSettings({
           {models.canDownload || models.local.length > 0 || pending ? (
             <LocalModelsGroup
               rows={models.local}
+              notices={models.notices}
               pending={pending}
               onDownload={() => setPage("add")}
               onUse={onUse}
