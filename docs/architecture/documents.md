@@ -25,9 +25,9 @@ A workspace holds a library of sources: uploaded files, notes written in the app
 | Method | Path | Does |
 |---|---|---|
 | `GET` | `/workspaces/{workspace_id}/documents` | list (below) |
-| `POST` | `/workspaces/{workspace_id}/documents` | write a note; `201` with its body |
+| `POST` | `/workspaces/{workspace_id}/documents` | write a note, with an optional `document_metadata` object; `201` with its body, `422` for a field it does not know |
 | `POST` | `/workspaces/{workspace_id}/documents/upload` | upload files; `201` with `created`, `duplicates` and `rejected` |
-| `GET` | `/workspaces/{workspace_id}/documents/{document_id}` | one document with its `content`; `null` for a `FILE` the worker has not written yet |
+| `GET` | `/workspaces/{workspace_id}/documents/{document_id}` | one document with its `content` and `document_metadata`; `content` is `null` for a `FILE` the worker has not written yet |
 | `PATCH` | `/workspaces/{workspace_id}/documents/{document_id}` | rename; edit a note's content |
 | `DELETE` | `/workspaces/{workspace_id}/documents/{document_id}` | delete; `409` while `processing` |
 | `POST` | `/workspaces/{workspace_id}/documents/{document_id}/retry` | requeue a `failed` or `cancelled` document |
@@ -52,6 +52,8 @@ Chunks have no router of their own.
 ## Notes
 
 A note is a document the user writes, with no file behind it. Creating one commits the row as `pending` and enqueues ingest: nothing needs parsing, but the note is not `ready` until it is chunked and indexed. A note never touches the filesystem and carries no dedup key, so two notes with the same text are two documents.
+
+A note may carry `document_metadata`, stored as given. A plugin names itself there on the notes it adds, with `plugin_id`, `plugin_version`, `action` and `run_id`; a note the user writes has none, and editing a note leaves it alone. Writing a note with a field the API does not know is refused rather than dropped, so a client that names a field differently finds out at once.
 
 ## Upload
 

@@ -89,6 +89,7 @@ pre-commit run --all-files
 | MCP | `cd surfsense_mcp && uv run pytest` |
 | Plugins: manifest rules | `cd plugins/core/manifest && uv run pytest -m unit` |
 | Plugins: SDK | `cd plugins/core/sdk && uv run pytest -m unit` |
+| Plugins: SDK against the app | `cd plugins/core/sdk && uv run pytest -m contract` (starts the backend; `uv sync` it first) |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 

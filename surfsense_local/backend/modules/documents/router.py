@@ -160,6 +160,7 @@ def create_note(
         title=payload.title,
         document_type=DocumentType.NOTE,
         content=payload.content,
+        document_metadata=payload.document_metadata,
     )
     session.add(note)
     session.commit()
