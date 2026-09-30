@@ -13,7 +13,7 @@
 
 - Any GGUF model can be held to a JSON schema. At `b11050`, a request with `response_format` gets a grammar that allows the model's reasoning block first, then the JSON, optionally inside a `json` code fence ([`common/chat-auto-parser-generator.cpp`](https://github.com/ggml-org/llama.cpp/blob/b11050/common/chat-auto-parser-generator.cpp)).
 - In the same file, a request with both `response_format` and `tools` gets the schema parser and no tool-call parsing. A request uses one or the other.
-- Both chat providers accept a `json_schema`, and only Studio's quiz passes one yet ([selection](../../architecture/local-models/selection.md), Known gaps).
+- Both chat providers accept a `json_schema`, and only Studio's quiz and flashcards pass one yet ([selection](../../architecture/local-models/selection.md), Known gaps).
 
 ## Tool support for remote models
 
