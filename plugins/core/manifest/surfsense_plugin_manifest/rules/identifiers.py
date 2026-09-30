@@ -1,36 +1,34 @@
-"""Names the app, the catalog and the registry use to find things."""
+"""The shape of each name the app finds things by; uniqueness is in duplicate_names.
+
+Ids and entry names take "-": they appear in file names and URLs.
+Input and secret names take "_": they become Python arguments and variable names.
+"""
 
 import re
 from typing import Annotated
 
 from pydantic import AfterValidator
 
-_HYPHENATED = re.compile(r"[a-z][a-z0-9-]{0,63}")
+
+def _name_rule(separator: str, so_that: str) -> AfterValidator:
+    pattern = re.compile(rf"[a-z][a-z0-9{separator}]{{0,63}}")
+
+    def check(value: str) -> str:
+        if not pattern.fullmatch(value):
+            raise ValueError(
+                f'must be lowercase letters, digits and "{separator}", start with a'
+                f" letter, and be at most 64 characters, so {so_that}"
+            )
+        return value
+
+    return AfterValidator(check)
 
 
-def _hyphenated(value: str) -> str:
-    if not _HYPHENATED.fullmatch(value):
-        raise ValueError(
-            "must be lowercase letters, digits and hyphens, start with a letter,"
-            " and be at most 64 characters"
-        )
-    return value
+_safe_in_urls = _name_rule("-", "it is safe in file names and URLs")
+_valid_variable = _name_rule(
+    "_", "it is a valid Python argument and environment variable name"
+)
 
-
-PluginId = Annotated[str, AfterValidator(_hyphenated)]
-EntryName = Annotated[str, AfterValidator(_hyphenated)]
-
-# Also a legal environment variable once upper-cased: SURFSENSE_PLUGIN_SECRET_<NAME>.
-_VARIABLE_NAME = re.compile(r"[a-z][a-z0-9_]{0,63}")
-
-
-def _variable_name(value: str) -> str:
-    if not _VARIABLE_NAME.fullmatch(value):
-        raise ValueError(
-            "must be lowercase letters, digits and underscores, start with a letter,"
-            " and be at most 64 characters"
-        )
-    return value
-
-
-VariableName = Annotated[str, AfterValidator(_variable_name)]
+PluginId = Annotated[str, _safe_in_urls]
+EntryName = Annotated[str, _safe_in_urls]
+VariableName = Annotated[str, _valid_variable]

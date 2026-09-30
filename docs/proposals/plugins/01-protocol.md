@@ -71,7 +71,7 @@ It pins every transitive dependency for every platform, with a sha256 per file, 
 | `platforms` | Optional. A non-empty subset of the platform keys in `plugins/core/build-targets.json`. Absent means all of them. On any other system the app does not list the plugin. |
 | `entries` | At least one. |
 
-There is no `version` and no compatibility field: the release stamps the version into the packaged copy of this file, and compatibility follows from it ([`04-versioning.md`](04-versioning.md)).
+An author writes no `version` and no compatibility field: the release stamps the version into the packaged copy of this file, where the app reads it, and compatibility follows from it ([`04-versioning.md`](04-versioning.md)). A `version` written in the repository is replaced.
 
 An entry:
 
@@ -82,7 +82,16 @@ An entry:
 | `inputs` | Array, may be empty. The run dialog asks for them every run. Each is `{ "name", "title", "kind", "required" }`: `name` matches `^[a-z][a-z0-9_]{0,63}$` and is unique within the entry, `title` is the label, `kind` is `string`, `number`, or `boolean`, and `required` defaults to `false`. |
 | `timeout_seconds` | Optional integer, 1 to 21600. Absent means 1800. A run still going at that point is stopped and fails. |
 
-Unknown fields are ignored. A missing required field, a bad id, or a second entry with the same name fails the checks.
+Every name is checked twice: its shape on its own, and that no other item in its list uses it.
+
+| Name | Shape | Unique within | Because it becomes |
+|---|---|---|---|
+| `id` | `^[a-z][a-z0-9-]{0,63}$` | every plugin, as the folder's name | a folder, file and URL name |
+| entry `name` | `^[a-z][a-z0-9-]{0,63}$` | the plugin's entries | how the app picks the function to run, and part of the run's URL |
+| input `name` | `^[a-z][a-z0-9_]{0,63}$` | the entry's inputs | a Python keyword argument |
+| secret `name` | `^[a-z][a-z0-9_]{0,63}$` | the plugin's secrets | `SURFSENSE_PLUGIN_SECRET_<NAME>` |
+
+Unknown fields are ignored. A missing required field, a badly shaped name, or a name used twice in its list fails the checks.
 
 ### What the user provides
 

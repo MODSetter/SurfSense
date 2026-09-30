@@ -1,10 +1,11 @@
 """What a plugin declares in its manifest.json."""
 
-from typing import Literal
+from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field
 
 from surfsense_plugin_manifest.rules.display_text import Description, DisplayName
+from surfsense_plugin_manifest.rules.duplicate_names import unique_names
 from surfsense_plugin_manifest.rules.hosts import Host
 from surfsense_plugin_manifest.rules.identifiers import (
     EntryName,
@@ -24,7 +25,7 @@ class Input(BaseModel):
 class Entry(BaseModel):
     name: EntryName
     title: str
-    inputs: list[Input]
+    inputs: Annotated[list[Input], unique_names("inputs")]
     timeout_seconds: TimeoutSeconds = 1800
 
 
@@ -36,11 +37,13 @@ class Secret(BaseModel):
 
 class Manifest(BaseModel):
     id: PluginId
+    # Written by the release into the downloaded copy; an author never writes it.
+    version: str | None = None
     name: DisplayName
     description: Description
     author: str
     access: Literal["free", "paid"]
     hosts: list[Host]
-    secrets: list[Secret] = []
+    secrets: Annotated[list[Secret], unique_names("secrets")] = []
     platforms: list[str] | None = None
-    entries: list[Entry] = Field(min_length=1)
+    entries: Annotated[list[Entry], Field(min_length=1), unique_names("entries")]

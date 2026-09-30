@@ -12,7 +12,7 @@ A bad plugin folder, or an SDK change that would break a plugin, fails in CI bef
 - `plugins/core/manifest/` is a small package that depends only on pydantic and the standard library: `load_manifest(path) -> Manifest` and `check_tree(folder, reserved, allow_reserved) -> list[str]`. Empty list means the folder may be merged. The strings are the review comment. The checks import it, and the backend takes it as a path dependency in its `pyproject.toml`, so the frozen app carries the same rules without the tooling pulling in the backend's own dependencies.
 - A plugin folder is a direct child of `plugins/` that holds a `manifest.json`; the workflows and the tooling treat nothing else as one.
 - Tree rules, all of them, and no others:
-  - `manifest.json` matches the protocol tables, including `platforms` against `plugins/core/build-targets.json` and `timeout_seconds` within its range. A host with a scheme, port, path or wildcard, or a loopback name, is an error. A `version` or compatibility field is an error that says the release sets it.
+  - `manifest.json` matches the protocol tables, including `platforms` against `plugins/core/build-targets.json` and `timeout_seconds` within its range. A host with a scheme, port, path or wildcard, or a loopback name, is an error.
   - Every input has a legal, unique name, a `title`, and a `kind` of `string`, `number` or `boolean`. Every secret has a legal, unique name and a `title`.
   - `id` equals the folder name, and is not the id of a plugin the live catalog marks `removed_from_app`: a published id is never reused.
   - An id listed in `plugins/core/policy/reserved-plugin-ids.txt`, or starting with `surfsense-`, passes only with `allow_reserved`. `access: paid` passes only on such an id.
@@ -39,7 +39,6 @@ A bad plugin folder, or an SDK change that would break a plugin, fails in CI bef
 - A fixture folder that is valid produces no errors.
 - One test per tree rule, each with the smallest folder that breaks that rule and the error string that names it.
 - A second copy of `example`'s id in another folder is an error.
-- A `manifest.json` with a `version` fails with the line that says the release sets it.
 - A `requirements.txt` line `requests==2.32.3` with its hash is valid. Without the hash it is not. `requests>=2` is not.
 - An input of an unknown kind, and a secret without a `title`, each fail with a line naming it.
 - A plugin with its own `json.py`, or with a `requests.py` while depending on `requests`, fails with a line naming the clash. The same code moved into a package named after the plugin passes.

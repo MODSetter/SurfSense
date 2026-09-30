@@ -29,7 +29,7 @@ A plugin changes when anything in its folder changes, its locked dependencies in
 
 A version is an identity, used in bug reports, in the directory site and to block a version. It carries no meaning of its own beyond "shipped with SurfSense X"; what changed is in the pull request that changed it.
 
-The stamp goes into the packaged copy of `manifest.json` only. The repository's `manifest.json` has no `version`, and the checks refuse one.
+The stamp goes into the packaged copy of `manifest.json` only. The repository's `manifest.json` has no `version`; packaging replaces one if an author writes it.
 
 ## Which version an app runs
 
