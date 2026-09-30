@@ -7,7 +7,7 @@ from dataclasses import dataclass
 
 from modules.llm.providers.types import Message
 from modules.llm.resolution import ResolvedGeneration
-from worker.studio.shared import cancellation
+from shared import cancellation
 from worker.studio.shared.artifact import Source
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ def run_model(
     *,
     repair: Repair | None = None,
     max_tokens: int | None = None,
+    json_schema: dict | None = None,
 ) -> str:
     """Send one system prompt plus the grounding to the chosen generation model.
 
@@ -40,6 +41,9 @@ def run_model(
     A retry passes `repair`, which replays the failed reply as the model's own
     turn before asking for the correction. Without it an error naming a line
     points at a script the model was never shown, so it can only start over.
+
+    A JSON format passes `json_schema`, which the runtime turns into a grammar.
+    An endpoint that ignores it still answers, and `parse_json` reads that.
     """
     selected = model.selection
     messages = [
@@ -64,7 +68,11 @@ def run_model(
     reply = asyncio.run(
         _collect(
             model.generator.chat(
-                selected.name, messages, max_tokens=max_tokens, reasoning=False
+                selected.name,
+                messages,
+                max_tokens=max_tokens,
+                reasoning=False,
+                json_schema=json_schema,
             )
         )
     )

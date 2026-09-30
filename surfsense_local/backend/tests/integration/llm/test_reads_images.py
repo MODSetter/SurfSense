@@ -82,3 +82,24 @@ async def test_the_model_list_badges_what_the_selection_will_say(
         "black-forest-labs/flux": False,
         "gpt-3.5-turbo": False,
     }
+
+
+async def test_an_unusable_model_carries_no_vision_chip(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """agentrouter serves claude-opus-5, which reads images, only through
+    Anthropic's protocol: a row that fills no slot must not promise vision."""
+    monkeypatch.setattr(
+        conftest, "REMOTE_MODELS", [*conftest.REMOTE_MODELS, {"id": "claude-opus-5"}]
+    )
+    connection = await _connect(client, openai_server, catalog_provider="agentrouter")
+
+    listed = {
+        m["name"]: m
+        for m in (
+            await client.get(f"/llm/connections/{connection['id']}/models")
+        ).json()
+    }
+
+    assert listed["claude-opus-5"]["unusable_reason"]
+    assert listed["claude-opus-5"]["reads_images"] is False

@@ -1,6 +1,6 @@
 from collections.abc import Awaitable, Callable, Sequence
 
-from modules.chat.budget import DEFAULT_HISTORY_TOKENS, IMAGE_TOKENS
+from modules.chat.budget import CHARS_PER_TOKEN, DEFAULT_HISTORY_TOKENS, IMAGE_TOKENS
 from modules.chat.images import store
 from modules.chat.models import ChatMessage
 from modules.llm.providers.types import Image, Message
@@ -93,4 +93,4 @@ async def _cost(text: str, token_count: TokenCounter | None) -> int:
 def _tokens(text: str) -> int:
     # ponytail: ~4 chars per token dodges loading the model's tokenizer. Ceiling:
     # fine for a soft trim; swap in the real count if the runtime starts truncating.
-    return len(text) // 4
+    return len(text) // CHARS_PER_TOKEN

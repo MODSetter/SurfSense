@@ -8,6 +8,7 @@ from sqlalchemy.future import select
 from app.celery_app import celery_app
 from app.db import SearchSourceConnector, SearchSourceConnectorType
 from app.notifications.persistence import Notification
+from app.sunset import is_sunset_mode
 from app.tasks.celery_tasks import get_celery_session_maker, run_async_celery_task
 from app.utils.indexing_locks import is_connector_indexing_locked
 
@@ -21,6 +22,8 @@ def check_periodic_schedules_task():
     This task runs every minute and triggers indexing for any connector
     whose next_scheduled_at time has passed.
     """
+    if is_sunset_mode():
+        return None
     return run_async_celery_task(_check_and_trigger_schedules)
 
 

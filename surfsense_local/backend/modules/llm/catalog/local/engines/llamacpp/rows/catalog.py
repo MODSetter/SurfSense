@@ -171,7 +171,13 @@ def _installed_as(
     for d in downloaded:
         record = d.record
         if record is not None:
-            if record.repo in repos and record.quantization == build.quantization:
+            # An unfinished record is not an install: its row keeps offering
+            # Download, and the retry fetches only what is still missing.
+            if (
+                record.repo in repos
+                and record.quantization == build.quantization
+                and not record.pending
+            ):
                 return d
         elif d.path.name == basename:
             return d

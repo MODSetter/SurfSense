@@ -49,6 +49,7 @@ class Generator(Protocol):
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning: bool | None = None,
+        json_schema: dict | None = None,
     ) -> AsyncIterator[str]:
         """The answer text alone; a thinking model's trace is left out."""
         ...
@@ -61,6 +62,7 @@ class Generator(Protocol):
         max_tokens: int | None = None,
         temperature: float | None = None,
         reasoning: bool | None = None,
+        json_schema: dict | None = None,
     ) -> AsyncIterator[Delta]:
         """The reply as it streams, with the trace marked apart from the answer."""
         ...

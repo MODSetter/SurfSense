@@ -43,5 +43,5 @@ REASONS = {
     "unsupported_algorithm": "This license file uses an algorithm this version cannot check.",
     "bad_signature": "This license file was not issued by SurfSense, or it was altered.",
     "clock_untrusted": "This computer's clock is behind the time the license was issued.",
-    "file_expired": "This license file has expired; download it again from your account.",
+    "file_expired": "This license file has expired; request a fresh copy at surfsense.com/license.",
 }

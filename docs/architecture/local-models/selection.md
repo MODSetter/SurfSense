@@ -94,17 +94,19 @@ generation never has to:
 - **Remote**: `inspect()` reads the endpoint's `/models` row for the model. With
   a `hugging_face_id`, `params_b` is the largest size stated in the id or the
   repo name, and `line` defaults to `flagship`, because published weights with no
-  size word are a vendor's full-size model. Without one, `vendor` is the row's
-  `owned_by`, or the part of the id before its last `/`.
-- **Anything else, or a failed read**: `from_name()` takes the largest `<n>b`
+  size word are a vendor's full-size model. Without one, `params_b` is the
+  largest size stated in the id, and `vendor` is the row's `owned_by`, or the
+  part of the id before its last `/`, when the id states no size.
+- **Local text**: `inspect()` reads `general.parameter_count` from the
+  llama.cpp router's `/props`; when the runtime states no count, the filename
+  supplies it.
+- **Anything else, or a failed provider read**: `from_name()` takes the largest `<n>b`
   count in the name, so a mixture of experts reads its total rather than its
   active size and `llama-3.3-70b` is not 3B, and failing that a line word such as
   `mini`, `flash`, `pro` or `max`.
 
-A local model is fingerprinted from its filename. `LlamaCppProvider` has no
-`inspect()`, so the call fails, the failure is caught, and `from_name()` reads
-8 from `Qwen3-8B-Q4_K_M`. A row with all three facts null, such as one chosen
-before tiering existed, is fingerprinted from its name on read.
+A row with all three facts null, such as one chosen before tiering existed, is
+fingerprinted from its name on read.
 
 ## Prompt tiers
 
@@ -118,15 +120,18 @@ names the prompt file.
 | `params_b` ≥ 100.0 | `frontier` |
 | no count, but a `vendor` | `frontier` |
 | no count, `line` is flagship / small | `frontier` / `capable` |
-| nothing, and the provider is `llamacpp` | `compact` |
-| nothing, any other provider | `capable` |
+| nothing, and the endpoint is on this machine (`llamacpp`, or a connection on a loopback host) | `compact` |
+| nothing, and the endpoint is hosted | `capable` |
 
 The thresholds encode a claim about scaffolding, not about quality: below the
 first a model loses accuracy when asked to follow a structure, between the two it
 gains from one, and above the second it writes better from judgement than from
 steps. The last two rows are the same bet: a hosted endpoint runs models too big
 for a laptop, and a local one runs the laptop. `Fingerprint.local` decides which
-applies, and it returns `provider == "llamacpp"`.
+applies: true for `llamacpp`, which has no URL of its own, and for a connection
+whose host `host_destination()` reports as loopback, such as LM Studio or Ollama
+on `localhost`. `SelectedModel.fingerprint` sets that from its connection, which
+the row loads joined so reading the tier never queries lazily.
 
 The tier is not stored. `SelectedModel.tier` calls `classify()` on read, and
 `ResolvedGeneration.tier` hands it to chat and to every Studio format, so
@@ -249,6 +254,13 @@ a `json_schema` request, which
 some templates, is retried once unconstrained. Chat prose is deliberately
 unconstrained.
 
+Studio passes a schema through `run_model()`
+([`generate.py`](../../../surfsense_local/backend/worker/studio/shared/generate.py)),
+each format's beside its prompts, as the quiz's
+([`schema.py`](../../../surfsense_local/backend/worker/studio/content/quiz/schema.py)).
+A reply that arrives unconstrained, from an endpoint that ignores
+`response_format` or from the 400 retry, is still read by `parse_json()`.
+
 ## How it is tested
 
 [`surfsense_local/backend/tests/unit/llm/profile/`](../../../surfsense_local/backend/tests/unit/llm/profile/)
@@ -260,8 +272,5 @@ over HTTP.
 
 ## Known gaps
 
-- The tier fallback keys on the provider name, not on loopback: `Fingerprint.local` is `provider == "llamacpp"`, so a local endpoint reached through a connection falls to `capable` when nothing else is known; the decision is to key on `host_destination()`, which already computes loopback.
-- A remote listing row with no `hugging_face_id` always sets `vendor` (to `owned_by`, or to the id's prefix even when that is empty) and never reads the size in the name, so such a model is classified `frontier`: a `qwen3-4b` from a local endpoint whose listing carries no `hugging_face_id` gets frontier prompts. Featherless lists every model this way (`"owned_by": "Feather"`, no `hugging_face_id`), so every model there, Qwen3 0.6B included, gets frontier prompts.
-- Local fingerprints come from the filename only: `LlamaCppProvider` has no `inspect()`, so `from_llamacpp()`, which reads `general.parameter_count` from `/props`, is never called.
-- No caller passes `json_schema`: the providers support constrained decoding, but no Studio format or chat call uses it, so format compliance still depends on the prompt.
+- Only the quiz passes `json_schema`: mind map, flashcards, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

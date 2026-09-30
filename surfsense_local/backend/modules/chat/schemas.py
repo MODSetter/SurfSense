@@ -3,12 +3,18 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints
 
+from modules.chat.budget import QUESTION_CHARS
 from modules.chat.models import MessageRole
 
 ThreadTitle = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)
 ]
-MessageText = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+# The question's share of the window (budget.py), refused here before any
+# model is resolved or retrieval runs.
+MessageText = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=QUESTION_CHARS),
+]
 DocumentId = Annotated[int, Field(gt=0)]
 MAX_IMAGES = 4
 # Base64 of the 10 MB decoded cap, checked before anything is decoded.

@@ -122,3 +122,12 @@ def _is_context_too_long(response: httpx.Response) -> bool:
     error = payload.get("error") if isinstance(payload, dict) else None
     error_type = error.get("type") if isinstance(error, dict) else None
     return error_type == _CONTEXT_TOO_LONG_ERROR_TYPE
+
+
+def empty_reply_error() -> tuple[ChatErrorKind, str]:
+    """A stream that closed with no answer text: nothing raised, but nothing to keep.
+
+    `unknown` rather than a new kind, whose text would need translating: a
+    retry can succeed, since sampling differs from one run to the next.
+    """
+    return ChatErrorKind.UNKNOWN, _MESSAGES[ChatErrorKind.UNKNOWN]

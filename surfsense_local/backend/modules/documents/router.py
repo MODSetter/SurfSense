@@ -131,6 +131,19 @@ def get_document_by_chunk(
     )
 
 
+# Declared after the by-chunk route on purpose: FastAPI matches in declaration
+# order, and above it `/by-chunk/5` would resolve as a document called by-chunk.
+@router.get(
+    "/{document_id}",
+    response_model=DocumentDetail,
+    summary="Read a document",
+)
+def read_document(document: DocumentDep) -> Document:
+    # A FILE the worker has not written yet answers 200 with a null content, not
+    # 404: a client polling its fresh upload watches the row's status and body.
+    return document
+
+
 @router.post(
     "",
     response_model=DocumentDetail,

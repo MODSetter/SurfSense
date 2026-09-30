@@ -174,6 +174,30 @@ def test_a_recorded_build_whose_file_is_gone_is_not_installed() -> None:
     assert sd15.builds[0].installed_as is None
 
 
+def test_a_recorded_build_still_missing_a_file_is_not_installed() -> None:
+    """Recorded file by file: cut off before its text encoder landed, the row
+    offers Download for the rest rather than starting sd-server on half a model."""
+    from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing
+    from modules.llm.catalog.local.installs import InstalledBuild
+
+    klein = next(m for m in MODELS if m.id == "flux2-klein-4b").as_builds()[0]
+    weights, *rest = (landing(f) for f in klein.files)
+    unfinished = InstalledBuild(
+        klein.runtime_name,
+        klein.weights.repo,
+        "r",
+        klein.quantization,
+        (weights,),
+        pending=tuple(rest),
+    )
+
+    row = rows(installs={unfinished.model_id: unfinished}, files={weights})[
+        "flux2-klein-4b"
+    ]
+
+    assert row.builds[0].installed_as is None
+
+
 def test_z_image_after_flux2_klein_downloads_only_what_klein_did_not_bring() -> None:
     """They run with the same text encoder, pinned by the same hash."""
     from modules.llm.catalog.local.engines.sdcpp.images_folder.landing import landing

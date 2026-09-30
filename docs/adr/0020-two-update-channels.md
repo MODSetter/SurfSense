@@ -28,4 +28,3 @@ Both desktop apps publish to the releases of `MODSetter/SurfSense`. The legacy 0
 
 - 2.0.0 shipped without `allowPrerelease`, and 2.0.1 added it. `updater.ts` notes that Latest names a 2.x release again, so the flag is no longer required, and that dropping it would change behaviour for shipped clients.
 - `legacy-update-bridge` failed on the v2.0.2 tag run. The job skips checkout, so `gh release upload` had no repository to infer. The three manifests were uploaded by hand, and commit [a0c5bd3b8](https://github.com/MODSetter/SurfSense/commit/a0c5bd3b81b26b65d1bb79866a6d3e834e6a03b6) added `--repo`.
-- The workflow does not reject prerelease tags. The version check in its "Resolve version" step accepts `X.Y.Z-suffix`.

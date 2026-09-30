@@ -84,7 +84,9 @@ def _installed_as(
     on half a model, and Download fetches what is missing."""
     for record in installs.values():
         if record.repo in repos and record.quantization == build.quantization:
-            present = all(name in files for name in record.files)
+            # Recorded file by file, so a record can also name what has not
+            # landed yet; an unfinished one is not an install either.
+            present = not record.pending and all(name in files for name in record.files)
             return record.model_id if present else None
     if all(landing(f) in files for f in build.files):
         return build.runtime_name

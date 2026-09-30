@@ -19,6 +19,8 @@ export type ConnectionModel = {
   selectable_for: ModelType[]
   /** From the catalog, the same answer the chat composer gets on selection. */
   reads_images: boolean
+  /** Why the manifest says it cannot be called through this provider; it then fills no slot. */
+  unusable_reason?: string | null
 }
 
 export function getConnectionModels(

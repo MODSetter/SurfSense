@@ -8,6 +8,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from modules.llm.catalog.local import service as service_module
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.install import download as download_module
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
@@ -185,6 +186,54 @@ async def test_a_build_installs_as_its_whole_file_set_pinned_and_recorded(
     record = read_installs(models)["gemma-Q4_K_M"]
     assert record.projector == projector_filename("gemma-Q4_K_M")
     assert record.projector_gguf["clip.has_vision_encoder"] is True
+
+
+@pytest.fixture
+def cut_off_hub(monkeypatch):
+    """Serve the weights, drop the connection on the projector once, then serve it."""
+    asked: list[str] = []
+    dropped = False
+
+    async def download(url, destination, *, sha256=None, transport=None):
+        nonlocal dropped
+        asked.append(url)
+        if "mmproj" in url and not dropped:
+            dropped = True
+            raise httpx.ReadError("connection dropped")
+        data = PROJECTOR if "mmproj" in url else WEIGHTS
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(data)
+        yield DownloadProgress("complete", len(data), len(data))
+
+    monkeypatch.setattr(download_module, "download_gguf", download)
+    return asked
+
+
+async def test_an_install_cut_off_before_its_projector_is_recorded_as_unfinished(
+    service, tmp_path, cut_off_hub
+) -> None:
+    """The weights landed under their final name, so with no record the build
+    would read installed by name and load as text only. The record is written
+    as each file lands and names what is still to come; the retry fetches only
+    that, and the record is whole once it has."""
+    plan = InstallPlan("gemma-Q4_K_M", vision_build(), "llamacpp")
+
+    with pytest.raises(httpx.ReadError):
+        [step async for step in service.install(plan)]
+
+    models = tmp_path / "models"
+    unfinished = read_installs(models)["gemma-Q4_K_M"]
+    assert unfinished.weights == ("gemma-Q4_K_M.gguf",)
+    assert unfinished.projector is None
+    assert unfinished.pending == (projector_filename("gemma-Q4_K_M"),)
+
+    asked_before = len(cut_off_hub)
+    [step async for step in service.install(plan)]
+
+    assert [url for url in cut_off_hub[asked_before:] if "mmproj" not in url] == []
+    finished = read_installs(models)["gemma-Q4_K_M"]
+    assert finished.projector == projector_filename("gemma-Q4_K_M")
+    assert finished.pending == ()
 
 
 async def test_an_image_build_lands_in_sd_servers_folder_not_llama_servers(
@@ -406,6 +455,43 @@ def test_a_curated_id_resolves_to_its_pinned_build_without_a_check(service) -> N
     assert plan.build == build.build
     assert not plan.needs_check
     assert service.resolve_install("never-minted") is None
+
+
+MIB = 1024**2
+
+
+def curated_plan(service: LocalCatalogService, row_id: str) -> InstallPlan:
+    """The row's leading build, resolved the way the install route does it."""
+    row = next(r for r in service.catalog().rows if r.id == row_id)
+    plan = service.resolve_install(row.builds[0].catalog_id)
+    assert plan is not None
+    return plan
+
+
+async def test_a_curated_build_that_will_not_fit_is_refused_before_download(
+    service, monkeypatch, fake_hub
+) -> None:
+    """The screen's disabled Download is not the only thing in the way: a plan
+    that reaches the route from anywhere else is priced from its committed
+    shape and refused as a searched build is, before any bytes move."""
+    monkeypatch.setattr(service_module, "available_bytes", lambda: 256 * MIB)
+    plan = curated_plan(service, "qwen3-32b")
+
+    with pytest.raises(InstallRefusedError, match="too big"):
+        await service.check(plan)
+
+    assert fake_hub == []
+
+
+async def test_a_curated_build_that_merely_spills_installs_with_no_confirmation(
+    service, monkeypatch
+) -> None:
+    """Only TOO_BIG blocks. A build that runs slower is the user's to choose,
+    and refusing it would make a working model unreachable."""
+    monkeypatch.setattr(service_module, "available_bytes", lambda: 64 * 1024 * MIB)
+    plan = curated_plan(service, "qwen3-0.6b")
+
+    assert await service.check(plan) == plan
 
 
 def header(architecture: str = "qwen3", *, too_big: bool = False) -> bytes:
