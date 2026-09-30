@@ -70,7 +70,9 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
     ...pythonCmd(ctx, "api", "main.py"),
     env: {
       ...pythonEnv(ctx),
-      },
+      // The usage panel counts everything under this process as the app.
+      SURFSENSE_LOCAL_SHELL_PID: String(process.pid),
+    },
   }
 }
 
