@@ -11,9 +11,11 @@ from modules.llm.profile import Tier
 from modules.llm.providers import audiocpp, get_provider, llamacpp
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
 from modules.llm.providers.openai_compatible import (
+    NonRetryableImageError,
     OpenAICompatibleChatProvider,
     OpenAICompatibleImageProvider,
 )
+from modules.llm.providers.openai_compatible.image import AllowUrlHost
 from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
 from modules.llm.providers.sdcpp import provider as sdcpp
@@ -78,7 +80,12 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
         return ResolvedImageGeneration(
             selected,
             LocalImageGenerator(
-                OpenAICompatibleImageProvider(0, sdcpp.base_url(), None),
+                OpenAICompatibleImageProvider(
+                    0,
+                    sdcpp.base_url(),
+                    None,
+                    allow_url_host=_allow_url_host(session),
+                ),
                 sdcpp.root_url(),
                 image.served_file,
                 llamacpp.RouterClient(get_llm_settings().llamacpp_base_url),
@@ -88,9 +95,27 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
     return ResolvedImageGeneration(
         selected,
         OpenAICompatibleImageProvider(
-            connection.id, connection.base_url, connection.api_key
+            connection.id,
+            connection.base_url,
+            connection.api_key,
+            allow_url_host=_allow_url_host(session),
         ),
     )
+
+
+def _allow_url_host(session: Session) -> AllowUrlHost:
+    """The egress check for an image's URL, run in the Studio worker's thread."""
+
+    async def allow(url: str) -> None:
+        refused = egress.refused_named_host(session, url)
+        session.commit()
+        if refused is not None:
+            # No dialog reaches the worker, so the job fails with the refusal as
+            # its reason. The image was already generated, and billed, before
+            # its URL was known: a retry would pay again for the same refusal.
+            raise NonRetryableImageError(str(refused)) from refused
+
+    return allow
 
 
 def speech_selected(session: Session) -> None:
