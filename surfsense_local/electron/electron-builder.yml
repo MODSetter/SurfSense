@@ -74,6 +74,15 @@ linux:
       Categories: Office;Utility;
       StartupWMClass: SurfSense
 
+# llama.cpp's GPU backend opens libvulkan.so.1 from the host. Recommended, not
+# depended on: without it the app still runs, on the CPU. Setting `recommends`
+# replaces electron-builder's list, so its default stays first. `depends` is left
+# unset to keep electron-builder's GTK, NSS and X libraries.
+deb:
+  recommends:
+    - libappindicator3-1
+    - libvulkan1
+
 win:
   target: [nsis]
   artifactName: "${productName}-Setup.${ext}"
