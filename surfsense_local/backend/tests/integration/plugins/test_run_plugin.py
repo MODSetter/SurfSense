@@ -270,7 +270,10 @@ def go(text: str, top: float | None) -> None:
 """
     )
     manifest = json.loads((folder / "manifest.json").read_text())
-    manifest["actions"][0]["inputs"] = [{"name": "text"}, {"name": "top"}]
+    manifest["actions"][0]["inputs"] = [
+        {"name": "text", "title": "Text", "kind": "string", "required": True},
+        {"name": "top", "title": "Top", "kind": "number"},
+    ]
     (folder / "manifest.json").write_text(json.dumps(manifest))
     run = queued_run(text="hello")
 
