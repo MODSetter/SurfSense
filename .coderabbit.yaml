@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+reviews:
+  auto_review:
+    # CodeRabbit auto-reviews only PRs against the default branch (main), and
+    # PRs merge through dev. Anchored: the entries are regexes.
+    base_branches:
+      - "^dev$"
