@@ -1,5 +1,6 @@
 """llama.cpp behind the engine seam: chat models in llama-server's folder."""
 
+import threading
 from collections.abc import AsyncIterator, Callable, Sequence
 from pathlib import Path
 
@@ -8,7 +9,10 @@ import httpx
 from modules.llm.catalog.local.build import Build, BuildFile, FileRole
 from modules.llm.catalog.local.engines.engine import InstallStep
 from modules.llm.catalog.local.engines.llamacpp import ENGINE
-from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import write_preset
+from modules.llm.catalog.local.engines.llamacpp.models_folder.preset import (
+    preset_model_ids,
+    write_preset,
+)
 from modules.llm.catalog.local.engines.llamacpp.models_folder.readiness import (
     become_ready,
 )
@@ -51,6 +55,7 @@ class LlamaCppEngine:
         self._models_dir = models_dir
         self._runtime_url = runtime_url
         self._budget = budget
+        self._preset_lock = threading.Lock()
 
     @property
     def folder(self) -> Path:
@@ -67,9 +72,11 @@ class LlamaCppEngine:
         *,
         selected: str | None,
     ) -> tuple[LocalRow, ...]:
+        installed = self.installed()
+        self._reprice_for_copied_models(installed)
         return local_catalog(
             models,
-            self.installed(),
+            installed,
             self._budget(BudgetMode.CAPACITY),
             mint,
             selected=selected,
@@ -90,9 +97,22 @@ class LlamaCppEngine:
 
     def reprice(self) -> None:
         """Rewrite the preset for everything on disk."""
+        installed = self.installed()
+        with self._preset_lock:
+            self._write_preset(installed)
+
+    def _reprice_for_copied_models(self, installed: Sequence[DownloadedModel]) -> None:
+        model_ids = frozenset(
+            model.model_id for model in installed if model.shape is not None
+        )
+        with self._preset_lock:
+            if not model_ids <= preset_model_ids(self._models_dir):
+                self._write_preset(installed)
+
+    def _write_preset(self, installed: Sequence[DownloadedModel]) -> None:
         write_preset(
             self._models_dir,
-            self.installed(),
+            installed,
             self._budget(BudgetMode.CAPACITY),
             self._budget(BudgetMode.LIVE),
         )

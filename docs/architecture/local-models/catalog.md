@@ -74,8 +74,11 @@ the model; sd.cpp has nothing to do, since sd-server takes its model at launch,
 for the Studio job that needs it;
 audio.cpp rewrites `server.json`), what to settle `after_remove` (audio.cpp
 rewrites `server.json`), and what to do `on_startup` (llama.cpp writes the
-preset; sd.cpp records legacy downloads; audio.cpp writes `server.json`). The selection an install fills is the
-engine's `model_type` and `provider`.
+preset; sd.cpp records legacy downloads; audio.cpp writes `server.json`).
+When a catalog read finds a readable llama.cpp model copied into the folder
+that the preset does not name, it rewrites the preset once; later reads with no
+new model leave it alone, so Electron does not restart the router repeatedly.
+The selection an install fills is the engine's `model_type` and `provider`.
 
 | | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) |
 |---|---|---|---|
@@ -651,7 +654,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 ## Known gaps
 
-- Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
