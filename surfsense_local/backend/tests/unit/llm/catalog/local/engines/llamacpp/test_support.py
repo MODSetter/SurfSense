@@ -4,6 +4,7 @@ import pytest
 
 from modules.llm.catalog.local.engines.llamacpp.support import (
     projector_fits_model,
+    projector_identifies_model,
     projector_reads_images,
     template_support,
 )
@@ -62,6 +63,12 @@ def test_a_width_nobody_wrote_cannot_be_held_against_the_pair() -> None:
     }
 
     assert projector_fits_model(silent, GEMMA)
+    assert not projector_identifies_model(silent, GEMMA)
+
+
+def test_an_explicit_matching_width_identifies_the_model() -> None:
+    """Rename advice needs positive evidence, not only absence of a mismatch."""
+    assert projector_identifies_model(VISION_PROJECTOR, GEMMA)
 
 
 def test_the_template_says_what_a_request_may_carry() -> None:

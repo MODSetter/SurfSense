@@ -22,6 +22,7 @@ async def test_the_catalog_renders_with_no_network_and_no_scan(
             badge = build["badge"]
             assert badge["level"] in {"none", "notice", "refuse"}
             assert bool(badge["verdict"]) == (badge["level"] != "none")
+    assert body["projector_notices"] == []
     assert "scanned" not in body
 
 
@@ -150,4 +151,3 @@ async def test_an_install_that_is_not_running_cannot_be_cancelled(
 async def test_the_install_list_starts_empty(client: AsyncClient) -> None:
     """A fresh app has no jobs, so no screen shows a download."""
     assert (await client.get("/llm/installs")).json() == {"jobs": []}
-

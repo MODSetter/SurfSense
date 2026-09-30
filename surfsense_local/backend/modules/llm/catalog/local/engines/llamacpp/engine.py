@@ -14,6 +14,8 @@ from modules.llm.catalog.local.engines.llamacpp.models_folder.readiness import (
 )
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     DownloadedModel,
+    ProjectorNotice,
+    projector_notices,
     scan,
 )
 from modules.llm.catalog.local.engines.llamacpp.pricing import price
@@ -59,6 +61,10 @@ class LlamaCppEngine:
     def installed(self) -> list[DownloadedModel]:
         """The models on disk, read from their own headers."""
         return scan(self._models_dir, read_installs(self._models_dir))
+
+    def projector_notices(self) -> tuple[ProjectorNotice, ...]:
+        """Unpaired projectors and the model they identify, when exactly one."""
+        return projector_notices(self._models_dir, self.installed())
 
     def rows(
         self,

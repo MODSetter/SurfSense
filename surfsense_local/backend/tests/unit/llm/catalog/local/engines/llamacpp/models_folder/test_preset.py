@@ -17,6 +17,9 @@ import pytest
 from modules.llm.catalog.local.engines.llamacpp.models_folder.readiness import (
     wait_until_servable,
 )
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
+    ProjectorNoticeKind,
+)
 from modules.llm.catalog.local.installs import projector_filename
 from modules.llm.catalog.local.manifest import load_local_manifest
 from modules.llm.catalog.local.service import LocalCatalogService
@@ -26,13 +29,16 @@ from tests.unit.llm.gguf.build import BOOL, STRING, UINT32, array, gguf, kv
 pytestmark = pytest.mark.unit
 
 
-def a_model(path: Path, *, blocks: int = 28, ctx: int = 40960) -> None:
+def a_model(
+    path: Path, *, blocks: int = 28, ctx: int = 40960, embedding: int = 2560
+) -> None:
     """A parseable GGUF on disk, which is all reprice needs to price one."""
     path.write_bytes(
         gguf(
             [
                 kv("general.architecture", STRING, "qwen3"),
                 kv("qwen3.block_count", UINT32, blocks),
+                kv("qwen3.embedding_length", UINT32, embedding),
                 kv("qwen3.attention.head_count_kv", UINT32, 8),
                 kv("qwen3.attention.key_length", UINT32, 128),
                 kv("qwen3.attention.value_length", UINT32, 128),
@@ -43,7 +49,7 @@ def a_model(path: Path, *, blocks: int = 28, ctx: int = 40960) -> None:
     )
 
 
-def a_projector(path: Path) -> None:
+def a_projector(path: Path, *, width: int = 2560) -> None:
     """A real projector on disk, which is what the name used to stand in for.
 
     `reprice` now asks the header rather than the filename, so a file has to
@@ -56,6 +62,7 @@ def a_projector(path: Path) -> None:
                 kv("general.type", STRING, "mmproj"),
                 kv("general.architecture", STRING, "clip"),
                 kv("clip.has_vision_encoder", BOOL, True),
+                kv("clip.vision.projection_dim", UINT32, width),
             ]
         )
     )
@@ -234,6 +241,50 @@ def test_a_lone_projector_is_never_attached_to_a_model_beside_it(
     service.llamacpp.reprice()
 
     assert "mmproj" not in (tmp_path / PRESET_FILE).read_text()
+
+
+def test_an_unpaired_projector_names_the_model_and_filename_it_matches(
+    service, tmp_path: Path
+) -> None:
+    """The catalog advises a rename without silently making the pairing."""
+    a_model(tmp_path / "models" / "vision.gguf")
+    a_projector(tmp_path / "models" / "mmproj-F16.gguf")
+
+    (notice,) = service.catalog().projector_notices
+
+    assert notice.kind is ProjectorNoticeKind.RENAME
+    assert notice.projector == "mmproj-F16.gguf"
+    assert notice.model_id == "vision"
+    assert notice.rename_to == projector_filename("vision")
+
+
+def test_an_unpaired_projector_that_matches_nothing_does_not_guess(
+    service, tmp_path: Path
+) -> None:
+    """A projector for another model gets no unsafe rename suggestion."""
+    a_model(tmp_path / "models" / "text.gguf")
+    a_projector(tmp_path / "models" / "mmproj-F16.gguf", width=4096)
+
+    (notice,) = service.catalog().projector_notices
+
+    assert notice.kind is ProjectorNoticeKind.NO_MATCH
+    assert notice.model_id is None
+    assert notice.rename_to is None
+
+
+def test_an_unpaired_projector_that_matches_two_models_does_not_guess(
+    service, tmp_path: Path
+) -> None:
+    """A width shared by two models cannot identify the intended pair."""
+    a_model(tmp_path / "models" / "one.gguf")
+    a_model(tmp_path / "models" / "two.gguf")
+    a_projector(tmp_path / "models" / "mmproj-F16.gguf")
+
+    (notice,) = service.catalog().projector_notices
+
+    assert notice.kind is ProjectorNoticeKind.AMBIGUOUS
+    assert notice.model_id is None
+    assert notice.rename_to is None
 
 
 def test_a_projector_named_anything_is_not_offered_as_a_model(tmp_path: Path) -> None:

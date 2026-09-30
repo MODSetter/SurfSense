@@ -13,6 +13,9 @@ from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espea
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
+    ProjectorNotice,
+)
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
@@ -48,6 +51,7 @@ class Catalog:
     gpu_status: GpuStatus
     rows: tuple[LocalRow, ...]
     recommended_id: str | None
+    projector_notices: tuple[ProjectorNotice, ...]
 
 
 class LocalCatalogService:
@@ -159,7 +163,12 @@ class LocalCatalogService:
         )
         star = next((row.id for row in rows if row.recommended), None)
         return Catalog(
-            self.budget(), inventory.devices, inventory.gpu_status, rows, star
+            self.budget(),
+            inventory.devices,
+            inventory.gpu_status,
+            rows,
+            star,
+            self.llamacpp.projector_notices(),
         )
 
     def _minter(self, engine: str) -> Callable[[Build], str]:

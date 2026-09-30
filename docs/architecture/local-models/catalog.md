@@ -372,12 +372,15 @@ says **Vision**, once per row.
   ([`installs.py`](../../../surfsense_local/backend/modules/llm/catalog/local/installs.py)),
   naming each model's weights and projector, and saves the projector as
   `mmproj-<model>.gguf` so two vision models never share or overwrite one. A file
-  copied in by hand pairs under that name too. A projector merely sitting beside a
-  model is never attached to it. The record is written as each file lands, with
-  the files still to come under `pending`, so an install cut off between the
-  weights and the projector is a build the catalog knows is unfinished: its row
-  keeps offering Download rather than reading installed by name and loading as
-  text only, and the retry fetches only what is missing.
+  copied in by hand pairs under that name too. A projector merely sitting beside
+  a model is never attached to it. When its projection width identifies exactly
+  one model in the folder, that model's row says what to rename the projector;
+  no match or several matches is reported without guessing. The record is
+  written as each file lands, with the files still to come under `pending`, so
+  an install cut off between the weights and the projector is a build the
+  catalog knows is unfinished: its row keeps offering Download rather than
+  reading installed by name and loading as text only, and the retry fetches only
+  what is missing.
 - **Both halves download, price and load together.** The footprint includes the
   projector, `estimate()` charges it, and the preset names it ([`runtime.md`](runtime.md)).
 - **Chat reads the same answer.** The composer offers images for an installed
@@ -653,7 +656,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 - Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
-- A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
