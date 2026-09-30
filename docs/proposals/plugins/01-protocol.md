@@ -9,13 +9,9 @@ The protocol has no version of its own. It changes only with an app release, and
 ```
 plugins/
   core/                          everything maintainers own, under one CODEOWNERS line
-    pyproject.toml               the tooling project: the `surfsense-plugins` command
     sdk/                         the SDK, shipped inside the app; its own project, with no dependencies
     manifest/                    the manifest rules, used by the checks and by the app at install
-    packaging/                   turns a plugin folder into its downloadable files
-    checks/                      the pull-request checks and the weekly security audit
-    release/                     plans, uploads, publishes and withdraws plugin versions
-    directory-site/              builds the public site that lists every plugin
+    cli/                         the `surfsense-plugins` command: author commands, packaging, checks, releases, the directory site
     build-targets.json           the Python version and platforms plugins are built for
     policy/
       reserved-plugin-ids.txt
@@ -25,7 +21,7 @@ plugins/
   <id>/                          one folder per plugin; nothing else sits beside core/
 ```
 
-The tooling in `packaging/`, `checks/`, `release/` and `directory-site/` is one Python project, `plugins/core/pyproject.toml`, with one command, `surfsense-plugins`, and a subcommand per job: `check`, `audit`, `plan`, `upload`, `go-live`, `withdraw`, `build-directory-site`. Workflows only call it, so every step also runs on a maintainer's machine.
+`plugins/core/cli/` is one Python project with one command, `surfsense-plugins`, and a subcommand per job. For authors: `new`, `add`, `remove`, `pin-dependencies`, `invoke` and `check`. For CI and maintainers: `audit`, `plan`, `upload`, `go-live`, `withdraw` and `build-directory-site`. Each job is a folder in its package, `surfsense_plugin_cli` ([`cli/01-author-commands.md`](cli/01-author-commands.md)). Workflows only call it, so every step also runs on a maintainer's machine.
 
 A plugin's folder:
 
@@ -45,11 +41,11 @@ A plugin carries no license of its own. Like everything outside `surfsense_backe
 
 `main.py` is only the entry point. A plugin may be any number of modules and packages, and any data files it reads; the packaged file carries the whole folder. The SDK imports `main.py`, so an `@action` function defined elsewhere must be imported from it. A top-level module named like a standard-library module or a dependency fails the checks, because the path order would ignore it or let it hide the library; code in a package named after the plugin never clashes.
 
-`site-packages/` is never in git. Packaging creates it inside each downloadable file, and the harness creates a git-ignored one on the author's machine.
+`site-packages/` is never in git. Packaging creates it inside each downloadable file, and `surfsense-plugins invoke` creates a git-ignored one on the author's machine, beside the git-ignored `dev-data/` it gives the plugin as its data folder.
 
 ### Dependencies
 
-`requirements.in` names what the plugin imports. `requirements.txt` is generated from it, and it is what pins:
+`requirements.in` names what the plugin imports. `requirements.txt` is generated from it, and it is what pins. `surfsense-plugins add`, `remove` and `pin-dependencies` write both, pinning with:
 
 ```
 uv pip compile --universal --generate-hashes --python-version 3.12 requirements.in -o requirements.txt
@@ -100,7 +96,7 @@ Unknown fields are ignored. A missing required field, a badly shaped name, or a 
 | An input | every run, in the run dialog | on the run's record | the action function's arguments |
 | A secret | once, in Settings, never shown again | encrypted through `shared/secrets.py` | `secret("name")` |
 
-The app draws both forms from these declarations; a plugin never draws its own. Until every secret has a value, the plugin's sidebar actions are replaced by a "Set up" action. Raycast splits the same way: arguments per command, and preferences kept across runs, with `password` as one preference type.
+The app draws both forms from these declarations; a plugin never draws its own. Until every secret has a value, the plugin's sidebar actions are replaced by a "Set up" action.
 
 More kinds of input, and settings that are not secret, come the way any capability does: with the first plugin that needs them ([`02-extending.md`](02-extending.md#growing-the-sdk-together)).
 
@@ -180,7 +176,7 @@ One JSON file, `plugin-catalog.json`:
 - **Every published version stays**, newest first, each with its own `manifest`, since hosts, secrets and actions may differ between versions. How an app picks among them, and what `blocked` means, is in [`04-versioning.md`](04-versioning.md).
 - `blocked` is a list, empty or absent when the version is not blocked; [`04-versioning.md`](04-versioning.md#stopping-a-version-blocked) says how entries are written and combined.
 - `released_with` is the app release whose run produced the file; a catalog republished by `withdraw` keeps it. `generated_at` is when it was written.
-- `schema_version` is raised only when the structure breaks; adding an optional field does not raise it. An app that does not know a catalog's `schema_version` ignores that file and keeps the copy it has. Should it ever be raised, the old format keeps being published beside the new one for older apps. Blender's extension index carries the same kind of number, `"version": "v1"`.
+- `schema_version` is raised only when the structure breaks; adding an optional field does not raise it. An app that does not know a catalog's `schema_version` ignores that file and keeps the copy it has. Should it ever be raised, the old format keeps being published beside the new one for older apps.
 - A plugin whose folder was removed gets `"removed_from_app": "<version>"`, and apps from that version on no longer list it.
 - Every `url` starts with `https://github.com/SurfSense-Inc/surfsense-plugin-releases/releases/download/`. The app drops a version whose `url` does not.
 
@@ -263,7 +259,7 @@ This is a check, not enforcement. A plugin that opens its own socket or uses ano
 
 A plugin calls `document.add(...)`. It never calls `POST /workspaces/{id}/documents`.
 
-That indirection is the whole design. The SDK is the public contract and the routes stay internal, so a route can be renamed on a Tuesday without breaking a published plugin — we update one wrapper, and the contract tests prove it ([`sdk/01-library-and-harness.md`](sdk/01-library-and-harness.md)).
+That indirection is the whole design. The SDK is the public contract and the routes stay internal, so a route can be renamed on a Tuesday without breaking a published plugin — we update one wrapper, and the contract tests prove it ([`sdk/01-library.md`](sdk/01-library.md)).
 
 **Domains:** `workspace`, `document`, `artifact`, `model`. Complete within each. A verb missing from a domain is a gap an author routes around by calling the route directly, and a half-facade protects nothing.
 
@@ -323,4 +319,4 @@ Everything the SDK exposes is typed, with no `Any` except `Response.json()`, who
 
 A verb returns what it created, which a results file never could: an id a plugin can use in the next call.
 
-The harness is `python -m surfsense_plugin_sdk.harness <plugin-dir> <action> --input query=plugins`. It lays down the same files, spawns the same command, and exits with the run's code. For a plugin with dependencies it first installs `requirements.txt` into a git-ignored `site-packages/` for the author's own platform, the way packaging does. Verbs need the app running — see [`sdk/01-library-and-harness.md`](sdk/01-library-and-harness.md) for how it finds the port.
+An author runs a plugin with `surfsense-plugins invoke <plugin> <action> --input query=plugins`. It installs the plugin's dependencies for the author's own platform the way packaging does, spawns the same command the app does, and exits with the run's code. Verbs need the app running — see [`cli/01-author-commands.md`](cli/01-author-commands.md) for how it finds it.

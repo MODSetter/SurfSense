@@ -6,7 +6,7 @@
 
 | Stage | What happens | Owned by |
 |---|---|---|
-| Write | The author adds `plugins/<id>/`: `manifest.json`, `main.py`, `requirements.in` and the `requirements.txt` generated from it. No version. The harness runs it against a running app, and `surfsense-plugins check` runs what CI will. | [SDK](sdk/01-library-and-harness.md), [checks](release/02-pull-request-checks.md) |
+| Write | `surfsense-plugins new` lays out `plugins/<id>/`: `manifest.json`, `main.py` and a package named after the plugin. `add` pins each library into `requirements.txt`. No version. `invoke` runs it against a running app, and `check` runs what CI will. | [CLI](cli/01-author-commands.md), [checks](release/02-pull-request-checks.md) |
 | Check | A pull request into `dev` runs the checks: manifest, reserved ids, module names that clash, pinned and hashed dependencies, a wheel for each platform the plugin supports, size, licenses, known vulnerabilities, and the type check against the SDK. A change to the SDK type-checks every plugin and runs the contract tests. A maintainer reviews and merges. Nothing is published from `dev`. | [checks](release/02-pull-request-checks.md) |
 | Plan | The release pull request from `dev` into `main` carries a comment listing what the release will publish and block. | [publishing](release/03-publishing.md) |
 | Upload | Tagging the release packages each changed plugin, stamped with the app version, runs the final checks, and uploads it with the new catalog to a draft in `surfsense-plugin-releases`. The app build bundles that catalog. Users see nothing yet. | [packaging](release/01-packaging.md), [publishing](release/03-publishing.md) |
