@@ -62,6 +62,7 @@ import {
   type ThemePreference,
 } from "./theme-prefs.ts"
 import { loadWindowState, saveWindowState } from "./window-state.ts"
+import { announceApiUrl, withdrawApiUrl } from "./api-url/announce-api-url.ts"
 import { applyLocalePreference } from "./i18n/app-locale.ts"
 import { loadLocalePreference } from "./i18n/locale-prefs.ts"
 import { registerLocaleHandlers } from "./i18n/locale-ipc.ts"
@@ -549,6 +550,7 @@ function createWindow(apiUrl: string): void {
 async function shutdown(): Promise<void> {
   if (shuttingDown) return
   shuttingDown = true
+  withdrawApiUrl(DATA_DIR)
   if (sidecars) await stopAll(sidecars)
 }
 
@@ -592,6 +594,7 @@ function main(): void {
       applyLocalePreference(loadLocalePreference())
       applyDevAppIdentity()
       const boot = await bootSidecars()
+      announceApiUrl(boot.dataDir, boot.apiUrl)
       registerDocumentHandlers(boot.dataDir)
       registerLocaleHandlers({
         isTrusted: (sender) =>
