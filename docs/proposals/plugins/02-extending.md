@@ -46,7 +46,7 @@ A wrapper that mirrors its route one-to-one bought nothing, and we may as well h
 
 | File | Change |
 |---|---|
-| `plugins/core/sdk/surfsense_plugin/<domain>.py` | the verb, in its domain's file |
+| `plugins/core/sdk/surfsense_plugin_sdk/app/<domain>.py` | the verb, in its domain's file, beside the client every domain shares |
 | `plugins/core/sdk/tests/unit/test_<domain>.py` | a plugin that calls it against a stub app, and one that calls it with no app |
 | `plugins/core/sdk/tests/contract/` | the verb against the real app; the coverage test fails without it |
 | [`01-protocol.md`](01-protocol.md) | only when the domain itself is new |
@@ -65,7 +65,7 @@ Something the plugin should know before it starts: an id, a URL, a setting the u
 | [`01-protocol.md`](01-protocol.md) | one row in the context table |
 | `modules/plugins/runner.py` | put it in the spawn environment |
 | `plugins/core/manifest/` | a rule, if the plugin has to declare it first |
-| `plugins/core/sdk/surfsense_plugin/<name>.py` | one accessor, its own file, exported from `__init__` |
+| `plugins/core/sdk/surfsense_plugin_sdk/<name>.py` | one accessor, its own file, exported from `__init__` |
 | `plugins/core/sdk/tests/unit/` | a plugin that reads it, and one that runs without it |
 | `plugins/README.md` | the name, under the public surface |
 
@@ -111,7 +111,7 @@ Handing over a URL would be the wrong shape. What an author wants is not a port,
 
 | File | Change |
 |---|---|
-| `plugins/core/sdk/surfsense_plugin/model.py` | `generate(prompt) -> str` and `image(prompt) -> bytes`, over the app's own LLM routes |
+| `plugins/core/sdk/surfsense_plugin_sdk/app/model.py` | `generate(prompt) -> str` and `image(prompt) -> bytes`, over the app's own LLM routes |
 | `plugins/core/sdk/tests/unit/test_model.py` | a plugin that generates against a stub, and one that runs with no app |
 | [`01-protocol.md`](01-protocol.md) | the `model` domain, once |
 | `plugins/README.md` | the two verbs |

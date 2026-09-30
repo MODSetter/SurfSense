@@ -43,7 +43,7 @@ plugins/<id>/
 
 A plugin carries no license of its own. Like everything outside `surfsense_backend/app/proprietary/`, it is Apache-2.0 under the repository's [`LICENSE`](../../../LICENSE), and a pull request's contribution is Apache-2.0 by section 5 of that license. `access` is a different thing: whether running the plugin needs a SurfSense license file.
 
-`main.py` is only the entry point. A plugin may be any number of modules and packages, and any data files it reads; the packaged file carries the whole folder. The SDK imports `main.py`, so an `@entry` function defined elsewhere must be imported from it. A top-level module named like a standard-library module or a dependency fails the checks, because the path order would ignore it or let it hide the library; code in a package named after the plugin never clashes.
+`main.py` is only the entry point. A plugin may be any number of modules and packages, and any data files it reads; the packaged file carries the whole folder. The SDK imports `main.py`, so an `@action` function defined elsewhere must be imported from it. A top-level module named like a standard-library module or a dependency fails the checks, because the path order would ignore it or let it hide the library; code in a package named after the plugin never clashes.
 
 `site-packages/` is never in git. Packaging creates it inside each downloadable file, and the harness creates a git-ignored one on the author's machine.
 
@@ -69,17 +69,17 @@ It pins every transitive dependency for every platform, with a sha256 per file, 
 | `hosts` | Array of exact hostnames: no scheme, path, port or wildcard, and never a loopback name. Shown in the app and on the directory site. Each one needs the user's consent before the plugin's first run, and the SDK's `http` refuses any host not listed. |
 | `secrets` | Optional array of what the user enters once, in Settings, stored encrypted and never shown again: an API token, a password. Each is `{ "name", "title", "description" }`: `name` matches `^[a-z][a-z0-9_]{0,63}$` so it is a legal variable name, `title` is the label, and the optional `description` says where to get it. Every declared secret is required. Values are never in this file. |
 | `platforms` | Optional. A non-empty subset of the platform keys in `plugins/core/build-targets.json`. Absent means all of them. On any other system the app does not list the plugin. |
-| `entries` | At least one. |
+| `actions` | At least one. |
 
 An author writes no `version` and no compatibility field: the release stamps the version into the packaged copy of this file, where the app reads it, and compatibility follows from it ([`04-versioning.md`](04-versioning.md)). A `version` written in the repository is replaced.
 
-An entry:
+An action:
 
 | Field | Rule |
 |---|---|
 | `name` | `^[a-z][a-z0-9-]{0,63}$`, unique within the plugin. |
 | `title` | Display string. |
-| `inputs` | Array, may be empty. The run dialog asks for them every run. Each is `{ "name", "title", "kind", "required" }`: `name` matches `^[a-z][a-z0-9_]{0,63}$` and is unique within the entry, `title` is the label, `kind` is `string`, `number`, or `boolean`, and `required` defaults to `false`. |
+| `inputs` | Array, may be empty. The run dialog asks for them every run. Each is `{ "name", "title", "kind", "required" }`: `name` matches `^[a-z][a-z0-9_]{0,63}$` and is unique within the action, `title` is the label, `kind` is `string`, `number`, or `boolean`, and `required` defaults to `false`. |
 | `timeout_seconds` | Optional integer, 1 to 21600. Absent means 1800. A run still going at that point is stopped and fails. |
 
 Every name is checked twice: its shape on its own, and that no other item in its list uses it.
@@ -87,8 +87,8 @@ Every name is checked twice: its shape on its own, and that no other item in its
 | Name | Shape | Unique within | Because it becomes |
 |---|---|---|---|
 | `id` | `^[a-z][a-z0-9-]{0,63}$` | every plugin, as the folder's name | a folder, file and URL name |
-| entry `name` | `^[a-z][a-z0-9-]{0,63}$` | the plugin's entries | how the app picks the function to run, and part of the run's URL |
-| input `name` | `^[a-z][a-z0-9_]{0,63}$` | the entry's inputs | a Python keyword argument |
+| action `name` | `^[a-z][a-z0-9-]{0,63}$` | the plugin's actions | how the app picks the function to run, and part of the run's URL |
+| input `name` | `^[a-z][a-z0-9_]{0,63}$` | the action's inputs | a Python keyword argument |
 | secret `name` | `^[a-z][a-z0-9_]{0,63}$` | the plugin's secrets | `SURFSENSE_PLUGIN_SECRET_<NAME>` |
 
 Unknown fields are ignored. A missing required field, a badly shaped name, or a name used twice in its list fails the checks.
@@ -97,7 +97,7 @@ Unknown fields are ignored. A missing required field, a badly shaped name, or a 
 
 | The user provides | Asked | Kept | The plugin reads it with |
 |---|---|---|---|
-| An input | every run, in the run dialog | on the run's record | the entry function's arguments |
+| An input | every run, in the run dialog | on the run's record | the action function's arguments |
 | A secret | once, in Settings, never shown again | encrypted through `shared/secrets.py` | `secret("name")` |
 
 The app draws both forms from these declarations; a plugin never draws its own. Until every secret has a value, the plugin's sidebar actions are replaced by a "Set up" action. Raycast splits the same way: arguments per command, and preferences kept across runs, with `password` as one preference type.
@@ -153,7 +153,7 @@ One JSON file, `plugin-catalog.json`:
             "access": "free",
             "hosts": ["hn.algolia.com"],
             "secrets": [{ "name": "token", "title": "API token" }],
-            "entries": [
+            "actions": [
               {
                 "name": "search",
                 "title": "Search Hacker News",
@@ -177,7 +177,7 @@ One JSON file, `plugin-catalog.json`:
 }
 ```
 
-- **Every published version stays**, newest first, each with its own `manifest`, since hosts, secrets and entries may differ between versions. How an app picks among them, and what `blocked` means, is in [`04-versioning.md`](04-versioning.md).
+- **Every published version stays**, newest first, each with its own `manifest`, since hosts, secrets and actions may differ between versions. How an app picks among them, and what `blocked` means, is in [`04-versioning.md`](04-versioning.md).
 - `blocked` is a list, empty or absent when the version is not blocked; [`04-versioning.md`](04-versioning.md#stopping-a-version-blocked) says how entries are written and combined.
 - `released_with` is the app release whose run produced the file; a catalog republished by `withdraw` keeps it. `generated_at` is when it was written.
 - `schema_version` is raised only when the structure breaks; adding an optional field does not raise it. An app that does not know a catalog's `schema_version` ignores that file and keeps the copy it has. Should it ever be raised, the old format keeps being published beside the new one for older apps. Blender's extension index carries the same kind of number, `"version": "v1"`.
@@ -210,13 +210,13 @@ The newest published release is marked latest, so its `plugin-catalog.json` is t
 The app spawns a process, hands it context, and waits for it to exit. The plugin does its own HTTP — to the sources it scrapes, and to the app, which already serves its API on loopback. There is no socket of ours, no message framing, and no results file.
 
 ```
-<python> -m surfsense_plugin <plugin-dir> <entry> --inputs <file> --data <dir>
+<python> -m surfsense_plugin_sdk.run <plugin-dir> <action> --inputs <file> --data <dir>
 ```
 
 | Argument | Meaning |
 |---|---|
-| `<entry>` | An entry name from the manifest. The app checks this before spawn. |
-| `--inputs` | A JSON object. Keys are the entry's input names, values match the declared kinds. The app writes this file. |
+| `<action>` | An action name from the manifest. The app checks this before spawn. |
+| `--inputs` | A JSON object. Keys are the action's input names, values match the declared kinds. The app writes this file. |
 | `--data` | `<data>/plugins/<id>/data`. Exists from install, survives updates, deleted on uninstall. |
 
 ### Context
@@ -241,7 +241,7 @@ Before it imports `main.py`, the SDK puts `<plugin-dir>` on `sys.path` and adds 
 |---|---|---|
 | Exit 0 | `succeeded` | — |
 | Any other exit | `failed` | `exit <code>` |
-| Still running at the entry's `timeout_seconds` | `failed` | `timeout` |
+| Still running at the action's `timeout_seconds` | `failed` | `timeout` |
 | The app quit during the run | `failed`, set when the app next starts | `interrupted` |
 | Cancelled by the user | `cancelled` | — |
 
@@ -278,10 +278,10 @@ Loopback carries no authentication, so the facade is what we sanction rather tha
 ```python
 import sys
 
-from surfsense_plugin import document, entry, http, secret
+from surfsense_plugin_sdk import action, document, http, secret
 
 
-@entry("search")
+@action("search")
 def search(query: str) -> None:
     response = http.get(
         "https://hn.algolia.com/api/v1/search",
@@ -305,7 +305,7 @@ Its `manifest.json` declares what the app must know before running it:
 "secrets": [
   { "name": "token", "title": "API token", "description": "Create one in your account settings." }
 ],
-"entries": [
+"actions": [
   { "name": "search", "title": "Search Hacker News",
     "inputs": [{ "name": "query", "title": "Search for", "kind": "string", "required": true }] }
 ]
@@ -313,14 +313,14 @@ Its `manifest.json` declares what the app must know before running it:
 
 | In the SDK | Does |
 |---|---|
-| `entry` | Names a function the app can run. Its parameters are the entry's inputs, by name; an optional input the user left empty arrives as `None`. |
+| `action` | Names a function the app can run. Its parameters are the action's inputs, by name; an optional input the user left empty arrives as `None`. |
 | `secret` | Reads a declared secret. Raises, naming it, when it is undeclared or has no value. |
 | `data()` | The `--data` directory. |
 | `http` | `get`, `post` and `request` on the standard library, verifying certificates against the system's certificate file. It returns a response with `status`, `headers`, `content`, `text` and `json()`, and raises on an undeclared host or a failed connection, not on a status code. |
 | `document` | The facade, `workspace`, `artifact` and `model` joining it later. It reaches the app over loopback like any other HTTP call, and returns typed objects: `document.add()` returns a `Document`. |
 
-Everything the SDK exposes is typed, with no `Any`, so the checks can type-check every plugin against it ([`release/02-pull-request-checks.md`](release/02-pull-request-checks.md)). Everything else is the plugin's own code: what to fetch, how to parse it, what to skip because it was done before, and migrating its own data directory after an update. No plugin code runs at install, update or uninstall, so there are no hooks for it.
+Everything the SDK exposes is typed, with no `Any` except `Response.json()`, whose shape comes from the source, so the checks can type-check every plugin against it ([`release/02-pull-request-checks.md`](release/02-pull-request-checks.md)). Everything else is the plugin's own code: what to fetch, how to parse it, what to skip because it was done before, and migrating its own data directory after an update. No plugin code runs at install, update or uninstall, so there are no hooks for it.
 
 A verb returns what it created, which a results file never could: an id a plugin can use in the next call.
 
-The harness is `python -m surfsense_plugin.harness <plugin-dir> <entry> --input query=plugins`. It lays down the same files, spawns the same command, and exits with the run's code. For a plugin with dependencies it first installs `requirements.txt` into a git-ignored `site-packages/` for the author's own platform, the way packaging does. Verbs need the app running — see [`sdk/01-library-and-harness.md`](sdk/01-library-and-harness.md) for how it finds the port.
+The harness is `python -m surfsense_plugin_sdk.harness <plugin-dir> <action> --input query=plugins`. It lays down the same files, spawns the same command, and exits with the run's code. For a plugin with dependencies it first installs `requirements.txt` into a git-ignored `site-packages/` for the author's own platform, the way packaging does. Verbs need the app running — see [`sdk/01-library-and-harness.md`](sdk/01-library-and-harness.md) for how it finds the port.

@@ -66,8 +66,10 @@ cd surfsense_local/electron && pnpm dev
 # MCP
 cd surfsense_mcp && uv sync
 
-# plugins: the manifest rules
+# plugins: the manifest rules, the SDK
 cd plugins/core/manifest && uv sync
+cd plugins/core/sdk && uv sync
+cd plugins/core/sdk && uv run pyright
 
 # compose (dev and self-host, not production)
 docker compose -f docker/docker-compose.yml
@@ -86,6 +88,7 @@ pre-commit run --all-files
 | Web e2e | `cd surfsense_web && pnpm test:e2e` |
 | MCP | `cd surfsense_mcp && uv run pytest` |
 | Plugins: manifest rules | `cd plugins/core/manifest && uv run pytest -m unit` |
+| Plugins: SDK | `cd plugins/core/sdk && uv run pytest -m unit` |
 | Desktop | `cd surfsense_local/electron && pnpm test` |
 CI: `.github/workflows/`. New behavior: one failing test, then the minimum code to pass it. Use the `tdd` skill. Tests hit public seams, not internals.
 

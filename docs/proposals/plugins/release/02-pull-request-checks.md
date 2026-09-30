@@ -17,8 +17,9 @@ A bad plugin folder, or an SDK change that would break a plugin, fails in CI bef
   - `id` equals the folder name, and is not the id of a plugin the live catalog marks `removed_from_app`: a published id is never reused.
   - An id listed in `plugins/core/policy/reserved-plugin-ids.txt`, or starting with `surfsense-`, passes only with `allow_reserved`. `access: paid` passes only on such an id.
   - `requirements.in` and `requirements.txt` are both present or both absent. Every requirement in `requirements.txt` is pinned with `==` and carries a `--hash`. No URL, no editable install, no `--index-url`, `--extra-index-url` or `--find-links`.
+  - Every action in `manifest.json` has one function marked `@action("<name>")` in the plugin's code, found by reading the code and never by running it. That function takes each declared input by name and needs nothing else, so the app's call cannot fail with a `TypeError`. The line names the action and the input.
   - `main.py` exists. No `LICENSE` or other license file of the plugin's own: plugins are Apache-2.0 under the repository's license. No `site-packages/` in git.
-  - No top-level module or package in the folder is named like a standard-library module (`sys.stdlib_module_names`) or `surfsense_plugin`. The line names the clash and suggests a package named after the plugin.
+  - No top-level module or package in the folder is named like a standard-library module (`sys.stdlib_module_names`) or `surfsense_plugin_sdk`. The line names the clash and suggests a package named after the plugin.
 - Build rules, through [`01-packaging.md`](01-packaging.md) without uploading anything:
   - The plugin packages for every platform it supports, within its size limit.
   - No top-level module or package in the folder has the name of a module its installed dependencies provide. The plugin's folder comes before `site-packages` on the path, so such a file would hide the real library.
@@ -41,6 +42,7 @@ A bad plugin folder, or an SDK change that would break a plugin, fails in CI bef
 - A second copy of `example`'s id in another folder is an error.
 - A `requirements.txt` line `requests==2.32.3` with its hash is valid. Without the hash it is not. `requests>=2` is not.
 - An input of an unknown kind, and a secret without a `title`, each fail with a line naming it.
+- An action whose manifest declares `query` while its function takes `q` fails with a line naming the action and both names. An action with no `@action` function fails with a line naming it.
 - A plugin with its own `json.py`, or with a `requests.py` while depending on `requests`, fails with a line naming the clash. The same code moved into a package named after the plugin passes.
 - A reserved id fails without `allow_reserved` and passes with it. `access: paid` on an id that is not reserved fails either way.
 - A package with no license metadata fails. A GPL dependency fails. An MPL-2.0 one passes.
