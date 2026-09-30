@@ -4274,6 +4274,15 @@ wheels = [
 ]
 
 [[package]]
+name = "disposable-email-domains"
+version = "0.0.271"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/69/f0ccbc139768bea5ca76f267e5624f425dc0c366cf33568db29339bf21ac/disposable_email_domains-0.0.271.tar.gz", hash = "sha256:472234b267b7edaa3e4e5a9168831b09229b7351304b45de2b5058d840b0ce58", size = 111737, upload-time = "2026-09-30T10:16:10.561Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/83/0b/4b62f6e054765d7799edf5831c0227a474d6d225c554efeee88335ec2703/disposable_email_domains-0.0.271-py3-none-any.whl", hash = "sha256:df24549004ea84df84fbd4f38ba12b2ea6a8e1fbc615c43e3442c79eb605d033", size = 57334, upload-time = "2026-09-30T10:16:09.242Z" },
+]
+
+[[package]]
 name = "distro"
 version = "1.9.0"
 source = { registry = "https://pypi.org/simple" }
@@ -11259,6 +11268,7 @@ dependencies = [
     { name = "daytona" },
     { name = "deepagents" },
     { name = "discord-py" },
+    { name = "disposable-email-domains" },
     { name = "docling" },
     { name = "dulwich" },
     { name = "elasticsearch" },
@@ -11378,6 +11388,7 @@ requires-dist = [
     { name = "daytona", specifier = ">=0.146.0" },
     { name = "deepagents", specifier = ">=0.4.12,<0.5" },
     { name = "discord-py", specifier = ">=2.5.2" },
+    { name = "disposable-email-domains", specifier = ">=0.0.271" },
     { name = "docling", specifier = ">=2.15.0" },
     { name = "dulwich", specifier = ">=0.22.0" },
     { name = "elasticsearch", specifier = ">=9.1.1" },

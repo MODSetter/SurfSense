@@ -36,7 +36,7 @@ After the success page this is the only way to get a license back, so an answer 
 ### `POST /license/trial`
 
 1. `404` when `LICENSE_TRIAL_ENABLED` is off; `503` when mail is off or misconfigured.
-2. The rate limits, then `400` for a disposable domain: a built-in list, extended by `LICENSE_DISPOSABLE_EMAIL_DOMAINS`.
+2. The rate limits, then `400` for a disposable domain, looked up as [Email addresses](#email-addresses) describes.
 3. `409` when a license on the trial policy already carries this address's folded form in `metadata[trialKey]`.
 4. Create the trial under a derived id with an explicit expiry, check it out and mail it: `200`.
 
@@ -82,6 +82,8 @@ A trial has two guards. The derived id is the constraint that settles simultaneo
 ## Email addresses
 
 Delivery uses the address as typed, trimmed and lowercased. Deduplication, meaning the trial check and the per-email rate limit, also strips a `+tag` from the local part. `user+surfsense@gmail.com` is a real address the buyer may want the file at, so delivery must not fold it, but plus-tagging is the cheapest trial farm, so the trial check must. Dots are not folded: that is Gmail's rule, and applying it everywhere would collide distinct addresses at other providers. A trial stores both forms, `email` as typed and `trialKey` folded.
+
+The trial's disposable check reads only the domain. The list is the community [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) list, installed as the `disposable-email-domains` package, plus three domains our earlier hand-kept list refused and it does not carry; `LICENSE_DISPOSABLE_EMAIL_DOMAINS` adds more per deployment. The domain and every domain above it short of the TLD are looked up, because the list names registrable domains and a disposable service can mint any subdomain under one. The lookup uses punycode, the spelling the list is written in, since `EmailStr` hands the route Unicode even when punycode was typed. The package is pinned in `uv.lock`, so the list changes only with a reviewed bump, `uv lock --upgrade-package disposable-email-domains`; upstream publishes most days. A unit test fails such a bump if it would refuse a mainstream provider.
 
 ## Rate limits
 
@@ -134,7 +136,7 @@ Under `surfsense_backend/app/license/`:
 | `schemas.py` | the request and acknowledgement bodies |
 | `rate_limit.py` | the two buckets |
 | `release.py` | the desktop release the mail links to |
-| `email/address.py` | normalizing, folding, the disposable-domain list |
+| `email/address.py` | normalizing, folding, the disposable-domain check |
 | `email/deliver.py` | handing a built message to the mailer |
 | `email/message.py` | subjects, bodies, attachments and sender |
 
@@ -165,8 +167,8 @@ A trial has no payment to prove, so the anchor is the address itself: support as
 
 ## Tests
 
-`tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and the release lookup; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. The route and rate-limit suites, and the Keygen and mailer fakes they stood on, were deleted on 15 Sep 2026 in commit `7f1195c76`.
+`tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, the disposable-domain check, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and the release lookup; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_disposable.py` covers the trial's refusal of a disposable address before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. The route and rate-limit suites, and the Keygen and mailer fakes they stood on, were deleted on 15 Sep 2026 in commit `7f1195c76`.
 
 ## Known gaps
 
-- No test covers the license routes beyond their mail check, or their rate limits, and no contract test runs the Keygen client against a real Keygen.
+- No test covers the license routes beyond their mail check and the trial's disposable refusal, or their rate limits, and no contract test runs the Keygen client against a real Keygen.
