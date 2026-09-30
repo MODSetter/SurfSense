@@ -75,7 +75,13 @@ There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is R
 
 ## Grounding
 
-Studio does not call `retrieve()`. [`shared/gather.py`](../../surfsense_local/backend/worker/studio/shared/gather.py) loads the selected documents' markdown in selection order, up to 24,000 characters in total, and [`shared/generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py) sends it as one user message, each document under its title as a heading, after the format's system prompt. The code marks the flat cap as a ceiling, fine for summarising a handful of local documents, with retrieval scoped to the selection as the way up.
+[`shared/gather.py`](../../surfsense_local/backend/worker/studio/shared/gather.py) loads the selected documents' markdown, and [`shared/generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py) sends it as one user message, each document under its title as a heading, after the format's system prompt. The budget is 24,000 characters.
+
+- A selection that fits is sent whole, in selection order, and nothing is searched.
+- A larger one gives every document an even share of the budget. A document shorter than its share is sent whole, and what it leaves goes to the others, so no selected document is left out.
+- With a prompt, each share holds that document's passages that best match it, found by one `retrieve()` call scoped to the selection ([`search.md`](search.md)). They are kept in reading order, with `[...]` where text between them was skipped. A document with no match, and every document when there is no prompt, contributes its start.
+- Summary and mind map read a document's shape rather than answer a focus, so they always take each document from its start (`Grounding.WHOLE` on the format in [`formats.py`](../../surfsense_local/backend/modules/artifacts/formats.py)). The other formats take passages.
+- The search embeds the prompt, which loads the embedding model in the Studio worker, as persisting an artifact already does.
 
 Each format keeps its prompts as markdown beside its code, one file per model tier, loaded for the selected model's tier ([`local-models/selection.md`](local-models/selection.md)). The user's prompt joins the system prompt as a "Focus on:" line.
 
@@ -170,5 +176,4 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 - Outside a model call, a cancel stops a job only between steps. The podcast turn being voiced, an office script already running and ingest's parsing and embedding run to their end first, because jobs are threads that cannot be killed; stopping a step in flight means running each job in a process the worker can kill.
 - DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed and without asking the user; the 120-second limit cannot stop a runaway thread.
-- Grounding is the first 24,000 characters of the selected documents in selection order, not retrieval over them, so a large selection is cut off.
 - A podcast is WAV. The design encodes MP3 with a bundled ffmpeg, which is not built.
