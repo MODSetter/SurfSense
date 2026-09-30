@@ -39,7 +39,7 @@ The catalog is a tuple of twelve `Format` rows in [`formats.py`](../../surfsense
 | `infographic` | Infographic | image_gen, text_gen | `media/visual/infographic/` | the image |
 
 - `requires_model_types` is a tuple in the order the pipeline's `render()` takes its models. A format is available when every required model type has a selection; otherwise the reason names every missing one in a fixed reading order: "Needs a chat model", "Needs an image model", "Needs an audio model", or two of them joined, as "Needs a chat model and an audio model". Naming only the first missing type made selecting it look like the gate moving to the other.
-- `podcast` needs its `audio_gen` model on this computer: an audio model chosen from a server is refused with "Needs an audio model on this computer", because nothing calls a remote speech endpoint yet. Opening a podcast brief without an audio model answers `409` with "Needs an audio model". The app ships Kokoro and chooses it at startup when no audio model is chosen, so that answer needs the choice cleared since the last start, or a build without audio.cpp ([`local-models/selection.md`](local-models/selection.md)).
+- `podcast` runs with an `audio_gen` model on this computer or on a server. The format list and the brief read the model's voices without calling it, so neither needs the server's host allowed; the job does. Opening a podcast brief without an audio model answers `409` with "Needs an audio model". The app ships Kokoro and chooses it at startup when no audio model is chosen, so that answer needs the choice cleared since the last start, or a build without audio.cpp ([`local-models/selection.md`](local-models/selection.md)).
 - Which formats are available is the server's answer to what is selected, so the panel asks again whenever the chat selection changes or the settings dialog closes, since the image model is chosen inside settings and nothing else reports it.
 - An image selection can resolve to the bundled sd-server as well as to a remote connection, so needing an image model does not mean needing a key or a network.
 - [`tests/unit/worker/test_studio_job_router.py`](../../surfsense_local/backend/tests/unit/worker/test_studio_job_router.py) asserts that `job_router.py` names every catalog key and nothing else, that each key has a pipeline, and that each pipeline takes its models, the sources, the prompt and, for a format with options, the options.
@@ -61,7 +61,7 @@ Eight formats follow it:
 
 Four formats break it. DOCX, PPTX, XLSX and PDF go through `office/`: the tier prompt asks the model to "write one standalone Python script" for the format's library (python-docx, python-pptx, xlsxwriter or ReportLab), with a `SKILL.md` of authoring guidance beside each format, and [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py) runs the reply with `exec()` on a thread in the worker process. The script must leave the file's bytes in `output_bytes` and may set `title` and `summary`. A failing script goes back to the model with its error, for up to three attempts. The 120-second limit is a `thread.join`: it bounds how long the job waits, but it cannot stop a thread that ignores it, and the code runs with the worker's privileges. The module says so and names an out-of-process sandbox runner as the way up.
 
-There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path, and a podcast is one `audio/wav` joined from audio.cpp's WAV for each turn.
+There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path, and a podcast is one `audio/wav` joined from each turn's WAV, or one `audio/mpeg` from a server that sends only MP3.
 
 ## Voicing a podcast
 
@@ -72,6 +72,19 @@ There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is R
 - **One speech request per turn**, with the turn's voice. The brief's language goes in the request only for a voice that speaks several; a Kokoro voice's name already fixes its language. The turns are joined with 0.35 s between them.
 - **A turn the server fails ends the episode with the server's own words**: "audio.cpp could not voice turn 3 of 40: unknown Kokoro voice id: nobody". The server was reached, so this is not "The model could not be reached", which stays for a server that does not answer.
 - **The model is unloaded when voicing ends**, with `POST /v1/tasks/unload_all_models`, success or failure, so its memory is back before the chat model's next job. The server's five-minute idle unload is the backstop.
+
+### On a server
+
+[`providers/openai_compatible/speech.py`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/speech.py) voices a podcast with an `audio_gen` model chosen from a connection:
+
+- **The voices are the server's, or the user's, never guessed.** The OpenAI API has no route that lists voices and models.dev carries none, so the server is asked `GET {base}/audio/voices`, Kokoro-FastAPI's route ([`voice_list.py`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/voice_list.py)), held for the process and never stored. A server that lists none, as OpenAI, Groq and OpenRouter do, takes the voices the user adds in Settings › Audio generation models, inside that server's section under its model in use, and in onboarding's server path alike: each is voiced once before it is kept, under `voices` in the selection's `settings`, which is cleared when the slot takes another model. For OpenRouter alone the section links the model's page, whose "Request fields" name its voices; no other provider publishes them at an address the app can build. It opens in the OS browser, which the app allows for OpenRouter pages of that shape only ([`egress.md`](egress.md)). One slice, [`llm/voices/`](../../surfsense_local/backend/modules/llm/voices/), answers which voices the chosen audio model offers, local or server, for the brief and Settings alike. The server is asked only once its host is allowed, and only after the request's transaction has ended, so a slow server never holds the database; the format list never asks.
+- **Nothing says which languages a server's voice speaks**: not the API, not `/audio/voices`, not models.dev. So a voice is heard, in Settings and in the Try dialog, saying a line in the interface's language, the one the user likeliest writes in, and the brief offers a fixed list of script languages. A voice that cannot speak the chosen language reads it anyway, badly: no server reports it as an error.
+- **The brief reads like the local one.** It adds one line, "Voiced by {model} on {server}. Each line is billed by the provider.", and otherwise keeps the local labels; only its lists differ, the voices one plain list with no gender the server did not state. With no voices yet, the brief shows only a Set up voices button, which opens Settings, and Generate is held. The brief response carries `voices_source` (`local`, `server` or `saved`) and `voiced_by`.
+- **No voice is checked before drafting.** A listed voice came from the server and an added one was heard when it was added, so the brief's own check, that each speaker's voice is one of them, is what stands between the user and a voice the server refuses.
+- **Only OpenAI's `/audio/speech` is spoken.** ElevenLabs, Gemini and other providers with their own speech APIs are reached through a gateway that speaks it for them, OpenRouter or a LiteLLM proxy, rather than through an adapter per provider here.
+- **One `POST /audio/speech` per turn**, asking for `wav`, because only WAV takes a pause between speakers. When the first line's `wav` is refused, the episode asks for `mp3` instead: OpenRouter takes only `mp3` or `pcm`, and its `pcm` states no sample rate. The format is read from the bytes, not from what was asked. WAV turns join as audio.cpp's do, and a reply holding several WAVs back to back is one turn. MP3 turns join frame to frame without a pause, each turn's ID3 tag and Xing frame dropped so a player reads the whole episode's length. Anything else ends the episode with "the server answered, but not as WAV or MP3".
+- **Nothing is checked for memory**, since the server spends it.
+- **A failure is not retried.** A refused turn, an unreachable server or an unreadable answer ends the episode with the server's own words, and the job is not retried, because a retry would draft and bill the whole episode again.
 
 ## Grounding
 
@@ -114,7 +127,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 |---|---|---|
 | `GET` | `/workspaces/{workspace_id}/studio/formats` | the catalog, each format with `available` and `unavailable_reason` |
 | `POST` | `/workspaces/{workspace_id}/studio/jobs` | `{format, document_ids, prompt?, options?}`; `201` with the artifact |
-| `GET` | `/workspaces/{workspace_id}/studio/podcast/brief` | the podcast brief and voices to review before submitting |
+| `GET` | `/workspaces/{workspace_id}/studio/podcast/brief` | the podcast brief to review before submitting, the model's `voices` (`null` when they are typed) and the `languages` it may use |
 | `GET` | `/workspaces/{workspace_id}/artifacts` | the workspace's artifacts, newest first |
 | `GET` | `/artifacts/{artifact_id}` | detail: the body, the files, quiz or flashcard progress |
 | `POST` | `/artifacts/{artifact_id}/regenerate` | run the job again; `202` |
@@ -126,7 +139,8 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 - The artifact routes are keyed on the artifact alone, since a local install has one user. An artifact's `status`, `title` and `error_message` are its document's.
 - A prompt is at most 2,000 characters. A podcast brief holds a `language`, a `style`, a `duration` and one or more `speakers`, each with a name, a role and a voice.
-- Files are served inline so a viewer can render or stream them, except `text/html` and `image/svg+xml`, which are forced to download so a generated page never runs on the API's origin.
+- Files are served inline so a viewer can render or stream them, except `text/html` and `image/svg+xml`, which are forced to download so a generated page never runs on the API's origin. `?download=1` sends any file as an attachment.
+- The file route ends its transaction before the first byte. The request's session closes only once the file has streamed, and a player reads a podcast for minutes, so holding the write lock that long left every other request failing as `database is locked`.
 - Quiz and flashcard progress is stored in `artifact_metadata`, scoped to the artifact's `generation`, so a regenerate starts a clean run.
 - There is no manifest route; the viewer reads `GET /artifacts/{id}` and the file stream.
 - `DELETE /artifacts/{id}` deletes the document, which cascades the sidecar, its file rows and its chunks, then removes `artifacts/<id>/` after the commit. This is ADR 0003's blob-purge obligation, on this route.
@@ -150,7 +164,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 | `image`, `infographic` | a shared media viewer |
 
 - The flashcard and quiz viewers are keyed on `id:generation`, so a regenerate remounts them with a clean run.
-- The artifact panel offers a download for each file, except the JSON behind flashcards and quizzes.
+- The artifact panel offers a download for each file, except the JSON behind flashcards and quizzes. It links `?download=1`: the API is another origin than the app's window, where a link's `download` attribute is ignored and an inline file opens in a window instead of being saved.
 
 ## The Studio panel
 

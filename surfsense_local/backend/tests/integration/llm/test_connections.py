@@ -697,3 +697,51 @@ async def test_an_unreachable_provider_is_named_as_unreachable(
 
     assert listed.status_code == 502
     assert listed.json()["detail"]["code"] == "provider_unreachable"
+
+
+async def test_a_speech_model_is_heard_before_it_voices_podcasts(
+    client: AsyncClient, openai_server: str
+) -> None:
+    """One short line as a clip the dialog plays: in the typed voice, or with
+    none, so the server speaks in its own default where it has one."""
+    connection = await _connect(client, openai_server)
+    url = f"/llm/connections/{connection['id']}/speech-test"
+
+    tested = await client.post(url, json={"model": "tts-1", "voice": " af_heart "})
+    assert tested.status_code == 200, tested.text
+    assert tested.headers["content-type"] == "audio/wav"
+    assert tested.headers["cache-control"] == "no-store"
+    path, body = REMOTE_REQUESTS[-1]
+    assert (path, json.loads(body)["voice"]) == ("/audio/speech", "af_heart")
+
+    unvoiced = await client.post(url, json={"model": "tts-1"})
+    assert unvoiced.status_code == 200, unvoiced.text
+    assert "voice" not in json.loads(REMOTE_REQUESTS[-1][1])
+
+
+async def test_a_speech_model_only_the_full_listing_holds_fills_the_audio_slot(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """OpenRouter leaves its speech models out of /models; its `speech` output
+    is the audio slot."""
+    monkeypatch.setattr(
+        conftest,
+        "REMOTE_MODELS",
+        [
+            *conftest.REMOTE_MODELS,
+            {
+                "id": "hexgrad/kokoro-82m",
+                "architecture": {"output_modalities": ["speech"]},
+            },
+        ],
+    )
+    connection = await _connect(client, openai_server)
+
+    models = {
+        model["name"]: model
+        for model in (
+            await client.get(f"/llm/connections/{connection['id']}/models")
+        ).json()
+    }
+
+    assert models["hexgrad/kokoro-82m"]["selectable_for"] == ["audio_gen"]

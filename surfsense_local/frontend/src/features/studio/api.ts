@@ -100,18 +100,35 @@ export type PodcastBrief = {
 export const VOICE_GENDERS = ["female", "male"] as const
 
 /** One voice, and the languages it speaks: every one of the model's for a
- *  Supertonic voice. */
+ *  Supertonic voice. `gender` is null where the provider never states it. */
 export type Voice = {
   id: string
   label: string
-  gender: (typeof VOICE_GENDERS)[number]
+  gender: (typeof VOICE_GENDERS)[number] | null
+  languages: string[]
+}
+
+/** Where a brief's voices come from: the local model's roster, the server's
+ *  own list, or the ones the user added for a server model. */
+export type VoicesSource = "local" | "server" | "saved"
+
+/** The server that voices a podcast. */
+export type VoicedBy = { server: string; model: string }
+
+/** The brief to review. `voices` is empty only for a server model with none
+ *  added yet; `languages` is what the brief may use. */
+export type OpenedBrief = {
+  brief: PodcastBrief
+  voices: Voice[]
+  voices_source: VoicesSource
+  voiced_by: VoicedBy | null
   languages: string[]
 }
 
 export function readPodcastBrief(
   workspaceId: number,
   signal?: AbortSignal
-): Promise<{ brief: PodcastBrief; voices: Voice[] }> {
+): Promise<OpenedBrief> {
   return requestJson(`/workspaces/${workspaceId}/studio/podcast/brief`, {
     signal,
   })
@@ -280,4 +297,14 @@ export function fileUrl(
   role: ArtifactFile["role"]
 ): string {
   return apiUrl(`/artifacts/${artifactId}/files/${role}`)
+}
+
+/** The same file, sent as an attachment. The API is another origin than the
+ *  app's window, where a link's `download` attribute is ignored and the file
+ *  would open in a window instead of being saved. */
+export function downloadUrl(
+  artifactId: number,
+  role: ArtifactFile["role"]
+): string {
+  return `${fileUrl(artifactId, role)}?download=1`
 }

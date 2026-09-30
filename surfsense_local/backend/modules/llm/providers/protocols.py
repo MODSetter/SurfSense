@@ -82,7 +82,8 @@ class ImageGenerator(Protocol):
 class Voice:
     id: str
     label: str
-    gender: Literal["female", "male"]
+    # None where the source does not say: OpenAI documents none for its voices.
+    gender: Literal["female", "male"] | None
     # The languages this voice speaks, as the model's entry names them: one for
     # a Kokoro voice, every one the model speaks for a Supertonic voice.
     languages: tuple[str, ...]
@@ -103,9 +104,7 @@ class SynthesizedAudio:
 
 
 class TextToSpeech(Protocol):
-    """Anything that voices a script: audio.cpp on this computer today."""
-
-    def voices(self) -> list[Voice]: ...
+    """Anything that voices a script: audio.cpp here, or a server's /audio/speech."""
 
     async def check_memory(self) -> None:
         """Raise, with the sentence a person reads, when voicing cannot fit."""

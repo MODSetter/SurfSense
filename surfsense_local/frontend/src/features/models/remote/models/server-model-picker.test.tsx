@@ -63,6 +63,14 @@ const gatewayModels = [
   {
     connection_id: 1,
     connection_label: "Chat gateway",
+    name: "tts-1",
+    types: ["audio_gen"],
+    capability_source: "catalog",
+    selectable_for: ["audio_gen"],
+  },
+  {
+    connection_id: 1,
+    connection_label: "Chat gateway",
     name: "whisper-1",
     types: [],
     capability_source: "unknown",
@@ -257,6 +265,50 @@ describe("choosing a model from a server", () => {
     ).toBeTruthy()
   })
 
+  it("plays a test line in the typed voice before the model takes the audio slot", async () => {
+    const sent: unknown[] = []
+    vi.stubGlobal(
+      "fetch",
+      serving((path, init) => {
+        if (
+          path !== "/llm/connections/1/speech-test" ||
+          init?.method !== "POST"
+        )
+          return null
+        sent.push(JSON.parse(String(init.body)))
+        return new Response(new Uint8Array([1, 2, 3]), {
+          headers: { "Content-Type": "audio/wav" },
+        })
+      })
+    )
+    vi.stubGlobal("URL", {
+      ...URL,
+      createObjectURL: vi.fn(() => "blob:test-voice"),
+      revokeObjectURL: vi.fn(),
+    })
+    const user = userEvent.setup()
+
+    render(<ServerModelPicker onEdit={() => undefined} modelType="audio_gen" />)
+    await user.click(
+      await screen.findByRole("button", { name: "Show audio models" })
+    )
+    await user.click(await screen.findByRole("button", { name: "Use tts-1" }))
+
+    expect(screen.getByText(/Speech support is confirmed/)).toBeTruthy()
+    await user.type(screen.getByRole("textbox", { name: "Voice" }), "af_heart")
+    await user.click(screen.getByRole("button", { name: "Test voice" }))
+    const clip = await screen.findByLabelText("Test voiced by tts-1")
+    expect(clip.getAttribute("src")).toBe("blob:test-voice")
+    // The line is spoken in the interface's language.
+    expect(sent).toEqual([
+      {
+        model: "tts-1",
+        voice: "af_heart",
+        prompt: "Hello. This is how your podcasts will sound.",
+      },
+    ])
+  })
+
   it("assigns a typed model id without the listing's check", async () => {
     const fetchMock = serving()
     vi.stubGlobal("fetch", fetchMock)
@@ -406,5 +458,48 @@ describe("choosing a model from a server", () => {
       ([path, init]) => path === "/llm/connections" && init?.method === "POST"
     )[1]
     expect(JSON.parse(String(finalCreate[1]?.body)).allow_unverified).toBe(true)
+  })
+
+  it("sets up the voices of the server's audio model inside that server", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving((path, init) => {
+        if (path === "/llm/selection/audio_gen" && !init?.method)
+          return Response.json({
+            model_type: "audio_gen",
+            provider: "openai_compatible",
+            connection_id: 1,
+            name: "tts-1",
+            updated_at: "2026-09-10T00:00:00Z",
+          })
+        if (path === "/llm/selection/audio_gen/voices")
+          return Response.json({
+            connection_id: 1,
+            model: "tts-1",
+            source: "saved",
+            voices: [],
+            voices_page: null,
+          })
+        return null
+      })
+    )
+
+    render(<ServerModelPicker onEdit={() => undefined} modelType="audio_gen" />)
+
+    const server = await screen.findByRole("region", { name: /Chat gateway/ })
+    expect(
+      await within(server).findByRole("heading", {
+        name: "Voices for this model",
+      })
+    ).toBeTruthy()
+  })
+
+  it("has no voices to set up for a server's chat model", async () => {
+    vi.stubGlobal("fetch", serving())
+
+    render(<ServerModelPicker onEdit={() => undefined} modelType="text_gen" />)
+
+    await screen.findByRole("region", { name: /Chat gateway/ })
+    expect(screen.queryByText("Voices for this model")).toBeNull()
   })
 })

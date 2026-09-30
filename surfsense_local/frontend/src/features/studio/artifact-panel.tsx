@@ -7,7 +7,7 @@ import { Download01Icon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 import {
-  fileUrl,
+  downloadUrl,
   readArtifact,
   type ArtifactDetail,
   type ArtifactFile,
@@ -80,7 +80,7 @@ export function ArtifactPanel({
                 // A plain link: Base UI's Button would give it role="button".
                 <a
                   key={file.role}
-                  href={fileUrl(data.id, file.role)}
+                  href={downloadUrl(data.id, file.role)}
                   download
                   aria-label={DOWNLOAD_LABELS[file.role]()}
                   className={buttonVariants({

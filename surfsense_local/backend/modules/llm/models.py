@@ -1,7 +1,7 @@
 from dataclasses import replace
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, ForeignKey, String, UniqueConstraint, func
+from sqlalchemy import JSON, CheckConstraint, ForeignKey, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from modules.llm.model_type import ModelType
@@ -54,6 +54,10 @@ class SelectedModel(Base):
     params_b: Mapped[float | None]
     vendor: Mapped[str | None]
     line: Mapped[Line | None] = mapped_column(text_enum(Line))
+    # What the user set for this model that no endpoint states, keyed by the
+    # slice that owns each entry: `voices` belongs to `llm/voices`. Null until
+    # something is set, and cleared when the slot takes another model.
+    settings: Mapped[dict | None] = mapped_column(JSON)
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
     )
