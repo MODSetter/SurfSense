@@ -72,43 +72,38 @@ def test_a_field_this_version_does_not_know_is_ignored(tmp_path: Path) -> None:
     assert load_manifest(_write(tmp_path, declared)).id == "hn-search"
 
 
+@pytest.mark.parametrize(
+    ("stamped", "version"), [({}, None), ({"version": "2.4.0"}, "2.4.0")]
+)
+def test_the_version_is_the_one_a_release_stamped(
+    tmp_path: Path, stamped: dict, version: str | None
+) -> None:
+    """A downloaded copy carries its release's version; the repository's has none."""
+    declared = _hn_search() | stamped
+
+    assert load_manifest(_write(tmp_path, declared)).version == version
+
+
 def _errors_in(folder: Path, manifest: dict) -> list[str]:
     with pytest.raises(ManifestError) as refused:
         load_manifest(_write(folder, manifest))
     return refused.value.errors
 
 
-@pytest.mark.parametrize(
-    ("field", "value", "error"),
-    [
-        ("version", "1.0.0", "version: remove it, the release sets a plugin's version"),
-        (
-            "sdk",
-            ">=1",
-            "sdk: remove it, a plugin runs on the SurfSense release it shipped with"
-            " or newer",
-        ),
-    ],
+SAFE_IN_URLS = (
+    'must be lowercase letters, digits and "-", start with a letter, and be at most'
+    " 64 characters, so it is safe in file names and URLs"
 )
-def test_a_field_the_release_sets_is_refused(
-    tmp_path: Path, field: str, value: str, error: str
-) -> None:
-    """An author never writes a version or a compatibility range."""
-    declared = _hn_search()
-    declared[field] = value
-
-    assert _errors_in(tmp_path, declared) == [error]
+VALID_VARIABLE = (
+    'must be lowercase letters, digits and "_", start with a letter, and be at most'
+    " 64 characters, so it is a valid Python argument and environment variable name"
+)
 
 
 @pytest.mark.parametrize(
     ("field", "value", "error"),
     [
-        (
-            "id",
-            "HN-Search",
-            "id: must be lowercase letters, digits and hyphens, start with a letter,"
-            " and be at most 64 characters",
-        ),
+        ("id", "HN-Search", f"id: {SAFE_IN_URLS}"),
         ("name", "", "name: must be 1 to 80 characters"),
         ("description", "x" * 201, "description: must be 1 to 200 characters"),
     ],
@@ -176,8 +171,7 @@ def test_a_bare_hostname_or_address_is_a_host(tmp_path: Path, host: str) -> None
         ({"name": "token"}, "secrets[0].title: is required"),
         (
             {"name": "api-token", "title": "API token"},
-            "secrets[0].name: must be lowercase letters, digits and underscores,"
-            " start with a letter, and be at most 64 characters",
+            f"secrets[0].name: {VALID_VARIABLE}",
         ),
     ],
 )
@@ -224,26 +218,15 @@ def _a_hyphenated_input_name(declared: dict) -> None:
     ("change", "error"),
     [
         (_no_entries, "entries: must not be empty"),
-        (_two_entries_named_alike, "entries[1].name: another entry is named search"),
-        (
-            _two_inputs_named_alike,
-            "entries[0].inputs[1].name: another input is named query",
-        ),
-        (_two_secrets_named_alike, "secrets[1].name: another secret is named token"),
+        (_two_entries_named_alike, "entries: two entries are named search"),
+        (_two_inputs_named_alike, "entries[0].inputs: two inputs are named query"),
+        (_two_secrets_named_alike, "secrets: two secrets are named token"),
         (
             _an_unknown_input_kind,
             "entries[0].inputs[0].kind: must be string, number or boolean",
         ),
-        (
-            _a_capitalised_entry_name,
-            "entries[0].name: must be lowercase letters, digits and hyphens,"
-            " start with a letter, and be at most 64 characters",
-        ),
-        (
-            _a_hyphenated_input_name,
-            "entries[0].inputs[0].name: must be lowercase letters, digits and"
-            " underscores, start with a letter, and be at most 64 characters",
-        ),
+        (_a_capitalised_entry_name, f"entries[0].name: {SAFE_IN_URLS}"),
+        (_a_hyphenated_input_name, f"entries[0].inputs[0].name: {VALID_VARIABLE}"),
     ],
 )
 def test_entries_and_their_inputs_are_well_formed(
@@ -272,18 +255,15 @@ def test_a_run_lasts_between_a_second_and_six_hours(
 def test_every_error_is_reported_at_once(tmp_path: Path) -> None:
     """An author fixes a manifest in one pass, not one error per run."""
     declared = _hn_search()
-    declared["version"] = "1.0.0"
     declared["id"] = "HN"
     declared["hosts"] = ["https://hn.algolia.com"]
     _two_entries_named_alike(declared)
 
     assert _errors_in(tmp_path, declared) == [
-        "version: remove it, the release sets a plugin's version",
-        "id: must be lowercase letters, digits and hyphens, start with a letter,"
-        " and be at most 64 characters",
+        f"id: {SAFE_IN_URLS}",
         "hosts[0]: must be a lowercase hostname alone: no scheme, port, path or"
         " wildcard",
-        "entries[1].name: another entry is named search",
+        "entries: two entries are named search",
     ]
 
 
