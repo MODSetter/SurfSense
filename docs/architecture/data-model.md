@@ -47,7 +47,7 @@ The conventions every table follows are in [`shared/db.py`](../../surfsense_loca
 | `id`, `name`, `created_at`, `updated_at` | a name is 1 to 200 characters after trimming |
 | `cloud_id` | nullable, unique: the hosted workspace an import came from, so re-importing the same bundle reuses the row ([`import.md`](import.md)) |
 
-The API seeds one workspace, "My Workspace", at startup when none exists. Deleting a workspace cascades its documents, threads and artifacts.
+The API seeds one workspace, "My Workspace", at startup when none exists. Deleting a workspace first stops its plugin runs ([`stop_workspace_runs.py`](../../surfsense_local/backend/modules/plugins/stop_workspace_runs.py)), then cascades its documents, threads, artifacts and runs.
 
 ### `documents`
 
@@ -145,8 +145,8 @@ One row per run of a plugin's action. What the run produced is not here: the plu
 | `id`, `workspace_id` | foreign key to `workspaces`, cascading: a run goes with the workspace it was started in |
 | `plugin_id`, `version`, `action` | which installed version ran, and which of its actions |
 | `inputs` | JSON: what the user gave the action |
-| `status` | `queued` by default, then `running`, then `succeeded` or `failed`; `cancelled` is allowed but nothing sets it yet |
-| `error` | `exit <code>` when the plugin's process ended with anything but 0 |
+| `status` | `queued` by default, then `running`, then `succeeded` or `failed`; `cancelled` from either of the first two, when the user cancels or deletes the workspace |
+| `error` | why a run failed: `exit <code>` when the plugin's process ended with anything but 0, `timeout` when its action's `timeout_seconds` ran out, `interrupted` when the app quit during it |
 | `log_tail` | the last 16 KiB the plugin printed, stdout and stderr together |
 | `created_at`, `started_at`, `finished_at` | |
 
