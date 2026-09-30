@@ -319,6 +319,11 @@ unconstrained, because losing a whole Studio format to a template quirk is worse
 than an answer the parser can still repair. Before sending, `for_template()`
 folds the system prompt into the first non-system turn for a template with no
 system role ([`selection.md`](selection.md)).
+A request that sets no temperature carries the one its curated entry commits
+for the mode it answers in: the `thinking` set when the template reasons and
+thinking is not turned off, else `non_thinking`, and nothing when that mode has
+no set, rather than the other mode's ([`sampling.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/sampling.py)).
+A caller's own temperature, such as the title's zero, wins.
 
 There is no `pull()`. Fetching weights by name made sense when the runtime owned
 the download; here SurfSense fetches the GGUF itself, because an in-process fetch
@@ -424,7 +429,9 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
   because resolving it never touches the sidecar. An install still downloads and
   ends with "Downloaded. It becomes available once the runtime restarts."
 - **No Vulkan loader.** `dlopen` fails, ggml skips the backend silently, and the
-  CPU runs.
+  CPU runs. The `.deb` recommends `libvulkan1`, so apt installs the loader by
+  default on Debian and Ubuntu; a user who declines recommends, or runs the
+  AppImage, which carries no dependency metadata, gets this.
 - **A GPU exists and ggml cannot see it.** Reported as `broken_install` rather
   than badged as a CPU-only machine ([`fit.md`](fit.md)).
 - **A quantized cache without a working flash-attention kernel.** llama.cpp falls
@@ -462,5 +469,4 @@ layer count, of `--reasoning-budget` and of `--sleep-idle-seconds`.
 
 ## Known gaps
 
-- The Linux `.deb` declares no dependency on the Vulkan loader (`electron-builder.yml` has no `deb` section), though `libggml-vulkan.so` needs `libvulkan.so.1` from the host; without it the app runs on the CPU.
 - Release CI runs the packaged `llama-server --list-devices` on Linux only; the macOS and Windows builds are checked only in the staging directory by `fetch-llamacpp.mjs`.

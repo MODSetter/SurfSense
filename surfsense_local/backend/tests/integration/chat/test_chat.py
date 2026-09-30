@@ -469,6 +469,23 @@ async def test_a_reply_with_no_text_leaves_no_trace(
     assert threads[0]["title"] == "New chat"
 
 
+async def test_a_curated_model_answers_at_its_publishers_temperature(
+    client: AsyncClient,
+    engine: Engine,
+    real_model: object,
+    llamacpp_server: list[dict],
+) -> None:
+    """Qwen3's entry commits 0.6 for thinking; the title keeps its own zero."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "how did revenue move?")
+
+    title, answer = sorted(llamacpp_server, key=lambda r: r.get("max_tokens") != 12)
+    assert title["temperature"] == 0
+    assert answer["temperature"] == 0.6
+
+
 async def test_a_thread_with_no_model_selected_is_a_409(client: AsyncClient) -> None:
     """Refused before retrieval, so the frontend can route the user to setup."""
     workspace = (await client.post("/workspaces", json={"name": "w"})).json()
