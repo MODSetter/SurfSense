@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import importlib.util
+from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
-from app.services.export_service import flatten_message_text
+from app.services.export_service import flatten_message_text, flatten_workspace_chats
 
 pytestmark = pytest.mark.unit
 
@@ -59,3 +61,52 @@ def test_unresolved_citation_is_stripped_without_a_title():
     )
     assert "[citation:" not in stripped
     assert citations == []
+
+
+def test_fullwidth_and_zero_width_citation_markers_are_stripped():
+    stripped, citations = flatten_message_text(
+        "Per \u3010citation:11\u3011 and [\u200bcitation:22\u200b] done.",
+        {"11": "Alpha", "22": "Beta"},
+    )
+    assert "citation:" not in stripped
+    assert citations == [{"title": "Alpha"}, {"title": "Beta"}]
+
+
+class _Rows:
+    def __init__(self, rows: list):
+        self._rows = rows
+
+    def scalars(self):
+        return self
+
+    def unique(self):
+        return self
+
+    def all(self):
+        return self._rows
+
+
+class _Session:
+    def __init__(self, *responses: list):
+        self._responses = list(responses)
+
+    async def execute(self, _stmt):
+        return _Rows(self._responses.pop(0))
+
+
+async def test_comma_separated_citation_keeps_every_title():
+    when = datetime(2026, 6, 2, 14, tzinfo=UTC)
+    message = SimpleNamespace(
+        id=1,
+        role="assistant",
+        content="Both papers agree [citation:11, 22].",
+        created_at=when,
+    )
+    thread = SimpleNamespace(id=5, title="Papers", created_at=when, messages=[message])
+    session = _Session([thread], [(11, "Alpha"), (22, "Beta")])
+
+    [exported] = await flatten_workspace_chats(session, workspace_id=12)
+
+    [flat] = exported["messages"]
+    assert "citation:" not in flat["text"]
+    assert flat["citations"] == [{"title": "Alpha"}, {"title": "Beta"}]
