@@ -32,7 +32,7 @@ Provenance: `NoteCreate` in `modules/documents/schemas.py` gains an optional `me
 
 Several hosts in one refusal: `EgressDeniedError` carries one destination today, and the 403 built by `egress_denied` in `api/main.py` names one `destination` and `host`, which is all the prompt reads. It gains a list. The 403 adds `hosts`, every host the action still needs, and keeps `destination` and `host` as the first of them, so today's callers do not change. The prompt's side is in [`02-screen.md`](02-screen.md). This changes the egress feature, so [`egress.md`](../../../architecture/egress.md) is updated in the same pull request.
 
-Electron writes `http://127.0.0.1:<port>` to `api-url` in its data folder, `~/.surfsense` when packaged and `~/.surfsense-dev` in development (`electron/src/main/index.ts`), where it picks the port, and removes the file on quit. The running app does not need this — the runner passes the URL in the environment — but an author running the harness does, and guessing a dynamic port is not a thing to ask of a contributor. It discloses nothing: loopback already answers a port scan.
+Electron writes `http://127.0.0.1:<port>` to `api-url` in its data folder, `~/.surfsense` when packaged and `~/.surfsense-dev` in development (`electron/src/main/index.ts`), where it picks the port, and removes the file on quit. The running app does not need this — the runner passes the URL in the environment — but an author running `surfsense-plugins invoke` does, and guessing a dynamic port is not a thing to ask of a contributor. It discloses nothing: loopback already answers a port scan.
 
 ## Acceptance
 

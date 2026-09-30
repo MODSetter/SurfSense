@@ -8,7 +8,7 @@ def api_url() -> str:
     return _required(
         "SURFSENSE_PLUGIN_API_URL",
         "so the plugin cannot reach SurfSense. The app sets it on every run; to run"
-        " a plugin yourself, use python -m surfsense_plugin_sdk.harness, which finds a"
+        " a plugin yourself, use surfsense-plugins invoke, which finds a"
         " running app or takes --api-url",
     )
 
@@ -18,12 +18,12 @@ def workspace_id() -> str:
     return _required(
         "SURFSENSE_PLUGIN_WORKSPACE_ID",
         "so the plugin does not know which workspace it runs in. The app sets it"
-        " on every run, and so does python -m surfsense_plugin_sdk.harness",
+        " on every run, and so does surfsense-plugins invoke",
     )
 
 
 def run_id() -> int | None:
-    """None under the harness, which starts no run in the app."""
+    """None under surfsense-plugins invoke, which starts no run in the app."""
     value = os.environ.get("SURFSENSE_PLUGIN_RUN_ID")
     return int(value) if value else None
 

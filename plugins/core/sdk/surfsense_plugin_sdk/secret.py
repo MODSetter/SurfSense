@@ -18,6 +18,6 @@ def secret(name: str) -> str:
     if value is None:
         raise LookupError(
             f'secret "{name}" has no value: set it in the plugin\'s settings in'
-            f" SurfSense, or in {variable} when you run the harness"
+            f" SurfSense, or in {variable} when you run surfsense-plugins invoke"
         )
     return value

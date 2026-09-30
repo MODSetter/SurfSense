@@ -1,6 +1,6 @@
 # Release — publishing
 
-> Owns: `plugins/core/release/`, `plugins/core/policy/withdrawn-versions.txt`, the plugin jobs in `.github/workflows/release-local.yml`, the plugin steps in `surfsense_local/RELEASE.md`, `.github/workflows/plugins-release-plan.yml`, `.github/workflows/plugins-go-live.yml`, `.github/workflows/plugins-withdraw-version.yml`, `surfsense_local/electron/scripts/fetch-plugin-catalog.mjs`, the repository `SurfSense-Inc/surfsense-plugin-releases`, and the GitHub App that writes to it.
+> Owns: the `release/` job in `plugins/core/cli/surfsense_plugin_cli/`, `plugins/core/policy/withdrawn-versions.txt`, the plugin jobs in `.github/workflows/release-local.yml`, the plugin steps in `surfsense_local/RELEASE.md`, `.github/workflows/plugins-release-plan.yml`, `.github/workflows/plugins-go-live.yml`, `.github/workflows/plugins-withdraw-version.yml`, `surfsense_local/electron/scripts/fetch-plugin-catalog.mjs`, the repository `SurfSense-Inc/surfsense-plugin-releases`, and the GitHub App that writes to it.
 > Contract: [`../01-protocol.md`](../01-protocol.md). Versioning: [`../04-versioning.md`](../04-versioning.md). Packaging: [`01-packaging.md`](01-packaging.md). Checks: [`02-pull-request-checks.md`](02-pull-request-checks.md).
 
 ## Goal
@@ -23,7 +23,7 @@ Every job that writes to the second repository runs in that environment and turn
 
 What that credential can and cannot do. Workflows on pull requests from forks never receive secrets, so a contributor cannot reach it. The token cannot write to this repository, so it can never touch the app's releases or update channel. If the private key leaked, someone could publish a false catalog until an owner of SurfSense-Inc deletes the key, which takes one click; that is the same kind of risk as the app's own release pipeline, and the key gets the same care.
 
-`plugins/core/release/README.md` is the maintainers' guide: this setup, the release flow below, reading the plan comment, withdrawing a version, and replacing the App's key.
+`plugins/core/cli/surfsense_plugin_cli/release/README.md` is the maintainers' guide: this setup, the release flow below, reading the plan comment, withdrawing a version, and replacing the App's key.
 
 ### What a release publishes
 

@@ -1,6 +1,6 @@
 # Release — plugin directory site
 
-> Owns: `plugins/core/directory-site/`, `.github/workflows/plugins-directory-site.yml`, the `gh-pages` branch of `SurfSense-Inc/surfsense-plugin-releases`.
+> Owns: the `directory_site/` job in `plugins/core/cli/surfsense_plugin_cli/`, `.github/workflows/plugins-directory-site.yml`, the `gh-pages` branch of `SurfSense-Inc/surfsense-plugin-releases`.
 > Reads: the live catalog ([`../01-protocol.md`](../01-protocol.md#catalog)). Written with: the GitHub App of [`03-publishing.md`](03-publishing.md).
 
 ## Goal

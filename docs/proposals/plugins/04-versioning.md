@@ -15,8 +15,6 @@ People manage one version number: the app's, in `surfsense_local/VERSION`, as [`
 | The protocol | None of its own. It changes only with an app release, so a plugin stamped X speaks app X's protocol |
 | The catalog's format | `schema_version`, raised by maintainers only when the file's structure breaks, which is rare |
 
-Every rule here has a precedent. Home Assistant's in-repo integrations omit their version and are versioned by Home Assistant's release; Raycast extensions have no version field at all. Lerna's default "fixed" mode republishes only what changed since the last release, under the release's version. VS Code (`engines.vscode`), Obsidian (`minAppVersion`) and Blender (`blender_version_min`) tie plugin compatibility to the app's version rather than to a separate API version. Zed and Raycast version their API separately only because it ships as its own package, a Rust crate or an npm package; ours never ships apart from the app.
-
 ## A plugin's version
 
 A plugin changes when anything in its folder changes, its locked dependencies included, or when `plugins/core/build-targets.json` changes in a way that alters its packaged files: a new Python version changes every plugin that has no `any` file, and a new platform every plugin that needs a file of its own there. At release, each plugin that changed since the last published release is stamped with that release's app version. A plugin that did not change keeps the version it had.
@@ -40,7 +38,7 @@ The catalog keeps every published version of every plugin. For each plugin, an a
 - supports this system's platform, when its manifest names `platforms`;
 - has a download for this app's key or `any`.
 
-On SurfSense 2.4.0, after the table above, that is `example 2.3.0`, `hn-search 2.4.0` and `pdf-tools 2.4.0`. An app never installs a plugin version newer than itself, and an older app keeps getting the last version that was released with, or before, it. VS Code, JetBrains, Blender, Firefox, Grafana and Zed stores all pick the newest compatible version the same way; Obsidian's `versions.json` exists so older Obsidian apps can.
+On SurfSense 2.4.0, after the table above, that is `example 2.3.0`, `hn-search 2.4.0` and `pdf-tools 2.4.0`. An app never installs a plugin version newer than itself, and an older app keeps getting the last version that was released with, or before, it.
 
 The cost: a plugin fix reaches only apps at least as new as the release that carried it. That is the price of never letting a plugin ahead of the app that runs it.
 
@@ -59,7 +57,7 @@ A published version never changes, but it can be stopped. A catalog version may 
 | `maintainer` | A maintainer, as a line in `plugins/core/policy/withdrawn-versions.txt` | A person finds a problem no check can see | `hn-search 2.4.0 Deletes notes by mistake.` blocks 2.4.0 everywhere |
 | `checks` | The release's checks | At each release, every published version not already blocked for the new app is checked against the new SDK, and fails | `hn-search 2.4.0` blocked from 2.6.0, because 2.6.0 changed something it uses |
 
-A maintainer line may also name `from <app-version>` to block only newer apps. The file is the source of every `maintainer` entry: each catalog rewrites them from it, so editing a line changes the block and deleting a line lifts it. `checks` entries are never lifted; they stay in every later catalog. JetBrains restricts incompatible plugin versions and re-checks released plugins against new IDE builds; Blender sets a maximum app version after an issue is found; Home Assistant keeps a blocklist of bad custom integration versions.
+A maintainer line may also name `from <app-version>` to block only newer apps. The file is the source of every `maintainer` entry: each catalog rewrites them from it, so editing a line changes the block and deleting a line lifts it. `checks` entries are never lifted; they stay in every later catalog.
 
 What each person sees:
 
