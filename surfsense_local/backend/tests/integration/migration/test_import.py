@@ -6,17 +6,21 @@ from zipfile import ZipFile
 
 import pytest
 from httpx import AsyncClient, Response
+from sqlalchemy import Engine
 
+from modules.chat.models import ChatThread
+from modules.workspaces.models import Workspace
+from shared.db import create_session_factory
 from shared.queue import ingest_queue
 
 pytestmark = pytest.mark.integration
 
-SAMPLE = Path(__file__).resolve().parents[5] / (
-    "docs/contracts/export-sample"
-)
+SAMPLE = Path(__file__).resolve().parents[5] / "docs/contracts/export-sample"
 
 
-def bundle(tmp_path: Path, manifest: dict | None = None) -> Path:
+def bundle(
+    tmp_path: Path, manifest: dict | None = None, *, missing: str | None = None
+) -> Path:
     """Zip the committed fixture, optionally with a manifest of the test's own."""
     path = tmp_path / "export.zip"
     with ZipFile(path, "w") as archive:
@@ -25,8 +29,9 @@ def bundle(tmp_path: Path, manifest: dict | None = None) -> Path:
         else:
             archive.writestr("manifest.json", json.dumps(manifest))
         for file in sorted(SAMPLE.rglob("*")):
-            if file.is_file() and file.name != "manifest.json":
-                archive.write(file, file.relative_to(SAMPLE).as_posix())
+            relative = file.relative_to(SAMPLE).as_posix()
+            if file.is_file() and file.name != "manifest.json" and relative != missing:
+                archive.write(file, relative)
     return path
 
 
@@ -151,10 +156,80 @@ async def test_importing_the_same_bundle_twice_adds_nothing(
 ) -> None:
     """Quitting mid-import and running it again must not double the account."""
     first = await import_bundle(client, bundle(tmp_path))
-    second = await import_bundle(client, bundle(tmp_path))
     research = first.json()["workspaces"][0]["id"]
+    threads = (await client.get(f"/workspaces/{research}/chat/threads")).json()
+    quick_hello = next(thread for thread in threads if thread["title"] == "Quick hello")
+    renamed = await client.patch(
+        f"/chat/threads/{quick_hello['id']}",
+        json={"title": "My quick notes"},
+    )
 
+    second = await import_bundle(client, bundle(tmp_path))
+
+    assert renamed.status_code == 200
     assert second.json() == first.json()
     assert len((await client.get("/workspaces")).json()) == 2
     assert len((await client.get(f"/workspaces/{research}/documents")).json()) == 5
-    assert len((await client.get(f"/workspaces/{research}/chat/threads")).json()) == 2
+    threads = (await client.get(f"/workspaces/{research}/chat/threads")).json()
+    assert len(threads) == 2
+    assert "My quick notes" in {thread["title"] for thread in threads}
+    messages = (await client.get(f"/chat/threads/{quick_hello['id']}/messages")).json()
+    assert len(messages) == 2
+
+
+async def test_reimport_finishes_threads_after_an_interrupted_import(
+    client: AsyncClient, tmp_path: Path
+) -> None:
+    """A workspace committed before its threads is not mistaken for completion."""
+    with pytest.raises(KeyError):
+        await import_bundle(
+            client,
+            bundle(tmp_path, missing="workspaces/12/chats.json"),
+        )
+
+    workspaces = (await client.get("/workspaces")).json()
+    research = next(
+        workspace["id"] for workspace in workspaces if workspace["name"] == "Research"
+    )
+    assert (await client.get(f"/workspaces/{research}/chat/threads")).json() == []
+
+    await import_bundle(client, bundle(tmp_path))
+
+    threads = (await client.get(f"/workspaces/{research}/chat/threads")).json()
+    assert sorted(thread["title"] for thread in threads) == [
+        "Quick hello",
+        "Why scale the dot product?",
+    ]
+
+
+async def test_reimport_preserves_threads_imported_before_they_kept_cloud_ids(
+    client: AsyncClient, engine: Engine, tmp_path: Path
+) -> None:
+    """An upgrade must not copy a user's already imported chat history."""
+    with create_session_factory(engine)() as session:
+        workspace = Workspace(
+            name="Research",
+            cloud_id=12,
+            has_unkeyed_imported_threads=True,
+        )
+        session.add(workspace)
+        session.flush()
+        session.add_all(
+            [
+                ChatThread(workspace_id=workspace.id, title="Quick hello"),
+                ChatThread(
+                    workspace_id=workspace.id,
+                    title="Why scale the dot product?",
+                ),
+            ]
+        )
+        session.commit()
+        workspace_id = workspace.id
+
+    await import_bundle(client, bundle(tmp_path))
+
+    threads = (await client.get(f"/workspaces/{workspace_id}/chat/threads")).json()
+    assert sorted(thread["title"] for thread in threads) == [
+        "Quick hello",
+        "Why scale the dot product?",
+    ]
