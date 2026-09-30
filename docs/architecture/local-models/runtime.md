@@ -202,11 +202,14 @@ when the rendered text is unchanged. A real change is written to a sibling
 
 llama.cpp's catalog engine, `LlamaCppEngine.reprice()` ([`models_folder/preset.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/models_folder/preset.py)), writes the preset for every `.gguf` in the models
 directory, at API startup (on the warm thread, after the device probe), after
-every install and after every delete. At startup, because a model placed in the
-directory by hand would otherwise load at llama.cpp's default window, and a stale
-section would keep advertising a model whose file is gone; after a delete,
-because the router serves a stale section as a real entry (`source: preset`) that
-fails when chosen.
+every install and after every delete. A catalog read also rewrites it when the
+folder contains a readable model that the preset does not name. Later catalog
+reads find its section and do not keep moving the file's modification time and
+restarting the router. At startup, because a model placed in the directory by
+hand would otherwise load at llama.cpp's default window, and a stale section
+would keep advertising a model whose file is gone; after a delete, because the
+router serves a stale section as a real entry (`source: preset`) that fails when
+chosen.
 
 For each file it reads the header and skips anything the header does not name a
 model, such as a vision projector, which has a header and a size like any model.

@@ -81,6 +81,31 @@ def test_a_downloaded_model_gets_a_preset_section(service, tmp_path: Path) -> No
     assert "ctx-size" in ini
 
 
+def test_catalog_adds_a_copied_model_to_the_runtime_preset_once(
+    service, tmp_path: Path
+) -> None:
+    """A catalog refresh surfaces a hand-copied model without restarting the app."""
+    preset = tmp_path / "models" / PRESET_FILE
+    copied = tmp_path / "models" / "DEFAULT.gguf"
+    service.llamacpp.reprice()
+    copied.write_bytes(b"GGUF")
+
+    service.catalog()
+
+    assert "[DEFAULT]" not in preset.read_text()
+    a_model(copied)
+
+    service.catalog()
+
+    assert "[DEFAULT]" in preset.read_text()
+    unchanged_ns = 1_000_000_000
+    os.utime(preset, ns=(unchanged_ns, unchanged_ns))
+
+    service.catalog()
+
+    assert preset.stat().st_mtime_ns == unchanged_ns
+
+
 def test_the_window_comes_from_the_fit_calculation_not_a_default(
     service, tmp_path: Path
 ) -> None:
