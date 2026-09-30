@@ -258,6 +258,11 @@ function WorkspaceDashboard({
                       onUpload={(files) => void sources.upload(files)}
                     />
                   }
+                  onDropFiles={
+                    sources.isUploading
+                      ? undefined
+                      : (files) => void sources.upload(files)
+                  }
                   onOpen={(id) => void sources.openOriginal(id)}
                   onReveal={(id) => void sources.revealOriginal(id)}
                   onRetry={(id) => void sources.retry(id)}

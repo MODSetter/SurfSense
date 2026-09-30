@@ -540,6 +540,7 @@
   "sources_delete_dialog_title": "{count, plural, one {# स्रोत} other {# स्रोत}} हटाएं?",
   "sources_delete_dialog_unnamed_body": "इससे यह स्रोत और उसका इंडेक्स किया गया डेटा हमेशा के लिए हट जाता है।",
   "sources_delete_selected_error": "{count, plural, one {# चुना गया स्रोत हटाया नहीं जा सका।} other {# चुने गए स्रोत हटाए नहीं जा सके।}}",
+  "sources_drop_label": "फ़ाइलों को स्रोत के रूप में जोड़ने के लिए यहां छोड़ें",
   "sources_list_deselect_all_button": "सभी का चयन हटाएं",
   "sources_list_empty": "अभी तक कोई स्रोत नहीं",
   "sources_list_empty_body": "इस वर्कस्पेस में जोड़ी गई फ़ाइलें और नोट यहां दिखेंगे।",

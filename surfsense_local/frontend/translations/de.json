@@ -540,6 +540,7 @@
   "sources_delete_dialog_title": "{count, plural, one {# Quelle löschen?} other {# Quellen löschen?}}",
   "sources_delete_dialog_unnamed_body": "Dadurch werden diese Quelle und ihre indexierten Daten endgültig gelöscht.",
   "sources_delete_selected_error": "{count, plural, one {# ausgewählte Quelle konnte nicht gelöscht werden.} other {# ausgewählte Quellen konnten nicht gelöscht werden.}}",
+  "sources_drop_label": "Dateien hier ablegen, um sie als Quellen hinzuzufügen",
   "sources_list_deselect_all_button": "Abwählen",
   "sources_list_empty": "Noch keine Quellen",
   "sources_list_empty_body": "Dateien und Notizen, die du diesem Workspace hinzufügst, erscheinen hier.",

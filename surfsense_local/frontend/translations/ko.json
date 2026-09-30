@@ -540,6 +540,7 @@
   "sources_delete_dialog_title": "{count, plural, other {소스 #개}}를 삭제하시겠습니까?",
   "sources_delete_dialog_unnamed_body": "이 소스와 인덱싱된 데이터를 완전히 삭제합니다.",
   "sources_delete_selected_error": "{count, plural, other {선택한 소스 중 #개를 삭제하지 못했습니다.}}",
+  "sources_drop_label": "파일을 놓아 소스로 추가하세요",
   "sources_list_deselect_all_button": "전체 선택 해제",
   "sources_list_empty": "아직 소스가 없습니다",
   "sources_list_empty_body": "이 워크스페이스에 추가한 파일과 메모가 여기에 표시됩니다.",

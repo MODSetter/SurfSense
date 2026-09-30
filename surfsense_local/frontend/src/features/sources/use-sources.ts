@@ -267,9 +267,10 @@ export function useSources(workspaceId: number) {
         const createdIds = new Set(
           outcome.created.map((document) => document.id)
         )
+        // In the server's order, newest first, so the next refetch moves nothing.
         return [
+          ...[...outcome.created].reverse(),
           ...current.filter((document) => !createdIds.has(document.id)),
-          ...outcome.created,
         ]
       })
       const count = outcome.created.length

@@ -540,6 +540,7 @@
   "sources_delete_dialog_title": "Supprimer {count, plural, one {# source} many {# sources} other {# sources}} ?",
   "sources_delete_dialog_unnamed_body": "Cela supprime définitivement cette source et ses données indexées.",
   "sources_delete_selected_error": "{count, plural, one {# source sélectionnée n’a pas pu être supprimée.} many {# sources sélectionnées n’ont pas pu être supprimées.} other {# sources sélectionnées n’ont pas pu être supprimées.}}",
+  "sources_drop_label": "Déposez des fichiers pour les ajouter comme sources",
   "sources_list_deselect_all_button": "Tout désélectionner",
   "sources_list_empty": "Aucune source pour l’instant",
   "sources_list_empty_body": "Les fichiers et les notes ajoutés à cet espace de travail apparaîtront ici.",

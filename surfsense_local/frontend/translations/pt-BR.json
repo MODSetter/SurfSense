@@ -540,6 +540,7 @@
   "sources_delete_dialog_title": "Excluir {count, plural, one {# fonte} many {# fontes} other {# fontes}}?",
   "sources_delete_dialog_unnamed_body": "Isso exclui permanentemente esta fonte e os seus dados indexados.",
   "sources_delete_selected_error": "{count, plural, one {Não foi possível excluir # fonte selecionada.} many {Não foi possível excluir # fontes selecionadas.} other {Não foi possível excluir # fontes selecionadas.}}",
+  "sources_drop_label": "Solte arquivos para adicioná-los como fontes",
   "sources_list_deselect_all_button": "Desmarcar tudo",
   "sources_list_empty": "Nenhuma fonte ainda",
   "sources_list_empty_body": "Os arquivos e as notas adicionados a este workspace aparecem aqui.",

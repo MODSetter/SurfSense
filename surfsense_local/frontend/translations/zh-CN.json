@@ -540,6 +540,7 @@
   "sources_delete_dialog_title": "删除 {count, plural, other {# 个来源}}？",
   "sources_delete_dialog_unnamed_body": "这会永久删除这个来源及其索引数据。",
   "sources_delete_selected_error": "{count, plural, other {所选来源中有 # 个无法删除。}}",
+  "sources_drop_label": "拖放文件以添加为来源",
   "sources_list_deselect_all_button": "取消全选",
   "sources_list_empty": "还没有来源",
   "sources_list_empty_body": "添加到这个工作区的文件和笔记会显示在这里。",

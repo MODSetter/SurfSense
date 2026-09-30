@@ -540,6 +540,7 @@
   "sources_delete_dialog_title": "Delete {count, plural, one {# source} other {# sources}}?",
   "sources_delete_dialog_unnamed_body": "This permanently deletes this source and its indexed data.",
   "sources_delete_selected_error": "{count, plural, one {# selected source could not be deleted.} other {# selected sources could not be deleted.}}",
+  "sources_drop_label": "Drop files to add them as sources",
   "sources_list_deselect_all_button": "Deselect all",
   "sources_list_empty": "No sources yet",
   "sources_list_empty_body": "Files and notes added to this workspace will appear here.",

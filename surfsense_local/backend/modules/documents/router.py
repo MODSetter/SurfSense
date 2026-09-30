@@ -57,7 +57,13 @@ def list_documents(
     if status_in:
         query = query.where(Document.status.in_(status_in))
 
-    query = query.order_by(Document.created_at).limit(limit).offset(offset)
+    # Newest first, so a fresh upload leads the list and survives the page cap.
+    # `created_at` has second precision, so the id orders one batch.
+    query = (
+        query.order_by(Document.created_at.desc(), Document.id.desc())
+        .limit(limit)
+        .offset(offset)
+    )
 
     return session.scalars(query).all()
 

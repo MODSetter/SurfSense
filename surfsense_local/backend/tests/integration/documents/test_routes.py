@@ -32,6 +32,31 @@ async def test_an_unknown_workspace_is_not_an_empty_list(client: AsyncClient) ->
     assert response.status_code == 404
 
 
+async def test_documents_are_listed_newest_first(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """A fresh upload, still indexing, sits at the top of the sources list.
+
+    One batch shares its second of `created_at`, so the id breaks the tie and
+    the batch keeps the order it was uploaded in, reversed with the rest.
+    """
+    await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("first.txt", b"alpha", "text/plain")},
+    )
+    await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files=[
+            ("files", ("second.txt", b"beta", "text/plain")),
+            ("files", ("third.txt", b"gamma", "text/plain")),
+        ],
+    )
+
+    listed = (await client.get(f"/workspaces/{workspace_id}/documents")).json()
+
+    assert [d["title"] for d in listed] == ["third.txt", "second.txt", "first.txt"]
+
+
 async def test_a_note_starts_pending(client: AsyncClient, workspace_id: int) -> None:
     """A note needs no parsing, but it is not searchable until the worker indexes it."""
     response = await client.post(
@@ -269,7 +294,8 @@ async def test_the_list_is_paged(client: AsyncClient, workspace_id: int) -> None
 
     page = await client.get(f"/workspaces/{workspace_id}/documents?limit=2&offset=2")
 
-    assert [document["title"] for document in page.json()] == ["note 2", "note 3"]
+    # Newest first: notes 4 and 3 fill the first page.
+    assert [document["title"] for document in page.json()] == ["note 2", "note 1"]
 
 
 async def test_a_failed_document_carries_its_reason(
