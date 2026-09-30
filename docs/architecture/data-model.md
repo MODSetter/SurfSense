@@ -134,7 +134,7 @@ Connections are in [`connections.md`](connections.md); selection and onboarding 
 | `license_state` | `id`, `certificate`, `imported_at`, `clock_watermark` | a singleton; plan and expiry are re-derived from the certificate on every read, and `clock_watermark` is the highest instant ever seen |
 | `egress_destinations` | `destination`, `enabled`, `last_call_at` | one row per host; `enabled` defaults to false |
 
-A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Rows under the earlier names `model_download`, `model_search` and `image_model_pull` are no longer read; revision `0012` renamed `ollama_pull` to `model_download` before that change. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
+A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Revision `0019` removes rows under the earlier names `model_download`, `model_search` and `image_model_pull`, carrying a grant to `host:huggingface.co` only where search and a download were both allowed and the host had no answer of its own. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
 
 ## On-disk layout
 
@@ -303,11 +303,14 @@ erDiagram
 | `0014` | `0014_connection_catalog_provider.py` | `provider_connections.catalog_provider`, `custom` for every existing connection; downgrading drops the column in place, because a table rebuild would cascade into `selected_models` |
 | `0015` | `0015_image_selection_by_build.py` | a local `image_gen` selection is renamed from the old list's name to its curated build's id (`stable-diffusion-1.5` to `v1-5-pruned_Q4_0`, and the two SDXL models); the map is frozen in the migration, and downgrading reverses it |
 | `0016` | `0016_local_audio_provider.py` | `selected_models` rebuilt so `audiocpp` may hold `audio_gen`, and only that, without a connection; downgrading drops an `audiocpp` selection |
+| `0017` | `0017_keyword_index_keeps_combining_marks.py` | the keyword index rebuilt from `chunks` with combining marks kept inside a word |
+| `0018` | `0018_sdcpp_edit_and_video.py` | `selected_models` rebuilt so `sdcpp` may hold `image_edit` and `video_gen`; downgrading drops such a selection |
+| `0019` | `0019_retire_pre_host_egress_grants.py` | egress rows under `model_download`, `model_search` and `image_model_pull` removed; `host:huggingface.co` allowed only where search and a download were both allowed and the host had no row; downgrading changes nothing |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.
 - A revision that touches a table already holding rows should read the live schema first (`op.get_bind()`, `sa.inspect`) rather than assume its shape.
-- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py` and `test_migration_0014.py` beside it test what those revisions change.
+- [`tests/integration/test_migrations.py`](../../surfsense_local/backend/tests/integration/test_migrations.py) fails when the models and the migration history disagree, when a second upgrade is not a no-op, and when a failed migration leaves anything behind. `test_migration_0012.py`, `test_migration_0013.py`, `test_migration_0014.py` and `test_migration_0019.py` beside it test what those revisions change.
 
 ## Known gaps
 
