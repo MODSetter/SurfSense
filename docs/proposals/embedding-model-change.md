@@ -25,6 +25,7 @@ Deferred by product decision: the index is fixed at onboarding until this ships.
 | `active_index()` on the read path | search follows the switch with no change |
 | `GET /embedding/index` → `{active, building}` | `building` carries progress |
 | bge bundled | switching back to bge never needs a download |
+| the delete guards on the active model and its connection | lifted from the old index at the switch, so its model and connection become deletable |
 
 ## The change
 
@@ -33,7 +34,7 @@ Deferred by product decision: the index is fixed at onboarding until this ships.
 3. **Fill.** A job on the ingest queue ([ADR 0008](../adr/0008-two-job-queues.md)) runs `embed_chunks` over the documents not yet stamped with the new index, in batches, reading chunk text from `chunks`. A document is stamped when all of its chunks are in.
 4. **Keep up.** Uploads, notes, Studio artifacts and imports during the change write to both indexes through `write_vectors()`.
 5. **Switch.** When every document is stamped, one transaction sets the new row `active` and the old one `retired`. Search reads the active row, so the next question uses the new model.
-6. **Clean up.** The retired index's vector table is dropped. Its model becomes deletable, unless it is bge.
+6. **Clean up.** The retired index's vector table is dropped. Its model becomes deletable, unless it is bge, and so does the connection it called.
 
 Search serves the old index, and embeds questions with the old model, until step 5. There is no moment where a question is compared against vectors from another model.
 
@@ -53,13 +54,24 @@ The section shows the old model as in use, the new one as building, progress as 
 - Time: bge measured at about 8 minutes per 1,000 passages on a mid CPU ([retrieval](retrieval.md)); a larger model is slower.
 - Disk: both vector tables exist until the switch, so vector storage roughly doubles for the length of the change.
 - Memory: the ingest worker holds both models while new uploads write to both indexes.
+- Money: a change to a remote model is billed for every passage in the library, and uploads during the change embed twice.
 
-## What arrives with this, not before
+## What this makes recoverable
 
-Both were kept out of [choosing once](embedding-model-choice.md) because a bad pick could not be undone. With this shipped it can.
+[Choosing once](embedding-model-choice.md) offers Hugging Face and remote models at onboarding and accepts that some failures have no repair. This is the repair:
 
-- **Remote embedders.** A `runtime` of `openai_compatible` in the spec, calling `/embeddings` on a connection. It still needs its own answers: every passage leaves the machine, ingest runs where no consent dialog can appear ([ADR 0017](../adr/0017-egress-off-by-default.md)), and not every OpenAI-compatible endpoint has the route ([ADR 0015](../adr/0015-openai-compatible-connections.md)). If the provider disappears, the user changes back to a local model instead of losing search.
-- **Open Hugging Face search.** A spec built from a repo's own files: pooling from `1_Pooling/config.json`, prompts and maximum length from `config_sentence_transformers.json`, an ONNX file required. `semantic_weight` falls back to 0.65 and the model is labelled as not measured.
+| Failure | Until this ships | With this |
+|---|---|---|
+| a Hugging Face pick ranks badly | stays | change to a measured model |
+| a Hugging Face repo is deleted and the local copy is lost | search stops for good | change to any other model |
+| a remote provider retires the model | search stops for good | change, ideally before, when Settings shows the deprecation warning |
+| the user no longer wants documents sent to a host | turn the host off and lose search | change to a local model, then turn it off |
+
+A change never needs the old model: the re-embed reads chunk text, not the old vectors, so it works even when the old provider or repo is already gone. What is lost in that case is search while the change runs, because the old index can no longer embed a question.
+
+## A smaller first cut
+
+A **blocking rebuild** covers every row of that table with less machinery: search is paused, a new index row is created, `embed_chunks` re-embeds every chunk into it, and it becomes active. No `building` state serving beside the old index, no dual writes, no progress beside a working search. It is the fastest way to close the no-repair cases [choosing once](embedding-model-choice.md) accepts, and the background change above replaces it later without a schema change.
 
 ## Open questions
 
@@ -68,3 +80,4 @@ These come from [retrieval](retrieval.md), whose migration section this replaces
 - Does a change start on its own after an app update ships a better default, or only when the user asks? A library of any size makes this a long, visible job.
 - Is the switch automatic when the job finishes, or does the user confirm it?
 - Should the retired index be kept for a while as an undo, at the cost of its disk?
+- Does the blocking rebuild ship first, or go straight to the background change?
