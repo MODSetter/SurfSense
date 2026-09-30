@@ -31,7 +31,7 @@ A plugin's folder:
 
 ```
 plugins/<id>/
-  plugin.json
+  manifest.json
   main.py             where the SDK starts; it imports the rest
   <package>/          optional: the plugin's own code, split as it likes
   requirements.in     omitted when there are no dependencies
@@ -57,7 +57,7 @@ uv pip compile --universal --generate-hashes --python-version 3.12 requirements.
 
 It pins every transitive dependency for every platform, with a sha256 per file, so the files packaging installs are the files review saw. PyPI only, prebuilt wheels only: no URLs, no editable installs, no index options, and no source distributions, because a Linux runner cannot compile one for Windows or macOS.
 
-### `plugin.json`
+### `manifest.json`
 
 | Field | Rule |
 |---|---|
@@ -116,7 +116,7 @@ The interpreter fetch script, packaging and the checks all read it. There is no 
 
 A download key is `any`, or `cp<major><minor>-<platform>` such as `cp312-linux-x64`, because compiled code runs only on the platform and the Python it was built for. Packaging builds one `any` file when the dependencies install to the same files on every target in `platforms`, and one file per target otherwise ([`release/01-packaging.md`](release/01-packaging.md)).
 
-`<id>-<version>-<key>.tar.gz`, for example `pdf-tools-2.4.0-cp312-linux-x64.tar.gz`. One top-level directory, `<id>-<version>/`, holding the files of the plugin's folder, not the folder itself, plus `site-packages/` when there are dependencies. Its `plugin.json` is the repository's with the stamped `version` added, and it replaces the original. That `plugin.json`, less `id` and `version`, must deep-equal the catalog version's `manifest`, and its `id` and `version` must equal the catalog's. A mismatch rejects the install. The sha256 is of the gzip bytes. A file is at most 100 MB unless `plugins/core/policy/size-limit-exceptions.txt` names the plugin.
+`<id>-<version>-<key>.tar.gz`, for example `pdf-tools-2.4.0-cp312-linux-x64.tar.gz`. One top-level directory, `<id>-<version>/`, holding the files of the plugin's folder, not the folder itself, plus `site-packages/` when there are dependencies. Its `manifest.json` is the repository's with the stamped `version` added, and it replaces the original. That `manifest.json`, less `id` and `version`, must deep-equal the catalog version's `manifest`, and its `id` and `version` must equal the catalog's. A mismatch rejects the install. The sha256 is of the gzip bytes. A file is at most 100 MB unless `plugins/core/policy/size-limit-exceptions.txt` names the plugin.
 
 A published version never changes. Uploading a version that already exists with different bytes fails.
 
@@ -289,7 +289,7 @@ def search(query: str) -> None:
             document.add(title=hit["title"], content=hit["story_text"])
 ```
 
-Its `plugin.json` declares what the app must know before running it:
+Its `manifest.json` declares what the app must know before running it:
 
 ```json
 "hosts": ["hn.algolia.com"],

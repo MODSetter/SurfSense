@@ -20,7 +20,7 @@ The app lists only plugin versions it can run, installs without running plugin c
   2. `access: paid` consults the stored license state, `status()` in `modules/license/service.py`. Missing, expired, or `clock_untrusted` refuses with `license_required`. A `trial` license unlocks it for its term. `free` does not consult it.
   3. Require both hosts allowed, otherwise raise the existing `EgressDeniedError` naming both, before any connection opens.
   4. Download the `url`. Follow a redirect only to `release-assets.githubusercontent.com`, and reject any other host before writing. Stop reading past the download's `size`.
-  5. Compare sha256. Extract with the path rules in the protocol. Compare the packaged `plugin.json` to the catalog version's `manifest` and `version`. Rename into place.
+  5. Compare sha256. Extract with the path rules in the protocol. Compare the packaged `manifest.json` to the catalog version's `manifest` and `version`. Rename into place.
   6. Insert or update `installed_plugins`. Create `<data>/plugins/<id>/data` if it is absent.
 - Update is an install of the version `choose_version.py` picks when it is newer than the installed one. Once the new version is in place, delete the previous version directory. If a `queued` or `running` run still uses it, leave it: at every start, the app deletes each version directory that is not the installed one. No backup is kept: the catalog still has every version.
 - An installed version this app must not run, because it is blocked for this app or because it is newer than the app after a downgrade, cannot start a run. The refusal carries the reason, and the app offers the version `choose_version.py` picks instead, which may be older. Moving to an older version is the same install; the plugin's data directory stays, and the contributor guide asks plugins to cope with data a newer version wrote, or to start over.
@@ -31,7 +31,7 @@ The app lists only plugin versions it can run, installs without running plugin c
 
 - A file with a `../` member extracts nothing and leaves no directory behind.
 - A sha256 mismatch leaves no directory behind.
-- A packaged `plugin.json` whose `hosts` or `version` differ from the catalog's is rejected.
+- A packaged `manifest.json` whose `hosts` or `version` differ from the catalog's is rejected.
 - A redirect to any host but `release-assets.githubusercontent.com` is rejected and the body is not saved.
 - Install with either host not allowed raises `EgressDeniedError` naming both and does not open a connection.
 - A `paid` plugin with no license does not insert `installed_plugins`. With a trial license, it installs. The same plugin with `access: free` does, with no license on disk.

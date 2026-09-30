@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: in-progress
 code:
   - plugins/
   - surfsense_local/backend/modules/plugins/
@@ -66,7 +66,7 @@ Same letter can be picked up at the same time. A stream's own files are in order
 | Versions on disk | One. An update replaces the installed version and deletes the old one. |
 | Limits | 100 MB per plugin file unless a maintainer grants more in `plugins/core/policy/size-limit-exceptions.txt`. A run stops at its entry's timeout: 30 minutes unless the entry sets its own, up to 6 hours. |
 | What a plugin can do | A facade in the SDK wraps the app's API, so a plugin calls `document.add()` and never a route. The SDK is the public contract; routes stay ours to rename. Complete within `workspace`, `document`, `artifact`, `model`, of which v1 ships `document`; the other three wait for their app routes. Never `license`, `egress`, `migration`. |
-| Declared or coded | Whatever the app must know before running a plugin, to show it, check it or ask the user for it, is declared in `plugin.json`. Whatever happens during a run is the plugin's code, through the SDK. The app never runs plugin code to find something out. |
+| Declared or coded | Whatever the app must know before running a plugin, to show it, check it or ask the user for it, is declared in `manifest.json`. Whatever happens during a run is the plugin's code, through the SDK. The app never runs plugin code to find something out. |
 | What the user provides | Two kinds: an input, asked every run, of kind `string`, `number` or `boolean`; and a secret, set once in Settings and never shown again. The app draws both forms from the declarations. Raycast splits arguments and preferences the same way. |
 | Secrets | Declared with a title and help text. Values go through `shared/secrets.py`. The app puts each one in an environment variable before spawn and never in a file. |
 | Environment | Built from scratch for each run: the plugin's context, its secrets, an operating-system allowlist, and the Python variables. Nothing of the app's own. |

@@ -1,0 +1,72 @@
+name: Plugins Pull Request Checks
+
+# plugins/, the plugin SDK, its tooling and every plugin. It grows with each part
+# of docs/proposals/plugins/ that lands; today it checks the manifest rules.
+
+on:
+  pull_request:
+    branches: [main, dev]
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Filtered per job, not per workflow: a workflow skipped by its paths leaves
+  # its checks pending, while a skipped job reports success.
+  detect-changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.draft == false
+    outputs:
+      manifest_rules_changed: ${{ steps.changed_paths.outputs.manifest_rules_changed }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      # A manual run has no pull request to diff; it starts every job instead.
+      - name: Filter changed paths
+        id: changed_paths
+        if: github.event_name == 'pull_request'
+        uses: dorny/paths-filter@v4
+        with:
+          filters: |
+            manifest_rules_changed:
+              - 'plugins/core/manifest/**'
+              - '.github/workflows/plugins-pull-request-checks.yml'
+
+  check-manifest-rules:
+    name: Check manifest rules
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.manifest_rules_changed == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      # The Python the app ships to plugins, per plugins/core/build-targets.json.
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: plugins/core/manifest
+        run: uv sync
+
+      - name: Lint
+        working-directory: plugins/core/manifest
+        run: uv run ruff check .
+
+      - name: Check formatting
+        working-directory: plugins/core/manifest
+        run: uv run ruff format --check .
+
+      - name: Run unit tests
+        working-directory: plugins/core/manifest
+        run: uv run pytest -m unit
