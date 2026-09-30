@@ -194,8 +194,9 @@ flash-attn = on
   back to the CPU silently. An `f16` plan writes none of them.
 
 The file is `models.ini` in the models directory, named once on each side
-(`PRESET_FILE`). `write_presets()` writes a sibling `.tmp` and renames it, so a
-half-written INI never loads.
+(`PRESET_FILE`). `write_presets()` leaves the existing file and its mtime alone
+when the rendered text is unchanged. A real change is written to a sibling
+`.tmp` and renamed, so a half-written INI never loads.
 
 ## From download to answerable
 
@@ -248,9 +249,9 @@ wanted and nobody is waiting yet:
   model is resident ([`selection.md`](selection.md)).
 - **At startup**, on the catalog warm thread after `reprice()`, because the
   preset decides the window the load will use. Nothing is resident after a
-  restart. `reprice()` always rewrites the preset, though, and Electron restarts
-  the sidecar on any rewrite within 5 seconds, so this load most likely lands on
-  a router that is about to be replaced (Known gaps).
+  restart. An unchanged catalog leaves the preset's mtime alone, so Electron
+  keeps the sidecar that receives this load. A changed catalog still rewrites
+  the preset and restarts the sidecar so its model list stays current.
 
 `residency.warm_selected()` gates the last two on the selection's provider being
 `llamacpp`, so choosing a remote model, or starting up with one selected, loads
@@ -459,5 +460,4 @@ layer count, of `--reasoning-budget` and of `--sleep-idle-seconds`.
 ## Known gaps
 
 - The Linux `.deb` declares no dependency on the Vulkan loader (`electron-builder.yml` has no `deb` section), though `libggml-vulkan.so` needs `libvulkan.so.1` from the host; without it the app runs on the CPU.
-- The startup warm most likely loads into a router that is about to restart: `reprice()` rewrites the preset on every start, `watchGenerationPreset()` starts watching before the API is healthy and restarts the sidecar within 5 seconds of the rewrite, and `warm_selected()` sends the load straight after `reprice()` returns. This is from reading the code, not a measurement.
 - Release CI runs the packaged `llama-server --list-devices` on Linux only; the macOS and Windows builds are checked only in the staging directory by `fetch-llamacpp.mjs`.
