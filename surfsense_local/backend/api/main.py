@@ -27,6 +27,7 @@ from modules.llm.models import SelectedModel
 from modules.llm.residency import warm_selected
 from modules.llm.router import router as llm_router
 from modules.migration.router import router as migration_router
+from modules.resource_usage.router import router as resource_usage_router
 from modules.workspaces.router import router as workspaces_router
 from modules.workspaces.seed import ensure_default_workspace
 from shared.config import get_llm_settings, get_storage_settings
@@ -152,6 +153,7 @@ def create_app() -> FastAPI:
     app.include_router(migration_router)
     app.include_router(license_router)
     app.include_router(egress_router)
+    app.include_router(resource_usage_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
     app.add_exception_handler(UnreadableSecretError, unreadable_secret)
     return app

@@ -2,16 +2,18 @@ import type { ReactNode } from "react"
 
 import { intl } from "@/i18n/intl"
 
-// The right column: Studio's generate control sits above the artifact
-// list, and an inspected citation or artifact swaps out for the whole panel.
-// There used to be a Sources tab here too — sources now live in the left
-// sidebar, so this panel has exactly one thing to show and no switcher.
+// The right column: live resource usage on top, then Studio's generate
+// control above the artifact list, and an inspected citation or artifact
+// swaps out for the whole panel. There used to be a Sources tab here too —
+// sources now live in the left sidebar, so this panel has no switcher.
 export function RightPanel({
   inspect,
+  usage,
   studio,
   artifacts,
 }: {
   inspect: ReactNode
+  usage: ReactNode
   studio: ReactNode
   artifacts: ReactNode
 }) {
@@ -25,11 +27,10 @@ export function RightPanel({
         defaultMessage: "Workspace artifacts",
       })}
     >
-      {/* Same heading, spacing and placement as the left sidebar's
-          "SurfSense" header — Studio's format cards start exactly where
-          "New chat" does over there, so they don't need a heading of
-          their own. */}
-      <header className="shrink-0 space-y-6 px-3 py-3">
+      {/* Usage sits where the left sidebar's "SurfSense" header does, so
+          Studio's heading now starts below that line rather than on it. */}
+      <div className="shrink-0 px-3 pt-3">{usage}</div>
+      <header className="-mt-2 shrink-0 space-y-6 px-3 pb-3">
         <h2 className="truncate px-1 font-heading text-lg font-medium text-foreground select-none">
           Studio
         </h2>
