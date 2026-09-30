@@ -206,8 +206,10 @@ The newest published release is marked latest, so its `plugin-catalog.json` is t
 The app spawns a process, hands it context, and waits for it to exit. The plugin does its own HTTP — to the sources it scrapes, and to the app, which already serves its API on loopback. There is no socket of ours, no message framing, and no results file.
 
 ```
-<python> -m surfsense_plugin_sdk.run <plugin-dir> <action> --inputs <file> --data <dir>
+<python> -S -m surfsense_plugin_sdk.run <plugin-dir> <action> --inputs <file> --data <dir>
 ```
+
+`-S` hides the packages installed beside that Python. The packaged app's plugin Python has none, but in development it is the backend's, or the CLI's under `surfsense-plugins invoke`, and a plugin must not import their packages by accident. So a plugin imports the standard library, the SDK and its own `site-packages`, and nothing else, wherever it runs. `multiprocessing` passes this on to the processes it starts. A plugin that starts another Python itself, with `subprocess` and `sys.executable`, passes `-S` and adds its own `site-packages` there too.
 
 | Argument | Meaning |
 |---|---|

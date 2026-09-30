@@ -77,7 +77,7 @@ def search(query: str) -> None:
 - `secret("token")` returns a secret the manifest declares, as the user entered it.
 - `data()` is your plugin's own folder (see below).
 - `document.add`, `list` and `update` work on the workspace the user ran the plugin in.
-- When something goes wrong, say why on stderr, or with `sys.exit("Hacker News refused your token. Update it in Settings.")`. The user reads it in the run's log.
+- When something goes wrong, say why on stderr, or with `sys.exit("Hacker News refused your token. Update it in Settings.")`. The user reads it in the run's log. Use `sys.exit`, not `exit`: the plugin's Python starts without the shortcuts meant for its interactive shell.
 
 ## Asking the user for things
 

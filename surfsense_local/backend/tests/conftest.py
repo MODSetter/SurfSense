@@ -22,7 +22,7 @@ from shared.db import (
     import_models,
 )
 from shared.migrations import upgrade_to_head
-from shared.queue import ingest_queue, studio_queue
+from shared.queue import ingest_queue, plugins_queue, studio_queue
 
 # A feature missing from Base.metadata is one the drift test cannot check.
 import_models()
@@ -73,9 +73,11 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.setattr(get_storage_settings(), "data_dir", tmp_path)
     ingest_queue.flush()
     studio_queue.flush()
+    plugins_queue.flush()
     yield tmp_path
     ingest_queue.flush()
     studio_queue.flush()
+    plugins_queue.flush()
 
 
 @pytest.fixture

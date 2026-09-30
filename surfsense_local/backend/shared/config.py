@@ -48,6 +48,14 @@ class StorageSettings(BaseSettings):
         """Where one artifact's rendered blobs live, keyed by id like documents."""
         return self.workspace_dir(workspace_id) / "artifacts" / str(artifact_id)
 
+    def plugin_dir(self, plugin_id: str, version: str) -> Path:
+        """Where one installed version of a plugin lives."""
+        return self.data_dir / "plugins" / plugin_id / version
+
+    def plugin_data_dir(self, plugin_id: str) -> Path:
+        """A plugin's own files, which outlive the versions that wrote them."""
+        return self.data_dir / "plugins" / plugin_id / "data"
+
 
 class SearchSettings(BaseSettings):
     """The index's shape, which both ingest and search have to agree on."""

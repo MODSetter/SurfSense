@@ -1,6 +1,6 @@
 # Python — the interpreter a plugin runs on
 
-> Owns: `surfsense_local/electron/scripts/fetch-plugin-python.mjs`, the `extraResources` entry, `plugin_python()` and `system_key()` in `modules/plugins/python.py`.
+> Owns: `surfsense_local/electron/scripts/fetch-plugin-python.mjs`, the `extraResources` entry, `plugin_python()` and `system_key()` in `modules/plugins/plugin_interpreter.py`.
 
 ## Goal
 

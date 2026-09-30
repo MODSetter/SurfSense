@@ -56,3 +56,35 @@ def echo(text: str) -> None:
     )
 
     assert finished.returncode == 3
+
+
+def test_a_plugin_cannot_import_what_the_cli_has_installed(
+    cli, plugin, real_app
+) -> None:
+    """The app gives a plugin no packages but its own, so neither does invoke."""
+    plugin.write(
+        """
+import importlib.util
+
+from surfsense_plugin_sdk import action
+
+
+@action("echo")
+def echo(text: str) -> None:
+    print(importlib.util.find_spec("typer") is None)
+"""
+    )
+
+    finished = cli(
+        "invoke",
+        str(plugin.folder),
+        "echo",
+        "--input",
+        "text=hi",
+        "--api-url",
+        real_app.url,
+        "--workspace",
+        str(real_app.new_workspace()),
+    )
+
+    assert (finished.returncode, finished.stdout) == (0, "True\n")
