@@ -410,7 +410,10 @@ Hugging Face's parsed architecture, ignored when it names a projector, and is
 marked approximate. An estimated fit never refuses, because the exact answer
 comes before any bytes move. If that check refuses, its reason remains under the
 build as well as appearing in the error toast. A repo whose type is not
-`TEXT_GEN` gets no install ids, so none of its builds can be downloaded.
+`TEXT_GEN` gets no install ids, so none of its builds can be downloaded. A
+gated repo still lists its builds, but the app has no Hugging Face credential
+to fetch them: the screen explains that limitation and the server issues no
+install ids.
 
 **Installing a searched build reads it exactly.**
 [`exact_check.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/search/exact_check.py)
@@ -656,7 +659,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
-- A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
 - Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it only when a Studio job needs it. The hard-coded list's route reported that, and went with it.

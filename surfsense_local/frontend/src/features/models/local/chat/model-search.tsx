@@ -113,7 +113,7 @@ function RepoBuilds({
     )
   }
 
-  const { row } = detail.data
+  const { gated, row } = detail.data
   if (row.builds.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-muted-foreground">
@@ -127,6 +127,15 @@ function RepoBuilds({
 
   return (
     <>
+      {gated ? (
+        <p className="px-3 pt-2 text-xs text-muted-foreground">
+          {intl.formatMessage({
+            id: "models_search_builds_gated_body",
+            defaultMessage:
+              "This gated repository requires Hugging Face authentication, which SurfSense does not support yet.",
+          })}
+        </p>
+      ) : null}
       {!row.runnable ? (
         <p className="px-3 pt-2 text-xs text-muted-foreground">
           {row.not_runnable_reason}

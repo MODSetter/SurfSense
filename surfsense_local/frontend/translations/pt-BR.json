@@ -371,6 +371,7 @@
   "models_search_builds_body": "Os tamanhos são exatos. A compatibilidade é estimada e verificada antes do download.",
   "models_search_builds_empty": "Este repositório não tem nenhuma variante que o SurfSense consiga executar.",
   "models_search_builds_error": "Não foi possível listar as variantes deste modelo.",
+  "models_search_builds_gated_body": "Este repositório restrito exige autenticação do Hugging Face, que o SurfSense ainda não oferece.",
   "models_search_builds_loading_status": "Listando as variantes deste modelo",
   "models_search_clear_aria": "Limpar busca",
   "models_search_downloads_label": "{downloads, plural, one {{downloads, number, ::compact-short} download} many {{downloads, number, ::compact-short} downloads} other {{downloads, number, ::compact-short} downloads}}",

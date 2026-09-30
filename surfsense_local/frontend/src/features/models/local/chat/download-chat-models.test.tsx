@@ -754,6 +754,67 @@ describe("model catalog", () => {
     ).toBeNull()
   })
 
+  it("explains why builds from a gated repo cannot be downloaded", async () => {
+    const repo = "meta-llama/Llama-3.1-8B-GGUF"
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) => {
+        if (path.startsWith("/llm/catalog/local/search?")) {
+          return Response.json({
+            results: [
+              {
+                repo,
+                downloads: 1000,
+                likes: 20,
+                license: "llama3.1",
+                gated: true,
+                quantized_from: "meta-llama/Llama-3.1-8B",
+                last_modified: null,
+                reads_images: false,
+              },
+            ],
+          })
+        }
+        if (path.startsWith("/llm/catalog/local/search/")) {
+          return Response.json({
+            repo,
+            gated: true,
+            row: row(
+              {
+                id: repo,
+                origin: "search",
+                name: repo,
+                approximate: true,
+                default_quantization: null,
+              },
+              [build({ catalog_id: "", can_install: false })]
+            ),
+          })
+        }
+        return null
+      })
+    )
+    const user = userEvent.setup()
+
+    render(<DownloadChatModels />)
+    await user.type(
+      await screen.findByRole("searchbox", { name: "Search all models" }),
+      "llama"
+    )
+    await user.click(await screen.findByText(repo))
+
+    expect(
+      await screen.findByText(
+        "This gated repository requires Hugging Face authentication, which SurfSense does not support yet."
+      )
+    ).toBeTruthy()
+    const download = screen.getByRole("button", {
+      name: `Download ${repo} Q4_K_M`,
+    })
+    expect(download).toBeInstanceOf(HTMLButtonElement)
+    expect((download as HTMLButtonElement).disabled).toBe(true)
+  })
+
   it("shows install failures as a toast instead of inside the model row", async () => {
     const installs = fakeInstallApi()
     vi.stubGlobal("fetch", serving(catalog(), installs.handle))

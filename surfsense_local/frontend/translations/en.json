@@ -371,6 +371,7 @@
   "models_search_builds_body": "Sizes are exact. Fit is estimated and checked before download.",
   "models_search_builds_empty": "This repo has no build SurfSense can run.",
   "models_search_builds_error": "Could not list this model’s builds.",
+  "models_search_builds_gated_body": "This gated repository requires Hugging Face authentication, which SurfSense does not support yet.",
   "models_search_builds_loading_status": "Listing this model’s builds",
   "models_search_clear_aria": "Clear search",
   "models_search_downloads_label": "{downloads, plural, one {{downloads, number, ::compact-short} download} other {{downloads, number, ::compact-short} downloads}}",

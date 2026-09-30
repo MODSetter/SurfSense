@@ -371,6 +371,7 @@
   "models_search_builds_body": "サイズは正確な値です。適合は推定値で、ダウンロード前に確認します。",
   "models_search_builds_empty": "このリポジトリにはSurfSenseで実行できるビルドがありません。",
   "models_search_builds_error": "このモデルのビルドを一覧表示できませんでした。",
+  "models_search_builds_gated_body": "このアクセス制限付きリポジトリには Hugging Face の認証が必要ですが、SurfSense はまだ対応していません。",
   "models_search_builds_loading_status": "このモデルのビルドを取得中",
   "models_search_clear_aria": "検索をクリア",
   "models_search_downloads_label": "{downloads, plural, other {{downloads, number, ::compact-short}ダウンロード}}",
