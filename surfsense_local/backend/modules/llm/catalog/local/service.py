@@ -16,6 +16,7 @@ from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
 from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
     ProjectorNotice,
 )
+from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_temperature
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
@@ -190,6 +191,10 @@ class LocalCatalogService:
         return await self.llamacpp.repo(
             repo, lambda build, tag: self._tickets.mint(build, pipeline_tag=tag)
         )
+
+    def publisher_temperature(self, model: str, reasoning: bool | None) -> float | None:
+        """What a curated chat model's publisher set for this mode, else None."""
+        return publisher_temperature(self._manifest.models, model, reasoning)
 
     # installing -------------------------------------------------------------
 
