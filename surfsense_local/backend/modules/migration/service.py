@@ -23,11 +23,9 @@ from shared.config import get_storage_settings
 logger = logging.getLogger(__name__)
 
 
-def find_or_create_workspaces(
-    session: Session, manifest: Manifest
-) -> list[tuple[Workspace, bool]]:
+def find_or_create_workspaces(session: Session, manifest: Manifest) -> list[Workspace]:
     """One local workspace per exported one, keyed by cloud id across re-imports."""
-    found: list[tuple[Workspace, bool]] = []
+    found: list[Workspace] = []
     for exported in manifest.workspaces:
         workspace = session.scalar(
             select(Workspace).where(Workspace.cloud_id == exported.id)
@@ -36,9 +34,7 @@ def find_or_create_workspaces(
             workspace = Workspace(name=exported.name, cloud_id=exported.id)
             session.add(workspace)
             session.flush()
-            found.append((workspace, True))
-        else:
-            found.append((workspace, False))
+        found.append(workspace)
     return found
 
 
@@ -46,22 +42,17 @@ def import_bundle(
     session_factory: sessionmaker[Session],
     bundle_path: Path,
     manifest: Manifest,
-    workspace_ids: dict[int, tuple[int, bool]],
+    workspace_ids: dict[int, int],
 ) -> None:
     """The slow half, after the 202: documents to disk and queue, threads to rows."""
     try:
         with ZipFile(bundle_path) as archive, session_factory() as session:
             for exported in manifest.workspaces:
-                workspace_id, created = workspace_ids[exported.id]
+                workspace_id = workspace_ids[exported.id]
                 for document in exported.documents:
                     _import_document(
                         session, archive, workspace_id, exported.id, document
                     )
-                # ponytail: threads have no dedup key, so they travel only with
-                # a workspace's first import. A later export's new threads are
-                # lost; the upgrade is a cloud thread id column on chat_threads.
-                if not created:
-                    continue
                 for thread in ExportedThreads.validate_json(
                     archive.read(exported.chats)
                 ):
@@ -140,8 +131,16 @@ def _import_document(
 def _import_thread(
     session: Session, workspace_id: int, exported: ExportedThread
 ) -> None:
+    thread = session.scalar(
+        select(ChatThread).where(ChatThread.cloud_id == exported.id)
+    )
+    if thread is not None:
+        return
     thread = ChatThread(
-        workspace_id=workspace_id, title=exported.title, created_at=exported.created_at
+        workspace_id=workspace_id,
+        cloud_id=exported.id,
+        title=exported.title,
+        created_at=exported.created_at,
     )
     session.add(thread)
     session.flush()

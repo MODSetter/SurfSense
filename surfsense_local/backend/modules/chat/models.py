@@ -23,6 +23,8 @@ class ChatThread(Base):
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE")
     )
+    # The hosted thread this one was imported from, so a re-import finds it.
+    cloud_id: Mapped[int | None] = mapped_column(unique=True)
     title: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
