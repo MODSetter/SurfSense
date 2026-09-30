@@ -193,6 +193,8 @@
   "feedback_log_empty": "Nada registrado ainda",
   "feedback_log_title": "Log da sessão",
   "feedback_report_copied_toast": "Relatório copiado. Ele é longo demais para um link, então cole-o em “What happened?” no GitHub.",
+  "feedback_sidecar_crashed_body": "Reinicie o SurfSense para restaurar o serviço.",
+  "feedback_sidecar_crashed_toast": "{part, select, core {O SurfSense parou de funcionar} documents {O processamento de documentos parou} studio {O processamento do Studio parou} chat {O chat local parou} images {A geração de imagens parou} audio {A geração de áudio parou} other {Um serviço em segundo plano parou}}",
   "feedback_toast_report_button": "Relatar problema",
   "license_clock_notice_body": "O relógio deste computador está atrasado em relação à última vez que o SurfSense foi executado. Acerte-o para usar sua licença.",
   "license_clock_notice_title": "Relógio desajustado",

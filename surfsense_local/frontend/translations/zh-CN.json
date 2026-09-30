@@ -193,6 +193,8 @@
   "feedback_log_empty": "暂无日志",
   "feedback_log_title": "会话日志",
   "feedback_report_copied_toast": "报告已复制。内容太长，无法放进链接，请粘贴到 GitHub 的“What happened?”中。",
+  "feedback_sidecar_crashed_body": "请重启 SurfSense 以恢复该功能。",
+  "feedback_sidecar_crashed_toast": "{part, select, core {SurfSense 已停止运行} documents {文档处理已停止} studio {Studio 处理已停止} chat {本地聊天已停止} images {图像生成已停止} audio {音频生成已停止} other {后台服务已停止}}",
   "feedback_toast_report_button": "报告问题",
   "license_clock_notice_body": "这台电脑的时钟早于 SurfSense 上次运行的时间。请把时钟调准才能使用你的许可证。",
   "license_clock_notice_title": "时钟不准",

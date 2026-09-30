@@ -193,6 +193,8 @@
   "feedback_log_empty": "아직 로그가 없습니다",
   "feedback_log_title": "세션 로그",
   "feedback_report_copied_toast": "보고서를 복사했습니다. 링크에 담기에는 너무 길므로 GitHub의 ‘What happened?’에 붙여 넣으세요.",
+  "feedback_sidecar_crashed_body": "복원하려면 SurfSense를 다시 시작하세요.",
+  "feedback_sidecar_crashed_toast": "{part, select, core {SurfSense가 중지되었습니다} documents {문서 처리가 중지되었습니다} studio {Studio 처리가 중지되었습니다} chat {로컬 채팅이 중지되었습니다} images {이미지 생성이 중지되었습니다} audio {오디오 생성이 중지되었습니다} other {백그라운드 서비스가 중지되었습니다}}",
   "feedback_toast_report_button": "문제 신고",
   "license_clock_notice_body": "이 컴퓨터의 시계가 SurfSense를 마지막으로 실행한 시각보다 이전입니다. 라이선스를 사용하려면 시계를 올바르게 맞추세요.",
   "license_clock_notice_title": "시계가 맞지 않음",
