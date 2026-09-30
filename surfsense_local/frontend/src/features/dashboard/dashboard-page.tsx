@@ -111,6 +111,7 @@ function WorkspaceDashboard({
     workspaceId: workspace.id,
     canSend: providerAvailable,
     selectedDocumentIds: sources.includedDocumentIds,
+    readsImages: selection?.reads_images === true,
     onModelRequired,
   })
 
@@ -257,6 +258,11 @@ function WorkspaceDashboard({
                       onUpload={(files) => void sources.upload(files)}
                     />
                   }
+                  onDropFiles={
+                    sources.isUploading
+                      ? undefined
+                      : (files) => void sources.upload(files)
+                  }
                   onOpen={(id) => void sources.openOriginal(id)}
                   onReveal={(id) => void sources.revealOriginal(id)}
                   onRetry={(id) => void sources.retry(id)}
@@ -279,7 +285,6 @@ function WorkspaceDashboard({
             model={selection}
             isLoading={chat.isLoadingMessages}
             isRunning={chat.isRunning}
-            isUploading={sources.isUploading}
             animateTitle={chat.activeThreadId === chat.animatingTitleThreadId}
             providerAvailable={providerAvailable}
             notice={
@@ -299,7 +304,6 @@ function WorkspaceDashboard({
             onModelSetup={onModelRequired}
             onModelSelected={onModelSelected}
             onRetry={chat.retry}
-            onUpload={(files) => void sources.upload(files)}
             sourceCount={sources.includedDocumentIds.length}
             onTitleAnimationComplete={chat.finishTitleAnimation}
             autoNamingThreadId={chat.autoNamingThreadId}

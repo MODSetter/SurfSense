@@ -11,6 +11,9 @@ from shared.config import get_llm_settings
 
 INSTALLED = ["Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"]
 DELETED: list[str] = []
+# Installed models whose preset projector reads images, which the real router
+# lists as `image` input whether or not the model is loaded.
+SEES: set[str] = set()
 
 
 class StubRouter(BaseHTTPRequestHandler):
@@ -27,7 +30,15 @@ class StubRouter(BaseHTTPRequestHandler):
                 {
                     "object": "list",
                     "data": [
-                        {"id": name, "status": {"value": "unloaded", "args": []}}
+                        {
+                            "id": name,
+                            "architecture": {
+                                "input_modalities": ["text", "image"]
+                                if name in SEES
+                                else ["text"],
+                            },
+                            "status": {"value": "unloaded", "args": []},
+                        }
                         for name in INSTALLED
                     ],
                 }
@@ -90,6 +101,7 @@ def llamacpp_server(
     """
     INSTALLED[:] = ["Qwen3-1.7B-Q4_K_M", "Qwen3-4B-Q4_K_M"]
     DELETED.clear()
+    SEES.clear()
     models = tmp_path_factory.mktemp("models")
     for name in INSTALLED:
         (models / f"{name}.gguf").write_bytes(b"GGUF")

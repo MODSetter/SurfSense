@@ -18,11 +18,21 @@ class Model:
 
 
 @dataclass(frozen=True)
+class Image:
+    """An image a turn carries, already in a format every endpoint decodes."""
+
+    mime: str
+    data: bytes
+
+
+@dataclass(frozen=True)
 class Message:
     """One turn of a conversation handed to a generator."""
 
     role: str
     content: str
+    # Beside the text, not inside it, so every reader of `content` stays a str.
+    images: tuple[Image, ...] = ()
 
 
 @dataclass(frozen=True)

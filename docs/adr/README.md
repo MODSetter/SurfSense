@@ -68,3 +68,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0031 | [Ranking blends the two legs on absolute scales, keyword strength being term coverage rather than BM25](0031-ranking-blends-absolute-leg-scores.md) | Accepted, amended by 0032 and 0033 |
 | 0032 | [The index and the question are split by one tokenizer, FTS5's own, and it keeps a word's combining marks](0032-one-tokenizer-for-index-and-question.md) | Accepted |
 | 0033 | [Every candidate is scored on its own cosine, because a chunk the vector leg did not reach is unmeasured rather than unrelated](0033-every-candidate-is-scored-on-its-own-cosine.md) | Accepted |
+| 0034 | [Whether a chat model reads images is llama.cpp's own answer for a local model and the catalog's for a remote one, and it is stored nowhere](0034-vision-is-the-runtimes-answer-stored-nowhere.md) | Accepted |

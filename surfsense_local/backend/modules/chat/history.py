@@ -1,8 +1,9 @@
 from collections.abc import Awaitable, Callable, Sequence
 
-from modules.chat.budget import CHARS_PER_TOKEN, DEFAULT_HISTORY_TOKENS
+from modules.chat.budget import CHARS_PER_TOKEN, DEFAULT_HISTORY_TOKENS, IMAGE_TOKENS
+from modules.chat.images import store
 from modules.chat.models import ChatMessage
-from modules.llm.providers.types import Message
+from modules.llm.providers.types import Image, Message
 
 # A turn's exact cost by the model's own tokenizer, or None when it could not
 # be counted (no endpoint, a transient failure). None falls back to the
@@ -15,6 +16,7 @@ async def build_messages(
     history: Sequence[ChatMessage],
     user_text: str,
     *,
+    images: Sequence[Image] = (),
     history_budget: int = DEFAULT_HISTORY_TOKENS,
     token_count: TokenCounter | None = None,
 ) -> list[Message]:
@@ -28,14 +30,39 @@ async def build_messages(
     instead of the `~4 chars/token` estimate: only the local runtime can
     answer it, so a caller without one gets exactly today's heuristic trim.
     """
-    turns = [Message(role=str(row.role.value), content=message_text(row)) for row in history]
-    kept = await _within_budget(turns, history_budget, token_count)
-    return [Message("system", system), *kept, Message("user", user_text)]
+    # One earlier picture at most rides along: the newest, so a follow-up about
+    # it works, and none once this turn brings its own.
+    resend = None if images else _newest_image_turn(history)
+    turns = [
+        Message(
+            role=str(row.role.value),
+            content=message_text(row),
+            images=_stored_images(row) if row is resend else (),
+        )
+        for row in history
+    ]
+    budget = max(0, history_budget - IMAGE_TOKENS * len(images))
+    kept = await _within_budget(turns, budget, token_count)
+    return [
+        Message("system", system),
+        *kept,
+        Message("user", user_text, images=tuple(images)),
+    ]
 
 
 def message_text(row: ChatMessage) -> str:
     """The plain text of a stored turn; its citations are for the UI, not the model."""
     return row.content.get("text", "")
+
+
+def _newest_image_turn(history: Sequence[ChatMessage]) -> ChatMessage | None:
+    return next((row for row in reversed(history) if row.content.get("images")), None)
+
+
+def _stored_images(row: ChatMessage) -> tuple[Image, ...]:
+    """What is still on disk; a missing file leaves the turn as text."""
+    loaded = (store.load(ref) for ref in row.content.get("images", []))
+    return tuple(image for image in loaded if image is not None)
 
 
 async def _within_budget(
@@ -44,7 +71,8 @@ async def _within_budget(
     kept: list[Message] = []
     spent = 0
     for turn in reversed(turns):
-        spent += await _cost(turn.content, token_count)
+        images = IMAGE_TOKENS * len(turn.images)
+        spent += await _cost(turn.content, token_count) + images
         if spent > budget:
             break
         kept.append(turn)

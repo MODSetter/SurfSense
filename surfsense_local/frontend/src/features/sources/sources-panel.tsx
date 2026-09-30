@@ -48,6 +48,7 @@ import {
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
+import { useFileDrop } from "./use-file-drop"
 import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
@@ -394,6 +395,7 @@ export function SourcesPanel({
   onDeleteSelected,
   onSelectionChange,
   onToggleAll,
+  onDropFiles,
 }: {
   documents: WorkspaceDocument[]
   selectedDocumentIds: number[]
@@ -410,8 +412,12 @@ export function SourcesPanel({
   onDeleteSelected: () => void
   onSelectionChange: (documentId: number, selected: boolean) => void
   onToggleAll: () => void
+  // Files dropped on the panel. Absent, the panel takes no drop: the caller
+  // withholds it while an upload runs, as it disables Add.
+  onDropFiles?: (files: File[]) => void
 }) {
   const sourceRows = useRef(new Map<number, HTMLLIElement>())
+  const drop = useFileDrop(onDropFiles)
   const [deleteTarget, setDeleteTarget] = useState<
     WorkspaceDocument | "selected" | null
   >(null)
@@ -490,9 +496,18 @@ export function SourcesPanel({
         </Alert>
       ) : null}
       <section
-        className="flex h-full min-h-0 w-full min-w-0 flex-col"
+        className="relative flex h-full min-h-0 w-full min-w-0 flex-col"
         aria-labelledby="all-sources"
+        {...drop.handlers}
       >
+        {drop.active ? (
+          <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-xl border-2 border-dashed border-ring/60 bg-app-shell p-4 text-center text-sm text-muted-foreground">
+            {intl.formatMessage({
+              id: "sources_drop_label",
+              defaultMessage: "Drop files to add them as sources",
+            })}
+          </div>
+        ) : null}
         {listHeader}
         <ScrollFade className="min-h-0 flex-1">
           {isLoading ? (

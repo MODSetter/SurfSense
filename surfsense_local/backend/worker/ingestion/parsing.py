@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from modules.documents.models import Document, DocumentType
-from modules.documents.storage import original_path
+from modules.documents.original_file import original_path
 from shared.config import get_storage_settings
 from worker.ingestion.parser_pack import missing_parser_folders, parser_dir
 
@@ -18,13 +18,10 @@ def markdown_for(document: Document) -> str:
         return document.content or ""
 
     path = original_path(document)
-    if not path.is_file():
+    if path is None:
         raise FileNotFoundError("the uploaded file is no longer on disk")
 
-    markdown = _markdown_from(path)
-    # Kept beside the original so a reindex costs no re-parsing.
-    (path.parent / "extracted.md").write_text(markdown, encoding="utf-8")
-    return markdown
+    return _markdown_from(path)
 
 
 def _markdown_from(path: Path) -> str:

@@ -40,6 +40,12 @@ CHARS_PER_TOKEN = 4
 # window and leave nothing for history or the answer.
 QUESTION_TOKENS = 1024
 
+# What one attached image costs the window. The curated vision model, Gemma 3,
+# spends a fixed 256; Qwen2.5-VL, downloadable from search, spends ~1,340 at the
+# 1024 px cap (modules/chat/images/intake.py). Priced at the larger, so the trim
+# drops a turn rather than overflowing the window.
+IMAGE_TOKENS = 1400
+
 # What MessageText refuses past, at the wire (modules/chat/schemas.py). One
 # global cap rather than one per window: it runs before any model is resolved,
 # and the budget prices the question at the same 1,024 for every window.
@@ -60,7 +66,9 @@ def history_budget(n_ctx: int | None) -> int:
     """
     if n_ctx is None:
         return DEFAULT_HISTORY_TOKENS
-    spent = SYSTEM_PROMPT_TOKENS + EXCERPTS_TOKENS + QUESTION_TOKENS + ANSWER_RESERVE_TOKENS
+    spent = (
+        SYSTEM_PROMPT_TOKENS + EXCERPTS_TOKENS + QUESTION_TOKENS + ANSWER_RESERVE_TOKENS
+    )
     return max(0, n_ctx - spent)
 
 

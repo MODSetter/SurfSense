@@ -32,6 +32,10 @@ _TOKENS_PER_WORD: int | None = None
 # as llama-server does under `--reasoning-format deepseek`. Empty: no thinking.
 _REASONING: list[str] = []
 
+# Whether the stub's model has a projector that reads images, which the real
+# router lists as `image` input on `/models`.
+_SEES = False
+
 # The answer the stub streams, or None for REPLY_DELTAS. Empty: a model that
 # closes its stream without writing anything.
 _ANSWER: list[str] | None = None
@@ -55,7 +59,16 @@ class StubRouterChat(BaseHTTPRequestHandler):
                     {
                         "object": "list",
                         "data": [
-                            {"id": "Qwen3-4B-Q4_K_M", "status": {"value": "loaded"}}
+                            {
+                                "id": name,
+                                "architecture": {
+                                    "input_modalities": ["text", "image"]
+                                    if _SEES
+                                    else ["text"]
+                                },
+                                "status": {"value": "loaded"},
+                            }
+                            for name in ("Qwen3-4B-Q4_K_M", "Qwen3-1.7B-Q4_K_M")
                         ],
                     }
                 ).encode()
@@ -142,8 +155,9 @@ class StubRouterChat(BaseHTTPRequestHandler):
 @pytest.fixture
 def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     """A real llama-server stand-in on a real port; yields the requests it sees."""
-    global _PROPS_N_CTX, _TOKENS_PER_WORD, _ANSWER, _STALL
+    global _PROPS_N_CTX, _TOKENS_PER_WORD, _SEES, _ANSWER, _STALL
     _REQUESTS.clear()
+    _SEES = False
     _REASONING.clear()
     _ANSWER = None
     _STALL = None
@@ -200,6 +214,12 @@ def set_tokens_per_word(tokens_per_word: int) -> None:
     at this many tokens per word, instead of 404ing like an older build."""
     global _TOKENS_PER_WORD
     _TOKENS_PER_WORD = tokens_per_word
+
+
+def set_sees(sees: bool) -> None:
+    """Make the `llamacpp_server` model read images, as a vision model's does."""
+    global _SEES
+    _SEES = sees
 
 
 def set_reasoning(pieces: list[str]) -> None:

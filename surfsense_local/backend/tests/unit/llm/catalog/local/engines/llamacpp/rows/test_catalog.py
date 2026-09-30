@@ -411,3 +411,23 @@ def test_the_build_in_use_leads_its_row(tmp_path: Path) -> None:
 
     row = next(r for r in result.rows if r.id == "qwen3-8b")
     assert (row.lead.quantization, row.lead.why) == ("Q4_K_M", LeadReason.IN_USE)
+
+
+def test_an_installed_vision_build_reads_images_only_with_its_projector(
+    tmp_path: Path,
+) -> None:
+    """Installed, the badge follows the load: the preset gives `--mmproj` only for
+    a projector on disk, and llama.cpp reports what the preset gave it. A build
+    whose projector never landed runs text-only and must not say Vision."""
+    a_model(tmp_path / "gemma-3-4b-it-Q2_K.gguf", architecture="gemma3", embedding=2560)
+
+    def installed_build():
+        result = catalog(BUDGETS["discrete-24gb"], scan(tmp_path, {}))
+        row = next(r for r in result.rows if r.id == "gemma-3-4b")
+        return next(b for b in row.builds if b.installed_as)
+
+    assert not installed_build().reads_images
+
+    a_projector(tmp_path / projector_filename("gemma-3-4b-it-Q2_K"), width=2560)
+
+    assert installed_build().reads_images

@@ -77,7 +77,6 @@ export function ThreadPanel({
   model,
   isLoading,
   isRunning,
-  isUploading,
   animateTitle,
   providerAvailable,
   notice,
@@ -86,7 +85,6 @@ export function ThreadPanel({
   onModelSetup,
   onModelSelected,
   onRetry,
-  onUpload,
   sourceCount,
   onTitleAnimationComplete,
   autoNamingThreadId,
@@ -99,7 +97,6 @@ export function ThreadPanel({
   model: ModelSelection | null
   isLoading: boolean
   isRunning: boolean
-  isUploading: boolean
   animateTitle: boolean
   providerAvailable: boolean
   notice?: ReactNode
@@ -109,7 +106,6 @@ export function ThreadPanel({
   onModelSetup: () => void
   onModelSelected: (selection: ModelSelection) => void
   onRetry: (assistantId: string) => void
-  onUpload: (files: File[]) => void
   onTitleAnimationComplete: () => void
   autoNamingThreadId: number | null
   onRename: (id: number, title: string) => Promise<boolean>
@@ -137,13 +133,12 @@ export function ThreadPanel({
       model={model}
       sourceCount={sourceCount}
       isRunning={isRunning}
-      isUploading={isUploading}
       providerAvailable={providerAvailable}
       notice={notice}
       blockedPlaceholder={blockedPlaceholder}
       onModelSetup={onModelSetup}
       onModelSelected={onModelSelected}
-      onUpload={onUpload}
+      readsImages={model?.reads_images === true}
     />
   )
   const bottomFooter = bottomComposer ? composer("bottom") : undefined

@@ -18,6 +18,10 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, llamacpp, provider_names
 from modules.llm.providers.sdcpp import provider as sdcpp
+from modules.llm.reads_images import (
+    connection_catalog_provider,
+    selection_reads_images,
+)
 from modules.llm.residency import warm_selected
 from modules.llm.schemas import (
     LocalImageRuntimeRead,
@@ -222,13 +226,18 @@ def read_local_image_runtime(
     response_model=SelectionRead,
     summary="Read the model chosen for a model type",
 )
-def read_selection(model_type: ModelType, session: SessionDep) -> SelectedModel:
+async def read_selection(model_type: ModelType, session: SessionDep) -> SelectionRead:
+    return await _selection_read(
+        session, await transact(session, _chosen_or_404, model_type)
+    )
+
+
+def _chosen_or_404(session: Session, model_type: ModelType) -> SelectedModel:
     selected = session.get(SelectedModel, model_type)
     if selected is None:
         raise HTTPException(
             status.HTTP_404_NOT_FOUND, f"no model chosen for {model_type}"
         )
-
     return selected
 
 
@@ -242,7 +251,7 @@ async def set_selection(
     payload: SelectionWrite,
     session: SessionDep,
     background: BackgroundTasks,
-) -> SelectedModel:
+) -> SelectionRead:
     chosen = await choose_model(
         session,
         model_type,
@@ -258,4 +267,19 @@ async def set_selection(
     # either way — the only question is whether it happens now or on their
     # first question.
     background.add_task(warm_selected, chosen, get_llm_settings().llamacpp_base_url)
-    return chosen
+    return await _selection_read(session, chosen)
+
+
+async def _selection_read(session: Session, selected: SelectedModel) -> SelectionRead:
+    read, catalog_provider = await transact(session, _read_with_provider, selected)
+    read.reads_images = await selection_reads_images(selected, catalog_provider)
+    return read
+
+
+def _read_with_provider(
+    session: Session, selected: SelectedModel
+) -> tuple[SelectionRead, str | None]:
+    return (
+        SelectionRead.model_validate(selected),
+        connection_catalog_provider(session, selected),
+    )

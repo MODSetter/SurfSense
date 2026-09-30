@@ -19,7 +19,14 @@ import {
   streamMessage,
   type ChatMessage,
   type ChatThread,
+  type ImageUpload,
 } from "./api"
+import {
+  ChatImageAdapter,
+  attachmentsOf,
+  previewOf,
+  uploadsOf,
+} from "./image-attachments"
 import { chatKeys } from "./query-keys"
 import type { ChatErrorKind } from "./sse"
 
@@ -28,6 +35,7 @@ export type ChatTurnError = {
   message: string
   provider: string
   retryText: string
+  retryImages: ImageUpload[]
 }
 
 function messageFrom(error: unknown) {
@@ -111,7 +119,8 @@ function areLiveMessagesPersisted(
 
 function toRuntimeMessage(
   message: ChatMessage,
-  chatErrors: Record<string, ChatTurnError>
+  chatErrors: Record<string, ChatTurnError>,
+  threadId: number | null
 ): ThreadMessageLike {
   const value =
     message.role === "assistant" ? message.completed_at : message.created_at
@@ -124,6 +133,9 @@ function toRuntimeMessage(
     id: String(message.id),
     role: message.role,
     content: [{ type: "text", text: message.content.text ?? "" }],
+    ...(message.role === "user"
+      ? { attachments: attachmentsOf(message, threadId) }
+      : {}),
     ...(timestamp ? { createdAt: new Date(timestamp) } : {}),
     ...(error
       ? { status: { type: "incomplete", reason: "error", error } as const }
@@ -146,11 +158,15 @@ export function useChatRuntime({
   workspaceId,
   canSend,
   selectedDocumentIds,
+  readsImages,
   onModelRequired,
 }: {
   workspaceId: number
   canSend: boolean
   selectedDocumentIds: number[]
+  // Whether the selected model reads images; without it the composer has no
+  // attachment adapter, so it takes none.
+  readsImages: boolean
   onModelRequired: () => void
 }) {
   const queryClient = useQueryClient()
@@ -313,7 +329,17 @@ export function useChatRuntime({
   }
 
   const send = useCallback(
-    async (text: string) => {
+    async (typed: string, images: ImageUpload[] = []) => {
+      // The backend needs a question for retrieval and the title; an image sent
+      // alone asks the obvious one.
+      const text =
+        typed ||
+        (images.length > 0
+          ? intl.formatMessage({
+              id: "chat_runtime_image_question_body",
+              defaultMessage: "What is in this image?",
+            })
+          : "")
       if (
         !text ||
         isRunning ||
@@ -371,7 +397,10 @@ export function useChatRuntime({
           {
             id: userId,
             role: "user",
-            content: { text },
+            content: {
+              text,
+              ...(images.length > 0 ? { previews: images.map(previewOf) } : {}),
+            },
             created_at: null,
             completed_at: null,
           },
@@ -387,6 +416,7 @@ export function useChatRuntime({
         await streamMessage(
           threadId,
           text,
+          images,
           selectedDocumentIds,
           controller.signal,
           (event) => {
@@ -534,6 +564,7 @@ export function useChatRuntime({
                   message: event.message,
                   provider: event.provider,
                   retryText: text,
+                  retryImages: images,
                 },
               }))
             }
@@ -587,6 +618,7 @@ export function useChatRuntime({
               message: messageFrom(cause),
               provider: "",
               retryText: text,
+              retryImages: images,
             },
           }))
         }
@@ -610,7 +642,8 @@ export function useChatRuntime({
   )
 
   const onNew = useCallback(
-    (appendMessage: AppendMessage) => send(submittedText(appendMessage)),
+    (appendMessage: AppendMessage) =>
+      send(submittedText(appendMessage), uploadsOf(appendMessage)),
     [send]
   )
 
@@ -618,7 +651,7 @@ export function useChatRuntime({
     (assistantId: string) => {
       const failed = chatErrors[assistantId]
       if (!failed) return
-      void send(failed.retryText)
+      void send(failed.retryText, failed.retryImages)
     },
     [chatErrors, send]
   )
@@ -665,9 +698,16 @@ export function useChatRuntime({
     }
   }, [messagesQuery.error])
 
+  const adapters = useMemo(
+    () => (readsImages ? { attachments: new ChatImageAdapter() } : undefined),
+    [readsImages]
+  )
+
   const runtime = useExternalStoreRuntime<ChatMessage>({
     messages: threadMessages,
-    convertMessage: (message) => toRuntimeMessage(message, chatErrors),
+    convertMessage: (message) =>
+      toRuntimeMessage(message, chatErrors, activeThreadId),
+    adapters,
     onNew,
     isRunning,
     isSendDisabled: !canSend || isLoadingMessages || isLoadingThreads,

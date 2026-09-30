@@ -4,7 +4,7 @@
 
 ## Today
 
-- An upload is copied to `data/workspaces/<workspace>/documents/<document>/original.<ext>`. The path is built from row ids, "so nothing else a user types reaches the filesystem" ([documents](../../architecture/documents.md)).
+- An upload is copied into `data/workspaces/<workspace>/documents/<document>/` under its sanitized filename. The directory is built from row ids; only the sanitized name reaches the filesystem ([documents](../../architecture/documents.md)).
 - Documents have no folders; there is no `folder_id` ([data model](../../architecture/data-model.md), Known gaps).
 - No code watches files on disk. None of `modules/`, `worker/`, `shared/` or the Electron main process uses a file watcher.
 - The desktop app has no git-backed store ([ADR 0003](../../adr/0003-artifacts-as-documents.md)).

@@ -19,6 +19,8 @@ class Supports:
     reasoning: bool | None
     structured_output: bool | None
     context_window: int | None
+    # From `modalities.input`, which every entry carries, so never None alone.
+    reads_images: bool | None
 
 
 def supports(model: RemoteModel) -> Supports:
@@ -28,4 +30,5 @@ def supports(model: RemoteModel) -> Supports:
         reasoning=model.reasoning,
         structured_output=model.structured_output,
         context_window=model.context,
+        reads_images="image" in model.modalities.input,
     )

@@ -359,10 +359,13 @@ The refresh script writes it into each audio entry's evidence.
 reads image support from GGUF keys under llama.cpp's own names: a projector
 (`general.type` is `mmproj`, or the older `clip` architecture) with
 `clip.has_vision_encoder`, whose `clip.vision.projection_dim` matches the model's
-`embedding_length`. A curated build answers from the keys the refresh committed; a
-downloaded one from the projector file on disk; a searched one from the repo's
-file names until its header is read at install. The screen says **Vision**, once
-per row.
+`embedding_length`. A curated build answers from the keys the refresh committed
+until it is installed; an installed one, curated or downloaded, from the rule the
+preset gives `--mmproj` by (`pairs_projector()`: a projector on disk that reads
+images and fits), which is what llama-server's `/models` then reports, so a build
+whose projector never landed runs text-only and does not say Vision; a searched
+one from the repo's file names until its header is read at install. The screen
+says **Vision**, once per row.
 
 - **Pairing is recorded, never guessed.** An install writes `installs.json` in
   the models folder
@@ -377,8 +380,8 @@ per row.
   text only, and the retry fetches only what is missing.
 - **Both halves download, price and load together.** The footprint includes the
   projector, `estimate()` charges it, and the preset names it ([`runtime.md`](runtime.md)).
-- **It says the model can see, not that chat will show it an image.** Chat sends
-  text only.
+- **Chat reads the same answer.** The composer offers images for an installed
+  model when llama-server lists `image` for it ([`../chat.md`](../chat.md#images)).
 
 ## Search
 
@@ -649,7 +652,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 ## Known gaps
 
 - Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
-- Chat sends text only, so a model that reads images never receives one.
 - Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.

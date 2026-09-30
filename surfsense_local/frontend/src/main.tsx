@@ -5,6 +5,7 @@ import { RawIntlProvider } from "react-intl"
 
 import "./index.css"
 import App from "./App.tsx"
+import { guardFileDrops } from "@/app/file-drop-guard.ts"
 import { ThemeProvider } from "@/components/theme-provider.tsx"
 import { AppDialogs } from "@/components/ui/app-dialog-slot.tsx"
 import { Toaster } from "@/components/ui/sonner.tsx"
@@ -30,6 +31,7 @@ if (window.surfsense?.platform) {
 }
 
 followMainLocale()
+guardFileDrops(window)
 
 // Open over any dialog as its nested dialog, or on their own when none is open.
 const APP_DIALOGS = [EgressPrompt, IssueReportDialog]

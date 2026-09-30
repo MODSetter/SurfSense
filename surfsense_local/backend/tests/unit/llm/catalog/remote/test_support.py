@@ -54,3 +54,12 @@ def test_a_declared_no_to_structured_output_is_kept() -> None:
 def test_the_context_window_is_the_manifest_context() -> None:
     """What an agent budgets its prompt against."""
     assert supports(_entry(context=400000)).context_window == 400000
+
+
+def test_image_input_is_read_as_reading_images() -> None:
+    """models.dev lists what a model accepts; `image` among it is vision."""
+    seeing = _entry(modalities={"input": ["text", "image"], "output": ["text"]})
+    blind = _entry(modalities={"input": ["text"], "output": ["text"]})
+
+    assert supports(seeing).reads_images is True
+    assert supports(blind).reads_images is False

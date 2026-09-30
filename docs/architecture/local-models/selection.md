@@ -220,17 +220,28 @@ into the first non-system turn, keeping that turn's role, rather than losing it.
 seam, so `modules/chat` assembles one conversation and never learns that
 templates differ.
 
-`vision` requires both halves: `image` among the accepted inputs and
-`supports_typed_content` from the template. A model can accept images
-architecturally while its template takes only string content, which leaves no
-way to send it one. It is the only capability meant to reach a person;
+`vision` is `image` among the accepted inputs, llama.cpp's own answer: the
+router reads the header of the projector the preset gave a model and lists
+`image` whether or not the model is loaded. The template's
+`supports_typed_content` does not decide it, because at `b11050` llama-server
+swaps each image for a media marker before templating and keeps the marker when
+it joins parts for a string-only template ([ADR
+0034](../../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).
+`sees_images()` reads it from `/models` alone, so nothing is loaded to ask; an
+unreadable `/models` is no answer rather than no. It is the only capability
+meant to reach a person;
 `system_role`, `typed_content` and `tools` change how a request is built and mean
 nothing to one. `Modality` carries only text and image, so an audio-capable model
 is not detected as one; audio and video are deliberately not modelled, because
 nothing can feed them.
 
 A remote endpoint reports none of this. Its models' capabilities come from its
-`/models` listing ([`../connections.md`](../connections.md)).
+`/models` listing, and whether one reads images from the catalog
+([`../connections.md`](../connections.md)).
+
+`GET` and `PUT /llm/selection/{model_type}` add `reads_images` to the choice,
+worked out per read from those two answers and stored nowhere, so the composer
+knows before anything is sent ([`../chat.md`](../chat.md#images)).
 
 ## Constrained decoding
 
@@ -262,5 +273,4 @@ over HTTP.
 ## Known gaps
 
 - Only the quiz passes `json_schema`: mind map, flashcards, HTML, image, infographic and the podcast's outline and draft still ask for JSON in the prompt alone, so their format compliance depends on it.
-- Chat cannot send an image: `Message.content` is a `str`, so even a model with `vision` has no way to receive one.
 - Nothing measures whether three tiers are still needed; once constrained decoding carries format compliance, a tier would carry reasoning depth only, which plausibly collapses three tiers to two.

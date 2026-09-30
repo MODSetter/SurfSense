@@ -1,3 +1,4 @@
+import base64
 import json
 from collections.abc import AsyncIterator
 
@@ -40,6 +41,7 @@ class OpenAICompatibleChatProvider:
         *,
         transport: httpx.BaseTransport | None = None,
         thinking_off: dict[str, object] | None = None,
+        reads_images: bool = False,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
@@ -50,12 +52,18 @@ class OpenAICompatibleChatProvider:
         # strict endpoint rejects a field it does not recognise, so a caller
         # that cannot name one gets today's behaviour: the flag is ignored.
         self._thinking_off = thinking_off
+        # Decided by whoever resolved this endpoint, from the manifest; the
+        # endpoint itself is never asked.
+        self._reads_images = reads_images
 
     def _client(self, timeout: httpx.Timeout = LISTING_TIMEOUT) -> httpx.AsyncClient:
         headers = key_headers(self._base_url, self._api_key)
         return httpx.AsyncClient(
             timeout=timeout, headers=headers, transport=self._transport
         )
+
+    async def sees_images(self, model: str) -> bool | None:
+        return self._reads_images
 
     async def health(self) -> bool:
         try:
@@ -137,10 +145,7 @@ class OpenAICompatibleChatProvider:
     ) -> AsyncIterator[Delta]:
         body: dict[str, object] = {
             "model": model,
-            "messages": [
-                {"role": message.role, "content": message.content}
-                for message in messages
-            ],
+            "messages": [_message(message) for message in messages],
             "stream": True,
         }
         if max_tokens is not None:
@@ -188,6 +193,25 @@ class OpenAICompatibleChatProvider:
                 delta = _delta(line)
                 if delta:
                     yield delta
+
+
+def _message(message: Message) -> dict[str, object]:
+    """String content unless the turn carries images, so every other request is
+    exactly what it was before images existed."""
+    if not message.images:
+        return {"role": message.role, "content": message.content}
+    parts: list[dict[str, object]] = [{"type": "text", "text": message.content}]
+    parts += [
+        {
+            "type": "image_url",
+            "image_url": {
+                "url": f"data:{image.mime};base64,"
+                + base64.b64encode(image.data).decode()
+            },
+        }
+        for image in message.images
+    ]
+    return {"role": message.role, "content": parts}
 
 
 async def _error_message(reply: httpx.Response) -> str:

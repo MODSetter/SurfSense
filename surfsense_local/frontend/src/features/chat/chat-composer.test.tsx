@@ -25,11 +25,10 @@ function Harness() {
         model={MODEL}
         sourceCount={0}
         isRunning={false}
-        isUploading={false}
         providerAvailable
         onModelSetup={() => undefined}
         onModelSelected={() => undefined}
-        onUpload={() => undefined}
+        readsImages={false}
       />
     </AssistantRuntimeProvider>
   )

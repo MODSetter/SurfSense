@@ -126,6 +126,7 @@ export function ServerModels({
         // Typed by hand, so nothing vouches for it; the backend checks it when
         // it is assigned.
         selectable_for: [modelType],
+        reads_images: false,
       },
     })
   }
@@ -350,6 +351,14 @@ export function ServerModels({
                               </Badge>
                             ))
                           )}
+                          {model.reads_images ? (
+                            <Badge variant="secondary">
+                              {intl.formatMessage({
+                                id: "models_server_models_vision_label",
+                                defaultMessage: "Vision",
+                              })}
+                            </Badge>
+                          ) : null}
                         </div>
                       </div>
                       {inUse(model.name) ? (

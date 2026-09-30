@@ -1,3 +1,5 @@
+import base64
+import binascii
 import json
 import logging
 from collections.abc import AsyncIterator, Sequence
@@ -5,19 +7,28 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, HTTPException, Response, status
-from fastapi.responses import StreamingResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
-from modules.chat.budget import answer_max_tokens, history_budget
+from modules.chat.budget import IMAGE_TOKENS, answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error, empty_reply_error
 from modules.chat.history import TokenCounter, build_messages
+from modules.chat.images import store
+from modules.chat.images.intake import ImageRefusedError, NormalisedImage, normalise
+from modules.chat.images.sources import (
+    MAX_SOURCE_IMAGES,
+    image_source_paths,
+    load_source_images,
+)
 from modules.chat.models import ChatMessage, ChatThread, MessageRole
 from modules.chat.prompt import build_context, resolve_citations
 from modules.chat.reasoning import ReasoningTrace
 from modules.chat.schemas import (
+    ImageUpload,
     MessageCreate,
     MessageRead,
     ThreadCreate,
@@ -97,8 +108,35 @@ def list_messages(thread: ThreadDep, session: SessionDep) -> Sequence[ChatMessag
     summary="Delete a thread and its messages",
 )
 def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
+    workspace_id, thread_id = thread.workspace_id, thread.id
     session.delete(thread)
+    # Files go after the commit a rollback would undo, as a workspace's do.
+    session.commit()
+    store.remove_thread(workspace_id, thread_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.get(
+    "/chat/threads/{thread_id}/messages/{message_id}/images/{index}",
+    response_class=FileResponse,
+    summary="Read an image a turn carried",
+)
+def read_message_image(
+    thread: ThreadDep, message_id: int, index: int, session: SessionDep
+) -> FileResponse:
+    message = session.get(ChatMessage, message_id)
+    references = (
+        message.content.get("images", [])
+        if message is not None and message.chat_thread_id == thread.id
+        else []
+    )
+    if not 0 <= index < len(references):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "no such image")
+    path = store.image_path(references[index])
+    if not path.is_file():
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "the image is no longer on disk")
+    # Only PNG and JPEG are ever stored, so inline cannot run a script.
+    return FileResponse(path, media_type=references[index]["mime"])
 
 
 @router.post(
@@ -111,6 +149,9 @@ async def send_message(
     resolved, history, hits = await transact(session, _ground, thread, payload)
     selected = resolved.selection
     generator = resolved.generator
+    # Asked once: it gates attachments and decides whether sources send pictures.
+    sees = await generator.sees_images(selected.name)
+    images = await _accepted_images(payload.images, sees)
     should_generate_title = (
         not history and (thread.title or "").casefold() == "new chat"
     )
@@ -123,10 +164,12 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
+    found = await _source_images(session, hits, sees, n_ctx, len(images))
     messages = await build_messages(
         context,
         history,
         payload.text,
+        images=[image.as_part() for image in (*images, *found)],
         history_budget=history_budget(n_ctx),
         token_count=_token_counter(generator, selected.name),
     )
@@ -139,7 +182,7 @@ async def send_message(
     try:
         # The IDs are the stable identities the client uses throughout the stream.
         user_message, assistant_message = await transact(
-            session, _open_turn, thread, payload.text
+            session, _open_turn, thread, payload.text, images
         )
         user_created_at = _iso(user_message.created_at)
     except Exception:
@@ -223,6 +266,8 @@ async def send_message(
                 await transact(
                     session, _discard_turn, user_message, assistant_message
                 )
+                if images:
+                    await transact(session, _sweep_images, thread)
             else:
                 # A turn worth keeping: commit the deferred rename alongside
                 # it, so a thread is never renamed unless it ends up with a
@@ -291,6 +336,57 @@ async def _release_model_after(
         await model_activity.release_use(key)
 
 
+async def _accepted_images(
+    uploads: list[ImageUpload], sees: bool | None
+) -> list[NormalisedImage]:
+    """The turn's images, normalised, or the refusal that stores nothing.
+
+    Only a definite no refuses: an unreadable runtime lets the turn through,
+    and llama-server's own error stops an image it cannot take.
+    """
+    if not uploads:
+        return []
+    if sees is False:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "This model can't read images. Choose one that can, or send the text alone.",
+        )
+    try:
+        return await run_in_threadpool(_normalised, uploads)
+    except ImageRefusedError as error:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
+        ) from error
+
+
+async def _source_images(
+    session: Session,
+    hits: list[Hit],
+    sees: bool | None,
+    n_ctx: int | None,
+    attached: int,
+) -> list[NormalisedImage]:
+    """Retrieved image sources, only for a model known to see, and only as many
+    as the window has room for once the person's own images are paid for."""
+    room = (history_budget(n_ctx) - IMAGE_TOKENS * attached) // IMAGE_TOKENS
+    limit = min(MAX_SOURCE_IMAGES, room)
+    if sees is not True or limit <= 0 or not hits:
+        return []
+    paths = await transact(session, image_source_paths, hits, limit)
+    return await run_in_threadpool(load_source_images, paths)
+
+
+def _normalised(uploads: list[ImageUpload]) -> list[NormalisedImage]:
+    images = []
+    for upload in uploads:
+        try:
+            data = base64.b64decode(upload.data, validate=True)
+        except binascii.Error as error:
+            raise ImageRefusedError("an image was not valid base64") from error
+        images.append(normalise(data))
+    return images
+
+
 # The stream's session work, each piece one short transaction off the event loop.
 
 
@@ -326,10 +422,18 @@ def _ground(
 
 
 def _open_turn(
-    session: Session, thread: ChatThread, text: str
+    session: Session,
+    thread: ChatThread,
+    text: str,
+    images: list[NormalisedImage],
 ) -> tuple[ChatMessage, ChatMessage]:
+    references = [
+        store.store(image, thread.workspace_id, thread.id) for image in images
+    ]
+    # `images` only when there are some, so every row before them stays as it was.
+    content: dict = {"text": text, **({"images": references} if references else {})}
     user_message = ChatMessage(
-        chat_thread_id=thread.id, role=MessageRole.USER, content={"text": text}
+        chat_thread_id=thread.id, role=MessageRole.USER, content=content
     )
     assistant_message = ChatMessage(
         chat_thread_id=thread.id,
@@ -340,6 +444,16 @@ def _open_turn(
     session.flush()
     session.refresh(user_message)  # created_at is server-side; load it here
     return user_message, assistant_message
+
+
+def _sweep_images(session: Session, thread: ChatThread) -> None:
+    """Remove the files a discarded turn alone pointed at."""
+    contents = session.scalars(
+        select(ChatMessage.content).where(ChatMessage.chat_thread_id == thread.id)
+    ).all()
+    store.remove_unreferenced(
+        thread.workspace_id, thread.id, store.referenced_keys(list(contents))
+    )
 
 
 def _rename(_session: Session, thread: ChatThread, title: str) -> None:

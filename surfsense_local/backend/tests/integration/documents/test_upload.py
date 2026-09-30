@@ -40,7 +40,7 @@ async def test_an_upload_is_pending_on_disk_and_queued(
     assert created[0]["title"] == "report.pdf"
 
     stored = stored_files(data_dir)
-    assert [path.name for path in stored] == ["original.pdf"]
+    assert [path.name for path in stored] == ["report.pdf"]
     assert stored[0].read_bytes() == b"%PDF-1.7 fake"
 
     assert [(job.name, job.args) for job in ingest_queue.pending()] == [
@@ -142,7 +142,7 @@ async def test_unsupported_and_mismatched_files_are_rejected_per_file(
             "reason": "file contents do not match .pdf",
         },
     ]
-    assert [path.name for path in stored_files(data_dir)] == ["original.txt"]
+    assert [path.name for path in stored_files(data_dir)] == ["notes.txt"]
     assert len(ingest_queue.pending()) == 1
 
 
@@ -203,7 +203,7 @@ async def test_an_oversized_upload_is_refused_without_filling_the_disk(
 async def test_a_filename_cannot_escape_the_data_directory(
     client: AsyncClient, workspace_id: int, data_dir: Path
 ) -> None:
-    """The client names the file; only its extension is allowed near a path."""
+    """The client names the file; only its sanitized last part reaches a path."""
     response = await client.post(
         f"/workspaces/{workspace_id}/documents/upload",
         files={"files": ("../../../../etc/report.txt", b"root:x:0:0", "text/plain")},
@@ -217,7 +217,7 @@ async def test_a_filename_cannot_escape_the_data_directory(
         / str(workspace_id)
         / "documents"
         / str(response.json()["created"][0]["id"])
-        / "original.txt"
+        / "report.txt"
     ]
 
 
@@ -230,7 +230,7 @@ async def test_an_upload_leaves_no_temporary_file(
         files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
     )
 
-    assert [path.name for path in stored_files(data_dir)] == ["original.pdf"]
+    assert [path.name for path in stored_files(data_dir)] == ["report.pdf"]
 
 
 async def test_the_original_is_served_back(
