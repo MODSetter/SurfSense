@@ -83,6 +83,7 @@
   "chat_error_provider_unavailable": "Der Modellanbieter ist vorübergehend nicht verfügbar. Versuch es in Kürze noch einmal.",
   "chat_error_timeout": "Das Modell hat zu lange für die Antwort gebraucht. Versuch es noch einmal.",
   "chat_error_unknown": "Beim Erstellen der Antwort ist etwas schiefgelaufen. Versuch es noch einmal.",
+  "chat_error_unknown_detail": "Beim Erstellen der Antwort ist etwas schiefgelaufen: {detail}",
   "chat_failed_reply_model_setup_button": "Modell-Einrichtung",
   "chat_failed_reply_retry_button": "Wiederholen",
   "chat_inline_citation_aria": "Zitierten Abschnitt {id} anzeigen",

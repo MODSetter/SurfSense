@@ -63,7 +63,17 @@ export function translatedChatError(error: {
   kind: string
   message: string
   provider: string
+  detailIsLocal?: boolean
 }): string {
+  if (error.detailIsLocal && error.message) {
+    return intl.formatMessage(
+      {
+        id: "chat_error_unknown_detail",
+        defaultMessage: "Something went wrong generating a reply: {detail}",
+      },
+      { detail: error.message }
+    )
+  }
   if (error.kind === "network" && error.provider === LOCAL_RUNTIME) {
     return intl.formatMessage({
       id: "chat_error_network_llamacpp",

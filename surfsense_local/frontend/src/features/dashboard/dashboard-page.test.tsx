@@ -884,11 +884,11 @@ describe("dashboard chat", () => {
     )
     await user.click(screen.getByRole("button", { name: "Send message" }))
 
-    // Failing before the stream, the request has no kind to classify it, so it
-    // reads as `unknown`: the generic line and Retry, never Model setup.
+    // Failing before the stream has no backend kind, but its useful detail is
+    // kept inside the translated fallback. The action stays Retry, never Model setup.
     expect(
       await screen.findByText(
-        "Something went wrong generating a reply. Try again."
+        "Something went wrong generating a reply: Provider crashed"
       )
     ).toBeTruthy()
     expect(screen.getByRole("button", { name: "Retry" })).toBeTruthy()

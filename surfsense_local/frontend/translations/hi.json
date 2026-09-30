@@ -83,6 +83,7 @@
   "chat_error_provider_unavailable": "मॉडल प्रोवाइडर कुछ समय के लिए उपलब्ध नहीं है। थोड़ी देर में फिर कोशिश करें।",
   "chat_error_timeout": "मॉडल ने जवाब देने में बहुत समय लिया। फिर से कोशिश करें।",
   "chat_error_unknown": "जवाब जनरेट करते समय कुछ गलत हो गया। फिर से कोशिश करें।",
+  "chat_error_unknown_detail": "जवाब जनरेट करते समय कुछ गलत हो गया: {detail}",
   "chat_failed_reply_model_setup_button": "मॉडल सेटअप",
   "chat_failed_reply_retry_button": "फिर से कोशिश करें",
   "chat_inline_citation_aria": "उद्धृत चंक {id} देखें",

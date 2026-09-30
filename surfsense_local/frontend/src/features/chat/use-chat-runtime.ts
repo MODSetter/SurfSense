@@ -36,6 +36,8 @@ export type ChatTurnError = {
   provider: string
   retryText: string
   retryImages: ImageUpload[]
+  /** The request failed before an SSE frame classified the backend error. */
+  detailIsLocal?: boolean
 }
 
 function messageFrom(error: unknown) {
@@ -615,10 +617,11 @@ export function useChatRuntime({
             ...current,
             [String(assistantId)]: {
               kind: "unknown",
-              message: messageFrom(cause),
+              message: cause instanceof Error ? cause.message : "",
               provider: "",
               retryText: text,
               retryImages: images,
+              detailIsLocal: true,
             },
           }))
         }

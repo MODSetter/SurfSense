@@ -83,6 +83,7 @@
   "chat_error_provider_unavailable": "Провайдер модели временно недоступен. Попробуйте ещё раз чуть позже.",
   "chat_error_timeout": "Модель слишком долго отвечала. Попробуйте ещё раз.",
   "chat_error_unknown": "При генерации ответа что-то пошло не так. Попробуйте ещё раз.",
+  "chat_error_unknown_detail": "При генерации ответа что-то пошло не так: {detail}",
   "chat_failed_reply_model_setup_button": "Настройка модели",
   "chat_failed_reply_retry_button": "Повторить",
   "chat_inline_citation_aria": "Показать цитируемый фрагмент {id}",

@@ -83,6 +83,7 @@
   "chat_error_provider_unavailable": "Le fournisseur de modèle est temporairement indisponible. Réessayez sous peu.",
   "chat_error_timeout": "Le modèle a mis trop de temps à répondre. Réessayez.",
   "chat_error_unknown": "Un problème est survenu pendant la génération de la réponse. Réessayez.",
+  "chat_error_unknown_detail": "Un problème est survenu pendant la génération de la réponse : {detail}",
   "chat_failed_reply_model_setup_button": "Configuration du modèle",
   "chat_failed_reply_retry_button": "Réessayer",
   "chat_inline_citation_aria": "Voir l’extrait cité {id}",
