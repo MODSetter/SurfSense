@@ -901,8 +901,7 @@ describe("dashboard chat", () => {
           ])
         }
         if (
-          path ===
-          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+          path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
         ) {
           return Response.json([])
         }

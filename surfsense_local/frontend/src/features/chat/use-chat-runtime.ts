@@ -28,6 +28,8 @@ export type ChatTurnError = {
   message: string
   provider: string
   retryText: string
+  /** The request failed before an SSE frame classified the backend error. */
+  detailIsLocal?: boolean
 }
 
 function messageFrom(error: unknown) {
@@ -587,6 +589,7 @@ export function useChatRuntime({
               message: cause instanceof Error ? cause.message : "",
               provider: "",
               retryText: text,
+              detailIsLocal: true,
             },
           }))
         }

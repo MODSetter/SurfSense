@@ -63,8 +63,9 @@ export function translatedChatError(error: {
   kind: string
   message: string
   provider: string
+  detailIsLocal?: boolean
 }): string {
-  if (error.kind === "unknown" && error.message) {
+  if (error.detailIsLocal && error.message) {
     return intl.formatMessage(
       {
         id: "chat_error_unknown_detail",
