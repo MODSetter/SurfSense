@@ -370,7 +370,11 @@ per row.
   naming each model's weights and projector, and saves the projector as
   `mmproj-<model>.gguf` so two vision models never share or overwrite one. A file
   copied in by hand pairs under that name too. A projector merely sitting beside a
-  model is never attached to it.
+  model is never attached to it. The record is written as each file lands, with
+  the files still to come under `pending`, so an install cut off between the
+  weights and the projector is a build the catalog knows is unfinished: its row
+  keeps offering Download rather than reading installed by name and loading as
+  text only, and the retry fetches only what is missing.
 - **Both halves download, price and load together.** The footprint includes the
   projector, `estimate()` charges it, and the preset names it ([`runtime.md`](runtime.md)).
 - **It says the model can see, not that chat will show it an image.** Chat sends
@@ -397,11 +401,13 @@ the file tree, fetched together. Every build is listed smallest first with its
 exact size and an estimated fit, whose badge is marked `~`, which over-charges
 on purpose (the weights plus 15% and a gibibyte, in
 [`pricing.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/pricing.py))
-so it never calls a spill resident. The type comes from the repo's tag and
+so it never calls a spill resident. Each build says that this is an estimate
+and that the exact check runs before download. The type comes from the repo's tag and
 Hugging Face's parsed architecture, ignored when it names a projector, and is
 marked approximate. An estimated fit never refuses, because the exact answer
-comes before any bytes move. A repo whose type is not `TEXT_GEN` gets no install
-ids, so none of its builds can be downloaded.
+comes before any bytes move. If that check refuses, its reason remains under the
+build as well as appearing in the error toast. A repo whose type is not
+`TEXT_GEN` gets no install ids, so none of its builds can be downloaded.
 
 **Installing a searched build reads it exactly.**
 [`exact_check.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/search/exact_check.py)
@@ -450,7 +456,7 @@ Event types:
 ```text
 queued       "Waiting for the download ahead of it"   only while another install runs; it starts when that one ends
 starting     "Checking the model"              every install; only a searched build's headers are read
-error        the reason, and the job ends      when the exact check or the disk refuses
+error        the reason, and the job ends      when the exact check, a curated build's fit, or the disk refuses
 starting     "Preparing download"
 downloading  completed / total, repeated       across every file of the build
 verifying    "Checking the model"              each file with a hash was checked as it landed
@@ -473,8 +479,12 @@ only when whole and verified, a cancelled download resumes with a `Range`
 request, and a file already where it lands with its pinned hash is not fetched
 again. One install runs at a time: a second job starts as `queued` and waits
 rather than failing, so a model chosen while another downloads still comes.
-Before any byte moves, the files not yet on disk plus 1 GiB must fit in the
-disk's free space, or the job ends with how much room the download needs.
+A curated chat build is priced first, from the shape its entry commits and
+through the same estimate its row shows, and one that is `TOO_BIG` here ends the
+job with the refusal a searched build gets; a build that only spills installs
+with no confirmation, as the screen's own rule says. Before any byte moves, the
+files not yet on disk plus 1 GiB must fit in the disk's free space, or the job
+ends with how much room the download needs.
 Then the install record is written,
 `reprice()` rewrites the preset, the job waits for the router to list the
 model and forwards its load progress, and with `select` the model becomes the
@@ -572,6 +582,13 @@ same.
 The chat catalog, from the top:
 
 - **A hardware line**, on first paint, with no scan and no button.
+- **A runtime notice**, only while `GET /llm/providers` reports llama.cpp
+  unhealthy, asked again every 15 s and when the window comes back: said once,
+  above the rows, never per row. Download stays offered, because an install
+  still downloads while the runtime is down and ends with an honest message
+  ([`runtime.md`](runtime.md#failure-behavior)); the notice says so and that a
+  restart of SurfSense starts the runtime. The image and audio pages read no
+  server state; whether sd-server is up is its own gap below.
 - **Tested by SurfSense**: the curated rows, grouped by family. Each shows the
   star when it is the one for this computer, its name, a badge only when it warns,
   **Vision** when it reads images, the build it leads with and its size, and one
@@ -593,7 +610,8 @@ Rules the screen holds:
   the API refuses one then.
 - Reduced speed installs like any other build, with no confirmation. Only a
   refusal blocks.
-- Install errors, including the exact check's refusals, show as a toast.
+- Install errors show as a toast; a searched build also keeps the exact check's
+  refusal under its own row for the job's 60-second retention window.
 - An install belongs to the API, not the page that started it: leaving the
   Add model page, closing Settings or reloading does not cancel it. Each
   section's list shows the jobs whose model can fill its slot, wherever they
@@ -634,16 +652,11 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - Chat sends text only, so a model that reads images never receives one.
 - Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
 - A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
-- An install that fails after the weights landed but before the projector did writes no install record. The curated row then shows the build installed, matched by file name, and it loads as text only.
-- A local manifest that fails to load is replaced by an empty one with no log line, so the curated rows vanish and nothing records why; the remote manifest logs its failure.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
-- A searched build's "Won't fit" is an estimate and keeps an enabled Download; the exact check at install is what refuses.
-- `POST /llm/installs` does not refuse a curated build that will not fit; only the screen's disabled Download does.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
-- The screen never marks the runtime unavailable, so installs stay enabled while llama-server is down.
 - Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it only when a Studio job needs it. The hard-coded list's route reported that, and went with it.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.

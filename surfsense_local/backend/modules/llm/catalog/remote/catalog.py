@@ -10,7 +10,7 @@ from dataclasses import dataclass
 
 from modules.llm.catalog.remote.classifier import classify
 from modules.llm.catalog.remote.manifest.lookup import RemoteLookup
-from modules.llm.catalog.remote.manifest.schema import Call, Connect, RemoteModel
+from modules.llm.catalog.remote.manifest.schema import Connect, RemoteModel
 from modules.llm.catalog.remote.rows import (
     CUSTOM,
     Availability,
@@ -133,8 +133,7 @@ def _manifest_row(
     availability: Availability,
 ) -> RemoteRow:
     found = lookup.classify(model_id, provider=provider_id)
-    connect = lookup.manifest.providers[provider_id].connect
-    reason = connect.reason if connect.status == "unreachable" else _call_reason(model.call)
+    reason = lookup.unusable_reason(model_id, provider_id)
     if reason:
         availability = Availability.UNUSABLE
     return RemoteRow(
@@ -168,10 +167,3 @@ def _listed_row(provider: str, connection: ConnectionRef, listed: ListedModel) -
         availability=Availability.AVAILABLE,
     )
 
-
-def _call_reason(call: Call | None) -> str | None:
-    if call is None:
-        return None
-    if call.route == "responses":
-        return "Only served on /responses, which SurfSense does not call yet"
-    return f"Served through the {call.protocol} protocol, which SurfSense does not speak"

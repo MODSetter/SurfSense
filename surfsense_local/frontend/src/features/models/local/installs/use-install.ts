@@ -47,5 +47,5 @@ export function useInstall({
     void cancelInstall(jobId).catch(() => undefined)
   }
 
-  return { installs, install, cancel }
+  return { jobs, installs, install, cancel }
 }

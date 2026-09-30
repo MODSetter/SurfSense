@@ -62,3 +62,23 @@ def test_a_model_revealing_nothing_falls_back_to_what_its_provider_serves() -> N
     remote = classify(Fingerprint(provider="openai_compatible", name="internal-v2"))
 
     assert (local, remote) == (Tier.COMPACT, Tier.CAPABLE)
+
+
+def test_a_connection_on_this_machine_falls_back_like_the_local_runtime() -> None:
+    """A 4B through LM Studio on localhost runs the laptop, whatever it is called."""
+    tier = classify(
+        Fingerprint(provider="openai_compatible", name="internal-v2", loopback=True)
+    )
+
+    assert tier is Tier.COMPACT
+
+
+def test_loopback_changes_only_the_last_fallback() -> None:
+    """A stated size still decides, wherever the endpoint is."""
+    tier = classify(
+        Fingerprint(
+            provider="openai_compatible", name="qwen3-14b", params_b=14.0, loopback=True
+        )
+    )
+
+    assert tier is Tier.CAPABLE

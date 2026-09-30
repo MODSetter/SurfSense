@@ -22,7 +22,12 @@ from app.license.models import TrialAlreadyClaimedError
 from app.license.rate_limit import enforce_license_rate_limit
 from app.license.records import certificates_for_email
 from app.license.schemas import LicenseAckResponse, LicenseEmailRequest
-from app.mailer import MailerRejectedError, MailerUnavailableError, is_mail_enabled
+from app.mailer import (
+    MailerRejectedError,
+    MailerUnavailableError,
+    get_mailer,
+    is_mail_enabled,
+)
 from app.payments.client import get_stripe_client
 
 logger = logging.getLogger(__name__)
@@ -50,12 +55,24 @@ def _require_mailer() -> None:
     make a misconfigured deployment indistinguishable from a working one.
     Checked before any Keygen lookup, so the 503 is outcome-independent and
     leaks nothing.
+
+    A bad ``SMTP_*`` setting only raises when the mailer is built, so build it
+    here: otherwise trial creates the license and only then fails to mail it.
+    A 503 rather than a failed startup keeps the rest of the API serving.
     """
     if not is_mail_enabled():
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="License email delivery is not configured.",
         )
+    try:
+        get_mailer()
+    except ValueError:
+        logger.exception("SMTP is enabled but its configuration is invalid")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="License email delivery is not configured.",
+        ) from None
 
 
 def _stripe_client_or_none():

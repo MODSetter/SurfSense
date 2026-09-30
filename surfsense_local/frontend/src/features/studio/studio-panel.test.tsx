@@ -130,6 +130,56 @@ describe("studio panel", () => {
     expect(document.querySelector("[data-slot=skeleton]")).toBeNull()
   })
 
+  it("uses the server catalog after it loads, including unknown formats", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "timeline",
+              label: "Timeline",
+              requires_model_types: ["text_gen"],
+              available: false,
+              unavailable_reason: "Timeline renderer is unavailable",
+            },
+            {
+              key: "quiz",
+              label: "Quiz",
+              requires_model_types: ["text_gen"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+
+    renderStudio()
+    const user = userEvent.setup()
+
+    const formats = screen.getByRole("region", { name: "Studio formats" })
+    const timeline = await within(formats).findByRole("button", {
+      name: "Timeline",
+    })
+    expect(timeline.getAttribute("aria-disabled")).toBe("true")
+    await user.hover(timeline)
+    expect(
+      await screen.findByText("Timeline renderer is unavailable")
+    ).toBeTruthy()
+    expect(
+      within(formats)
+        .getAllByRole("button")
+        .map((button) => button.textContent)
+    ).toEqual(["Timeline", "Quiz"])
+    expect(
+      within(formats).queryByRole("button", { name: "Summary" })
+    ).toBeNull()
+  })
+
   it("submits a job for the chosen format and sources", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -334,6 +384,51 @@ describe("studio panel", () => {
     expect(image.getAttribute("aria-disabled")).toBe("true")
     await user.hover(image)
     expect(await screen.findByText("Needs an image model")).toBeTruthy()
+  })
+
+  it("uses complete messages for both model fallback shapes", async () => {
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <StudioPanel
+          workspaceId={1}
+          documents={[]}
+          selectedDocumentIds={[]}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+          formats={[
+            {
+              key: "summary",
+              label: "Summary",
+              requires_model_types: ["text_gen"],
+              available: false,
+              unavailable_reason: null,
+            },
+            {
+              key: "image",
+              label: "Image",
+              requires_model_types: ["image_gen", "text_gen"],
+              available: false,
+              unavailable_reason: null,
+            },
+          ]}
+          isCreating={false}
+          error={null}
+          onGenerate={async () => false}
+        />
+      </TooltipProvider>
+    )
+
+    const image = screen.getByRole("button", { name: "Image" })
+    await user.hover(image)
+    expect(
+      await screen.findByText("Needs a chat model and an image model.")
+    ).toBeTruthy()
+    await user.unhover(image)
+    const summary = screen.getByRole("button", { name: "Summary" })
+    await user.hover(summary)
+    expect(await screen.findByText("Needs a chat model.")).toBeTruthy()
   })
 
   it("shows an explanation tooltip on an available artifact", async () => {

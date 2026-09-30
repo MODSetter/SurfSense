@@ -60,6 +60,13 @@ const describe = (hit: SearchRow) => [
   ...(hit.license ? [hit.license] : []),
 ]
 
+function latestJobFor(jobs: readonly InstallJob[], catalogId: string) {
+  for (let index = jobs.length - 1; index >= 0; index--) {
+    if (jobs[index].catalog_id === catalogId) return jobs[index]
+  }
+  return undefined
+}
+
 /**
  * One repo's builds, fetched when the row is opened. The listing alone: each
  * size is exact and each fit an estimate, and the one header read happens when
@@ -69,13 +76,13 @@ function RepoBuilds({
   repo,
   onInstall,
   onCancel,
-  installs,
+  jobs,
   disabled,
 }: {
   repo: string
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
-  installs: readonly InstallJob[]
+  jobs: readonly InstallJob[]
   disabled: boolean
 }) {
   const detail = useQuery({
@@ -120,15 +127,11 @@ function RepoBuilds({
 
   return (
     <>
-      <p className="px-3 pt-2 text-xs text-muted-foreground">
-        {row.runnable
-          ? intl.formatMessage({
-              id: "models_search_builds_body",
-              defaultMessage:
-                "Sizes are exact. Fit is estimated and checked before download.",
-            })
-          : row.not_runnable_reason}
-      </p>
+      {!row.runnable ? (
+        <p className="px-3 pt-2 text-xs text-muted-foreground">
+          {row.not_runnable_reason}
+        </p>
+      ) : null}
       <ul
         className="flex flex-col divide-y"
         aria-label={intl.formatMessage(
@@ -140,7 +143,10 @@ function RepoBuilds({
         )}
       >
         {row.builds.map((build) => {
-          const job = jobFor(installs, build.catalog_id)
+          const job = jobFor(jobs, build.catalog_id)
+          const latest = latestJobFor(jobs, build.catalog_id)
+          const failure =
+            !job && latest?.event.type === "error" ? latest.event.message : null
           return (
             <li
               key={build.catalog_id || build.quantization}
@@ -162,12 +168,24 @@ function RepoBuilds({
                 <BuildAction
                   build={build}
                   label={repo}
-                  installs={installs}
+                  installs={jobs}
                   disabled={disabled}
-                  runtimeAvailable
                   onAction={onInstall}
                 />
               </div>
+              {failure ? (
+                <p role="alert" className="text-xs text-destructive">
+                  {failure}
+                </p>
+              ) : build.fit?.approximate ? (
+                <p className="text-xs text-muted-foreground">
+                  {intl.formatMessage({
+                    id: "models_search_builds_body",
+                    defaultMessage:
+                      "Sizes are exact. Fit is estimated and checked before download.",
+                  })}
+                </p>
+              ) : null}
               {job ? (
                 <InstallProgress
                   event={job.event}
@@ -185,13 +203,13 @@ function RepoBuilds({
 export function ModelSearch({
   onInstall,
   onCancel,
-  installs,
+  jobs,
   disabled,
   autoFocus = false,
 }: {
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
-  installs: readonly InstallJob[]
+  jobs: readonly InstallJob[]
   disabled: boolean
   /** Only where the search was just asked for; a page that merely lists it
    *  must not focus it, since focusing raises the egress question. */
@@ -412,7 +430,7 @@ export function ModelSearch({
                           repo={hit.repo}
                           onInstall={onInstall}
                           onCancel={onCancel}
-                          installs={installs}
+                          jobs={jobs}
                           disabled={disabled}
                         />
                       </div>

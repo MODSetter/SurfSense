@@ -205,6 +205,78 @@ async def test_a_connection_reads_its_own_providers_entry(
     assert await types(custom) == ["text_gen"]
 
 
+async def test_a_model_the_manifest_marks_unusable_is_neither_offered_nor_chosen(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """agentrouter serves claude-opus-5 only through Anthropic's protocol. The
+    listing says so with the reason and fills no slot, the remote catalog gives
+    the same answer, and choosing it is refused with that reason, unless the
+    user confirms a manual selection, the same override as an unlisted model."""
+    monkeypatch.setattr(
+        conftest,
+        "REMOTE_MODELS",
+        [*conftest.REMOTE_MODELS, {"id": "claude-opus-5"}, {"id": "deepseek-v4-flash"}],
+    )
+    body = {"provider": "openai_compatible", "base_url": openai_server}
+    router = (
+        await client.post(
+            "/llm/connections",
+            json={**body, "label": "Router", "catalog_provider": "agentrouter"},
+        )
+    ).json()
+
+    listed = {
+        m["name"]: m
+        for m in (await client.get(f"/llm/connections/{router['id']}/models")).json()
+    }
+    assert listed["claude-opus-5"]["selectable_for"] == []
+    assert "protocol" in listed["claude-opus-5"]["unusable_reason"]
+    assert "text_gen" in listed["deepseek-v4-flash"]["selectable_for"]
+    assert listed["deepseek-v4-flash"]["unusable_reason"] is None
+
+    catalog = {
+        row["model_id"]: row
+        for row in (
+            await client.get(f"/llm/catalog/remote/connections/{router['id']}")
+        ).json()
+    }
+    assert catalog["claude-opus-5"]["availability"] == "unusable"
+    assert catalog["claude-opus-5"]["reason"] == listed["claude-opus-5"]["unusable_reason"]
+
+    choice = {
+        "provider": "openai_compatible",
+        "connection_id": router["id"],
+        "name": "claude-opus-5",
+    }
+    refused = await client.put("/llm/selection/text_gen", json=choice)
+    assert refused.status_code == 422
+    assert "protocol" in refused.json()["detail"]
+    assert "does not support" not in refused.json()["detail"]
+    confirmed = await client.put(
+        "/llm/selection/text_gen", json={**choice, "allow_unlisted": True}
+    )
+    assert confirmed.status_code == 200
+
+
+async def test_a_custom_connection_is_never_told_a_model_is_unusable(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A local Ollama or LM Studio names no manifest provider, so what some
+    provider cannot call says nothing about what this endpoint serves."""
+    monkeypatch.setattr(
+        conftest, "REMOTE_MODELS", [*conftest.REMOTE_MODELS, {"id": "claude-opus-5"}]
+    )
+    mine = await _connect(client, openai_server, "Mine")
+
+    listed = {
+        m["name"]: m
+        for m in (await client.get(f"/llm/connections/{mine['id']}/models")).json()
+    }
+
+    assert listed["claude-opus-5"]["unusable_reason"] is None
+    assert listed["claude-opus-5"]["selectable_for"] != []
+
+
 async def test_connection_update_distinguishes_omitted_and_null_secret(
     client: AsyncClient, openai_server: str
 ) -> None:
@@ -319,6 +391,31 @@ async def test_a_hosted_models_tier_is_read_from_the_listing_it_came_from(
     )
 
     assert selected.json()["tier"] == "frontier"
+
+
+async def test_a_model_on_this_machine_gets_the_compact_prompt_through_a_connection(
+    client: AsyncClient, openai_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The stub listens on loopback, as LM Studio does; its id states no size or vendor."""
+    monkeypatch.setattr(
+        conftest,
+        "REMOTE_MODELS",
+        [*conftest.REMOTE_MODELS, {"id": "local-model"}],
+    )
+    connection = await _connect(client, openai_server)
+
+    selected = await client.put(
+        "/llm/selection/text_gen",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": connection["id"],
+            "name": "local-model",
+        },
+    )
+
+    assert selected.status_code == 200, selected.text
+    assert selected.json()["tier"] == "compact"
+    assert (await client.get("/llm/selection/text_gen")).json()["tier"] == "compact"
 
 
 async def test_chat_test_answers_without_selecting_or_running_up_a_bill(

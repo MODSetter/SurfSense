@@ -17,10 +17,12 @@ import { CircleAlertIcon, DotIcon } from "@/components/ui/icons"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Spinner } from "@/components/ui/spinner"
+import { ExternalLink } from "@/features/about/external-link"
 import { SettingsSection } from "@/features/settings/settings-section"
 import { intl } from "@/i18n/intl"
 
 import { translatedLicenseError } from "./license-error-text"
+import { PRICING_URL, TRIAL_URL } from "./license-links"
 import {
   importLicense,
   readLicense,
@@ -43,9 +45,11 @@ function planLabel(plan: string) {
   )
 }
 
-function notice(
-  status: LicenseStatus
-): { title: string; description: string } | null {
+function notice(status: LicenseStatus): {
+  title: string
+  description: string
+  link?: { href: string; label: string }
+} | null {
   if (status.state === "clock_untrusted") {
     return {
       title: intl.formatMessage({
@@ -68,8 +72,15 @@ function notice(
       description: intl.formatMessage({
         id: "license_expired_notice_body",
         defaultMessage:
-          "This license has expired. Renew it from your account and add the new file.",
+          "This license has expired. Renewing issues a new file to add here.",
       }),
+      link: {
+        href: PRICING_URL,
+        label: intl.formatMessage({
+          id: "license_expired_notice_link",
+          defaultMessage: "Renew license",
+        }),
+      },
     }
   }
   if (status.expiry) {
@@ -297,13 +308,29 @@ export function LicenseSettings() {
       ) : null}
 
       {status?.state === "none" ? (
-        <div className="flex items-center justify-between gap-8">
-          <p className="text-sm text-pretty text-muted-foreground">
-            {intl.formatMessage({
-              id: "license_settings_empty",
-              defaultMessage: "No license on this device",
-            })}
-          </p>
+        <div className="flex items-start justify-between gap-8">
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-pretty text-muted-foreground">
+              {intl.formatMessage({
+                id: "license_settings_empty",
+                defaultMessage: "No license on this device",
+              })}
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1">
+              <ExternalLink href={TRIAL_URL}>
+                {intl.formatMessage({
+                  id: "license_settings_trial_link",
+                  defaultMessage: "Start a free trial",
+                })}
+              </ExternalLink>
+              <ExternalLink href={PRICING_URL}>
+                {intl.formatMessage({
+                  id: "license_settings_pricing_link",
+                  defaultMessage: "See pricing",
+                })}
+              </ExternalLink>
+            </div>
+          </div>
           <Button type="button" onClick={() => openEditor("add")}>
             {intl.formatMessage({
               id: "license_settings_add_button",
@@ -407,7 +434,14 @@ export function LicenseSettings() {
         <Alert role="status" className="mt-6">
           <CircleAlertIcon />
           <AlertTitle>{shown.title}</AlertTitle>
-          <AlertDescription>{shown.description}</AlertDescription>
+          <AlertDescription className="flex flex-col items-start gap-1">
+            <span>{shown.description}</span>
+            {shown.link ? (
+              <ExternalLink href={shown.link.href}>
+                {shown.link.label}
+              </ExternalLink>
+            ) : null}
+          </AlertDescription>
         </Alert>
       ) : null}
 

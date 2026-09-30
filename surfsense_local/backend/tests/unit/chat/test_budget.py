@@ -1,13 +1,18 @@
 """How a turn's fixed parts, the answer, and history share one context window."""
 
 import pytest
+from pydantic import ValidationError
 
 from modules.chat.budget import (
     ANSWER_RESERVE_TOKENS,
+    CHARS_PER_TOKEN,
     DEFAULT_HISTORY_TOKENS,
+    QUESTION_CHARS,
+    QUESTION_TOKENS,
     answer_max_tokens,
     history_budget,
 )
+from modules.chat.schemas import MessageCreate
 
 pytestmark = pytest.mark.unit
 
@@ -39,3 +44,14 @@ def test_the_answer_reserve_is_capped_only_when_the_window_is_known() -> None:
     larger would truncate replies for a limit that does not apply there."""
     assert answer_max_tokens(None) is None
     assert answer_max_tokens(16384) == ANSWER_RESERVE_TOKENS
+
+
+def test_the_question_cannot_exceed_its_share() -> None:
+    """The question's 1,024 tokens are a cap the wire enforces, not a share it
+    hopes for: priced by the same characters-per-token estimate history uses,
+    a longer message is refused before any model or retrieval is touched."""
+    assert QUESTION_CHARS // CHARS_PER_TOKEN == QUESTION_TOKENS
+    MessageCreate(text="x" * QUESTION_CHARS)
+    MessageCreate(text="x" * QUESTION_CHARS + "   ")  # whitespace is stripped first
+    with pytest.raises(ValidationError):
+        MessageCreate(text="x" * (QUESTION_CHARS + 1))

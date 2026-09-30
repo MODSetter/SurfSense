@@ -8,6 +8,7 @@ executes the returned code, and `render` below shapes the Built.
 import logging
 
 from modules.llm.resolution import ResolvedGeneration
+from shared import cancellation
 from worker.studio.office import prompt, runner
 from worker.studio.office.spec import Office
 from worker.studio.shared import generate
@@ -31,6 +32,8 @@ def render(
     repair: generate.Repair | None = None
 
     for attempt in range(CODE_ATTEMPTS):
+        # Outside the try below: a cancel must not be mistaken for broken code.
+        cancellation.raise_if_cancelled()
         logger.info(
             "studio: office %s attempt %s/%s asking the model",
             fmt,

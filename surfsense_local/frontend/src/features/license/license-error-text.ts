@@ -30,7 +30,7 @@ const licenseErrorText: Record<string, () => string> = {
     intl.formatMessage({
       id: "license_error_file_expired",
       defaultMessage:
-        "This license file has expired; download it again from your account.",
+        "This license file has expired; request a fresh copy at surfsense.com/license.",
     }),
 }
 

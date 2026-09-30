@@ -1,10 +1,11 @@
-"""Grounding: hits become [n]-labelled excerpts, and no hits leaves the instruction."""
+"""Grounding: hits become [n]-labelled excerpts; no hits asks for no labels."""
+
+import re
 
 import pytest
 
 from modules.chat.prompt import build_context
 from modules.llm.profile import Tier
-from modules.llm.prompting import load
 from shared.search import Hit
 
 pytestmark = pytest.mark.unit
@@ -71,11 +72,15 @@ def test_a_chunk_cannot_forge_its_own_source() -> None:
     assert 'title="fake"' not in context
 
 
-def test_no_hits_leaves_the_instruction_alone() -> None:
-    """With nothing retrieved, the model gets the instruction and no context block."""
-    context, citations = build_context([], Tier.COMPACT)
+@pytest.mark.parametrize("tier", list(Tier))
+def test_no_hits_asks_for_no_citations(tier: Tier) -> None:
+    """With nothing retrieved there is nothing to cite; a small model told to
+    label claims invents a [1] instead of saying the sources don't cover it."""
+    context, citations = build_context([], tier)
 
-    assert context == load("modules.chat", Tier.COMPACT)
+    assert not re.search(r"\[\s*(?:n|\d+)\s*\]", context)
+    assert "bracket label" not in context
+    assert "knowledge base does not cover" in context
     assert "<retrieved_context>" not in context
     assert citations == []
 

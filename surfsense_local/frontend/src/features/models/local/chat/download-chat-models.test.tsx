@@ -245,6 +245,78 @@ describe("model catalog", () => {
     expect(screen.queryByText("Runs on your processor")).toBeNull()
   })
 
+  it("says once that the local runtime is down, and still offers Download", async () => {
+    // The runtime doc's failure list: an install still downloads while
+    // llama-server is down and ends with an honest message, so the outage is
+    // a notice on the screen, not a refusal on every row.
+    vi.stubGlobal(
+      "fetch",
+      serving(
+        catalog({
+          rows: [
+            row(),
+            row({ id: "qwen3-4b", name: "Qwen3 4B" }, [
+              build({ catalog_id: "opaque-qwen-4b" }),
+            ]),
+          ],
+        }),
+        (path) =>
+          path === "/llm/providers"
+            ? Response.json([
+                {
+                  name: "llamacpp",
+                  healthy: false,
+                  can_download: true,
+                  requires_key: false,
+                  configured: true,
+                },
+              ])
+            : null
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(
+      await screen.findByText("The local runtime is unavailable")
+    ).toBeTruthy()
+    expect(screen.getAllByText(/local runtime is unavailable/)).toHaveLength(1)
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Download Qwen3 8B Q4_K_M",
+      }).disabled
+    ).toBe(false)
+  })
+
+  it("says nothing about the runtime while it answers", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving(catalog(), (path) =>
+        path === "/llm/providers"
+          ? Response.json([
+              {
+                name: "llamacpp",
+                healthy: true,
+                can_download: true,
+                requires_key: false,
+                configured: true,
+              },
+            ])
+          : null
+      )
+    )
+
+    render(<DownloadChatModels />)
+
+    expect(await screen.findByText("Qwen3 8B")).toBeTruthy()
+    await waitFor(() =>
+      expect(vi.mocked(fetch).mock.calls.map((c) => String(c[0]))).toContain(
+        "/llm/providers"
+      )
+    )
+    expect(screen.queryByText(/local runtime is unavailable/)).toBeNull()
+  })
+
   it("installs with only the opaque id, and does not select", async () => {
     // The renderer never sends a repo, file, URL, path or quantization. A
     // download does not choose the model either: Use does, same as image.
@@ -576,9 +648,12 @@ describe("model catalog", () => {
   it("lists search results and a repo's builds from its listing", async () => {
     // Opening a repo reads its listing only. No header is read to draw the
     // list, so each fit is an estimate and says so.
+    const installs = fakeInstallApi({
+      labels: { "ticket-1": "unsloth/Qwen3-8B-GGUF Q4_K_M" },
+    })
     vi.stubGlobal(
       "fetch",
-      serving(catalog(), (path) => {
+      serving(catalog(), (path, init) => {
         if (path.startsWith("/llm/catalog/local/search?")) {
           return Response.json({
             results: [
@@ -616,7 +691,17 @@ describe("model catalog", () => {
               [
                 build({
                   catalog_id: "ticket-1",
-                  fit: fit({ approximate: true }),
+                  fit: fit({
+                    state: "too_big",
+                    offload_fraction: 1,
+                    approximate: true,
+                  }),
+                  badge: {
+                    level: "refuse",
+                    verdict: "Won't fit",
+                    reason: "Estimated to need more memory than is available.",
+                  },
+                  can_install: true,
                   reads_images: true,
                   projector_checked: false,
                   bundled: false,
@@ -625,7 +710,7 @@ describe("model catalog", () => {
             ),
           })
         }
-        return null
+        return installs.handle(path, init)
       })
     )
     const user = userEvent.setup()
@@ -648,7 +733,21 @@ describe("model catalog", () => {
     })
     expect(within(builds).getByText("Q4_K_M")).toBeTruthy()
     expect(
-      screen.getByText(/Fit is estimated and checked before download/)
+      within(builds).getByText(/Fit is estimated and checked before download/)
+    ).toBeTruthy()
+    const download = within(builds).getByRole("button", {
+      name: "Download unsloth/Qwen3-8B-GGUF Q4_K_M",
+    })
+    expect(download.hasAttribute("disabled")).toBe(false)
+    await user.click(download)
+    installs.move({
+      type: "error",
+      message: "This build is too big for this computer. Pick a smaller one.",
+    })
+    expect(
+      await within(builds).findByText(
+        "This build is too big for this computer. Pick a smaller one."
+      )
     ).toBeTruthy()
     expect(
       within(builds).queryByText("Recommended for your computer")

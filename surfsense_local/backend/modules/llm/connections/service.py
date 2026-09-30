@@ -33,6 +33,9 @@ class DiscoveredModel:
     name: str
     types: tuple[ModelType, ...]
     capability_source: CapabilitySource
+    # The manifest's own reason this model cannot be called through the
+    # provider the connection names; None for a custom connection.
+    unusable_reason: str | None = None
 
     @property
     def capability_known(self) -> bool:
@@ -107,19 +110,22 @@ def _classify(
     door that guesses. A connection that names its manifest provider reads that
     provider's entry first.
     """
+    lookup = remote_lookup()
+    # The same answer the remote catalog gives, from the one rule in lookup.py.
+    unusable = lookup.unusable_reason(name, catalog_provider)
     if modalities:
         declared = tuple(
             model_type
             for modality, model_type in _DECLARED_AS.items()
             if modality in modalities
         )
-        return DiscoveredModel(name, declared, "declared")
-    catalogued = remote_lookup().classify(name, provider=catalog_provider)
+        return DiscoveredModel(name, declared, "declared", unusable)
+    catalogued = lookup.classify(name, provider=catalog_provider)
     if catalogued.known:
         # Enum order, so a model's types read the same wherever they are shown.
         types = tuple(t for t in ModelType if t in catalogued.types)
-        return DiscoveredModel(name, types, "catalog")
-    return DiscoveredModel(name, (), "unknown")
+        return DiscoveredModel(name, types, "catalog", unusable)
+    return DiscoveredModel(name, (), "unknown", unusable)
 
 
 def parse_models(payload: object) -> list[DiscoveredModel]:

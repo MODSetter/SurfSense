@@ -8,21 +8,21 @@ function shortName(name: string) {
   return name.split("/").at(-1) || name
 }
 
+const bold = (chunks: ReactNode[]) => (
+  <span className="font-medium text-foreground">{chunks}</span>
+)
+
 /** One whole sentence per place it runs, so each language orders it its own way. */
 function usingSentence(inUse: InUse) {
-  const values = {
-    name: shortName(inUse.name),
-    b: (chunks: ReactNode[]) => (
-      <span className="font-medium text-foreground">{chunks}</span>
-    ),
-  }
+  // Each call writes its values out: the lint reads placeholders only from a literal.
+  const name = shortName(inUse.name)
   if (inUse.where === "server") {
     return intl.formatMessage(
       {
         id: "onboarding_model_ready_server_status",
         defaultMessage: "Using <b>{name}</b> via {source}",
       },
-      { ...values, source: inUse.source }
+      { name, b: bold, source: inUse.source }
     )
   }
   if (inUse.where === "local") {
@@ -31,7 +31,7 @@ function usingSentence(inUse: InUse) {
         id: "onboarding_model_ready_local_status",
         defaultMessage: "Using <b>{name}</b> on this computer",
       },
-      values
+      { name, b: bold }
     )
   }
   return intl.formatMessage(
@@ -39,7 +39,7 @@ function usingSentence(inUse: InUse) {
       id: "onboarding_model_ready_missing_status",
       defaultMessage: "Using <b>{name}</b> (not found on this computer)",
     },
-    values
+    { name, b: bold }
   )
 }
 

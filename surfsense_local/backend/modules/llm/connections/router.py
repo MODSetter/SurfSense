@@ -195,6 +195,7 @@ def delete_connection(connection_id: int, session: SessionDep) -> Response:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "connection not found")
     session.delete(connection)
     session.flush()
+    egress.forget_if_unused(session, egress.host_destination(connection.base_url))
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -216,7 +217,10 @@ async def list_connection_models(
             name=model.name,
             types=list(model.types),
             capability_source=model.capability_source,
-            selectable_for=selectable_for(model.types, model.capability_known),
+            selectable_for=[]
+            if model.unusable_reason
+            else selectable_for(model.types, model.capability_known),
+            unusable_reason=model.unusable_reason,
         )
         for model in models
     ]
