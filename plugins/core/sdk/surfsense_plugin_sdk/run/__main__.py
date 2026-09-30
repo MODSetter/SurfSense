@@ -1,6 +1,6 @@
 """The command the app runs a plugin with, as the protocol fixes it.
 
-python -m surfsense_plugin_sdk.run <plugin-dir> <action> --inputs <file> --data <dir>
+python -S -m surfsense_plugin_sdk.run <plugin-dir> <action> --inputs <file> --data <dir>
 """
 
 import argparse

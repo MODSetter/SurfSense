@@ -3,12 +3,19 @@ import logging
 from huey.consumer import Consumer
 
 from shared.db import import_models
-from shared.queue import import_tasks, ingest_queue, studio_queue
+from shared.queue import import_tasks, ingest_queue, plugins_queue, studio_queue
 
 # Studio jobs wait on a model: overlap them. Ingest jobs saturate the CPU: one.
 # ponytail: laptop defaults; becomes a setting for power users.
 STUDIO_WORKERS = 4
-_QUEUES = {"ingest": (ingest_queue, 1), "studio": (studio_queue, STUDIO_WORKERS)}
+# Plugin runs mostly wait on the network, as Studio jobs wait on a model. This
+# is the only limit on how many run at once: a fifth stays queued.
+PLUGIN_WORKERS = 4
+_QUEUES = {
+    "ingest": (ingest_queue, 1),
+    "studio": (studio_queue, STUDIO_WORKERS),
+    "plugins": (plugins_queue, PLUGIN_WORKERS),
+}
 
 
 def consume(name: str) -> None:
