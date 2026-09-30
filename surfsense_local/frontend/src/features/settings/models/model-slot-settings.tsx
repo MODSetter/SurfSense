@@ -16,7 +16,6 @@ import type { Connection } from "@/features/models/remote/connections/api"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
-import { serversCanServe } from "@/features/models/remote/servers-can-serve"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { InUseSummary } from "@/features/models/your-models/in-use-summary"
 import { LocalModelsGroup } from "@/features/models/your-models/local-models-group"
@@ -59,7 +58,6 @@ export function ModelSlotSettings({
   onSelected?: (selection: ModelSelection) => void
   onChatCleared?: () => void
 }) {
-  const servers = serversCanServe(modelType)
   const connections = useConnections()
   const [page, setPage] = useState<Page>("list")
   // Edited in a dialog over the list; saving leaves the list as it was.
@@ -85,29 +83,22 @@ export function ModelSlotSettings({
           },
           { slot }
         )}
-        description={
-          servers
-            ? intl.formatMessage({
-                id: "settings_models_add_page_body",
-                defaultMessage:
-                  "Run one on this computer, or use one from a server you already run.",
-              })
-            : undefined
-        }
+        description={intl.formatMessage({
+          id: "settings_models_add_page_body",
+          defaultMessage:
+            "Run one on this computer, or use one from a server you already run.",
+        })}
         back={back}
         scrollable="all"
       >
-        <AddModelOptions
-          download={download}
-          onConnected={servers ? showNewServer : undefined}
-        />
+        <AddModelOptions download={download} onConnected={showNewServer} />
       </SettingsSection>
     )
   }
 
   const empty =
     !models.isPending &&
-    (!servers || connections.data?.length === 0) &&
+    connections.data?.length === 0 &&
     models.local.length === 0 &&
     !pending &&
     models.inUse === null
@@ -146,20 +137,18 @@ export function ModelSlotSettings({
                 { slot }
               )}
             </EmptyTitle>
-            {servers ? (
-              <EmptyDescription>
-                {models.canDownload
-                  ? intl.formatMessage({
-                      id: "settings_models_empty_download_body",
-                      defaultMessage:
-                        "Download one to run on this computer, or use one from a server you already run.",
-                    })
-                  : intl.formatMessage({
-                      id: "settings_models_empty_server_body",
-                      defaultMessage: "Use one from a server you already run.",
-                    })}
-              </EmptyDescription>
-            ) : null}
+            <EmptyDescription>
+              {models.canDownload
+                ? intl.formatMessage({
+                    id: "settings_models_empty_download_body",
+                    defaultMessage:
+                      "Download one to run on this computer, or use one from a server you already run.",
+                  })
+                : intl.formatMessage({
+                    id: "settings_models_empty_server_body",
+                    defaultMessage: "Use one from a server you already run.",
+                  })}
+            </EmptyDescription>
           </EmptyHeader>
           <EmptyContent>{add}</EmptyContent>
         </Empty>
@@ -180,18 +169,16 @@ export function ModelSlotSettings({
             />
           ) : null}
 
-          {servers ? (
-            <ServerModelPicker
-              modelType={modelType}
-              openServerId={openServerId}
-              onEdit={(connection) => {
-                setEditing(connection)
-                setEditOpen(true)
-              }}
-              onSelected={onSelected}
-              onChatCleared={onChatCleared}
-            />
-          ) : null}
+          <ServerModelPicker
+            modelType={modelType}
+            openServerId={openServerId}
+            onEdit={(connection) => {
+              setEditing(connection)
+              setEditOpen(true)
+            }}
+            onSelected={onSelected}
+            onChatCleared={onChatCleared}
+          />
         </div>
       )}
       <ConnectionDialog

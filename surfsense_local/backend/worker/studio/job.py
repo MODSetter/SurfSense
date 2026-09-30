@@ -10,6 +10,7 @@ from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
 from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.openai_compatible import NonRetryableImageError
+from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import TextToSpeech
 from modules.llm.resolution import (
     ModelResolutionError,
@@ -124,7 +125,10 @@ def _generate(session: Session, artifact: Artifact) -> None:
             document.error_message,
         )
         # A retry would repeat minutes of drafting and fail the same way.
-        if isinstance(failure, NonRetryableImageError | NotEnoughMemoryError):
+        if isinstance(
+            failure,
+            NonRetryableImageError | NonRetryableSpeechError | NotEnoughMemoryError,
+        ):
             return
         raise  # Huey retries; a later success clears the message.
 

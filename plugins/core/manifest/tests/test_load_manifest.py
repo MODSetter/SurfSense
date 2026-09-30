@@ -17,7 +17,7 @@ def _hn_search() -> dict:
         "author": "Alice",
         "access": "free",
         "hosts": ["hn.algolia.com"],
-        "entries": [
+        "actions": [
             {
                 "name": "search",
                 "title": "Search Hacker News",
@@ -35,6 +35,7 @@ def _hn_search() -> dict:
 
 
 def _write(folder: Path, manifest: dict) -> Path:
+    """Writes the manifest where load_manifest reads it."""
     path = folder / "manifest.json"
     path.write_text(json.dumps(manifest), encoding="utf-8")
     return path
@@ -47,27 +48,27 @@ def test_a_valid_manifest_loads_with_its_fields(tmp_path: Path) -> None:
     assert manifest.id == "hn-search"
     assert manifest.access == "free"
     assert manifest.hosts == ["hn.algolia.com"]
-    assert manifest.entries[0].name == "search"
-    assert manifest.entries[0].inputs[0].kind == "string"
-    assert manifest.entries[0].inputs[0].required is True
+    assert manifest.actions[0].name == "search"
+    assert manifest.actions[0].inputs[0].kind == "string"
+    assert manifest.actions[0].inputs[0].required is True
 
 
-def test_what_an_entry_leaves_out_takes_its_default(tmp_path: Path) -> None:
+def test_what_an_action_leaves_out_takes_its_default(tmp_path: Path) -> None:
     """No timeout means 30 minutes, and an input is optional unless it says so."""
     declared = _hn_search()
-    del declared["entries"][0]["inputs"][0]["required"]
+    del declared["actions"][0]["inputs"][0]["required"]
 
-    entry = load_manifest(_write(tmp_path, declared)).entries[0]
+    action = load_manifest(_write(tmp_path, declared)).actions[0]
 
-    assert entry.timeout_seconds == 1800
-    assert entry.inputs[0].required is False
+    assert action.timeout_seconds == 1800
+    assert action.inputs[0].required is False
 
 
 def test_a_field_this_version_does_not_know_is_ignored(tmp_path: Path) -> None:
     """A manifest written for a newer app still loads in an older one."""
     declared = _hn_search()
     declared["icon"] = "icon.png"
-    declared["entries"][0]["schedule"] = "daily"
+    declared["actions"][0]["schedule"] = "daily"
 
     assert load_manifest(_write(tmp_path, declared)).id == "hn-search"
 
@@ -85,6 +86,7 @@ def test_the_version_is_the_one_a_release_stamped(
 
 
 def _errors_in(folder: Path, manifest: dict) -> list[str]:
+    """The errors a refused manifest reports, for a test to compare whole."""
     with pytest.raises(ManifestError) as refused:
         load_manifest(_write(folder, manifest))
     return refused.value.errors
@@ -185,54 +187,61 @@ def test_a_secret_has_a_title_and_a_name_that_can_be_a_variable(
     assert _errors_in(tmp_path, declared) == [error]
 
 
-def _no_entries(declared: dict) -> None:
-    declared["entries"] = []
+def _no_actions(declared: dict) -> None:
+    """A plugin with nothing the app could run."""
+    declared["actions"] = []
 
 
-def _two_entries_named_alike(declared: dict) -> None:
-    declared["entries"].append(dict(declared["entries"][0]))
+def _two_actions_named_alike(declared: dict) -> None:
+    """Two actions the app could not tell apart."""
+    declared["actions"].append(dict(declared["actions"][0]))
 
 
 def _two_inputs_named_alike(declared: dict) -> None:
-    inputs = declared["entries"][0]["inputs"]
+    """An action function that would take one argument twice."""
+    inputs = declared["actions"][0]["inputs"]
     inputs.append(dict(inputs[0]))
 
 
 def _two_secrets_named_alike(declared: dict) -> None:
+    """Two secrets that would share one environment variable."""
     declared["secrets"] = [{"name": "token", "title": "Token"}] * 2
 
 
 def _an_unknown_input_kind(declared: dict) -> None:
-    declared["entries"][0]["inputs"][0]["kind"] = "date"
+    """An input the run dialog could not draw."""
+    declared["actions"][0]["inputs"][0]["kind"] = "date"
 
 
-def _a_capitalised_entry_name(declared: dict) -> None:
-    declared["entries"][0]["name"] = "Search"
+def _a_capitalised_action_name(declared: dict) -> None:
+    """An action name that is not safe in a URL."""
+    declared["actions"][0]["name"] = "Search"
 
 
 def _a_hyphenated_input_name(declared: dict) -> None:
-    declared["entries"][0]["inputs"][0]["name"] = "search-for"
+    """An input name Python could not take as an argument."""
+    declared["actions"][0]["inputs"][0]["name"] = "search-for"
 
 
 @pytest.mark.parametrize(
     ("change", "error"),
     [
-        (_no_entries, "entries: must not be empty"),
-        (_two_entries_named_alike, "entries: two entries are named search"),
-        (_two_inputs_named_alike, "entries[0].inputs: two inputs are named query"),
+        (_no_actions, "actions: must not be empty"),
+        (_two_actions_named_alike, "actions: two actions are named search"),
+        (_two_inputs_named_alike, "actions[0].inputs: two inputs are named query"),
         (_two_secrets_named_alike, "secrets: two secrets are named token"),
         (
             _an_unknown_input_kind,
-            "entries[0].inputs[0].kind: must be string, number or boolean",
+            "actions[0].inputs[0].kind: must be string, number or boolean",
         ),
-        (_a_capitalised_entry_name, f"entries[0].name: {SAFE_IN_URLS}"),
-        (_a_hyphenated_input_name, f"entries[0].inputs[0].name: {VALID_VARIABLE}"),
+        (_a_capitalised_action_name, f"actions[0].name: {SAFE_IN_URLS}"),
+        (_a_hyphenated_input_name, f"actions[0].inputs[0].name: {VALID_VARIABLE}"),
     ],
 )
-def test_entries_and_their_inputs_are_well_formed(
+def test_actions_and_their_inputs_are_well_formed(
     tmp_path: Path, change, error: str
 ) -> None:
-    """The app can list each entry, and draw and fill each input, unambiguously."""
+    """The app can list each action, and draw and fill each input, unambiguously."""
     declared = _hn_search()
     change(declared)
 
@@ -243,12 +252,12 @@ def test_entries_and_their_inputs_are_well_formed(
 def test_a_run_lasts_between_a_second_and_six_hours(
     tmp_path: Path, seconds: int
 ) -> None:
-    """No entry can ask to run forever, or for no time at all."""
+    """No action can ask to run forever, or for no time at all."""
     declared = _hn_search()
-    declared["entries"][0]["timeout_seconds"] = seconds
+    declared["actions"][0]["timeout_seconds"] = seconds
 
     assert _errors_in(tmp_path, declared) == [
-        "entries[0].timeout_seconds: must be 1 to 21600 seconds"
+        "actions[0].timeout_seconds: must be 1 to 21600 seconds"
     ]
 
 
@@ -257,13 +266,13 @@ def test_every_error_is_reported_at_once(tmp_path: Path) -> None:
     declared = _hn_search()
     declared["id"] = "HN"
     declared["hosts"] = ["https://hn.algolia.com"]
-    _two_entries_named_alike(declared)
+    _two_actions_named_alike(declared)
 
     assert _errors_in(tmp_path, declared) == [
         f"id: {SAFE_IN_URLS}",
         "hosts[0]: must be a lowercase hostname alone: no scheme, port, path or"
         " wildcard",
-        "entries: two entries are named search",
+        "actions: two actions are named search",
     ]
 
 

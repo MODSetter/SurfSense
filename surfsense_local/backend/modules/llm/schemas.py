@@ -91,6 +91,8 @@ class ModelTestWrite(BaseModel):
 
     model: str = Field(min_length=1, max_length=512)
     prompt: str | None = Field(default=None, max_length=2000)
+    # A speech test's voice; the first reviewed one when omitted, if any.
+    voice: str | None = Field(default=None, max_length=100)
 
 
 class ChatTestRead(BaseModel):

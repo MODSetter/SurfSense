@@ -7,6 +7,7 @@ from surfsense_plugin_manifest.errors.manifest_error import ManifestError
 
 
 def read_manifest_json(path: Path) -> dict:
+    """The file as a JSON object, or one error saying why it is not one."""
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:

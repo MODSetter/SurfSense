@@ -47,9 +47,7 @@ class OpenAICompatibleImageProvider:
     async def generate(self, model: str, prompt: str) -> GeneratedImage:
         key = (self._connection_id, self._base_url)
         preferred = _route_cache.get(key, STANDARD_ROUTE)
-        alternate = (
-            EXTENSION_ROUTE if preferred == STANDARD_ROUTE else STANDARD_ROUTE
-        )
+        alternate = EXTENSION_ROUTE if preferred == STANDARD_ROUTE else STANDARD_ROUTE
 
         try:
             status, payload = await self._post(preferred, model, prompt)
@@ -59,9 +57,7 @@ class OpenAICompatibleImageProvider:
             else:
                 route = preferred
             if status >= 400:
-                raise NonRetryableImageError(
-                    f"image endpoint returned HTTP {status}"
-                )
+                raise NonRetryableImageError(f"image endpoint returned HTTP {status}")
             image = await self._normalize(payload)
         except NonRetryableImageError:
             raise
@@ -71,9 +67,7 @@ class OpenAICompatibleImageProvider:
         _route_cache[key] = route
         return image
 
-    async def _post(
-        self, route: str, model: str, prompt: str
-    ) -> tuple[int, object]:
+    async def _post(self, route: str, model: str, prompt: str) -> tuple[int, object]:
         async with (
             httpx.AsyncClient(timeout=TIMEOUT, headers=self._headers()) as client,
             client.stream(
@@ -95,9 +89,7 @@ class OpenAICompatibleImageProvider:
     async def _normalize(self, payload: object) -> GeneratedImage:
         if not isinstance(payload, dict) or not isinstance(payload.get("data"), list):
             raise ValueError("image endpoint returned no data list")
-        entry = next(
-            (item for item in payload["data"] if isinstance(item, dict)), None
-        )
+        entry = next((item for item in payload["data"] if isinstance(item, dict)), None)
         if entry is None:
             raise ValueError("image endpoint returned no image")
 

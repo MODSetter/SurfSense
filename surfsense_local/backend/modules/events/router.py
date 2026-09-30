@@ -2,11 +2,11 @@ import asyncio
 import json
 from collections.abc import AsyncIterator
 
-from fastapi import APIRouter, Request, Response, status
+from fastapi import APIRouter, Response, status
 from fastapi.responses import StreamingResponse
 
 from api.dependencies import SessionDep
-from modules.events.broker import EventBroker
+from modules.events.dependencies import EventBrokerDep
 from modules.events.schemas import InternalEvent
 from modules.workspaces.dependencies import WorkspaceDep
 
@@ -28,12 +28,11 @@ _HEARTBEAT_SECONDS = 15
     summary="Stream a workspace's change events",
 )
 async def subscribe_events(
-    workspace: WorkspaceDep, request: Request, session: SessionDep
+    workspace: WorkspaceDep, broker: EventBrokerDep, session: SessionDep
 ) -> StreamingResponse:
     # Resolving the workspace opened the request transaction, and this stream
     # lives as long as the window: release the write lock before it starts.
     session.commit()
-    broker: EventBroker = request.app.state.broker
     queue = broker.subscribe(workspace.id)
 
     async def stream() -> AsyncIterator[bytes]:
@@ -60,13 +59,9 @@ async def subscribe_events(
     status_code=status.HTTP_202_ACCEPTED,
     summary="Worker-to-API change notice (loopback only)",
 )
-async def publish_event(payload: InternalEvent, request: Request) -> Response:
+async def publish_event(payload: InternalEvent, broker: EventBrokerDep) -> Response:
     # Loopback only by convention: uvicorn binds 127.0.0.1, so nothing off-box reaches this.
-    broker: EventBroker = request.app.state.broker
-    broker.publish(
-        payload.workspace_id,
-        {"kind": payload.kind, "ids": payload.ids, "status": payload.status},
-    )
+    broker.publish(payload)
     return Response(status_code=status.HTTP_202_ACCEPTED)
 
 

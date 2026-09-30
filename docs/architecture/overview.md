@@ -61,8 +61,9 @@ The rules that keep the processes out of each other's way:
 ## Freshness
 
 - Workers call `POST /internal/events` after each status change ([`worker/notify.py`](../../surfsense_local/backend/worker/notify.py)): ingest sends a `documents` event keyed by document id, Studio an `artifacts` event keyed by artifact id. The notice is best-effort with a 2-second timeout; losing one costs a live update, never the job.
+- The API notifies of its own document changes on the same stream, straight to the broker: a note written, an upload, a rename or edit, a retry, a cancel, and a delete, whose status is `deleted` ([`api/notify.py`](../../surfsense_local/backend/api/notify.py)). So a change reaches an open window whoever made it: the window itself, a plugin, or a second window.
 - The API fans each notice out on `GET /workspaces/{id}/events` ([`modules/events/`](../../surfsense_local/backend/modules/events/)) as a named SSE event whose data is `{"ids": [...], "status": "..."}`. The stream opens with a `: connected` comment and sends `: ping` after 15 idle seconds. The broker is an in-memory map, which holds because one uvicorn process serves the app.
-- The frontend does not subscribe. The sources list and the Studio artifact list refetch every 1.5 seconds while any row is `pending` or `processing`, and stop when none is.
+- The sources panel subscribes ([`features/sources/use-document-changes.ts`](../../surfsense_local/frontend/src/features/sources/use-document-changes.ts)): it reloads its list on each `documents` event, and each time a dropped stream is back, for what changed while nothing listened. The Studio artifact list does not subscribe. Both lists still refetch every 1.5 seconds while any row is `pending` or `processing`, and stop when none is; that is the fallback for a lost notice.
 
 ## Data directory
 
@@ -119,4 +120,4 @@ The rules that keep the processes out of each other's way:
 
 ## Known gaps
 
-- The frontend never subscribes to `GET /workspaces/{id}/events`; the sources and Studio lists poll every 1.5 seconds instead of invalidating on the events the workers already send.
+- The Studio artifact list never subscribes to `GET /workspaces/{id}/events`; it polls every 1.5 seconds instead of reloading on the `artifacts` events its worker already sends. The sources panel subscribes in a hook of its own rather than through TanStack Query.

@@ -13,6 +13,7 @@ import {
   uploadDocuments,
   type WorkspaceDocument,
 } from "./api"
+import { useDocumentChanges } from "./use-document-changes"
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
@@ -62,6 +63,7 @@ export function useSources(workspaceId: number) {
   const listController = useRef<AbortController | null>(null)
   const uploadController = useRef<AbortController | null>(null)
   const pollController = useRef<AbortController | null>(null)
+  const changeController = useRef<AbortController | null>(null)
   const hasActiveIngestion = documents.some(
     (document) =>
       document.status === "pending" || document.status === "processing"
@@ -88,6 +90,7 @@ export function useSources(workspaceId: number) {
       controller.abort()
       uploadController.current?.abort()
       pollController.current?.abort()
+      changeController.current?.abort()
     }
   }, [workspaceId])
 
@@ -128,6 +131,23 @@ export function useSources(workspaceId: number) {
 
     return () => controller.abort()
   }, [hasActiveIngestion, workspaceId])
+
+  // Without the loading state: the list is on screen, and only its rows move.
+  useDocumentChanges(workspaceId, () => {
+    changeController.current?.abort()
+    const controller = new AbortController()
+    changeController.current = controller
+    void listDocuments(workspaceId, controller.signal)
+      .then((next) => {
+        if (changeController.current === controller) {
+          setDocuments(next)
+          setError(null)
+        }
+      })
+      .catch(() => {
+        // The next change, or the polling while something ingests, reloads.
+      })
+  })
 
   const refresh = async () => {
     listController.current?.abort()

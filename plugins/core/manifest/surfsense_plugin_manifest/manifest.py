@@ -8,7 +8,7 @@ from surfsense_plugin_manifest.rules.display_text import Description, DisplayNam
 from surfsense_plugin_manifest.rules.duplicate_names import unique_names
 from surfsense_plugin_manifest.rules.hosts import Host
 from surfsense_plugin_manifest.rules.identifiers import (
-    EntryName,
+    ActionName,
     PluginId,
     VariableName,
 )
@@ -16,26 +16,34 @@ from surfsense_plugin_manifest.rules.run_timeout import TimeoutSeconds
 
 
 class Input(BaseModel):
+    """A value the user gives each time an action runs."""
+
     name: VariableName
     title: str
     kind: Literal["string", "number", "boolean"]
     required: bool = False
 
 
-class Entry(BaseModel):
-    name: EntryName
+class Action(BaseModel):
+    """A function the app can run, and what it asks the user for."""
+
+    name: ActionName
     title: str
     inputs: Annotated[list[Input], unique_names("inputs")]
     timeout_seconds: TimeoutSeconds = 1800
 
 
 class Secret(BaseModel):
+    """A value the user enters once in Settings, never shown again."""
+
     name: VariableName
     title: str
     description: str | None = None
 
 
 class Manifest(BaseModel):
+    """What a plugin declares about itself in manifest.json."""
+
     id: PluginId
     # Written by the release into the downloaded copy; an author never writes it.
     version: str | None = None
@@ -46,4 +54,4 @@ class Manifest(BaseModel):
     hosts: list[Host]
     secrets: Annotated[list[Secret], unique_names("secrets")] = []
     platforms: list[str] | None = None
-    entries: Annotated[list[Entry], Field(min_length=1), unique_names("entries")]
+    actions: Annotated[list[Action], Field(min_length=1), unique_names("actions")]

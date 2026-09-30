@@ -95,6 +95,13 @@ def test_a_model_that_emits_two_media_carries_two_types() -> None:
     }
 
 
+def test_a_model_that_only_speaks_is_an_audio_model() -> None:
+    """tts-1 declares text in, audio out, and no context window."""
+    assert classify("tts-1", _entry(["text"], ["audio"], context=None)) == {
+        ModelType.AUDIO_GEN
+    }
+
+
 def test_video_out_is_video_generation() -> None:
     """Named because the type exists in the source, not because a tab wants it."""
     assert classify("happyhorse-1.1-t2v", _entry(["text"], ["video"])) == {

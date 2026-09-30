@@ -25,9 +25,9 @@ A workspace holds a library of sources: uploaded files, notes written in the app
 | Method | Path | Does |
 |---|---|---|
 | `GET` | `/workspaces/{workspace_id}/documents` | list (below) |
-| `POST` | `/workspaces/{workspace_id}/documents` | write a note; `201` with its body |
+| `POST` | `/workspaces/{workspace_id}/documents` | write a note, with an optional `document_metadata` object; `201` with its body, `422` for a field it does not know |
 | `POST` | `/workspaces/{workspace_id}/documents/upload` | upload files; `201` with `created`, `duplicates` and `rejected` |
-| `GET` | `/workspaces/{workspace_id}/documents/{document_id}` | one document with its `content`; `null` for a `FILE` the worker has not written yet |
+| `GET` | `/workspaces/{workspace_id}/documents/{document_id}` | one document with its `content` and `document_metadata`; `content` is `null` for a `FILE` the worker has not written yet |
 | `PATCH` | `/workspaces/{workspace_id}/documents/{document_id}` | rename; edit a note's content |
 | `DELETE` | `/workspaces/{workspace_id}/documents/{document_id}` | delete; `409` while `processing` |
 | `POST` | `/workspaces/{workspace_id}/documents/{document_id}/retry` | requeue a `failed` or `cancelled` document |
@@ -52,6 +52,8 @@ Chunks have no router of their own.
 ## Notes
 
 A note is a document the user writes, with no file behind it. Creating one commits the row as `pending` and enqueues ingest: nothing needs parsing, but the note is not `ready` until it is chunked and indexed. A note never touches the filesystem and carries no dedup key, so two notes with the same text are two documents.
+
+A note may carry `document_metadata`, stored as given. A plugin names itself there on the notes it adds, with `plugin_id`, `plugin_version`, `action` and `run_id`; a note the user writes has none, and editing a note leaves it alone. Writing a note with a field the API does not know is refused rather than dropped, so a client that names a field differently finds out at once.
 
 ## Upload
 
@@ -101,7 +103,7 @@ Cancellation is checked after parsing and after embedding. On any other failure 
 - `worker-ingest` drains it with one thread. Ingest saturates a CPU and writes to the database the API is serving from, so a second thread would spend its time behind the first one's lock. Studio has its own queue so an import never sits in front of a summary ([ADR 0008](../adr/0008-two-job-queues.md)).
 - The queue survives restarts. A job carries only its task's name, so each consumer imports every task before it starts (`import_tasks()`), and [`tests/integration/test_registration.py`](../../surfsense_local/backend/tests/integration/test_registration.py) fails when that list falls behind the task modules on disk.
 - Jobs are enqueued by upload, note creation, a note content edit and retry, and by import ([`import.md`](import.md)).
-- Each transition the ingest worker makes, to `processing`, `ready` or `failed`, sends a `documents` event keyed by document id; the API's own changes, to `pending` and `cancelled`, send none. The frontend does not listen yet; the sources panel refetches every 1.5 seconds while any row is `pending` or `processing` ([`overview.md`](overview.md#freshness)).
+- Each transition the ingest worker makes, to `processing`, `ready` or `failed`, sends a `documents` event keyed by document id, and so does each change the API makes itself: a note written, an upload, a rename or edit, a retry, a cancel, and a delete, whose status is `deleted`. The sources panel reloads its list on each event and whenever a dropped stream is back, so a note a plugin writes shows as it is written; it still refetches every 1.5 seconds while any row is `pending` or `processing` ([`overview.md`](overview.md#freshness)).
 
 ## Known gaps
 

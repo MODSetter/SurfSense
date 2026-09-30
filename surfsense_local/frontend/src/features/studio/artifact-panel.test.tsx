@@ -51,7 +51,11 @@ describe("artifact panel", () => {
     ).toBeTruthy()
     expect(await screen.findByText("Weekly summary")).toBeTruthy()
     expect(screen.getByText("Saturn is a gas giant.")).toBeTruthy()
-    expect(screen.getByRole("link", { name: "Download" })).toBeTruthy()
+    // The API is another origin, where `download` is ignored: the server
+    // itself must say attachment, or the file opens in a window.
+    expect(
+      screen.getByRole("link", { name: "Download" }).getAttribute("href")
+    ).toMatch(/\/artifacts\/12\/files\/primary\?download=1$/)
     await user.click(screen.getByRole("button", { name: "Close artifact" }))
     expect(onClose).toHaveBeenCalled()
   })

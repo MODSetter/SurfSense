@@ -7,6 +7,18 @@
 		{
 			"name": "local backend",
 			"path": "surfsense_local/backend"
+		},
+		{
+			"name": "plugin CLI",
+			"path": "plugins/core/cli"
+		},
+		{
+			"name": "plugin SDK",
+			"path": "plugins/core/sdk"
+		},
+		{
+			"name": "plugin manifest rules",
+			"path": "plugins/core/manifest"
 		}
 	],
 	"settings": {}

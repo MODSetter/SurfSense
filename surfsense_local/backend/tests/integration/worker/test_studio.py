@@ -14,6 +14,7 @@ from modules.llm.providers.audiocpp.memory import NotEnoughMemoryError
 from modules.llm.providers.audiocpp.speech import AudioCppSpeech, VoicedModel
 from modules.llm.providers.llamacpp import RouterClient
 from modules.llm.providers.openai_compatible import NonRetryableImageError
+from modules.llm.providers.openai_compatible.speech import NonRetryableSpeechError
 from modules.llm.providers.protocols import (
     GeneratedImage,
     SpokenTurn,
@@ -528,6 +529,32 @@ def test_a_memory_refusal_is_not_retried(
     session.expire_all()
     assert artifact.document.status is DocumentStatus.FAILED
     assert artifact.document.error_message == SHORT
+
+
+class RefusingServer(ShortOfMemoryAtVoicing):
+    async def synthesize(self, turns: list[SpokenTurn], language: str):
+        raise NonRetryableSpeechError("the server could not voice turn 1 of 2: bad key")
+
+
+def test_a_servers_voicing_refusal_is_not_retried(
+    session: Session, stub_model: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A retry would draft and bill the whole episode again."""
+    _capture_model(
+        monkeypatch,
+        '{"title": "T", "segments": [{"title": "One"}]}',
+        '{"turns": [{"speaker": 1, "text": "Hi."}, {"speaker": 2, "text": "Hello."}]}',
+    )
+    monkeypatch.setattr(
+        "worker.studio.job.resolve_text_to_speech", lambda _session: RefusingServer()
+    )
+    artifact = make_artifact(session, fmt="podcast", options=BRIEF)
+
+    run(artifact.id)  # returning, not raising, is what spares a Huey retry
+
+    session.expire_all()
+    assert artifact.document.status is DocumentStatus.FAILED
+    assert "bad key" in artifact.document.error_message
 
 
 def test_a_podcast_cancelled_while_voicing_stops_at_the_next_turn(

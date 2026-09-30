@@ -9,6 +9,7 @@ from surfsense_plugin_manifest.read_manifest_json import read_manifest_json
 
 
 def load_manifest(path: Path) -> Manifest:
+    """A manifest that follows every rule, or ManifestError listing each broken one."""
     try:
         return Manifest.model_validate(read_manifest_json(path))
     except ValidationError as error:

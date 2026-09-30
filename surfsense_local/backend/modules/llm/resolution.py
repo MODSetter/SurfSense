@@ -16,6 +16,7 @@ from modules.llm.providers.openai_compatible import (
     OpenAICompatibleImageProvider,
 )
 from modules.llm.providers.openai_compatible.image import AllowUrlHost
+from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
@@ -24,10 +25,6 @@ from shared.config import get_llm_settings
 
 class ModelResolutionError(RuntimeError):
     pass
-
-
-class VoiceNotLocalError(ModelResolutionError):
-    """The audio model is a server's, and nothing calls a remote speech endpoint."""
 
 
 @dataclass(frozen=True)
@@ -121,14 +118,41 @@ def _allow_url_host(session: Session) -> AllowUrlHost:
     return allow
 
 
+def speech_selected(session: Session) -> None:
+    """Raise unless the chosen audio model can be reached for, without reaching
+    it: the format list asks, and must not call a server to answer."""
+    selected = selected_audio(session)
+    if selected.provider == audiocpp.PROVIDER:
+        local_speech(selected)
+    else:
+        stored_connection(session, selected)
+
+
 def resolve_text_to_speech(session: Session) -> TextToSpeech:
+    selected = selected_audio(session)
+    if selected.provider == audiocpp.PROVIDER:
+        return local_speech(selected)
+    return _remote_speech(selected, _connection(session, selected))
+
+
+def _remote_speech(
+    selected: SelectedModel, connection: ProviderConnection
+) -> RemoteSpeech:
+    return RemoteSpeech(
+        selected.name,
+        base_url=connection.base_url,
+        api_key=connection.api_key,
+    )
+
+
+def selected_audio(session: Session) -> SelectedModel:
     selected = session.get(SelectedModel, ModelType.AUDIO_GEN)
     if selected is None:
         raise ModelResolutionError("no audio model selected")
-    if selected.provider != audiocpp.PROVIDER:
-        raise VoiceNotLocalError(
-            "podcasts are voiced by an audio model on this computer"
-        )
+    return selected
+
+
+def local_speech(selected: SelectedModel) -> AudioCppSpeech:
     engine = get_local_catalog().audiocpp
     installed = engine.installed_model(selected.name)
     if installed is None:
@@ -144,10 +168,16 @@ def resolve_text_to_speech(session: Session) -> TextToSpeech:
 
 
 def _connection(session: Session, selected: SelectedModel) -> ProviderConnection:
+    """The selection's connection, once egress to its host is allowed."""
+    connection = stored_connection(session, selected)
+    egress.require(session, egress.host_destination(connection.base_url))
+    return connection
+
+
+def stored_connection(session: Session, selected: SelectedModel) -> ProviderConnection:
     if selected.provider != "openai_compatible" or selected.connection_id is None:
         raise ModelResolutionError(f"unknown provider: {selected.provider}")
     connection = session.get(ProviderConnection, selected.connection_id)
     if connection is None:
         raise ModelResolutionError("selected model connection no longer exists")
-    egress.require(session, egress.host_destination(connection.base_url))
     return connection

@@ -2,6 +2,6 @@
 
 from surfsense_plugin_manifest.errors.manifest_error import ManifestError
 from surfsense_plugin_manifest.load_manifest import load_manifest
-from surfsense_plugin_manifest.manifest import Entry, Input, Manifest, Secret
+from surfsense_plugin_manifest.manifest import Action, Input, Manifest, Secret
 
-__all__ = ["Entry", "Input", "Manifest", "ManifestError", "Secret", "load_manifest"]
+__all__ = ["Action", "Input", "Manifest", "ManifestError", "Secret", "load_manifest"]

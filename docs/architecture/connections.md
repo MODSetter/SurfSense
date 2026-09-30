@@ -57,6 +57,7 @@ A base URL must be `http` or `https` with a host, and may not carry credentials,
 | `GET` | `/llm/connections/{connection_id}/models` | the endpoint's live model list |
 | `POST` | `/llm/connections/{connection_id}/chat-test` | one short answer from a chosen model |
 | `POST` | `/llm/connections/{connection_id}/image-test` | one image from a chosen model |
+| `POST` | `/llm/connections/{connection_id}/speech-test` | one spoken line from a chosen model |
 
 The write body:
 
@@ -80,11 +81,11 @@ The write body:
 
 ## Live models
 
-`GET .../models` calls `{base_url}/models` and, in parallel, `{base_url}/models?output_modalities=image`. A valid answer to the second is merged in and any failure of it is ignored: OpenRouter's default listing leaves out most of its image models, and an endpoint that ignores the parameter returns the same set, so no provider has to be recognised. Ids are deduplicated within the connection and sorted. A failed baseline call is a `502`, and the connection stays.
+`GET .../models` calls `{base_url}/models` and, in parallel, `{base_url}/models?output_modalities=all`. A valid answer to the second is merged in and any failure of it is ignored: OpenRouter's default listing holds 464 of its 635 models and leaves out most of its image and all of its speech models, and an endpoint that ignores the parameter returns the same set, so no provider has to be recognised. Ids are deduplicated within the connection and sorted. A failed baseline call is a `502`, and the connection stays.
 
 Each model's `types` come from the first of three sources that knows it, and nothing is guessed; `capability_source` says which:
 
-1. `declared`: output modalities the endpoint publishes: text is `text_gen`, image `image_gen`, video `video_gen` and audio `audio_gen`.
+1. `declared`: output modalities the endpoint publishes: text is `text_gen`, image `image_gen`, video `video_gen`, and audio or OpenRouter's `speech` `audio_gen`. Any other word, such as OpenRouter's `transcription` or `embeddings`, is a known answer that fills no slot.
 2. `catalog`: the remote model manifest, [`catalog/remote/manifest/models.json`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/models.json). `scripts/refresh_remote_manifest.py` builds it offline from models.dev, keyed provider then model, with the evidence the classifier reads rather than a verdict; a person reviews the diff and commits it, and nothing fetches models.dev at runtime. A connection with a `catalog_provider` reads that provider's entry first. Otherwise, and for an id its provider does not carry, the lookup reads the maker's own entry when the id's prefix names one, otherwise the types every provider carrying the id agrees on, trying the full id and then its last path segment ([`lookup.py`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/lookup.py)). A model found with no types, such as an embedder, is known to fill no slot.
 3. `unknown`: neither source knows the id.
 
@@ -142,6 +143,8 @@ Loading a connection runs the egress check for its host. The bundled sd-server s
 
 - `chat-test` streams one answer from the chosen model, by default to a prompt asking for one short sentence, capped at 1,024 tokens and 600 characters, so a model whose capability is `unknown` can be seen answering before it becomes the chat model. An empty reply is a `502`, which is what a reasoning model returns when it spends the whole budget thinking.
 - `image-test` generates one image, by default a blue circle on white, through the real image client and returns the bytes with `Cache-Control: no-store`. It creates no artifact.
+- `speech-test` voices the `prompt` sent, the Try dialog's line in the interface's language, through the podcast's speech client, in the `voice` sent, and returns the audio with `Cache-Control: no-store`. Without one the request carries no `voice`, so the server speaks in its own default where it has one, and says so where it has none; no voice is assumed. The Try dialog has an optional voice field for audio models and plays the clip.
+- `GET`, `POST` and `DELETE /llm/selection/audio_gen/voices` read the audio selection's voices (the server's list, else the user's), add one once the server has voiced the `text` sent (`502` with the server's words when it refuses), and remove one. A model on this computer is a `409`.
 - Selecting a model never runs inference. The server group offers a test before the model is used, and "Use without testing" for a trusted internal endpoint, whose first real request then reports any error normally. Image tests run only on an explicit action, because they are real inference and may cost money.
 
 ## Where keys live
@@ -165,7 +168,6 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 - Each model section in Settings, Chat and Image, shows every connection as a group under the local models. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; the model in use, if it comes from that server, stays shown above the list whether the group is open or closed. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model's row shows its type chips, and a Vision chip when `reads_images` is true. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page. Adding and editing a connection happen in a dialog over the page. Saving a new connection returns to the list with its group open on its models, since choosing one is why it was added; saving an edit only refreshes.
 - Edit and Disconnect sit on each group. Edit opens the same form in that dialog. A connection serves every slot, so Disconnect names each model it will clear, Chat, Image or both, whichever section it is disconnected from.
 - Onboarding's model steps use the same groups and the same dialog; with nothing connected yet, their **Connect** opens the dialog directly, and saving opens the server page on the new connection's models.
-- A model type no server model can fill yet offers no servers anywhere, in Settings or onboarding, and its copy drops the mention: audio today, since no server model voices podcasts. The list is `serversCanServe()` in `features/models/remote/servers-can-serve.ts`.
 - The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. "Local or custom server" leaves the URL to the user, since its port is whatever its owner set, with `http://localhost:11434/v1` as placeholder text only; a loopback server the manifest lists, such as LM Studio, fills the manifest's URL like any ready provider. The save sends `catalog_provider`.
 
 ## Known gaps

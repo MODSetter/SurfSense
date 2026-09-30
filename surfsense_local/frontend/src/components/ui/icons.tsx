@@ -50,6 +50,7 @@ import {
   PencilEdit02Icon as PencilEdit02IconData,
   Pdf01Icon as Pdf01IconData,
   PencilIcon as PencilIconData,
+  PlayIcon as PlayIconData,
   PlusIcon as PlusIconData,
   PodcastIcon as PodcastIconData,
   Presentation02Icon as Presentation02IconData,
@@ -149,6 +150,7 @@ export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
+export const PlayIcon = createIcon(PlayIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)

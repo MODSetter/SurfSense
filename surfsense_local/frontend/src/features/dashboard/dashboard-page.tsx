@@ -82,6 +82,7 @@ function WorkspaceDashboard({
   onModelRequired,
   onModelSelected,
   onOpenLicense,
+  onOpenAudioSettings,
   modelsVisited,
 }: {
   workspace: Workspace
@@ -94,6 +95,7 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
+  onOpenAudioSettings: () => void
   modelsVisited: number
 }) {
   const [inspect, setInspect] = useState<Inspect>(null)
@@ -347,6 +349,7 @@ function WorkspaceDashboard({
                   isCreating={studio.isCreating}
                   error={studio.error}
                   onGenerate={studio.create}
+                  onSetUpVoices={onOpenAudioSettings}
                 />
               }
               artifacts={
@@ -564,6 +567,7 @@ export function DashboardPage({
         onModelRequired={() => openSettings("chat-models")}
         onModelSelected={onModelSelected}
         onOpenLicense={() => openSettings("license")}
+        onOpenAudioSettings={() => openSettings("audio-models")}
         modelsVisited={modelsVisited}
       />
       <SettingsDialog

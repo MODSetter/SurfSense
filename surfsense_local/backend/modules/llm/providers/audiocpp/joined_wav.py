@@ -10,7 +10,7 @@ from collections.abc import Sequence
 GAP_SECONDS = 0.35
 
 
-def joined_wav(turns: Sequence[bytes]) -> bytes:
+def joined_wav(turns: Sequence[bytes], gap: float = GAP_SECONDS) -> bytes:
     """The turns in order, which must share one format, as one model's do."""
     frames: list[bytes] = []
     params = None
@@ -23,7 +23,7 @@ def joined_wav(turns: Sequence[bytes]) -> bytes:
                 raise ValueError("the turns came back in different audio formats")
             if index:
                 channels, width, rate = params
-                frames.append(b"\x00" * round(GAP_SECONDS * rate) * width * channels)
+                frames.append(b"\x00" * round(gap * rate) * width * channels)
             frames.append(turn.readframes(turn.getnframes()))
     if params is None:
         raise ValueError("nothing was voiced")

@@ -101,6 +101,34 @@ def test_types_come_from_the_endpoint_then_the_catalogue_then_nowhere() -> None:
         assert models[name].capability_known is False
 
 
+def test_an_endpoints_own_word_for_speech_is_the_audio_slot() -> None:
+    """OpenRouter declares `speech` for text-to-speech and `transcription` for
+    speech-to-text; each output a model declares is a type, as with images."""
+    models = {
+        model.name: model
+        for model in parse_models(
+            {
+                "data": [
+                    {"id": "omni", "output_modalities": ["text", "audio"]},
+                    {
+                        "id": "hexgrad/kokoro-82m",
+                        "architecture": {"output_modalities": ["speech"]},
+                    },
+                    {
+                        "id": "openai/whisper-1",
+                        "architecture": {"output_modalities": ["transcription"]},
+                    },
+                ]
+            }
+        )
+    }
+
+    assert models["omni"].types == (ModelType.TEXT_GEN, ModelType.AUDIO_GEN)
+    assert models["hexgrad/kokoro-82m"].types == (ModelType.AUDIO_GEN,)
+    assert models["openai/whisper-1"].types == ()
+    assert models["openai/whisper-1"].capability_known is True
+
+
 def test_delta_reads_openai_sse_and_ignores_done() -> None:
     """Chat streaming retains the existing OpenAI delta behavior."""
     assert _delta('data: {"choices":[{"delta":{"content":"hi"}}]}') == Delta("hi")

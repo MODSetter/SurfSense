@@ -1,4 +1,6 @@
-import { requestJson, requestVoid } from "@/lib/api"
+import { request, requestJson, requestVoid } from "@/lib/api"
+
+import { parseWorkspaceEvents, type WorkspaceEvent } from "./read-sse"
 
 export type Workspace = {
   id: number
@@ -41,4 +43,20 @@ export function deleteWorkspace(
   signal?: AbortSignal
 ): Promise<void> {
   return requestVoid(`/workspaces/${id}`, { method: "DELETE", signal })
+}
+
+/**
+ * `connected` once the API is listening for this client, then one event per
+ * change, until the stream ends or `signal` aborts. An event says that rows
+ * changed, never what they became: the caller reloads.
+ */
+export async function* followWorkspaceEvents(
+  workspaceId: number,
+  signal: AbortSignal
+): AsyncGenerator<WorkspaceEvent> {
+  const response = await request(`/workspaces/${workspaceId}/events`, {
+    signal,
+  })
+  if (!response.body) return
+  yield* parseWorkspaceEvents(response.body)
 }
