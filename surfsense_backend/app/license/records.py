@@ -8,12 +8,13 @@ from __future__ import annotations
 from typing import Any, cast
 
 from app.license import keygen
-from app.license.email.address import normalize_email
+from app.license.email.address import fold_email, normalize_email
 from app.license.keygen import LicensePlan
 from app.license.models import (
     META_EMAIL,
     META_PLAN,
     META_SESSION,
+    META_TRIAL_KEY,
     IssuedLicense,
     LicenseNotFoundError,
     LicenseRecord,
@@ -99,7 +100,32 @@ async def find_license_by_checkout_session(session_id: str) -> LicenseRecord:
             f"{len(matches)} licenses carry checkoutSessionId {session_id!r}; "
             "resolve the duplicate in Keygen before correcting it"
         )
-    record = matches[0]
+    return _record(matches[0])
+
+
+async def find_trial_license_by_email(email: str) -> LicenseRecord:
+    """Resolve the trial issued to exactly this address, for a support correction.
+
+    A trial has no payment to prove, so the anchor is the address as it was
+    typed: support acts only on the exact address the requester says they
+    entered, never on one that merely looks like it. Filtering on the trial key
+    as well keeps a paid licence at that address out of reach.
+    """
+    typed = normalize_email(email)
+    matches = await keygen.list_licenses(
+        metadata={META_EMAIL: typed, META_TRIAL_KEY: fold_email(typed)}, limit=2
+    )
+    if not matches:
+        raise LicenseNotFoundError(f"No trial license was issued to {typed!r}")
+    if len(matches) > 1:
+        raise LicenseNotFoundError(
+            f"{len(matches)} trial licenses were issued to {typed!r}; "
+            "resolve the duplicate in Keygen before correcting it"
+        )
+    return _record(matches[0])
+
+
+def _record(record: dict[str, Any]) -> LicenseRecord:
     attributes = record.get("attributes") or {}
     return LicenseRecord(
         keygen_license_id=str(record.get("id") or ""),
