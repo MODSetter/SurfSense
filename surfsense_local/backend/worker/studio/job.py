@@ -4,7 +4,7 @@ import time
 import httpx
 from sqlalchemy.orm import Session
 
-from modules.artifacts.formats import FORMATS_BY_KEY
+from modules.artifacts.formats import FORMATS_BY_KEY, Grounding
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus
 from modules.llm.model_type import ModelType
@@ -62,16 +62,18 @@ def _generate(session: Session, artifact: Artifact) -> None:
 
     try:
         meta = artifact.artifact_metadata or {}
-        sources = gather.gather(session, meta.get("source_document_ids", []))
         prompt = meta.get("prompt")
+        kind = job_router.Kind(artifact.format)
+        fmt = FORMATS_BY_KEY[kind]
+        # The prompt is what to search for, where the format reads passages.
+        query = prompt if fmt.grounding is Grounding.PASSAGES else None
+        sources = gather.gather(session, meta.get("source_document_ids", []), query)
         logger.info(
             "studio: artifact %s gathered %s sources (%s chars)",
             artifact.id,
             len(sources),
             sum(len(source.content) for source in sources),
         )
-        kind = job_router.Kind(artifact.format)
-        fmt = FORMATS_BY_KEY[kind]
         models = [
             _choose_model(session, model_type)
             for model_type in fmt.requires_model_types
