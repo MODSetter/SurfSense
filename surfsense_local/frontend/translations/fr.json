@@ -368,6 +368,7 @@
   "models_search_builds_body": "Les tailles sont exactes. La compatibilité est estimée puis vérifiée avant le téléchargement.",
   "models_search_builds_empty": "Ce dépôt n’a aucune variante que SurfSense peut exécuter.",
   "models_search_builds_error": "Impossible de lister les variantes de ce modèle.",
+  "models_search_builds_gated_body": "Ce dépôt à accès restreint nécessite une authentification Hugging Face, que SurfSense ne prend pas encore en charge.",
   "models_search_builds_loading_status": "Récupération des variantes de ce modèle",
   "models_search_clear_aria": "Effacer la recherche",
   "models_search_downloads_label": "{downloads, plural, one {{downloads, number, ::compact-short} téléchargement} many {{downloads, number, ::compact-short} téléchargements} other {{downloads, number, ::compact-short} téléchargements}}",

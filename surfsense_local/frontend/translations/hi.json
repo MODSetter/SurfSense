@@ -368,6 +368,7 @@
   "models_search_builds_body": "आकार सटीक हैं। मॉडल फ़िट होगा या नहीं, यह अनुमान है और डाउनलोड से पहले जांचा जाता है।",
   "models_search_builds_empty": "इस रेपो में ऐसा कोई बिल्ड नहीं है जिसे SurfSense चला सके।",
   "models_search_builds_error": "इस मॉडल के बिल्ड सूचीबद्ध नहीं हो सके।",
+  "models_search_builds_gated_body": "इस प्रतिबंधित रिपॉज़िटरी के लिए Hugging Face प्रमाणीकरण आवश्यक है, जिसका SurfSense अभी समर्थन नहीं करता है।",
   "models_search_builds_loading_status": "इस मॉडल के बिल्ड सूचीबद्ध हो रहे हैं",
   "models_search_clear_aria": "खोज साफ़ करें",
   "models_search_downloads_label": "{downloads, plural, one {{downloads, number, ::compact-short} डाउनलोड} other {{downloads, number, ::compact-short} डाउनलोड}}",

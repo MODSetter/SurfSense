@@ -368,6 +368,7 @@
   "models_search_builds_body": "Die Größen sind exakt. Ob ein Modell passt, wird geschätzt und vor dem Download geprüft.",
   "models_search_builds_empty": "Dieses Repo hat keine Variante, die SurfSense ausführen kann.",
   "models_search_builds_error": "Die Varianten dieses Modells konnten nicht aufgelistet werden.",
+  "models_search_builds_gated_body": "Dieses zugriffsbeschränkte Repository erfordert eine Hugging Face-Authentifizierung, die SurfSense noch nicht unterstützt.",
   "models_search_builds_loading_status": "Varianten dieses Modells werden aufgelistet",
   "models_search_clear_aria": "Suche löschen",
   "models_search_downloads_label": "{downloads, plural, one {{downloads, number, ::compact-short} Download} other {{downloads, number, ::compact-short} Downloads}}",

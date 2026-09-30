@@ -368,6 +368,7 @@
   "models_search_builds_body": "Размеры точные. Совместимость оценивается приблизительно и проверяется перед скачиванием.",
   "models_search_builds_empty": "В этом репозитории нет сборки, которую может запустить SurfSense.",
   "models_search_builds_error": "Не удалось получить список сборок этой модели.",
+  "models_search_builds_gated_body": "Этот репозиторий с ограниченным доступом требует аутентификации Hugging Face, которую SurfSense пока не поддерживает.",
   "models_search_builds_loading_status": "Получение списка сборок этой модели",
   "models_search_clear_aria": "Очистить поиск",
   "models_search_downloads_label": "{downloads, plural, one {{downloads, number, ::compact-short} скачивание} few {{downloads, number, ::compact-short} скачивания} many {{downloads, number, ::compact-short} скачиваний} other {{downloads, number, ::compact-short} скачивания}}",
