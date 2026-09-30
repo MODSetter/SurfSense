@@ -49,7 +49,7 @@ The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 30 da
 `app/payments/webhook.py` verifies the signature and hands each paid checkout session to the handler that claims it (`app/payments/registry.py`); `app/license/purchase.py` registers the license's claims.
 
 - `checkout.session.completed` with `payment_status` `paid` or `no_payment_required`, and `checkout.session.async_payment_succeeded`: the license handler claims a session whose metadata says `purchase_type: license`, or, with no `purchase_type` and a license price configured, whose line item is a license price. It fulfils the session, then emails the file. A mail failure does not fail the webhook: the license exists, the success page serves it, and a Stripe retry would only risk a duplicate.
-- `charge.refunded`: lists licenses by `metadata[stripeCustomerId]` and suspends every one. Suspend, not revoke: it is reversible, the record stays listable for support, and Keygen's `validate-key` then reports `SUSPENDED`, which contract 2 maps to `revoked`.
+- `charge.refunded`: acts only on a full refund, `refunded` or `amount_refunded >= amount`; a partial refund suspends nothing. It resolves the charge's `payment_intent` to its checkout session through Stripe, that session to its one license by `checkoutSessionId`, and suspends that license alone, so a customer's other purchases keep working. A refund that traces to no single license suspends nothing and logs a warning for support, because a wrong suspension is silent to the customer. Failures are logged and the webhook still answers 200, since a retry would re-run the suspension. Suspend, not revoke: it is reversible, the record stays listable for support, and Keygen's `validate-key` then reports `SUSPENDED`, which contract 2 maps to `revoked`.
 
 Fulfilment also writes the license's Keygen id onto the Stripe customer as `keygen_license_id`, best effort, so a Stripe error cannot fail the webhook. Nothing reads it back; refunds find licenses through Keygen metadata.
 
@@ -64,8 +64,8 @@ Fulfilment also writes the license's Keygen id onto the Stripe customer as `keyg
 | `plan` | every license | the app (contract 1) |
 | `email` | every license | delivery, resend, shown in Settings |
 | `trialKey` | trials | the one-trial-per-person check |
-| `stripeCustomerId` | Stripe purchases | refund → suspend |
-| `checkoutSessionId` | Stripe purchases | the success page, support corrections |
+| `stripeCustomerId` | Stripe purchases | the Stripe customer a refund comes from |
+| `checkoutSessionId` | Stripe purchases | the success page, support corrections, refund → suspend |
 
 Keygen camelCases metadata keys in filter queries, and a misspelled filter returns an empty list rather than an error, which reads as "no license". The spellings live in `app/license/models.py`, except that `create_license()` in `keygen.py` writes `plan` and `email` as literals.
 
@@ -169,5 +169,4 @@ A trial has no payment to prove, so the anchor is the address itself: support as
 
 ## Known gaps
 
-- A refund suspends every license the Stripe customer holds, partial refunds included.
 - No test covers the license routes beyond their mail check, or their rate limits, and no contract test runs the Keygen client against a real Keygen.
