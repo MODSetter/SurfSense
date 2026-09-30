@@ -147,4 +147,3 @@ Two run in CI: `test_license_key.py` inside the release workflow, and `test_audi
 
 - No CI job generates an image with the staged `sd-server`; its gates are `--help` and the platform floors, not a picture.
 - No issue on audio.cpp asks for archives that meet the app's floors yet, so `build-audiocpp.yml` has no end date.
-- No test ingests a PDF with networking disabled.
