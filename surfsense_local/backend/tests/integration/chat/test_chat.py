@@ -24,9 +24,6 @@ from tests.integration.chat.conftest import (
 )
 from worker.ingestion import run
 
-# The stream's `finally` is cancelled with the response, so the save never runs.
-DISCONNECT_LOSES_REPLY = "https://github.com/MODSetter/SurfSense/issues/2039"
-
 pytestmark = pytest.mark.integration
 
 FINANCE = "Quarterly revenue climbed after the spring product launch."
@@ -427,10 +424,6 @@ async def test_a_reply_the_client_hangs_up_on_frees_the_model(
     assert free
 
 
-# Not strict: the failure is a race between the disconnect's cancellation and
-# the save, so a slow runner could let the save win, and under `-x` an XPASS
-# would stop the whole suite.
-@pytest.mark.xfail(strict=False, reason=DISCONNECT_LOSES_REPLY)
 async def test_a_reply_the_client_hangs_up_on_keeps_its_text(
     live_url: str, engine: Engine, real_model: object, llamacpp_server: list[dict]
 ) -> None:
