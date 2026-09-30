@@ -424,7 +424,9 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
   because resolving it never touches the sidecar. An install still downloads and
   ends with "Downloaded. It becomes available once the runtime restarts."
 - **No Vulkan loader.** `dlopen` fails, ggml skips the backend silently, and the
-  CPU runs.
+  CPU runs. The `.deb` recommends `libvulkan1`, so apt installs the loader by
+  default on Debian and Ubuntu; a user who declines recommends, or runs the
+  AppImage, which carries no dependency metadata, gets this.
 - **A GPU exists and ggml cannot see it.** Reported as `broken_install` rather
   than badged as a CPU-only machine ([`fit.md`](fit.md)).
 - **A quantized cache without a working flash-attention kernel.** llama.cpp falls
@@ -462,5 +464,4 @@ layer count, of `--reasoning-budget` and of `--sleep-idle-seconds`.
 
 ## Known gaps
 
-- The Linux `.deb` declares no dependency on the Vulkan loader (`electron-builder.yml` has no `deb` section), though `libggml-vulkan.so` needs `libvulkan.so.1` from the host; without it the app runs on the CPU.
 - Release CI runs the packaged `llama-server --list-devices` on Linux only; the macOS and Windows builds are checked only in the staging directory by `fetch-llamacpp.mjs`.
