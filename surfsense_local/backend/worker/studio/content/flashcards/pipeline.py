@@ -3,6 +3,7 @@ import json
 from modules.llm import prompting
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration
+from worker.studio.content.flashcards.schema import REPLY
 from worker.studio.shared import generate
 from worker.studio.shared.artifact import Built, Source
 from worker.studio.shared.text import as_list, as_text, parse_json, slug
@@ -14,9 +15,10 @@ CARDS = 20
 def render(
     model: ResolvedGeneration, sources: list[Source], user_prompt: str | None
 ) -> Built:
-    return build(
-        generate.run_model(model, prompt(model.tier, user_prompt), sources), sources
+    raw = generate.run_model(
+        model, prompt(model.tier, user_prompt), sources, json_schema=REPLY
     )
+    return build(raw, sources)
 
 
 def prompt(tier: Tier, user_prompt: str | None) -> str:
