@@ -2,6 +2,7 @@ import logging
 
 from huey.consumer import Consumer
 
+from modules.plugins.interrupted_runs import fail_interrupted_runs
 from shared.db import import_models
 from shared.queue import import_tasks, ingest_queue, plugins_queue, studio_queue
 
@@ -24,6 +25,8 @@ def consume(name: str) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     import_models()
     import_tasks()
+    if queue is plugins_queue:
+        fail_interrupted_runs()
     logging.getLogger(__name__).info(
         "%s: worker consuming with %s threads", name, workers
     )

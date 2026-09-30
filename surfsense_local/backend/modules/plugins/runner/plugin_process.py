@@ -1,17 +1,33 @@
+import enum
 import json
 import subprocess
 import tempfile
+import threading
+import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO
 
 from modules.plugins.models import PluginRun
 from modules.plugins.plugin_interpreter import plugin_python
+from modules.plugins.runner.log_tail import LogTail
 from modules.plugins.runner.plugin_environment import plugin_environment
+from modules.plugins.runner.stop_process_tree import stop_process_tree
 from shared.config import get_storage_settings
 
-# The end of the output is what is kept: a plugin explains a failure last.
-LOG_TAIL_BYTES = 16 * 1024
+# How often a running plugin is checked for its timeout and for a cancel.
+CHECK_SECONDS = 1
+
+# How long the output is still read once the plugin has exited. A process it
+# left behind can hold the output open for good.
+LAST_OUTPUT_SECONDS = 2
+
+
+class Stopped(enum.StrEnum):
+    """Why the app ended a plugin that had not ended itself."""
+
+    TIMEOUT = "timeout"
+    CANCEL = "cancel"
 
 
 @dataclass(frozen=True)
@@ -20,10 +36,13 @@ class EndedProcess:
 
     exit_code: int
     log_tail: str
+    stopped: Stopped | None
 
 
-def run_plugin_process(run: PluginRun) -> EndedProcess:
-    """Start the run's plugin with the protocol's command and wait for its exit."""
+def run_plugin_process(
+    run: PluginRun, timeout_seconds: int, cancel_requested: Callable[[], bool]
+) -> EndedProcess:
+    """Start the run's plugin with the protocol's command and watch it until it ends."""
     storage = get_storage_settings()
     folder = storage.plugin_dir(run.plugin_id, run.version)
     with tempfile.TemporaryDirectory(prefix="surfsense-plugin-run-") as own_folder:
@@ -51,13 +70,33 @@ def run_plugin_process(run: PluginRun) -> EndedProcess:
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
         )
-        log_tail = _tail_of(process.stdout)
-        return EndedProcess(process.wait(), log_tail)
+        log_tail = LogTail()
+        reader = threading.Thread(
+            target=log_tail.read_from, args=(process.stdout,), daemon=True
+        )
+        reader.start()
+        stopped = _watch(process, timeout_seconds, cancel_requested)
+        exit_code = process.wait()
+        reader.join(timeout=LAST_OUTPUT_SECONDS)
+        return EndedProcess(exit_code, log_tail.text(), stopped)
 
 
-def _tail_of(output: IO[bytes]) -> str:
-    """Read what the plugin prints until it stops, holding only the last of it."""
-    tail = b""
-    while chunk := output.read1(LOG_TAIL_BYTES):
-        tail = (tail + chunk)[-LOG_TAIL_BYTES:]
-    return tail.decode(errors="replace")
+def _watch(
+    process: subprocess.Popen[bytes],
+    timeout_seconds: int,
+    cancel_requested: Callable[[], bool],
+) -> Stopped | None:
+    """Wait for the plugin to exit, stopping it on its timeout or on a cancel."""
+    deadline = time.monotonic() + timeout_seconds
+    while True:
+        try:
+            process.wait(timeout=CHECK_SECONDS)
+            return None
+        except subprocess.TimeoutExpired:
+            pass
+        if time.monotonic() >= deadline:
+            stop_process_tree(process.pid)
+            return Stopped.TIMEOUT
+        if cancel_requested():
+            stop_process_tree(process.pid)
+            return Stopped.CANCEL

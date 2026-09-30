@@ -36,7 +36,7 @@ def running_app(base_url: str, monkeypatch: pytest.MonkeyPatch) -> str:
 def install() -> Callable[..., Path]:
     """Puts a one-action plugin where install would, and returns its folder."""
 
-    def put(main: str, **other_files: str) -> Path:
+    def put(main: str, timeout_seconds: int | None = None, **other_files: str) -> Path:
         storage = get_storage_settings()
         folder = storage.plugin_dir(PLUGIN_ID, VERSION)
         folder.mkdir(parents=True)
@@ -51,6 +51,8 @@ def install() -> Callable[..., Path]:
             "hosts": [],
             "actions": [{"name": ACTION, "title": "Go", "inputs": []}],
         }
+        if timeout_seconds is not None:
+            manifest["actions"][0]["timeout_seconds"] = timeout_seconds
         (folder / "manifest.json").write_text(json.dumps(manifest))
         (folder / "main.py").write_text(main)
         for name, content in other_files.items():

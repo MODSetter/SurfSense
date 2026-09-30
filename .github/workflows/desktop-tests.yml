@@ -40,6 +40,8 @@ jobs:
               - 'surfsense_local/backend/**'
               # The backend starts plugins on this SDK, and its tests run real ones.
               - 'plugins/core/sdk/**'
+              # The backend reads installed manifests with these rules.
+              - 'plugins/core/manifest/**'
               - 'docs/contracts/**'
               - '.pre-commit-config.yaml'
               - '.github/workflows/desktop-tests.yml'
