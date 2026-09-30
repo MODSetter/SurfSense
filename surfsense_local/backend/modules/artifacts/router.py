@@ -125,21 +125,32 @@ def cancel(artifact: ArtifactDep, session: SessionDep) -> ArtifactRead:
     response_class=FileResponse,
     summary="Download or stream an artifact's file",
 )
-def read_artifact_file(artifact: ArtifactDep, role: ArtifactFileRole) -> FileResponse:
+def read_artifact_file(
+    artifact: ArtifactDep,
+    role: ArtifactFileRole,
+    session: SessionDep,
+    download: bool = False,
+) -> FileResponse:
+    """Inline for a viewer to stream; `download` saves it, since the app's
+    window is another origin and a link's `download` attribute is ignored."""
     file = next((f for f in artifact.files if f.role is role), None)
     if file is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "no such file for this artifact")
-
     path = get_storage_settings().data_dir / file.storage_key
+    filename, mime_type = file.original_filename, file.mime_type
+    # The session closes only once the file has streamed, and a player reads
+    # a podcast for minutes: holding the write lock that long locks out every
+    # other request, so the transaction ends before the first byte.
+    session.commit()
+
     if not path.is_file():
         raise HTTPException(status.HTTP_404_NOT_FOUND, "the file is no longer on disk")
-
     return FileResponse(
         path,
-        filename=file.original_filename,
-        media_type=file.mime_type,
+        filename=filename,
+        media_type=mime_type,
         content_disposition_type=(
-            "attachment" if file.mime_type in _INLINE_UNSAFE else "inline"
+            "attachment" if download or mime_type in _INLINE_UNSAFE else "inline"
         ),
     )
 
@@ -216,7 +227,9 @@ def retake_quiz(
 
 def _require_flashcards(artifact: Artifact) -> None:
     if artifact.format != "flashcards":
-        raise HTTPException(status.HTTP_409_CONFLICT, "artifact is not a flashcard deck")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "artifact is not a flashcard deck"
+        )
 
 
 @router.put(
@@ -246,7 +259,9 @@ def mark_flashcard(
     response_model=FlashcardStateRead,
     summary="Clear every mark in the artifact's flashcard deck",
 )
-def reset_flashcard_state(artifact: ArtifactDep, session: SessionDep) -> FlashcardStateRead:
+def reset_flashcard_state(
+    artifact: ArtifactDep, session: SessionDep
+) -> FlashcardStateRead:
     _require_flashcards(artifact)
     card_count = read_flashcard_count(artifact)
     metadata, state = reset_flashcard_progress(

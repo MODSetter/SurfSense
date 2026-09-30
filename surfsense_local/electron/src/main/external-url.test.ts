@@ -41,6 +41,21 @@ test("opens the community Discord invite only", () => {
   assert.equal(allowedExternalUrl("https://discord.gg/other"), null)
 })
 
+test("opens OpenRouter's two-segment pages, as a model's is, and no other shape", () => {
+  assert.equal(
+    allowedExternalUrl("https://openrouter.ai/hexgrad/kokoro-82m"),
+    "https://openrouter.ai/hexgrad/kokoro-82m"
+  )
+  assert.equal(
+    allowedExternalUrl("https://openrouter.ai/bytedance-seed/seed-audio-1-0"),
+    "https://openrouter.ai/bytedance-seed/seed-audio-1-0"
+  )
+  assert.equal(allowedExternalUrl("https://openrouter.ai/"), null)
+  assert.equal(allowedExternalUrl("https://openrouter.ai/a/b/c"), null)
+  assert.equal(allowedExternalUrl("https://openrouter.ai/a/b?x=1"), null)
+  assert.equal(allowedExternalUrl("https://evil.openrouter.ai/a/b"), null)
+})
+
 test("refuses other schemes and hosts", () => {
   assert.equal(allowedExternalUrl("http://surfsense.com"), null)
   assert.equal(allowedExternalUrl("file:///etc/passwd"), null)

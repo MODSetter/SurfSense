@@ -298,3 +298,13 @@ export function fileUrl(
 ): string {
   return apiUrl(`/artifacts/${artifactId}/files/${role}`)
 }
+
+/** The same file, sent as an attachment. The API is another origin than the
+ *  app's window, where a link's `download` attribute is ignored and the file
+ *  would open in a window instead of being saved. */
+export function downloadUrl(
+  artifactId: number,
+  role: ArtifactFile["role"]
+): string {
+  return `${fileUrl(artifactId, role)}?download=1`
+}

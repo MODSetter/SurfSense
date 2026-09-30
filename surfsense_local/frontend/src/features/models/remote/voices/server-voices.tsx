@@ -75,6 +75,13 @@ export function ServerVoices() {
               href={page}
               target="_blank"
               rel="noreferrer"
+              // The desktop app refuses in-app navigation: the page opens in
+              // the OS browser through the bridge. A bare browser follows href.
+              onClick={(event) => {
+                if (!window.surfsense?.openExternal) return
+                event.preventDefault()
+                void window.surfsense.openExternal(page)
+              }}
               className="inline-flex items-center gap-1 text-foreground underline-offset-4 hover:underline"
             >
               {intl.formatMessage({

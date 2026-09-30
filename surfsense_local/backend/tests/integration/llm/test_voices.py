@@ -2,9 +2,11 @@
 or added by the user to the audio selection once each has been heard."""
 
 import json
+import sqlite3
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import Engine
 
 from . import conftest
 from .conftest import REMOTE_REQUESTS
@@ -160,3 +162,28 @@ async def test_a_voice_is_heard_in_the_line_it_is_given(
 
     path, body = REMOTE_REQUESTS[-1]
     assert (path, json.loads(body)["input"]) == ("/audio/speech", "Bonjour.")
+
+
+async def test_asking_the_server_for_its_voices_leaves_the_database_free(
+    client: AsyncClient, engine: Engine, openai_server: str
+) -> None:
+    """A slow server would otherwise hold SQLite's write lock for its whole
+    answer, and every other request would fail as locked."""
+    await _choose(client, openai_server)
+    writable: list[bool] = []
+
+    def someone_else_writes() -> None:
+        other = sqlite3.connect(engine.url.database, timeout=0.2)
+        try:
+            other.execute("BEGIN IMMEDIATE")
+            other.execute("ROLLBACK")
+            writable.append(True)
+        except sqlite3.OperationalError:
+            writable.append(False)
+        finally:
+            other.close()
+
+    conftest.WHILE_LISTING_VOICES.append(someone_else_writes)
+    await client.get(URL)
+
+    assert writable == [True]

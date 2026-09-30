@@ -55,16 +55,21 @@ def server_roster(
 ) -> tuple[Literal["server", "saved"], list[str]]:
     """The server's own list when it has one; otherwise the voices the user
     added. The server is asked only once its host is allowed; until then the
-    added voices stand, since reading them reaches nothing."""
+    added voices stand, since reading them reaches nothing.
+
+    Ends the caller's transaction before asking: a slow server would otherwise
+    hold SQLite's write lock for its whole answer."""
+    saved = saved_voices(selected)
+    ask = (connection.id, connection.base_url, connection.api_key)
     try:
         egress.require(session, egress.host_destination(connection.base_url))
     except egress.EgressDeniedError:
-        listed = None
-    else:
-        listed = listed_voices(connection.id, connection.base_url, connection.api_key)
+        return "saved", saved
+    session.commit()
+    listed = listed_voices(*ask)
     if listed is not None:
         return "server", [voice.id for voice in listed]
-    return "saved", saved_voices(selected)
+    return "saved", saved
 
 
 def voices_page(connection: ProviderConnection, model: str) -> str | None:

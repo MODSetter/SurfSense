@@ -208,6 +208,9 @@ MODELS_STATUS: int | None = None
 # The voices GET /audio/voices lists, as Kokoro-FastAPI does; None is a 404,
 # as OpenAI, Groq and OpenRouter answer.
 AUDIO_VOICES: list[str] | None = None
+# Called while /audio/voices is being answered: the moment the app is waiting
+# on the server, which no transaction may span.
+WHILE_LISTING_VOICES: list = []
 # Voices /audio/speech refuses with a 400, as a server answers an unknown one.
 REFUSED_VOICES: set[str] = set()
 
@@ -217,6 +220,9 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlsplit(self.path)
+        if parsed.path == "/audio/voices":
+            for hook in WHILE_LISTING_VOICES:
+                hook()
         if parsed.path == "/audio/voices" and AUDIO_VOICES is not None:
             self._json({"voices": [{"id": voice} for voice in AUDIO_VOICES]})
         elif parsed.path == "/models" and MODELS_STATUS is not None:
@@ -287,6 +293,7 @@ def openai_server() -> Iterator[str]:
     """A real OpenAI-compatible endpoint on a real port."""
     global MODELS_STATUS, AUDIO_VOICES, REFUSED_VOICES
     REMOTE_REQUESTS.clear()
+    WHILE_LISTING_VOICES.clear()
     MODELS_STATUS = None
     AUDIO_VOICES = None
     REFUSED_VOICES = set()

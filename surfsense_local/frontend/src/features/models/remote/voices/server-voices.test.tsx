@@ -103,4 +103,20 @@ describe("a server audio model's voices", () => {
     )
     await vi.waitFor(() => expect(screen.queryByRole("listitem")).toBeNull())
   })
+
+  it("opens the model's voices page in the browser, not in the app", async () => {
+    vi.stubGlobal("fetch", serving({ source: "saved", voices: [] }))
+    const openExternal = vi.fn(async () => undefined)
+    vi.stubGlobal("surfsense", { openExternal })
+    const user = userEvent.setup()
+    render(<ServerVoices />)
+
+    await user.click(
+      await screen.findByRole("link", { name: "See this model’s voices" })
+    )
+
+    expect(openExternal).toHaveBeenCalledWith(
+      "https://openrouter.ai/seed-audio"
+    )
+  })
 })
