@@ -23,7 +23,7 @@ concern; this adapter answers questions and reports what is on disk.
 """
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
 import httpx
@@ -58,9 +58,12 @@ class LlamaCppProvider:
         models_dir: Path | None = None,
         *,
         transport: httpx.BaseTransport | None = None,
+        publisher_temperature: Callable[[str, bool | None], float | None] | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._models_dir = models_dir
+        # A curated model's reviewed setting, for a caller that chose none.
+        self._publisher_temperature = publisher_temperature
         self._router = RouterClient(self._base_url, transport=transport)
         # `/props` describes a resident model and nothing about it changes
         # between turns, so it is read once per load rather than once per
@@ -224,6 +227,8 @@ class LlamaCppProvider:
         # Downgrade at the seam: `modules/chat` assembles one conversation and
         # never learns that templates differ.
         shaped = for_template(messages, await self.capabilities(model))
+        if temperature is None and self._publisher_temperature is not None:
+            temperature = self._publisher_temperature(model, reasoning)
         try:
             async for delta in self._chat.chat_deltas(
                 model,
