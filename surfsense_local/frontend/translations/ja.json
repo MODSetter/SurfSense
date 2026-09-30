@@ -196,6 +196,8 @@
   "feedback_log_empty": "ログはまだありません",
   "feedback_log_title": "セッションログ",
   "feedback_report_copied_toast": "報告をコピーしました。リンクに収まらない長さのため、GitHubの「What happened?」に貼り付けてください。",
+  "feedback_sidecar_crashed_body": "復旧するには SurfSense を再起動してください。",
+  "feedback_sidecar_crashed_toast": "{part, select, core {SurfSense が停止しました} documents {ドキュメント処理が停止しました} studio {Studio の処理が停止しました} chat {ローカルチャットが停止しました} images {画像生成が停止しました} audio {音声生成が停止しました} other {バックグラウンドサービスが停止しました}}",
   "feedback_toast_report_button": "問題を報告",
   "license_clock_notice_body": "このコンピューターの時計が、SurfSenseを前回実行した時刻より遅れています。ライセンスを使うには時計を正しく設定してください。",
   "license_clock_notice_title": "時計がずれています",

@@ -196,6 +196,8 @@
   "feedback_log_empty": "Rien dans le journal pour l’instant",
   "feedback_log_title": "Journal de session",
   "feedback_report_copied_toast": "Rapport copié. Il est trop long pour un lien, collez-le donc dans « What happened? » sur GitHub.",
+  "feedback_sidecar_crashed_body": "Redémarrez SurfSense pour rétablir ce service.",
+  "feedback_sidecar_crashed_toast": "{part, select, core {SurfSense a cessé de fonctionner} documents {Le traitement des documents s’est arrêté} studio {Le traitement Studio s’est arrêté} chat {Le chat local s’est arrêté} images {La génération d’images s’est arrêtée} audio {La génération audio s’est arrêtée} other {Un service en arrière-plan s’est arrêté}}",
   "feedback_toast_report_button": "Signaler un problème",
   "license_clock_notice_body": "L’horloge de cet ordinateur est en retard par rapport à la dernière exécution de SurfSense. Réglez-la correctement pour utiliser votre licence.",
   "license_clock_notice_title": "Horloge déréglée",

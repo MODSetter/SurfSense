@@ -196,6 +196,8 @@
   "feedback_log_empty": "Nothing logged yet",
   "feedback_log_title": "Session log",
   "feedback_report_copied_toast": "Report copied. It’s too long for a link, so paste it into “What happened?” on GitHub.",
+  "feedback_sidecar_crashed_body": "Restart SurfSense to restore it.",
+  "feedback_sidecar_crashed_toast": "{part, select, core {SurfSense stopped working} documents {Document processing stopped} studio {Studio processing stopped} chat {Local chat stopped} images {Image generation stopped} audio {Audio generation stopped} other {A background service stopped}}",
   "feedback_toast_report_button": "Report issue",
   "license_clock_notice_body": "This computer’s clock is behind the last time SurfSense ran. Set it right to use your license.",
   "license_clock_notice_title": "Clock is off",
