@@ -11,7 +11,10 @@ class EventKind(enum.StrEnum):
 
 
 class InternalEvent(BaseModel):
-    """The worker's notice that some rows changed, fanned out as one SSE event."""
+    """A notice that some rows changed, fanned out as one SSE event.
+
+    The worker posts its own; the API builds one for a change it made itself.
+    """
 
     workspace_id: int
     kind: EventKind

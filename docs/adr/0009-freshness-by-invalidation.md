@@ -25,5 +25,6 @@ Zero gave the hosted web app two things: sync between clients and reactive queri
 
 ## Where the code stands
 
-- The backend half ships: the SSE route, the internal notice route and the worker's notices.
-- The frontend never subscribes. There is no `EventSource` anywhere in `surfsense_local/frontend/src`. [`features/sources/use-sources.ts`](../../surfsense_local/frontend/src/features/sources/use-sources.ts) and [`features/studio/use-studio.ts`](../../surfsense_local/frontend/src/features/studio/use-studio.ts) poll their lists every 1.5 seconds while an ingest or a Studio job is running, in their own loops rather than through TanStack Query.
+- The backend half ships: the SSE route, the internal notice route and the worker's notices. The API also notifies of its own document changes, straight to the broker ([`api/notify.py`](../../surfsense_local/backend/api/notify.py)).
+- The sources panel subscribes ([`features/sources/use-document-changes.ts`](../../surfsense_local/frontend/src/features/sources/use-document-changes.ts)) and reloads its list on each `documents` event, in a hook of its own rather than by invalidating a TanStack Query. It still polls every 1.5 seconds while an ingest is running, as the fallback.
+- The Studio artifact list never subscribes. [`features/studio/use-studio.ts`](../../surfsense_local/frontend/src/features/studio/use-studio.ts) polls every 1.5 seconds while a Studio job is running, in its own loop rather than through TanStack Query.
