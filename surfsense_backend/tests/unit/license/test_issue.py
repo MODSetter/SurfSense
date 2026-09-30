@@ -210,6 +210,53 @@ def test_disposable_domains_are_recognised(monkeypatch):
     assert is_disposable("a@surfsense.net") is False
 
 
+def test_the_disposable_email_domains_list_is_refused():
+    """The community list, not only a hand-kept few; upstream's own example."""
+    assert is_disposable("a@bearsarefuzzy.com") is True
+
+
+def test_subdomains_of_a_listed_domain_are_refused():
+    """The list names registrable domains, and a service can mint any subdomain."""
+    assert is_disposable("a@inbox.mailinator.com") is True
+
+
+def test_a_domain_listed_in_punycode_is_refused_when_typed_in_unicode(monkeypatch):
+    """`EmailStr` hands the route Unicode even when punycode was typed."""
+    monkeypatch.setattr(
+        config, "LICENSE_DISPOSABLE_EMAIL_DOMAINS", "xn--bcher-kva.test"
+    )
+
+    assert is_disposable("a@bücher.test") is True
+
+
+def test_a_right_to_left_domain_ending_in_a_digit_is_not_an_error():
+    """Valid IDNA 2008, so `EmailStr` passes it; the stdlib's IDNA 2003 codec raises."""
+    assert is_disposable("a@\N{ARABIC LETTER ALEF}\N{ARABIC LETTER BEH}1.com") is False
+
+
+@pytest.mark.parametrize("domain", ["33mail.com", "burnermail.io", "tempmail.com"])
+def test_domains_we_blocked_before_the_community_list_stay_blocked(domain):
+    """Upstream does not list these; adopting it must not let them back in."""
+    assert is_disposable(f"a@{domain}") is True
+
+
+@pytest.mark.parametrize(
+    "domain",
+    [
+        "gmail.com",
+        "outlook.com",
+        # Also guards label boundaries: `tmail.com` is listed.
+        "hotmail.com",
+        "yahoo.com",
+        "icloud.com",
+        "proton.me",
+    ],
+)
+def test_mainstream_providers_are_not_refused(domain):
+    """Catches an upstream bump in `uv.lock` that would lock out real buyers."""
+    assert is_disposable(f"a@{domain}") is False
+
+
 def test_plan_comes_from_session_metadata_when_present():
     resolved = resolve_license_plan(
         _session(metadata={"purchase_type": "license", "plan": "team", "quantity": "7"})
