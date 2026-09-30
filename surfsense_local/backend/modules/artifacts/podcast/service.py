@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
 from modules.artifacts.podcast import brief
-from modules.llm.providers.protocols import Voice
-from modules.llm.resolution import ModelResolutionError, resolve_text_to_speech
+from modules.llm.resolution import ModelResolutionError
+from modules.llm.voices.roster import SpeechRoster, speech_voices
 from modules.workspaces.models import Workspace
 
 FORMAT = "podcast"
@@ -13,14 +13,14 @@ FORMAT = "podcast"
 
 def open_brief(
     session: Session, workspace: Workspace
-) -> tuple[brief.PodcastBrief, list[Voice]]:
+) -> tuple[brief.PodcastBrief, SpeechRoster]:
     """The brief the form opens with, and the voices it may pick from.
 
     The last episode's brief comes back when it still fits the catalog, so a
     returning user changes only what differs; otherwise the defaults.
     """
     try:
-        voices = resolve_text_to_speech(session).voices()
+        roster = speech_voices(session)
     except ModelResolutionError as error:
         raise HTTPException(status.HTTP_409_CONFLICT, "Needs an audio model") from error
 
@@ -33,7 +33,7 @@ def open_brief(
     options = (last.artifact_metadata or {}).get("options") if last else None
     if options is not None:
         try:
-            return brief.validated(voices, options), voices
+            return brief.validated(roster.voices, options), roster
         except ValueError:
             pass
-    return brief.proposed(voices), voices
+    return brief.proposed(roster.voices), roster

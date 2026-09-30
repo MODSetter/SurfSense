@@ -831,15 +831,18 @@ describe("onboarding", () => {
     ).toBe(true)
   })
 
-  it("offers no server on the audio step, which only runs models here", async () => {
+  it("offers a server on the audio step, as on every other", async () => {
     vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
     await toAudioStep(user)
 
-    await screen.findByText(/Audio models cannot run on this computer/)
-    expect(screen.queryByRole("region", { name: "Use a server" })).toBeNull()
-    expect(screen.queryByText(/server/i)).toBeNull()
+    expect(
+      await screen.findByText(
+        "Audio models cannot run on this computer. Use a server instead."
+      )
+    ).toBeTruthy()
+    expect(screen.getByRole("region", { name: "Use a server" })).toBeTruthy()
   })
 
   it("says when audio models cannot run here", async () => {

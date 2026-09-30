@@ -25,6 +25,8 @@ _DECLARED_AS = {
     "image": ModelType.IMAGE_GEN,
     "video": ModelType.VIDEO_GEN,
     "audio": ModelType.AUDIO_GEN,
+    # OpenRouter's word for text-to-speech output.
+    "speech": ModelType.AUDIO_GEN,
 }
 
 
@@ -114,10 +116,13 @@ def _classify(
     # The same answer the remote catalog gives, from the one rule in lookup.py.
     unusable = lookup.unusable_reason(name, catalog_provider)
     if modalities:
+        # `audio` and `speech` name one type; a model declaring both has it once.
         declared = tuple(
-            model_type
-            for modality, model_type in _DECLARED_AS.items()
-            if modality in modalities
+            dict.fromkeys(
+                model_type
+                for modality, model_type in _DECLARED_AS.items()
+                if modality in modalities
+            )
         )
         return DiscoveredModel(name, declared, "declared", unusable)
     catalogued = lookup.classify(name, provider=catalog_provider)
@@ -138,9 +143,9 @@ async def _request_entries(
     base_url: str,
     api_key: str | None,
     *,
-    image_only: bool = False,
+    every_modality: bool = False,
 ) -> dict[str, set[str]]:
-    params = {"output_modalities": "image"} if image_only else None
+    params = {"output_modalities": "all"} if every_modality else None
     async with httpx.AsyncClient(
         timeout=DISCOVERY_TIMEOUT,
         headers=key_headers(base_url, api_key),
@@ -158,7 +163,7 @@ async def probe_connection(base_url: str, api_key: str | None) -> list[Discovere
 async def discover_models(connection: ProviderConnection) -> list[DiscoveredModel]:
     baseline, optional = await asyncio.gather(
         _request_entries(connection.base_url, connection.api_key),
-        _optional_image_entries(connection.base_url, connection.api_key),
+        _optional_other_entries(connection.base_url, connection.api_key),
     )
     merged = {name: set(modalities) for name, modalities in baseline.items()}
     for name, modalities in optional.items():
@@ -171,17 +176,17 @@ async def discover_models(connection: ProviderConnection) -> list[DiscoveredMode
     )
 
 
-async def _optional_image_entries(
+async def _optional_other_entries(
     base_url: str, api_key: str | None
 ) -> dict[str, set[str]]:
-    """Ask again for image models, because a default listing may not hold them.
+    """Ask again for every modality, because a default listing may not hold them.
 
-    OpenRouter serves 444 models from /models and 54 from the image-filtered
-    query, 43 of which the first call never returns at all. This is enumeration,
-    not classification. An endpoint that ignores the parameter answers with the
+    OpenRouter's /models holds 464 models; `output_modalities=all` holds 635,
+    among them its 46 image and 21 speech models. This is enumeration, not
+    classification. An endpoint that ignores the parameter answers with the
     same set, so the union is a no-op and no provider has to be recognised.
     """
     try:
-        return await _request_entries(base_url, api_key, image_only=True)
+        return await _request_entries(base_url, api_key, every_modality=True)
     except (httpx.HTTPError, ValueError):
         return {}

@@ -4,8 +4,8 @@ A run belongs to the workspace it was started in and goes when that workspace
 does. `cancelled` is among the statuses from the start: SQLite cannot alter a
 check constraint, so adding it later would mean rebuilding the table.
 
-Revision ID: 0019
-Revises: 0018
+Revision ID: 0020
+Revises: 0019
 """
 
 from collections.abc import Sequence
@@ -14,8 +14,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0019"
-down_revision: str | Sequence[str] | None = "0018"
+revision: str = "0020"
+down_revision: str | Sequence[str] | None = "0019"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -13,8 +13,7 @@ from modules.llm.model_type import ModelType
 from modules.llm.models import SelectedModel
 from modules.llm.resolution import (
     ModelResolutionError,
-    VoiceNotLocalError,
-    resolve_text_to_speech,
+    speech_selected,
 )
 from modules.workspaces.models import Workspace
 from worker.jobs import cancel_studio_job
@@ -185,9 +184,7 @@ def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
         return False, _required(missing)
     if ModelType.AUDIO_GEN in fmt.requires_model_types:
         try:
-            resolve_text_to_speech(session)
-        except VoiceNotLocalError:
-            return False, "Needs an audio model on this computer"
+            speech_selected(session)
         except ModelResolutionError:
             return False, _required([ModelType.AUDIO_GEN])
     return True, None
