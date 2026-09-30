@@ -10,6 +10,7 @@ watcher notices, and the restart it triggers is what surfaces the model. Without
 this the file lands on disk, shows under Installed, and cannot be chatted with.
 """
 
+import os
 from pathlib import Path
 
 import pytest
@@ -139,6 +140,36 @@ def test_repricing_an_empty_directory_writes_an_empty_preset(
     service.llamacpp.reprice()
 
     assert (tmp_path / "models" / PRESET_FILE).read_text() == ""
+
+
+def test_repricing_unchanged_models_does_not_rewrite_the_preset(
+    service, tmp_path: Path
+) -> None:
+    """Electron treats a new mtime as a reason to restart the warmed router."""
+    a_model(tmp_path / "models" / "Qwen3-1.7B-Q4_K_M.gguf")
+    service.llamacpp.reprice()
+    preset = tmp_path / "models" / PRESET_FILE
+    unchanged_mtime = 1_000_000_000
+    os.utime(preset, ns=(unchanged_mtime, unchanged_mtime))
+
+    service.llamacpp.reprice()
+
+    assert preset.stat().st_mtime_ns == unchanged_mtime
+
+
+def test_repricing_changed_models_rewrites_the_preset(service, tmp_path: Path) -> None:
+    """A new model must still restart the router so it becomes reachable."""
+    a_model(tmp_path / "models" / "one.gguf")
+    service.llamacpp.reprice()
+    preset = tmp_path / "models" / PRESET_FILE
+    old_mtime = 1_000_000_000
+    os.utime(preset, ns=(old_mtime, old_mtime))
+    a_model(tmp_path / "models" / "two.gguf")
+
+    service.llamacpp.reprice()
+
+    assert preset.stat().st_mtime_ns != old_mtime
+    assert "[two]" in preset.read_text()
 
 
 def test_a_truncated_model_is_skipped_like_any_other_unreadable_one(
