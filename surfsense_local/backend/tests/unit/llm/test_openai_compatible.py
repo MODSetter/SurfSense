@@ -4,6 +4,7 @@ import pytest
 
 from modules.llm.connections.service import normalize_base_url, parse_models
 from modules.llm.model_type import ModelType
+from modules.llm.providers.openai_compatible import image as image_module
 from modules.llm.providers.openai_compatible.chat import _delta
 from modules.llm.providers.openai_compatible.image import (
     NonRetryableImageError,
@@ -106,12 +107,18 @@ def test_delta_reads_openai_sse_and_ignores_done() -> None:
     assert _delta("data: [DONE]") is None
 
 
+async def allow_any(_url: str) -> None:
+    """A caller that has allowed every host."""
+
+
 async def test_image_route_falls_back_only_after_missing_standard_route(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """OpenRouter's /images extension is negotiated once and then cached."""
     _route_cache.clear()
-    provider = OpenAICompatibleImageProvider(1, "https://example.test/v1")
+    provider = OpenAICompatibleImageProvider(
+        1, "https://example.test/v1", allow_url_host=allow_any
+    )
     calls: list[str] = []
 
     async def post(route: str, _model: str, _prompt: str):
@@ -131,7 +138,9 @@ async def test_image_route_does_not_fallback_after_ambiguous_failure(
 ) -> None:
     """A 5xx may follow billed work, so another image request is forbidden."""
     _route_cache.clear()
-    provider = OpenAICompatibleImageProvider(2, "https://example.test/v1")
+    provider = OpenAICompatibleImageProvider(
+        2, "https://example.test/v1", allow_url_host=allow_any
+    )
     calls: list[str] = []
 
     async def post(route: str, _model: str, _prompt: str):
@@ -142,3 +151,33 @@ async def test_image_route_does_not_fallback_after_ambiguous_failure(
     with pytest.raises(NonRetryableImageError, match="500"):
         await provider.generate("image", "draw")
     assert calls == ["/images/generations"]
+
+
+async def test_an_image_url_is_not_fetched_until_its_host_is_allowed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The endpoint names the host, so the caller's egress check runs first."""
+    _route_cache.clear()
+    checked: list[str] = []
+    fetched: list[str] = []
+
+    async def refuse(url: str) -> None:
+        checked.append(url)
+        raise PermissionError("cdn.example.test is off")
+
+    async def post(_route: str, _model: str, _prompt: str):
+        return 200, {"data": [{"url": "https://cdn.example.test/x.png"}]}
+
+    async def download(url: str) -> None:
+        fetched.append(url)
+
+    provider = OpenAICompatibleImageProvider(
+        3, "https://example.test/v1", allow_url_host=refuse
+    )
+    monkeypatch.setattr(provider, "_post", post)
+    monkeypatch.setattr(image_module, "_download_image", download)
+
+    with pytest.raises(PermissionError, match=r"cdn\.example\.test"):
+        await provider.generate("image", "draw")
+    assert checked == ["https://cdn.example.test/x.png"]
+    assert fetched == []

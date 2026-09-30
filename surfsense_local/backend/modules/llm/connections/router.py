@@ -275,8 +275,18 @@ async def test_connection_image(
     connection_id: int, payload: ModelTestWrite, session: SessionDep
 ) -> Response:
     connection = await transact(session, allowed_connection, connection_id)
+
+    async def allow_url_host(url: str) -> None:
+        # A 403 like the connection's own, so the renderer asks about this host.
+        refused = await transact(session, egress.refused_named_host, url)
+        if refused is not None:
+            raise refused
+
     provider = OpenAICompatibleImageProvider(
-        connection.id, connection.base_url, connection.api_key
+        connection.id,
+        connection.base_url,
+        connection.api_key,
+        allow_url_host=allow_url_host,
     )
     model = _requested_model(payload)
     try:

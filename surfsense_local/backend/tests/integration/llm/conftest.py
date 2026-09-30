@@ -200,6 +200,9 @@ CHAT_DELTAS = ["Hel", "lo"]
 REASONING_DELTAS = ["Okay, "] * 200
 REMOTE_THINKS = False
 REMOTE_REQUESTS: list[tuple[str, str]] = []
+# Set, the image routes answer with this URL instead of inline bytes, as a
+# provider serving its images from a CDN does.
+IMAGE_URL: str | None = None
 # Set to an HTTP status to make /models refuse, as a provider rejecting the key
 # or rate-limiting would; the fixture resets it.
 MODELS_STATUS: int | None = None
@@ -235,6 +238,8 @@ class StubOpenAICompatible(BaseHTTPRequestHandler):
             ]
             frames.append("data: [DONE]\n\n")
             self._send("".join(frames).encode())
+        elif self.path == "/images/generations" and IMAGE_URL is not None:
+            self._json({"data": [{"url": IMAGE_URL}]})
         elif self.path == "/images/generations":
             encoded = "iVBORw0KGgpmYWtl"
             self._json({"data": [{"b64_json": encoded, "media_type": "image/png"}]})
