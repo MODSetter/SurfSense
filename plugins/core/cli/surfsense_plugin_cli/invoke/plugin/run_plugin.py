@@ -24,6 +24,8 @@ def run_plugin(
         finished = subprocess.run(
             [
                 sys.executable,
+                # Blind to the CLI's own packages, as the app's runner is to its own.
+                "-S",
                 "-m",
                 "surfsense_plugin_sdk.run",
                 str(folder),

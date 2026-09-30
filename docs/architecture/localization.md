@@ -86,4 +86,3 @@ Developers write English only, inline in the `formatMessage` call; `pnpm transla
 ## Known gaps
 
 - Backend prose without a code stays English in every language: model install messages, fit verdicts, `not_runnable_reason`, a Studio format's `unavailable_reason`, and the disk-space `detail` that `lib/api.ts` wraps in a translated sentence.
-- A chat failure caught before the stream starts shows the `unknown` kind's text, not the error's own detail.

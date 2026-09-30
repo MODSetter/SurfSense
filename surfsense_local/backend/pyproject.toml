@@ -21,6 +21,8 @@ dependencies = [
     "pillow>=12",
     "pathvalidate>=3.2",
     "pydantic-settings>=2.7.0",
+    # Stops a plugin and every process it started (modules/plugins/runner).
+    "psutil>=7",
     "python-docx>=1.2.0",
     "python-multipart>=0.0.32",
     "python-pptx>=1.0.2",
@@ -30,6 +32,7 @@ dependencies = [
     "reportlab>=4.2",
     "sqlalchemy>=2.0",
     "sqlite-vec>=0.1.9",
+    "surfsense-plugin-manifest",
     # Docling's, named here only so the CPU build below can be chosen: a source
     # applies to a dependency this project declares, not to one it inherits.
     "torch>=2.2",
@@ -50,6 +53,8 @@ dev = [
 # an installer would carry to machines that cannot use them. Elsewhere the
 # published wheels are already CPU-only.
 [tool.uv.sources]
+# The rules a plugin's manifest.json follows, shared with the plugin tooling.
+surfsense-plugin-manifest = { path = "../../plugins/core/manifest", editable = true }
 torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 torchvision = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
 

@@ -28,7 +28,9 @@ export function ModelRow({
           ))}
         </div>
         {row.note ? (
-          <p className="text-xs text-muted-foreground">{row.note}</p>
+          <p className="text-xs wrap-anywhere text-muted-foreground">
+            {row.note}
+          </p>
         ) : null}
       </div>
       <div className="flex shrink-0 items-center gap-1">

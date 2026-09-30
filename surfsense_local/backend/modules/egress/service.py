@@ -60,6 +60,25 @@ def require(
     row.last_call_at = datetime.now(UTC)
 
 
+def refused_named_host(session: Session, url: str) -> EgressDeniedError | None:
+    """`require()` for a host an endpoint named, such as an image's URL.
+
+    A refused host no connection lists is recorded off, so Settings lists it to
+    allow. Returned rather than raised, so the caller's commit keeps that row.
+    """
+    destination = host_destination(url)
+    try:
+        require(session, destination)
+    except EgressDeniedError as refused:
+        if session.get(EgressDestination, refused.destination) is None:
+            session.add(
+                EgressDestination(destination=refused.destination, enabled=False)
+            )
+            session.flush()
+        return refused
+    return None
+
+
 def set_enabled(session: Session, destination: str, enabled: bool) -> EgressDestination:
     row = session.get(EgressDestination, destination)
     if row is None:
@@ -94,8 +113,9 @@ def forget_if_unused(session: Session, destination: str | None) -> None:
 
 def list_destinations(session: Session) -> list[EgressDestination]:
     """Includes destinations never allowed, so the panel can show them off."""
-    hosts = _connection_hosts(session)
     rows = {row.destination: row for row in session.scalars(select(EgressDestination))}
+    # Every host row too: one an endpoint named for its image has no connection.
+    hosts = _connection_hosts(session) | {d for d in rows if d.startswith(HOST_PREFIX)}
     return [
         rows.get(destination)
         or EgressDestination(destination=destination, enabled=False)

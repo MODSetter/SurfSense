@@ -149,6 +149,13 @@ export type Budget = {
  */
 export type GpuStatus = "present" | "absent" | "broken_install" | "unknown"
 
+export type ProjectorNotice = {
+  kind: "rename" | "no_match" | "ambiguous"
+  projector: string
+  model_id: string | null
+  rename_to: string | null
+}
+
 /**
  * Curated plus installed. No `scanned` flag, because there is no scan: the
  * budget comes from the runtime's own allocator in about 180ms.
@@ -158,6 +165,8 @@ export type ModelCatalog = {
   gpu_status: GpuStatus
   rows: LocalRow[]
   recommended_id: string | null
+  /** Unpaired vision projectors found in the llama.cpp models folder. */
+  projector_notices?: ProjectorNotice[]
 }
 
 /** A repo, described. Search rows carry no rank and no quality claim. */

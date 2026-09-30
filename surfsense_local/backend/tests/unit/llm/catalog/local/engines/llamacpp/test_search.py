@@ -151,6 +151,19 @@ async def test_a_repo_that_is_not_a_chat_model_lists_its_builds_but_offers_none(
     assert not any(b.can_install for b in row.builds)
 
 
+@pytest.mark.asyncio
+async def test_a_gated_repo_lists_its_builds_but_offers_none() -> None:
+    """SurfSense has no Hugging Face credential to redeem a gated ticket."""
+    found, _ = await listing()
+    gated = type(found)(**{**found.__dict__, "gated": True})
+
+    row = repo_row(gated, BUDGET, TicketStore().mint)
+
+    assert row.builds
+    assert row.runnable
+    assert not any(build.can_install for build in row.builds)
+
+
 def model_header(embedding: int = 2560) -> bytes:
     """A model header of a given width."""
     return gguf(

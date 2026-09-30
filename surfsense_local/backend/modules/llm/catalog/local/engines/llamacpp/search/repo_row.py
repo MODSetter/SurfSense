@@ -28,13 +28,14 @@ def repo_row(
         classify(listing.architecture_hint, listing.pipeline_tag), approximate=True
     )
     chats = ModelType.TEXT_GEN in classification.types
+    can_install = chats and not listing.gated
     rows = []
     for build in builds_in(listing.files, repo=listing.repo, revision=listing.revision):
         projector_bytes = build.projector.size_bytes if build.projector else 0
         fit = estimated_price(build.weights_bytes, projector_bytes, budget)
         rows.append(
             BuildRow(
-                catalog_id=mint(build) if chats else "",
+                catalog_id=mint(build) if can_install else "",
                 build=build,
                 fit=fit,
                 badge=badge(fit, budget),

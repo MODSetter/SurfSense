@@ -5,6 +5,7 @@ from fastapi import APIRouter, Response, status
 from sqlalchemy import select
 
 from api.dependencies import SessionDep
+from modules.plugins.stop_workspace_runs import stop_workspace_runs
 from modules.workspaces.dependencies import WorkspaceDep
 from modules.workspaces.models import Workspace
 from modules.workspaces.schemas import WorkspaceCreate, WorkspaceRead, WorkspaceUpdate
@@ -65,6 +66,7 @@ def delete_workspace(workspace: WorkspaceDep, session: SessionDep) -> Response:
     # One tree per workspace, removed after the commit a rollback would undo.
     directory = get_storage_settings().workspace_dir(workspace.id)
 
+    stop_workspace_runs(session, workspace.id)
     session.delete(workspace)
     session.commit()
 

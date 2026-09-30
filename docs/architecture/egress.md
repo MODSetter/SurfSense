@@ -14,7 +14,7 @@ Nothing is meant to leave the machine until the user allows where it goes. Befor
 
 There is one row per host by construction: the key is the hostname, so a destination cannot exist twice under two names, and the user is asked about the host rather than about each errand sent to it. `host:huggingface.co` is built in (`BUILT_IN` in `modules/egress/service.py`), so it is listed before any connection names it. Its dialog names every errand, search first because it is the widest: searching sends what the user types, as they type it; downloading sends the name of the model they chose; both send their IP address, and neither sends chats or documents.
 
-State is one table, `egress_destinations`: a row per destination with `enabled`, false by default, and `last_call_at`, which every allowed call stamps. `GET /egress` lists `host:huggingface.co` and one `host:` row per non-loopback host among the stored connections, off when never allowed. `PUT /egress/{destination}` turns one on or off, and answers 422 for anything that is not a `host:` name. Deleting the last connection to a host deletes that host's row (`forget_if_unused()`), so a later connection there is asked about again; a host another connection still uses keeps its grant, and a built-in destination is never dropped.
+State is one table, `egress_destinations`: a row per destination with `enabled`, false by default, and `last_call_at`, which every allowed call stamps. `GET /egress` lists `host:huggingface.co`, one `host:` row per non-loopback host among the stored connections, off when never allowed, and every other `host:` row, such as a host an image endpoint named. `PUT /egress/{destination}` turns one on or off, and answers 422 for anything that is not a `host:` name. Deleting the last connection to a host deletes that host's row (`forget_if_unused()`), so a later connection there is asked about again; a host another connection still uses keeps its grant, and a built-in destination is never dropped.
 
 `host_destination()` returns no destination for `localhost` or a loopback address, so a model server on the same machine needs no consent and has no row. A server elsewhere on the LAN is a destination like any other.
 
@@ -30,6 +30,7 @@ The plugins proposal adds a consent for each host a plugin declares, asked befor
 | Choosing a remote model | `modules/llm/selection.py`, through `allowed_connection()` | `host:` |
 | Checking a connection's rows against its live listing | `GET /llm/catalog/remote/connections/{id}` in `modules/llm/catalog/remote/router.py`, through `allowed_connection()` | `host:` |
 | Chat and Studio generation, text or image, through a remote connection | `_connection()` in `modules/llm/resolution.py` | `host:` |
+| Downloading an image an endpoint returned as a URL, whose host the endpoint chose | `refused_named_host()`, called before the download through the image provider's `allow_url_host`: by `POST /llm/connections/{id}/image-test` (a `403`) and by `resolution.py` for Studio (the job fails with the refusal, not retried, since the image was already billed). A refused host with no row is recorded off, so it is listed | `host:` |
 | Downloading a GGUF | `POST /llm/installs` in `modules/llm/catalog/local/install_jobs/router.py`, checked before the job starts | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
 | Downloading sd-server weights | `POST /llm/installs`, the same job as chat models | `host:huggingface.co` |
@@ -64,7 +65,6 @@ Settings › Network lists the App updates row and every destination with its ho
 
 ## Known gaps
 
-- `_download_image()` in `modules/llm/providers/openai_compatible/image.py` fetches an image URL the remote model returns with no egress decision; it checks the scheme, rejects embedded credentials, bounds the body and withholds the endpoint's bearer token.
 - Electron's Chromium spellchecker is not configured in `electron/src/main/index.ts`. Electron's type definitions say it downloads Hunspell dictionaries from the Chromium CDN by default, and `spellcheck` is on unless turned off, so on Windows and Linux it likely makes that call; nobody has checked at runtime.
 - The Office Studio formats run model-written code in the worker, and that code can open connections of its own ([studio](studio.md)).
 - Grants stored under the earlier destination names, `model_download`, `model_search` and `image_model_pull`, are not carried over to `host:huggingface.co`. Nothing reads them any more, so someone who had allowed model downloads is asked again, and the old rows stay in the table; revision 0012 still turns an Ollama-era `ollama_pull` grant into `model_download`.

@@ -12,7 +12,7 @@ Everything the desktop app knows lives in one SQLite file, `surfsense.db`, and i
 3. **Fix on paste.** Stale `new_*` prefixes, redundant columns and JSONB status blobs become the local shapes below.
 4. **No auth.** There is no users table, no memberships and no tokens.
 5. **SQLite.** One file, with JSON columns only where they earn their keep: document metadata, message content, artifact metadata.
-6. **Queue mechanics stay in `huey.db`.** User-visible job state is `documents.status`.
+6. **Queue mechanics stay in `huey.db`.** User-visible job state is `documents.status`, and `plugin_runs.status` for a plugin's run.
 
 The conventions every table follows are in [`shared/db.py`](../../surfsense_local/backend/shared/db.py):
 
@@ -47,7 +47,7 @@ The conventions every table follows are in [`shared/db.py`](../../surfsense_loca
 | `id`, `name`, `created_at`, `updated_at` | a name is 1 to 200 characters after trimming |
 | `cloud_id` | nullable, unique: the hosted workspace an import came from, so re-importing the same bundle reuses the row ([`import.md`](import.md)) |
 
-The API seeds one workspace, "My Workspace", at startup when none exists. Deleting a workspace cascades its documents, threads and artifacts.
+The API seeds one workspace, "My Workspace", at startup when none exists. Deleting a workspace first stops its plugin runs ([`stop_workspace_runs.py`](../../surfsense_local/backend/modules/plugins/stop_workspace_runs.py)), then cascades its documents, threads, artifacts and runs.
 
 ### `documents`
 
@@ -136,12 +136,26 @@ Connections are in [`connections.md`](connections.md); selection and onboarding 
 
 A destination is `host:<hostname>`: `host:huggingface.co` for model search and downloads, and one per remote host, shared by every connection to it; a loopback endpoint needs none. Rows under the earlier names `model_download`, `model_search` and `image_model_pull` are no longer read; revision `0012` renamed `ollama_pull` to `model_download` before that change. See [`license/app.md`](license/app.md) and [`egress.md`](egress.md).
 
+### `plugin_runs`
+
+One row per run of a plugin's action. What the run produced is not here: the plugin wrote it through the API while it ran ([the plugins proposal](../proposals/plugins/runtime/01-process.md)).
+
+| Column | Notes |
+|---|---|
+| `id`, `workspace_id` | foreign key to `workspaces`, cascading: a run goes with the workspace it was started in |
+| `plugin_id`, `version`, `action` | which installed version ran, and which of its actions |
+| `inputs` | JSON: what the user gave the action |
+| `status` | `queued` by default, then `running`, then `succeeded` or `failed`; `cancelled` from either of the first two, when the user cancels or deletes the workspace |
+| `error` | why a run failed: `exit <code>` when the plugin's process ended with anything but 0, `timeout` when its action's `timeout_seconds` ran out, `interrupted` when the app quit during it |
+| `log_tail` | the last 16 KiB the plugin printed, stdout and stderr together |
+| `created_at`, `started_at`, `finished_at` | |
+
 ## On-disk layout
 
 ```text
 <data dir>/                       ~/.surfsense by default
 ├── surfsense.db
-├── huey.db                       two queues, ingest and studio, in one file
+├── huey.db                       three queues, ingest, studio and plugins, in one file
 └── data/
     └── workspaces/<workspace_id>/
         ├── documents/<document_id>/
@@ -161,6 +175,7 @@ erDiagram
   workspaces ||--o{ documents : contains
   workspaces ||--o{ chat_threads : contains
   workspaces ||--o{ artifacts : contains
+  workspaces ||--o{ plugin_runs : contains
   documents ||--o{ chunks : "split into"
   documents ||--o| artifacts : "body of"
   chunks ||--|| chunks_fts : "rowid, by trigger"
@@ -281,6 +296,20 @@ erDiagram
     bool enabled
     datetime last_call_at
   }
+  plugin_runs {
+    int id PK
+    int workspace_id FK
+    text plugin_id
+    text version
+    text action
+    json inputs
+    text status "queued, running, succeeded, failed, cancelled"
+    text error
+    text log_tail
+    datetime created_at
+    datetime started_at
+    datetime finished_at
+  }
 ```
 
 ## Revisions
@@ -304,6 +333,7 @@ erDiagram
 | `0015` | `0015_image_selection_by_build.py` | a local `image_gen` selection is renamed from the old list's name to its curated build's id (`stable-diffusion-1.5` to `v1-5-pruned_Q4_0`, and the two SDXL models); the map is frozen in the migration, and downgrading reverses it |
 | `0016` | `0016_local_audio_provider.py` | `selected_models` rebuilt so `audiocpp` may hold `audio_gen`, and only that, without a connection; downgrading drops an `audiocpp` selection |
 | `0019` | `0019_selection_settings.py` | `selected_models.settings`, a nullable JSON column added in place; its first entry is a server audio model's `voices` |
+| `0020` | `0020_plugin_runs.py` | `plugin_runs` |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.

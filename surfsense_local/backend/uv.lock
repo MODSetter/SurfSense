@@ -2651,6 +2651,7 @@ dependencies = [
     { name = "onnxruntime" },
     { name = "pathvalidate" },
     { name = "pillow" },
+    { name = "psutil" },
     { name = "pydantic-settings" },
     { name = "python-docx" },
     { name = "python-multipart" },
@@ -2658,6 +2659,7 @@ dependencies = [
     { name = "reportlab" },
     { name = "sqlalchemy" },
     { name = "sqlite-vec" },
+    { name = "surfsense-plugin-manifest" },
     { name = "torch", version = "2.14.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
     { name = "torch", version = "2.14.0+cpu", source = { registry = "https://download.pytorch.org/whl/cpu" }, marker = "sys_platform == 'linux'" },
     { name = "torchvision", version = "0.29.0", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux'" },
@@ -2687,6 +2689,7 @@ requires-dist = [
     { name = "onnxruntime", specifier = ">=1.20" },
     { name = "pathvalidate", specifier = ">=3.2" },
     { name = "pillow", specifier = ">=12" },
+    { name = "psutil", specifier = ">=7" },
     { name = "pydantic-settings", specifier = ">=2.7.0" },
     { name = "python-docx", specifier = ">=1.2.0" },
     { name = "python-multipart", specifier = ">=0.0.32" },
@@ -2694,6 +2697,7 @@ requires-dist = [
     { name = "reportlab", specifier = ">=4.2" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "sqlite-vec", specifier = ">=0.1.9" },
+    { name = "surfsense-plugin-manifest", editable = "../../plugins/core/manifest" },
     { name = "torch", marker = "sys_platform != 'linux'", specifier = ">=2.2" },
     { name = "torch", marker = "sys_platform == 'linux'", specifier = ">=2.2", index = "https://download.pytorch.org/whl/cpu" },
     { name = "torchvision", marker = "sys_platform != 'linux'", specifier = ">=0.17" },
@@ -2708,6 +2712,23 @@ dev = [
     { name = "pytest", specifier = ">=8.4.0" },
     { name = "pytest-asyncio", specifier = ">=1.0.0" },
     { name = "ruff", specifier = ">=0.12.5" },
+]
+
+[[package]]
+name = "surfsense-plugin-manifest"
+version = "0.0.0"
+source = { editable = "../../plugins/core/manifest" }
+dependencies = [
+    { name = "pydantic" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "pydantic", specifier = ">=2.7" }]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "ruff", specifier = ">=0.8" },
 ]
 
 [[package]]

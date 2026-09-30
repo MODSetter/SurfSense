@@ -1,6 +1,6 @@
 # Search
 
-`retrieve()` finds the passages in a workspace that best answer a query. Two legs widen recall, a keyword match and a nearest-neighbour search over embeddings, and a weighted blend of the two decides the order, meaning counting for rather more than words. It runs in the calling process against the same SQLite file as everything else, and chat is its only caller.
+`retrieve()` finds the passages in a workspace that best answer a query. Two legs widen recall, a keyword match and a nearest-neighbour search over embeddings, and a weighted blend of the two decides the order, meaning counting for rather more than words. It runs in the calling process against the same SQLite file as everything else. Chat calls it, and so does Studio's grounding ([`studio.md`](studio.md), Grounding).
 
 **Code:** [`shared/search.py`](../../surfsense_local/backend/shared/search.py), [`shared/tokenizer.py`](../../surfsense_local/backend/shared/tokenizer.py), [`worker/ingestion/embedding.py`](../../surfsense_local/backend/worker/ingestion/embedding.py)
 **Decisions:** [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0007](../adr/0007-bundled-embeddings.md), [ADR 0031](../adr/0031-ranking-blends-absolute-leg-scores.md), [ADR 0032](../adr/0032-one-tokenizer-for-index-and-question.md), [ADR 0033](../adr/0033-every-candidate-is-scored-on-its-own-cosine.md)

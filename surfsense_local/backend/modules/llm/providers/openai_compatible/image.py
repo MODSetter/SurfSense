@@ -1,6 +1,7 @@
 import base64
 import binascii
 import json
+from collections.abc import Awaitable, Callable
 from urllib.parse import urlsplit
 
 import httpx
@@ -21,16 +22,24 @@ class NonRetryableImageError(RuntimeError):
     """An image request began, so repeating it could duplicate a billed result."""
 
 
+# Raises to refuse a host the endpoint named for its image. The caller owns the
+# egress decision, so this provider never needs the database.
+AllowUrlHost = Callable[[str], Awaitable[None]]
+
+
 class OpenAICompatibleImageProvider:
     def __init__(
         self,
         connection_id: int,
         base_url: str,
         api_key: str | None = None,
+        *,
+        allow_url_host: AllowUrlHost,
     ) -> None:
         self._connection_id = connection_id
         self._base_url = base_url.rstrip("/")
         self._api_key = api_key
+        self._allow_url_host = allow_url_host
 
     def _headers(self) -> dict[str, str]:
         return key_headers(self._base_url, self._api_key)
@@ -96,6 +105,7 @@ class OpenAICompatibleImageProvider:
             raise ValueError("image endpoint returned neither b64_json nor url")
         if url.startswith("data:"):
             return _decode_data_url(url)
+        await self._allow_url_host(url)
         return await _download_image(url)
 
 

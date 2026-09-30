@@ -28,6 +28,8 @@ export type InUse = {
 export type YourModels = {
   /** Models on this computer. Server models are listed per server instead. */
   local: YourModelRow[]
+  /** Folder-level advice that does not belong to one model row. */
+  notices?: string[]
   inUse: InUse | null
   isPending: boolean
   error: Error | null

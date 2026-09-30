@@ -71,6 +71,7 @@ def import_models() -> None:
     import modules.egress.models
     import modules.license.models
     import modules.llm.models
+    import modules.plugins.models
     import modules.workspaces.models
 
 

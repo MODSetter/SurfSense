@@ -126,7 +126,7 @@ Images go through `OpenAICompatibleImageProvider`:
 3. Cache the route that worked until the process restarts.
 
 - There is no fallback or retry after any other failure: auth, rate limit, timeout, `5xx`, a connection error or a malformed success. The endpoint may already have generated, and billed, an image. These surface as `NonRetryableImageError`, which a Studio job does not retry either. Route negotiation is not a retry policy.
-- Both routes send `model` and `prompt`. The first entry of the reply's `data` may be `b64_json`, a base64 data URL, or an `http(s)` URL, which is downloaded without the endpoint's bearer token and with at most three redirects. Replies are capped at 28 MB and images at 20 MB, under a 180-second timeout, and the bytes must be PNG, JPEG, GIF, WebP or SVG and match any MIME type the endpoint claims.
+- Both routes send `model` and `prompt`. The first entry of the reply's `data` may be `b64_json`, a base64 data URL, or an `http(s)` URL, which is downloaded only once egress to its host is allowed ([`egress.md`](egress.md)), without the endpoint's bearer token and with at most three redirects. Replies are capped at 28 MB and images at 20 MB, under a 180-second timeout, and the bytes must be PNG, JPEG, GIF, WebP or SVG and match any MIME type the endpoint claims.
 
 [`resolution.py`](../../surfsense_local/backend/modules/llm/resolution.py) turns a model type's selection into a provider for chat, titles and Studio; the connection routes build their own for discovery and tests:
 
@@ -173,4 +173,3 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 ## Known gaps
 
 - A model on an endpoint the manifest does not carry never reads images here, even when its listing declares `image` input: discovery reads only output modalities, and nothing is stored at selection to carry the endpoint's word to the send ([ADR 0034](../adr/0034-vision-is-the-runtimes-answer-stored-nowhere.md)).
-- An image returned as a URL is downloaded from whatever host the endpoint names, with no egress decision for that host; the endpoint's key is withheld from the download.

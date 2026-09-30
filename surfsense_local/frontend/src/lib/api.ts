@@ -36,6 +36,10 @@ declare global {
       sessionLog?: {
         read: () => Promise<string[]>
       }
+      // Unexpected sidecar exits pushed by main. Mirrors electron/src/preload/index.ts.
+      sidecars?: {
+        onCrash: (listener: (crash: SidecarCrash) => void) => () => void
+      }
       // The app menu's Help › Report Issue…. Mirrors electron/src/preload/index.ts.
       help?: {
         onReportIssue: (listener: () => void) => () => void
@@ -77,6 +81,11 @@ export type UpdateState =
   | { status: "downloading"; version: string }
   | { status: "ready"; version: string }
   | { status: "error"; message: string }
+
+export type SidecarCrash = {
+  name: string
+  code: number | null
+}
 
 // Packaged (Electron) exposes the sidecar's dynamic origin; a bare dev browser
 // leaves it empty so root-relative paths still hit the Vite proxy.

@@ -63,7 +63,7 @@ Something the plugin should know before it starts: an id, a URL, a setting the u
 | File | Change |
 |---|---|
 | [`01-protocol.md`](01-protocol.md) | one row in the context table |
-| `modules/plugins/runner.py` | put it in the spawn environment |
+| `modules/plugins/runner/plugin_environment.py` | put it in the spawn environment |
 | `plugins/core/manifest/` | a rule, if the plugin has to declare it first |
 | `plugins/core/sdk/surfsense_plugin_sdk/<name>.py` | one accessor, its own file, exported from `__init__` |
 | `plugins/core/sdk/tests/unit/` | a plugin that reads it, and one that runs without it |
