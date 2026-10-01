@@ -6,10 +6,13 @@ import { intl } from "@/i18n/intl"
 
 import {
   cancelDocument,
+  createNote,
   deleteDocument,
+  getDocument,
   isSupportedSourceFile,
   listDocuments,
   retryDocument,
+  updateDocument,
   uploadDocuments,
   type WorkspaceDocument,
 } from "./api"
@@ -236,6 +239,58 @@ export function useSources(workspaceId: number) {
     } catch (cause) {
       setError(messageFrom(cause))
     }
+  }
+
+  const replace = (updated: WorkspaceDocument) =>
+    setDocuments((current) =>
+      current.map((document) =>
+        document.id === updated.id ? updated : document
+      )
+    )
+
+  // Each answers whether it saved, so its dialog closes only then. An edited
+  // note comes back pending, and the ingestion poll carries it to ready.
+  const writeNote = async (title: string, content: string) => {
+    setError(null)
+    try {
+      const created = await createNote(workspaceId, { title, content })
+      setDocuments((current) => [created, ...current])
+      return true
+    } catch (cause) {
+      setError(messageFrom(cause))
+      return false
+    }
+  }
+
+  const rename = async (documentId: number, title: string) => {
+    setError(null)
+    try {
+      replace(await updateDocument(workspaceId, documentId, { title }))
+      return true
+    } catch (cause) {
+      setError(messageFrom(cause))
+      return false
+    }
+  }
+
+  const editNote = async (
+    documentId: number,
+    title: string,
+    content: string
+  ) => {
+    setError(null)
+    try {
+      replace(await updateDocument(workspaceId, documentId, { title, content }))
+      return true
+    } catch (cause) {
+      setError(messageFrom(cause))
+      return false
+    }
+  }
+
+  const loadNote = async (documentId: number) => {
+    const document = await getDocument(workspaceId, documentId)
+    return { title: document.title, content: document.content ?? "" }
   }
 
   const upload = async (files: File[]) => {
@@ -517,6 +572,10 @@ export function useSources(workspaceId: number) {
     revealOriginal,
     retry,
     cancel,
+    rename,
+    writeNote,
+    editNote,
+    loadNote,
     deleteOne,
     deleteSelected,
     setDocumentSelected,

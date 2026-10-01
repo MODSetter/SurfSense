@@ -48,10 +48,11 @@ Chunks have no router of their own.
 - **Title**, always: 1 to 500 characters after trimming.
 - **Content**, only for a `NOTE`. Anything else was extracted from bytes or generated, and an edit would vanish at the next ingest, so `PATCH` answers `409`. This is also the server-side read-only guard ADR 0003 asks for on artifact bodies; renaming and deleting an artifact stay allowed.
 - Editing a note's content puts it back to `pending` and enqueues ingest, because until the worker rebuilds the index, search would keep returning the old text.
+- In the sources panel, every row's menu has **Rename**, which sends `title` alone so a file is never sent a `content` it would refuse, and a note's row also has **Edit note**. Both forms check the title's 1 to 500 characters before sending; the server's answer stays authoritative.
 
 ## Notes
 
-A note is a document the user writes, with no file behind it. Creating one commits the row as `pending` and enqueues ingest: nothing needs parsing, but the note is not `ready` until it is chunked and indexed. A note never touches the filesystem and carries no dedup key, so two notes with the same text are two documents.
+A note is a document the user writes, with no file behind it. Creating one commits the row as `pending` and enqueues ingest: nothing needs parsing, but the note is not `ready` until it is chunked and indexed. A note never touches the filesystem and carries no dedup key, so two notes with the same text are two documents. **New note** in the sources panel writes one; **Edit note** reopens it with `GET /workspaces/{id}/documents/{doc}` and saves with `PATCH`, and the edited row comes back `pending`, so the panel's ingestion poll carries it to `ready` like any upload.
 
 A note may carry `document_metadata`, stored as given. A plugin names itself there on the notes it adds, with `plugin_id`, `plugin_version`, `action` and `run_id`; a note the user writes has none, and editing a note leaves it alone. Writing a note with a field the API does not know is refused rather than dropped, so a client that names a field differently finds out at once.
 
@@ -107,7 +108,6 @@ Cancellation is checked after parsing and after embedding. On any other failure 
 
 ## Known gaps
 
-- The frontend has no way to write or edit a note, or to rename a document; the API routes exist.
 - Documents have no folders (`folder_id`); import keeps the hosted folder path in `document_metadata`. This needs a design.
 - Parsing runs on the CPU. Windows and Linux ship CPU-only torch and no CUDA payload ([ADR 0012](../adr/0012-vulkan-only-gpu-backend.md)).
 - OCR reads one script family per converter: PP-OCRv6 covers Latin, Chinese and Japanese, so scanned Korean, Cyrillic, Devanagari or Arabic text is misread.
