@@ -116,6 +116,9 @@ class AgentSettings(BaseSettings):
 
     opencode_url: str | None = None
     opencode_password: str | None = None
+    # The tested list starts empty; while it is, this lets any model run the agent.
+    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1.
+    agent_untested_models: bool = False
 
 
 @lru_cache

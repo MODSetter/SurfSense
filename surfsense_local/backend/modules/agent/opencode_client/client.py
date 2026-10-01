@@ -87,6 +87,20 @@ class OpencodeClient:
         reply.raise_for_status()
         return {session["id"] for session in reply.json()}
 
+    async def status(self, directory: Path, session_id: str) -> str:
+        """`busy`, `retry` or `idle`; opencode lists only sessions that are not idle."""
+        reply = await self._http.get("/session/status", params=_in(directory))
+        reply.raise_for_status()
+        return reply.json().get(session_id, {}).get("type", "idle")
+
+    async def messages(self, directory: Path, session_id: str) -> list[dict[str, Any]]:
+        """Every message of the session, oldest first, each with its parts."""
+        reply = await self._http.get(
+            f"/session/{session_id}/message", params=_in(directory)
+        )
+        reply.raise_for_status()
+        return reply.json()
+
     async def send_turn(
         self, directory: Path, session_id: str, text: str, *, model: str
     ) -> None:

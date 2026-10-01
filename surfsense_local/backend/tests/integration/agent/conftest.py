@@ -1,20 +1,28 @@
 import json
 import secrets
 import threading
-from collections.abc import Iterator
+from collections.abc import AsyncIterator, Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+import httpx
 import pytest
+import pytest_asyncio
 
+from api.config import get_settings
+from modules.agent.opencode_client import OpencodeClient
 from modules.agent.opencode_config import AgentSetup, write_opencode_config
-from shared.config import get_llm_settings
+from modules.llm.model_type import ModelType
+from modules.llm.models import ProviderConnection, SelectedModel
+from shared.config import get_agent_settings, get_llm_settings, get_storage_settings
+from shared.db import create_db_engine, create_session_factory
 from tests.integration.agent.opencode_harness import (
     MODEL,
     RunningOpencode,
     ScriptedHandler,
     ScriptedModel,
+    StandInForElectron,
     free_port,
     needs_staged_opencode,
     start_opencode,
@@ -126,3 +134,70 @@ def opencode(
         yield running
     finally:
         running.stop()
+
+
+@dataclass
+class AgentAPI:
+    """The real API on a port, with opencode behind it and a scripted remote model."""
+
+    http: httpx.AsyncClient
+    model: ScriptedModel
+    electron: StandInForElectron
+    opencode_url: str
+    password: str
+    workspace_id: int
+
+    def opencode(self) -> OpencodeClient:
+        """A client for the opencode the API drives, to look behind the API."""
+        return OpencodeClient(self.opencode_url, self.password)
+
+
+@pytest_asyncio.fixture(loop_scope="function")
+async def agent_api(
+    base_url: str, scripted_model: ScriptedModel, monkeypatch: pytest.MonkeyPatch
+) -> AsyncIterator[AgentAPI]:
+    """Every part of an agent turn but Electron, which a stand-in plays."""
+    needs_staged_opencode()
+    # opencode's provider points at this API's model endpoint, on its real port.
+    monkeypatch.setattr(get_settings(), "port", int(base_url.rsplit(":", 1)[1]))
+    port, password = free_port(), secrets.token_urlsafe(16)
+    opencode_url = f"http://127.0.0.1:{port}"
+    monkeypatch.setattr(get_agent_settings(), "opencode_url", opencode_url)
+    monkeypatch.setattr(get_agent_settings(), "opencode_password", password)
+    monkeypatch.setattr(get_agent_settings(), "agent_untested_models", True)
+
+    with create_session_factory(
+        create_db_engine(get_storage_settings().database_path)
+    )() as session:
+        connection = ProviderConnection(
+            label="Remote",
+            provider="openai_compatible",
+            base_url=f"{scripted_model.url}/v1",
+        )
+        connection.api_key = "remote-key"
+        session.add(connection)
+        session.flush()
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="openai_compatible",
+                connection_id=connection.id,
+                name=MODEL,
+            )
+        )
+        session.commit()
+
+    async with httpx.AsyncClient(base_url=base_url, timeout=60.0) as http:
+        workspace = await http.post("/workspaces", json={"name": "Research"})
+        workspace.raise_for_status()
+        with StandInForElectron(
+            get_storage_settings().agent_dir, port, password
+        ) as electron:
+            yield AgentAPI(
+                http,
+                scripted_model,
+                electron,
+                opencode_url,
+                password,
+                workspace.json()["id"],
+            )

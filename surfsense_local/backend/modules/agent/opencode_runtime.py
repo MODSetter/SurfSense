@@ -62,6 +62,18 @@ async def ready_opencode(session: Session, *, launch_key: str) -> ReadyAgent:
     return ReadyAgent(client=client, model=model)
 
 
+def connect_opencode() -> OpencodeClient:
+    """A client for the opencode Electron runs, for a call that needs no new configuration.
+
+    Answering an approval or deleting a session reaches the server as it is; only
+    a turn writes the configuration first (`ready_opencode`).
+    """
+    settings = get_agent_settings()
+    if not settings.opencode_url or not settings.opencode_password:
+        raise AgentUnavailableError("the agent's runtime is not part of this install")
+    return OpencodeClient(settings.opencode_url, settings.opencode_password)
+
+
 def _endpoint_url() -> str:
     """This API's model endpoint, where opencode's only provider points."""
     api = get_settings()
