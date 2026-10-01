@@ -16,16 +16,17 @@ const LAST_RETRY_MS = 10_000
 const subscriptions = new Map<number, Subscription>()
 
 function wait(milliseconds: number, signal: AbortSignal) {
+  if (signal.aborted) return Promise.resolve()
   return new Promise<void>((resolve) => {
-    const timeout = window.setTimeout(resolve, milliseconds)
-    signal.addEventListener(
-      "abort",
-      () => {
-        window.clearTimeout(timeout)
-        resolve()
-      },
-      { once: true }
-    )
+    const onAbort = () => {
+      window.clearTimeout(timeout)
+      resolve()
+    }
+    const timeout = window.setTimeout(() => {
+      signal.removeEventListener("abort", onAbort)
+      resolve()
+    }, milliseconds)
+    signal.addEventListener("abort", onAbort, { once: true })
   })
 }
 

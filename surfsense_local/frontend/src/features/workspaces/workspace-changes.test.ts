@@ -46,6 +46,7 @@ function listen(workspaceId: number, kind: "documents" | "artifacts") {
 afterEach(() => {
   for (const unsubscribe of unsubscribes.splice(0)) unsubscribe()
   vi.unstubAllGlobals()
+  vi.useRealTimers()
 })
 
 describe("workspace changes", () => {
@@ -97,5 +98,63 @@ describe("workspace changes", () => {
       },
       { timeout: 4000 }
     )
+  })
+
+  it("removes every abort listener wait() adds across dropped streams", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    const first = eventStream()
+    const second = eventStream()
+    const third = eventStream()
+    const fetchMock = apiStreaming([
+      first.response,
+      second.response,
+      third.response,
+    ])
+
+    listen(1, "documents")
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    const signal = fetchMock.mock.calls[0][1]?.signal as AbortSignal
+    const addListenerSpy = vi.spyOn(signal, "addEventListener")
+    const removeListenerSpy = vi.spyOn(signal, "removeEventListener")
+
+    first.drop()
+    await vi.advanceTimersByTimeAsync(1_000)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
+
+    second.drop()
+    await vi.advanceTimersByTimeAsync(2_000)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3))
+
+    const abortAdds = addListenerSpy.mock.calls.filter(([event]) => event === "abort")
+    const abortRemoves = removeListenerSpy.mock.calls.filter(
+      ([event]) => event === "abort"
+    )
+
+    expect(abortAdds.length).toBeGreaterThanOrEqual(2)
+    expect(abortRemoves.length).toBe(abortAdds.length)
+  })
+
+  it("tears the subscription down during a retry wait without waiting out the timer", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    const stream = eventStream()
+    const fetchMock = apiStreaming([stream.response])
+
+    const unsubscribe = subscribeToWorkspaceChanges(1, "documents", vi.fn())
+    unsubscribes.push(unsubscribe)
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+
+    const signal = fetchMock.mock.calls[0][1]?.signal as AbortSignal
+
+    stream.drop()
+    await vi.waitFor(() => expect(vi.getTimerCount()).toBe(1))
+
+    unsubscribe()
+
+    expect(signal.aborted).toBe(true)
+    expect(vi.getTimerCount()).toBe(0)
+
+    await vi.advanceTimersByTimeAsync(10_000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 })
