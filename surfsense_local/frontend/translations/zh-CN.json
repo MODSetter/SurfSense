@@ -323,7 +323,6 @@
   "models_hardware_memory_label": "{size, number, ::unit/gigabyte .#} 内存",
   "models_hardware_summary_body": "下面每个模型的开销都是按这台电脑衡量的。",
   "models_image_server_idle_status": "在 Studio 需要时启动",
-  "models_image_server_missing_status": "缺少所需文件，无法启动。请删除后重新下载。",
   "models_image_server_running_status": "运行中",
   "models_in_use_local_label": "这台电脑",
   "models_in_use_missing_label": "在这台电脑上找不到",

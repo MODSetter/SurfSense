@@ -25,12 +25,9 @@ const SERVER_NOTE: Record<ImageServerState, (() => string) | null> = {
       id: "models_image_server_running_status",
       defaultMessage: "Running",
     }),
-  missing: () =>
-    intl.formatMessage({
-      id: "models_image_server_missing_status",
-      defaultMessage:
-        "A file it needs is missing, so it cannot start. Delete it and download it again.",
-    }),
+  // Its build is no longer installed, so it has no row: InUseSummary names it
+  // "Not found on this computer" instead.
+  missing: null,
 }
 
 export function useImageModels(slot: SdCppSlot = "image_gen"): YourModels {

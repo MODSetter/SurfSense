@@ -323,7 +323,6 @@
   "models_hardware_memory_label": "メモリ{size, number, ::unit/gigabyte .#}",
   "models_hardware_summary_body": "以下のモデルはすべて、このコンピューターに合わせて見積もっています。",
   "models_image_server_idle_status": "Studioで必要になったときに起動します",
-  "models_image_server_missing_status": "必要なファイルが見つからないため、起動できません。削除して、もう一度ダウンロードしてください。",
   "models_image_server_running_status": "実行中",
   "models_in_use_local_label": "このコンピューター",
   "models_in_use_missing_label": "このコンピューターに見つかりません",

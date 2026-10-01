@@ -599,8 +599,8 @@ The chat catalog, from the top:
   above the rows, never per row. Download stays offered, because an install
   still downloads while the runtime is down and ends with an honest message
   ([`runtime.md`](runtime.md#failure-behavior)); the notice says so and that a
-  restart of SurfSense starts the runtime. The image and audio pages read no
-  server state; whether sd-server is up is its own gap below.
+  restart of SurfSense starts the runtime. The audio page reads no server
+  state; the image page asks for sd-server's, as its section below says.
 - **Tested by SurfSense**: the curated rows, grouped by family. Each shows the
   star when it is the one for this computer, its name, a badge only when it warns,
   **Vision** when it reads images, the build it leads with and its size, and one
@@ -634,8 +634,10 @@ Rules the screen holds:
   on disk. Every downloaded model has Delete, the one in use included: the API
   clears every slot that named it, and Electron stops sd-server on its next poll.
   The row in use says what its server is doing, from `GET
-  /llm/image/local/state?model_type=…`: it starts when Studio needs it, it is
-  running, or a file it needs is missing so nothing can start. The route asks
+  /llm/image/local/state?model_type=…`: it starts when Studio needs it, or it is
+  running. The route also answers `missing` when a file the chosen model needs
+  is gone; that build is then no longer installed and has no row, and the
+  in-use summary names it "Not found on this computer". The route asks
   sd-server's `/sdapi/v1/sd-models` once and never starts it; the screen asks
   every five seconds, and only while a local model fills the slot.
 - The image editing section is the image section's parts for `image_edit`: only

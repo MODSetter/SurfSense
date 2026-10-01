@@ -323,7 +323,6 @@
   "models_hardware_memory_label": "{size, number, ::unit/gigabyte .#} de memória",
   "models_hardware_summary_body": "Todos os modelos abaixo são avaliados para este computador.",
   "models_image_server_idle_status": "Inicia quando o Studio precisar",
-  "models_image_server_missing_status": "Falta um arquivo necessário, então ele não pode iniciar. Exclua-o e baixe-o novamente.",
   "models_image_server_running_status": "Em execução",
   "models_in_use_local_label": "Este computador",
   "models_in_use_missing_label": "Não encontrado neste computador",

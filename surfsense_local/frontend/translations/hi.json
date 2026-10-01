@@ -323,7 +323,6 @@
   "models_hardware_memory_label": "{size, number, ::unit/gigabyte .#} मेमोरी",
   "models_hardware_summary_body": "नीचे दिया हर मॉडल इस कंप्यूटर के हिसाब से आंका गया है।",
   "models_image_server_idle_status": "Studio को ज़रूरत होने पर शुरू होता है",
-  "models_image_server_missing_status": "ज़रूरी फ़ाइल मौजूद नहीं है, इसलिए यह शुरू नहीं हो सकता। इसे हटाएं और फिर से डाउनलोड करें।",
   "models_image_server_running_status": "चल रहा है",
   "models_in_use_local_label": "यह कंप्यूटर",
   "models_in_use_missing_label": "इस कंप्यूटर पर नहीं मिला",

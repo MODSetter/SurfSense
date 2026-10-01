@@ -323,7 +323,6 @@
   "models_hardware_memory_label": "{size, number, ::unit/gigabyte .#} memory",
   "models_hardware_summary_body": "Every model below is priced against this computer.",
   "models_image_server_idle_status": "Starts when Studio needs it",
-  "models_image_server_missing_status": "A file it needs is missing, so it cannot start. Delete it and download it again.",
   "models_image_server_running_status": "Running",
   "models_in_use_local_label": "This computer",
   "models_in_use_missing_label": "Not found on this computer",
