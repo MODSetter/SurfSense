@@ -203,12 +203,34 @@ A legacy self-hoster moves their data with the markdown export and import ([ADR 
 
 ## Steps
 
-1. Move boot and the watchers into `sidecars/` with no Electron import; Electron uses them unchanged.
-2. The headless entry with its checks, the configurable CORS origins and `VITE_API_BASE`.
-3. The Dockerfile, the Caddy files and the Compose file: CPU only.
-4. `docker-local.yml` with the smoke job.
-5. The GPU variants ([`gpu.md`](gpu.md)).
-6. Docs: a `docker.md` in `architecture/`, and the root README.
+In order; each step depends on the one before it and leaves something that runs.
+
+**Groundwork.** The desktop app works as before after each.
+
+1. The CORS origins setting.
+2. The `VITE_API_BASE` fallback.
+3. Boot and the watchers move into `sidecars/`, with no Electron import.
+4. The headless entry: on a dev machine, it starts the API and the workers.
+
+**The first container.**
+
+5. The CPU image and compose, with the localhost-only access file and no local model runtimes: upload, ingest and chat through a remote connection work.
+6. `docker-local.yml`: amd64 and arm64, and the smoke job.
+
+**Local models, one runtime at a time.**
+
+7. llama.cpp.
+8. audio.cpp.
+9. sd.cpp.
+
+**Access beyond localhost.**
+
+10. The password and the allowed hosts.
+11. HTTPS.
+
+**GPU images**, steps 12 to 14 in [`gpu.md`](gpu.md).
+
+Then the maintainers write `architecture/docker.md`, update the root README and both `AGENTS.md` files, and delete this proposal.
 
 ## Not in scope
 
