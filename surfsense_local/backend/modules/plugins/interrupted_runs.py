@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 import psutil
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 
 from modules.plugins.models import PluginRun, PluginRunStatus
 from shared.config import get_storage_settings
@@ -26,7 +26,9 @@ def fail_interrupted_runs() -> None:
                         PluginRun.status == PluginRunStatus.RUNNING,
                         and_(
                             PluginRun.status == PluginRunStatus.QUEUED,
-                            PluginRun.created_at < started,
+                            # created_at is CURRENT_TIMESTAMP text, whole seconds;
+                            # raw, it sorts before a bound datetime of the same second.
+                            PluginRun.created_at < func.datetime(started),
                         ),
                     )
                 )
