@@ -11,8 +11,13 @@ export function useFocusHeadingOnKeyboardSwitch(
 ) {
   const keyboard = useRef(false)
   useEffect(() => {
-    const fromKeyboard = () => {
-      keyboard.current = true
+    // A key in the composer is writing or sending, never choosing a thread:
+    // a new chat's first send creates one, and the person is still writing.
+    const fromKeyboard = (event: KeyboardEvent) => {
+      keyboard.current = !(
+        event.target instanceof Element &&
+        event.target.closest("[data-composer-placement]")
+      )
     }
     const fromPointer = () => {
       keyboard.current = false
