@@ -53,6 +53,21 @@ function wait(ms: number, signal: AbortSignal) {
 }
 
 /**
+ * One read of the artifact list, or `null` once a newer read has started:
+ * the first load, the event reload and the backstop each ask on their own, and
+ * an older answer landing last would put a finished job back to running.
+ */
+async function readNewest(
+  reads: { current: number },
+  workspaceId: number,
+  signal: AbortSignal
+) {
+  const read = ++reads.current
+  const next = await listArtifacts(workspaceId, signal)
+  return read === reads.current ? next : null
+}
+
+/**
  * @param selectionToken Anything that changes when the models a format needs
  * change. The server decides which formats are available from what is
  * selected, and this hook holds that answer; without a dependency naming what
@@ -67,6 +82,7 @@ export function useStudio(workspaceId: number, selectionToken = "") {
   const [error, setError] = useState<string | null>(null)
   const pollController = useRef<AbortController | null>(null)
   const changeController = useRef<AbortController | null>(null)
+  const listReads = useRef(0)
   const hasRunning = artifacts.some(isRunning)
   // What the last read of the list held, to tell which jobs a new read ended.
   const artifactsRef = useRef(artifacts)
@@ -78,14 +94,16 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     const controller = new AbortController()
     void Promise.all([
       listFormats(workspaceId, controller.signal),
-      listArtifacts(workspaceId, controller.signal),
+      readNewest(listReads, workspaceId, controller.signal),
     ])
       .then(([nextFormats, nextArtifacts]) => {
         if (controller.signal.aborted) {
           return
         }
         setFormats(nextFormats)
-        setArtifacts(nextArtifacts)
+        if (nextArtifacts) {
+          setArtifacts(nextArtifacts)
+        }
         setError(null)
         setIsLoading(false)
       })
@@ -148,9 +166,9 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     changeController.current?.abort()
     const controller = new AbortController()
     changeController.current = controller
-    void listArtifacts(workspaceId, controller.signal)
+    void readNewest(listReads, workspaceId, controller.signal)
       .then((next) => {
-        if (changeController.current === controller) {
+        if (next && changeController.current === controller) {
           showReread(next)
         }
       })
@@ -172,9 +190,16 @@ export function useStudio(workspaceId: number, selectionToken = "") {
       try {
         while (!controller.signal.aborted) {
           await wait(LOST_NOTICE_POLL_MS, controller.signal)
-          const next = await listArtifacts(workspaceId, controller.signal)
+          const next = await readNewest(
+            listReads,
+            workspaceId,
+            controller.signal
+          )
           if (pollController.current !== controller) {
             return
+          }
+          if (!next) {
+            continue
           }
           showReread(next)
           if (!next.some(isRunning)) {

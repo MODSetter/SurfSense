@@ -116,6 +116,38 @@ describe("useStudio", () => {
     expect(api.listReads()).toBe(2)
   })
 
+  it("keeps the newest read of the list when an older one lands after it", async () => {
+    const stream = eventStream()
+    let answerFirstRead!: (response: Response) => void
+    let listed = 0
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path.endsWith("/events")) return stream.response
+        if (path.includes("/studio/formats")) return Response.json([])
+        if (listed++ === 0) {
+          return new Promise<Response>((resolve) => {
+            answerFirstRead = resolve
+          })
+        }
+        return Response.json([artifact({ status: "ready" })])
+      })
+    )
+
+    const { result } = renderHook(() => useStudio(1))
+    await waitFor(() => expect(listed).toBe(1))
+    stream.connected()
+    stream.artifactsChanged([1])
+    await waitFor(() =>
+      expect(result.current.artifacts[0]?.status).toBe("ready")
+    )
+    answerFirstRead(Response.json([artifact()]))
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.artifacts[0]?.status).toBe("ready")
+  })
+
   it("shows a success toast once a running artifact turns ready", async () => {
     const api = studioApi([[artifact()], [artifact({ status: "ready" })]])
 
