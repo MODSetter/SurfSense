@@ -51,7 +51,7 @@ The section shows the old model as in use, the new one as building, progress as 
 
 ## Cost
 
-- Time: bge measured at about 8 minutes per 1,000 passages on a mid CPU ([retrieval](retrieval.md)); a larger model is slower.
+- Time: proportional to the size of the library and the speed of the new model.
 - Disk: both vector tables exist until the switch, so vector storage roughly doubles for the length of the change.
 - Memory: the ingest worker holds both models while new uploads write to both indexes.
 - Money: a change to a remote model is billed for every passage in the library, and uploads during the change embed twice.
