@@ -72,8 +72,8 @@ async def client(opencode: RunningOpencode) -> AsyncIterator[OpencodeClient]:
 
 @pytest.fixture
 def folder(tmp_path: Path) -> Path:
-    """The folder a turn works in, as a workspace's would be."""
-    work = tmp_path / "work"
+    """The folder a turn works in, laid out as a workspace's is: `…/<id>/agent`."""
+    work = tmp_path / "workspaces" / "1" / "agent"
     (work / "outputs").mkdir(parents=True)
     return work
 
@@ -205,3 +205,49 @@ async def test_a_deleted_session_is_gone(client: OpencodeClient, folder: Path) -
     await client.delete_session(folder, session_id)
 
     assert session_id not in await client.session_ids(folder)
+
+
+def write_call(path: str, content: str) -> tuple[str, str]:
+    """A scripted `write` tool call, as a model would make it."""
+    return (
+        "call",
+        json.dumps(
+            {"name": "write", "arguments": {"filePath": path, "content": content}}
+        ),
+    )
+
+
+async def test_the_agent_writes_what_it_produces_to_outputs(
+    client: OpencodeClient, folder: Path, scripted_model: ScriptedModel
+) -> None:
+    """The output folder is the agent's; a deliverable it cannot write is no deliverable."""
+    scripted_model.replies = [
+        write_call("outputs/summary.md", "Revenue rose."),
+        ("text", "Wrote it."),
+    ]
+    session_id = await client.create_session(folder, "Thread 1")
+
+    async with EventLog(client, folder) as log:
+        await client.send_turn(folder, session_id, "Summarise", model=MODEL)
+        await log.until(idle(session_id))
+
+    assert (folder / "outputs" / "summary.md").read_text() == "Revenue rose."
+
+
+async def test_the_agent_cannot_change_its_sources(
+    client: OpencodeClient, folder: Path, scripted_model: ScriptedModel
+) -> None:
+    """The sources are SurfSense's copy of the user's documents, rebuilt from the library."""
+    (folder / "sources").mkdir()
+    scripted_model.replies = [
+        write_call("sources/Plan [1].md", "Rewritten."),
+        ("text", "Done."),
+    ]
+    session_id = await client.create_session(folder, "Thread 1")
+
+    async with EventLog(client, folder) as log:
+        await client.send_turn(folder, session_id, "Rewrite the plan", model=MODEL)
+        await log.until(tool_part("error"))
+        await log.until(idle(session_id))
+
+    assert not (folder / "sources" / "Plan [1].md").exists()

@@ -26,7 +26,9 @@ CHUNK_TIMEOUT_MS = 30 * 60 * 1000
 # The last matching rule wins, so each allow follows the deny it narrows.
 PERMISSION: dict[str, Any] = {
     "bash": "ask",
-    "edit": {"*": "deny", "outputs/*": "allow"},
+    # opencode matches an edit's path relative to the project root, which for a
+    # folder outside git is "/", so the rule names the folder from any root.
+    "edit": {"*": "deny", "*/agent/outputs/*": "allow"},
     "external_directory": "deny",
     "webfetch": "deny",
     "websearch": "deny",

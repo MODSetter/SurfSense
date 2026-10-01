@@ -39,7 +39,8 @@ def needs_staged_opencode() -> None:
 class ScriptedModel:
     """An OpenAI-compatible model that plays its replies in order, one per request.
 
-    A reply is ("text", words), ("bash", command) for one shell call, or
+    A reply is ("text", words), ("bash", command) for one shell call,
+    ("call", JSON of {"name", "arguments"}) for any other tool call, or
     ("stall", words), which sends its words and then waits until released.
     """
 
@@ -73,13 +74,20 @@ class ScriptedHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.end_headers()
-        if kind == "bash":
-            arguments = json.dumps({"command": value, "description": "Run it"})
+        if kind in ("bash", "call"):
+            name, arguments = (
+                ("bash", json.dumps({"command": value, "description": "Run it"}))
+                if kind == "bash"
+                else (
+                    json.loads(value)["name"],
+                    json.dumps(json.loads(value)["arguments"]),
+                )
+            )
             call = {
                 "index": 0,
                 "id": "call_1",
                 "type": "function",
-                "function": {"name": "bash", "arguments": arguments},
+                "function": {"name": name, "arguments": arguments},
             }
             self._send(
                 _chunk({"role": "assistant", "tool_calls": [call]}),

@@ -89,7 +89,10 @@ def test_shell_commands_ask_and_files_are_written_only_to_outputs(
     permission = written(path)["permission"]
     assert permission["bash"] == "ask"
     # The last matching rule wins, so the allow comes after the deny.
-    assert list(permission["edit"].items()) == [("*", "deny"), ("outputs/*", "allow")]
+    assert list(permission["edit"].items()) == [
+        ("*", "deny"),
+        ("*/agent/outputs/*", "allow"),
+    ]
     assert permission["external_directory"] == "deny"
     for tool in ("webfetch", "websearch", "task", "question", "skill"):
         assert permission[tool] == "deny", tool
