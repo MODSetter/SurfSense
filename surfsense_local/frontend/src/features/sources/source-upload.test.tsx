@@ -450,11 +450,23 @@ describe("source upload", () => {
     )
   })
 
-  it("uploads multipart files, reports duplicates, and polls until ready", async () => {
+  it("uploads multipart files, reports duplicates, and shows the source ready when the workspace reports it", async () => {
     let uploaded = false
+    let events!: ReadableStreamDefaultController<Uint8Array>
+    const stream = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          events = controller
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream" } }
+    )
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
+        if (path === "/workspaces/1/events") {
+          return stream
+        }
         if (
           path ===
             "/workspaces/1/documents?document_type=FILE&document_type=NOTE" &&
@@ -508,6 +520,14 @@ describe("source upload", () => {
     expect(
       await screen.findByRole("status", { name: "Processing guide.txt" })
     ).toBeTruthy()
+    events.enqueue(
+      new TextEncoder().encode(
+        `: connected\n\nevent: documents\ndata: ${JSON.stringify({
+          ids: [pendingDocument.id],
+          status: "ready",
+        })}\n\n`
+      )
+    )
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("1 source added", {
         id: "source-upload-outcome",
