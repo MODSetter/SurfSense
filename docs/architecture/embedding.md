@@ -2,7 +2,7 @@
 
 Which model turns passages and questions into vectors. It is chosen once, in onboarding, and fixed for the whole library: every vector in it was made by that model, and changing it means embedding everything again, which is not built ([proposal](../proposals/embedding-model-change.md)).
 
-**Code:** [`modules/embedding/`](../../surfsense_local/backend/modules/embedding/), [`engines/onnxruntime/`](../../surfsense_local/backend/modules/llm/catalog/local/engines/onnxruntime/), [`frontend/src/features/onboarding/model-step/use-embedding-step.ts`](../../surfsense_local/frontend/src/features/onboarding/model-step/use-embedding-step.ts), [`frontend/src/features/embedding/`](../../surfsense_local/frontend/src/features/embedding/)
+**Code:** [`modules/embedding/`](../../surfsense_local/backend/modules/embedding/), [`engines/onnxruntime/`](../../surfsense_local/backend/modules/llm/catalog/local/engines/onnxruntime/), [`frontend/src/features/onboarding/model-step/use-embedding-step.ts`](../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts), [`frontend/src/features/embedding/`](../../surfsense_local/frontend/src/features/embedding/)
 **Decisions:** [ADR 0007](../adr/0007-bundled-embeddings.md), [ADR 0036](../adr/0036-the-index-records-its-embedder.md), [ADR 0037](../adr/0037-embedding-is-a-type-not-a-slot.md)
 
 ## The index

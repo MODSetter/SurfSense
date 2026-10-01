@@ -1101,7 +1101,7 @@ describe("the embedding model step", () => {
     ).toContain("BGE Small (English)")
     expect(
       screen.getByText(
-        "Your choice is kept for your whole library. Changing it later is not available yet."
+        "You can’t change this later. If you’re unsure, the default works well for English."
       )
     ).toBeTruthy()
     // Remote embedders are not offered yet.
@@ -1218,7 +1218,7 @@ describe("the embedding model step", () => {
     await user.click(await screen.findByText(E5))
     expect(
       await screen.findByText(
-        "Larger models make adding documents slower and use more memory, and this choice can’t be changed later."
+        "Larger models make adding documents slower and use more memory."
       )
     ).toBeTruthy()
     await user.click(

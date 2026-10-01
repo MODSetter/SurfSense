@@ -21,9 +21,7 @@ import {
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
-import { EMBEDDING_SEARCH } from "@/features/embedding/huggingface-search"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
-import type { SearchSource } from "@/features/models/local/chat/search-source"
 import { useInstall } from "@/features/models/local/installs/use-install"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
@@ -32,172 +30,22 @@ import type { YourModelRow } from "@/features/models/your-models/your-model-row"
 import { intl } from "@/i18n/intl"
 
 import { OfflineState } from "../offline-state"
-import { HuggingFaceSearch } from "./hugging-face-search"
-import { leadBuild, localChoices } from "./local-choices"
-import { LocalModelList } from "./local-model-list"
+import { HuggingFaceSearch } from "./local/hugging-face-search"
+import { leadBuild, localChoices } from "./local/local-choices"
+import { LocalModelList } from "./local/local-model-list"
 import { ModelReady } from "./model-ready"
-import { ServerOption } from "./server-option"
-import { ServerPath } from "./server-path"
-import { slotOf, type OnboardingStepKind } from "./step-kind"
-import { stepModels } from "./step-models-table"
-import { stepDeletes } from "./use-slot-delete"
-
-const COPY: Record<
-  OnboardingStepKind,
-  {
-    title: () => string
-    description: () => string
-    noLocal: () => string
-    /** Hugging Face search, GGUF unless a source is given; null for none. */
-    search: { source?: SearchSource; note?: () => string } | null
-    /** Said below the list, where a choice has a consequence to state. */
-    notice?: () => string
-  }
-> = {
-  text_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_title",
-        defaultMessage: "Choose a text generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_body",
-        defaultMessage:
-          "Answers you in chat. Run one on this computer so your chats stay private, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_no_local_empty",
-        defaultMessage:
-          "No tested model can run on this computer. Use a server instead.",
-      }),
-    search: {},
-  },
-  image_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_title",
-        defaultMessage: "Choose an image generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_body",
-        defaultMessage:
-          "Creates images for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_no_local_empty",
-        defaultMessage:
-          "Image models cannot run on this computer. Use a server instead.",
-      }),
-    // sd.cpp has no search: its models are the few the catalog ships.
-    search: null,
-  },
-  image_edit: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_title",
-        defaultMessage: "Choose an image editing model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_body",
-        defaultMessage:
-          "Edits images for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_no_local_empty",
-        defaultMessage:
-          "Image editing models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor has it for editing: the same few models.
-    search: null,
-  },
-  video_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_title",
-        defaultMessage: "Choose a video generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_body",
-        defaultMessage:
-          "Makes short video clips. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_no_local_empty",
-        defaultMessage:
-          "Video models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor for video.
-    search: null,
-  },
-  audio_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_title",
-        defaultMessage: "Choose an audio model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_body",
-        defaultMessage:
-          "Creates podcasts for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_no_local_empty",
-        defaultMessage:
-          "Audio models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor has audio.cpp.
-    search: null,
-  },
-  embedding: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_embedding_step_title",
-        defaultMessage: "Choose an embedding model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_embedding_step_body",
-        defaultMessage:
-          "Choose a multilingual model only if your documents or questions are in more than one language.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_embedding_step_no_local_empty",
-        defaultMessage: "No embedding model is on this computer.",
-      }),
-    // ONNX embedders, found through their own endpoints.
-    search: {
-      source: EMBEDDING_SEARCH,
-      note: () =>
-        intl.formatMessage({
-          id: "onboarding_embedding_search_cost_body",
-          defaultMessage:
-            "Larger models make adding documents slower and use more memory, and this choice can’t be changed later.",
-        }),
-    },
-    notice: () =>
-      intl.formatMessage({
-        id: "onboarding_embedding_step_fixed_body",
-        defaultMessage:
-          "Your choice is kept for your whole library. Changing it later is not available yet.",
-      }),
-  },
-}
+import { STEP_COPY } from "./step-copy"
+import { ServerOption } from "./server/server-option"
+import { ServerPath } from "./server/server-path"
+import { slotOf, type OnboardingStepKind } from "./kinds/step-kind"
+import { stepModels } from "./kinds/step-models-table"
+import { stepDeletes } from "./kinds/step-deletes"
 
 /**
- * One onboarding step for one slot. Every local model is listed at once, the
- * recommended one first, with a server one line below: nothing is hidden
- * behind a click. The step is done once the slot has a model.
+ * One onboarding step, for a slot or the embedding model; what differs is in
+ * `kinds/` and `step-copy.ts`. Every local model is listed at once, the
+ * recommended one first, with a server one line below for a slot: nothing is
+ * hidden behind a click. The step is done once it has a model.
  */
 export function ModelStep({
   modelType,
@@ -220,7 +68,7 @@ export function ModelStep({
   /** Present only where the slot is optional. */
   onSkip?: () => void
 }) {
-  const copy = COPY[modelType]
+  const copy = STEP_COPY[modelType]
   const models = stepModels[modelType]()
   // A slot's download becomes its model, so a first model takes one click.
   const { jobs, installs, install, cancel } = useInstall(models.install)

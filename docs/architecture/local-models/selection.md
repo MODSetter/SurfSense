@@ -190,7 +190,7 @@ The embedding step comes last and is not a slot, but it is the same component
 as the model steps below, with one more entry in their tables
 ([`model-step/`](../../../surfsense_local/frontend/src/features/onboarding/model-step/)).
 What a step does on Use is its own hook: a slot's saves the selection, and the
-embedding step's ([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/use-embedding-step.ts))
+embedding step's ([`use-embedding-step.ts`](../../../surfsense_local/frontend/src/features/onboarding/model-step/kinds/use-embedding-step.ts))
 only marks a choice, In use until another is used, bge-small by default and again
 if the chosen one is deleted. Its downloads install with `select: false`; a
 Hugging Face pick is labelled not tested by SurfSense; the bundled bge-small has

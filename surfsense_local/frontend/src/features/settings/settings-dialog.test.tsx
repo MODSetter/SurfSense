@@ -93,7 +93,7 @@ describe("SettingsDialog", () => {
     ).toBeTruthy()
     expect(
       screen.getByText(
-        "Chosen during setup and kept for your whole library. Changing it is not available yet."
+        "Chosen during onboarding setup and used for every document, so it can’t be changed."
       )
     ).toBeTruthy()
     expect(

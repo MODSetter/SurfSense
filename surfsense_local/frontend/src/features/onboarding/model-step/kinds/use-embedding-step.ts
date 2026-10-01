@@ -3,7 +3,7 @@ import { useState } from "react"
 import { useLocalChatCatalog } from "@/features/models/local/chat/use-local-chat-catalog"
 import { intl } from "@/i18n/intl"
 
-import { leadBuild } from "./local-choices"
+import { leadBuild } from "../local/local-choices"
 import type { StepModels } from "./step-models"
 
 /**

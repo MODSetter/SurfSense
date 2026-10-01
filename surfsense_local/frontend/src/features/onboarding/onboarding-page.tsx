@@ -8,7 +8,7 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
-import type { OnboardingStepKind } from "./model-step/step-kind"
+import type { OnboardingStepKind } from "./model-step/kinds/step-kind"
 import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
