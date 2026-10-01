@@ -67,3 +67,10 @@ class Document(Base):
     artifact: Mapped["Artifact | None"] = relationship(
         back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )
+
+    @property
+    def mime_type(self) -> str | None:
+        if self.document_type is not DocumentType.FILE:
+            return None
+        mime_type = (self.document_metadata or {}).get("mime_type")
+        return mime_type if isinstance(mime_type, str) else None
