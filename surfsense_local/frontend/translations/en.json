@@ -479,7 +479,7 @@
   "onboarding_chat_step_no_local_empty": "No tested model can run on this computer. Use a server instead.",
   "onboarding_chat_step_title": "Choose a text generation model",
   "onboarding_embedding_search_cost_body": "Larger models make adding documents slower and use more memory.",
-  "onboarding_embedding_step_body": "Lets SurfSense find what you’re asking about in your documents. Choose a multilingual model only if your documents or questions are in more than one language.",
+  "onboarding_embedding_step_body": "Finds what you ask about in your documents. Multilingual reads many languages.",
   "onboarding_embedding_step_fixed_body": "You can’t change this later. If you’re unsure, the default works well for English.",
   "onboarding_embedding_step_no_local_empty": "No embedding model is on this computer.",
   "onboarding_embedding_step_title": "Choose an embedding model",

@@ -479,7 +479,7 @@
   "onboarding_chat_step_no_local_empty": "이 컴퓨터에서 실행할 수 있는 테스트된 모델이 없습니다. 대신 서버를 사용하세요.",
   "onboarding_chat_step_title": "텍스트 생성 모델 선택",
   "onboarding_embedding_search_cost_body": "모델이 클수록 문서 추가가 느려지고 메모리를 더 많이 사용합니다.",
-  "onboarding_embedding_step_body": "SurfSense가 문서에서 질문한 내용을 찾을 수 있게 합니다. 문서나 질문이 두 가지 이상의 언어로 되어 있을 때만 다국어 모델을 선택하세요.",
+  "onboarding_embedding_step_body": "문서에서 질문한 내용을 찾습니다. 다국어 모델은 여러 언어를 읽습니다.",
   "onboarding_embedding_step_fixed_body": "나중에 변경할 수 없습니다. 잘 모르겠다면 기본 모델이 영어에 적합합니다.",
   "onboarding_embedding_step_no_local_empty": "이 컴퓨터에 임베딩 모델이 없습니다.",
   "onboarding_embedding_step_title": "임베딩 모델 선택",

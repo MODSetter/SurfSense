@@ -4603,6 +4603,60 @@
       ]
     },
     {
+      "id": "multilingual-e5-small",
+      "name": "Multilingual E5 Small",
+      "family": "E5",
+      "publisher": "Microsoft",
+      "description": "A smaller multilingual model, for machines with less memory.",
+      "license": "mit",
+      "source_repo": "intfloat/multilingual-e5-small",
+      "aliases": [
+        "intfloat/multilingual-e5-small"
+      ],
+      "evidence": {
+        "architecture": "bert",
+        "pipeline_tag": "feature-extraction"
+      },
+      "embedding": {
+        "dimension": 384,
+        "pooling": "mean",
+        "normalize": true,
+        "max_tokens": 512,
+        "query_prefix": "query: ",
+        "document_prefix": "passage: ",
+        "semantic_weight": 0.65,
+        "batch": 32
+      },
+      "builds": [
+        {
+          "quantization": "INT8",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "Xenova/multilingual-e5-small",
+              "upstream_repo": "intfloat/multilingual-e5-small",
+              "revision": "761b726dd34fb83930e26aab4e9ac3899aa1fa78",
+              "path": "onnx/model_int8.onnx",
+              "size_bytes": 118054593,
+              "sha256": "4d24e2bc01a447951524466ef533e52944bf48509e6552810bcee1a2711cb02c"
+            },
+            {
+              "role": "tokenizer",
+              "repo": "Xenova/multilingual-e5-small",
+              "upstream_repo": "intfloat/multilingual-e5-small",
+              "revision": "761b726dd34fb83930e26aab4e9ac3899aa1fa78",
+              "path": "tokenizer.json",
+              "size_bytes": 17082730,
+              "sha256": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39"
+            }
+          ],
+          "validated": {
+            "onnxruntime": "1.29.0"
+          }
+        }
+      ]
+    },
+    {
       "id": "granite-embedding-97m-multilingual-r2",
       "name": "Granite Embedding 97M (Multilingual)",
       "family": "Granite Embedding",

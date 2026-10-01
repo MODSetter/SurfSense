@@ -479,7 +479,7 @@
   "onboarding_chat_step_no_local_empty": "这台电脑无法运行任何经过测试的模型。请改用服务器。",
   "onboarding_chat_step_title": "选择文本生成模型",
   "onboarding_embedding_search_cost_body": "模型越大，添加文档越慢，占用的内存也越多。",
-  "onboarding_embedding_step_body": "让 SurfSense 在你的文档中找到你询问的内容。只有当你的文档或问题涉及多种语言时，才需要选择多语言模型。",
+  "onboarding_embedding_step_body": "在你的文档中找到你询问的内容。多语言模型能读懂多种语言。",
   "onboarding_embedding_step_fixed_body": "之后无法更改。如果不确定，默认模型很适合英文。",
   "onboarding_embedding_step_no_local_empty": "这台电脑上没有嵌入模型。",
   "onboarding_embedding_step_title": "选择嵌入模型",

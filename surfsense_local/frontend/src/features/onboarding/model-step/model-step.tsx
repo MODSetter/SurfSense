@@ -162,6 +162,13 @@ export function ModelStep({
     }
     return (
       <div className="flex flex-col gap-5">
+        {/* Above the list: read before choosing, not after. */}
+        {copy.notice ? (
+          <Alert variant="secondary">
+            <CircleAlertIcon />
+            <AlertDescription>{copy.notice()}</AlertDescription>
+          </Alert>
+        ) : null}
         <section
           className="flex flex-col gap-3"
           aria-label={intl.formatMessage({
@@ -219,13 +226,6 @@ export function ModelStep({
             />
           ) : null}
         </section>
-
-        {copy.notice ? (
-          <Alert variant="secondary">
-            <CircleAlertIcon />
-            <AlertDescription>{copy.notice()}</AlertDescription>
-          </Alert>
-        ) : null}
 
         {slot ? (
           <>

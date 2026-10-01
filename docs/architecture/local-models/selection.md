@@ -195,9 +195,9 @@ only marks a choice, In use until another is used, bge-small by default and agai
 if the chosen one is deleted. Its downloads install with `select: false`; a
 Hugging Face pick is labelled not tested by SurfSense; the bundled bge-small has
 no Delete. Its search is `ModelSearch` given the embedding endpoints, which answer
-in the GGUF search's shapes, with a note that larger models are slower and the
-choice is permanent, and a notice below the list says the choice is kept for the
-whole library. It offers no server until remote embedders exist. Being last, its
+in the GGUF search's shapes, with a note that larger models are slower. A notice
+above the list says the choice can't be changed later and that the default suits
+English. It offers no server until remote embedders exist. Being last, its
 Finish sends the choice with the call that ends onboarding; Skip and finish, or
 Finish with the choice untouched, sends none, which means bge-small
 ([embedding](../embedding.md)).

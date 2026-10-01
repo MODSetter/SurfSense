@@ -13,7 +13,7 @@ export const STEP_COPY: Record<
     noLocal: () => string
     /** Hugging Face search, GGUF unless a source is given; null for none. */
     search: { source?: SearchSource; note?: () => string } | null
-    /** Said below the list, where a choice has a consequence to state. */
+    /** Said above the list, where a choice has a consequence to state. */
     notice?: () => string
   }
 > = {
@@ -131,7 +131,7 @@ export const STEP_COPY: Record<
       intl.formatMessage({
         id: "onboarding_embedding_step_body",
         defaultMessage:
-          "Lets SurfSense find what you’re asking about in your documents. Choose a multilingual model only if your documents or questions are in more than one language.",
+          "Finds what you ask about in your documents. Multilingual reads many languages.",
       }),
     noLocal: () =>
       intl.formatMessage({

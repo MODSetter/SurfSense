@@ -473,6 +473,31 @@ ENTRIES: tuple[Entry, ...] = (
         },
     ),
     EmbeddingEntry(
+        id="multilingual-e5-small",
+        name="Multilingual E5 Small",
+        family="E5",
+        publisher="Microsoft",
+        description="A smaller multilingual model, for machines with less memory.",
+        license="mit",
+        source_repo="intfloat/multilingual-e5-small",
+        repo="Xenova/multilingual-e5-small",
+        upstream_repo="intfloat/multilingual-e5-small",
+        aliases=("intfloat/multilingual-e5-small",),
+        builds=(("INT8", "onnx/model_int8.onnx"),),
+        # Mean pooling and the prefixes it was trained with: the mirror states
+        # neither, and without them it searches worse.
+        embedding={
+            "dimension": 384,
+            "pooling": "mean",
+            "normalize": True,
+            "max_tokens": 512,
+            "query_prefix": "query: ",
+            "document_prefix": "passage: ",
+            "semantic_weight": 0.65,
+            "batch": 32,
+        },
+    ),
+    EmbeddingEntry(
         id="granite-embedding-97m-multilingual-r2",
         name="Granite Embedding 97M (Multilingual)",
         family="Granite Embedding",

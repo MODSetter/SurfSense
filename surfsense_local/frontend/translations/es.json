@@ -479,7 +479,7 @@
   "onboarding_chat_step_no_local_empty": "Ningún modelo probado puede ejecutarse en este equipo. Usa un servidor en su lugar.",
   "onboarding_chat_step_title": "Elige un modelo de generación de texto",
   "onboarding_embedding_search_cost_body": "Los modelos más grandes hacen más lento añadir documentos y usan más memoria.",
-  "onboarding_embedding_step_body": "Permite que SurfSense encuentre en tus documentos lo que preguntas. Elige un modelo multilingüe solo si tus documentos o preguntas están en más de un idioma.",
+  "onboarding_embedding_step_body": "Encuentra en tus documentos lo que preguntas. Los multilingües leen muchos idiomas.",
   "onboarding_embedding_step_fixed_body": "No podrás cambiarlo más adelante. Si no estás seguro, el modelo predeterminado funciona bien para inglés.",
   "onboarding_embedding_step_no_local_empty": "No hay ningún modelo de embedding en este equipo.",
   "onboarding_embedding_step_title": "Elige un modelo de embedding",
