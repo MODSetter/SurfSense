@@ -1,6 +1,6 @@
 # ADR 0004: The desktop app is its own tree on FastAPI, SQLite and Huey, with no accounts
 
-- **Status:** Accepted
+- **Status:** Accepted; Docker Compose leaving the out-of-scope list, and the loopback rule narrowed to the API, are superseded by [ADR 0035](0035-docker-compose-runs-the-desktop-stack.md)
 - **Date:** 2026-09-03
 - **Source:** [Umbrella plan L17](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00-umbrella-plan.md#L17), [Umbrella plan L86–98](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00-umbrella-plan.md#L86-L98), [Umbrella plan L104](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00-umbrella-plan.md#L104), [Data model L6–13](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00c-data-model.md#L6-L13), [Connections plan L83–87](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L83-L87)
 
