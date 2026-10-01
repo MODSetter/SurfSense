@@ -88,16 +88,21 @@ def record_install(models_dir: Path, build: InstalledBuild) -> None:
     write_installs(models_dir, installs)
 
 
-def forget_install(models_dir: Path, model_id: str) -> tuple[str, ...]:
-    """Drop one build from the record and return the files that go with it:
-    each one no other installed build still names."""
+def install_files(models_dir: Path, model_id: str) -> tuple[str, ...]:
+    """The files that go with one build: each one no other installed build
+    still names."""
     installs = read_installs(models_dir)
     build = installs.pop(model_id, None)
-    write_installs(models_dir, installs)
     if build is None:
         return (f"{model_id}.gguf", projector_filename(model_id))
     kept = {name for other in installs.values() for name in other.files}
     return tuple(name for name in build.files if name not in kept)
+
+
+def forget_install(models_dir: Path, model_id: str) -> None:
+    installs = read_installs(models_dir)
+    installs.pop(model_id, None)
+    write_installs(models_dir, installs)
 
 
 def _plain(build: InstalledBuild) -> dict[str, Any]:

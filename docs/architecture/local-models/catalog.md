@@ -549,6 +549,13 @@ last removes the file, since the server refuses an empty model list, and Electro
 stops the server. At startup `warm()` rewrites `server.json` from the install
 records, so a stale or missing file heals.
 
+The files go before the record. Windows refuses to delete a file that sd-server
+or audiocpp_server still has open, so there deleting the model in use can fail
+at the file: the API then keeps the record, clears the slots that named the
+model, which is what makes Electron stop the server on its next poll, and
+answers 409 asking for the delete again in a few seconds. A delete that removed
+only some files of a build is finished by repeating it.
+
 **Image models the hard-coded list downloaded** were saved as `sd15-q4_0.gguf`,
 `sdxl-base-q4_0.gguf` and `sdxl-turbo-q4_0.gguf`, each verified against the
 sha256 the manifest now pins. At startup `warm()` records each one as its curated
@@ -681,7 +688,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 ## Known gaps
 
-- Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
 - Of `sampling`, chat sends only `temperature` ([`runtime.md`](runtime.md)); `top_p`, `top_k` and `min_p` wait on the `Generator` protocol carrying them. `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.

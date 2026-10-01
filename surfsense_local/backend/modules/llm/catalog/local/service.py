@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from modules.embedding.spec import EmbedderSpec
+from modules.llm.activity import ModelFileHeldError
 from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
@@ -25,7 +26,7 @@ from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.install.tickets import TicketStore
 from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
-from modules.llm.catalog.local.installs import forget_install
+from modules.llm.catalog.local.installs import forget_install, install_files
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
 from modules.llm.fit import HardwareBudget, ModelShape
@@ -263,10 +264,18 @@ class LocalCatalogService:
         )
 
     def remove(self, model_id: str, *, engine: str) -> None:
-        """Delete a model's files, every part and its projector, and forget it."""
+        """Delete a model's files, every part and its projector, and forget it.
+
+        Files first: Windows refuses to delete one a server still has open, and
+        a record dropped before that left the model unlisted with its files on
+        disk."""
         folder = self._folder(engine)
-        for name in forget_install(folder, model_id):
-            (folder / name).unlink(missing_ok=True)
+        for name in install_files(folder, model_id):
+            try:
+                (folder / name).unlink(missing_ok=True)
+            except PermissionError as error:
+                raise ModelFileHeldError(model_id) from error
+        forget_install(folder, model_id)
         self.engine(engine).after_remove()
 
     def _folder(self, engine: str) -> Path:
