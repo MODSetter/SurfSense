@@ -125,3 +125,4 @@ The rules that keep the processes out of each other's way:
 ## Known gaps
 
 - The sources and Studio lists reload themselves on a workspace event rather than through TanStack Query: they are component state, so nothing else that shows a document or an artifact is invalidated by the same event.
+- The retry `wait()` in [`workspace-changes.ts`](../../surfsense_local/frontend/src/features/workspaces/workspace-changes.ts) never removes its `abort` listener when its timer fires, so a stream that keeps dropping, as it does while the API is down, adds one listener to the workspace's signal per attempt, about 360 an hour, until the last list leaves. It also waits out its timer when the signal is already aborted, so a stream torn down between attempts takes up to 10 seconds to stop.
