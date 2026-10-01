@@ -13,6 +13,15 @@ class Settings(BaseSettings):
     # Electron's main process, above every sidecar and window process: the root
     # of what the usage panel counts as the app. Unset outside Electron.
     shell_pid: int | None = None
+    # Comma-separated. "*" is what the desktop app needs: its window loads from
+    # file:// and calls the loopback sidecar cross-origin. The Docker image sets
+    # it empty, so no cross-origin page can talk to the API.
+    cors_origins: str = "*"
+
+    def cors_origin_list(self) -> list[str]:
+        return [
+            origin.strip() for origin in self.cors_origins.split(",") if origin.strip()
+        ]
 
 
 @lru_cache
