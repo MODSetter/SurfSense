@@ -19,7 +19,7 @@ function spawnOne(spec: SidecarSpec, onCrash?: CrashHandler): ChildProcess {
     cwd: spec.cwd,
     // own process group: one signal reaches a wrapper (uv) and its child
     detached: !isWindows,
-    env: { ...process.env, ...spec.env },
+    env: spec.inheritEnv === false ? spec.env : { ...process.env, ...spec.env },
   })
   child.stdout?.on("data", (b: Buffer) => process.stdout.write(`[${spec.name}] ${b}`))
   child.stderr?.on("data", (b: Buffer) => process.stderr.write(`[${spec.name}] ${b}`))
@@ -79,7 +79,13 @@ function stopOne(child: ChildProcess, timeoutMs: number): Promise<void> {
       return
     }
     stopping.add(child)
-    child.once("exit", () => resolve())
+    const pid = child.pid
+    child.once("exit", () => {
+      // The parent leaving does not prove its group has: a child that ignores
+      // SIGTERM, such as a shell command the agent ran, would outlive the app.
+      if (!isWindows) killGroup(pid)
+      resolve()
+    })
 
     if (isWindows) {
       // no POSIX groups on Windows: kill the tree; windowsHide avoids a console flash
@@ -92,15 +98,18 @@ function stopOne(child: ChildProcess, timeoutMs: number): Promise<void> {
       resolve() // already gone
       return
     }
-    const timer = setTimeout(() => {
-      try {
-        process.kill(-child.pid!, "SIGKILL")
-      } catch {
-        // reaped between the timeout and now
-      }
-    }, timeoutMs)
+    const timer = setTimeout(() => killGroup(pid), timeoutMs)
     timer.unref()
   })
+}
+
+/** SIGKILL a sidecar's whole process group, which may already be gone. */
+function killGroup(pid: number): void {
+  try {
+    process.kill(-pid, "SIGKILL")
+  } catch {
+    // reaped already
+  }
 }
 
 export async function stopAll(children: Sidecars, timeoutMs = 5000): Promise<void> {

@@ -56,6 +56,7 @@ describe("LeftSidebar", () => {
             id: 1,
             workspace_id: 1,
             title: "Past chat",
+            uses_agent: false,
             created_at: "2026-09-08T00:00:00Z",
             updated_at: "2026-09-08T00:00:00Z",
           },

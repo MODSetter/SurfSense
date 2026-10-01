@@ -21,6 +21,8 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | thinking (a model reasoning before it answers) | 考え中 / 考えました | 생각 | 思考 | सोचना | nachdenken | pensar | réflexion | pensar | размышления |
 | document | ドキュメント | 문서 | 文档 | दस्तावेज़ | Dokument | documento | document | documento | документ |
 | chat | チャット | 채팅 | 对话 | चैट | Chat | chat | chat | chat | чат |
+| agent (the assistant that works through steps and tools) | エージェント | 에이전트 | 智能体 | एजेंट | Agent | agente | agent | agente | агент |
+| shell command | シェルコマンド | 셸 명령 | shell 命令 | शेल कमांड | Shell-Befehl | comando de shell | commande shell | comando de shell | команда оболочки |
 | model | モデル | 모델 | 模型 | मॉडल | Modell | modelo | modèle | modelo | модель |
 | download | ダウンロード † | 다운로드 | 下载 | डाउनलोड | herunterladen | descargar | télécharger | baixar | скачать |
 | settings | 設定 | 설정 | 设置 | सेटिंग्स | Einstellungen | ajustes | Paramètres | Configurações | настройки |

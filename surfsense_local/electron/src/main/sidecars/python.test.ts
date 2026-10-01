@@ -69,3 +69,38 @@ test("under pnpm dev a worker is the app's own child, so it dies with the app", 
   assert.equal(worker.cmd, join(ctx.backendDir, venvPython))
   assert.deepEqual(worker.args, ["worker.py", "studio"])
 })
+
+/** The context boot builds on a host where opencode is staged. */
+function withAgent(): SidecarContext {
+  return {
+    ...withAudio(),
+    opencodePort: 4321,
+    opencodePassword: "launch-password",
+    opencodeUrl: "http://127.0.0.1:4321",
+  }
+}
+
+test("the API is told where the agent will be and its password", () => {
+  // Chosen at boot, before opencode exists: the API writes its config later.
+  const api = apiSpec(withAgent()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_OPENCODE_URL, "http://127.0.0.1:4321")
+  assert.equal(api.SURFSENSE_LOCAL_OPENCODE_PASSWORD, "launch-password")
+})
+
+test("a worker is never told the agent's password", () => {
+  // Plugin runs start from a worker's environment; the password opens the agent's API.
+  for (const queue of ["ingest", "studio"] as const) {
+    const worker = workerSpec(withAgent(), queue).env
+
+    assert.equal(worker.SURFSENSE_LOCAL_OPENCODE_PASSWORD, undefined, queue)
+    assert.equal(worker.SURFSENSE_LOCAL_OPENCODE_URL, undefined, queue)
+  }
+})
+
+test("without a staged opencode the API is told of no agent", () => {
+  const api = apiSpec(withAudio()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_OPENCODE_URL, undefined)
+  assert.equal(api.SURFSENSE_LOCAL_OPENCODE_PASSWORD, undefined)
+})
