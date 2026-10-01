@@ -18,18 +18,26 @@ Stage numbering is the execution order. Each stage lists **checks** and **stop c
 
 ## The flag the script checks
 
-The script refuses to run unless `SUNSET_MODE` is on, so it cannot be pointed at a live deployment
-by mistake. It reads the **backend** variable — the one in `surfsense_backend/.env`, set at T-0 in
-[`sunset-runbook.md`](sunset-runbook.md) stage 1 — because `app.config` loads that file at import.
-The web app's copy in `surfsense_web/.env` is irrelevant here.
+The script refuses to run unless the sunset flag is on, so it cannot be pointed at a live deployment
+by mistake. The flag is two variables, not one: `is_sunset_mode()` is true only when
+`DEPLOYMENT_MODE=cloud` **and** `SUNSET_MODE` is `1`, `true`, `yes` or `on`. `DEPLOYMENT_MODE` is the
+half that keeps a self-hosted install with a copied `.env` out of reach of this script, and it
+defaults to `self-hosted` when unset.
 
-So if you run the script from `surfsense_backend/` on a host whose `.env` still has the flag from
-T-0, it just works. If you run it somewhere else — a different checkout, a container shell, a
-machine that never had the file — it will refuse even though production is very much wound down.
-That refusal is the guard doing its job, not a bug; set the variable in that shell and re-run:
+The script reads the **backend** variables — the ones in `surfsense_backend/.env`, where
+`SUNSET_MODE` was set at T-0 in [`sunset-runbook.md`](sunset-runbook.md) stage 1 and
+`DEPLOYMENT_MODE=cloud` has been set on production all along — because `app.config` loads that file
+at import. The web app's copies in `surfsense_web/.env` are irrelevant here.
+
+So if you run the script from `surfsense_backend/` on a host whose `.env` still has both from T-0,
+it just works. If you run it somewhere else — a different checkout, a container shell, a machine
+that never had the file — it will refuse even though production is very much wound down. That
+refusal is the guard doing its job, not a bug. `DEPLOYMENT_MODE` is the one that goes missing,
+because nobody set it on the day; and the script's message names only `SUNSET_MODE` whichever of
+the two is absent. Set both in that shell and re-run:
 
 ```bash
-SUNSET_MODE=1 python -m scripts.purge_hosted_accounts
+DEPLOYMENT_MODE=cloud SUNSET_MODE=1 python -m scripts.purge_hosted_accounts
 ```
 
 ---
@@ -45,7 +53,9 @@ date -u                 # on or after the date users were told
 the direction that cannot be apologised for.
 
 **Stop condition:** `sunset` is false. The purge script refuses to run in this state anyway — it is
-a guard against pointing it at a live deployment.
+a guard against pointing it at a live deployment. `/health` reports the same two variables the
+script checks, so a false here on a wound-down production means the API process lost
+`DEPLOYMENT_MODE=cloud` or `SUNSET_MODE`; find out which before going on.
 
 ---
 
