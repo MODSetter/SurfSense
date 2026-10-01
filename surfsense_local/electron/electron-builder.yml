@@ -40,6 +40,11 @@ extraResources:
   # above (build:voice); every other voice model is downloaded.
   - from: audiocpp
     to: audiocpp
+  # opencode's server for the agent, and the ripgrep it greps with
+  # (scripts/opencode/). Pinned by version and SHA-256; it starts only once the
+  # API writes its configuration.
+  - from: opencode
+    to: opencode
 
 # The legacy 0.0.x desktop lives in the same repo and its updater reads
 # latest*.yml; this app publishes stable*.yml. Both manifests now sit on the

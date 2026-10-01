@@ -12,6 +12,8 @@ import type { ComponentType } from "react"
 import type { Components, ExtraProps } from "streamdown"
 
 import { RelativeTime } from "@/components/relative-time"
+import { AgentSteps } from "@/features/agent/agent-steps"
+import type { AgentStep } from "@/features/agent/api"
 import { Button } from "@/components/ui/button"
 import {
   Tooltip,
@@ -92,6 +94,23 @@ function MessageThinking() {
       reasoning={reasoning}
     />
   )
+}
+
+function stepsFrom(custom: unknown): AgentStep[] {
+  if (
+    typeof custom === "object" &&
+    custom !== null &&
+    "steps" in custom &&
+    Array.isArray(custom.steps)
+  ) {
+    return custom.steps as AgentStep[]
+  }
+  return []
+}
+
+function MessageSteps() {
+  const steps = useAuiState(({ message }) => stepsFrom(message.metadata.custom))
+  return <AgentSteps steps={steps} />
 }
 
 function MessageTimestamp() {
@@ -217,6 +236,7 @@ export function AssistantMessage({
       <CitationProvider citations={citations} onCitation={onCitation}>
         <div className="w-full max-w-full min-w-0 text-sm leading-7">
           <MessageThinking />
+          <MessageSteps />
           <MessagePrimitive.Parts components={assistantMessageParts} />
         </div>
       </CitationProvider>

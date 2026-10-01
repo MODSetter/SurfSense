@@ -48,6 +48,7 @@ class ThreadRead(BaseModel):
     id: int
     workspace_id: int
     title: str | None
+    uses_agent: bool
     created_at: datetime
     updated_at: datetime
 
@@ -66,11 +67,14 @@ class MessageCreate(BaseModel):
 
 
 class MessageRead(BaseModel):
-    """A stored turn; `content` carries the text and any citations for the UI."""
+    """A stored turn; `content` carries the text and any citations for the UI.
+
+    An agent thread's turns come from opencode, whose ids are strings.
+    """
 
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: int | str
     role: MessageRole
     content: dict[str, Any]
     created_at: datetime

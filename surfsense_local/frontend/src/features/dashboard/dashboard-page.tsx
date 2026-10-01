@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { ApprovalDialog } from "@/features/agent/approval-dialog"
 import { toast } from "sonner"
 import {
   BugIcon,
@@ -332,6 +333,11 @@ function WorkspaceDashboard({
           ) : null}
         </SlideRail>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+          <ApprovalDialog
+            request={chat.approvals[0] ?? null}
+            othersWaiting={Math.max(0, chat.approvals.length - 1)}
+            onAnswer={chat.answerApproval}
+          />
           <ThreadPanel
             runtime={chat.runtime}
             thread={chat.activeThread}
