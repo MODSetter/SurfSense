@@ -143,7 +143,9 @@ export function PdfViewer({
         loadingTask = pdfjsLib.getDocument({ data })
         pdfDocument = await loadingTask.promise
         if (disposed) {
-          await pdfDocument.destroy()
+          // PDF.js 6 dropped PDFDocumentProxy.destroy(); the loading task
+          // owns the document and its worker.
+          await loadingTask.destroy()
           return
         }
 
@@ -186,11 +188,7 @@ export function PdfViewer({
         eventBus.off("pagerendered", handlePageRendered)
       pdfViewer?.setDocument(null)
       pdfViewerRef.current = null
-      if (pdfDocument) {
-        void pdfDocument.destroy()
-      } else {
-        void loadingTask?.destroy()
-      }
+      void loadingTask?.destroy()
     }
   }, [artifact.id, primary, retryKey])
 
