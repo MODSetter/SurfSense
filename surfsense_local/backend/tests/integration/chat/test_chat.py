@@ -52,7 +52,9 @@ def _seed(
             ids[title] = doc.id
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -67,7 +69,9 @@ def _choose_generation_model(engine: Engine) -> None:
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -521,7 +525,9 @@ async def test_missing_embedding_assets_are_an_actionable_503(
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -537,6 +543,30 @@ async def test_missing_embedding_assets_are_an_actionable_503(
         "local embedding model is not installed; "
         "run `uv run scripts/fetch_embedding_model.py`"
     )
+
+
+async def test_chat_before_an_embedder_is_chosen_is_a_409(
+    unlocked_client: AsyncClient, unlocked_engine: Engine
+) -> None:
+    """The API reached before onboarding finishes: say why, rather than guess a model."""
+    with create_session_factory(unlocked_engine)() as session:
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
+            )
+        )
+        session.commit()
+    workspace = (await unlocked_client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(unlocked_client, workspace["id"])
+
+    reply = await unlocked_client.post(
+        f"/chat/threads/{thread_id}/messages", json={"text": "hi"}
+    )
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"]["code"] == "embedding_not_chosen"
 
 
 async def test_the_answer_reserves_room_instead_of_taking_the_whole_window(

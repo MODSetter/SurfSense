@@ -6,6 +6,7 @@ in seconds and makes only an embedder or corpus change pay to index again.
 """
 
 import hashlib
+import json
 from pathlib import Path
 
 
@@ -38,3 +39,16 @@ def embedder_identity(models_dir: Path, model_dir_name: str) -> bytes:
     for path in sorted(directory.glob("*")) if directory.is_dir() else []:
         parts.append(f"{path.name}:{path.stat().st_size}")
     return "|".join(parts).encode("utf-8")
+
+
+def curated_identity(model_id: str) -> bytes:
+    """A curated embedder by what pins it: its id and its weights' hash, read
+    from the manifest file without importing the app."""
+    manifest = Path(__file__).resolve().parents[2] / (
+        "modules/llm/catalog/local/manifest/models.json"
+    )
+    for model in json.loads(manifest.read_text())["models"]:
+        if model["id"] == model_id:
+            weights = model["builds"][0]["files"][0]
+            return f"{model_id}|{weights['sha256']}".encode()
+    raise ValueError(f"no curated embedder named {model_id}")

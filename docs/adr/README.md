@@ -41,7 +41,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0004 | [The desktop app is its own tree on FastAPI, SQLite and Huey, with no accounts](0004-desktop-app-is-its-own-tree.md) | Accepted, in part superseded by 0035 |
 | 0005 | [Schema changes are hand-written Alembic revisions that the API applies at startup](0005-hand-written-migrations.md) | Accepted |
 | 0006 | [Retrieval widens recall with FTS5 and sqlite-vec, then orders the union by cosine similarity](0006-hybrid-retrieval.md) | Accepted, the ordering decision superseded by 0031 |
-| 0007 | [Embeddings come from a bundled bge-small model run in process on the CPU](0007-bundled-embeddings.md) | Accepted |
+| 0007 | [Embeddings come from a bundled bge-small model run in process on the CPU](0007-bundled-embeddings.md) | Accepted, amended by 0036 |
 | 0008 | [Ingest and Studio jobs run on separate Huey queues, each drained by its own worker](0008-two-job-queues.md) | Accepted |
 | 0009 | [The UI stays fresh by invalidating queries on server-sent events, with no sync engine](0009-freshness-by-invalidation.md) | Accepted |
 | 0010 | [Studio models emit structured content and trusted builders render it, so no model-written code runs](0010-studio-builders-not-sandboxes.md) | Accepted, in part superseded by 0028 |
@@ -70,3 +70,5 @@ The Date is the day the decision was first written down. Source links are permal
 | 0033 | [Every candidate is scored on its own cosine, because a chunk the vector leg did not reach is unmeasured rather than unrelated](0033-every-candidate-is-scored-on-its-own-cosine.md) | Accepted |
 | 0034 | [Whether a chat model reads images is llama.cpp's own answer for a local model and the catalog's for a remote one, and it is stored nowhere](0034-vision-is-the-runtimes-answer-stored-nowhere.md) | Accepted |
 | 0035 | [The desktop app's stack also ships as one Docker container, with Caddy as its only listener](0035-docker-compose-runs-the-desktop-stack.md) | Accepted |
+| 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted |
+| 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |

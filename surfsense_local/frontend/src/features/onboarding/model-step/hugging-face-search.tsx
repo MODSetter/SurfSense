@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { ChevronRightIcon } from "@/components/ui/icons"
 import type { LocalBuild } from "@/features/models/local/chat/api"
 import { ModelSearch } from "@/features/models/local/chat/model-search"
+import type { SearchSource } from "@/features/models/local/chat/search-source"
 import type { InstallJob } from "@/features/models/local/installs/api"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -18,11 +19,16 @@ export function HuggingFaceSearch({
   disabled,
   onInstall,
   onCancel,
+  source,
+  note,
 }: {
   jobs: readonly InstallJob[]
   disabled: boolean
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
+  /** GGUF unless a step searches another engine's models. */
+  source?: SearchSource
+  note?: string
 }) {
   const searchId = useId()
   const [open, setOpen] = useState(false)
@@ -63,6 +69,8 @@ export function HuggingFaceSearch({
             onCancel={onCancel}
             jobs={jobs}
             disabled={disabled}
+            source={source}
+            note={note}
           />
         </div>
       ) : null}

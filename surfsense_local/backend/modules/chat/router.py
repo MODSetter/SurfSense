@@ -38,6 +38,7 @@ from modules.chat.schemas import (
 )
 from modules.chat.title import generate_title
 from modules.documents.sources import load_selected_sources
+from modules.embedding.active import require_active_index
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.providers.protocols import Generator
 from modules.llm.resolution import (
@@ -407,9 +408,9 @@ def _ground(
     if payload.document_ids is not None:
         load_selected_sources(session, thread.workspace_id, payload.document_ids)
     # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
-    from worker.ingestion.embedding import missing_embedding_files
+    from modules.embedding.encoder import missing_files
 
-    if missing_embedding_files():
+    if missing_files(require_active_index(session).spec):
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "local embedding model is not installed; "

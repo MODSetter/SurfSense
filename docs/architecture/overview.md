@@ -110,6 +110,7 @@ The rules that keep the processes out of each other's way:
 - [Data model](data-model.md): tables, the search index, revisions, files on disk.
 - [Documents](documents.md): workspaces, upload, notes, the ingest pipeline.
 - [Search](search.md): `retrieve()`.
+- [Embedding model](embedding.md): the model that embeds the library, chosen once at onboarding.
 - [Chat](chat.md): grounding, the stream, citations.
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.

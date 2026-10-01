@@ -60,6 +60,78 @@ describe("SettingsDialog", () => {
     expect(screen.getByRole("heading", { name: "About" })).toBeTruthy()
   })
 
+  it("shows the embedding model the library was built with, and offers no way to change it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/embedding/index"
+          ? Response.json({
+              active: {
+                name: "Granite Embedding 97M (Multilingual)",
+                spec: {
+                  id: "granite-embedding-97m-multilingual-r2",
+                  source: "curated",
+                  identified: "measured",
+                  dimension: 384,
+                },
+              },
+              building: null,
+            })
+          : Response.json({ detail: "not found" }, { status: 404 })
+      )
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    await user.click(screen.getByRole("button", { name: "Embedding" }))
+
+    expect(
+      await screen.findByRole("heading", { name: "Embedding" })
+    ).toBeTruthy()
+    expect(
+      await screen.findByText("Granite Embedding 97M (Multilingual)")
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        "Chosen during setup and kept for your whole library. Changing it is not available yet."
+      )
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: /change|delete|download/i })
+    ).toBeNull()
+  })
+
+  it("says when the embedding model was not tested by SurfSense", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/embedding/index"
+          ? Response.json({
+              active: {
+                name: "intfloat/multilingual-e5-small",
+                spec: {
+                  id: "hf--intfloat--multilingual-e5-small",
+                  source: "huggingface",
+                  identified: "declared",
+                  dimension: 384,
+                },
+              },
+              building: null,
+            })
+          : Response.json({ detail: "not found" }, { status: 404 })
+      )
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    await user.click(screen.getByRole("button", { name: "Embedding" }))
+
+    expect(
+      await screen.findByText("intfloat/multilingual-e5-small")
+    ).toBeTruthy()
+    expect(screen.getByText("Not tested by SurfSense")).toBeTruthy()
+  })
+
   it("shows live resource usage in its own section", async () => {
     vi.stubGlobal(
       "fetch",

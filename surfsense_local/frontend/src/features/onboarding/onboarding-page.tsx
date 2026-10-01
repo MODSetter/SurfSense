@@ -8,7 +8,7 @@ import type { ModelSelection } from "@/features/models/selection/api"
 import { intl } from "@/i18n/intl"
 
 import { ModelStep } from "./model-step/model-step"
-import type { OnboardingSlot } from "./model-step/slot"
+import type { OnboardingStepKind } from "./model-step/step-kind"
 import { OnboardingDither } from "./onboarding-dither"
 import { useFinishOnboarding } from "./use-finish-onboarding"
 
@@ -16,6 +16,9 @@ import { useFinishOnboarding } from "./use-finish-onboarding"
  * The steps, in order, and the ones the dots count. The welcome is still
  * onboarding, and still gated by the same marker, but it is an introduction,
  * not a step to complete. Whichever step is last finishes onboarding.
+ *
+ * The embedding model comes last and is the one step that is not a slot: its
+ * choice is sent with the finish that fixes it, never held across steps.
  */
 const STEPS = [
   "text_gen",
@@ -23,7 +26,8 @@ const STEPS = [
   "image_edit",
   "audio_gen",
   "video_gen",
-] as const satisfies readonly OnboardingSlot[]
+  "embedding",
+] as const satisfies readonly OnboardingStepKind[]
 
 type Step = (typeof STEPS)[number]
 type Screen = "welcome" | Step
@@ -44,7 +48,7 @@ function OnboardingBrand() {
           maskSize: "contain",
         }}
       />
-      <span className="brand-wordmark -translate-y-[0.08em] text-2xl">
+      <span className="translate-y-[-0.08em] brand-wordmark text-2xl">
         SurfSense
       </span>
     </div>
@@ -192,7 +196,9 @@ function OnboardingStep({
   const index = STEPS.indexOf(step)
   const previous = STEPS[index - 1]
   const next = STEPS[index + 1]
-  const advance = next ? () => onGo(next) : () => void finish()
+  // The last step finishes, sending its value: the embedding choice, or null.
+  const advance = (value: string | null) =>
+    next ? onGo(next) : void finish(value)
   return (
     <ModelStep
       modelType={step}
@@ -201,7 +207,7 @@ function OnboardingStep({
       error={error}
       onBack={previous ? () => onGo(previous) : undefined}
       onNext={advance}
-      onSkip={step === REQUIRED_STEP ? undefined : advance}
+      onSkip={step === REQUIRED_STEP ? undefined : () => advance(null)}
     />
   )
 }

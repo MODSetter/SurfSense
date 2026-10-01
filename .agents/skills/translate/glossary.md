@@ -50,6 +50,7 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | report an issue | 問題を報告 | 문제 신고 | 报告问题 | समस्या रिपोर्ट करें | Problem melden | informar de un problema | signaler un problème | relatar um problema | сообщить о проблеме |
 | session log | セッションログ | 세션 로그 | 会话日志 | सेशन लॉग | Sitzungsprotokoll | registro de la sesión | journal de session | log da sessão | журнал сеанса |
 | clipboard | クリップボード | 클립보드 | 剪贴板 | क्लिपबोर्ड | Zwischenablage | portapapeles | presse-papiers | área de transferência | буфер обмена |
+| embedding (the model that turns the library into vectors) | 埋め込み | 임베딩 | 嵌入 | एम्बेडिंग | Embedding | embedding | embedding | embedding | эмбеддинг |
 
 ## What the English means
 

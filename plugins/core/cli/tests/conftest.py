@@ -19,6 +19,22 @@ import pytest
 
 BACKEND_DIR = Path(__file__).resolve().parents[4] / "surfsense_local" / "backend"
 
+# The app as a user has it once onboarding is done: plugins run only after it,
+# so the embedder is fixed (bge-small, the default) before the API starts.
+SERVE_ONBOARDED = (
+    "from modules.embedding.lock import lock_default_if_unchosen; "
+    "from shared.config import get_storage_settings; "
+    "from shared.db import create_db_engine, create_session_factory, import_models; "
+    "from shared.migrations import upgrade_to_head; "
+    "import_models(); "
+    "engine = create_db_engine(get_storage_settings().database_path); "
+    "upgrade_to_head(engine); "
+    "session = create_session_factory(engine)(); "
+    "lock_default_if_unchosen(session); session.commit(); session.close(); "
+    "engine.dispose(); "
+    "from api.server import serve; serve()"
+)
+
 # A first `uv run` may still be installing the backend's own packages.
 STARTUP_SECONDS = 180
 
@@ -164,7 +180,7 @@ def _started_app(folder: Path) -> Iterator[RealApp]:
                 str(BACKEND_DIR),
                 "python",
                 "-c",
-                "from api.server import serve; serve()",
+                SERVE_ONBOARDED,
             ],
             env=environment,
             stdout=output,

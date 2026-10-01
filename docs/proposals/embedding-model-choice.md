@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/embedding/
   - surfsense_local/backend/modules/llm/catalog/local/
@@ -21,7 +21,7 @@ code:
 
 > The user picks the embedding model during onboarding: bge-small or another curated model, an ONNX embedder found on Hugging Face, or a remote model through a connection. Every pick SurfSense did not measure is tested before it is accepted, and the choice is fixed for the install. Changing it later means re-embedding the library, which is [future work](embedding-model-change.md). This proposal builds the data shape that work needs, so it adds code without changing a schema.
 
-Today one model, bge-small-en-v1.5, is hard-coded in [`embedding.py`](../../surfsense_local/backend/worker/ingestion/embedding.py) ([ADR 0007](../adr/0007-bundled-embeddings.md)). It is English-only, so a question in one language does not find its answer in another ([search](../architecture/search.md), Known gaps). A multilingual or hosted model fixes that for the users who need it, and costs everyone else disk, memory, speed or privacy for nothing. So it is a choice, not a swap.
+Today one model, bge-small-en-v1.5, is the only embedder ([`bundled.py`](../../surfsense_local/backend/modules/embedding/bundled.py), [ADR 0007](../adr/0007-bundled-embeddings.md)). It is English-only, so a question in one language does not find its answer in another ([search](../architecture/search.md), Known gaps). A multilingual or hosted model fixes that for the users who need it, and costs everyone else disk, memory, speed or privacy for nothing. So it is a choice, not a swap.
 
 ## Decisions
 

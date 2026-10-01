@@ -1,6 +1,6 @@
 # ADR 0007: Embeddings come from a bundled bge-small model run in process on the CPU
 
-- **Status:** Accepted
+- **Status:** Accepted; amended by [ADR 0036](0036-the-index-records-its-embedder.md): the width comes from the index's own record, and bge-small is the default rather than the only embedder
 - **Date:** 2026-09-04
 - **Source:** [Umbrella plan L106](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00-umbrella-plan.md#L106), [Data model L220–224](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/00c-data-model.md#L220-L224)
 
@@ -10,7 +10,7 @@ Ingest and search both need embeddings, and the app has to produce them with no 
 
 ## Decision
 
-- The embedder is bge-small-en-v1.5, int8 ONNX, 384 dimensions, about 66 MB. It is bundled with the app and runs in process on onnxruntime's CPU provider ([`worker/ingestion/embedding.py`](../../surfsense_local/backend/worker/ingestion/embedding.py)). Ingest and the query side use the same model.
+- The embedder is bge-small-en-v1.5, int8 ONNX, 384 dimensions, about 66 MB. It is bundled with the app and runs in process on onnxruntime's CPU provider (now [`modules/embedding/encoder.py`](../../surfsense_local/backend/modules/embedding/encoder.py)). Ingest and the query side use the same model.
 - `SURFSENSE_LOCAL_EMBEDDING_DIMENSION` declares the width, 384 by default. Vectors from another model are not the wrong shape but unrelated numbers, so startup compares the width `chunk_vectors` was created with against the setting and refuses to open a database that no longer matches (`_check_embedding_width()` in [`shared/migrations.py`](../../surfsense_local/backend/shared/migrations.py)).
 - Remote embedding is a later opt-in, not a launch dependency.
 

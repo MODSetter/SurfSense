@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,15 +12,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ArrowLeftIcon, ComputerIcon, DotIcon } from "@/components/ui/icons"
+import {
+  ArrowLeftIcon,
+  CircleAlertIcon,
+  ComputerIcon,
+  DotIcon,
+} from "@/components/ui/icons"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
+import { EMBEDDING_SEARCH } from "@/features/embedding/huggingface-search"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
+import type { SearchSource } from "@/features/models/local/chat/search-source"
 import { useInstall } from "@/features/models/local/installs/use-install"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
-import { useSelect } from "@/features/models/selection/use-selection"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
 import type { YourModelRow } from "@/features/models/your-models/your-model-row"
 import { intl } from "@/i18n/intl"
@@ -31,18 +38,20 @@ import { LocalModelList } from "./local-model-list"
 import { ModelReady } from "./model-ready"
 import { ServerOption } from "./server-option"
 import { ServerPath } from "./server-path"
-import { LOCAL_PROVIDER, type OnboardingSlot } from "./slot"
-import { slotDeletes } from "./use-slot-delete"
-import { slotModels } from "./use-slot-models"
+import { slotOf, type OnboardingStepKind } from "./step-kind"
+import { stepModels } from "./step-models-table"
+import { stepDeletes } from "./use-slot-delete"
 
 const COPY: Record<
-  OnboardingSlot,
+  OnboardingStepKind,
   {
     title: () => string
     description: () => string
     noLocal: () => string
-    /** Hugging Face search, for llama.cpp's GGUF models only. */
-    searchable: boolean
+    /** Hugging Face search, GGUF unless a source is given; null for none. */
+    search: { source?: SearchSource; note?: () => string } | null
+    /** Said below the list, where a choice has a consequence to state. */
+    notice?: () => string
   }
 > = {
   text_gen: {
@@ -63,7 +72,7 @@ const COPY: Record<
         defaultMessage:
           "No tested model can run on this computer. Use a server instead.",
       }),
-    searchable: true,
+    search: {},
   },
   image_gen: {
     title: () =>
@@ -84,7 +93,7 @@ const COPY: Record<
           "Image models cannot run on this computer. Use a server instead.",
       }),
     // sd.cpp has no search: its models are the few the catalog ships.
-    searchable: false,
+    search: null,
   },
   image_edit: {
     title: () =>
@@ -105,7 +114,7 @@ const COPY: Record<
           "Image editing models cannot run on this computer. Use a server instead.",
       }),
     // Nor has it for editing: the same few models.
-    searchable: false,
+    search: null,
   },
   video_gen: {
     title: () =>
@@ -126,7 +135,7 @@ const COPY: Record<
           "Video models cannot run on this computer. Use a server instead.",
       }),
     // Nor for video.
-    searchable: false,
+    search: null,
   },
   audio_gen: {
     title: () =>
@@ -147,7 +156,41 @@ const COPY: Record<
           "Audio models cannot run on this computer. Use a server instead.",
       }),
     // Nor has audio.cpp.
-    searchable: false,
+    search: null,
+  },
+  embedding: {
+    title: () =>
+      intl.formatMessage({
+        id: "onboarding_embedding_step_title",
+        defaultMessage: "Choose an embedding model",
+      }),
+    description: () =>
+      intl.formatMessage({
+        id: "onboarding_embedding_step_body",
+        defaultMessage:
+          "Choose a multilingual model only if your documents or questions are in more than one language.",
+      }),
+    noLocal: () =>
+      intl.formatMessage({
+        id: "onboarding_embedding_step_no_local_empty",
+        defaultMessage: "No embedding model is on this computer.",
+      }),
+    // ONNX embedders, found through their own endpoints.
+    search: {
+      source: EMBEDDING_SEARCH,
+      note: () =>
+        intl.formatMessage({
+          id: "onboarding_embedding_search_cost_body",
+          defaultMessage:
+            "Larger models make adding documents slower and use more memory, and this choice can’t be changed later.",
+        }),
+    },
+    notice: () =>
+      intl.formatMessage({
+        id: "onboarding_embedding_step_fixed_body",
+        defaultMessage:
+          "Your choice is kept for your whole library. Changing it later is not available yet.",
+      }),
   },
 }
 
@@ -165,26 +208,25 @@ export function ModelStep({
   onNext,
   onSkip,
 }: {
-  modelType: OnboardingSlot
+  modelType: OnboardingStepKind
   /** The step that ends onboarding: Continue and Skip say they finish. */
   last?: boolean
   finishing?: boolean
   error?: string | null
   /** Absent on the first step: the welcome is not somewhere to go back to. */
   onBack?: () => void
-  onNext: () => void
+  /** Given what finishing from this step sends: the embedding choice, or null. */
+  onNext: (value: string | null) => void
   /** Present only where the slot is optional. */
   onSkip?: () => void
 }) {
   const copy = COPY[modelType]
-  const models = slotModels[modelType]()
-  // Onboarding selects what it installs, so a first model takes one click.
-  const { jobs, installs, install, cancel } = useInstall({
-    select: true,
-    modelType,
-  })
-  const select = useSelect(modelType)
-  const remove = slotDeletes[modelType]()
+  const models = stepModels[modelType]()
+  // A slot's download becomes its model, so a first model takes one click.
+  const { jobs, installs, install, cancel } = useInstall(models.install)
+  const remove = stepDeletes[modelType]()
+  // Remote embedders are not offered yet, so that step has no server.
+  const slot = slotOf(modelType)
   const connections = useConnections()
   const [onServer, setOnServer] = useState(false)
   // With nothing connected yet there is no server page to show: Connect
@@ -199,7 +241,7 @@ export function ModelStep({
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // A download does not block the rest: another one queues behind it.
-  const busy = select.isPending || remove.isPending || finishing
+  const busy = models.choosing || remove.isPending || finishing
   const choices = localChoices(models.rows)
 
   // Neither a download nor Use moves the page: progress and "In use" show on
@@ -209,24 +251,18 @@ export function ModelStep({
     if (build) downloadBuild(build)
   }
 
-  // A searched build installs through the same call: the id is opaque.
+  // A searched build installs through the same call: the id is opaque. One
+  // already on disk offers Use, which chooses it as the list's Use does.
   const downloadBuild = (build: LocalBuild) => {
     if (busy) return
-    void install(build.catalog_id)
+    if (build.installed_as) models.use(build.installed_as)
+    else void install(build.catalog_id)
   }
 
   const use = (row: LocalRow) => {
     const build = leadBuild(row)
     if (!build?.installed_as || busy) return
-    void select
-      .mutateAsync({
-        target: {
-          provider: LOCAL_PROVIDER[modelType],
-          connection_id: null,
-          name: build.installed_as,
-        },
-      })
-      .catch(() => undefined)
+    models.use(build.installed_as)
   }
 
   const askDelete = (row: LocalRow) => {
@@ -269,11 +305,11 @@ export function ModelStep({
   const body = () => {
     if (models.error) return <OfflineState message={models.error.message} />
     if (models.isPending) return null
-    if (onServer) {
+    if (onServer && slot) {
       return (
         // Choosing a model stays here, as in Settings: its group marks it
         // "In use", and the footer says which.
-        <ServerPath modelType={modelType} openServerId={openServerId} />
+        <ServerPath modelType={slot} openServerId={openServerId} />
       )
     }
     return (
@@ -324,23 +360,38 @@ export function ModelStep({
               {copy.noLocal()}
             </p>
           )}
-          {copy.searchable ? (
+          {copy.search ? (
             <HuggingFaceSearch
               jobs={jobs}
               disabled={busy}
               onInstall={downloadBuild}
               onCancel={cancel}
+              source={copy.search.source}
+              note={copy.search.note?.()}
             />
           ) : null}
         </section>
 
-        <Separator />
-        <ServerOption
-          connections={connections.data ?? []}
-          onOpen={() =>
-            connections.data?.length ? setOnServer(true) : setConnecting(true)
-          }
-        />
+        {copy.notice ? (
+          <Alert variant="secondary">
+            <CircleAlertIcon />
+            <AlertDescription>{copy.notice()}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        {slot ? (
+          <>
+            <Separator />
+            <ServerOption
+              connections={connections.data ?? []}
+              onOpen={() =>
+                connections.data?.length
+                  ? setOnServer(true)
+                  : setConnecting(true)
+              }
+            />
+          </>
+        ) : null}
       </div>
     )
   }
@@ -390,9 +441,9 @@ export function ModelStep({
         >
           {body()}
         </ScrollFade>
-        {select.isError ? (
+        {models.chooseError ? (
           <p className="px-(--card-spacing) text-sm text-destructive">
-            {select.error.message}
+            {models.chooseError.message}
           </p>
         ) : null}
         {error ? (
@@ -442,7 +493,7 @@ export function ModelStep({
           <Button
             type="button"
             disabled={!models.inUse || busy}
-            onClick={onNext}
+            onClick={() => onNext(models.value)}
           >
             {finishing ? <Spinner data-icon="inline-start" /> : null}
             {last

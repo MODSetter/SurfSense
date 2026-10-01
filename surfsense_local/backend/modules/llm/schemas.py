@@ -127,6 +127,11 @@ class OnboardingStatusRead(BaseModel):
     completed: bool
 
 
+class OnboardingComplete(BaseModel):
+    # A curated embedder already downloaded; none means the bundled one.
+    embedding_model: str | None = Field(default=None, min_length=1, max_length=200)
+
+
 class InstallRequest(BaseModel):
     catalog_id: str = Field(min_length=1, max_length=128)
     select: bool = True

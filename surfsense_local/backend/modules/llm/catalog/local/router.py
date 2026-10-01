@@ -68,7 +68,7 @@ def read_local_catalog(service: LocalCatalogDep, session: SessionDep) -> dict:
     return {
         "budget": _budget(catalog.budget),
         "gpu_status": catalog.gpu_status.value,
-        "rows": [_row(row, in_use) for row in catalog.rows],
+        "rows": [row_read(row, in_use) for row in catalog.rows],
         "recommended_id": catalog.recommended_id,
         "projector_notices": [
             {
@@ -123,7 +123,7 @@ async def read_repo(repo: str, service: LocalCatalogDep, session: SessionDep) ->
         row, gated = await service.repo(repo)
     except httpx.HTTPError as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, UNREACHABLE) from error
-    return {"repo": repo, "gated": gated, "row": _row(row, in_use={})}
+    return {"repo": repo, "gated": gated, "row": row_read(row, in_use={})}
 
 
 def _selected_local(
@@ -147,7 +147,8 @@ def _budget(budget) -> dict:
     }
 
 
-def _row(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
+def row_read(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
+    """A row as every catalog route answers it, searched repos included."""
     classification = row.classification
     return {
         "id": row.id,
@@ -170,6 +171,7 @@ def _row(row: LocalRow, in_use: Mapping[str, list[ModelType]]) -> dict:
         "default_quantization": row.default_quantization,
         "recommended": row.recommended,
         "engine": row.engine,
+        "description": row.description,
         "lead": (
             {"quantization": row.lead.quantization, "why": row.lead.why.value}
             if row.lead
