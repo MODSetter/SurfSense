@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { renderHook, waitFor } from "@testing-library/react"
+import { cleanup, renderHook, waitFor } from "@testing-library/react"
 import { toast } from "sonner"
 
 import { useStudio } from "./use-studio"
@@ -27,65 +27,135 @@ function artifact(overrides: Partial<Artifact> = {}): Artifact {
   }
 }
 
+/** The workspace's event stream, fed by the test as the API would feed it. */
+function eventStream() {
+  let feed!: ReadableStreamDefaultController<Uint8Array>
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      feed = controller
+    },
+  })
+  const encoder = new TextEncoder()
+  return {
+    response: new Response(body, {
+      headers: { "Content-Type": "text/event-stream" },
+    }),
+    connected: () => feed.enqueue(encoder.encode(": connected\n\n")),
+    artifactsChanged: (ids: number[]) =>
+      feed.enqueue(
+        encoder.encode(
+          `event: artifacts\ndata: ${JSON.stringify({ ids, status: "ready" })}\n\n`
+        )
+      ),
+  }
+}
+
+/** An API that answers each new read of the artifact list with the next one. */
+function studioApi(lists: Artifact[][]) {
+  const stream = eventStream()
+  let listed = 0
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const path = String(input)
+    if (path.endsWith("/events")) return stream.response
+    if (path.includes("/studio/formats")) return Response.json([])
+    return Response.json(lists[Math.min(listed++, lists.length - 1)])
+  })
+  vi.stubGlobal("fetch", fetchMock)
+  return { stream, listReads: () => listed }
+}
+
+type Studio = { current: ReturnType<typeof useStudio> }
+
+/** The list as it was at mount, then the workspace saying it changed. */
+async function reportChange(api: ReturnType<typeof studioApi>, studio: Studio) {
+  await waitFor(() => expect(studio.current.isLoading).toBe(false))
+  api.stream.connected()
+  api.stream.artifactsChanged([1])
+  await waitFor(() => expect(api.listReads()).toBe(2))
+}
+
 afterEach(() => {
+  cleanup()
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   vi.mocked(toast.success).mockClear()
   vi.mocked(toast.error).mockClear()
 })
 
 describe("useStudio", () => {
-  it("shows a success toast once a running artifact turns ready", async () => {
-    const responses: unknown[] = [
-      [], // GET /studio/formats
-      [artifact()], // GET /artifacts (initial load, still processing)
-      [artifact({ status: "ready" })], // GET /artifacts (poll, now ready)
-    ]
-    const fetchMock = vi.fn(async () => Response.json(responses.shift() ?? []))
-    vi.stubGlobal("fetch", fetchMock)
+  it("updates the list when the workspace reports a change, without a timer", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    const api = studioApi([[artifact()], [artifact({ status: "ready" })]])
 
-    renderHook(() => useStudio(1))
+    const { result } = renderHook(() => useStudio(1))
+    await vi.waitFor(() => expect(result.current.isLoading).toBe(false))
+    api.stream.connected()
+    api.stream.artifactsChanged([1])
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3), {
-      timeout: 4000,
-    })
-
+    await vi.waitFor(() =>
+      expect(result.current.artifacts[0]?.status).toBe("ready")
+    )
     expect(toast.success).toHaveBeenCalledExactlyOnceWith(
       "Summary of the source is ready"
     )
+  })
 
-    // Nothing left running, so no further poll — and no repeat toast.
+  it("reads a running list again after a while, in case a notice was lost", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] })
+    const api = studioApi([[artifact()], [artifact({ status: "ready" })]])
+
+    const { result } = renderHook(() => useStudio(1))
+    await vi.waitFor(() => expect(result.current.isLoading).toBe(false))
+    await vi.advanceTimersByTimeAsync(10_000)
+
+    await vi.waitFor(() =>
+      expect(result.current.artifacts[0]?.status).toBe("ready")
+    )
+    // Nothing left running, so nothing is read again.
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(api.listReads()).toBe(2)
+  })
+
+  it("shows a success toast once a running artifact turns ready", async () => {
+    const api = studioApi([[artifact()], [artifact({ status: "ready" })]])
+
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledExactlyOnceWith(
+        "Summary of the source is ready"
+      )
+    )
+
+    // Nothing left running, so no further read — and no repeat toast.
     await new Promise((resolve) => setTimeout(resolve, 100))
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(api.listReads()).toBe(2)
     expect(toast.success).toHaveBeenCalledOnce()
-  }, 8000)
+  })
 
   it("does not toast for an artifact that was already ready", async () => {
-    const responses: unknown[] = [
-      [], // formats
+    const api = studioApi([
       [
         artifact({ status: "ready" }),
         artifact({ id: 2, status: "processing" }),
       ],
       [artifact({ status: "ready" }), artifact({ id: 2, status: "ready" })],
-    ]
-    const fetchMock = vi.fn(async () => Response.json(responses.shift() ?? []))
-    vi.stubGlobal("fetch", fetchMock)
+    ])
 
-    renderHook(() => useStudio(1))
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3), {
-      timeout: 4000,
-    })
-
-    expect(toast.success).toHaveBeenCalledExactlyOnceWith(
-      "Summary of the source is ready"
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledExactlyOnceWith(
+        "Summary of the source is ready"
+      )
     )
-  }, 8000)
+  })
 
   it("shows an error toast once a running artifact fails, without the raw error", async () => {
-    const responses: unknown[] = [
-      [], // GET /studio/formats
-      [artifact()], // GET /artifacts (initial load, still processing)
+    const api = studioApi([
+      [artifact()],
       // A real backend failure here is often a multi-line HTTP exception —
       // that belongs in the row's own tooltip, never pasted into a toast.
       [
@@ -95,75 +165,62 @@ describe("useStudio", () => {
             "HTTPStatusError: Client error '401 Unauthorized' for url '...'",
         }),
       ],
-    ]
-    const fetchMock = vi.fn(async () => Response.json(responses.shift() ?? []))
-    vi.stubGlobal("fetch", fetchMock)
+    ])
 
-    renderHook(() => useStudio(1))
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3), {
-      timeout: 4000,
-    })
-
-    expect(toast.error).toHaveBeenCalledExactlyOnceWith(
-      "Summary of the source failed",
-      expect.objectContaining({
-        description:
-          "This artifact couldn’t be generated. Retry it from the artifacts tab.",
-      })
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Summary of the source failed",
+        expect.objectContaining({
+          description:
+            "This artifact couldn’t be generated. Retry it from the artifacts tab.",
+        })
+      )
     )
     const [, options] = vi.mocked(toast.error).mock.calls[0]
     expect(String(options?.description)).not.toContain("HTTPStatusError")
     expect(toast.success).not.toHaveBeenCalled()
 
-    // Nothing left running, so no further poll — and no repeat toast.
+    // Nothing left running, so no further read — and no repeat toast.
     await new Promise((resolve) => setTimeout(resolve, 100))
-    expect(fetchMock).toHaveBeenCalledTimes(3)
+    expect(api.listReads()).toBe(2)
     expect(toast.error).toHaveBeenCalledOnce()
-  }, 8000)
+  })
 
   it("shows the same friendly description even with no error message at all", async () => {
-    const responses: unknown[] = [
-      [],
+    const api = studioApi([
       [artifact()],
       [artifact({ status: "failed", error_message: null })],
-    ]
-    const fetchMock = vi.fn(async () => Response.json(responses.shift() ?? []))
-    vi.stubGlobal("fetch", fetchMock)
+    ])
 
-    renderHook(() => useStudio(1))
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3), {
-      timeout: 4000,
-    })
-
-    expect(toast.error).toHaveBeenCalledExactlyOnceWith(
-      "Summary of the source failed",
-      expect.objectContaining({
-        description:
-          "This artifact couldn’t be generated. Retry it from the artifacts tab.",
-      })
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledExactlyOnceWith(
+        "Summary of the source failed",
+        expect.objectContaining({
+          description:
+            "This artifact couldn’t be generated. Retry it from the artifacts tab.",
+        })
+      )
     )
-  }, 8000)
+  })
 
   it("does not toast when a running artifact is cancelled", async () => {
-    const responses: unknown[] = [
-      [],
-      [artifact()],
-      [artifact({ status: "cancelled" })],
-    ]
-    const fetchMock = vi.fn(async () => Response.json(responses.shift() ?? []))
-    vi.stubGlobal("fetch", fetchMock)
+    const api = studioApi([[artifact()], [artifact({ status: "cancelled" })]])
 
-    renderHook(() => useStudio(1))
+    const { result } = renderHook(() => useStudio(1))
+    await reportChange(api, result)
 
-    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(3), {
-      timeout: 4000,
-    })
-
+    await waitFor(() =>
+      expect(result.current.artifacts[0]?.status).toBe("cancelled")
+    )
     expect(toast.error).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
-  }, 8000)
+  })
 })
 
 describe("useStudio formats freshness", () => {

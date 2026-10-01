@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
+import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -15,6 +16,10 @@ import {
   type StudioFormat,
   type StudioJobCreate,
 } from "./api"
+
+// The worker's notices are best-effort: one lost while a job runs would leave
+// its row stale, so the list is still re-read now and then until none does.
+const LOST_NOTICE_POLL_MS = 10_000
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
@@ -61,9 +66,9 @@ export function useStudio(workspaceId: number, selectionToken = "") {
   const [isCreating, setIsCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pollController = useRef<AbortController | null>(null)
+  const changeController = useRef<AbortController | null>(null)
   const hasRunning = artifacts.some(isRunning)
-  // Read inside the poll loop instead of closing over `artifacts` directly,
-  // so the diff against each new poll result always sees the latest state.
+  // What the last read of the list held, to tell which jobs a new read ended.
   const artifactsRef = useRef(artifacts)
   useEffect(() => {
     artifactsRef.current = artifacts
@@ -90,11 +95,71 @@ export function useStudio(workspaceId: number, selectionToken = "") {
           setIsLoading(false)
         }
       })
-    return () => controller.abort()
+    return () => {
+      controller.abort()
+      changeController.current?.abort()
+    }
   }, [workspaceId, selectionToken])
 
-  // While a job runs, poll the list until it settles — the same freshness path
-  // the sources panel uses.
+  const showReread = (next: Artifact[]) => {
+    for (const artifact of next) {
+      const before = artifactsRef.current.find(
+        (candidate) => candidate.id === artifact.id
+      )
+      if (!before || !isRunning(before)) continue
+      if (artifact.status === "ready") {
+        toast.success(
+          intl.formatMessage(
+            {
+              id: "studio_artifact_ready_toast",
+              defaultMessage: "{name} is ready",
+            },
+            { name: artifact.title }
+          )
+        )
+      } else if (artifact.status === "failed") {
+        // The raw error (often a multi-line HTTP exception) belongs in
+        // the row's own Ctrl/Cmd-hover tooltip, not a toast.
+        errorToast(
+          intl.formatMessage(
+            {
+              id: "studio_artifact_failed_toast",
+              defaultMessage: "{name} failed",
+            },
+            { name: artifact.title }
+          ),
+          {
+            description: intl.formatMessage({
+              id: "studio_artifact_failed_toast_body",
+              defaultMessage:
+                "This artifact couldn’t be generated. Retry it from the artifacts tab.",
+            }),
+          }
+        )
+      }
+    }
+    // Now, not after the render: a second read landing first would otherwise
+    // compare against the same running rows and toast them again.
+    artifactsRef.current = next
+    setArtifacts(next)
+  }
+
+  useWorkspaceChanges(workspaceId, "artifacts", () => {
+    changeController.current?.abort()
+    const controller = new AbortController()
+    changeController.current = controller
+    void listArtifacts(workspaceId, controller.signal)
+      .then((next) => {
+        if (changeController.current === controller) {
+          showReread(next)
+        }
+      })
+      .catch(() => {
+        // The next change, or the re-read while a job runs, reloads.
+      })
+  })
+
+  // The backstop for a lost notice, and only while a job runs.
   useEffect(() => {
     if (!hasRunning) {
       return
@@ -106,48 +171,12 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     void (async () => {
       try {
         while (!controller.signal.aborted) {
-          await wait(1500, controller.signal)
+          await wait(LOST_NOTICE_POLL_MS, controller.signal)
           const next = await listArtifacts(workspaceId, controller.signal)
           if (pollController.current !== controller) {
             return
           }
-          for (const artifact of next) {
-            const before = artifactsRef.current.find(
-              (candidate) => candidate.id === artifact.id
-            )
-            if (!before || !isRunning(before)) continue
-            if (artifact.status === "ready") {
-              toast.success(
-                intl.formatMessage(
-                  {
-                    id: "studio_artifact_ready_toast",
-                    defaultMessage: "{name} is ready",
-                  },
-                  { name: artifact.title }
-                )
-              )
-            } else if (artifact.status === "failed") {
-              // The raw error (often a multi-line HTTP exception) belongs in
-              // the row's own Ctrl/Cmd-hover tooltip, not a toast.
-              errorToast(
-                intl.formatMessage(
-                  {
-                    id: "studio_artifact_failed_toast",
-                    defaultMessage: "{name} failed",
-                  },
-                  { name: artifact.title }
-                ),
-                {
-                  description: intl.formatMessage({
-                    id: "studio_artifact_failed_toast_body",
-                    defaultMessage:
-                      "This artifact couldn’t be generated. Retry it from the artifacts tab.",
-                  }),
-                }
-              )
-            }
-          }
-          setArtifacts(next)
+          showReread(next)
           if (!next.some(isRunning)) {
             return
           }
@@ -177,8 +206,8 @@ export function useStudio(workspaceId: number, selectionToken = "") {
     }
   }
 
-  // Puts the artifact back to "pending" in state; the poll effect picks it up
-  // the same way it does a freshly created one.
+  // Puts the artifact back to "pending" in state; the workspace's events
+  // follow it the same way they do a freshly created one.
   const regenerate = async (artifactId: number) => {
     setError(null)
     try {
