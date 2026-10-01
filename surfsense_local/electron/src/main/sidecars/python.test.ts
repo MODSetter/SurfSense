@@ -48,6 +48,14 @@ test("the API is told where the staged eSpeak is, as the server is", () => {
   assert.equal(api.SURFSENSE_LOCAL_AUDIO_ESPEAK_LIBRARY, server.AUDIOCPP_ESPEAK_LIBRARY)
 })
 
+test("the API is told the shell's pid, the root of what counts as the app", () => {
+  // The usage panel walks every process under this one: each sidecar, the
+  // router's model workers, and Chromium's own helpers.
+  const api = apiSpec(withAudio()).env
+
+  assert.equal(api.SURFSENSE_LOCAL_SHELL_PID, String(process.pid))
+})
+
 test("under pnpm dev a worker is the app's own child, so it dies with the app", () => {
   // Under `uv run` it ran a level lower, which Windows does not kill with the
   // app: after a Ctrl-C the last session's Studio worker took the next jobs.

@@ -5,34 +5,20 @@ Delivery and dedupe deliberately use different forms of the same address.
 
 from __future__ import annotations
 
+import contextlib
+
+import disposable_email_domains
+
 from app.config import config
 
-# Small, deliberately conservative built-in list. Extend per deployment with
+# github.com/disposable-email-domains, pinned in uv.lock, plus the three from
+# our earlier hand-kept list that it does not carry. Extend per deployment with
 # LICENSE_DISPOSABLE_EMAIL_DOMAINS rather than editing this.
-_BUILTIN_DISPOSABLE_DOMAINS = frozenset(
-    {
-        "0-mail.com",
-        "10minutemail.com",
-        "20minutemail.com",
-        "33mail.com",
-        "burnermail.io",
-        "dispostable.com",
-        "guerrillamail.com",
-        "guerrillamail.info",
-        "mailinator.com",
-        "maildrop.cc",
-        "mailnesia.com",
-        "mintemail.com",
-        "mohmal.com",
-        "sharklasers.com",
-        "temp-mail.org",
-        "tempmail.com",
-        "tempmailo.com",
-        "throwawaymail.com",
-        "trashmail.com",
-        "yopmail.com",
-    }
-)
+_BUILTIN_DISPOSABLE_DOMAINS = frozenset(disposable_email_domains.blocklist) | {
+    "33mail.com",
+    "burnermail.io",
+    "tempmail.com",
+}
 
 
 def normalize_email(email: str) -> str:
@@ -59,19 +45,31 @@ def fold_email(email: str) -> str:
     return f"{local}@{domain}"
 
 
-def disposable_domains() -> frozenset[str]:
-    """Built-in blocklist plus whatever the deployment configured."""
-    configured = {
+def _configured_disposable_domains() -> frozenset[str]:
+    """Whatever the deployment added in LICENSE_DISPOSABLE_EMAIL_DOMAINS."""
+    return frozenset(
         domain.strip().lower()
         for domain in config.LICENSE_DISPOSABLE_EMAIL_DOMAINS.split(",")
         if domain.strip()
-    }
-    return _BUILTIN_DISPOSABLE_DOMAINS | configured
+    )
 
 
 def is_disposable(email: str) -> bool:
-    """Whether the address's domain is on the blocklist."""
+    """Whether the address's domain, or any domain above it, is on the blocklist."""
     _, separator, domain = normalize_email(email).partition("@")
     if not separator:
         return False
-    return domain in disposable_domains()
+    # The list is written in punycode, and `EmailStr` hands over Unicode. A
+    # domain the stdlib's stricter IDNA 2003 codec refuses is checked as typed.
+    with contextlib.suppress(UnicodeError):
+        domain = domain.encode("idna").decode("ascii")
+    labels = domain.split(".")
+    # Every parent too: the list names registrable domains, and a service can
+    # mint any subdomain under one. The bare TLD is never checked.
+    candidates = (".".join(labels[i:]) for i in range(len(labels) - 1))
+    # Two lookups, not a union: that would copy ~9k domains on every request.
+    configured = _configured_disposable_domains()
+    return any(
+        candidate in _BUILTIN_DISPOSABLE_DOMAINS or candidate in configured
+        for candidate in candidates
+    )

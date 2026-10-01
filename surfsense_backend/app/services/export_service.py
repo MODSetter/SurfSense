@@ -326,13 +326,18 @@ async def _export_workspace_markdown(
             rel_path = f"{dir_path}/{base_name}.md" if dir_path else f"{base_name}.md"
 
             if rel_path in used_paths:
-                used_paths[rel_path] += 1
-                suffix = used_paths[rel_path]
-                base_name = f"{base_name}_{suffix}"
-                rel_path = (
-                    f"{dir_path}/{base_name}.md" if dir_path else f"{base_name}.md"
-                )
-            used_paths[rel_path] = used_paths.get(rel_path, 0) + 1
+                # A suffixed name can already belong to another title
+                # ("Notes_2"), so keep counting until the path is free.
+                stem, taken_path = base_name, rel_path
+                suffix = used_paths[taken_path]
+                while rel_path in used_paths:
+                    suffix += 1
+                    base_name = f"{stem}_{suffix}"
+                    rel_path = (
+                        f"{dir_path}/{base_name}.md" if dir_path else f"{base_name}.md"
+                    )
+                used_paths[taken_path] = suffix
+            used_paths[rel_path] = 1
 
             zip_rel = _join_zip_path(path_prefix, rel_path)
             entries.append((zip_rel, document_to_concept(doc, body=markdown)))
@@ -347,9 +352,7 @@ async def _export_workspace_markdown(
             )
 
             metadata = (
-                doc.document_metadata
-                if isinstance(doc.document_metadata, dict)
-                else {}
+                doc.document_metadata if isinstance(doc.document_metadata, dict) else {}
             )
             description = metadata.get("description")
             dir_concepts.setdefault(dir_path, []).append(
@@ -426,7 +429,9 @@ async def build_export_zip(
             folder_result = await session.execute(
                 select(Folder).where(Folder.workspace_id == workspace_id)
             )
-            folder_path_map = _build_folder_path_map(list(folder_result.scalars().all()))
+            folder_path_map = _build_folder_path_map(
+                list(folder_result.scalars().all())
+            )
 
         export_name = "knowledge-base"
         if folder_id is not None and folder_id in folder_path_map:
@@ -510,9 +515,7 @@ async def flatten_workspace_chats(
     exported: list[dict[str, Any]] = []
     for thread in threads:
         messages_out: list[dict[str, Any]] = []
-        ordered = sorted(
-            thread.messages, key=lambda item: (item.created_at, item.id)
-        )
+        ordered = sorted(thread.messages, key=lambda item: (item.created_at, item.id))
         for message in ordered:
             role = _role_value(message.role)
             if role not in _CHAT_ROLES:
@@ -566,9 +569,7 @@ def _manifest_first_zip(staging_path: str, manifest: dict[str, Any]) -> str:
     return final_path
 
 
-async def build_account_export_zip(
-    session: AsyncSession, user_id: Any
-) -> ExportResult:
+async def build_account_export_zip(session: AsyncSession, user_id: Any) -> ExportResult:
     """Build a contract-3 ZIP of every workspace the user is a member of."""
     workspaces = await _member_workspaces(session, user_id)
     fd, staging_path = tempfile.mkstemp(suffix=".zip")

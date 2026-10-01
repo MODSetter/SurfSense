@@ -10,6 +10,9 @@ class Settings(BaseSettings):
 
     host: str = "127.0.0.1"
     port: int = 8000
+    # Electron's main process, above every sidecar and window process: the root
+    # of what the usage panel counts as the app. Unset outside Electron.
+    shell_pid: int | None = None
 
 
 @lru_cache

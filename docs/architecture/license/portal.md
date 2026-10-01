@@ -36,7 +36,7 @@ After the success page this is the only way to get a license back, so an answer 
 ### `POST /license/trial`
 
 1. `404` when `LICENSE_TRIAL_ENABLED` is off; `503` when mail is off or misconfigured.
-2. The rate limits, then `400` for a disposable domain: a built-in list, extended by `LICENSE_DISPOSABLE_EMAIL_DOMAINS`.
+2. The rate limits, then `400` for a disposable domain, looked up as [Email addresses](#email-addresses) describes.
 3. `409` when a license on the trial policy already carries this address's folded form in `metadata[trialKey]`.
 4. Create the trial under a derived id with an explicit expiry, check it out and mail it: `200`.
 
@@ -49,7 +49,7 @@ The expiry is `max(now, LICENSE_TRIAL_EXPIRY_FLOOR) + LICENSE_TRIAL_DAYS`, 30 da
 `app/payments/webhook.py` verifies the signature and hands each paid checkout session to the handler that claims it (`app/payments/registry.py`); `app/license/purchase.py` registers the license's claims.
 
 - `checkout.session.completed` with `payment_status` `paid` or `no_payment_required`, and `checkout.session.async_payment_succeeded`: the license handler claims a session whose metadata says `purchase_type: license`, or, with no `purchase_type` and a license price configured, whose line item is a license price. It fulfils the session, then emails the file. A mail failure does not fail the webhook: the license exists, the success page serves it, and a Stripe retry would only risk a duplicate.
-- `charge.refunded`: lists licenses by `metadata[stripeCustomerId]` and suspends every one. Suspend, not revoke: it is reversible, the record stays listable for support, and Keygen's `validate-key` then reports `SUSPENDED`, which contract 2 maps to `revoked`.
+- `charge.refunded`: acts only on a full refund, `refunded` or `amount_refunded >= amount`; a partial refund suspends nothing. It resolves the charge's `payment_intent` to its checkout session through Stripe, that session to its one license by `checkoutSessionId`, and suspends that license alone, so a customer's other purchases keep working. A refund that traces to no single license suspends nothing and logs a warning for support, because a wrong suspension is silent to the customer. Failures are logged and the webhook still answers 200, since a retry would re-run the suspension. Suspend, not revoke: it is reversible, the record stays listable for support, and Keygen's `validate-key` then reports `SUSPENDED`, which contract 2 maps to `revoked`.
 
 Fulfilment also writes the license's Keygen id onto the Stripe customer as `keygen_license_id`, best effort, so a Stripe error cannot fail the webhook. Nothing reads it back; refunds find licenses through Keygen metadata.
 
@@ -64,8 +64,8 @@ Fulfilment also writes the license's Keygen id onto the Stripe customer as `keyg
 | `plan` | every license | the app (contract 1) |
 | `email` | every license | delivery, resend, shown in Settings |
 | `trialKey` | trials | the one-trial-per-person check |
-| `stripeCustomerId` | Stripe purchases | refund → suspend |
-| `checkoutSessionId` | Stripe purchases | the success page, support corrections |
+| `stripeCustomerId` | Stripe purchases | the Stripe customer a refund comes from |
+| `checkoutSessionId` | Stripe purchases | the success page, support corrections, refund → suspend |
 
 Keygen camelCases metadata keys in filter queries, and a misspelled filter returns an empty list rather than an error, which reads as "no license". The spellings live in `app/license/models.py`, except that `create_license()` in `keygen.py` writes `plan` and `email` as literals.
 
@@ -82,6 +82,8 @@ A trial has two guards. The derived id is the constraint that settles simultaneo
 ## Email addresses
 
 Delivery uses the address as typed, trimmed and lowercased. Deduplication, meaning the trial check and the per-email rate limit, also strips a `+tag` from the local part. `user+surfsense@gmail.com` is a real address the buyer may want the file at, so delivery must not fold it, but plus-tagging is the cheapest trial farm, so the trial check must. Dots are not folded: that is Gmail's rule, and applying it everywhere would collide distinct addresses at other providers. A trial stores both forms, `email` as typed and `trialKey` folded.
+
+The trial's disposable check reads only the domain. The list is the community [disposable-email-domains](https://github.com/disposable-email-domains/disposable-email-domains) list, installed as the `disposable-email-domains` package, plus three domains our earlier hand-kept list refused and it does not carry; `LICENSE_DISPOSABLE_EMAIL_DOMAINS` adds more per deployment. The domain and every domain above it short of the TLD are looked up, because the list names registrable domains and a disposable service can mint any subdomain under one. The lookup uses punycode, the spelling the list is written in, since `EmailStr` hands the route Unicode even when punycode was typed. The package is pinned in `uv.lock`, so the list changes only with a reviewed bump, `uv lock --upgrade-package disposable-email-domains`; upstream publishes most days. A unit test fails such a bump if it would refuse a mainstream provider.
 
 ## Rate limits
 
@@ -134,7 +136,7 @@ Under `surfsense_backend/app/license/`:
 | `schemas.py` | the request and acknowledgement bodies |
 | `rate_limit.py` | the two buckets |
 | `release.py` | the desktop release the mail links to |
-| `email/address.py` | normalizing, folding, the disposable-domain list |
+| `email/address.py` | normalizing, folding, the disposable-domain check |
 | `email/deliver.py` | handing a built message to the mailer |
 | `email/message.py` | subjects, bodies, attachments and sender |
 
@@ -161,12 +163,12 @@ python -m scripts.correct_license_email --session cs_... --email real@buyer.com 
 
 The script matches on the payment, never on how alike two addresses look: `checkoutSessionId` names exactly one license, and the script refuses when two carry it. It prints the record, asks for confirmation unless `--yes` is passed, rewrites the stored `email`, and then mails a fresh file with `--mail` or prints it. Rewriting the address is the point, because resend looks customers up by it; a typo left in Keygen makes every future download another ticket. A buyer who lost the inbox takes the same path. Someone who fools support gets one license that can be suspended, a risk accepted over identity checks.
 
+A trial has no payment to prove, so the anchor is the address itself: support asks which exact address the trial was requested with and runs `--trial-email typo@... --email real@... --mail` in place of `--session`. The lookup filters on that address as typed and on its folded `trialKey`, so it finds only a trial issued to exactly that address, never a lookalike and never a paid licence there, and it refuses when two match. Someone who knows another person's exact address could have that trial repointed to their own inbox. They gain a free trial that expires and can be suspended, and the correction moves `trialKey` with the address, so the owner can claim a trial again; that risk is accepted as for purchases.
+
 ## Tests
 
-`tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and the release lookup; `test_mail_guard.py` covers the mail check both POST routes run before Keygen. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. The route and rate-limit suites, and the Keygen and mailer fakes they stood on, were deleted on 15 Sep 2026 in commit `7f1195c76`.
+`tests/unit/license/test_issue.py` covers Keygen payload shapes, metadata filter syntax, the CE headers, trial expiry, address folding, the disposable-domain check, plan resolution, derived ids and both duplicate-id answers; `test_message.py` and `test_release.py` cover the mail and the release lookup; `test_mail_guard.py` covers the mail check both POST routes run before Keygen; `test_trial_disposable.py` covers the trial's refusal of a disposable address before Keygen; `test_trial_correction_lookup.py` covers the support lookup of a trial by its exact address. `tests/unit/mailer/` covers the SMTP error mapping, MIME shape, senders and configuration checks, and `tests/integration/mailer/test_smtp_contract.py` sends through a real SMTP conversation against Mailpit when `SMTP_INTEGRATION=1`. The route and rate-limit suites, and the Keygen and mailer fakes they stood on, were deleted on 15 Sep 2026 in commit `7f1195c76`.
 
 ## Known gaps
 
-- A refund suspends every license the Stripe customer holds, partial refunds included.
-- No test covers the license routes beyond their mail check, or their rate limits, and no contract test runs the Keygen client against a real Keygen.
-- `correct_license_email.py` finds a license only by `--session`, so a trial's address cannot be corrected through it.
+- No test covers the license routes beyond their mail check and the trial's disposable refusal, or their rate limits, and no contract test runs the Keygen client against a real Keygen.

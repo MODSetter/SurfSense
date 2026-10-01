@@ -38,6 +38,7 @@ import {
   type Availability,
   type ModelIssue,
 } from "@/features/models/selection/availability"
+import { LiveResourceUsage } from "@/features/resources/live-resource-usage"
 import {
   SettingsDialog,
   type SettingsSectionId,
@@ -338,6 +339,7 @@ function WorkspaceDashboard({
                   />
                 ) : null
               }
+              usage={<LiveResourceUsage shown={rightPanelOpen} />}
               studio={
                 <StudioPanel
                   workspaceId={workspace.id}

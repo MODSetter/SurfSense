@@ -77,6 +77,8 @@ class ManifestBuild(BaseModel):
 
     quantization: str = Field(min_length=1)
     files: list[ManifestFile] = Field(min_length=1)
+    # sd-server's launch flags. Empty on every llama.cpp build and unread there:
+    # the router ignores per-model load arguments (runtime.md).
     run: RunArgs = Field(default_factory=RunArgs)
     validated: Validated = Field(default_factory=Validated)
 

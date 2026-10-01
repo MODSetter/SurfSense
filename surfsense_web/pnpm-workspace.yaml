@@ -14,3 +14,21 @@ allowBuilds:
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - lucide-react
+
+# Security floors for transitive dependencies whose parents pin a vulnerable
+# version. Each stays inside the major its dependents use, except the
+# @rocicorp/zero OpenTelemetry set (the ranges @rocicorp/zero 1.7.0 ships; zero
+# stays on 1.6.0 to match the rocicorp/zero:1.6.0 image) and uuid for
+# cloudevents and exceljs (both only call v4(), unchanged in 11.x, which still
+# ships CommonJS).
+overrides:
+  "@opentelemetry/core@>=2.0.0 <2.8.0": "^2.8.0"
+  "@opentelemetry/propagator-jaeger@>=2.0.0 <2.9.0": "^2.9.0"
+  "@rocicorp/zero>@opentelemetry/api-logs": "^0.218.0"
+  "@rocicorp/zero>@opentelemetry/auto-instrumentations-node": "^0.76.0"
+  "@rocicorp/zero>@opentelemetry/exporter-metrics-otlp-http": "^0.218.0"
+  "@rocicorp/zero>@opentelemetry/sdk-node": "^0.218.0"
+  "dompurify@>=3.0.0 <3.4.13": "^3.4.13"
+  "prismjs@>=1.0.0 <1.30.0": "^1.30.0"
+  "cloudevents>uuid": "^11.1.1"
+  "exceljs>uuid": "^11.1.1"

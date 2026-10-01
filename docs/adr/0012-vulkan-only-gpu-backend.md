@@ -1,6 +1,6 @@
 # ADR 0012: The GPU backend is Vulkan everywhere off Apple Silicon, with no CUDA payload
 
-- **Status:** Accepted
+- **Status:** Accepted; for Docker images, which may carry CUDA, superseded by [ADR 0035](0035-docker-compose-runs-the-desktop-stack.md)
 - **Date:** 2026-09-19
 - **Source:** [llama.cpp runtime plan L47](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/07-llamacpp-runtime.md#L47), [CUDA backend plan L44–57](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/08-cuda-backend.md#L44-L57)
 
