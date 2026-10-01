@@ -17,8 +17,8 @@ from app.license.keygen import LicensePlan
 LicenseSource = Literal["stripe", "trial", "enterprise"]
 PAID_STATUSES = {"paid", "no_payment_required"}
 
-# Keygen camelCases metadata keys in filter queries, so these are the spellings
-# both writes and lookups must use.
+# The one spelling of each key, for writes and lookups alike. Keygen ignores
+# case, since it snake-cases keys, but a key with a different word finds nothing.
 META_EMAIL = "email"
 META_PLAN = "plan"
 META_CUSTOMER = "stripeCustomerId"
