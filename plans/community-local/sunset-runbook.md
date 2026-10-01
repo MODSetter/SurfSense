@@ -26,7 +26,7 @@ lose in a different shell, container or checkout.
 | Set in | Reaches | Needs | Turns on |
 |---|---|---|---|
 | `surfsense_backend/.env` | the API process | `DEPLOYMENT_MODE=cloud` and `SUNSET_MODE` | `sunset: true` on `/health`, writes return 410 |
-| `surfsense_web/.env` | the Next process | `DEPLOYMENT_MODE=cloud` and `SUNSET_MODE` | app routes redirect to `/sunset` |
+| `surfsense_web/.env` | the Next process | cloud mode, from `DEPLOYMENT_MODE=cloud` or a build made with `NEXT_PUBLIC_DEPLOYMENT_MODE=cloud`, and `SUNSET_MODE` | app routes redirect to `/sunset` |
 
 Setting `SUNSET_MODE` in only one file is the likeliest way to get a half-sunset: a backend refusing
 writes behind an app that still looks open, or an app redirecting to `/sunset` while the backend
@@ -62,15 +62,16 @@ curl -s -o /dev/null -w '%{http_code}\n' $WEB/dashboard   # 200
 Take a Postgres snapshot now, not at T+30. The purge has its own snapshot, but this one covers
 stages 5 and 6 — and it is the only thing that makes a stopped service a recoverable mistake.
 
-Confirm both `.env` files carry `DEPLOYMENT_MODE=cloud` before going on. Without it the stages
-below change nothing, and nothing will say why.
+Confirm both processes are in cloud mode before going on: `DEPLOYMENT_MODE=cloud` in
+`surfsense_backend/.env`, and for the web app either `DEPLOYMENT_MODE=cloud` in `surfsense_web/.env`
+or a build made with `NEXT_PUBLIC_DEPLOYMENT_MODE=cloud`. Without it the stages below change
+nothing, and nothing will say why.
 
 **Stop condition:** `/health` already reports `sunset: true`. Something is set that you did not set;
 find out what before continuing.
 
-**Stop condition:** `DEPLOYMENT_MODE` is missing or not `cloud` in either file. That is not this
-runbook's to set: a production that is not in cloud mode has a different problem, so find out why
-first.
+**Stop condition:** either process is not in cloud mode. That is not this runbook's to set: a
+production that is not in cloud mode has a different problem, so find out why first.
 
 ---
 
@@ -140,9 +141,10 @@ curl -s -o /dev/null -w '%{http_code}\n' $WEB/pricing                       # 20
 
 The portal has to stay reachable: it is where everyone is being sent.
 
-If `/dashboard/1` still answers 200, the Next process is not in cloud mode: it needs
-`DEPLOYMENT_MODE=cloud` at runtime, or a build made with `NEXT_PUBLIC_DEPLOYMENT_MODE=cloud`,
-beside `SUNSET_MODE`.
+If `/dashboard/1` still answers 200, the Next process is not seeing both halves. Check that
+`SUNSET_MODE` is one of the accepted spellings in the environment of the running process, and that
+it is in cloud mode: `DEPLOYMENT_MODE=cloud` at runtime, or a build made with
+`NEXT_PUBLIC_DEPLOYMENT_MODE=cloud` when the runtime variable is unset.
 
 **Stop condition:** `/sunset` redirects to itself, or `/license` redirects. Unset and restart.
 

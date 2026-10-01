@@ -34,10 +34,12 @@ it just works. If you run it somewhere else — a different checkout, a containe
 that never had the file — it will refuse even though production is very much wound down. That
 refusal is the guard doing its job, not a bug. `DEPLOYMENT_MODE` is the one that goes missing,
 because nobody set it on the day; and the script's message names only `SUNSET_MODE` whichever of
-the two is absent. Set both in that shell and re-run:
+the two is absent. Export both in that shell, so that every later stage's command sees them too,
+and re-run:
 
 ```bash
-DEPLOYMENT_MODE=cloud SUNSET_MODE=1 python -m scripts.purge_hosted_accounts
+export DEPLOYMENT_MODE=cloud SUNSET_MODE=1
+python -m scripts.purge_hosted_accounts
 ```
 
 ---
