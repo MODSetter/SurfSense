@@ -115,6 +115,27 @@ async def test_a_note_written_without_document_metadata_has_none(
     assert read.json()["document_metadata"] is None
 
 
+async def test_document_rows_expose_file_mime_type_but_not_note_metadata(
+    client: AsyncClient, workspace_id: int
+) -> None:
+    """Only a FILE's server-validated MIME type may select its viewer."""
+    uploaded = await client.post(
+        f"/workspaces/{workspace_id}/documents/upload",
+        files={"files": ("report.pdf", b"%PDF-1.7", "application/pdf")},
+    )
+    note = await client.post(
+        f"/workspaces/{workspace_id}/documents",
+        json={
+            "title": "Note",
+            "content": "text",
+            "document_metadata": {"mime_type": "application/pdf"},
+        },
+    )
+
+    assert uploaded.json()["created"][0]["mime_type"] == "application/pdf"
+    assert note.json()["mime_type"] is None
+
+
 async def test_editing_a_note_keeps_its_document_metadata(
     client: AsyncClient, workspace_id: int
 ) -> None:

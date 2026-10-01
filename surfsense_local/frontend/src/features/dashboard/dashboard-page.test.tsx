@@ -13,7 +13,7 @@ import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
-import { RIGHT_PANEL_KEY } from "./chrome-prefs"
+import { readSourcePreview, RIGHT_PANEL_KEY } from "./chrome-prefs"
 import { DashboardPage } from "./dashboard-page"
 
 const workspace = {
@@ -708,7 +708,8 @@ describe("dashboard chat", () => {
     fireEvent.click(screen.getByRole("button", { name: "View cited chunk 30" }))
     expect(await screen.findByText("indexed passage")).toBeTruthy()
     expect(screen.getByText("Cited chunk")).toBeTruthy()
-    const rail = document.querySelector("[data-slot=slide-rail]")
+    const rail = document.querySelector("#workspace-right-panel")?.parentElement
+      ?.parentElement
     expect(rail).toBeInstanceOf(HTMLElement)
     expect((rail as HTMLElement).style.width).toBe(`${DETAIL_RAIL_WIDTH}px`)
     await user.click(screen.getByRole("button", { name: "Open file" }))
@@ -804,6 +805,79 @@ describe("dashboard chat", () => {
         expect.objectContaining({ signal: expect.any(AbortSignal) })
       )
     })
+  })
+
+  it("previews a PDF in a left rail and restores the right panel preference", async () => {
+    const pdf = {
+      id: 42,
+      title: "report.pdf",
+      document_type: "FILE",
+      mime_type: "application/pdf",
+      status: "pending",
+      error_message: null,
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      const path = String(input)
+      if (path === "/llm/providers") {
+        return Response.json([
+          { name: "llamacpp", healthy: true, can_download: true },
+        ])
+      }
+      if (
+        path === "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+      ) {
+        return Response.json([pdf])
+      }
+      if (path === "/workspaces/1/chat/threads") return Response.json([])
+      if (path === "/workspaces/1/documents/42/original") {
+        return new Response(new Uint8Array([37, 80, 68, 70, 45, 49, 46, 55]))
+      }
+      return Response.json({ detail: "not found" }, { status: 404 })
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    localStorage.setItem(RIGHT_PANEL_KEY, "open")
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "llamacpp",
+            connection_id: null,
+            name: "llama3.2:1b",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(await screen.findByRole("button", { name: "report.pdf" }))
+    expect(
+      await screen.findByRole("complementary", { name: "Source preview" })
+    ).toBeTruthy()
+    const rightRail = document.querySelector("#workspace-right-panel")
+      ?.parentElement?.parentElement as HTMLElement
+    expect(rightRail.style.width).toBe("0px")
+    expect(readSourcePreview(workspace.id)).toBe(42)
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/workspaces/1/documents/42/original",
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
+      )
+    })
+
+    await user.click(
+      screen.getByRole("button", { name: "Close source preview" })
+    )
+    expect(readSourcePreview(workspace.id)).toBeNull()
+    expect(rightRail.style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
+    expect(localStorage.getItem(RIGHT_PANEL_KEY)).toBe("open")
   })
 
   it("surfaces a message request failure inside the conversation", async () => {
@@ -1321,7 +1395,8 @@ describe("dashboard chat", () => {
     await user.click(weeklySummary)
     expect(await screen.findByText("Saturn is a gas giant.")).toBeTruthy()
     expect(screen.getByRole("complementary", { name: "Artifact" })).toBeTruthy()
-    const rail = document.querySelector("[data-slot=slide-rail]")
+    const rail = document.querySelector("#workspace-right-panel")?.parentElement
+      ?.parentElement
     expect((rail as HTMLElement).style.width).toBe(`${DETAIL_RAIL_WIDTH}px`)
     await user.click(screen.getByRole("button", { name: "Close artifact" }))
     expect((rail as HTMLElement).style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
