@@ -254,7 +254,12 @@ export function useSources(workspaceId: number) {
     setError(null)
     try {
       const created = await createNote(workspaceId, { title, content })
-      setDocuments((current) => [created, ...current])
+      // The server announces the note before it answers, so a refetch may
+      // already hold it.
+      setDocuments((current) => [
+        created,
+        ...current.filter((document) => document.id !== created.id),
+      ])
       return true
     } catch (cause) {
       setError(messageFrom(cause))
