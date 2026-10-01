@@ -347,6 +347,8 @@
   "models_hardware_gpu_label": "그래픽 카드",
   "models_hardware_memory_label": "메모리 {size, number, ::unit/gigabyte .#}",
   "models_hardware_summary_body": "아래의 모든 모델은 이 컴퓨터를 기준으로 산정했습니다.",
+  "models_image_server_idle_status": "Studio에서 필요할 때 시작됩니다",
+  "models_image_server_running_status": "실행 중",
   "models_in_use_local_label": "이 컴퓨터",
   "models_in_use_missing_label": "이 컴퓨터에서 찾을 수 없음",
   "models_in_use_summary_aria": "{slot, select, chat {사용 중인 채팅 모델} image {사용 중인 이미지 모델} image_edit {사용 중인 이미지 편집 모델} video {사용 중인 동영상 모델} audio {사용 중인 음성 모델} other {사용 중인 모델}}",

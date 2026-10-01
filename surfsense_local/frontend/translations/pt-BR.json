@@ -347,6 +347,8 @@
   "models_hardware_gpu_label": "Placa de vídeo",
   "models_hardware_memory_label": "{size, number, ::unit/gigabyte .#} de memória",
   "models_hardware_summary_body": "Todos os modelos abaixo são avaliados para este computador.",
+  "models_image_server_idle_status": "Inicia quando o Studio precisar",
+  "models_image_server_running_status": "Em execução",
   "models_in_use_local_label": "Este computador",
   "models_in_use_missing_label": "Não encontrado neste computador",
   "models_in_use_summary_aria": "{slot, select, chat {modelo de chat em uso} image {modelo de imagem em uso} image_edit {modelo de edição de imagem em uso} video {modelo de vídeo em uso} audio {modelo de áudio em uso} other {modelo em uso}}",

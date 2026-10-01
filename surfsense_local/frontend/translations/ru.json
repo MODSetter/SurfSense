@@ -347,6 +347,8 @@
   "models_hardware_gpu_label": "Видеокарта",
   "models_hardware_memory_label": "{size, number, ::unit/gigabyte .#} памяти",
   "models_hardware_summary_body": "Все модели ниже оценены применительно к этому компьютеру.",
+  "models_image_server_idle_status": "Запускается по запросу Studio",
+  "models_image_server_running_status": "Работает",
   "models_in_use_local_label": "Этот компьютер",
   "models_in_use_missing_label": "Не найдена на этом компьютере",
   "models_in_use_summary_aria": "{slot, select, chat {используемая модель для чата} image {используемая модель для изображений} image_edit {используемая модель для редактирования изображений} video {используемая модель для видео} audio {используемая модель для аудио} other {используемая модель}}",

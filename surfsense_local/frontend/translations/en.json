@@ -347,6 +347,8 @@
   "models_hardware_gpu_label": "Graphics card",
   "models_hardware_memory_label": "{size, number, ::unit/gigabyte .#} memory",
   "models_hardware_summary_body": "Every model below is priced against this computer.",
+  "models_image_server_idle_status": "Starts when Studio needs it",
+  "models_image_server_running_status": "Running",
   "models_in_use_local_label": "This computer",
   "models_in_use_missing_label": "Not found on this computer",
   "models_in_use_summary_aria": "{slot, select, chat {chat model in use} image {image model in use} image_edit {image editing model in use} video {video model in use} audio {audio model in use} other {model in use}}",

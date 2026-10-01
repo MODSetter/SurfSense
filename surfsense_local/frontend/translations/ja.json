@@ -347,6 +347,8 @@
   "models_hardware_gpu_label": "グラフィックカード",
   "models_hardware_memory_label": "メモリ{size, number, ::unit/gigabyte .#}",
   "models_hardware_summary_body": "以下のモデルはすべて、このコンピューターに合わせて見積もっています。",
+  "models_image_server_idle_status": "Studioで必要になったときに起動します",
+  "models_image_server_running_status": "実行中",
   "models_in_use_local_label": "このコンピューター",
   "models_in_use_missing_label": "このコンピューターに見つかりません",
   "models_in_use_summary_aria": "{slot, select, chat {使用中のチャットモデル} image {使用中の画像モデル} image_edit {使用中の画像編集モデル} video {使用中の動画モデル} audio {使用中の音声モデル} other {使用中のモデル}}",
