@@ -21,7 +21,8 @@ Electron main ─┬─ api            FastAPI on 127.0.0.1, free port    ─┐
                ├─ worker-studio  Huey consumer, "studio", 4 threads ─┘
                ├─ llamacpp       llama-server in router mode
                ├─ sdcpp          sd-server, started once an image model is chosen
-               └─ audiocpp       audiocpp_server, started once the API names an audio model
+               ├─ audiocpp       audiocpp_server, started once the API names an audio model
+               └─ opencode       opencode serve, started once the API writes its configuration
 
 BrowserWindow (Vite SPA) ── HTTP ──> api
 api, worker-studio ── HTTP ──> llama-server, sd-server, remote OpenAI-compatible endpoints
@@ -33,7 +34,8 @@ worker-ingest, worker-studio ── POST /internal/events ──> api ── SSE
 - sd-server takes its model as startup arguments, so it cannot start at boot. Whenever its pinned build is staged, in dev too (`pnpm build:sdcpp`, which `predev` runs), `watchImageModel` asks the API every 5 seconds which files to run, and starts, restarts or stops it on a change. The API names a model only while a Studio job needs one and for up to 5 minutes after, so its weights are not held beside the chat model all session ([`studio.md`](studio.md#the-image-path)).
 - audiocpp_server refuses an empty model list, so it starts only once the API has written `audio/server.json` under the data directory, in dev too (`pnpm build:audiocpp`, which `predev` runs). On Windows and Linux that script compiles audio.cpp, and without a C++ toolchain the app runs without local audio ([packaging](packaging.md)). Electron checks that file every 5 seconds and restarts the server when it changes. Electron sets the machine-wide flags: the CPU backend, half the logical cores up to 8, one loaded model, and an unload after 5 idle minutes. The API writes that file whenever an audio model is installed or deleted, and at startup ([`local-models/catalog.md`](local-models/catalog.md)). The Studio worker voices podcasts there, at `SURFSENSE_LOCAL_AUDIO_BASE_URL`, and unloads the model when a podcast ends ([`studio.md`](studio.md)).
 - Only the API gates the window. Electron waits up to 60 seconds for `/health` and gives up at once if the API exits. llama-server is best-effort; its state shows through `/llm/providers`.
-- On macOS and Linux each child runs in its own process group. On quit Electron sends SIGTERM and, after 5 seconds, SIGKILL; on Windows it kills the process tree. A single-instance lock hands a second launch to the first window, because two sets of sidecars would fight over the SQLite file.
+- opencode, the agent's engine, starts only once the API has written `agent/opencode.json` under the data directory, in dev too (`pnpm build:opencode`, which `predev` runs). Electron checks that file every 2 seconds and restarts opencode when it changes, and removes it at boot, so each run's API writes its own. At boot Electron picks opencode's port and a random password, which it passes to the API alone as `SURFSENSE_LOCAL_OPENCODE_URL` and `SURFSENSE_LOCAL_OPENCODE_PASSWORD`. opencode's environment is built from a few system variables rather than inherited, with its home and XDG folders under `agent/opencode/`, its own fetches switched off and its proxy pointed at the discard port ([`sidecars/opencode.ts`](../../surfsense_local/electron/src/main/sidecars/opencode.ts)). `serve` keeps running when its parent is killed, so Electron records the pid, port and password in `agent/opencode-process.json`, and the next boot stops a recorded process that still accepts that password.
+- On macOS and Linux each child runs in its own process group. On quit Electron sends SIGTERM and, after 5 seconds, SIGKILL; the group is also killed as soon as the sidecar itself exits, because a child that ignores SIGTERM would outlive the app. On Windows it kills the process tree. A single-instance lock hands a second launch to the first window, because two sets of sidecars would fight over the SQLite file.
 - The Python sidecars are configured through `SURFSENSE_LOCAL_*` variables: the API's host and port, the data and models directories, the llama-server and sd-server addresses, the images folder, audio.cpp's address and folder where it is staged, and `SURFSENSE_LOCAL_SECRET`, the key that encrypts stored API keys ([`connections.md`](connections.md)). No other sidecar receives the secret. The API alone also gets `SURFSENSE_LOCAL_SHELL_PID`, Electron's own pid, the root of what Settings › Resources counts as the app ([`resource-usage.md`](resource-usage.md)).
 
 ## Layer boundary
@@ -74,6 +76,7 @@ The rules that keep the processes out of each other's way:
 ├── models/                   GGUF weights and llama-server's models.ini
 ├── images/                   sd-server weights (hosts with sd-server staged)
 ├── electron/                 Electron's userData: secret.bin, updates.json, window and theme prefs
+├── agent/                    opencode.json, which the API writes, and opencode's own home (hosts with opencode staged)
 └── data/workspaces/<id>/
     ├── documents/<id>/       the upload, under its own name
     ├── chats/<id>/           images a thread's turns carried
@@ -103,7 +106,7 @@ The rules that keep the processes out of each other's way:
 - [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the two Huey queues, `retrieve()`, and the secret that encrypts stored keys.
 - [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0012`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
 - [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `license`, `migration`, `updates` and `feedback`.
-- [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (boot, window, IPC and the image-model and preset watchers), `sidecars/` (the supervisor and one spec per sidecar), `session-log/` (this run's output, for issue reports), `secret.ts`, `updater.ts` and `document-files.ts`.
+- [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (boot, window, IPC and the image-model, preset, audio and agent watchers), `sidecars/` (the supervisor and one spec per sidecar), `session-log/` (this run's output, for issue reports), `secret.ts`, `updater.ts` and `document-files.ts`.
 
 ## Where to read next
 
@@ -121,3 +124,4 @@ The rules that keep the processes out of each other's way:
 ## Known gaps
 
 - The Studio artifact list never subscribes to `GET /workspaces/{id}/events`; it polls every 1.5 seconds instead of reloading on the `artifacts` events its worker already sends. The sources panel subscribes in a hook of its own rather than through TanStack Query.
+- A shell command the agent runs inherits opencode's environment, `OPENCODE_SERVER_PASSWORD` included (opencode's `tool/shell.ts` merges `process.env` into it), so a command the user approved can call opencode's own API, approval replies among it. The approval prompt shows the command in full ([ADR 0028](../adr/0028-model-written-code-runs-with-approval.md)).

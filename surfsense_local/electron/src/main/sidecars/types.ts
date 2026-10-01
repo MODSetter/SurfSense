@@ -6,6 +6,8 @@ export interface SidecarSpec {
   cwd: string
   /** Extra env, merged over process.env by the supervisor. */
   env: Record<string, string>
+  /** False: the child gets `env` alone, for one that must not see Electron's secrets. */
+  inheritEnv?: boolean
 }
 
 /** Called when a sidecar exits without us asking it to. */
@@ -57,4 +59,15 @@ export interface SidecarContext {
   audioUrl?: string
   audioModelsDir?: string
   audioBinariesDir?: string
+  /** The staged opencode and its ripgrep: `scripts/opencode/stage.mjs` writes it. */
+  opencodeBinariesDir?: string
+  /**
+   * opencode's port and the password it requires, chosen at boot so the API
+   * knows where the agent will be before the agent is first started.
+   */
+  opencodePort?: number
+  opencodePassword?: string
+  opencodeUrl?: string
+  /** `<dataDir>/agent`: the config the API writes, and opencode's own home. */
+  agentDir?: string
 }

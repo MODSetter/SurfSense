@@ -1,4 +1,5 @@
-import { existsSync, mkdirSync, statSync } from "node:fs"
+import { randomBytes } from "node:crypto"
+import { existsSync, mkdirSync, rmSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 import {
@@ -34,6 +35,14 @@ import {
   AUDIOCPP_SIDECAR,
   SERVER_CONFIG,
 } from "./sidecars/audiocpp.ts"
+import {
+  binaryPath as opencodeBinaryPath,
+  configPath as opencodeConfigPath,
+  opencodeSpec,
+  OPENCODE_SIDECAR,
+} from "./sidecars/opencode.ts"
+import { prepareOpencodeHome } from "./sidecars/opencode-home.ts"
+import { recordOpencode, stopLeftoverOpencode } from "./sidecars/opencode-leftovers.ts"
 import { apiSpec, workerSpec } from "./sidecars/python.ts"
 import {
   binaryPath as sdcppBinaryPath,
@@ -195,6 +204,41 @@ function watchAudioModels(ctx: SidecarContext): void {
   timer.unref()
 }
 
+// opencode starts the first time a thread needs the agent, which the API says
+// by writing its configuration, and restarts on every rewrite, because it reads
+// that file once. Same shape as watchAudioModels: the API is the authority.
+function watchAgentConfig(ctx: SidecarContext): void {
+  if (ctx.agentDir == null || ctx.opencodeBinariesDir == null) return
+  const agentDir = ctx.agentDir
+  const config = opencodeConfigPath(agentDir)
+  let current = "absent"
+
+  const reconcile = async () => {
+    if (!sidecars || shuttingDown) return
+    const stamp = presetStamp(config)
+    if (stamp === current) return
+    current = stamp
+
+    if (sidecars.has(OPENCODE_SIDECAR)) await stopNamed(sidecars, OPENCODE_SIDECAR)
+    const spec = opencodeSpec(ctx)
+    if (!spec) return
+    prepareOpencodeHome(agentDir)
+    startOne(sidecars, spec, onSidecarCrash)
+    const pid = sidecars.get(OPENCODE_SIDECAR)?.pid
+    if (pid != null && ctx.opencodePort != null && ctx.opencodePassword != null) {
+      recordOpencode(agentDir, { pid, port: ctx.opencodePort, password: ctx.opencodePassword })
+    }
+  }
+
+  const timer = setInterval(() => {
+    void reconcile().catch(() => {
+      // Mid-write or mid-restart; the next tick tries again.
+    })
+    // Faster than the other watchers: someone is waiting on their first agent turn.
+  }, 2000)
+  timer.unref()
+}
+
 /** Size and mtime, which is enough to notice a rewrite and costs no read. */
 function presetStamp(path: string): string {
   try {
@@ -267,6 +311,24 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
     ctx.imageUrl = `http://${host}:${ctx.imagePort}`
   }
 
+  // Same staging in both modes. Only a host with a staged opencode gets an
+  // agent: the port and password are chosen now so the API knows where it will
+  // be, and opencode itself waits for the API's configuration (watchAgentConfig).
+  const opencodeBinariesDir = packaged
+    ? join(process.resourcesPath, "opencode")
+    : join(app.getAppPath(), "opencode")
+  if (existsSync(opencodeBinaryPath({ ...ctx, opencodeBinariesDir }))) {
+    ctx.opencodeBinariesDir = opencodeBinariesDir
+    ctx.opencodePort = await getFreePort(host)
+    ctx.opencodePassword = randomBytes(32).toString("base64url")
+    ctx.opencodeUrl = `http://${host}:${ctx.opencodePort}`
+    ctx.agentDir = join(dataDir, "agent")
+    mkdirSync(ctx.agentDir, { recursive: true })
+    await stopLeftoverOpencode(ctx.agentDir, host)
+    // Each run's API writes its own; the last run's names a key this one never made.
+    rmSync(opencodeConfigPath(ctx.agentDir), { force: true })
+  }
+
   // llamacppSpec is null in dev, where no binary is staged. sd-server is absent
   // here on purpose: watchImageModel owns it, because only the API knows which
   // model was chosen.
@@ -284,6 +346,7 @@ async function bootSidecars(): Promise<{ apiUrl: string; dataDir: string }> {
   watchImageModel(ctx)
   watchGenerationPreset(ctx)
   watchAudioModels(ctx)
+  watchAgentConfig(ctx)
 
   // gate on the API only; fail fast if it dies during startup. llama-server is
   // best-effort (its state shows via /llm/providers; an early exit hits onSidecarCrash).
