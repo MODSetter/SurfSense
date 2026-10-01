@@ -205,25 +205,35 @@ function watchAudioModels(ctx: SidecarContext): void {
 }
 
 // opencode starts the first time a thread needs the agent, which the API says
-// by writing its configuration, and restarts on every rewrite, because it reads
-// that file once. Same shape as watchAudioModels: the API is the authority.
+// by writing its configuration. A rewrite is not a restart: opencode reads the
+// file per folder, and the API makes it read it again (`POST /global/dispose`),
+// so no turn is cut off by a restart it did not ask for. Removing the file stops
+// opencode; a crash restarts it, at most once per AGENT_RESTART_MS.
+const AGENT_RESTART_MS = 10_000
+
 function watchAgentConfig(ctx: SidecarContext): void {
   if (ctx.agentDir == null || ctx.opencodeBinariesDir == null) return
   const agentDir = ctx.agentDir
   const config = opencodeConfigPath(agentDir)
-  let current = "absent"
+  let lastStart = 0
 
   const reconcile = async () => {
     if (!sidecars || shuttingDown) return
-    const stamp = presetStamp(config)
-    if (stamp === current) return
-    current = stamp
+    const child = sidecars.get(OPENCODE_SIDECAR)
+    const running = child != null && child.exitCode === null && child.signalCode === null
+    const wanted = existsSync(config)
+    if (wanted === running) return
 
-    if (sidecars.has(OPENCODE_SIDECAR)) await stopNamed(sidecars, OPENCODE_SIDECAR)
+    if (!wanted) {
+      await stopNamed(sidecars, OPENCODE_SIDECAR)
+      return
+    }
+    if (Date.now() - lastStart < AGENT_RESTART_MS) return
     const spec = opencodeSpec(ctx)
     if (!spec) return
     prepareOpencodeHome(agentDir)
     startOne(sidecars, spec, onSidecarCrash)
+    lastStart = Date.now()
     const pid = sidecars.get(OPENCODE_SIDECAR)?.pid
     if (pid != null && ctx.opencodePort != null && ctx.opencodePassword != null) {
       recordOpencode(agentDir, { pid, port: ctx.opencodePort, password: ctx.opencodePassword })
