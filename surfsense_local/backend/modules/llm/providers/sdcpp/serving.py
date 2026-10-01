@@ -24,16 +24,21 @@ async def wait_until_serving(
     deadline = time.monotonic() + timeout
     async with httpx.AsyncClient(timeout=5.0, transport=transport) as client:
         while True:
-            try:
-                reply = await client.get(f"{root_url}/sdapi/v1/sd-models")
-                if reply.status_code == 200 and any(
-                    model.get("filename") == filename for model in reply.json()
-                ):
-                    return
-            except (httpx.HTTPError, ValueError):
-                pass
+            if await serves(client, root_url, filename):
+                return
             if time.monotonic() >= deadline:
                 raise ImageServerNotReadyError(
                     "The image model did not start. Try again, or restart SurfSense."
                 )
             await asyncio.sleep(interval)
+
+
+async def serves(client: httpx.AsyncClient, root_url: str, filename: str) -> bool:
+    """One ask, never a start: whether sd-server is up on `filename` right now."""
+    try:
+        reply = await client.get(f"{root_url}/sdapi/v1/sd-models")
+        return reply.status_code == 200 and any(
+            model.get("filename") == filename for model in reply.json()
+        )
+    except (httpx.HTTPError, ValueError):
+        return False

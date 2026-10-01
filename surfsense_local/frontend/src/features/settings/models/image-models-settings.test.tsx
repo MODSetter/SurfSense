@@ -151,6 +151,32 @@ describe("image model settings", () => {
     expect(screen.queryByText(/Qwen3 8B/)).toBeNull()
   })
 
+  it.each([
+    ["idle", "Starts when Studio needs it"],
+    ["running", "Running"],
+    [
+      "missing",
+      "A file it needs is missing, so it cannot start. Delete it and download it again.",
+    ],
+  ])(
+    "says what the chosen image model's server is doing: %s",
+    async (state, said) => {
+      vi.stubGlobal(
+        "fetch",
+        serving(
+          [imageRow({ installed_as: "sdxl-turbo-q4_0", selected: true })],
+          (path) =>
+            path === "/llm/image/local/state?model_type=image_gen"
+              ? Response.json({ state })
+              : null
+        )
+      )
+      render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
+
+      expect(await screen.findByText(said)).toBeTruthy()
+    }
+  )
+
   it("deletes the image model in use, like chat", async () => {
     const fetchMock = serving(
       [imageRow({ installed_as: "sdxl-turbo-q4_0", selected: true })],

@@ -1,5 +1,8 @@
-import type { SdCppSlot } from "../local/image/api"
+import { intl } from "@/i18n/intl"
+
+import type { ImageServerState, SdCppSlot } from "../local/image/api"
 import { useLocalImageCatalog } from "../local/image/use-local-image-catalog"
+import { useLocalImageState } from "../local/image/use-local-image-state"
 import { useConnections } from "../remote/connections/use-connections"
 import { useSelection } from "../selection/use-selection"
 import {
@@ -10,11 +13,35 @@ import {
 
 /** Every image model on disk that can fill `slot`, and the one in use for it
  *  wherever it runs. */
+const SERVER_NOTE: Record<ImageServerState, (() => string) | null> = {
+  none: null,
+  idle: () =>
+    intl.formatMessage({
+      id: "models_image_server_idle_status",
+      defaultMessage: "Starts when Studio needs it",
+    }),
+  running: () =>
+    intl.formatMessage({
+      id: "models_image_server_running_status",
+      defaultMessage: "Running",
+    }),
+  missing: () =>
+    intl.formatMessage({
+      id: "models_image_server_missing_status",
+      defaultMessage:
+        "A file it needs is missing, so it cannot start. Delete it and download it again.",
+    }),
+}
+
 export function useImageModels(slot: SdCppSlot = "image_gen"): YourModels {
   const catalog = useLocalImageCatalog(slot)
   const selection = useSelection(slot)
   const connections = useConnections()
   const rows = catalog.data ?? []
+  const server = useLocalImageState(
+    slot,
+    rows.some((row) => row.builds.some((build) => build.selected))
+  )
 
   const local: YourModelRow[] = rows.flatMap((row) =>
     row.builds.flatMap((build) =>
@@ -26,8 +53,12 @@ export function useImageModels(slot: SdCppSlot = "image_gen"): YourModels {
               name: row.name,
               selected: build.selected,
               badges: [],
-              // Nothing reports whether sd-server is up yet, so no "Starting…".
-              note: row.runnable ? null : row.not_runnable_reason,
+              // sd-server starts lazily, so the one in use says whether it is up.
+              note: !row.runnable
+                ? row.not_runnable_reason
+                : build.selected && server.data
+                  ? (SERVER_NOTE[server.data]?.() ?? null)
+                  : null,
               target: {
                 provider: "sdcpp",
                 connection_id: null,
