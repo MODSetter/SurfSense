@@ -1,0 +1,249 @@
+"""Starting the staged opencode the way Electron does, against a scripted model.
+
+Skips where `pnpm build:opencode` has not staged a build, as the parser tests
+skip without their pack: CI's backend jobs do not stage desktop runtimes.
+"""
+
+import json
+import os
+import signal
+import socket
+import subprocess
+import threading
+import time
+from dataclasses import dataclass, field
+from http.server import BaseHTTPRequestHandler
+from pathlib import Path
+
+import httpx
+import pytest
+
+STAGED = (
+    Path(__file__).resolve().parents[4]
+    / "electron"
+    / "opencode"
+    / ("opencode.exe" if os.name == "nt" else "opencode")
+)
+MODEL = "stub-model"
+
+
+def needs_staged_opencode() -> None:
+    """Skip unless the pinned opencode is staged in electron/opencode/."""
+    if not STAGED.is_file():
+        pytest.skip(
+            "run `pnpm build:opencode` in surfsense_local/electron to exercise opencode"
+        )
+
+
+@dataclass
+class ScriptedModel:
+    """An OpenAI-compatible model that plays its replies in order, one per request.
+
+    A reply is ("text", words), ("bash", command) for one shell call, or
+    ("stall", words), which sends its words and then waits until released.
+    """
+
+    url: str = ""
+    replies: list[tuple[str, str]] = field(default_factory=list)
+    requests: list[dict] = field(default_factory=list)
+    release: threading.Event = field(default_factory=threading.Event)
+
+
+def _chunk(delta: dict, finish: str | None = None) -> str:
+    """One streamed chat completion chunk, as an OpenAI-compatible server sends it."""
+    choice = {"index": 0, "delta": delta, "finish_reason": finish}
+    return (
+        "data: "
+        + json.dumps(
+            {"id": "c1", "object": "chat.completion.chunk", "choices": [choice]}
+        )
+        + "\n\n"
+    )
+
+
+class ScriptedHandler(BaseHTTPRequestHandler):
+    """Streams the next scripted reply for every chat request."""
+
+    def do_POST(self) -> None:
+        model: ScriptedModel = self.server.model  # type: ignore[attr-defined]
+        model.requests.append(
+            json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        )
+        kind, value = model.replies.pop(0) if model.replies else ("text", "Done.")
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.end_headers()
+        if kind == "bash":
+            arguments = json.dumps({"command": value, "description": "Run it"})
+            call = {
+                "index": 0,
+                "id": "call_1",
+                "type": "function",
+                "function": {"name": "bash", "arguments": arguments},
+            }
+            self._send(
+                _chunk({"role": "assistant", "tool_calls": [call]}),
+                _chunk({}, "tool_calls"),
+            )
+        else:
+            self._send(_chunk({"role": "assistant", "content": value}))
+            if kind == "stall":
+                model.release.wait(timeout=30)
+            self._send(_chunk({}, "stop"))
+        self._send("data: [DONE]\n\n")
+
+    def _send(self, *frames: str) -> None:
+        """Write and flush, as a model streaming token by token does."""
+        try:
+            for frame in frames:
+                self.wfile.write(frame.encode())
+                self.wfile.flush()
+        except OSError:
+            pass  # opencode hung up, which a stopped turn does
+
+    def log_message(self, *args: object) -> None:
+        """Keep the request log out of the test output."""
+
+
+def free_port() -> int:
+    """A loopback port nothing listens on yet."""
+    with socket.socket() as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+@dataclass
+class RunningOpencode:
+    """A started opencode: where it listens, its password, and the folders it uses."""
+
+    url: str
+    password: str
+    agent_dir: Path
+    process: subprocess.Popen
+
+    def stop(self) -> None:
+        """Take down opencode and anything it started, as the supervisor does."""
+        if self.process.poll() is not None:
+            return
+        if os.name == "nt":
+            subprocess.run(
+                ["taskkill", "/pid", str(self.process.pid), "/t", "/f"], check=False
+            )
+        else:
+            os.killpg(self.process.pid, signal.SIGKILL)
+        self.process.wait(timeout=10)
+
+
+def start_opencode(agent_dir: Path, port: int, password: str) -> RunningOpencode:
+    """Start the staged opencode on the configuration in `agent_dir`, as Electron would."""
+    home = agent_dir / "opencode"
+    config_folder = home / "config" / "opencode"
+    (config_folder / "node_modules").mkdir(parents=True, exist_ok=True)
+    lock = {
+        "lockfileVersion": 3,
+        "packages": {"": {"dependencies": {"@opencode-ai/plugin": "*"}}},
+    }
+    (config_folder / "package-lock.json").write_text(json.dumps(lock))
+    nowhere = "http://127.0.0.1:9"
+    env = {
+        "PATH": f"{STAGED.parent}{os.pathsep}{os.environ.get('PATH', '')}",
+        "HOME": str(home),
+        "OPENCODE_TEST_HOME": str(home),
+        "XDG_CONFIG_HOME": str(home / "config"),
+        "XDG_DATA_HOME": str(home / "data"),
+        "XDG_CACHE_HOME": str(home / "cache"),
+        "XDG_STATE_HOME": str(home / "state"),
+        "OPENCODE_CONFIG": str(agent_dir / "opencode.json"),
+        "OPENCODE_SERVER_PASSWORD": password,
+        "npm_config_audit": "false",
+        "npm_config_fetch_retries": "0",
+        "HTTP_PROXY": nowhere,
+        "HTTPS_PROXY": nowhere,
+        "ALL_PROXY": nowhere,
+        "NO_PROXY": "127.0.0.1,localhost,::1",
+        **dict.fromkeys(
+            (
+                "OPENCODE_DISABLE_MODELS_FETCH",
+                "OPENCODE_DISABLE_SHARE",
+                "OPENCODE_DISABLE_LSP_DOWNLOAD",
+                "OPENCODE_DISABLE_AUTOUPDATE",
+                "OPENCODE_DISABLE_DEFAULT_PLUGINS",
+                "OPENCODE_PURE",
+                "OPENCODE_DISABLE_PROJECT_CONFIG",
+                "OPENCODE_DISABLE_EXTERNAL_SKILLS",
+                "OPENCODE_DISABLE_CLAUDE_CODE",
+            ),
+            "1",
+        ),
+    }
+    for folder in ("data", "cache", "state"):
+        (home / folder).mkdir(parents=True, exist_ok=True)
+    process = subprocess.Popen(
+        [str(STAGED), "serve", "--hostname", "127.0.0.1", "--port", str(port)],
+        cwd=home,
+        env=env,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    return RunningOpencode(f"http://127.0.0.1:{port}", password, agent_dir, process)
+
+
+def wait_until_healthy(running: RunningOpencode, timeout: float = 60.0) -> None:
+    """Block until opencode answers its health route, or fail the test.
+
+    The port opens before the server answers on it, so only an answer counts.
+    """
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if running.process.poll() is not None:
+            raise RuntimeError(f"opencode exited with {running.process.returncode}")
+        try:
+            reply = httpx.get(
+                f"{running.url}/global/health",
+                auth=("opencode", running.password),
+                timeout=1.0,
+            )
+            if reply.status_code == 200:
+                return
+        except httpx.HTTPError:
+            pass
+        time.sleep(0.2)
+    raise RuntimeError("opencode never answered its health route")
+
+
+class StandInForElectron:
+    """Electron's agent watcher: starts opencode once its config file exists, and never on a rewrite.
+
+    A rewrite is the API's to apply, through opencode's own reload.
+    """
+
+    def __init__(self, agent_dir: Path, port: int, password: str) -> None:
+        self._config = agent_dir / "opencode.json"
+        self._agent_dir, self._port, self._password = agent_dir, port, password
+        self._stopping = threading.Event()
+        self._thread = threading.Thread(target=self._watch, daemon=True)
+        self.running: RunningOpencode | None = None
+        self.starts = 0
+
+    def __enter__(self) -> "StandInForElectron":
+        self._follow()
+        self._thread.start()
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        self._stopping.set()
+        self._thread.join(timeout=10)
+        if self.running is not None:
+            self.running.stop()
+
+    def _watch(self) -> None:
+        """Check for the file, as the real watcher polls for it."""
+        while not self._stopping.wait(0.2):
+            self._follow()
+
+    def _follow(self) -> None:
+        """Start opencode the first time the file is there."""
+        if self.running is None and self._config.is_file():
+            self.running = start_opencode(self._agent_dir, self._port, self._password)
+            self.starts += 1

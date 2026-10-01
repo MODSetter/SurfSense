@@ -33,8 +33,8 @@ Source links below are to opencode at tag [`v1.18.34`](https://github.com/anomal
 - Folders: `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_CACHE_HOME`, `XDG_STATE_HOME`, `HOME`, `USERPROFILE` and `OPENCODE_TEST_HOME` all point inside SurfSense's data folder. opencode finds its folders through `xdg-basedir`, and its home through `OPENCODE_TEST_HOME` before `os.homedir()` ([`core/src/global.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/core/src/global.ts) L19). Its sessions database lives under its data folder, so it stays inside SurfSense's.
 - Stop: on Windows, `taskkill /t` on the process before anything else. Elsewhere, SIGTERM to its process group, then SIGKILL to the group whether or not the parent has exited, because shell commands and MCP clients it started can outlive it.
 - Leftovers: `serve` keeps running when its parent is killed (observed with `v1.18.34` on Linux). The supervisor records each opencode it starts, with its pid and port, in its data folder. At boot it stops a recorded process that is still an `opencode serve` on its recorded port, and nothing else.
-- Restart: after a crash, restart with a growing wait, never while a turn is running, and tell the backend, which resyncs (Routes and events, below).
-- A new configuration, such as another model: write it, then call `POST /instance/dispose` while no turn is running ([`groups/instance.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/server/routes/instance/httpapi/groups/instance.ts)). The event stream ends with `server.instance.disposed` and is opened again.
+- Restart: after a crash, restart at most once every 10 s, and the backend resyncs (Routes and events, below).
+- A new configuration, such as another model, is not a restart. opencode reads the file per folder, the first time the folder is used, and keeps what it read, so the backend writes the file and then calls `POST /global/dispose`, which drops every folder's instance and ends their turns ([`groups/global.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/server/routes/instance/httpapi/groups/global.ts)). opencode's own config update does the same. The event streams end with `server.instance.disposed` and are opened again. Restarting the process on a rewrite instead raced: a folder first used after the write read the new file from the old process, which the restart then cut off.
 
 ## Routes and events
 
@@ -49,7 +49,7 @@ The routes SurfSense uses, in [`opencode/src/server/routes/instance/httpapi/grou
 | `GET /session/status`, `GET /session/:sessionID/message`, `GET /permission` | resync after the event stream reconnects |
 | `GET /event` | the event stream, as `text/event-stream` |
 | `POST /permission/:requestID/reply` | answer a permission request |
-| `POST /instance/dispose` | apply a new configuration |
+| `GET /config`, `POST /global/dispose` | check which configuration is loaded, and make every folder read the file again |
 
 - A request's folder is `?directory=`, which wins over the `x-opencode-directory` header and the process's own folder ([`middleware/workspace-routing.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing.ts) L87). The client sends it URL-encoded, so folder names outside ASCII survive.
 - `GET /event` sends `server.connected` first, then `server.heartbeat` every 10 s ([`handlers/event.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/server/routes/instance/httpapi/handlers/event.ts) L63–71). Frames carry no `id:`, so nothing is replayed after a reconnect. The client reconnects after 20 s without a frame, and on every `server.connected` it reads session status, the open thread's messages and pending permission requests again.
@@ -57,7 +57,8 @@ The routes SurfSense uses, in [`opencode/src/server/routes/instance/httpapi/grou
 
 ## The backend's client
 
-- Python models are generated from the pinned version's OpenAPI document, `GET /doc` ([`server/routes/instance/httpapi/server.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/server/routes/instance/httpapi/server.ts) L190), with extra fields allowed, so a field a newer version adds does not break parsing. They are regenerated when the pin moves. A small hand-written httpx client covers the routes above and reads the event stream.
+- A hand-written httpx client covers the routes above and reads the event stream. Its event model names only the fields SurfSense reads and allows the rest, so a field a newer version adds does not break parsing. The pinned version's OpenAPI document, `GET /doc` ([`server/routes/instance/httpapi/server.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/server/routes/instance/httpapi/server.ts) L190), describes 472 schemas, of which SurfSense reads about ten, so they are not generated.
+- The client waits on every call except the event stream with a timeout: right after it starts, opencode accepts a connection before it answers on it.
 - One module holds everything that differs between opencode's 1.x and 2.x lines: the health check, the routes, the event envelope and names, the permission payload and the configuration writer. Moving to 2.x changes that module only.
 - A turn is sent once, with a message id SurfSense makes, and never resent automatically.
 - Stopping a turn aborts the session and its child sessions, waits for `session.idle`, then rejects any permission request still pending.
@@ -163,7 +164,7 @@ opencode's working folder belongs to SurfSense, not the user:
 
 Neither may sit inside a git repository. opencode treats a git repository's root as the project ([`opencode/src/project/project.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/project/project.ts) L306), which would widen what counts as inside the working folder. A test checks that opencode reports the working folder itself as its project root.
 
-Uploads keep their sanitized filenames in folders named by row ids, and older ones are `original.<ext>` ([documents](../../architecture/documents.md)), so the text view still has to name them. Sources from a linked folder keep their relative paths ([`05-sources-folder.md`](05-sources-folder.md)).
+Each source's file is `<title> [<id>].md`: the title with the characters a file system refuses or a path needs replaced, cut at 100 characters, and the document's id, which keeps two sources with one title apart. The text view is brought in line with the workspace's ready `FILE` and `NOTE` documents before each turn, writing only files whose text changed; artifacts are outputs, not sources, and stay out. Sources from a linked folder will keep their relative paths ([`05-sources-folder.md`](05-sources-folder.md)).
 
 A custom tool named `read` replaces the built-in one. Custom tools load from a `tool/` or `tools/` folder in a config folder and are keyed by id, with custom tools added after built-ins ([`opencode/src/tool/registry.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/tool/registry.ts), [`opencode/src/session/tools.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/session/tools.ts)). That is the fallback if the text view is not enough.
 
@@ -175,6 +176,5 @@ A custom tool named `read` replaces the built-in one. Custom tools load from a `
 
 ## Open questions
 
-- How uploads are named in the text view, and when the view is rebuilt.
 - What the agent does when SurfSense's data folder sits inside a git repository, such as a home folder kept in git.
 - Whether `todowrite` earns its 2,012 characters on a 32,768-token window, once the fixed prompt is measured.

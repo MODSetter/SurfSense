@@ -48,6 +48,15 @@ class StorageSettings(BaseSettings):
         """Where one artifact's rendered blobs live, keyed by id like documents."""
         return self.workspace_dir(workspace_id) / "artifacts" / str(artifact_id)
 
+    def agent_working_dir(self, workspace_id: int) -> Path:
+        """The folder the agent works in for one workspace, gone with the workspace."""
+        return self.workspace_dir(workspace_id) / "agent"
+
+    @property
+    def agent_dir(self) -> Path:
+        """Electron watches here for opencode's configuration and keeps opencode's home."""
+        return self.data_dir / "agent"
+
     def plugin_dir(self, plugin_id: str, version: str) -> Path:
         """Where one installed version of a plugin lives."""
         return self.data_dir / "plugins" / plugin_id / version
@@ -95,6 +104,24 @@ class LLMSettings(BaseSettings):
     # for the families that do not read it from the server's environment.
     audio_espeak_library: Path | None = None
     audio_espeak_data: Path | None = None
+
+
+class AgentSettings(BaseSettings):
+    """Where opencode will listen and its password, chosen by Electron at boot.
+
+    Both unset where no opencode is staged, and then the agent is not offered.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    opencode_url: str | None = None
+    opencode_password: str | None = None
+
+
+@lru_cache
+def get_agent_settings() -> AgentSettings:
+    """Cached so the environment is parsed once, not per turn."""
+    return AgentSettings()
 
 
 @lru_cache

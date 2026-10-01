@@ -1,12 +1,25 @@
 import json
+import secrets
 import threading
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 import pytest
 
+from modules.agent.opencode_config import AgentSetup, write_opencode_config
 from shared.config import get_llm_settings
+from tests.integration.agent.opencode_harness import (
+    MODEL,
+    RunningOpencode,
+    ScriptedHandler,
+    ScriptedModel,
+    free_port,
+    needs_staged_opencode,
+    start_opencode,
+    wait_until_healthy,
+)
 
 
 @dataclass
@@ -77,3 +90,39 @@ def model_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[StubModel]:
 
     server.shutdown()
     server.server_close()
+
+
+@pytest.fixture
+def scripted_model() -> Iterator[ScriptedModel]:
+    """A model on a real port that opencode's provider is pointed at."""
+    model = ScriptedModel()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), ScriptedHandler)
+    server.model = model  # type: ignore[attr-defined]
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    model.url = f"http://127.0.0.1:{server.server_port}"
+    yield model
+    model.release.set()
+    server.shutdown()
+    server.server_close()
+
+
+@pytest.fixture
+def opencode(
+    tmp_path: Path, scripted_model: ScriptedModel
+) -> Iterator[RunningOpencode]:
+    """The staged opencode on SurfSense's own configuration, its model scripted."""
+    needs_staged_opencode()
+    agent_dir = tmp_path / "agent"
+    setup = AgentSetup(
+        model=MODEL,
+        window=32768,
+        endpoint_url=f"{scripted_model.url}/v1",
+        launch_key="launch-key",
+    )
+    write_opencode_config(agent_dir / "opencode.json", setup)
+    running = start_opencode(agent_dir, free_port(), secrets.token_urlsafe(16))
+    try:
+        wait_until_healthy(running)
+        yield running
+    finally:
+        running.stop()

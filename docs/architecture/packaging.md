@@ -40,7 +40,7 @@ What else each spec names, and why the analyser cannot find it on its own:
 |---|---|---|
 | `api.spec` | `collect_submodules("uvicorn")` | uvicorn loads its loop, protocol and lifespan implementations by string |
 | `api.spec` | `onnxruntime` and `tokenizers` libraries | the query encoder's native libraries load from C |
-| `api.spec` | the local model manifest `catalog/local/manifest/models.json`, the remote model manifest `catalog/remote/manifest/models.json`, the chat prompts | read by path or through `importlib.resources` |
+| `api.spec` | the local model manifest `catalog/local/manifest/models.json`, the remote model manifest `catalog/remote/manifest/models.json`, the chat prompts, the agent's prompt | read by path or through `importlib.resources` |
 | `api.spec` | excludes Docling, torch, torchvision, transformers, pandas, scipy and OpenCV | only the worker parses files, and the analyser cannot tell these are optional |
 | `worker.spec` | the local model manifest, the remote model manifest | Studio finds its chosen image and audio models through the local catalog, and classifies a remote model through the same discovery the API uses; both files are read by path |
 | `worker.spec` | Docling and its packages, RapidOCR, transformers, torchvision | lazy and native imports Docling reaches only on the first PDF |
