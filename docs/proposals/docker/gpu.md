@@ -86,10 +86,11 @@ Six builds: three variants on two architectures, by digest, merged per variant; 
 
 ## Steps
 
-1. The `-cuda` variant on amd64, from the upstream download.
-2. The compiled builds: `-cuda` on arm64, and `-cuda126`.
-3. The no-GPU refusal and the GPU override file.
-4. On real hardware: a chat turn and an image on each CUDA variant, checking the fit estimate reads the card's memory.
+These continue the [Docker proposal's steps](README.md#steps), after the CPU image ships.
+
+12. The `-cuda` variant on amd64, from the upstream download, and the GPU override file.
+13. The no-GPU refusal.
+14. The compiled builds: `-cuda` on arm64, `-cuda126`, and sd.cpp with CUDA. On real hardware, a chat turn and an image on each CUDA variant, with the fit estimate reading the card's memory.
 
 ## Open questions
 
