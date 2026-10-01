@@ -26,7 +26,11 @@ from modules.llm.catalog.local.install.disk_room import refuse_without_room
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.install.tickets import TicketStore
 from modules.llm.catalog.local.install_jobs.jobs import InstallJobs
-from modules.llm.catalog.local.installs import forget_install, install_files
+from modules.llm.catalog.local.installs import (
+    forget_install,
+    install_files,
+    read_installs,
+)
 from modules.llm.catalog.local.manifest import LocalManifest
 from modules.llm.catalog.local.rows import LocalRow
 from modules.llm.fit import HardwareBudget, ModelShape
@@ -160,6 +164,19 @@ class LocalCatalogService:
     def engine_holding(self, model_id: str) -> LocalEngine | None:
         """The engine with an installed model called `model_id`, if any."""
         return next((e for e in self._engines if e.holds(model_id)), None)
+
+    def engine_to_delete_from(self, model_id: str) -> LocalEngine | None:
+        """The engine a delete of `model_id` belongs to: the one holding it, or
+        the one whose record still names it after a delete that stopped part
+        way, when no engine lists a build that is missing files."""
+        return self.engine_holding(model_id) or next(
+            (
+                e
+                for e in self._engines
+                if e.folder is not None and model_id in read_installs(e.folder)
+            ),
+            None,
+        )
 
     # the catalog ------------------------------------------------------------
 

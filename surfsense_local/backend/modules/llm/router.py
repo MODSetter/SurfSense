@@ -137,7 +137,7 @@ async def delete_model(
     # dead router made models undeletable, which is backwards: one reason to
     # delete a model is that things are broken, and removing a file needs
     # nothing running.
-    engine = service.engine_holding(model_name)
+    engine = service.engine_to_delete_from(model_name)
     if engine is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"model not found: {model_name}")
     if engine.bundled(model_name):
