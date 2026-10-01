@@ -19,6 +19,16 @@ from modules.llm.providers.types import DownloadProgress
 TIMEOUT = httpx.Timeout(600.0, connect=10.0)
 _CHUNK = 1024 * 1024
 
+class ChecksumMismatchError(ValueError):
+    """A downloaded file's sha256 is not the one it was pinned to."""
+
+    def __init__(self, url: str, name: str, expected: str, actual: str) -> None:
+        self.url = url
+        self.expected = expected
+        self.actual = actual
+        super().__init__(
+            f"checksum mismatch for {name}: expected {expected}, got {actual}"
+        )
 
 async def download_gguf(
     url: str,
