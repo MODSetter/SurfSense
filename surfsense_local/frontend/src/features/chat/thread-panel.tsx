@@ -28,6 +28,7 @@ import { ChatViewport } from "./chat-viewport"
 import { AssistantMessage, UserMessage } from "./message"
 import type { Citation } from "./sse"
 import type { ConversationView } from "./use-chat-runtime"
+import { useFocusHeadingOnKeyboardSwitch } from "./use-focus-heading-on-keyboard-switch"
 
 function citationsFrom(message: {
   metadata?: { custom?: unknown }
@@ -112,6 +113,7 @@ export function ThreadPanel({
   onDelete: (id: number) => Promise<void>
 }) {
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const headingRef = useRef<HTMLHeadingElement>(null)
   const ignoreMenuFocusRef = useRef(false)
   const [editingThreadId, setEditingThreadId] = useState<number | null>(null)
   const [draft, setDraft] = useState("")
@@ -120,6 +122,7 @@ export function ThreadPanel({
     defaultMessage: "New chat",
   })
   const title = thread?.title || untitled
+  useFocusHeadingOnKeyboardSwitch(thread?.id ?? null, headingRef)
   const conversationId =
     view.status === "active" ? `thread:${view.threadId}` : view.status
   const editing = thread != null && editingThreadId === thread.id
@@ -181,6 +184,14 @@ export function ThreadPanel({
           defaultMessage: "Conversation",
         })}
       >
+        {/* The title control is a button that renames, so the heading is its
+            own element; focused after a keyboard switch, never tabbed to. A
+            new chat has no conversation to name yet. */}
+        {thread == null ? null : (
+          <h2 ref={headingRef} tabIndex={-1} className="sr-only">
+            {title}
+          </h2>
+        )}
         <header className="flex h-14 shrink-0 items-center px-5">
           {thread == null ? null : editing ? (
             <Input

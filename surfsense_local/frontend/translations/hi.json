@@ -121,6 +121,7 @@
   "chat_rename_dialog_saving_status": "सहेजा जा रहा है…",
   "chat_rename_dialog_title": "चैट का नाम बदलें",
   "chat_rename_dialog_untitled_label": "नई चैट",
+  "chat_reply_finished_status": "जवाब पूरा हुआ",
   "chat_runtime_delete_toast": "चैट हटाई नहीं जा सकी",
   "chat_runtime_image_question_body": "इस इमेज में क्या है?",
   "chat_runtime_load_messages_toast": "यह चैट लोड नहीं हो सकी",

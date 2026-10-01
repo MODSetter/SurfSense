@@ -121,6 +121,7 @@
   "chat_rename_dialog_saving_status": "Saving...",
   "chat_rename_dialog_title": "Rename chat",
   "chat_rename_dialog_untitled_label": "New chat",
+  "chat_reply_finished_status": "Reply finished",
   "chat_runtime_delete_toast": "Couldn’t delete chat",
   "chat_runtime_image_question_body": "What is in this image?",
   "chat_runtime_load_messages_toast": "Couldn’t load this chat",

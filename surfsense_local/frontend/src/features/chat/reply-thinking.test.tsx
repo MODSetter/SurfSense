@@ -8,10 +8,11 @@ import { ReplyThinking } from "./reply-thinking"
 afterEach(cleanup)
 
 describe("ReplyThinking", () => {
-  it("says the model is working before anything has streamed", () => {
+  it("leaves announcing to the turn's one status region", () => {
+    // ReplyAnnouncer owns it, so a turn never has two regions talking.
     render(<ReplyThinking running answerStarted={false} reasoning={null} />)
 
-    expect(screen.getByRole("status").textContent).toBe("Thinking")
+    expect(screen.queryByRole("status")).toBeNull()
   })
 
   it("keeps the same header when the trace starts, so its motion never restarts", () => {

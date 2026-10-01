@@ -115,10 +115,6 @@ function ReplyHeader({
 
   return (
     <div className="mb-3 w-full">
-      {/* Outside the button, whose contents screen readers flatten. */}
-      <span role="status" className="sr-only">
-        {working ? label : ""}
-      </span>
       {/* Disabled, not swapped for a plain element, until there is a trace to
           open: swapping would remount the header and restart its motion. */}
       <button

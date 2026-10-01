@@ -121,6 +121,7 @@
   "chat_rename_dialog_saving_status": "Guardando…",
   "chat_rename_dialog_title": "Cambiar el nombre del chat",
   "chat_rename_dialog_untitled_label": "Nuevo chat",
+  "chat_reply_finished_status": "Respuesta terminada",
   "chat_runtime_delete_toast": "No se pudo eliminar el chat",
   "chat_runtime_image_question_body": "¿Qué hay en esta imagen?",
   "chat_runtime_load_messages_toast": "No se pudo cargar este chat",

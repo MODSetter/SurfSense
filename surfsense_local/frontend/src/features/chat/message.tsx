@@ -26,6 +26,7 @@ import { ChatErrorNotice } from "./chat-error-notice"
 import { preprocessCitationMarkdown } from "./citation-markdown"
 import { useCitationContext } from "./citation-context"
 import { CitationProvider, InlineCitation } from "./inline-citation"
+import { ReplyAnnouncer } from "./reply-announcer"
 import { ReplyThinking, type ReplyReasoning } from "./reply-thinking"
 import type { Citation } from "./sse"
 
@@ -86,11 +87,14 @@ function MessageThinking() {
   )
 
   return (
-    <ReplyThinking
-      running={running}
-      answerStarted={answerStarted}
-      reasoning={reasoning}
-    />
+    <>
+      <ReplyAnnouncer running={running} answerStarted={answerStarted} />
+      <ReplyThinking
+        running={running}
+        answerStarted={answerStarted}
+        reasoning={reasoning}
+      />
+    </>
   )
 }
 

@@ -132,6 +132,8 @@ A turn can carry images, and a model that reads them receives them; every other 
 - Citations are buttons, not clickable `div`s.
 - A failed turn shows in an alert, which assistive technology announces.
 - The composer follows assistant-ui's keyboard behaviour.
+- Each assistant turn has one status region (`reply-announcer.tsx`): "Thinking" until the answer starts, silent while it streams, then "Reply finished" once, for a reply it watched run. Tokens are never fed to it, since a polite region read on every delta would interrupt without pause; a reply loaded from history or a turn that ended with no answer says nothing.
+- The conversation has a heading, the thread's title, hidden visually because the visible title is the rename button. After a thread switch made from the keyboard, focus moves to it so a screen reader says where it landed; after a pointer switch the composer keeps the focus assistant-ui gives it, so someone can click a chat and type (`use-focus-heading-on-keyboard-switch.ts`). A new chat has no heading until it is a thread.
 - The startup loader and the typed-in thread title respect `prefers-reduced-motion`.
 
 ## Non-goals
@@ -142,7 +144,6 @@ A turn can carry images, and a model that reads them receives them; every other 
 
 ## Known gaps
 
-- No live region announces streamed text, and focus does not move to the conversation heading after a thread switch; the dashboard design asks for both.
 - A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. The trace now shows, so an empty answer is no longer unexplained, but how often it happens is unmeasured.
 - Nothing shows progress while a model loads or reads a long prompt beyond "Thinking". llama-server can stream prompt progress (`return_progress`); whether `b11050` sends it is unchecked.
 - There is no switch to turn thinking off for answers.

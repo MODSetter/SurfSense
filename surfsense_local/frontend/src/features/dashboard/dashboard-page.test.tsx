@@ -245,6 +245,79 @@ describe("dashboard chat", () => {
     })
   })
 
+  it("moves focus to the conversation heading when a chat is opened from the keyboard", async () => {
+    const thread = {
+      id: 10,
+      workspace_id: 1,
+      title: "Original title",
+      created_at: "2026-09-05T00:00:00Z",
+      updated_at: "2026-09-05T00:00:00Z",
+    }
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (
+          path ===
+          "/workspaces/1/documents?document_type=FILE&document_type=NOTE"
+        ) {
+          return Response.json([])
+        }
+        if (path === "/workspaces/1/chat/threads") {
+          return Response.json([thread])
+        }
+        if (path === "/chat/threads/10/messages") {
+          return Response.json([])
+        }
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const user = userEvent.setup()
+    rememberOpenThread(1, 10)
+
+    render(
+      <ThemeProvider>
+        <TooltipProvider>
+          <DashboardPage
+            initialProviderAvailable={true}
+            selection={{
+              model_type: "text_gen",
+              provider: "llamacpp",
+              connection_id: null,
+              name: "llama3.2:1b",
+              updated_at: "2026-09-05T00:00:00Z",
+            }}
+            initialWorkspaces={[workspace]}
+            onModelSelected={vi.fn()}
+          />
+        </TooltipProvider>
+      </ThemeProvider>
+    )
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("textbox", { name: "Message" })
+      )
+    })
+    await user.click(screen.getByRole("button", { name: "New chat" }))
+
+    // A keyboard user is told where they landed; a click keeps the composer.
+    await user.click(screen.getByRole("button", { name: "Chats" }))
+    ;(await screen.findByRole("button", { name: "Original title" })).focus()
+    await user.keyboard("{Enter}")
+
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("heading", { level: 2, name: "Original title" })
+      )
+    })
+  })
+
   it("keeps composer placement aligned with the conversation lifecycle", async () => {
     let resolveThreads!: (response: Response) => void
     let resolveCreate!: (response: Response) => void
