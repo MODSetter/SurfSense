@@ -189,7 +189,7 @@ export function PdfViewer({
 				loadingTask = pdfjsLib.getDocument({ data });
 				pdfDocument = await loadingTask.promise;
 				if (disposed) {
-					await pdfDocument.destroy();
+					await loadingTask.destroy();
 					return;
 				}
 
@@ -317,11 +317,8 @@ export function PdfViewer({
 			pdfViewerRef.current = null;
 			viewerElement.classList.remove("multiple-pages");
 			viewerElement.style.removeProperty("--pdf-pages-count");
-			if (pdfDocument) {
-				void pdfDocument.destroy();
-			} else {
-				void loadingTask?.destroy();
-			}
+			// PDF.js 6 removed PDFDocumentProxy.destroy(); the loading task owns the document.
+			void loadingTask?.destroy();
 		};
 	}, [pdfUrl, retryKey]);
 
