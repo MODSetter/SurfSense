@@ -101,11 +101,11 @@ The rules that keep the processes out of each other's way:
 ## Codemap
 
 - [`backend/api/`](../../surfsense_local/backend/api/): `create_app()` and its lifespan (migrations, the default workspace, a background catalog warm-up), the per-request session and `transact()`.
-- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
+- [`backend/modules/`](../../surfsense_local/backend/modules/): one folder per feature, holding whichever of its models, schemas, router and service it needs: `workspaces`, `documents`, `chunks`, `chat`, `artifacts` (Studio), `events`, `llm` (runtimes, catalog, connections, selection), `egress`, `agent`, `license`, `migration` (import) and `health`. `shared.db.import_models()` imports every model at startup, because relationships name their targets as strings.
 - [`backend/worker/`](../../surfsense_local/backend/worker/): `consumer.py` drains one queue per process, `jobs.py` holds status transitions and cancellation, `notify.py` the change notice, and `ingestion/` and `studio/` the two pipelines.
 - [`backend/shared/`](../../surfsense_local/backend/shared/): configuration, the engine and its pragmas, `upgrade_to_head()`, the two Huey queues, `retrieve()`, and the secret that encrypts stored keys.
 - [`backend/alembic/`](../../surfsense_local/backend/alembic/): revisions `0001` to `0012`, all hand-written. `env.py` has no `target_metadata`, so autogenerate cannot run by accident.
-- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `license`, `migration`, `updates` and `feedback`.
+- [`frontend/src/features/`](../../surfsense_local/frontend/src/features/): `chat`, `agent`, `sources`, `studio`, `workspaces`, `dashboard`, `models`, `onboarding`, `settings`, `egress`, `license`, `migration`, `updates` and `feedback`.
 - [`electron/src/main/`](../../surfsense_local/electron/src/main/): `index.ts` (boot, window, IPC and the image-model, preset, audio and agent watchers), `sidecars/` (the supervisor and one spec per sidecar), `session-log/` (this run's output, for issue reports), `secret.ts`, `updater.ts` and `document-files.ts`.
 
 ## Where to read next
@@ -114,6 +114,7 @@ The rules that keep the processes out of each other's way:
 - [Documents](documents.md): workspaces, upload, notes, the ingest pipeline.
 - [Search](search.md): `retrieve()`.
 - [Chat](chat.md): grounding, the stream, citations.
+- [Agent](agent.md): a thread opencode answers in steps, and how it is kept to loopback.
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
@@ -124,4 +125,3 @@ The rules that keep the processes out of each other's way:
 ## Known gaps
 
 - The Studio artifact list never subscribes to `GET /workspaces/{id}/events`; it polls every 1.5 seconds instead of reloading on the `artifacts` events its worker already sends. The sources panel subscribes in a hook of its own rather than through TanStack Query.
-- A shell command the agent runs inherits opencode's environment, `OPENCODE_SERVER_PASSWORD` included (opencode's `tool/shell.ts` merges `process.env` into it), so a command the user approved can call opencode's own API, approval replies among it. The approval prompt shows the command in full ([ADR 0028](../adr/0028-model-written-code-runs-with-approval.md)).
