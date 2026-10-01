@@ -35,6 +35,7 @@ class DocumentRead(BaseModel):
     id: int
     title: str
     document_type: DocumentType
+    mime_type: str | None
     status: DocumentStatus
     error_message: str | None
     created_at: datetime

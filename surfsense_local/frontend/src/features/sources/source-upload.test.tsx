@@ -26,10 +26,18 @@ const pendingDocument = {
   id: 7,
   title: "guide.txt",
   document_type: "FILE" as const,
+  mime_type: null,
   status: "pending" as const,
   error_message: null,
   created_at: "2026-09-05T00:00:00Z",
   updated_at: "2026-09-05T00:00:00Z",
+}
+
+const pendingPdf = {
+  ...pendingDocument,
+  id: 9,
+  title: "report.pdf",
+  mime_type: "application/pdf",
 }
 
 function SourceHarness() {
@@ -90,6 +98,41 @@ afterEach(() => {
 })
 
 describe("source upload", () => {
+  it("previews a PDF source before ingestion finishes", async () => {
+    const user = userEvent.setup()
+    const onPreview = vi.fn()
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[pendingPdf]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onPreview={onPreview}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(screen.getByRole("button", { name: "report.pdf" }))
+    expect(onPreview).toHaveBeenCalledWith(9)
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for report.pdf" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Preview" }))
+    expect(onPreview).toHaveBeenCalledTimes(2)
+  })
+
   it("uses selection, processing, and retry controls in the icon slot", () => {
     const ready = {
       ...pendingDocument,

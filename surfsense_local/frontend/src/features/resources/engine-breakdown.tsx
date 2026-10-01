@@ -27,76 +27,62 @@ function engineName(engine: EngineName): string {
 }
 
 /** Each part of the app on its own row: what each runtime is holding right now. */
-export function EngineBreakdown({
-  id,
-  usage,
-}: {
-  id: string
-  usage: ResourceUsage
-}) {
+export function EngineBreakdown({ usage }: { usage: ResourceUsage }) {
   // Unified memory is already in each process's RAM, so it has no column.
   const showVram = usage.gpus.some((gpu) => !gpu.unified_memory)
   const columns = showVram ? 3 : 2
-  const cards = usage.gpus.map((gpu) => gpu.name)
 
   return (
-    <div id={id} className="mt-3 border-t pt-2.5">
-      <table className="w-full table-fixed text-left tabular-nums">
-        <colgroup>
-          <col />
-          <col className="w-12" />
-          <col className="w-16" />
-          {showVram ? <col className="w-16" /> : null}
-        </colgroup>
-        <thead className="text-secondary-foreground">
-          <tr>
-            <th scope="col" className="pb-1 font-normal">
-              <span className="sr-only">
-                {intl.formatMessage({
-                  id: "resources_breakdown_engine_label",
-                  defaultMessage: "Engine",
-                })}
-              </span>
-            </th>
-            <th scope="col" className="pb-1 text-right font-normal">
+    <table className="w-full table-fixed text-left tabular-nums">
+      <colgroup>
+        <col />
+        <col className="w-16" />
+        <col className="w-24" />
+        {showVram ? <col className="w-24" /> : null}
+      </colgroup>
+      <thead className="text-muted-foreground">
+        <tr>
+          <th scope="col" className="pb-2 font-normal">
+            <span className="sr-only">
               {intl.formatMessage({
-                id: "resources_breakdown_cpu_label",
-                defaultMessage: "CPU",
+                id: "resources_breakdown_engine_label",
+                defaultMessage: "Engine",
+              })}
+            </span>
+          </th>
+          <th scope="col" className="pb-2 text-right font-normal">
+            {intl.formatMessage({
+              id: "resources_breakdown_cpu_label",
+              defaultMessage: "CPU",
+            })}
+          </th>
+          <th scope="col" className="pb-2 text-right font-normal">
+            {intl.formatMessage({
+              id: "resources_breakdown_ram_label",
+              defaultMessage: "RAM",
+            })}
+          </th>
+          {showVram ? (
+            <th scope="col" className="pb-2 text-right font-normal">
+              {intl.formatMessage({
+                id: "resources_breakdown_vram_label",
+                defaultMessage: "VRAM",
               })}
             </th>
-            <th scope="col" className="pb-1 text-right font-normal">
-              {intl.formatMessage({
-                id: "resources_breakdown_ram_label",
-                defaultMessage: "RAM",
-              })}
-            </th>
-            {showVram ? (
-              <th scope="col" className="pb-1 text-right font-normal">
-                {intl.formatMessage({
-                  id: "resources_breakdown_vram_label",
-                  defaultMessage: "VRAM",
-                })}
-              </th>
-            ) : null}
-          </tr>
-        </thead>
-        <tbody>
-          {usage.engines.map((engine) => (
-            <EngineRow
-              key={engine.engine}
-              engine={engine}
-              columns={columns}
-              showVram={showVram}
-            />
-          ))}
-        </tbody>
-      </table>
-      {cards.length > 0 ? (
-        <p className="mt-2 truncate text-secondary-foreground">
-          {intl.formatList(cards, { type: "conjunction" })}
-        </p>
-      ) : null}
-    </div>
+          ) : null}
+        </tr>
+      </thead>
+      <tbody>
+        {usage.engines.map((engine) => (
+          <EngineRow
+            key={engine.engine}
+            engine={engine}
+            columns={columns}
+            showVram={showVram}
+          />
+        ))}
+      </tbody>
+    </table>
   )
 }
 
@@ -112,11 +98,11 @@ function EngineRow({
   const name = engineName(engine.engine)
   if (engine.processes === 0) {
     return (
-      <tr className="text-secondary-foreground">
-        <th scope="row" className="truncate py-0.5 font-normal">
+      <tr className="text-muted-foreground">
+        <th scope="row" className="truncate py-1.5 font-normal">
           {name}
         </th>
-        <td colSpan={columns} className="py-0.5 text-right">
+        <td colSpan={columns} className="py-1.5 text-right">
           {intl.formatMessage({
             id: "resources_engine_not_running_status",
             defaultMessage: "Not running",
@@ -127,13 +113,13 @@ function EngineRow({
   }
   return (
     <tr className="text-foreground">
-      <th scope="row" className="truncate py-0.5 font-medium">
+      <th scope="row" className="truncate py-1.5 font-medium">
         {name}
       </th>
-      <td className="py-0.5 text-right">{formatPercent(engine.cpu_percent)}</td>
-      <td className="py-0.5 text-right">{formatMemory(engine.memory_bytes)}</td>
+      <td className="py-1.5 text-right">{formatPercent(engine.cpu_percent)}</td>
+      <td className="py-1.5 text-right">{formatMemory(engine.memory_bytes)}</td>
       {showVram ? (
-        <td className="py-0.5 text-right">
+        <td className="py-1.5 text-right">
           {engine.gpu_memory_bytes === null
             ? "—"
             : formatMemory(engine.gpu_memory_bytes)}

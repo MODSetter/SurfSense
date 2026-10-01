@@ -168,7 +168,7 @@ function loadValueText(percent: number | null, app: number | null): string {
   )
 }
 
-function gpuLabel(numbered: boolean, index: number): string {
+export function gpuLabel(numbered: boolean, index: number): string {
   return numbered
     ? intl.formatMessage(
         {

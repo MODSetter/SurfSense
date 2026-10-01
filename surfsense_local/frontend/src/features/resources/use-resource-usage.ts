@@ -6,12 +6,11 @@ import { getResourceUsage } from "./api"
 // 40 ms in the API on Windows) stays out of what it measures.
 const POLL_MS = 2000
 
-/** Polls only while shown; TanStack also pauses while the window is hidden. */
-export function useResourceUsage(enabled: boolean) {
+/** Polls while mounted; TanStack pauses it while the window is hidden. */
+export function useResourceUsage() {
   return useQuery({
     queryKey: ["resource-usage"],
     queryFn: ({ signal }) => getResourceUsage(signal),
-    enabled,
     refetchInterval: POLL_MS,
     staleTime: 0,
   })

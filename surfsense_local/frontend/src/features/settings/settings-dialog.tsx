@@ -13,6 +13,7 @@ import {
   AudioWaveformIcon,
   Chat01Icon,
   ComputerEthernetIcon,
+  CpuIcon,
   Image01Icon,
   InformationCircleIcon,
   LicenseIcon,
@@ -30,6 +31,7 @@ import { LicenseSettings } from "@/features/license/license-settings"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/models/selection/api"
+import { ResourceSettings } from "@/features/resources/resource-settings"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
 
@@ -55,6 +57,7 @@ export type SettingsSectionId =
   | "image-edit-models"
   | "audio-models"
   | "video-models"
+  | "resources"
   | "network"
   | "license"
   | "about"
@@ -197,6 +200,7 @@ const SETTINGS_SECTIONS = [
   { id: "image-edit-models", group: "settings", icon: AiImageEditIcon },
   { id: "audio-models", group: "settings", icon: AudioWaveformIcon },
   { id: "video-models", group: "settings", icon: Video01Icon },
+  { id: "resources", group: "settings", icon: CpuIcon },
   { id: "network", group: "settings", icon: ComputerEthernetIcon },
   { id: "license", group: "settings", icon: LicenseIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
@@ -245,6 +249,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_audio_label",
       defaultMessage: "Audio",
+    }),
+  resources: () =>
+    intl.formatMessage({
+      id: "settings_nav_resources_label",
+      defaultMessage: "Resources",
     }),
   network: () =>
     intl.formatMessage({
@@ -373,6 +382,7 @@ export function SettingsDialog({
             {activeSection.id === "audio-models" ? (
               <AudioModelsSettings onModelUnavailable={onModelUnavailable} />
             ) : null}
+            {activeSection.id === "resources" ? <ResourceSettings /> : null}
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
             {activeSection.id === "about" ? <AboutSettings /> : null}

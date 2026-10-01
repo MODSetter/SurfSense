@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: in-progress
 tracking: https://github.com/MODSetter/SurfSense/issues/2077
 code:
   - surfsense_local/backend/modules/documents/schemas.py

@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, sessionmaker
 from starlette.types import ASGIApp, Receive, Scope, Send
 
+from api.config import Settings, get_settings
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.chat.router import router as chat_router
@@ -127,20 +128,23 @@ def _warm_catalog(session_factory: sessionmaker[Session]) -> None:
         logger.exception("could not warm the selected model at startup")
 
 
+def add_cors(app: FastAPI, settings: Settings) -> None:
+    """An empty origin list makes CORSMiddleware add no headers at all."""
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origin_list(),
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
 def create_app() -> FastAPI:
     """Application factory; each call returns an app isolated from the others."""
     import_models()
 
     app = FastAPI(title="SurfSense Community Local", lifespan=lifespan)
     app.add_middleware(MarkRequest)
-    # The packaged renderer loads from file:// and calls the 127.0.0.1 sidecar,
-    # a cross-origin request; the API is loopback-only single-user, so allow any.
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=["*"],
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+    add_cors(app, get_settings())
     app.state.broker = EventBroker()  # No benefits from lifespan hooks.
     app.include_router(health_router)
     app.include_router(workspaces_router)
