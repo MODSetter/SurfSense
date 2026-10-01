@@ -15,7 +15,7 @@ The [proposal](../proposals/embedding-model-choice.md) lets a new install choose
 
 - **An index is a row.** `embedding_indexes` holds a snapshot of the embedder's spec (repo, pinned revision and file hashes, width, pooling, normalisation, prefixes, `max_tokens`, `semantic_weight`) and names the vec0 table holding its vectors. Search embeds the question with the active row's model and reads its table; ingest and Studio write to it; each document records the index it was embedded into.
 - **The choice is fixed when onboarding finishes.** Until then a fresh install has no row, and the routes that queue embedding work answer `409 embedding_not_chosen`. Finishing onboarding with nothing chosen locks bge-small. Locking creates the vector table at the chosen width, and refuses once any chunk exists.
-- **An existing library is recorded, not rebuilt.** Migration `0021` writes a bge-small row pointing at the `chunk_vectors` it already has, and stamps its documents. Nothing is re-embedded.
+- **An existing library is recorded, not rebuilt.** Migration `0022` writes a bge-small row pointing at the `chunk_vectors` it already has, and stamps its documents. Nothing is re-embedded.
 - **bge-small is pinned.** Its revision and the hashes of its weights and tokenizer are part of its spec, and the fetch script refuses a file that does not match.
 - **Chunk boundaries do not follow the embedder.** The chunker measures with bge-small's tokenizer, pinned to the chunker, so a future change of embedder would not re-cut documents and move every chunk id that citations point at.
 - **Rejected: the embedder as a `selected_models` slot.** Those rows are preferences, changed freely and cascaded away with their connection. The embedder is a property of the index.

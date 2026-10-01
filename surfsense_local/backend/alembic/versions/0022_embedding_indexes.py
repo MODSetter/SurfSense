@@ -10,8 +10,8 @@ same thing whatever the app's own copy of bge's spec later becomes.
 `documents` gains its column by a plain ALTER TABLE, never batch mode: a batch
 rebuild drops the table, and with foreign keys on that cascades to every chunk.
 
-Revision ID: 0021
-Revises: 0020
+Revision ID: 0022
+Revises: 0021
 """
 
 import json
@@ -21,8 +21,8 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "0021"
-down_revision: str | Sequence[str] | None = "0020"
+revision: str = "0022"
+down_revision: str | Sequence[str] | None = "0021"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -98,7 +98,7 @@ Ingest writes the `chunk_vectors` row itself, because only ingest holds the vect
 | `state` | `active`; `building` and `retired` are reserved for changing the model, which is not built |
 | `created_at` | |
 
-One `active` row, enforced in code rather than by a singleton constraint, because a second row is how changing the model would start ([proposal](../proposals/embedding-model-change.md)). A fresh install has no row until onboarding finishes; `0021` writes a bge-small row for a library that already existed, pointing at its `chunk_vectors`, and stamps every document with chunks. Nothing is re-embedded.
+One `active` row, enforced in code rather than by a singleton constraint, because a second row is how changing the model would start ([proposal](../proposals/embedding-model-change.md)). A fresh install has no row until onboarding finishes; `0022` writes a bge-small row for a library that already existed, pointing at its `chunk_vectors`, and stamps every document with chunks. Nothing is re-embedded.
 
 ### `chat_threads` and `chat_messages`
 
@@ -356,7 +356,7 @@ erDiagram
 | `0016` | `0016_local_audio_provider.py` | `selected_models` rebuilt so `audiocpp` may hold `audio_gen`, and only that, without a connection; downgrading drops an `audiocpp` selection |
 | `0019` | `0019_selection_settings.py` | `selected_models.settings`, a nullable JSON column added in place; its first entry is a server audio model's `voices` |
 | `0020` | `0020_plugin_runs.py` | `plugin_runs` |
-| `0021` | `0021_embedding_indexes.py` | `embedding_indexes` and `documents.embedding_index_id`; an existing library gets a bge-small row and its documents are stamped. The column is added by a plain `ALTER TABLE`, since a batch rebuild of `documents` would cascade to every chunk |
+| `0022` | `0022_embedding_indexes.py` | `embedding_indexes` and `documents.embedding_index_id`; an existing library gets a bge-small row and its documents are stamped. The column is added by a plain `ALTER TABLE`, since a batch rebuild of `documents` would cascade to every chunk |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.

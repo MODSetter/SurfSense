@@ -1,4 +1,4 @@
-"""Revision 0021: the index records which model built it."""
+"""Revision 0022: the index records which model built it."""
 
 import struct
 from pathlib import Path
@@ -16,14 +16,14 @@ from shared.migrations import upgrade_to_head
 pytestmark = pytest.mark.integration
 
 
-def _at_0020(tmp_path: Path) -> Engine:
+def _at_0021(tmp_path: Path) -> Engine:
     engine = create_db_engine(tmp_path / "surfsense.db")
     config = Config()
     config.set_main_option(
         "script_location", str(Path(__file__).parents[2] / "alembic")
     )
     config.attributes["engine"] = engine
-    command.upgrade(config, "0020")
+    command.upgrade(config, "0021")
     return engine
 
 
@@ -59,7 +59,7 @@ def _stamps(engine: Engine) -> dict[int, int | None]:
 
 def test_an_existing_library_is_recorded_as_built_by_bge(tmp_path: Path) -> None:
     """Its vectors are bge's, so the row says so; nothing is re-embedded."""
-    engine = _at_0020(tmp_path)
+    engine = _at_0021(tmp_path)
     _library(engine)
 
     upgrade_to_head(engine)
@@ -76,7 +76,7 @@ def test_a_finished_onboarding_with_no_documents_is_still_bge(
     tmp_path: Path,
 ) -> None:
     """The choice is offered only before onboarding finishes."""
-    engine = _at_0020(tmp_path)
+    engine = _at_0021(tmp_path)
     with engine.begin() as connection:
         connection.execute(text("INSERT INTO onboarding_completion(id) VALUES (1)"))
 
