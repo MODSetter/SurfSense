@@ -11,6 +11,8 @@ from sqlalchemy.orm import Session, sessionmaker
 from starlette.types import ASGIApp, Receive, Scope, Send
 
 from api.config import Settings, get_settings
+from modules.agent.model_endpoint.launch_key import mint_launch_key
+from modules.agent.model_endpoint.router import router as agent_model_router
 from modules.artifacts.podcast.router import router as podcast_router
 from modules.artifacts.router import router as artifacts_router
 from modules.chat.router import router as chat_router
@@ -146,6 +148,8 @@ def create_app() -> FastAPI:
     app.add_middleware(MarkRequest)
     add_cors(app, get_settings())
     app.state.broker = EventBroker()  # No benefits from lifespan hooks.
+    # Written into opencode's configuration; this process's turns only.
+    app.state.agent_launch_key = mint_launch_key()
     app.include_router(health_router)
     app.include_router(workspaces_router)
     app.include_router(documents_router)
@@ -158,6 +162,7 @@ def create_app() -> FastAPI:
     app.include_router(license_router)
     app.include_router(egress_router)
     app.include_router(resource_usage_router)
+    app.include_router(agent_model_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
     app.add_exception_handler(UnreadableSecretError, unreadable_secret)
     return app
