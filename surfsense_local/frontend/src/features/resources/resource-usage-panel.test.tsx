@@ -1,6 +1,5 @@
 import { cleanup, screen, within } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 
 import { render } from "@/test-utils"
 
@@ -79,7 +78,6 @@ function meter(name: string) {
   return screen.getByRole("meter", { name })
 }
 
-beforeEach(() => localStorage.clear())
 afterEach(cleanup)
 
 describe("resource usage panel", () => {
@@ -114,13 +112,9 @@ describe("resource usage panel", () => {
     expect(widths.other).toBeCloseTo(((7.2 - 5.5) / 9.8) * 100)
   })
 
-  it("lists each engine once expanded, and says which ones are not running", async () => {
+  it("lists each engine without a toggle, and says which ones are not running", () => {
     render(<ResourceUsagePanel usage={LOADED} isError={false} />)
-    expect(screen.queryByRole("table")).toBeNull()
-
-    await userEvent.click(
-      screen.getByRole("button", { name: "Show usage by engine" })
-    )
+    expect(screen.queryByRole("button")).toBeNull()
 
     const table = screen.getByRole("table")
     const llama = within(table).getByRole("row", { name: /llama\.cpp/ })
@@ -130,18 +124,6 @@ describe("resource usage panel", () => {
     expect(within(sd).getByText("Not running")).toBeTruthy()
     const shell = within(table).getByRole("row", { name: /Interface/ })
     expect(within(shell).getByText("300 MB")).toBeTruthy()
-  })
-
-  it("remembers the breakdown was open", async () => {
-    const first = render(<ResourceUsagePanel usage={LOADED} isError={false} />)
-    await userEvent.click(
-      screen.getByRole("button", { name: "Show usage by engine" })
-    )
-    first.unmount()
-
-    render(<ResourceUsagePanel usage={LOADED} isError={false} />)
-
-    expect(screen.getByRole("table")).toBeTruthy()
   })
 
   it("says unknown rather than zero where the system cannot attribute graphics memory", () => {
@@ -195,6 +177,58 @@ describe("resource usage panel", () => {
 
     expect(screen.queryByRole("meter", { name: "VRAM" })).toBeNull()
     expect(meter("GPU")).toBeTruthy()
+  })
+
+  it("heads each part: the whole machine, SurfSense by engine, and the graphics cards", () => {
+    render(<ResourceUsagePanel usage={LOADED} isError={false} />)
+
+    const machine = screen.getByRole("region", { name: "This computer" })
+    expect(within(machine).getByRole("meter", { name: "RAM" })).toBeTruthy()
+    const engines = screen.getByRole("region", { name: "By engine" })
+    expect(within(engines).getByRole("table")).toBeTruthy()
+    const graphics = screen.getByRole("region", { name: "Graphics" })
+    expect(within(graphics).getByText("NVIDIA GeForce RTX 3080")).toBeTruthy()
+    expect(within(graphics).getByText("9.8 GB of its own memory")).toBeTruthy()
+    expect(screen.getAllByRole("separator")).toHaveLength(2)
+  })
+
+  it("numbers the cards as the GPU rows do, so each name matches its bars", () => {
+    const twoCards = {
+      ...LOADED,
+      gpus: [
+        LOADED.gpus[0],
+        { ...LOADED.gpus[0], name: "AMD Radeon RX 6500 XT" },
+      ],
+    }
+
+    render(<ResourceUsagePanel usage={twoCards} isError={false} />)
+
+    const graphics = screen.getByRole("region", { name: "Graphics" })
+    const second = within(graphics).getByText("AMD Radeon RX 6500 XT")
+    expect(second.closest("li")?.textContent).toContain("GPU 2")
+  })
+
+  it("says a unified-memory card shares the CPU's memory", () => {
+    const mac = {
+      ...LOADED,
+      gpus: [{ ...LOADED.gpus[0], name: "Apple M2", unified_memory: true }],
+    }
+
+    render(<ResourceUsagePanel usage={mac} isError={false} />)
+
+    const graphics = screen.getByRole("region", { name: "Graphics" })
+    expect(
+      within(graphics).getByText("Shares memory with the CPU")
+    ).toBeTruthy()
+  })
+
+  it("leaves out the graphics section on a machine without a card", () => {
+    render(
+      <ResourceUsagePanel usage={{ ...LOADED, gpus: [] }} isError={false} />
+    )
+
+    expect(screen.queryByRole("region", { name: "Graphics" })).toBeNull()
+    expect(screen.getAllByRole("separator")).toHaveLength(1)
   })
 
   it("says so when usage cannot be read", () => {
