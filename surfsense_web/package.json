@@ -124,7 +124,7 @@
 		"next": "^16.2.12",
 		"next-intl": "^4.13.4",
 		"next-themes": "^0.4.6",
-		"pdfjs-dist": "5.6.205",
+		"pdfjs-dist": "6.2.108",
 		"pg": "^8.16.3",
 		"platejs": "^52.0.17",
 		"posthog-js": "^1.336.1",
