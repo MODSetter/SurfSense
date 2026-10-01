@@ -13,7 +13,7 @@ export function UsageMeter({ row }: { row: UsageRow }) {
   const labelId = useId()
   return (
     <div data-row className="col-span-4 grid grid-cols-subgrid items-center">
-      <span id={labelId} className="text-secondary-foreground">
+      <span id={labelId} className="text-muted-foreground">
         {row.label}
       </span>
       <div
@@ -23,7 +23,7 @@ export function UsageMeter({ row }: { row: UsageRow }) {
         aria-valuemax={row.max}
         aria-valuenow={row.now}
         aria-valuetext={row.valueText}
-        className="flex h-1.5 overflow-hidden rounded-full bg-muted"
+        className="flex h-2 overflow-hidden rounded-full bg-muted"
       >
         <div
           data-segment="app"
@@ -40,20 +40,20 @@ export function UsageMeter({ row }: { row: UsageRow }) {
         aria-hidden
         className={cn(
           "text-right tabular-nums",
-          row.nearlyFull ? "text-warning" : "text-secondary-foreground"
+          row.nearlyFull ? "text-warning" : "text-muted-foreground"
         )}
       >
         {row.machine}
       </span>
       <span
         aria-hidden
-        className="flex items-center justify-end gap-1.5 font-medium text-foreground tabular-nums"
+        className="flex items-center justify-end gap-2 font-medium text-foreground tabular-nums"
       >
         {row.app === null ? (
           "—"
         ) : (
           <>
-            <span className="size-1.5 shrink-0 rounded-full bg-chart-1" />
+            <span className="size-2 shrink-0 rounded-full bg-chart-1" />
             {row.app}
           </>
         )}

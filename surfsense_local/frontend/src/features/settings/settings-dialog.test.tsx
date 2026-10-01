@@ -60,6 +60,67 @@ describe("SettingsDialog", () => {
     expect(screen.getByRole("heading", { name: "About" })).toBeTruthy()
   })
 
+  it("shows live resource usage in its own section", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({
+          cpu: { percent: 20, app_percent: 5 },
+          memory: {
+            total_bytes: 16 * 1024 ** 3,
+            used_bytes: 8 * 1024 ** 3,
+            app_bytes: 1024 ** 3,
+          },
+          gpus: [],
+          engines: [],
+        })
+      )
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    const settings = screen.getByRole("navigation", { name: "Settings" })
+    const resources = screen.getByRole("button", { name: "Resources" })
+    expect(settings.contains(resources)).toBe(true)
+
+    await user.click(resources)
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Resources" })
+    ).toBeTruthy()
+    expect(await screen.findByRole("meter", { name: "RAM" })).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
+  it("scrolls every section's heading with its content", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    for (const [nav, heading] of [
+      ["General", "General"],
+      ["Resources", "Resources"],
+      ["Network", "Network"],
+      ["License", "License"],
+      ["About", "About"],
+    ]) {
+      await user.click(screen.getByRole("button", { name: nav }))
+      const viewport = document.querySelector(
+        '[data-slot="scroll-fade-viewport"]'
+      )
+      expect(
+        viewport?.contains(
+          screen.getByRole("heading", { level: 2, name: heading })
+        ),
+        heading
+      ).toBe(true)
+    }
+    vi.unstubAllGlobals()
+  })
+
   it("changes and persists the appearance preference", async () => {
     const user = userEvent.setup()
 
