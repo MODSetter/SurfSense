@@ -1,5 +1,6 @@
 """llama.cpp behind the engine seam: chat models in llama-server's folder."""
 
+import asyncio
 import contextlib
 import threading
 from collections.abc import AsyncIterator, Callable, Sequence
@@ -44,6 +45,9 @@ from modules.llm.providers.llamacpp.router_client import RouterClient
 
 _TOO_BIG = "This build is too big for this computer. Pick a smaller one."
 
+
+# An unload is quick. The client's own read timeout is sized for a load.
+UNLOAD_WAIT_SECONDS = 10.0
 
 class LlamaCppEngine:
     name = ENGINE
@@ -179,8 +183,11 @@ class LlamaCppEngine:
         # The router never unloads on its own, and an unchanged preset is not
         # rewritten, so nothing restarts it either.
         # Refused when not loaded or no router: no worker of ours has the file.
-        with contextlib.suppress(httpx.HTTPError):
-            await RouterClient(self._runtime_url).unload(model_id)
+        # A silent router has nothing to wait for either: the caller holds the
+        # install lock.
+        with contextlib.suppress(httpx.HTTPError, TimeoutError):
+            async with asyncio.timeout(UNLOAD_WAIT_SECONDS):
+                await RouterClient(self._runtime_url).unload(model_id)
 
     def on_startup(self) -> None:
         self.reprice()
