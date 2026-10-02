@@ -5,8 +5,9 @@ import { intl } from "@/i18n/intl"
 
 import { IssueReportForm } from "./issue-report-form"
 
-// Settings › Report issue. Toasts and the macOS Help menu still open the
-// dialog, since they fire where no Settings dialog exists, such as onboarding.
+// Settings › Report issue. Reached from the nav and, on the dashboard, from
+// Help › Report Issue… (`help-menu-report.ts`). Toasts and the crash notice
+// open IssueReportDialog instead, since they fire where Settings does not exist.
 export function ReportIssueSettings() {
   const details = useAppDetails()
 

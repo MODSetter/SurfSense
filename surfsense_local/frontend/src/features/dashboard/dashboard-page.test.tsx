@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  act,
   cleanup,
   fireEvent,
   screen,
@@ -11,6 +12,7 @@ import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
 import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { render } from "@/test-utils"
 
 import { readSourcePreview, RIGHT_PANEL_KEY } from "./chrome-prefs"
@@ -880,6 +882,49 @@ describe("dashboard chat", () => {
     expect(screen.getByRole("button", { name: "New chat" })).toBeTruthy()
     expect(rightRail.style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
     expect(localStorage.getItem(RIGHT_PANEL_KEY)).toBe("open")
+  })
+
+  it("opens Settings on Report issue from the Help menu", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/llm/providers"
+          ? Response.json([
+              { name: "llamacpp", healthy: true, can_download: true },
+            ])
+          : Response.json([])
+      )
+    )
+    let reportIssue = () => {}
+    window.surfsense = {
+      ...window.surfsense!,
+      help: {
+        onReportIssue: (listener) => {
+          reportIssue = listener
+          return () => {}
+        },
+      },
+    }
+
+    render(
+      <TooltipProvider>
+        <IssueReportDialog />
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    act(() => reportIssue())
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Report issue" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("dialog", { name: "Report an issue" })).toBeNull()
+    delete window.surfsense?.help
   })
 
   it("surfaces a message request failure inside the conversation", async () => {

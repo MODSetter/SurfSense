@@ -30,6 +30,7 @@ import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
 import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
+import { useHelpMenuReport } from "@/features/feedback/help-menu-report"
 import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import { modelKey, type ModelSelection } from "@/features/models/selection/api"
@@ -545,6 +546,8 @@ export function DashboardPage({
     setSettingsSection(section)
     setSettingsOpen(true)
   }
+  // The menu has Settings to go to here; elsewhere it opens the dialog.
+  useHelpMenuReport(() => openSettings("report-issue"))
 
   // Checked when the model changes, when settings close (a key entered again,
   // egress switched, a connection edited) and after egress is allowed.

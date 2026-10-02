@@ -343,11 +343,11 @@ export function SettingsDialog({
           <aside className="min-h-0 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
             {(Object.keys(GROUP_LABELS) as SettingsNavItem["group"][]).map(
               (group, index) => (
-                <div key={group} className={cn(index > 0 && "mt-4")}>
+                <div key={group} className={cn(index > 0 && "mt-3")}>
                   <p
                     id={`settings-nav-${group}`}
                     className={cn(
-                      "px-2 pb-3 text-xs font-medium text-muted-foreground",
+                      "px-2 pb-1.5 text-xs font-medium text-muted-foreground",
                       index === 0 ? "pt-5" : "pt-2"
                     )}
                   >
@@ -368,7 +368,7 @@ export function SettingsDialog({
                           type="button"
                           variant="ghost"
                           className={cn(
-                            "h-9 w-full justify-start rounded-lg",
+                            "h-8 w-full justify-start rounded-lg",
                             selected &&
                               "bg-sidebar-accent text-sidebar-accent-foreground"
                           )}

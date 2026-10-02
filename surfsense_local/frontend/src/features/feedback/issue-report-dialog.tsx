@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/dialog"
 import { intl } from "@/i18n/intl"
 
+import { helpMenuReportClaimant } from "./help-menu-report"
 import { IssueReportForm } from "./issue-report-form"
 import {
   openIssueReport,
@@ -19,13 +20,24 @@ import {
 } from "./issue-report-state"
 
 // An app dialog (`AppDialogs`), so it opens over whatever dialog is open.
+//
+// Opened by: the Report issue button on error toasts (`error-toast.ts`), the
+// sidecar crash notice (`sidecar-crash-reporter.tsx`), and Help › Report
+// Issue… only while nothing claims it (`help-menu-report.ts`). These fire on
+// any screen, including onboarding, where Settings does not exist. Settings ›
+// Report issue (`report-issue-settings.tsx`) shows the same form inline.
 export function IssueReportDialog() {
   const descriptionRef = useRef<HTMLTextAreaElement>(null)
   const { open } = useIssueReport()
   const setOpen = (open: boolean) => updateIssueReport({ open })
 
   useEffect(
-    () => window.surfsense?.help?.onReportIssue(() => openIssueReport()),
+    () =>
+      window.surfsense?.help?.onReportIssue(() => {
+        const claimant = helpMenuReportClaimant()
+        if (claimant) claimant()
+        else openIssueReport()
+      }),
     []
   )
 
