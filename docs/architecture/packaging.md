@@ -53,7 +53,7 @@ Three packs are staged into `backend/models` before packaging and ship as `resou
 
 | Pack | Staged by | Holds |
 |---|---|---|
-| Embedding | `build:model`, `scripts/fetch_embedding_model.py` | `bge-small-en-v1.5`: the ONNX model, tokenizer and config |
+| Embedding | `build:model`, `scripts/fetch_embedding_model.py` | `bge-small-en-v1.5`: the ONNX model and its tokenizer, from a pinned revision, sha256-checked |
 | Voice | `build:voice`, `scripts/fetch_bundled_voice.py` | `audio/`: the manifest's first audio model in its default build, Kokoro 82M `Q8_0` (190 MB), with its install record, fetched as a catalog install is: from its pinned commit, sha256-checked |
 | Parser | `build:parser`, `scripts/fetch_docling_models.py` | Docling's layout, table and RapidOCR weights, pruned of the variants ingest never loads |
 

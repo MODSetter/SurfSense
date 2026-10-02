@@ -12,6 +12,7 @@ from pydantic import ValidationError
 
 from api.dependencies import SessionDep
 from modules.documents.storage import stream_upload
+from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.migration.schemas import ImportAccepted, ImportedWorkspace, Manifest
 from modules.migration.service import find_or_create_workspaces, import_bundle
 from shared.config import get_storage_settings
@@ -27,6 +28,7 @@ MAX_BUNDLE_UNPACKED_BYTES = 5 * 1024 * 1024 * 1024
 
 @router.post(
     "/import",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=ImportAccepted,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Import a SurfSense cloud export bundle",

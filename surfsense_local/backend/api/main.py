@@ -20,6 +20,11 @@ from modules.chat.router import router as chat_router
 from modules.documents.router import router as documents_router
 from modules.egress.router import router as egress_router
 from modules.egress.service import EgressDeniedError
+from modules.embedding.active import EmbeddingNotChosenError
+from modules.embedding.huggingface.router import (
+    router as embedding_huggingface_router,
+)
+from modules.embedding.router import router as embedding_router
 from modules.events.broker import EventBroker
 from modules.events.router import router as events_router
 from modules.health.router import router as health_router
@@ -162,10 +167,13 @@ def create_app() -> FastAPI:
     app.include_router(migration_router)
     app.include_router(license_router)
     app.include_router(egress_router)
+    app.include_router(embedding_router)
+    app.include_router(embedding_huggingface_router)
     app.include_router(resource_usage_router)
     app.include_router(agent_model_router)
     app.include_router(agent_threads_router)
     app.add_exception_handler(EgressDeniedError, egress_denied)
+    app.add_exception_handler(EmbeddingNotChosenError, embedding_not_chosen)
     app.add_exception_handler(UnreadableSecretError, unreadable_secret)
     return app
 
@@ -179,6 +187,16 @@ def unreadable_secret(_request: Request, error: UnreadableSecretError) -> JSONRe
     """
     return JSONResponse(
         {"detail": {"code": "unreadable_secret", "message": str(error)}},
+        status.HTTP_409_CONFLICT,
+    )
+
+
+def embedding_not_chosen(
+    _request: Request, error: EmbeddingNotChosenError
+) -> JSONResponse:
+    """Before onboarding fixes the embedder, nothing that would be embedded is taken."""
+    return JSONResponse(
+        {"detail": {"code": "embedding_not_chosen", "message": str(error)}},
         status.HTTP_409_CONFLICT,
     )
 

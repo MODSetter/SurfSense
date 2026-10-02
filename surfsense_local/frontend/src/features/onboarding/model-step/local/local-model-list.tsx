@@ -86,6 +86,11 @@ export function LocalModelList({
                     ) : null}
                     <FitBadge fit={build.fit} copy={build.badge} />
                   </div>
+                  {row.description ? (
+                    <p className="text-xs text-pretty text-muted-foreground">
+                      {row.description}
+                    </p>
+                  ) : null}
                   <p className="flex items-center gap-1 text-xs text-muted-foreground">
                     <span>{build.quantization}</span>
                     <DotIcon aria-hidden="true" className="size-3" />
@@ -113,7 +118,8 @@ export function LocalModelList({
                     disabled={disabled}
                     onAction={() => (installed ? onUse(row) : onDownload(row))}
                   />
-                  {installed ? (
+                  {/* A bundled model comes with the app and has no Delete. */}
+                  {installed && !build.bundled ? (
                     <Button
                       type="button"
                       size="icon-sm"

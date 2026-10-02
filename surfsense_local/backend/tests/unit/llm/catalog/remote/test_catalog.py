@@ -6,6 +6,7 @@ from modules.llm.catalog.remote.catalog import connection_rows, provider_rows, p
 from modules.llm.catalog.remote.rows import Availability, ConnectionInfo, ListedModel
 from modules.llm.catalog.source import Source
 from modules.llm.model_type import ModelType
+from modules.llm.selectable import SLOTS
 
 from .conftest import PAINTER, connect, model
 
@@ -124,4 +125,4 @@ def test_a_custom_connection_shows_only_what_it_lists(lookup) -> None:
     assert [(row.model_id, row.known, row.availability) for row in rows] == [
         ("acme/llama-support", False, Availability.AVAILABLE)
     ]
-    assert len(rows[0].selectable_for) == len(ModelType)
+    assert rows[0].selectable_for == SLOTS

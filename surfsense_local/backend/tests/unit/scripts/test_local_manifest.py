@@ -10,6 +10,7 @@ from local_manifest.llamacpp.assemble import (
     entry_for,
     pinned_builds,
 )
+from local_manifest.onnxruntime.entry import EmbeddingEntry
 from local_manifest.recorded import RepoAtRevision
 from local_manifest.sdcpp.entry import ImageEntry
 
@@ -196,11 +197,18 @@ def test_the_list_is_most_preferred_first() -> None:
     names = [
         entry.name
         for entry in ENTRIES
-        if not isinstance(entry, (ImageEntry, AudioEntry))
+        if not isinstance(entry, (ImageEntry, AudioEntry, EmbeddingEntry))
     ]
 
     assert names[0] == "Qwen3 32B"
     assert names[-1] == "Qwen3 0.6B"
+    # bge first: it ships with the app and is the default.
+    assert [e.id for e in ENTRIES if isinstance(e, EmbeddingEntry)] == [
+        "bge-small-en-v1.5",
+        "multilingual-e5-small",
+        "granite-embedding-97m-multilingual-r2",
+        "granite-embedding-311m-multilingual-r2",
+    ]
     # Kokoro first: the most voices, and the ids podcast briefs store today.
     assert [e.name for e in ENTRIES if isinstance(e, AudioEntry)] == [
         "Kokoro 82M",

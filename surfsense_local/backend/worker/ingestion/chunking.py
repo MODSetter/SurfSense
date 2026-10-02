@@ -3,6 +3,8 @@ from typing import Any, NamedTuple
 
 from chonkie import RecursiveChunker, RecursiveLevel, RecursiveRules
 
+from modules.embedding.bundled import BGE, bundled_dir
+
 # Under bge-small's 512-token limit, with room for the two it adds per input.
 CHUNK_TOKENS = 480
 
@@ -49,11 +51,14 @@ def _rules() -> RecursiveRules:
     )
 
 
+@lru_cache(maxsize=1)
 def _default_tokenizer() -> Any:
-    # The embedder's own tokenizer, so the budget is what the model measures.
-    from worker.ingestion.embedding import tokenizer
+    # bge's tokenizer, pinned here rather than taken from the active embedder:
+    # if the embedder decided the boundaries, changing it would re-cut every
+    # document, move every chunk id, and break every citation.
+    from tokenizers import Tokenizer
 
-    return tokenizer()
+    return Tokenizer.from_file(str(bundled_dir() / BGE.tokenizer.path))
 
 
 def _passage(markdown: str, piece: Any) -> Passage:

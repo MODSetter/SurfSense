@@ -55,6 +55,10 @@ class Document(Base):
     content_hash: Mapped[str | None]
     dedup_key: Mapped[str | None]
     document_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # The index its chunks were embedded into; what a re-embed has not reached.
+    embedding_index_id: Mapped[int | None] = mapped_column(
+        ForeignKey("embedding_indexes.id")
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()

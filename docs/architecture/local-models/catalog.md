@@ -36,12 +36,17 @@ sd.cpp nor audio.cpp has a fit estimate, so the row states the download size and
 nothing about this machine, and nothing blocks its install. The screen renders these fields and computes none
 of them.
 
-`GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's and audio.cpp's.
+`GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's, audio.cpp's and onnxruntime's.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
 ([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
 an audio folder, which it does only when it staged audio.cpp's server.
+onnxruntime's are the curated embedders, then any Hugging Face embedder
+downloaded and checked ([embedding](../embedding.md)), always: they run in the API and the
+workers, so no runtime has to be staged. An embedder row adds `description`, what
+it is for, which onboarding's search step shows; it has no fit, and can be
+selected for nothing ([selection](selection.md)).
 
 ## One slice per engine
 
@@ -63,6 +68,7 @@ catalog/local/
                             builds/, rows/, images_folder/
     audiocpp/               engine.py, manifest_fields.py, evidence.py,
                             builds/, rows/, audio_folder/
+    onnxruntime/            engine.py, manifest_fields.py, rows.py, spec.py
   service.py  router.py  schemas.py  dependencies.py
 ```
 
@@ -80,14 +86,14 @@ that the preset does not name, it rewrites the preset once; later reads with no
 new model leave it alone, so Electron does not restart the router repeatedly.
 The selection an install fills is the engine's `model_type` and `provider`.
 
-| | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) |
-|---|---|---|---|
-| Evidence | GGUF metadata keys | tensor names, as sd.cpp dispatches on them (`evidence.py`) | the family key, read from the header's front (`evidence.py`) |
-| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio`: voices, languages, sample rate, measured memory (required) |
-| Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | a GGUF at the repo's root, with the VAE and text encoder the entry names from their own repos (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) |
-| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) |
-| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed models, `server.json` |
-| Also | support, pricing, the recommended build, the lead build, the star, search | | |
+| | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) | [`engines/onnxruntime/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/onnxruntime/) |
+|---|---|---|---|---|
+| Evidence | GGUF metadata keys | tensor names, as sd.cpp dispatches on them (`evidence.py`) | the family key, read from the header's front (`evidence.py`) | the repo config's `model_type`, and its pipeline tag |
+| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio`: voices, languages, sample rate, measured memory (required) | `embedding`: width, pooling, normalisation, prefixes, `max_tokens`, `semantic_weight`, `batch`, and `parity` for a converted build (required) |
+| Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | a GGUF at the repo's root, with the VAE and text encoder the entry names from their own repos (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) | the ONNX weights the entry names, with the repo's `tokenizer.json`, which every build must carry |
+| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | its only build: another would be another vector space |
+| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed models, `server.json` | `embeddings/<id>/` under the data directory, not the models pack, which a packaged app ships read-only; bge-small is read in place from the pack |
+| Also | support, pricing, the recommended build, the lead build, the star, search | | | `spec_for`: an entry as the spec an index stores |
 
 A slice holds what the catalog knows about a runtime. Running it stays outside
 `catalog/`: the clients in `providers/`, and `fit/`, which prices llama.cpp.
@@ -203,9 +209,9 @@ engine's `refresh.py`, is the other. For each repo the script reads the
 commit sha, the file listing at that commit (sizes and `lfs.oid` hashes) and the
 repo's `params` file, then the default build's header and its projector's header
 over HTTP range requests. No weights are downloaded. Each engine reads its own
-entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
-`local_manifest/audiocpp/` each hold a `refresh.py` (the network) and an
-`assemble.py` (pure, the written entry).
+entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/`,
+`local_manifest/audiocpp/` and `local_manifest/onnxruntime/` each hold a
+`refresh.py` (the network) and an `assemble.py` (pure, the written entry).
 
 - **An image entry's evidence comes from its tensors**, the only thing an sd.cpp
   file reliably states, and what a person reviews comes from the entry: the
@@ -222,6 +228,12 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
   64 KiB: audio.cpp writes it before the files it embeds, which make Kokoro's
   header 38.6 MB and Supertonic's 57 MB. The entry names the model's folder in
   the shared repo, its builds most preferred first, and the reviewed `audio` block.
+- **An embedder entry pins the weights it names with the repo's tokenizer**, and
+  the reviewed `embedding` block: the ranking weight the retrieval eval measured
+  for that model, and for a build converted by someone else, how close its
+  vectors are to the original's. The schema refuses a build under 0.99 mean or
+  0.98 minimum cosine. A file kept in git rather than LFS lists no sha256, so the
+  refresh downloads and hashes it when it is small; a tokenizer is.
 - **It pins every chat build in the quantization preference order**
   ([`builds/choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
   and nothing outside it: no imatrix files, drafters, big endian builds, or
@@ -244,7 +256,8 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
 The script's assembly is tested over recorded input, with no network
 ([`test_local_manifest.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest.py),
 [`test_local_manifest_sdcpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_sdcpp.py),
-[`test_local_manifest_audiocpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_audiocpp.py)).
+[`test_local_manifest_audiocpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_audiocpp.py),
+[`test_local_manifest_onnxruntime.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_onnxruntime.py)).
 
 ## Which files make a build
 
@@ -318,7 +331,8 @@ recommended one. A light spill is described quietly in the reason line instead.
 turns an architecture and a pipeline tag into a type. It names what is not a chat
 model and calls everything else `TEXT_GEN`, because llama.cpp gains
 architectures faster than any list is updated: embedders, rerankers, speech
-recognisers, labellers, OCR, drafters and projectors are known and typeless;
+recognisers, labellers, OCR, drafters and projectors are known and typeless,
+except embedders, which are `EMBEDDING`, a type onnxruntime runs and no slot holds;
 diffusion architectures are `IMAGE_GEN`, video `VIDEO_GEN`, text to speech
 `AUDIO_GEN`, audio.cpp's voice families among them (`kokoro_tts`, `supertonic`,
 `kitten_tts`). Every audio.cpp file declares `general.architecture = audiocpp`,
@@ -559,7 +573,7 @@ delete is in `modules/llm/router.py` beside the selection routes.
 | `GET /llm/installs/{id}` | one job | none |
 | `GET /llm/installs/events` | NDJSON: every job, now and on each change | none |
 | `DELETE /llm/installs/{id}` | `204`; `404` when it is unknown or already over | none |
-| `DELETE /llm/models/{model_name:path}` | `ModelDeleteRead`, with `selection_cleared` | none |
+| `DELETE /llm/models/{model_name:path}` | `ModelDeleteRead`, with `selection_cleared`; `409` for a model the app ships, or the embedder that made the library's vectors | none |
 
 Search, repo reads and downloads share one consent, `host:huggingface.co`
 ([`../egress.md`](../egress.md)). A destination that is off is a `403` with

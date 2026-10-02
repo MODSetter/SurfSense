@@ -30,6 +30,9 @@ def test_ingestion_runs_one_job_at_a_time_and_studio_several(
             pass
 
     monkeypatch.setattr(consumer, "Consumer", FakeConsumer)
+    # Startup steps that read the database, which a unit test has none of.
+    monkeypatch.setattr(consumer, "wait_for_schema", lambda: None)
+    monkeypatch.setattr(consumer, "fail_interrupted_documents", lambda _kinds: None)
 
     consumer.consume("ingest")
     consumer.consume("studio")

@@ -13,6 +13,8 @@ class FileRole(StrEnum):
     # diffusion model, and several models use the same one.
     VAE = "vae"
     TEXT_ENCODER = "text_encoder"
+    # An ONNX embedder reads text through its own tokenizer, which no header carries.
+    TOKENIZER = "tokenizer"
 
 
 @dataclass(frozen=True)

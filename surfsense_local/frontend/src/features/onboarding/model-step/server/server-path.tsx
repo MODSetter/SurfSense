@@ -8,7 +8,7 @@ import { useConnections } from "@/features/models/remote/connections/use-connect
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
 import { intl } from "@/i18n/intl"
 
-import type { OnboardingSlot } from "./slot"
+import type { OnboardingSlot } from "../kinds/slot"
 
 /**
  * A model from a server, in Settings' own server groups. Connecting and
