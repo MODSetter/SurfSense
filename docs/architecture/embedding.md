@@ -19,6 +19,10 @@ Onboarding's last step lists the choices; finishing onboarding locks the one cho
 | curated | the local manifest, run by onnxruntime ([catalog](local-models/catalog.md)); ranking weight measured by the retrieval eval | measured |
 | Hugging Face | any ONNX embedder, found by search | declared, or inferred |
 
+The bundled bge-small is `model_optimized.onnx` from `Qdrant/bge-small-en-v1.5-onnx-Q`. The repo is named for quantization, but the file stores its 33.2 million weights as FLOAT16 and is 66,465,124 bytes (66.5 MB). Measured for [#1996](https://github.com/MODSetter/SurfSense/issues/1996) on an Apple M6 with onnxruntime 1.29.0's CPU provider at default threads, through the app's own recipe (the bundled tokenizer, truncation at 512 tokens, CLS pooling, normalised, batches of 32), it embeds about 72 short passages a second (a median of 53 tokens each) and about 14.5 chunk-sized ones (512 tokens each).
+
+An int8 export of the same model (`model_quantized.onnx` from `Xenova/bge-small-en-v1.5`, 34.0 MB) is half the size and embeds chunk-sized text 1.6 times as fast on that machine, but it is not the same vector space: against the bundled file its vectors have a mean cosine of 0.998 and a minimum of 0.978 over the retrieval eval's 66 queries, and one of the eval's 66 queries changes rank by one place, both on a fresh index and when only the query side changes. The top-5 rate is 91% for both, which that eval cannot tell apart. Every library that embeds with bge-small was built with the bundled file, which is pinned by hash, so another build of it can replace it there only through a re-embed ([proposal](../proposals/embedding-model-change.md)).
+
 ## Hugging Face
 
 `GET /embedding/huggingface/search?q=` lists repos tagged `sentence-similarity` or `feature-extraction`, most downloaded first. `GET /embedding/huggingface/repo/{repo}` opens one, without downloading weights, as a catalog row with one build, or none and why. Both answer in the GGUF search's shapes (`SearchRead`, `RepoRead`), so onboarding renders them through the same search as the chat step:
