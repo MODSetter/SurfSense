@@ -88,11 +88,14 @@ async def _send(
     thread_id: int,
     text: str,
     document_ids: list[int] | None = None,
+    thinking: bool | None = None,
 ) -> list[dict]:
     events: list[dict] = []
     body: dict = {"text": text}
     if document_ids is not None:
         body["document_ids"] = document_ids
+    if thinking is not None:
+        body["thinking"] = thinking
     async with client.stream(
         "POST", f"/chat/threads/{thread_id}/messages", json=body
     ) as reply:
@@ -349,6 +352,46 @@ async def test_a_reply_with_no_progress_streams_as_it_did(
     events = await _send(client, thread_id, "what happened to revenue?")
 
     assert "prompt-progress" not in {event["type"] for event in events}
+async def test_a_turn_sent_with_thinking_off_answers_with_no_trace(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The switch is a field on the turn: the local runtime is told not to
+    think, so no trace streams and none is stored."""
+    set_reasoning(["The note says ", "revenue climbed."])
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(
+        client, thread_id, "what happened to revenue?", thinking=False
+    )
+
+    kinds = {event["type"] for event in events}
+    assert not kinds & {"reasoning", "reasoning-end"}
+    answer = "".join(event["text"] for event in events if event["type"] == "delta")
+    assert answer == "Revenue climbed after the launch [1]."
+    (asked,) = [r for r in llamacpp_server if r.get("max_tokens") != 12]
+    assert asked["thinking_budget_tokens"] == 0
+    assert asked["chat_template_kwargs"] == {"enable_thinking": False}
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert "reasoning" not in stored[1]["content"]
+
+
+async def test_a_turn_thinks_unless_it_says_otherwise(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """Thinking on, sent or left out, adds nothing to the model's request."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    await _send(client, thread_id, "first question")
+    await _send(client, thread_id, "second question", thinking=True)
+
+    answers = [r for r in llamacpp_server if r.get("max_tokens") != 12]
+    assert len(answers) == 2
+    for asked in answers:
+        assert "thinking_budget_tokens" not in asked
+        assert "chat_template_kwargs" not in asked
 
 
 async def test_a_followup_never_hands_the_model_its_earlier_reasoning(

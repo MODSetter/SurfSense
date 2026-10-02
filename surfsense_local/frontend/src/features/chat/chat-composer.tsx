@@ -11,6 +11,8 @@ import { AttachImagesButton } from "./attach-images-button"
 import { ComposerImage } from "./attached-image"
 import { ModelPicker, modelControlButtonClassName } from "./model-picker"
 import { QUESTION_MAX_CHARS } from "./question-limit"
+import { canSkipThinking } from "./thinking-preference"
+import { ThinkingToggle } from "./thinking-toggle"
 
 function ModelControl({
   model,
@@ -233,6 +235,9 @@ export function ChatComposer({
             />
             <div className="absolute right-1.5 bottom-2 flex items-center gap-2">
               <SourceCount count={sourceCount} />
+              {model ? (
+                <ThinkingToggle canSkip={canSkipThinking(model)} />
+              ) : null}
               <ModelControl
                 model={model}
                 onModelSetup={onModelSetup}
@@ -277,11 +282,14 @@ export function ChatComposer({
               })
             )}
           </p>
-          <ModelControl
-            model={model}
-            onModelSetup={onModelSetup}
-            onModelSelected={onModelSelected}
-          />
+          <div className="flex min-w-0 items-center gap-1">
+            {model ? <ThinkingToggle canSkip={canSkipThinking(model)} /> : null}
+            <ModelControl
+              model={model}
+              onModelSetup={onModelSetup}
+              onModelSelected={onModelSelected}
+            />
+          </div>
         </div>
       ) : null}
     </div>

@@ -29,6 +29,7 @@ import { askEgress } from "@/features/egress/ask-egress"
 import { setDestinationEnabled } from "@/features/egress/api"
 import { openIssueReport } from "@/features/feedback/issue-report-state"
 import { ModelIssueNotice } from "@/features/chat/model-issue-notice"
+import { canSkipThinking } from "@/features/chat/thinking-preference"
 import { ThreadPanel } from "@/features/chat/thread-panel"
 import { useChatRuntime } from "@/features/chat/use-chat-runtime"
 import type { ImportAccepted } from "@/features/migration/api"
@@ -125,6 +126,7 @@ function WorkspaceDashboard({
     canSend: providerAvailable,
     selectedDocumentIds: sources.includedDocumentIds,
     readsImages: selection?.reads_images === true,
+    canSkipThinking: canSkipThinking(selection),
     onModelRequired,
   })
   const sourcePreview = sources.documents.find(
