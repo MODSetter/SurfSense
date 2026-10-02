@@ -43,7 +43,7 @@ A new thread is the agent's when the selected text model is in `TESTED_MODELS`, 
 | Agent | `surfsense`, the default, whose prompt replaces opencode's coding prompt with how to work on the user's sources ([`prompts/agent.md`](../../surfsense_local/backend/modules/agent/prompts/agent.md)) |
 | Off | `share`, `snapshot`, `autoupdate` |
 
-The API makes a new launch key at every start ([`model_endpoint/launch_key.py`](../../surfsense_local/backend/modules/agent/model_endpoint/launch_key.py)), so a configuration from an earlier run never opens the model endpoint.
+The API makes a new launch key at every start ([`launch_key.py`](../../surfsense_local/backend/modules/agent/launch_key.py)), so a configuration from an earlier run never opens the model endpoint.
 
 ## Folders
 

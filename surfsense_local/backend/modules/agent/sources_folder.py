@@ -10,7 +10,7 @@ import re
 from collections.abc import Sequence
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, select
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
@@ -39,7 +39,7 @@ def sync_sources_folder(session: Session, workspace_id: int) -> Path:
     (folder / OUTPUTS).mkdir(exist_ok=True)
 
     wanted = {
-        file_name(document): document.content.encode("utf-8")
+        file_name(document.title, document.id): document.content.encode("utf-8")
         for document in _ready_sources(session, workspace_id)
         if document.content is not None
     }
@@ -53,21 +53,33 @@ def sync_sources_folder(session: Session, workspace_id: int) -> Path:
     return folder
 
 
-def file_name(document: Document) -> str:
+def file_name(title: str, document_id: int) -> str:
     """The source's file in the folder: its title, made safe, and its id to keep it unique."""
-    title = _UNSAFE.sub("_", document.title).strip(" .")[:_LONGEST_TITLE] or "untitled"
-    return f"{title} [{document.id}].md"
+    safe = _UNSAFE.sub("_", title).strip(" .")[:_LONGEST_TITLE] or "untitled"
+    return f"{safe} [{document_id}].md"
+
+
+def source_file_names(session: Session, workspace_id: int) -> dict[int, str]:
+    """Each ready source's id and the name of its file here, without reading any text."""
+    rows = session.execute(
+        select(Document.id, Document.title).where(*_ready_source(workspace_id))
+    ).all()
+    return {row.id: file_name(row.title, row.id) for row in rows}
 
 
 def _ready_sources(session: Session, workspace_id: int) -> Sequence[Document]:
     """The workspace's sources whose text ingestion has finished."""
-    return session.scalars(
-        select(Document).where(
-            Document.workspace_id == workspace_id,
-            Document.status == DocumentStatus.READY,
-            Document.document_type.in_(_SOURCE_TYPES),
-        )
-    ).all()
+    return session.scalars(select(Document).where(*_ready_source(workspace_id))).all()
+
+
+def _ready_source(workspace_id: int) -> tuple[ColumnElement[bool], ...]:
+    """What makes a document one of the workspace's sources the agent reads."""
+    return (
+        Document.workspace_id == workspace_id,
+        Document.status == DocumentStatus.READY,
+        Document.document_type.in_(_SOURCE_TYPES),
+        Document.content.is_not(None),
+    )
 
 
 def _holds(path: Path, text: bytes) -> bool:
