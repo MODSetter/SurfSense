@@ -68,3 +68,29 @@ async def test_an_export_inside_its_deadline_is_streamed_as_before(
     body = b"".join([chunk async for chunk in response.body_iterator])
     assert body == b"PK-not-really"
     assert not archive.exists()
+
+
+@pytest.mark.parametrize("setting", [0, -1])
+async def test_a_deadline_of_zero_or_less_means_none(
+    monkeypatch: pytest.MonkeyPatch, tmp_path, setting: float
+):
+    """Passed to the timeout as it is, a zero would be a deadline already
+    missed: every export would be stopped before it began."""
+    archive = tmp_path / "export.zip"
+    archive.write_bytes(b"PK")
+
+    async def slower_than_zero(session, user_id):
+        await asyncio.sleep(0.01)
+        return SimpleNamespace(
+            zip_path=str(archive),
+            export_name="surfsense-export",
+            zip_size=2,
+            skipped_docs=[],
+        )
+
+    monkeypatch.setattr(export_routes, "build_account_export_zip", slower_than_zero)
+    monkeypatch.setattr(export_routes.config, "ACCOUNT_EXPORT_TIMEOUT_SECONDS", setting)
+
+    response = await export_routes.export_account(session=None, auth=_AUTH)
+
+    assert response.media_type == "application/zip"

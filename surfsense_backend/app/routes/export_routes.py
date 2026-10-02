@@ -33,7 +33,9 @@ async def export_account(
     """
     deadline = config.ACCOUNT_EXPORT_TIMEOUT_SECONDS
     try:
-        async with asyncio.timeout(deadline):
+        # Zero or less means no deadline. Passed through, it would be a
+        # deadline already missed, and every export would answer 504.
+        async with asyncio.timeout(deadline if deadline > 0 else None):
             result = await build_account_export_zip(session, auth.user.id)
     except TimeoutError:
         logger.error(

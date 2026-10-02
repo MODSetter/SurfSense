@@ -526,6 +526,7 @@ class Config:
     # answers 504 with a sentence the page shows. Set it under the timeout of
     # whatever proxy sits in front, or the proxy drops the connection first.
     # 600 s is about 20 GB of markdown at the rate measured in #2006.
+    # Zero or less turns the deadline off.
     ACCOUNT_EXPORT_TIMEOUT_SECONDS = float(
         os.getenv("ACCOUNT_EXPORT_TIMEOUT_SECONDS", "600")
     )
