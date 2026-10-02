@@ -45,7 +45,7 @@ from modules.llm.providers.sdcpp.serving import wait_until_serving
 pytestmark = pytest.mark.packaging
 
 ELECTRON = Path(__file__).resolve().parents[3] / "electron"
-STAGED = Path(os.environ.get("SURFSENSE_TEST_SDCPP_DIR", ELECTRON / "sdcpp"))
+STAGED = Path(os.environ.get("SURFSENSE_TEST_SDCPP_DIR", ELECTRON / "sdcpp")).resolve()
 MODELS_DIR = os.environ.get("SURFSENSE_TEST_IMAGE_MODELS")
 SERVER = STAGED / ("sd-server.exe" if sys.platform == "win32" else "sd-server")
 
@@ -57,7 +57,7 @@ MODEL_ID = "stable-diffusion-1.5"
 # its backend as it does in the app.
 BACKEND = os.environ.get("SURFSENSE_TEST_SDCPP_BACKEND")
 # Not the entry's: enough steps for a picture, few enough for a runner with no
-# graphics card. Everything else on the command line is what the app passes.
+# graphics card. With the seed, the only flags the app does not pass.
 STEPS = 4
 
 if MODELS_DIR is None:
@@ -82,7 +82,7 @@ def installed(tmp_path_factory: pytest.TempPathFactory) -> tuple[Path, Installed
     build = CURATED.builds[0]
     pinned = build.files[0]
     name = pinned.path.rsplit("/", 1)[-1]
-    source = Path(MODELS_DIR) / name  # type: ignore[arg-type]
+    source = (Path(MODELS_DIR) / name).resolve()  # type: ignore[arg-type]
     assert _sha256(source) == pinned.sha256, f"{name} is not the pinned file"
     try:
         (images / name).symlink_to(source)
@@ -132,6 +132,10 @@ def server(installed: tuple[Path, InstalledImage], server_log: Path) -> Iterator
             *image.args,
             "--steps",
             str(STEPS),
+            # sd-server's own default, written down: the picture checks below
+            # are calibrated on this seed's apple, and must not move with it.
+            "--seed",
+            "42",
             *(["--backend", BACKEND] if BACKEND else []),
         ],
         cwd=STAGED,
