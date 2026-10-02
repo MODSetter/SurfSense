@@ -927,6 +927,41 @@ describe("dashboard chat", () => {
     delete window.surfsense?.help
   })
 
+  it("leaves the Help menu to the popup when there is no workspace", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    let reportIssue = () => {}
+    window.surfsense = {
+      ...window.surfsense!,
+      help: {
+        onReportIssue: (listener) => {
+          reportIssue = listener
+          return () => {}
+        },
+      },
+    }
+
+    render(
+      <TooltipProvider>
+        <IssueReportDialog />
+        <DashboardPage
+          selection={null}
+          initialWorkspaces={[]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    act(() => reportIssue())
+
+    expect(
+      await screen.findByRole("dialog", { name: "Report an issue" })
+    ).toBeTruthy()
+    delete window.surfsense?.help
+  })
+
   it("surfaces a message request failure inside the conversation", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {

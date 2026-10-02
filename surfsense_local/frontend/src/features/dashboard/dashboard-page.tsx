@@ -221,9 +221,11 @@ function WorkspaceDashboard({
       </div>
       <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
         {/* A preview takes over the left column and widens it, as an
-            inspected artifact does the right one; the right panel stays put. */}
+            inspected artifact does the right one; the right panel stays put.
+            It shrinks, down to the sidebar's width, before the chat or the
+            right panel lose room on a narrow window. */}
         <div
-          className="flex h-full min-h-0 min-w-58 shrink-0 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
+          className="flex h-full min-h-0 min-w-68 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
           style={{
             width: sourcePreviewOpen ? DETAIL_RAIL_WIDTH : SIDEBAR_WIDTH,
           }}
@@ -546,8 +548,12 @@ export function DashboardPage({
     setSettingsSection(section)
     setSettingsOpen(true)
   }
-  // The menu has Settings to go to here; elsewhere it opens the dialog.
-  useHelpMenuReport(() => openSettings("report-issue"))
+  // The menu has Settings to go to here, once a workspace renders it;
+  // otherwise it opens the dialog.
+  useHelpMenuReport(
+    () => openSettings("report-issue"),
+    Boolean(workspaces.activeWorkspace)
+  )
 
   // Checked when the model changes, when settings close (a key entered again,
   // egress switched, a connection edited) and after egress is allowed.

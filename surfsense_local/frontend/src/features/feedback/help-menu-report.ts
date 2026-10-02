@@ -12,17 +12,19 @@ export function helpMenuReportClaimant(): (() => void) | null {
   return claimant
 }
 
-export function useHelpMenuReport(onReport: () => void): void {
+// `enabled` false leaves the menu to the dialog, as when Settings cannot render.
+export function useHelpMenuReport(onReport: () => void, enabled = true): void {
   // Read at click time, so a re-render's new closure needs no re-claim.
   const latest = useRef(onReport)
   useEffect(() => {
     latest.current = onReport
   })
   useEffect(() => {
+    if (!enabled) return
     const claim = () => latest.current()
     claimant = claim
     return () => {
       if (claimant === claim) claimant = null
     }
-  }, [])
+  }, [enabled])
 }
