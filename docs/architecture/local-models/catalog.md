@@ -469,6 +469,10 @@ preparing    "Loading the model", progress     the router loading it, repeated; 
 selecting    "Selecting model"                 only when select is true
 complete     "Model is ready"
              or "Downloaded. It becomes available once the runtime restarts."
+error        "This model is no longer available where SurfSense expects it."
+                                               a pinned file answers 404 or 403: its repo was deleted, gated or made private
+error        "The downloaded file did not match the expected one. Retry the download."
+                                               a file's sha256 is not the one it was pinned to
 error        "The model could not be installed. Retry the download."
 cancelled    "Installation cancelled"          DELETE reached it, running or waiting
 ```
@@ -658,7 +662,6 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
-- A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
 - Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it only when a Studio job needs it. The hard-coded list's route reported that, and went with it.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.
