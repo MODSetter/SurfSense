@@ -9,7 +9,7 @@ should be given up on in seconds.
 
 import asyncio
 import contextlib
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 
 
 class StreamTimeoutError(TimeoutError):
@@ -36,12 +36,15 @@ async def with_deadlines[T](
     first_item_seconds: float,
     between_items_seconds: float,
     subject: str = "the stream",
+    started: Callable[[T], bool] | None = None,
 ) -> AsyncIterator[T]:
     """Yield from `stream`, applying the start budget then the stall budget.
 
     The deadline restarts on every item, so a long stream is never cut off for
     being long, only for going quiet. `subject` names what was being waited on,
-    so the failure reads as a sentence wherever it is logged.
+    so the failure reads as a sentence wherever it is logged. `started` says
+    which items mean the work has begun producing; an item it rejects is
+    yielded and restarts the start budget, and without it every item counts.
     """
     items = stream.__aiter__()
     seconds = first_item_seconds
@@ -58,8 +61,9 @@ async def with_deadlines[T](
                     seconds, first_item=first_item, subject=subject
                 ) from expired
             yield item
-            seconds = between_items_seconds
-            first_item = False
+            if started is None or started(item):
+                seconds = between_items_seconds
+                first_item = False
     finally:
         # The timeout cancelled a read on whatever the stream was holding: for
         # HTTP, an open response. Leaving it to the garbage collector holds the

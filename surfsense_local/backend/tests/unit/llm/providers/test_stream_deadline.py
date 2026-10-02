@@ -95,3 +95,34 @@ async def test_the_underlying_stream_is_closed_when_a_budget_fires() -> None:
         )
 
     assert closed
+
+
+async def test_an_item_that_is_not_a_start_keeps_the_load_budget() -> None:
+    """Prompt progress arrives before the first token and a batch of it can be
+    slow, so it restarts the load budget instead of starting the tight one."""
+    tokens = await _collect(
+        with_deadlines(
+            _after([0.15, 0.15, 0.15, 0.0]),
+            first_item_seconds=1.0,
+            between_items_seconds=0.05,
+            started=lambda token: token == "2",
+        )
+    )
+
+    assert tokens == ["0", "1", "2", "3"]
+
+
+async def test_the_tight_budget_still_applies_once_a_start_arrives() -> None:
+    """Only the wait before the first real item is the patient one."""
+    with pytest.raises(StreamTimeoutError) as raised:
+        await _collect(
+            with_deadlines(
+                _after([0.15, 0.0, 0.15]),
+                first_item_seconds=1.0,
+                between_items_seconds=0.05,
+                started=lambda token: token == "1",
+            )
+        )
+
+    assert raised.value.first_item is False
+

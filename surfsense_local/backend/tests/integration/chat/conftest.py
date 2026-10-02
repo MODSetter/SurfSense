@@ -32,6 +32,9 @@ _TOKENS_PER_WORD: int | None = None
 # as llama-server does under `--reasoning-format deepseek`. Empty: no thinking.
 _REASONING: list[str] = []
 
+# The `prompt_progress` objects the stub sends before anything else, when asked.
+_PROMPT_PROGRESS: list[dict] = []
+
 # Whether the stub's model has a projector that reads images, which the real
 # router lists as `image` input on `/models`.
 _SEES = False
@@ -111,8 +114,20 @@ class StubRouterChat(BaseHTTPRequestHandler):
             else _ANSWER
         )
         trace = [] if request.get("max_tokens") == 12 else _REASONING
+        # The real server reports progress only where the request asks for it.
+        progress = _PROMPT_PROGRESS if request.get("return_progress") else []
         chunks = (
             [
+                "data: "
+                + json.dumps(
+                    {
+                        "choices": [{"delta": {"role": "assistant", "content": None}}],
+                        "prompt_progress": reported,
+                    }
+                )
+                for reported in progress
+            ]
+            + [
                 "data: "
                 + json.dumps({"choices": [{"delta": {"reasoning_content": piece}}]})
                 for piece in trace
@@ -159,6 +174,7 @@ def llamacpp_server(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[dict]]:
     _REQUESTS.clear()
     _SEES = False
     _REASONING.clear()
+    _PROMPT_PROGRESS.clear()
     _ANSWER = None
     _STALL = None
     _PROPS_N_CTX = None
@@ -225,6 +241,11 @@ def set_sees(sees: bool) -> None:
 def set_reasoning(pieces: list[str]) -> None:
     """Make the `llamacpp_server` answer think out loud before it replies."""
     _REASONING[:] = pieces
+
+
+def set_prompt_progress(reported: list[dict]) -> None:
+    """Make the `llamacpp_server` report reading the prompt before it replies."""
+    _PROMPT_PROGRESS[:] = reported
 
 
 def set_answer(pieces: list[str]) -> None:

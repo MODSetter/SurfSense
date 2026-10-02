@@ -131,6 +131,7 @@
   "chat_model_picker_trigger_aria": "Модель {model}. Сменить модель.",
   "chat_reasoning_done_label": "Размышления: {seconds, plural, one {# секунда} few {# секунды} many {# секунд} other {# секунды}}",
   "chat_reasoning_done_untimed_label": "Размышления завершены",
+  "chat_reasoning_reading_label": "Читает {percent, number, ::percent}",
   "chat_reasoning_thinking_label": "Размышляет",
   "chat_rename_dialog_body": "Выберите короткое название, по которому вы узнаете этот разговор.",
   "chat_rename_dialog_cancel_button": "Отмена",
