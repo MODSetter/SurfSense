@@ -193,6 +193,8 @@ plus inactive pages from `vm_stat` on macOS, which is what a large allocation ca
 actually claim, and `sysconf` totals as the fallback rather than zero. The figure
 matters because host memory is what separates `PARTIAL` from `TOO_BIG` on a
 discrete card.
+Each reader and its fallbacks are tested against recorded `/proc/meminfo` and
+`vm_stat` output ([`test_system_memory.py`](../../../surfsense_local/backend/tests/unit/llm/hardware/test_system_memory.py)).
 
 ### Unified memory is one pool
 
@@ -705,7 +707,7 @@ holds the badge to the load, and `tests/unit/chat/test_budget.py` the chat budge
 
 ## Known gaps
 
-- `Device.reports_live_memory`, which tells a live reading from a restated total, is never read, so a device whose `free` merely restates `total`, as WSL2 and macOS do, is trusted as if it had reported free memory. `system_memory.available_bytes()` has no test.
+- `Device.reports_live_memory`, which tells a live reading from a restated total, is never read, so a device whose `free` merely restates `total`, as WSL2 and macOS do, is trusted as if it had reported free memory.
 - The `q8_0` preference is unmeasured: nobody has timed a resident `q8_0` cache against a small `f16` spill on prompt rate, and published figures report quantized caches generating materially slower.
 - The light-spill boundary may be tight: `LIGHT_SPILL` ends at 0.25, which puts Qwen3 8B on a 6 GB RTX 3050 (0.33 by layers) out of the recommendation although its owner runs it without noticeable lag; one prefill and decode measurement of that configuration against the resident 4B settles it, and moving the boundary moves the badge and the star together.
 - The weights term is unconfirmed against the pinned files: the measured model buffers exceeded them (2,680 MiB against 2,382 for the 4B, 1,294 against 1,056 for the 1.7B), probably because those runs used another publisher's build, and if not, the largest term is under-estimated by 12 to 22%.
