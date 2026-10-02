@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { DialogFooter } from "@/components/ui/dialog"
 import { FieldGroup } from "@/components/ui/field"
+import { ExternalLinkIcon } from "@/components/ui/icons"
 import { Spinner } from "@/components/ui/spinner"
 import { intl } from "@/i18n/intl"
 
@@ -231,6 +232,8 @@ export function ChatGPTSignIn({
                 id: "models_chatgpt_sign_in_button",
                 defaultMessage: "Sign in with ChatGPT",
               })}
+          {/* Sign-in continues in the browser, as "Continue on GitHub" does. */}
+          <ExternalLinkIcon data-icon="inline-end" />
         </Button>
       </DialogFooter>
     </>
