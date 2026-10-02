@@ -7,7 +7,7 @@ from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
 from modules.egress.models import EgressDestination
 from modules.llm.connections.serves import served_by
-from modules.llm.subscriptions.chatgpt import account
+from modules.llm.subscriptions.chatgpt import account, revocation
 from modules.llm.subscriptions.chatgpt.endpoints import get_endpoints
 from modules.llm.subscriptions.chatgpt.flows import SignInFlows
 from modules.llm.subscriptions.chatgpt.schemas import (
@@ -99,7 +99,12 @@ def cancel_sign_in(flow_id: str, flows: FlowsDep) -> Response:
 @router.delete("/{connection_id}/sign-in", status_code=status.HTTP_204_NO_CONTENT)
 def sign_out(connection_id: int, session: SessionDep) -> Response:
     try:
-        account.sign_out(session, connection_id)
+        forgotten = account.sign_out(session, connection_id)
     except account.NotChatGPTError as error:
         raise HTTPException(status.HTTP_404_NOT_FOUND, str(error)) from error
+    revoke = forgotten is not None and revocation.may_revoke(session)
+    # Committed first: the sign-out stands even if OpenAI never answers.
+    session.commit()
+    if revoke:
+        revocation.revoke(forgotten)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

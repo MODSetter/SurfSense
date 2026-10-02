@@ -34,6 +34,11 @@ class ChatGPTEndpoints(BaseSettings):
         return f"{self.auth_url}/api/accounts/oauth/token"
 
     @property
+    def revoke_url(self) -> str:
+        # The discovery document's `revocation_endpoint`; a public client may call it.
+        return f"{self.auth_url}/api/accounts/oauth/revoke"
+
+    @property
     def jwks_url(self) -> str:
         return f"{self.auth_url}/.well-known/jwks.json"
 

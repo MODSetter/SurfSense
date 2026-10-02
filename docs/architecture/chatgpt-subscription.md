@@ -38,6 +38,7 @@ A ChatGPT connection is a `provider_connections` row with `auth_kind = 'chatgpt'
 - `GET /llm/connections` adds `auth_kind`, `signed_in` and `account_email`; no token leaves the API.
 - `PUT` on a ChatGPT connection renames it and changes nothing else.
 - `DELETE /llm/connections/{id}/sign-in` signs out: the tokens go, the connection and its selection stay. Signing in again registers a new client, since the issued one went with the tokens.
+- Signing out, or deleting the connection, also revokes the refresh token at the issuer's `revocation_endpoint` (`/api/accounts/oauth/revoke`, RFC 7009, as a public client) once the local change has committed ([`revocation.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/revocation.py)). It is best effort: a failure is logged and the sign-out stands. It is skipped when the sign-in host has been turned off since.
 - It serves `text_gen` only. What a connection serves is one rule, [`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py), keyed by `auth_kind`: selection refuses any other slot even with `allow_unlisted`, the image and speech tests answer `422`, image and speech resolution refuse it, and `GET /llm/connections` reports it as `serves`.
 
 ## Tokens
@@ -70,7 +71,6 @@ Every model list reads `serves` rather than deciding: the Settings sections, the
 ## Known gaps
 
 - Built against OpenAI's documentation and a fake server; not yet run against a real ChatGPT account.
-- Signing out or deleting the connection does not revoke the refresh token at OpenAI's revocation endpoint.
 - Signing in again never uses the returning-user path (`id_token_hint` with the issued client), because signing out drops the client id with the tokens.
 - When the plan's model list cannot be fetched there is no fallback list; the model group shows the failure.
 - The context window of a plan model is unknown, so long chats are trimmed to the fixed history budget.
