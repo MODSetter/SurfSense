@@ -34,6 +34,7 @@
   "agent_steps_running_aria": "Läuft",
   "agent_steps_search_label": "Quellen nach {pattern} durchsucht",
   "agent_steps_shell_label": "{command} ausgeführt",
+  "agent_steps_studio_label": "{format} in Studio gestartet",
   "agent_steps_write_label": "{file} geschrieben",
   "app_api_insufficient_space_error": "{message} ({required, number, ::unit/gigabyte .#} benötigt, {available, number, ::unit/gigabyte .#} verfügbar)",
   "app_api_request_failed_error": "Anfrage fehlgeschlagen mit Status {status}",

@@ -312,6 +312,52 @@ describe("an agent thread", () => {
     expect(await screen.findByText("There are two.")).toBeTruthy()
   })
 
+  it("names SurfSense's own tools in words, not by their tool names", async () => {
+    backend({
+      stored: [
+        {
+          id: "msg_u1",
+          role: "user",
+          content: { text: "Make slides about the launch" },
+          created_at: "2026-10-01T00:00:00Z",
+          completed_at: "2026-10-01T00:00:00Z",
+        },
+        {
+          id: "msg_u1:reply",
+          role: "assistant",
+          content: {
+            text: "Studio is making them.",
+            steps: [
+              {
+                id: "prt_1",
+                tool: "surfsense_search_sources",
+                status: "completed",
+                title: "",
+                input: { query: "launch plan" },
+                output: "",
+              },
+              {
+                id: "prt_2",
+                tool: "surfsense_create_artifact",
+                status: "completed",
+                title: "",
+                input: { format: "pptx", source_ids: [12] },
+                output: "",
+              },
+            ],
+          },
+          created_at: "2026-10-01T00:00:01Z",
+          completed_at: "2026-10-01T00:00:02Z",
+        },
+      ],
+    })
+    renderAgentThread()
+
+    expect(await screen.findByText("launch plan")).toBeTruthy()
+    expect(await screen.findByText("Started Slides in Studio")).toBeTruthy()
+    expect(screen.queryByText("surfsense_create_artifact")).toBeNull()
+  })
+
   it("keeps one copy of a reply once opencode has stored it", async () => {
     const reply = {
       id: "msg_u1:reply",

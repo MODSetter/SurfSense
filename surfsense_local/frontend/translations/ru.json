@@ -34,6 +34,7 @@
   "agent_steps_running_aria": "Выполняется",
   "agent_steps_search_label": "Искал {pattern} в источниках",
   "agent_steps_shell_label": "Выполнил {command}",
+  "agent_steps_studio_label": "Запустил {format} в Studio",
   "agent_steps_write_label": "Записал {file}",
   "app_api_insufficient_space_error": "{message} (требуется {required, number, ::unit/gigabyte .#}, доступно {available, number, ::unit/gigabyte .#})",
   "app_api_request_failed_error": "Запрос не выполнен, статус {status}",
