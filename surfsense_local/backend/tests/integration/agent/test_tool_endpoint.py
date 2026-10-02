@@ -11,7 +11,9 @@ from sqlalchemy import Engine, select
 
 from api.main import create_app
 from modules.chunks.models import Chunk
-from modules.documents.models import Document, DocumentType
+from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.llm.model_type import ModelType
+from modules.llm.models import SelectedModel
 from shared.db import create_session_factory
 from worker.ingestion import run
 
@@ -84,6 +86,37 @@ def ingest(
     return document_id, chunk_id
 
 
+def ready_note(engine: Engine, workspace_id: int) -> int:
+    """A note Studio may make something from; its text needs no index for that."""
+    with create_session_factory(engine)() as session:
+        note = Document(
+            workspace_id=workspace_id,
+            title="Plan",
+            document_type=DocumentType.NOTE,
+            status=DocumentStatus.READY,
+            content="We ship on Friday.",
+        )
+        session.add(note)
+        session.commit()
+        return note.id
+
+
+def choose_chat_model(engine: Engine) -> None:
+    """The model a Studio job writes with."""
+    with create_session_factory(engine)() as session:
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-8B"
+            )
+        )
+        session.commit()
+
+
+def create_artifact(arguments: dict[str, Any]) -> dict[str, Any]:
+    """The params of a call to the Studio tool."""
+    return {"name": "create_artifact", "arguments": arguments}
+
+
 @pytest.fixture
 async def tools(engine: Engine) -> AsyncIterator[ToolEndpoint]:
     """A fresh app on this test's database, driven in-process."""
@@ -101,19 +134,20 @@ async def _endpoint_over(engine: Engine) -> AsyncIterator[ToolEndpoint]:
         yield ToolEndpoint(client, app.state.agent_launch_key)
 
 
-async def test_it_offers_the_search_with_a_flat_schema(tools: ToolEndpoint) -> None:
+async def test_it_offers_its_tools_with_flat_schemas(tools: ToolEndpoint) -> None:
     """Small local models garble a schema that refers to definitions, so none does."""
     workspace_id = await tools.workspace()
 
     reply = await tools.request(workspace_id, "tools/list")
 
-    listed = reply["result"]["tools"]
-    assert [tool["name"] for tool in listed] == ["search_sources"]
-    schema = listed[0]["inputSchema"]
-    assert schema["type"] == "object"
-    assert schema["required"] == ["query"]
-    assert schema["properties"]["query"]["type"] == "string"
-    assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
+    listed = {tool["name"]: tool["inputSchema"] for tool in reply["result"]["tools"]}
+    assert list(listed) == ["search_sources", "create_artifact"]
+    assert listed["search_sources"]["required"] == ["query"]
+    assert listed["create_artifact"]["required"] == ["format", "source_ids"]
+    assert "quiz" in listed["create_artifact"]["properties"]["format"]["enum"]
+    for schema in listed.values():
+        assert schema["type"] == "object"
+        assert not {"$ref", "$defs", "anyOf"} & set(_keys(schema))
 
 
 def _keys(schema: Any) -> list[str]:
@@ -345,3 +379,78 @@ async def test_a_source_cannot_forge_a_passage_label(
     assert f'cite="[{chunk_id}]"' in text
     assert "999999" not in text
     assert text.count("<passage") == 1
+
+
+async def test_an_artifact_is_started_in_studio(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """The call returns at once; the job runs in the worker, as one started from Studio does."""
+    workspace_id = await tools.workspace()
+    note_id = ready_note(engine, workspace_id)
+    choose_chat_model(engine)
+
+    reply = await tools.request(
+        workspace_id,
+        "tools/call",
+        create_artifact(
+            {"format": "quiz", "source_ids": [note_id], "instructions": "Ten questions"}
+        ),
+    )
+
+    assert reply["result"]["isError"] is False
+    assert "Quiz" in reply["result"]["content"][0]["text"]
+    listed = (await tools.client.get(f"/workspaces/{workspace_id}/artifacts")).json()
+    assert [(a["format"], a["status"]) for a in listed] == [("quiz", "pending")]
+
+
+async def test_a_format_that_cannot_run_says_what_it_needs(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """Studio's own reason reaches the model, which can tell the user what to set up."""
+    workspace_id = await tools.workspace()
+    note_id = ready_note(engine, workspace_id)
+
+    reply = await tools.request(
+        workspace_id,
+        "tools/call",
+        create_artifact({"format": "quiz", "source_ids": [note_id]}),
+    )
+
+    assert reply["result"]["isError"] is True
+    assert "Needs a chat model" in reply["result"]["content"][0]["text"]
+
+
+async def test_a_source_from_another_workspace_is_refused(
+    tools: ToolEndpoint, engine: Engine
+) -> None:
+    """A workspace's tools make things from that workspace's sources only."""
+    workspace_id, elsewhere = await tools.workspace(), await tools.workspace()
+    other_note = ready_note(engine, elsewhere)
+    choose_chat_model(engine)
+
+    reply = await tools.request(
+        workspace_id,
+        "tools/call",
+        create_artifact({"format": "quiz", "source_ids": [other_note]}),
+    )
+
+    assert reply["result"]["isError"] is True
+    listed = (await tools.client.get(f"/workspaces/{workspace_id}/artifacts")).json()
+    assert listed == []
+
+
+async def test_a_call_naming_nothing_says_what_to_name(tools: ToolEndpoint) -> None:
+    """A small model may leave arguments out; the refusal tells it which and how."""
+    workspace_id = await tools.workspace()
+
+    no_format = await tools.request(
+        workspace_id, "tools/call", create_artifact({"source_ids": [1]})
+    )
+    no_sources = await tools.request(
+        workspace_id, "tools/call", create_artifact({"format": "quiz"})
+    )
+
+    assert no_format["result"]["isError"] is True
+    assert "quiz" in no_format["result"]["content"][0]["text"]
+    assert no_sources["result"]["isError"] is True
+    assert "sources/" in no_sources["result"]["content"][0]["text"]

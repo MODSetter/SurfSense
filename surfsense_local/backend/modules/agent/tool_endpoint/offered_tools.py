@@ -6,10 +6,13 @@ from sqlalchemy.orm import Session
 
 from api.dependencies import transact
 from modules.agent.tool_endpoint import replies
+from modules.agent.tool_endpoint.create_artifact import CREATE_ARTIFACT
 from modules.agent.tool_endpoint.search_sources import SEARCH_SOURCES
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 
-TOOLS: dict[str, Tool] = {tool.listing["name"]: tool for tool in (SEARCH_SOURCES,)}
+TOOLS: dict[str, Tool] = {
+    tool.listing["name"]: tool for tool in (SEARCH_SOURCES, CREATE_ARTIFACT)
+}
 
 
 def listings() -> list[dict[str, Any]]:

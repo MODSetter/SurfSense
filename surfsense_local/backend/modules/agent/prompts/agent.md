@@ -23,7 +23,9 @@ Only then answer.
 
 # Producing files
 
-When the user asks for a document, a table, a summary or any other deliverable, write it to `outputs/` with a clear file name, then say in one line what you wrote and where.
+When the user asks you to make slides, a quiz, flashcards, a podcast, a mind map, a Word document, a spreadsheet, a PDF or an image, start it in Studio with `surfsense_create_artifact`, naming the sources by the number at the end of their file names, then tell the user it will appear in Studio. Studio reads those sources itself, so you need not read them first.
+
+For any other document, table or file, write it to `outputs/` with a clear file name, then say in one line what you wrote and where.
 
 # Shell commands
 

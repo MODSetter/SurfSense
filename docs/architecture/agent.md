@@ -98,7 +98,9 @@ opencode needs no host beyond loopback: its model is the model endpoint, and its
 - No model is on the tested list, and no agent test exists to put one there; only the developer switch lets a model in.
 - A turn refused because the selected model cannot run the agent shows as an error with Retry; the composer does not offer a new thread, as the [proposal](../proposals/agent/01-which-engine.md#when-a-thread-gets-its-engine) has it.
 - The model endpoint neither simplifies tool schemas to what llama.cpp's grammar takes nor turns a tool call a model writes as text into a real one, so small local models stall where a remote one would not.
-- The agent cannot start a Studio job, and a file it writes to `outputs/` does not become an artifact.
+- A file the agent writes to `outputs/` does not become an artifact.
+- A Studio job the agent starts runs on the same local model as the agent, so the agent's next step waits behind it.
+- An artifact the agent starts records neither the thread nor the step that started it: the tool call reaches SurfSense without either.
 - Sources unticked in the sources panel still reach the agent: `sources/` holds every ready source and `surfsense_search_sources` searches them all, where a chat thread searches only the ticked ones. The ticks can change with each message, while every thread of a workspace shares one `sources/`.
 - A passage's label is its chunk id, a number of several digits, which a small local model copies less reliably than a chat answer's `[1]` to `[5]`. A mistyped label is dropped, so the citation is lost rather than wrong. Nothing has measured how many are lost.
 - Bringing `sources/` in line reads every ready source's text from the database before each turn, to compare it with the files, so a workspace with many large sources pays for that on every turn.
