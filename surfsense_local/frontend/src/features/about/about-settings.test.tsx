@@ -65,25 +65,6 @@ describe("AboutSettings", () => {
     )
   })
 
-  it("copies the version and system for a bug report", async () => {
-    stubAboutBridge()
-    const user = userEvent.setup()
-    const writeText = vi
-      .spyOn(navigator.clipboard, "writeText")
-      .mockResolvedValue(undefined)
-    render(<AboutSettings />)
-
-    await user.click(
-      await screen.findByRole("button", { name: "Copy system info" })
-    )
-
-    const copied = writeText.mock.calls[0]?.[0] ?? ""
-    expect(copied).toContain("SurfSense 2.0.2")
-    expect(copied).toContain("macOS 15.4 (arm64)")
-    expect(copied).toContain("Electron 44.0.0")
-    expect(await screen.findByRole("button", { name: "Copied" })).toBeTruthy()
-  })
-
   it("copies the bare version from beside it", async () => {
     stubAboutBridge()
     const user = userEvent.setup()

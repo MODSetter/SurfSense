@@ -11,6 +11,7 @@ import {
 import {
   AiImageEditIcon,
   AudioWaveformIcon,
+  BugIcon,
   Chat01Icon,
   ComputerEthernetIcon,
   CpuIcon,
@@ -33,6 +34,7 @@ import type { ImportAccepted } from "@/features/migration/api"
 import { ImportBundleButton } from "@/features/migration/import-bundle"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { EmbeddingSettings } from "@/features/embedding/embedding-settings"
+import { ReportIssueSettings } from "@/features/feedback/report-issue-settings"
 import { ResourceSettings } from "@/features/resources/resource-settings"
 import { intl } from "@/i18n/intl"
 import { cn } from "@/lib/utils"
@@ -64,6 +66,7 @@ export type SettingsSectionId =
   | "network"
   | "license"
   | "about"
+  | "report-issue"
 
 const CLOUD_EXPORT_URL = "https://surfsense.com/sunset"
 
@@ -208,6 +211,7 @@ const SETTINGS_SECTIONS = [
   { id: "resources", group: "system", icon: CpuIcon },
   { id: "network", group: "system", icon: ComputerEthernetIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
+  { id: "report-issue", group: "app", icon: BugIcon },
 ] satisfies SettingsNavItem[]
 
 const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {
@@ -288,6 +292,11 @@ const SECTION_LABELS: Record<SettingsSectionId, () => string> = {
     intl.formatMessage({
       id: "settings_nav_about_label",
       defaultMessage: "About",
+    }),
+  "report-issue": () =>
+    intl.formatMessage({
+      id: "settings_nav_report_issue_label",
+      defaultMessage: "Report issue",
     }),
 }
 
@@ -408,6 +417,9 @@ export function SettingsDialog({
             {activeSection.id === "network" ? <NetworkSettings /> : null}
             {activeSection.id === "license" ? <LicenseSettings /> : null}
             {activeSection.id === "about" ? <AboutSettings /> : null}
+            {activeSection.id === "report-issue" ? (
+              <ReportIssueSettings />
+            ) : null}
           </section>
         </div>
       </DialogContent>

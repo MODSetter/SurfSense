@@ -60,6 +60,29 @@ describe("SettingsDialog", () => {
     expect(screen.getByRole("heading", { name: "About" })).toBeTruthy()
   })
 
+  it("files issue reports from their own tab in the App group", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(<SettingsHarness />)
+
+    const app = screen.getByRole("navigation", { name: "App" })
+    const report = screen.getByRole("button", { name: "Report issue" })
+    expect(app.contains(report)).toBe(true)
+
+    await user.click(report)
+
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Report issue" })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("textbox", { name: "What went wrong?" })
+    ).toBeTruthy()
+    vi.unstubAllGlobals()
+  })
+
   it("groups the sections into Settings, Models, System and App", () => {
     render(<SettingsHarness />)
 
@@ -74,7 +97,7 @@ describe("SettingsDialog", () => {
         "Embedding",
       ],
       System: ["Resources", "Network"],
-      App: ["About"],
+      App: ["About", "Report issue"],
     }
     for (const [group, sections] of Object.entries(groups)) {
       const nav = screen.getByRole("navigation", { name: group })

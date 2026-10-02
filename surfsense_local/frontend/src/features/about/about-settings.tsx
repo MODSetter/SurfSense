@@ -12,7 +12,6 @@ import {
 } from "./about-links"
 import { CopyVersionButton } from "./copy-version-button"
 import { ExternalLink } from "./external-link"
-import { Troubleshooting } from "./troubleshooting"
 import { useAppDetails } from "./use-app-details"
 
 function AppIdentity({ version }: { version?: string }) {
@@ -126,8 +125,6 @@ export function AboutSettings() {
           })}
         </ExternalLink>
       </div>
-
-      {details ? <Troubleshooting details={details} /> : null}
     </SettingsSection>
   )
 }
