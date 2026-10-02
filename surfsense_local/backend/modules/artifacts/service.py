@@ -56,9 +56,7 @@ def create_artifact_job(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, f"unknown format: {payload.format}"
         )
-    available, reason = _availability(session, fmt)
-    if not available:
-        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+    _require_available(session, fmt)
 
     documents = _resolve_sources(session, workspace.id, payload.document_ids)
     options = _resolve_options(session, fmt, payload.options)
@@ -103,9 +101,7 @@ def regenerate_artifact(session: Session, artifact: Artifact) -> Artifact:
     document = artifact.document
     if document.status in (DocumentStatus.PENDING, DocumentStatus.PROCESSING):
         raise HTTPException(status.HTTP_409_CONFLICT, "already generating")
-    available, reason = _availability(session, FORMATS_BY_KEY[artifact.format])
-    if not available:
-        raise HTTPException(status.HTTP_409_CONFLICT, reason)
+    _require_available(session, FORMATS_BY_KEY[artifact.format])
 
     document.status = DocumentStatus.PENDING
     document.error_message = None
@@ -159,7 +155,8 @@ _TYPE_PHRASES: dict[ModelType, str] = {
 }
 
 # The same types as they appear in `unavailable_code`. The interface keys its
-# translated lines on these: studio-unavailable-text.ts, keep the two in sync.
+# translated lines on these: studio-unavailable-text.ts and
+# studio-error-text.ts, keep them in sync.
 _TYPE_CODES: dict[ModelType, str] = {
     ModelType.TEXT_GEN: "chat",
     ModelType.IMAGE_GEN: "image",
@@ -176,10 +173,14 @@ _TYPE_ORDER: tuple[ModelType, ...] = (
 )
 
 
-def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    """Whether this format can run, and the one line saying why not."""
+def _require_available(session: Session, fmt: Format) -> None:
+    """Refuse a format that cannot run, with the listing's line and its code."""
     missing = _missing(session, fmt)
-    return (False, _required(missing)) if missing else (True, None)
+    if missing:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            {"message": _required(missing), "code": _required_code(missing)},
+        )
 
 
 def _missing(session: Session, fmt: Format) -> list[ModelType]:

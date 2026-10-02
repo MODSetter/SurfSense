@@ -92,6 +92,10 @@ async def test_a_format_missing_both_models_says_so(
     assert summary["unavailable_reason"] == "Needs a chat model"
     assert summary["unavailable_code"] == "needs_chat"
 
+    podcast = next(f for f in response.json() if f["key"] == "podcast")
+    assert podcast["unavailable_reason"] == "Needs a chat model and an audio model"
+    assert podcast["unavailable_code"] == "needs_chat_audio"
+
 
 async def test_infographic_needs_the_image_model_and_the_chat_model(
     client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
@@ -474,6 +478,10 @@ async def test_a_job_needs_a_generation_model(
     )
 
     assert response.status_code == 409
+    assert response.json()["detail"] == {
+        "message": "Needs a chat model",
+        "code": "needs_chat",
+    }
 
 
 async def test_a_job_rejects_an_unknown_format(
@@ -593,6 +601,32 @@ async def test_a_failed_artifact_can_be_regenerated(
     assert body["error_message"] is None
     assert body["generation"] == 2
     assert [job.args for job in studio_queue.pending()] == [(artifact_id,)]
+
+
+async def test_regenerating_without_the_model_it_needs_says_which_as_a_code(
+    client: AsyncClient, engine: Engine, workspace_id: int, choose_model: None
+) -> None:
+    """Regenerate is not gated in the panel, so its refusal is what the user
+    reads: it carries the code the interface has its own sentence for."""
+    source_id = make_ready_source(engine, workspace_id)
+    created = await client.post(
+        f"/workspaces/{workspace_id}/studio/jobs",
+        json={"format": "summary", "document_ids": [source_id]},
+    )
+    with create_session_factory(engine)() as session:
+        document = session.get(Document, created.json()["document_id"])
+        document.status = DocumentStatus.FAILED
+        # Deleting the selected model clears its selection.
+        session.delete(session.get(SelectedModel, ModelType.TEXT_GEN))
+        session.commit()
+
+    again = await client.post(f"/artifacts/{created.json()['id']}/regenerate")
+
+    assert again.status_code == 409
+    assert again.json()["detail"] == {
+        "message": "Needs a chat model",
+        "code": "needs_chat",
+    }
 
 
 async def test_a_pending_artifact_can_be_cancelled(

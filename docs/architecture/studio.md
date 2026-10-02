@@ -11,7 +11,7 @@ The tables, `artifacts` and `artifact_files`, are in [`data-model.md`](data-mode
 
 [`service.py`](../../surfsense_local/backend/modules/artifacts/service.py)`::create_artifact_job(session, workspace, payload, *, tool_call_id=None)` is the one entry for every trigger. The REST route passes no `tool_call_id`, and neither does the agent's `surfsense_create_artifact`, whose call reaches SurfSense without one ([agent](agent.md#surfsenses-tools)). Explicit or agentic, same code.
 
-1. Look the format up in the catalog (`422` if unknown) and check that it is available (`409` with the reason if not).
+1. Look the format up in the catalog (`422` if unknown) and check that it is available (`409` if not, whose `detail` is `{message, code}`: the listing's reason and its `unavailable_code`). Regenerate answers the same `409`.
 2. Resolve the sources: at least one (`422`), all in this workspace (`422`) and all `ready` (`409`).
 3. Validate the options with the format's `validate_options` hook. Only podcast has one; a bad brief is a `422`.
 4. Create the `ARTIFACT` document, `pending` and titled with the format's label, and its `artifacts` sidecar with `generation` 1, `created_by_tool_call_id`, and the source ids, prompt and options in `artifact_metadata`.
@@ -175,7 +175,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 ## The Studio panel
 
-- Studio lives in the right rail: pick a format, pick sources, add an optional prompt, generate. The source picker is the same included set as the sources panel, so chat and Studio share one selection. An unavailable format shows the API's reason.
+- Studio lives in the right rail: pick a format, pick sources, add an optional prompt, generate. The source picker is the same included set as the sources panel, so chat and Studio share one selection. An unavailable format shows the interface's sentence for the API's `unavailable_code`, or the API's `unavailable_reason` for a code it does not know. A create or regenerate refused for the same reason shows it the same way in the panel's alert.
 - A podcast waits for its brief: the panel loads `GET .../studio/podcast/brief` and renders a form for style, duration and speakers before the job can be submitted.
 - The artifact list shows each artifact with its status, and each row can be opened, regenerated, cancelled or deleted.
 

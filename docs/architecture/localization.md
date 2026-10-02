@@ -56,7 +56,7 @@ Main resolves the language ([`app-locale.ts`](../../surfsense_local/electron/src
 
 ## Backend text
 
-The backend stays English. Where it sends a code with its prose, the frontend shows its own text for the code and falls back to the backend's English for a code it does not know: the chat's error kinds ([`chat-error-text.ts`](../../surfsense_local/frontend/src/features/chat/chat-error-text.ts)) the license rejection reasons ([`license-error-text.ts`](../../surfsense_local/frontend/src/features/license/license-error-text.ts)), and why a Studio format is unavailable, where `unavailable_code` names the missing model types, such as `needs_chat_image` ([`studio-unavailable-text.ts`](../../surfsense_local/frontend/src/features/studio/studio-unavailable-text.ts)). Each code has a whole sentence of its own, not a list joined from parts.
+The backend stays English. Where it sends a code with its prose, the frontend shows its own text for the code and falls back to the backend's English for a code it does not know: the chat's error kinds ([`chat-error-text.ts`](../../surfsense_local/frontend/src/features/chat/chat-error-text.ts)), the license rejection reasons ([`license-error-text.ts`](../../surfsense_local/frontend/src/features/license/license-error-text.ts)), and why a Studio format is unavailable, where `unavailable_code` names the missing model types, such as `needs_chat_image` ([`studio-unavailable-text.ts`](../../surfsense_local/frontend/src/features/studio/studio-unavailable-text.ts)); a create or regenerate refused for that reason carries the same code in its `409` ([`studio-error-text.ts`](../../surfsense_local/frontend/src/features/studio/studio-error-text.ts)). Each code has a whole sentence of its own, not a list joined from parts.
 
 ## Build
 
