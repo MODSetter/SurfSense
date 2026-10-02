@@ -49,7 +49,7 @@ The Date is the day the decision was first written down. Source links are permal
 | 0012 | [The GPU backend is Vulkan everywhere off Apple Silicon, with no CUDA payload](0012-vulkan-only-gpu-backend.md) | Accepted, for Docker images superseded by 0035 |
 | 0013 | [Model fit comes from the allocator's view of one device, and only physics refuses an install](0013-fit-from-the-allocator.md) | Accepted |
 | 0014 | [The model catalog is a curated offline manifest plus Hugging Face search, and SurfSense downloads the files itself](0014-two-tier-model-catalog.md) | Accepted, in part superseded by 0026, 0027 and the model catalog proposal |
-| 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal |
+| 0015 | [Remote models come through named OpenAI-compatible connections, discovered live](0015-openai-compatible-connections.md) | Accepted, in part revised by the model catalog proposal, in part superseded by 0038 |
 | 0016 | [The app sends no telemetry or crash reports](0016-no-telemetry.md) | Accepted |
 | 0017 | [Every outbound destination is off until the user allows it](0017-egress-off-by-default.md) | Accepted, in part superseded by 0027 |
 | 0018 | [Provider keys are encrypted with a per-install secret kept in the OS keychain](0018-keychain-envelope-encryption.md) | Accepted |
@@ -72,3 +72,4 @@ The Date is the day the decision was first written down. Source links are permal
 | 0035 | [The desktop app's stack also ships as one Docker container, with Caddy as its only listener](0035-docker-compose-runs-the-desktop-stack.md) | Accepted |
 | 0036 | [The index records which embedder built it, and the embedder is fixed once per install](0036-the-index-records-its-embedder.md) | Accepted |
 | 0037 | [Curated embedders are a fourth engine in the local catalog, and embedding is a type, never a slot](0037-embedding-is-a-type-not-a-slot.md) | Accepted |
+| 0038 | [A ChatGPT plan is a connection signed in through OpenAI's open-source flow, not the Codex CLI's client](0038-chatgpt-plans-sign-in-through-openai-not-codex.md) | Accepted |

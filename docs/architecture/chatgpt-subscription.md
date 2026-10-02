@@ -5,7 +5,7 @@ A user with ChatGPT Plus or Pro signs in with their ChatGPT account instead of p
 It follows OpenAI's "Sign in with ChatGPT" flow for open-source apps ([developers.openai.com/siwc/token-sharing-open-source](https://developers.openai.com/siwc/token-sharing-open-source)). It never reads the Codex CLI's `~/.codex/auth.json`, runs the `codex` binary, or reuses the Codex CLI's client id.
 
 **Code:** [`modules/llm/subscriptions/chatgpt/`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/), [`modules/llm/providers/openai_responses/`](../../surfsense_local/backend/modules/llm/providers/openai_responses/), [`modules/llm/connections/listing.py`](../../surfsense_local/backend/modules/llm/connections/listing.py), [`electron/src/main/external-url.ts`](../../surfsense_local/electron/src/main/external-url.ts), [`frontend/src/features/models/remote/connections/chatgpt/`](../../surfsense_local/frontend/src/features/models/remote/connections/chatgpt/)
-**Design:** [proposal](../proposals/chatgpt-subscription.md)
+**Decisions:** [ADR 0038](../adr/0038-chatgpt-plans-sign-in-through-openai-not-codex.md), [ADR 0015](../adr/0015-openai-compatible-connections.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
 
 ## What it reaches
 

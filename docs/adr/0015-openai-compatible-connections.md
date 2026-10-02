@@ -1,6 +1,6 @@
 # ADR 0015: Remote models come through named OpenAI-compatible connections, discovered live
 
-- **Status:** Accepted; the per-role selection is revised by the [model catalog proposal](../proposals/model-catalog.md), in progress: a selection is keyed by model type, with no roles
+- **Status:** Accepted; the per-role selection is revised by the [model catalog proposal](../proposals/model-catalog.md), in progress: a selection is keyed by model type, with no roles; a connection signing in only with an optional bearer key and chatting only on `/chat/completions` is superseded for ChatGPT plans by [ADR 0038](0038-chatgpt-plans-sign-in-through-openai-not-codex.md)
 - **Date:** 2026-09-10
 - **Source:** [Connections plan L8–68](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L8-L68), [Connections plan L70–128](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L70-L128), [Connections plan L160–170](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L160-L170), [Connections plan L360–362](https://github.com/MODSetter/SurfSense/blob/431914fae066e0c42a38b1fdbbab64e8f92d3d00/plans/community-local/api/05b-openai-compatible-connections.md#L360-L362)
 
