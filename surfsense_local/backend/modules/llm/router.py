@@ -170,9 +170,11 @@ async def delete_model(
                 # install record, and whatever the engine settles after.
                 service.remove(model_name, engine=engine.name)
         except ModelFileHeldError as error:
-            # Electron stops a server whose slot is empty on its next poll, which
-            # is what releases the file for the delete to be asked again.
-            await _clear_selections(session, engine, model_name)
+            # Only sd-server is stopped by an empty slot. The others keep their
+            # selection until the delete works, and are told to let go.
+            if engine.server_follows_selection:
+                await _clear_selections(session, engine, model_name)
+            await engine.release(model_name)
             raise HTTPException(
                 status.HTTP_409_CONFLICT,
                 f"{model_name} is still in use, so it is being stopped. "

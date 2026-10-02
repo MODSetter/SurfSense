@@ -549,11 +549,19 @@ last removes the file, since the server refuses an empty model list, and Electro
 stops the server. At startup `warm()` rewrites `server.json` from the install
 records, so a stale or missing file heals.
 
-The files go before the record. Windows refuses to delete a file that sd-server
-or audiocpp_server still has open, so there deleting the model in use can fail
-at the file: the API then keeps the record, clears the slots that named the
-model, which is what makes Electron stop the server on its next poll, and
-answers 409 asking for the delete again in a few seconds. A delete that removed
+The files go before the record. Windows refuses to delete a file a server still
+has open, so there deleting the model in use can fail at the file. The API then
+keeps the record, makes that server let go, and answers 409 asking for the
+delete again in a few seconds. What lets go differs by server:
+
+- **sd-server** runs from the image selection, so the API clears the slots that
+  named the model and Electron stops the server on its next poll.
+- **audiocpp_server** is restarted only when `server.json` is rewritten, so the
+  API rewrites it unchanged. The new server opens a model on its first request.
+- **llama-server** never unloads a model on its own and is restarted only by a
+  changed preset, so the API asks the router to unload the model.
+
+The audio and chat selections stay until the delete works. A delete that removed
 only some files of a build is finished by repeating it.
 
 **Image models the hard-coded list downloaded** were saved as `sd15-q4_0.gguf`,

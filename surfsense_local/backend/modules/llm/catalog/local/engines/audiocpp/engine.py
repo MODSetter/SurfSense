@@ -29,6 +29,7 @@ class AudioCppEngine:
     name = ENGINE
     model_types = (ModelType.AUDIO_GEN,)
     provider = PROVIDER
+    server_follows_selection = False
 
     def __init__(
         self,
@@ -134,6 +135,11 @@ class AudioCppEngine:
             write_server_config(self._audio_dir, self.installed(), self._espeak)
 
     def after_remove(self) -> None:
+        self._write_config()
+
+    async def release(self, model_id: str) -> None:
+        # Electron restarts the server on any rewrite, and the new one opens a
+        # model only on its first request.
         self._write_config()
 
     def on_startup(self) -> None:

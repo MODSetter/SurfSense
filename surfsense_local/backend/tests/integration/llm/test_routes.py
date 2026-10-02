@@ -166,6 +166,47 @@ async def test_deleting_the_selected_local_model_clears_only_the_selection(
     assert installed == ["Qwen3-4B-Q4_K_M"]
 
 
+async def test_deleting_a_chat_model_the_router_holds_open_unloads_it(
+    client: AsyncClient, llamacpp_server: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows refuses to delete a file a llama-server worker has open, and the
+    router never unloads a model on its own. The delete asks it to, keeps the
+    model and its selection, and works when asked again."""
+    from pathlib import Path
+
+    from shared.config import get_llm_settings
+    from tests.integration.llm.conftest import UNLOADED
+
+    await client.put(
+        "/llm/selection/text_gen",
+        json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"},
+    )
+    weights = get_llm_settings().llamacpp_models_dir / "Qwen3-1.7B-Q4_K_M.gguf"
+    unlink = Path.unlink
+
+    def held_open(self: Path, missing_ok: bool = False) -> None:
+        if self == weights:
+            raise PermissionError(32, "The process cannot access the file", str(self))
+        unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", held_open)
+
+    reply = await client.delete("/llm/models/Qwen3-1.7B-Q4_K_M")
+
+    assert reply.status_code == 409, reply.text
+    assert "Delete it again" in reply.json()["detail"]
+    assert weights.exists()
+    assert UNLOADED == ["Qwen3-1.7B-Q4_K_M"]
+    assert (await client.get("/llm/selection/text_gen")).status_code == 200
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    again = await client.delete("/llm/models/Qwen3-1.7B-Q4_K_M")
+
+    assert again.status_code == 200, again.text
+    assert again.json()["selection_cleared"] is True
+    assert not weights.exists()
+
+
 async def test_remote_models_cannot_be_deleted(client: AsyncClient) -> None:
     """Remote connections never enter local provider storage routes."""
     reply = await client.delete(
