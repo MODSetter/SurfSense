@@ -32,6 +32,9 @@ class Capabilities:
     system_role: bool
     typed_content: bool
     tools: bool
+    # Whether llama-server parses the model's tool calls out of its reply; a
+    # template can render tools and still have none parsed (common/chat-auto-parser-generator.cpp).
+    tool_calls: bool
     context_tokens: int | None
 
     @property
@@ -74,5 +77,6 @@ def read_capabilities(model_id: str, models: dict, props: dict) -> Capabilities:
         system_role=bool(template.get("supports_system_role", True)),
         typed_content=bool(template.get("supports_typed_content", False)),
         tools=bool(template.get("supports_tools", False)),
+        tool_calls=bool(template.get("supports_tool_calls", False)),
         context_tokens=settings.get("n_ctx"),
     )

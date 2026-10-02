@@ -27,6 +27,7 @@ def caps(system_role: bool) -> Capabilities:
         system_role=system_role,
         typed_content=False,
         tools=False,
+        tool_calls=False,
         context_tokens=16384,
     )
 
@@ -85,6 +86,7 @@ def seeing(system_role: bool) -> Capabilities:
         system_role=system_role,
         typed_content=False,
         tools=False,
+        tool_calls=False,
         context_tokens=16384,
     )
 
