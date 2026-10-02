@@ -16,6 +16,7 @@ A chat thread belongs to a workspace. Each user message retrieves its own contex
 | `GET` | `/chat/threads/{thread_id}/messages` | the stored turns, oldest first |
 | `POST` | `/chat/threads/{thread_id}/messages` | send a message; the reply streams back as `text/event-stream` |
 | `GET` | `/chat/threads/{thread_id}/messages/{message_id}/images/{index}` | an image a stored turn carried |
+| `POST` | `/chat/threads/{thread_id}/permissions/{request_id}` | answer an agent thread's request to run something, `{"reply": "once" \| "reject"}`; `204` ([Agent threads](#agent-threads)) |
 
 A message body is `{"text": "...", "document_ids": [...], "images": [...]}`; `images` is covered in [Images](#images). `document_ids` is the retrieval scope for this turn: omitted, the whole workspace is searched; an empty list retrieves nothing; at most 1,000 ids. Each id must belong to the thread's workspace (`422`) and be `ready` (`409`).
 
@@ -119,6 +120,7 @@ A turn can carry images, and a model that reads them receives them; every other 
 - Images use assistant-ui's own attachments ([`image-attachments.ts`](../../surfsense_local/frontend/src/features/chat/image-attachments.ts)). The runtime gets `SimpleImageAttachmentAdapter`, narrowed to the accepted formats, only while the selection's `reads_images` is true, so a model that cannot see has no adapter and the composer takes no image. The composer's "+" attaches images and nothing else; sources are added only from the sources panel, so a file is never a guess between the two, and dropping a file onto the composer does nothing. Images come in two ways: pasting into the composer (`Input`'s `addAttachmentOnPaste`), and the "+", which is assistant-ui's `ComposerPrimitive.AddAttachment` and opens a picker limited to the adapter's formats ([`attach-images-button.tsx`](../../surfsense_local/frontend/src/features/chat/attach-images-button.tsx)). With a model that cannot see, the "+" stays in place, disabled but focusable, and its tooltip says "This model can’t read images"; `ComposerPrimitive.Attachments` draws the pending ones with `AttachmentPrimitive` and `MessagePrimitive.Attachments` the sent ones ([`attached-image.tsx`](../../surfsense_local/frontend/src/features/chat/attached-image.tsx)). Until a turn is stored its images show from what was picked; after, from the image route. Retry resends a failed turn's images.
 - Sending is disabled without a usable model or while threads or messages load, and Stop aborts the request. A `409` "no chat model selected" opens model setup. An `error` frame attaches to its assistant turn: auth, not-found and model-cannot-run errors, and network errors from a remote endpoint, offer Model setup; a network error from the local runtime and a context-too-long error offer nothing, since no button fixes either; the rest offer Retry, which resends the same text.
 - Every turn sends the ids of the ready sources the user left included in the sources panel, so unticking a source takes it out of retrieval, and unticking all of them leaves the model with no context.
+- An agent thread uses the same runtime. Its ids are opencode's strings, so a live turn counts as stored once both ids are in the refetched thread, whatever their type; only the placeholders sent before `accepted` never do. Each `agent-step` frame adds or updates one step of the live reply, and a stored reply's `content.steps` carries the same. They ride in `metadata.custom` beside the citations and show above the answer as one line each, with a spinner while it runs and a mark when it fails, opening to the step's output or error ([`features/agent/agent-steps.tsx`](../../surfsense_local/frontend/src/features/agent/agent-steps.tsx)). A `permission-request` waits in the runtime until `permission-replied`, until it is answered or until the turn ends. The oldest waiting request opens an alert dialog with the full command and Deny and Allow once; Esc and Deny both answer `reject`, and when others are waiting the dialog says denying refuses them too, as opencode does ([`features/agent/approval-dialog.tsx`](../../surfsense_local/frontend/src/features/agent/approval-dialog.tsx)).
 
 ## Citation panel
 
@@ -136,14 +138,27 @@ A turn can carry images, and a model that reads them receives them; every other 
 - The conversation has a heading, the thread's title, hidden visually because the visible title is the rename button. After a thread switch made from the keyboard outside the composer, focus moves to it so a screen reader says where it landed (a key in the composer is writing or sending, and a new chat's first send creating its thread keeps the composer's focus); after a pointer switch the composer keeps the focus assistant-ui gives it, so someone can click a chat and type (`use-focus-heading-on-keyboard-switch.ts`). A new chat has no heading until it is a thread.
 - The startup loader and the typed-in thread title respect `prefers-reduced-motion`.
 
+## Agent threads
+
+How the agent runs is in [agent](agent.md). A thread is opened for the agent instead of the chat when the selected model may run it: a model on the tested list, which is empty, or any model while `SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` ([`modules/agent/engine_choice.py`](../../surfsense_local/backend/modules/agent/engine_choice.py)). Opening such a thread starts opencode if it is not running, waits until it serves SurfSense's configuration, and opens an opencode session under the thread's title; the session's id is stored on the thread, and `ThreadRead` reports `uses_agent`. When opencode is not part of the install or is not ready, the thread opens as a chat. A thread keeps the engine it was opened with ([agent proposal](../proposals/agent/01-which-engine.md)).
+
+The same routes then reach the agent ([`modules/agent/agent_threads/`](../../surfsense_local/backend/modules/agent/agent_threads/)):
+
+- **Sending** brings the workspace's sources folder in line, renames a thread still called "New chat" after its first message's first 60 characters, and streams the turn as opencode runs it. The frames are the chat's (`accepted`, `thread-title-update` after it, `delta`, `reasoning`, `reasoning-end`, `completed`, `error`, `[DONE]`) plus `agent-step` for each tool call as its status moves (`id`, `tool`, `status`, `title`, `input`, `output` up to 4,000 characters, `error`), `permission-request` (`id`, `permission`, `patterns`, `command`) and `permission-replied`. `completed` carries the reply as opencode stored it. Message ids are opencode's: a user turn's own, and `<user message id>:reply` for its reply. Closing the stream stops the turn. Images are refused with `409`.
+- **Listing** reads the session from opencode: each user turn, then one assistant reply joining the text and the steps of every assistant message opencode wrote for it, with `content.steps` beside `content.text`.
+- **Deleting** stops the session's turn and deletes the session first, and deleting a workspace does the same for each of its agent threads before the rows go.
+
 ## Non-goals
 
 - A settings endpoint for chat: model choice lives in `/llm/selection` ([`local-models/selection.md`](local-models/selection.md)).
 - Follow-up suggestions, regenerating a reply and branching a thread.
-- Tools. The model cannot call anything; Studio jobs start from the Studio panel ([`studio.md`](studio.md)).
+- Tools in the chat. The chat's model cannot call anything, and a thread that needs tools is the agent's ([Agent threads](#agent-threads)); Studio jobs start from the Studio panel ([`studio.md`](studio.md)).
 
 ## Known gaps
 
+- An agent thread's session is deleted only while opencode is running; one deleted before any turn has started opencode in this run of the app stays in opencode's database.
+- An agent thread's first turn is named after its first words, not by the model as a chat's is.
+- An agent thread refuses images.
 - A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. The trace now shows, so an empty answer is no longer unexplained, but how often it happens is unmeasured.
 - Nothing shows progress while a model loads or reads a long prompt beyond "Thinking". llama-server can stream prompt progress (`return_progress`); whether `b11050` sends it is unchecked.
 - There is no switch to turn thinking off for answers.

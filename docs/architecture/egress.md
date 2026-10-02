@@ -30,6 +30,7 @@ The plugins proposal adds a consent for each host a plugin declares, asked befor
 | Choosing a remote model | `modules/llm/selection.py`, through `allowed_connection()` | `host:` |
 | Checking a connection's rows against its live listing | `GET /llm/catalog/remote/connections/{id}` in `modules/llm/catalog/remote/router.py`, through `allowed_connection()` | `host:` |
 | Chat and Studio generation, text or image, through a remote connection | `_connection()` in `modules/llm/resolution.py` | `host:` |
+| The agent's turns, which opencode sends to SurfSense's model endpoint and SurfSense forwards to a remote connection | `address_selected_model()` in `modules/agent/model_endpoint/model_address.py`, through `allowed_connection()`; a refusal answers opencode with a `403` whose message names the host | `host:` |
 | Downloading an image an endpoint returned as a URL, whose host the endpoint chose | `refused_named_host()`, called before the download through the image provider's `allow_url_host`: by `POST /llm/connections/{id}/image-test` (a `403`) and by `resolution.py` for Studio (the job fails with the refusal, not retried, since the image was already billed). A refused host with no row is recorded off, so it is listed | `host:` |
 | Downloading a GGUF | `POST /llm/installs` in `modules/llm/catalog/local/install_jobs/router.py`, checked before the job starts | `host:huggingface.co` |
 | Hugging Face search and repo reads | `GET /llm/catalog/local/search` and `GET /llm/catalog/local/search/{repo}` in `modules/llm/catalog/local/router.py` | `host:huggingface.co` |
