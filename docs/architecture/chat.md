@@ -18,7 +18,7 @@ A chat thread belongs to a workspace. Each user message retrieves its own contex
 | `GET` | `/chat/threads/{thread_id}/messages/{message_id}/images/{index}` | an image a stored turn carried |
 | `POST` | `/chat/threads/{thread_id}/permissions/{request_id}` | answer an agent thread's request to run something, `{"reply": "once" \| "reject"}`; `204` ([Agent threads](#agent-threads)) |
 
-A message body is `{"text": "...", "document_ids": [...], "images": [...]}`; `images` is covered in [Images](#images). `document_ids` is the retrieval scope for this turn: omitted, the whole workspace is searched; an empty list retrieves nothing; at most 1,000 ids. Each id must belong to the thread's workspace (`422`) and be `ready` (`409`).
+A message body is `{"text": "...", "document_ids": [...], "images": [...], "thinking": true}`; `images` is covered in [Images](#images) and `thinking` in [The thinking switch](#the-thinking-switch). `document_ids` is the retrieval scope for this turn: omitted, the whole workspace is searched; an empty list retrieves nothing; at most 1,000 ids. Each id must belong to the thread's workspace (`422`) and be `ready` (`409`).
 
 ## Grounding shape
 
@@ -135,6 +135,14 @@ A turn can carry images, and a model that reads them receives them; every other 
 - Citations are buttons, not clickable `div`s.
 - A failed turn shows in an alert, which assistive technology announces.
 - The composer follows assistant-ui's keyboard behaviour.
+
+### The thinking switch
+
+`thinking` is a field of the turn, on unless the request says `false`; chat has no settings route to hold it. Off, the router passes `reasoning=False` to `chat_deltas`, as title generation does, and the local runtime adds its two request fields ([`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off)), so a thinking model answers with no trace and none is stored. On, nothing is added and the model keeps its own default.
+
+Only the local runtime has a way to be told. A remote endpoint has no portable field for it, so `thinking: false` changes nothing there, and an agent thread does not read the field.
+
+The composer's Thinking button, beside the model name ([`thinking-toggle.tsx`](../../surfsense_local/frontend/src/features/chat/thinking-toggle.tsx)), holds the preference in `localStorage` under `surfsense:chat-thinking:v1`, for every thread and workspace, the way the last open thread is remembered. It is read when a message is sent, and only an off preference with a `llamacpp` selection puts `thinking: false` in the request. With any other selection the button stays in place, pressed and disabled, and its tooltip says "Only a local model can answer without thinking", as the "+" does for a model that cannot read images.
 - The startup loader and the typed-in thread title respect `prefers-reduced-motion`.
 
 ## Agent threads
@@ -155,12 +163,12 @@ The same routes then reach the agent ([`modules/agent/agent_threads/`](../../sur
 
 ## Known gaps
 
+- An agent thread ignores the thinking switch, and its composer still shows the button as if it applied.
 - An agent thread's session is deleted only while opencode is running; one deleted before any turn has started opencode in this run of the app stays in opencode's database.
 - An agent thread's first turn is named after its first words, not by the model as a chat's is.
 - An agent thread refuses images.
 - No live region announces streamed text, and focus does not move to the conversation heading after a thread switch; the dashboard design asks for both.
 - A thinking model spends the 1,024-token answer cap on its reasoning too: `max_tokens` counts what goes to `reasoning_content`, as the title measurement in [`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off) shows, so on the local runtime a long think can cut the answer short or leave it empty. The trace now shows, so an empty answer is no longer unexplained, but how often it happens is unmeasured.
 - Nothing shows progress while a model loads beyond "Thinking": llama-server's prompt progress starts once the model is up ([`local-models/runtime.md`](local-models/runtime.md#prompt-progress)).
-- There is no switch to turn thinking off for answers.
 - Nothing refuses a turn whose images alone outgrow the window. History floors at zero, but four attached images at 1,400 tokens each overflow a small local window before any history is kept, and the turn fails as `context_too_long`.
 - The per-image cost is priced, not measured: Gemma 3, the curated vision model, spends a fixed 256, and 1,400 covers Qwen2.5-VL at the 1,024 px cap. No measurement at the pinned build confirms either.

@@ -58,12 +58,14 @@ class MessageCreate(BaseModel):
 
     `document_ids` is the RAG scope for this turn. Omit it to search the whole
     workspace. An empty list retrieves nothing. `images` reach only a model
-    that reads them; any other gets a 409.
+    that reads them; any other gets a 409. `thinking` off asks for the answer
+    with no trace, which only the local runtime can be told.
     """
 
     text: MessageText
     document_ids: Annotated[list[DocumentId], Field(max_length=1000)] | None = None
     images: Annotated[list[ImageUpload], Field(max_length=MAX_IMAGES)] = []
+    thinking: bool = True
 
 
 class MessageRead(BaseModel):

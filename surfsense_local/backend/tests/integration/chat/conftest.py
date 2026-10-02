@@ -113,7 +113,9 @@ class StubRouterChat(BaseHTTPRequestHandler):
             if _ANSWER is None
             else _ANSWER
         )
-        trace = [] if request.get("max_tokens") == 12 else _REASONING
+        # The real server thinks unless the request carries its off switch.
+        thinking_off = request.get("thinking_budget_tokens") == 0
+        trace = [] if request.get("max_tokens") == 12 or thinking_off else _REASONING
         # The real server reports progress only where the request asks for it.
         progress = _PROMPT_PROGRESS if request.get("return_progress") else []
         chunks = (

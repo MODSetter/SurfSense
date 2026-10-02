@@ -3,12 +3,15 @@ import { cleanup, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 
+import { TooltipProvider } from "@/components/ui/tooltip"
+import type { ModelSelection } from "@/features/models/selection/api"
 import { render } from "@/test-utils"
 
 import { ChatComposer } from "./chat-composer"
 import { QUESTION_MAX_CHARS } from "./question-limit"
+import { readThinkingOn } from "./thinking-preference"
 
-const MODEL = {
+const MODEL: ModelSelection = {
   model_type: "text_gen" as const,
   provider: "llamacpp" as const,
   connection_id: null,
@@ -16,13 +19,13 @@ const MODEL = {
   updated_at: "2026-09-05T00:00:00Z",
 }
 
-function Harness() {
+function Harness({ model = MODEL }: { model?: ModelSelection }) {
   const runtime = useLocalRuntime({ run: async () => ({ content: [] }) })
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <ChatComposer
         placement="center"
-        model={MODEL}
+        model={model}
         sourceCount={0}
         isRunning={false}
         providerAvailable
@@ -37,6 +40,7 @@ function Harness() {
 afterEach(() => {
   cleanup()
   vi.unstubAllGlobals()
+  localStorage.clear()
 })
 
 describe("chat composer", () => {
@@ -57,5 +61,60 @@ describe("chat composer", () => {
 
     expect(input.value).toHaveLength(QUESTION_MAX_CHARS)
     expect(screen.getByRole("status").textContent).toContain("4,096")
+  })
+
+  it("turns thinking off for a local model and remembers it", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    const first = render(
+      <TooltipProvider>
+        <Harness />
+      </TooltipProvider>
+    )
+
+    const toggle = screen.getByRole("button", { name: "Thinking" })
+    expect(toggle.getAttribute("aria-pressed")).toBe("true")
+    expect(readThinkingOn()).toBe(true)
+    await user.click(toggle)
+
+    expect(toggle.getAttribute("aria-pressed")).toBe("false")
+    expect(readThinkingOn()).toBe(false)
+
+    first.unmount()
+    render(
+      <TooltipProvider>
+        <Harness />
+      </TooltipProvider>
+    )
+    expect(
+      screen
+        .getByRole("button", { name: "Thinking" })
+        .getAttribute("aria-pressed")
+    ).toBe("false")
+  })
+
+  it("holds the thinking switch on for a model that cannot be told to stop", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <Harness
+          model={{ ...MODEL, provider: "openai_compatible", connection_id: 3 }}
+        />
+      </TooltipProvider>
+    )
+
+    const toggle = screen.getByRole("button", { name: "Thinking" })
+    expect(toggle.getAttribute("aria-disabled")).toBe("true")
+    expect(toggle.getAttribute("aria-pressed")).toBe("true")
+    await user.click(toggle)
+
+    expect(readThinkingOn()).toBe(true)
   })
 })
