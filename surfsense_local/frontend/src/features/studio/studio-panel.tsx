@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 import type { StudioFormat, StudioJobCreate } from "./api"
 import { PodcastBriefForm } from "./podcast-brief-form"
 import { FORMAT_ICONS, formatLabel, studioCatalog } from "./studio-formats"
+import { translatedUnavailable } from "./studio-unavailable-text"
 import { usePodcastBrief } from "./use-podcast-brief"
 
 const FORMAT_HINTS: Record<string, () => string> = {
@@ -102,16 +103,15 @@ function catalogFormats(formats: StudioFormat[]) {
 }
 
 function unavailableReason(entry: StudioFormat) {
+  const translated = translatedUnavailable(entry.unavailable_code)
+  if (translated != null) return translated
   if (entry.unavailable_reason != null) return entry.unavailable_reason
-  return entry.requires_model_types.includes("image_gen")
-    ? intl.formatMessage({
-        id: "studio_format_unavailable_chat_image_tooltip",
-        defaultMessage: "Needs a chat model and an image model.",
-      })
-    : intl.formatMessage({
-        id: "studio_format_unavailable_chat_tooltip",
-        defaultMessage: "Needs a chat model.",
-      })
+  // The built-in catalog, shown before the server's has loaded.
+  return translatedUnavailable(
+    entry.requires_model_types.includes("image_gen")
+      ? "needs_chat_image"
+      : "needs_chat"
+  )
 }
 
 function formatHint(entry: StudioFormat) {

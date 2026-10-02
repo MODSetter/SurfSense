@@ -25,14 +25,15 @@ def list_formats(session: Session) -> list[FormatRead]:
     """The catalog, each marked usable or not for the current setup."""
     formats: list[FormatRead] = []
     for fmt in FORMATS:
-        available, reason = _availability(session, fmt)
+        missing = _missing(session, fmt)
         formats.append(
             FormatRead(
                 key=fmt.key,
                 label=fmt.label,
                 requires_model_types=list(fmt.requires_model_types),
-                available=available,
-                unavailable_reason=reason,
+                available=not missing,
+                unavailable_reason=_required(missing) if missing else None,
+                unavailable_code=_required_code(missing) if missing else None,
             )
         )
     return formats
@@ -157,6 +158,14 @@ _TYPE_PHRASES: dict[ModelType, str] = {
     ModelType.AUDIO_GEN: "an audio model",
 }
 
+# The same types as they appear in `unavailable_code`. The interface keys its
+# translated lines on these: studio-unavailable-text.ts, keep the two in sync.
+_TYPE_CODES: dict[ModelType, str] = {
+    ModelType.TEXT_GEN: "chat",
+    ModelType.IMAGE_GEN: "image",
+    ModelType.AUDIO_GEN: "audio",
+}
+
 # Sentence order, which is not the order a format lists its types in: the
 # pipeline takes them in the order it runs them, and a reader wants the same
 # phrasing whichever format they are looking at.
@@ -168,7 +177,13 @@ _TYPE_ORDER: tuple[ModelType, ...] = (
 
 
 def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
-    """Whether this format can run, and the one line saying why not.
+    """Whether this format can run, and the one line saying why not."""
+    missing = _missing(session, fmt)
+    return (False, _required(missing)) if missing else (True, None)
+
+
+def _missing(session: Session, fmt: Format) -> list[ModelType]:
+    """The model types this format needs and does not have.
 
     Every missing type is named, not the first one noticed. A format needing
     two of them reported only whichever `requires_model_types` happened to list
@@ -181,16 +196,24 @@ def _availability(session: Session, fmt: Format) -> tuple[bool, str | None]:
         if session.get(SelectedModel, model_type) is None
     ]
     if missing:
-        return False, _required(missing)
+        return missing
     if ModelType.AUDIO_GEN in fmt.requires_model_types:
         try:
             speech_selected(session)
         except ModelResolutionError:
-            return False, _required([ModelType.AUDIO_GEN])
-    return True, None
+            return [ModelType.AUDIO_GEN]
+    return []
 
 
 def _required(missing: list[ModelType]) -> str:
     """"Needs a chat model and an image model", in a fixed reading order."""
     phrases = [_TYPE_PHRASES[kind] for kind in _TYPE_ORDER if kind in missing]
     return f"Needs {' and '.join(phrases)}"
+
+
+def _required_code(missing: list[ModelType]) -> str:
+    """`needs_chat_image`: the same line as a code the interface has its own
+    text for, in every language. The English stays its fallback."""
+    return "needs_" + "_".join(
+        _TYPE_CODES[kind] for kind in _TYPE_ORDER if kind in missing
+    )

@@ -63,6 +63,7 @@ async def test_formats_lists_summary_as_available(
     assert summary["available"] is True
     assert summary["requires_model_types"] == ["text_gen"]
     assert summary["unavailable_reason"] is None
+    assert summary["unavailable_code"] is None
 
     image = next(f for f in response.json() if f["key"] == "image")
     assert image["available"] is False
@@ -85,9 +86,11 @@ async def test_a_format_missing_both_models_says_so(
     image = next(f for f in response.json() if f["key"] == "image")
     assert image["available"] is False
     assert image["unavailable_reason"] == "Needs a chat model and an image model"
+    assert image["unavailable_code"] == "needs_chat_image"
 
     summary = next(f for f in response.json() if f["key"] == "summary")
     assert summary["unavailable_reason"] == "Needs a chat model"
+    assert summary["unavailable_code"] == "needs_chat"
 
 
 async def test_infographic_needs_the_image_model_and_the_chat_model(
@@ -99,6 +102,7 @@ async def test_infographic_needs_the_image_model_and_the_chat_model(
     assert infographic["requires_model_types"] == ["image_gen", "text_gen"]
     assert infographic["available"] is False
     assert infographic["unavailable_reason"] == "Needs an image model"
+    assert infographic["unavailable_code"] == "needs_image"
 
     with create_session_factory(engine)() as session:
         session.add(
@@ -123,6 +127,7 @@ async def test_podcast_is_gated_on_an_audio_model(
 
     assert podcast["available"] is False
     assert podcast["unavailable_reason"] == "Needs an audio model"
+    assert podcast["unavailable_code"] == "needs_audio"
     assert podcast["requires_model_types"] == ["text_gen", "audio_gen"]
 
 

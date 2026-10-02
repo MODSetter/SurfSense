@@ -132,7 +132,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/workspaces/{workspace_id}/studio/formats` | the catalog, each format with `available` and `unavailable_reason` |
+| `GET` | `/workspaces/{workspace_id}/studio/formats` | the catalog, each format with `available`, `unavailable_reason` and `unavailable_code`, the same reason as a code the interface translates |
 | `POST` | `/workspaces/{workspace_id}/studio/jobs` | `{format, document_ids, prompt?, options?}`; `201` with the artifact |
 | `GET` | `/workspaces/{workspace_id}/studio/podcast/brief` | the podcast brief to review before submitting, the model's `voices` (`null` when they are typed) and the `languages` it may use |
 | `GET` | `/workspaces/{workspace_id}/artifacts` | the workspace's artifacts, newest first |
