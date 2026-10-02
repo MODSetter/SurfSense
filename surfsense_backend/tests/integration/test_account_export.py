@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
 import json
 import os
+import tempfile
+import threading
 import zipfile
 from pathlib import Path
 
@@ -24,6 +27,7 @@ from app.db import (
     Workspace,
 )
 from app.routes.workspaces_routes import create_default_roles_and_membership
+from app.services import export_service
 from app.services.export_service import build_account_export_zip
 
 pytestmark = pytest.mark.integration
@@ -261,3 +265,96 @@ async def test_account_export_matches_contract_and_skips_pending(
         {"title": "Gamma"},
     ]
     assert all(msg["role"] in {"user", "assistant"} for msg in chats[0]["messages"])
+
+
+async def _many_docs(
+    session: AsyncSession, workspace: Workspace, user: User, count: int
+) -> None:
+    for index in range(count):
+        await _add_doc(
+            session,
+            workspace=workspace,
+            user=user,
+            title=f"Doc {index}",
+            folder_id=None,
+            uid=f"acct-many-{index}",
+        )
+
+
+async def test_account_export_opens_each_archive_once(
+    db_session: AsyncSession,
+    db_user: User,
+    db_workspace: Workspace,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """#2006: reopening the archive to append each batch of 100 documents made
+    zipfile reread and rewrite the central directory every time, so the build
+    was quadratic in the number of documents."""
+    await _many_docs(db_session, db_workspace, db_user, 250)  # three batches
+    modes: list[str] = []
+    real_zipfile = zipfile.ZipFile
+
+    def recording(file, mode="r", *args, **kwargs):
+        modes.append(mode)
+        return real_zipfile(file, mode, *args, **kwargs)
+
+    monkeypatch.setattr(export_service.zipfile, "ZipFile", recording)
+
+    result = await build_account_export_zip(db_session, db_user.id)
+    try:
+        # The staging archive, the final one, and the staging one read back.
+        assert sorted(modes) == ["r", "w", "w"]
+        with real_zipfile(result.zip_path) as bundle:
+            names = bundle.namelist()
+        assert names[0] == "manifest.json"
+        assert sum(name.endswith(".md") for name in names) >= 250
+    finally:
+        os.unlink(result.zip_path)
+
+
+async def test_account_export_compresses_off_the_event_loop(
+    db_session: AsyncSession,
+    db_user: User,
+    db_workspace: Workspace,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    """The manifest-first pass compresses the whole account. On the event loop
+    it stopped every other request for as long as it ran."""
+    await _many_docs(db_session, db_workspace, db_user, 3)
+    threads: list[threading.Thread] = []
+    real = export_service._manifest_first_zip
+
+    def recording(staging_path, manifest):
+        threads.append(threading.current_thread())
+        return real(staging_path, manifest)
+
+    monkeypatch.setattr(export_service, "_manifest_first_zip", recording)
+
+    result = await build_account_export_zip(db_session, db_user.id)
+    os.unlink(result.zip_path)
+
+    assert len(threads) == 1
+    assert threads[0] is not threading.main_thread()
+
+
+async def test_a_cancelled_account_export_leaves_no_archive_behind(
+    db_session: AsyncSession,
+    db_user: User,
+    db_workspace: Workspace,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    """A request that is cancelled (the deadline, or a client that gave up)
+    raises CancelledError, which `except Exception` does not catch."""
+    await _many_docs(db_session, db_workspace, db_user, 3)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+
+    async def cancelled(session, workspace_id):
+        raise asyncio.CancelledError
+
+    monkeypatch.setattr(export_service, "flatten_workspace_chats", cancelled)
+
+    with pytest.raises(asyncio.CancelledError):
+        await build_account_export_zip(db_session, db_user.id)
+
+    assert list(tmp_path.iterdir()) == []

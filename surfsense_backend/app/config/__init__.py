@@ -522,6 +522,14 @@ class Config:
     CELERY_RESULT_BACKEND = os.getenv("CELERY_RESULT_BACKEND", REDIS_URL)
     CELERY_TASK_DEFAULT_QUEUE = os.getenv("CELERY_TASK_DEFAULT_QUEUE", "surfsense")
     REDIS_APP_URL = os.getenv("REDIS_APP_URL", CELERY_BROKER_URL)
+    # How long GET /api/v1/export may spend building the account ZIP before it
+    # answers 504 with a sentence the page shows. Set it under the timeout of
+    # whatever proxy sits in front, or the proxy drops the connection first.
+    # 600 s is about 20 GB of markdown at the rate measured in #2006.
+    ACCOUNT_EXPORT_TIMEOUT_SECONDS = float(
+        os.getenv("ACCOUNT_EXPORT_TIMEOUT_SECONDS", "600")
+    )
+
     CONNECTOR_INDEXING_LOCK_TTL_SECONDS = int(
         os.getenv("CONNECTOR_INDEXING_LOCK_TTL_SECONDS", str(8 * 60 * 60))
     )

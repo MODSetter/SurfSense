@@ -39,7 +39,7 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 
 ## Export
 
-`GET /api/v1/export` (`app/routes/export_routes.py`, `app/services/export_service.py`) builds the whole account, every workspace the user can access, into the contract-3 bundle inside the request: a temporary ZIP with `manifest.json` as its first entry, streamed back and then deleted. An `X-Skipped-Documents` header counts the documents it could not include. The Export account button on `/sunset` calls it with the user's session and says what does not travel: original uploads, generated artifacts, tool calls, agent steps and live citation links ([contract 3](../contracts/03-export-bundle.md), [import](import.md)).
+`GET /api/v1/export` (`app/routes/export_routes.py`, `app/services/export_service.py`) builds the whole account, every workspace the user can access, into the contract-3 bundle inside the request: a temporary ZIP with `manifest.json` as its first entry, streamed back and then deleted. An `X-Skipped-Documents` header counts the documents it could not include. Nothing is sent until the archive is whole, so a large account is a wait: the build writes one stored staging archive, held open for the whole export, and compresses it once into the final one on a worker thread, which takes about a second for every 40 MB of markdown on the machine it was measured on (100,000 documents of 8 KB in 24 s, 1 GB in 2,000 documents in 23 s). The build has a deadline, `ACCOUNT_EXPORT_TIMEOUT_SECONDS` (600 by default; it must sit under the proxy's own timeout): past it the build is cancelled, its temporary archive removed, and the route answers `504` with a sentence saying the export was stopped, that nothing was lost, and to try again or write to `/contact`. The Export account button on `/sunset` calls it with the user's session, says after ten seconds of waiting that it is still building, for how long, and to keep the tab open, shows the route's error as it is, and says what does not travel: original uploads, generated artifacts, tool calls, agent steps and live citation links ([contract 3](../contracts/03-export-bundle.md), [import](import.md)).
 
 ## Purge
 
@@ -53,5 +53,4 @@ On the web, `proxy.ts` sends every non-public route to `/sunset` with a 307. The
 ## Known gaps
 
 - The purge selects every user, so once license mode creates synthetic license users it would erase them too.
-- The synchronous export has no size warning and no timeout.
 - `/sunset` has the export button, the deletion date, download links and import steps, but not the refund-or-discount offer or the change for MCP users, which the launch plan put on it.
