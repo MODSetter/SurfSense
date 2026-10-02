@@ -394,7 +394,10 @@ async def test_the_brief_needs_an_audio_model(
     """No audio model, no voices to choose from: the reason the format shows."""
     opened = await client.get(f"/workspaces/{workspace_id}/studio/podcast/brief")
     assert opened.status_code == 409
-    assert opened.json()["detail"] == "Needs an audio model"
+    assert opened.json()["detail"] == {
+        "message": "Needs an audio model",
+        "code": "needs_audio",
+    }
 
 
 async def test_a_model_without_en_us_opens_in_a_language_it_speaks(
