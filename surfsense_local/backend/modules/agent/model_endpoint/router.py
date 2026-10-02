@@ -3,8 +3,8 @@ from typing import Annotated, Any
 from fastapi import APIRouter, Body, Depends, HTTPException, Response
 
 from api.dependencies import SessionDep, transact
+from modules.agent.launch_key import require_launch_key
 from modules.agent.model_endpoint.error_replies import error_reply
-from modules.agent.model_endpoint.launch_key import require_launch_key
 from modules.agent.model_endpoint.model_address import address_selected_model
 from modules.agent.model_endpoint.relay import relay
 from modules.agent.model_endpoint.request_shaping import shaped_messages

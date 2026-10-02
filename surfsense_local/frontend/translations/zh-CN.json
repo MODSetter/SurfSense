@@ -34,6 +34,7 @@
   "agent_steps_running_aria": "运行中",
   "agent_steps_search_label": "在来源中搜索了 {pattern}",
   "agent_steps_shell_label": "运行了 {command}",
+  "agent_steps_studio_label": "在 Studio 中开始生成 {format}",
   "agent_steps_write_label": "写入了 {file}",
   "app_api_insufficient_space_error": "{message}（需要 {required, number, ::unit/gigabyte .#}，可用 {available, number, ::unit/gigabyte .#}）",
   "app_api_request_failed_error": "请求失败，状态码 {status}",

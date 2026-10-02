@@ -18,6 +18,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.agent.agent_threads.citations import load_citations, searched_chunks
 from modules.agent.agent_threads.replies import turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
 from modules.agent.engine_choice import selected_model_can_run_agent
@@ -28,6 +29,7 @@ from modules.agent.opencode_runtime import (
     ready_opencode,
 )
 from modules.agent.sources_folder import sync_sources_folder
+from modules.agent.tool_endpoint.registration import register_workspace_tools
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.llm.resolution import ModelResolutionError
@@ -70,11 +72,16 @@ async def agent_turn(
             "or start a new chat to use this one.",
         )
     folder = await transact(session, sync_sources_folder, thread.workspace_id)
+    await register_workspace_tools(
+        ready.client, folder, thread.workspace_id, launch_key
+    )
     title = _first_title(thread, payload.text)
     if title is not None:
         await transact(session, _rename, thread, title)
     return StreamingResponse(
-        _stream(ready, folder, session_id, payload.text, title),
+        _stream(
+            session, thread.workspace_id, ready, folder, session_id, payload.text, title
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
@@ -85,7 +92,13 @@ async def agent_turn(
 
 
 async def _stream(
-    ready: ReadyAgent, folder: Path, session_id: str, text: str, title: str | None
+    session: Session,
+    workspace_id: int,
+    ready: ReadyAgent,
+    folder: Path,
+    session_id: str,
+    text: str,
+    title: str | None,
 ) -> AsyncIterator[bytes]:
     """The turn's frames, from the message sent to the reply stored."""
     client = ready.client
@@ -125,9 +138,13 @@ async def _stream(
 
         reply = None
         if turn.user_message_id is not None:
-            reply = turn_reply(
-                await client.messages(folder, session_id), turn.user_message_id
+            messages = await client.messages(folder, session_id)
+            citations = await transact(
+                session, load_citations, workspace_id, searched_chunks(messages)
             )
+            reply = turn_reply(messages, turn.user_message_id, citations)
+        if reply and reply["content"]["citations"]:
+            yield _frame({"type": "citations", "items": reply["content"]["citations"]})
         yield _frame(
             {
                 "type": "completed",
