@@ -91,7 +91,9 @@ async def test_an_interrupted_download_resumes_instead_of_restarting(tmp_path) -
 
 
 @pytest.mark.asyncio
-async def test_a_file_that_does_not_match_its_checksum_is_not_installed(tmp_path) -> None:
+async def test_a_file_that_does_not_match_its_checksum_is_not_installed(
+    tmp_path,
+) -> None:
     """A truncated or tampered file must never be left where the router will
     discover it and try to load it, and the error names the file's URL, so an
     install can tell the user a retry is worth it and the log can say where."""
@@ -109,6 +111,7 @@ async def test_a_file_that_does_not_match_its_checksum_is_not_installed(tmp_path
     assert mismatch.value.url == url
     assert mismatch.value.expected == "0" * 64
     assert mismatch.value.actual == DIGEST
+
 
 @pytest.mark.asyncio
 async def test_a_matching_checksum_installs(tmp_path) -> None:

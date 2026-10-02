@@ -493,7 +493,7 @@ selecting    "Selecting model"                 only when select is true
 complete     "Model is ready"
              or "Downloaded. It becomes available once the runtime restarts."
 error        "This model is no longer available where SurfSense expects it."
-                                               a pinned file answers 404 or 403: its repo was deleted, gated or made private
+                                               a pinned file answers 401 (its repo was deleted, gated or made private), or 403 or 404 (the file or revision is gone)
 error        "The downloaded file did not match the expected one. Retry the download."
                                                a file's sha256 is not the one it was pinned to
 error        "The model could not be installed. Retry the download."

@@ -15,8 +15,10 @@ from modules.llm.selection import choose_model
 
 logger = logging.getLogger(__name__)
 
-# What a pinned file answers once its repo is deleted, gated or made private.
-GONE_STATUSES = frozenset({403, 404})
+# What a pinned file answers once it is gone: Hugging Face says 401 to an
+# anonymous request for a deleted, gated or private repo, and 404 for a file
+# or revision a live repo no longer has.
+GONE_STATUSES = frozenset({401, 403, 404})
 
 FILE_GONE = {
     "type": "error",
@@ -27,11 +29,13 @@ CHECKSUM_MISMATCH = {
     "message": "The downloaded file did not match the expected one. Retry the download.",
 }
 
+
 def _pinned_url(error: httpx.HTTPStatusError) -> httpx.URL:
     """The URL the download asked for, not the mirror a redirect reached,
     which names no repo or commit and may carry a signed token."""
     history = error.response.history
     return history[0].request.url if history else error.request.url
+
 
 async def install_steps(
     service: LocalCatalogService,

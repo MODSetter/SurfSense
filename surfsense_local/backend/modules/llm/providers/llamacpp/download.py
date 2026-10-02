@@ -19,6 +19,7 @@ from modules.llm.providers.types import DownloadProgress
 TIMEOUT = httpx.Timeout(600.0, connect=10.0)
 _CHUNK = 1024 * 1024
 
+
 class ChecksumMismatchError(ValueError):
     """A downloaded file's sha256 is not the one it was pinned to."""
 
@@ -29,6 +30,7 @@ class ChecksumMismatchError(ValueError):
         super().__init__(
             f"checksum mismatch for {name}: expected {expected}, got {actual}"
         )
+
 
 async def download_gguf(
     url: str,
@@ -48,9 +50,12 @@ async def download_gguf(
     already = partial.stat().st_size if partial.exists() else 0
 
     headers = {"Range": f"bytes={already}-"} if already else {}
-    async with httpx.AsyncClient(
-        timeout=TIMEOUT, transport=transport, follow_redirects=True
-    ) as client, client.stream("GET", url, headers=headers) as reply:
+    async with (
+        httpx.AsyncClient(
+            timeout=TIMEOUT, transport=transport, follow_redirects=True
+        ) as client,
+        client.stream("GET", url, headers=headers) as reply,
+    ):
         reply.raise_for_status()
         resumed = reply.status_code == 206
         total = already + int(reply.headers.get("content-length", 0))
