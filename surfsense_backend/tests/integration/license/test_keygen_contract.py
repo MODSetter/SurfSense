@@ -1,10 +1,12 @@
 """Live Keygen contract; opt in with KEYGEN_INTEGRATION=1.
 
-Every other license test fakes the client, so the HTTP shapes and above all the
-metadata filter spellings are otherwise never checked against Keygen itself. A
-misspelled filter returns an empty list rather than an error, which reads as
-"no license": the duplicate it lets through, or the refund it never suspends,
-is the failure this test exists to catch.
+Every other license test fakes the client, so the HTTP shapes and the metadata
+filter keys are otherwise never checked against Keygen itself. Keygen
+underscores every filter key before it compares, so ``checkoutSessionId`` and
+``checkout_session_id`` are one key; what can go wrong is a different word,
+which answers an empty list rather than an error and reads as "no license":
+the duplicate it lets through, or the refund it never suspends, is the failure
+this test exists to catch.
 
 Run it against a Keygen CE account (images in ``docker/keygen/``) with the
 usual ``KEYGEN_ACCOUNT_ID``, ``KEYGEN_API_TOKEN`` and ``KEYGEN_POLICY_INDIVIDUAL``
@@ -70,14 +72,18 @@ async def test_the_metadata_keys_the_app_writes_are_the_ones_it_can_filter_on(
     assert ids(by_email) == [license_id]
 
 
-async def test_a_misspelled_key_finds_nothing_rather_than_failing(
+async def test_a_key_with_another_word_finds_nothing_rather_than_failing(
     license_on_keygen,
 ) -> None:
-    """Why the spellings live in one place: Keygen answers a wrong key with []."""
-    _, _, metadata = license_on_keygen
+    """Why the spellings live in models.py: a wrong word answers [], not an error."""
+    license_id, _, metadata = license_on_keygen
 
-    snake_case = await keygen.list_licenses(
-        metadata={"checkout_session_id": metadata[META_SESSION]}
+    other_word = await keygen.list_licenses(
+        metadata={"sessionId": metadata[META_SESSION]}
+    )
+    right_word = await keygen.list_licenses(
+        metadata={META_SESSION: metadata[META_SESSION]}
     )
 
-    assert snake_case == []
+    assert other_word == []
+    assert [str(record.get("id")) for record in right_word] == [license_id]
