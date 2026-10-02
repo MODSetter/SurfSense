@@ -146,13 +146,15 @@ def keygen_store(monkeypatch: pytest.MonkeyPatch) -> FakeKeygen:
 
 @pytest.fixture
 def mailer(monkeypatch: pytest.MonkeyPatch, keygen_store: FakeKeygen) -> Mailer:
-    """Mail on, trials on, generous limits, and an empty in-memory bucket."""
+    """Mail on, trials on, Stripe off, generous limits, an empty in-memory bucket."""
 
     def redis_down() -> None:
         raise OSError("no Redis in unit tests")
 
     monkeypatch.setattr(ratelimit, "_redis", redis_down)
     monkeypatch.setattr(ratelimit, "_memory_buckets", {})
+    # A developer's STRIPE_SECRET_KEY would send unknown sessions to live Stripe.
+    monkeypatch.setattr(config, "STRIPE_SECRET_KEY", "")
     monkeypatch.setattr(config, "LICENSE_TRIAL_ENABLED", True)
     monkeypatch.setattr(config, "LICENSE_RATE_LIMIT_IP_PER_HOUR", 100)
     monkeypatch.setattr(config, "LICENSE_RESEND_RATE_LIMIT_PER_HOUR", 100)
