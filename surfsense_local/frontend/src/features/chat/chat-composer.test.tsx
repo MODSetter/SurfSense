@@ -96,6 +96,34 @@ describe("chat composer", () => {
     ).toBe("false")
   })
 
+  it("sends what the switch shows when the choice cannot be stored", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const setItem = vi
+      .spyOn(Storage.prototype, "setItem")
+      .mockImplementation(() => {
+        throw new DOMException("full", "QuotaExceededError")
+      })
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <Harness />
+      </TooltipProvider>
+    )
+
+    const toggle = screen.getByRole("button", { name: "Thinking" })
+    await user.click(toggle)
+
+    expect(toggle.getAttribute("aria-pressed")).toBe("false")
+    expect(readThinkingOn()).toBe(false)
+
+    setItem.mockRestore()
+    await user.click(toggle)
+    expect(readThinkingOn()).toBe(true)
+  })
+
   it("holds the thinking switch on for a model that cannot be told to stop", async () => {
     vi.stubGlobal(
       "fetch",
