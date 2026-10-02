@@ -8,6 +8,12 @@ import { ReplyThinking } from "./reply-thinking"
 afterEach(cleanup)
 
 describe("ReplyThinking", () => {
+  it("says the model is working before anything has streamed", () => {
+    render(<ReplyThinking running answerStarted={false} reasoning={null} />)
+
+    expect(screen.getByRole("status").textContent).toBe("Thinking")
+  })
+
   it("keeps the same header when the trace starts, so its motion never restarts", () => {
     const { container, rerender } = render(
       <ReplyThinking running answerStarted={false} reasoning={null} />

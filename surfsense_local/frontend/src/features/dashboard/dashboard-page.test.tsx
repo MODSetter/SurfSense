@@ -1348,18 +1348,45 @@ describe("dashboard chat", () => {
         }
         if (path === "/chat/threads/10/messages" && init?.method === "POST") {
           captured.signal = init.signal ?? null
+          // Text has arrived when the person stops it.
           return new Response(
             new ReadableStream({
               start(controller) {
+                controller.enqueue(
+                  new TextEncoder().encode(
+                    'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"delta","text":"Partial answer"}\n\n'
+                  )
+                )
                 captured.signal?.addEventListener("abort", () =>
                   controller.error(new DOMException("Aborted", "AbortError"))
                 )
               },
-            })
+            }),
+            { headers: { "Content-Type": "text/event-stream" } }
           )
         }
         if (path === "/chat/threads/10/messages") {
-          return Response.json([])
+          // The stopped turn as the backend keeps it: the text so far.
+          return Response.json(
+            captured.signal === null
+              ? []
+              : [
+                  {
+                    id: 100,
+                    role: "user",
+                    content: { text: "Stop this" },
+                    created_at: "2026-09-05T00:00:00Z",
+                    completed_at: null,
+                  },
+                  {
+                    id: 101,
+                    role: "assistant",
+                    content: { text: "Partial answer", citations: [] },
+                    created_at: "2026-09-05T00:00:00Z",
+                    completed_at: "2026-09-05T00:00:01Z",
+                  },
+                ]
+          )
         }
         return Response.json({ detail: "not found" }, { status: 404 })
       }
@@ -1390,6 +1417,7 @@ describe("dashboard chat", () => {
       "Stop this"
     )
     await user.click(screen.getByRole("button", { name: "Send message" }))
+    await screen.findByText("Partial answer")
     await user.click(
       await screen.findByRole("button", { name: "Stop generating" })
     )
@@ -1398,6 +1426,13 @@ describe("dashboard chat", () => {
     expect(
       await screen.findByRole("button", { name: "Send message" })
     ).toBeTruthy()
+    await screen.findByText("Partial answer")
+    // Stopped, not finished: the person chose to end it, so nothing is announced.
+    expect(
+      screen
+        .queryAllByRole("status")
+        .some((region) => region.textContent === "Reply finished")
+    ).toBe(false)
   })
 
   it("collapses the right rail from the toolbar outside the card", async () => {
