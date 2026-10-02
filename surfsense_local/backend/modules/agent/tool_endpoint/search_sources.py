@@ -1,17 +1,14 @@
 """The search tool: the chat's own search over the workspace's sources."""
 
-import re
 from typing import Any
 
 from sqlalchemy.orm import Session
 
 from modules.agent.sources_folder import SOURCES, source_file_names
+from modules.agent.tool_endpoint.passage_label import opening, without_passage_tags
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
 from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 from shared.search import Hit, retrieve
-
-# A source's own text must not open or close a passage, or it could forge a label.
-_PASSAGE_TAGS = re.compile(r"</?passage\b[^>]*>", re.IGNORECASE)
 
 # Before onboarding chooses an embedder, or while its files are missing.
 _NOT_READY = (
@@ -67,9 +64,9 @@ def _passage(hit: Hit, source_file: str) -> str:
         if hit.start_line is not None and hit.end_line is not None
         else ""
     )
-    text = _PASSAGE_TAGS.sub("", hit.content).strip()
+    text = without_passage_tags(hit.content).strip()
     return (
-        f'<passage cite="[{hit.chunk_id}]" source="{SOURCES}/{source_file}"{lines}>\n'
+        f'{opening(hit.chunk_id)} source="{SOURCES}/{source_file}"{lines}>\n'
         f"{text}\n</passage>"
     )
 

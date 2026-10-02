@@ -100,6 +100,7 @@ opencode needs no host beyond loopback: its model is the model endpoint, and its
 - The model endpoint neither simplifies tool schemas to what llama.cpp's grammar takes nor turns a tool call a model writes as text into a real one, so small local models stall where a remote one would not.
 - The agent cannot start a Studio job, and a file it writes to `outputs/` does not become an artifact.
 - Sources unticked in the sources panel still reach the agent: `sources/` holds every ready source and `surfsense_search_sources` searches them all, where a chat thread searches only the ticked ones. The ticks can change with each message, while every thread of a workspace shares one `sources/`.
+- A passage's label is its chunk id, a number of several digits, which a small local model copies less reliably than a chat answer's `[1]` to `[5]`. A mistyped label is dropped, so the citation is lost rather than wrong. Nothing has measured how many are lost.
 - Bringing `sources/` in line reads every ready source's text from the database before each turn, to compare it with the files, so a workspace with many large sources pays for that on every turn.
 - A configuration rewrite, which a change of model or window causes, ends every running agent turn in every workspace.
 - Opening the first agent thread waits for opencode to start and for a local model to load, up to a minute, with nothing on screen but the thread being created.
