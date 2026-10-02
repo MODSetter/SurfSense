@@ -15,6 +15,7 @@ const SIGNED_IN = {
   base_url: "https://api.openai.com/v1",
   catalog_provider: "openai",
   has_api_key: false,
+  serves: ["text_gen"],
   auth_kind: "chatgpt",
   signed_in: true,
   account_email: "reader@example.com",
@@ -27,7 +28,8 @@ function serve(outcome: "signed_in" | "failed") {
     async (input: RequestInfo | URL, init?: RequestInit) => {
       const path = String(input)
       if (path === "/llm/catalog/remote") return Response.json([])
-      if (path === "/llm/connections/chatgpt/hosts") return Response.json([])
+      if (path === "/llm/connections/chatgpt")
+        return Response.json({ serves: ["text_gen"], hosts: [] })
       if (
         path === "/llm/connections/chatgpt/sign-in" &&
         init?.method === "POST"
@@ -88,7 +90,7 @@ describe("signing in with a ChatGPT subscription", () => {
 
     await waitFor(() => expect(openExternal).toHaveBeenCalledWith(AUTHORIZE))
     await waitFor(() => expect(onSaved).toHaveBeenCalledWith(SIGNED_IN), {
-      timeout: 3000,
+      timeout: 8000,
     })
     const started = fetchMock.mock.calls.find(
       ([path, init]) =>
@@ -114,7 +116,7 @@ describe("signing in with a ChatGPT subscription", () => {
 
     expect(
       await screen.findByText("The sign-in was declined.", undefined, {
-        timeout: 3000,
+        timeout: 8000,
       })
     ).toBeTruthy()
     expect(

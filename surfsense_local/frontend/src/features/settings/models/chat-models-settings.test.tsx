@@ -157,6 +157,7 @@ describe("chat model settings", () => {
       base_url: "http://10.0.0.4:8000/v1",
       catalog_provider: "custom",
       has_api_key: false,
+      serves: ["text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"],
       created_at: "2026-09-24T00:00:00Z",
       updated_at: "2026-09-24T00:00:00Z",
     }
@@ -364,6 +365,13 @@ describe("chat model settings", () => {
             base_url: "https://openrouter.ai/api/v1",
             catalog_provider: "openrouter",
             has_api_key: true,
+            serves: [
+              "text_gen",
+              "image_gen",
+              "image_edit",
+              "video_gen",
+              "audio_gen",
+            ],
             created_at: "2026-09-24T00:00:00Z",
             updated_at: "2026-09-24T00:00:00Z",
           },

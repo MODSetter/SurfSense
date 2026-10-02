@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "キャンセル",
   "models_connection_form_chatgpt_provider_body": "ChatGPTアカウントでサインイン",
   "models_connection_form_chatgpt_provider_label": "ChatGPTサブスクリプション",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {チャット専用} image_gen {画像専用} image_edit {画像編集専用} video_gen {動画専用} audio_gen {音声専用} other {一部のモデル専用}}、ChatGPTアカウントでサインイン",
   "models_connection_form_clear_key_label": "保存済みのAPIキーを削除",
   "models_connection_form_custom_provider_body": "OpenAI互換の任意のURL",
   "models_connection_form_custom_provider_label": "ローカルまたはカスタムサーバー",

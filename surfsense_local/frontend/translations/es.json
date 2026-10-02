@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "Cancelar",
   "models_connection_form_chatgpt_provider_body": "Inicia sesión con tu cuenta de ChatGPT",
   "models_connection_form_chatgpt_provider_label": "Suscripción a ChatGPT",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {Solo chat} image_gen {Solo imágenes} image_edit {Solo edición de imágenes} video_gen {Solo video} audio_gen {Solo audio} other {Solo algunos modelos}}, inicia sesión con tu cuenta de ChatGPT",
   "models_connection_form_clear_key_label": "Quitar la clave de API guardada",
   "models_connection_form_custom_provider_body": "Cualquier URL compatible con OpenAI",
   "models_connection_form_custom_provider_label": "Servidor local o personalizado",

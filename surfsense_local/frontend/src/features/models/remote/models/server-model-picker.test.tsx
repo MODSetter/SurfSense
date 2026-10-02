@@ -20,6 +20,7 @@ const connections = [
     base_url: "https://chat.example/v1",
     catalog_provider: "custom",
     has_api_key: true,
+    serves: ["text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"],
     created_at: "2026-09-10T00:00:00Z",
     updated_at: "2026-09-10T00:00:00Z",
   },
@@ -30,6 +31,7 @@ const connections = [
     base_url: "https://image.example/v1",
     catalog_provider: "custom",
     has_api_key: false,
+    serves: ["text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"],
     created_at: "2026-09-10T00:00:00Z",
     updated_at: "2026-09-10T00:00:00Z",
   },
@@ -109,6 +111,44 @@ function serving(
     return Response.json({ detail: "not found" }, { status: 404 })
   })
 }
+
+const chatOnly = {
+  id: 7,
+  label: "ChatGPT",
+  provider: "openai_compatible",
+  base_url: "https://api.openai.com/v1",
+  catalog_provider: "openai",
+  has_api_key: false,
+  auth_kind: "chatgpt",
+  signed_in: true,
+  account_email: "reader@example.com",
+  serves: ["text_gen"],
+  created_at: "2026-10-02T00:00:00Z",
+  updated_at: "2026-10-02T00:00:00Z",
+}
+
+describe("which servers a slot lists", () => {
+  it("lists a server only in the slots its `serves` names", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving((path) =>
+        path === "/llm/connections"
+          ? Response.json([connections[0], chatOnly])
+          : null
+      )
+    )
+
+    const chat = render(
+      <ServerModelPicker onEdit={() => undefined} modelType="text_gen" />
+    )
+    expect(await screen.findByText("ChatGPT")).toBeTruthy()
+    chat.unmount()
+
+    render(<ServerModelPicker onEdit={() => undefined} modelType="video_gen" />)
+    expect(await screen.findByText("Chat gateway")).toBeTruthy()
+    expect(screen.queryByText("ChatGPT")).toBeNull()
+  })
+})
 
 describe("choosing a model from a server", () => {
   it("lists only the models that can fill this slot", async () => {

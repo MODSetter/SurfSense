@@ -5,7 +5,7 @@ import { intl } from "@/i18n/intl"
 import type { ModelType } from "../../model-type"
 import type { ModelSelection } from "../../selection/api"
 import type { Connection } from "../connections/api"
-import { useConnections } from "../connections/use-connections"
+import { useConnectionsServing } from "../connections/use-connections"
 import { ServerModels } from "./server-models"
 
 function messageFrom(error: unknown) {
@@ -37,7 +37,7 @@ export function ServerModelPicker({
   onSelected?: (selection: ModelSelection) => void
   onChatCleared?: () => void
 }) {
-  const connections = useConnections()
+  const connections = useConnectionsServing(modelType)
 
   if (connections.isError) {
     return (

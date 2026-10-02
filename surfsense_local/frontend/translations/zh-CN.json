@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "取消",
   "models_connection_form_chatgpt_provider_body": "使用你的 ChatGPT 账号登录",
   "models_connection_form_chatgpt_provider_label": "ChatGPT 订阅",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {仅限对话} image_gen {仅限图像} image_edit {仅限图像编辑} video_gen {仅限视频} audio_gen {仅限音频} other {仅限部分模型}}，使用你的 ChatGPT 账号登录",
   "models_connection_form_clear_key_label": "移除已保存的 API 密钥",
   "models_connection_form_custom_provider_body": "任何兼容 OpenAI 的 URL",
   "models_connection_form_custom_provider_label": "本地或自定义服务器",

@@ -2,6 +2,7 @@ from typing import Self
 
 from pydantic import BaseModel, Field, model_validator
 
+from modules.llm.model_type import ModelType
 from modules.llm.subscriptions.chatgpt.flows import FlowStatus
 
 
@@ -37,3 +38,12 @@ class SignInHost(BaseModel):
 
     destination: str
     host: str
+
+
+class SignInOption(BaseModel):
+    """What the connect dialog needs before offering a ChatGPT sign-in."""
+
+    # The slots a ChatGPT connection fills, from the one rule every picker reads.
+    serves: list[ModelType]
+    # The hosts the sign-in reaches that egress has not allowed yet.
+    hosts: list[SignInHost]

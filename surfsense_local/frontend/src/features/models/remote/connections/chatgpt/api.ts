@@ -2,6 +2,8 @@ import { setDestinationEnabled } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
 import { requestJson, requestVoid } from "@/lib/api"
 
+import type { ModelType } from "../../../model-type"
+
 /** The provider-picker value for a ChatGPT subscription; no manifest entry has it. */
 export const CHATGPT_PROVIDER = "chatgpt"
 
@@ -17,6 +19,15 @@ export type SignIn = {
 export type SignInTarget = { label: string } | { connection_id: number }
 
 type RefusedHost = { destination: string; host: string }
+
+/** What a ChatGPT connection would fill, and the hosts its sign-in still needs. */
+export type SignInOption = { serves: ModelType[]; hosts: RefusedHost[] }
+
+export const signInOptionQueryKey = ["chatgpt-sign-in-option"] as const
+
+export function getSignInOption(signal?: AbortSignal): Promise<SignInOption> {
+  return requestJson<SignInOption>("/llm/connections/chatgpt", { signal })
+}
 
 /** Nothing was started: the user kept a host the sign-in needs switched off. */
 export class HostDeclinedError extends Error {
@@ -37,10 +48,8 @@ export class HostDeclinedError extends Error {
 export async function startSignIn(
   target: SignInTarget
 ): Promise<SignInStarted> {
-  const refused = await requestJson<RefusedHost[]>(
-    "/llm/connections/chatgpt/hosts"
-  )
-  for (const { destination, host } of refused) {
+  const { hosts } = await getSignInOption()
+  for (const { destination, host } of hosts) {
     const allowed = await askEgress({
       destination,
       host,

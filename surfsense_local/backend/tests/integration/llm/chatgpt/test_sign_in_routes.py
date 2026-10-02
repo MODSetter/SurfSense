@@ -204,7 +204,7 @@ async def test_chat_titles_and_studio_reach_the_plan_through_the_selection(
     assert reply == "Hi"
 
 
-async def test_the_hosts_a_sign_in_needs_are_named_until_allowed(
+async def test_the_sign_in_says_what_it_serves_and_names_hosts_until_allowed(
     client: AsyncClient, fake_openai: FakeOpenAI, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Asked up front, one host at a time, so a declined host is never asked twice."""
@@ -212,12 +212,38 @@ async def test_the_hosts_a_sign_in_needs_are_named_until_allowed(
     monkeypatch.setattr(endpoints, "auth_url", "https://auth.example")
     monkeypatch.setattr(endpoints, "api_url", "https://api.example/v1")
 
-    before = (await client.get("/llm/connections/chatgpt/hosts")).json()
+    before = (await client.get("/llm/connections/chatgpt")).json()
     await client.put("/egress/host:auth.example", json={"enabled": True})
-    after = (await client.get("/llm/connections/chatgpt/hosts")).json()
+    after = (await client.get("/llm/connections/chatgpt")).json()
 
-    assert before == [
-        {"destination": "host:auth.example", "host": "auth.example"},
-        {"destination": "host:api.example", "host": "api.example"},
+    assert before == {
+        "serves": ["text_gen"],
+        "hosts": [
+            {"destination": "host:auth.example", "host": "auth.example"},
+            {"destination": "host:api.example", "host": "api.example"},
+        ],
+    }
+    assert after["hosts"] == [
+        {"destination": "host:api.example", "host": "api.example"}
     ]
-    assert after == [{"destination": "host:api.example", "host": "api.example"}]
+
+
+async def test_each_connection_says_which_model_types_it_can_fill(
+    client: AsyncClient, fake_openai: FakeOpenAI, openai_server: str
+) -> None:
+    """Decided once, here: the pickers read it and never decide it themselves."""
+    await _sign_in(client, label="ChatGPT")
+    keyed = await client.post(
+        "/llm/connections",
+        json={"label": "Gateway", "base_url": openai_server, "api_key": "secret"},
+    )
+    assert keyed.status_code == 201, keyed.text
+
+    serves = {
+        c["label"]: c["serves"] for c in (await client.get("/llm/connections")).json()
+    }
+
+    assert serves == {
+        "ChatGPT": ["text_gen"],
+        "Gateway": ["text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"],
+    }

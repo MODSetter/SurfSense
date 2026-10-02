@@ -13,6 +13,8 @@ export type Connection = {
   auth_kind: "api_key" | "chatgpt"
   signed_in: boolean
   account_email: string | null
+  /** The slots it can fill, decided by the backend; pickers only read it. */
+  serves: ModelType[]
   created_at: string
   updated_at: string
 }

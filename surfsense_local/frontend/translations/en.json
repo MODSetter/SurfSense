@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "Cancel",
   "models_connection_form_chatgpt_provider_body": "Sign in with your ChatGPT account",
   "models_connection_form_chatgpt_provider_label": "ChatGPT subscription",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {Chat only} image_gen {Images only} image_edit {Image editing only} video_gen {Video only} audio_gen {Audio only} other {Some models only}}, sign in with your ChatGPT account",
   "models_connection_form_clear_key_label": "Remove saved API key",
   "models_connection_form_custom_provider_body": "Any OpenAI-compatible URL",
   "models_connection_form_custom_provider_label": "Local or custom server",

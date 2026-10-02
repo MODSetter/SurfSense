@@ -59,6 +59,8 @@ class ConnectionRead(BaseModel):
     # Only for `chatgpt`: whether it holds tokens, and whose.
     signed_in: bool = False
     account_email: str | None = None
+    # The slots this connection can fill; decided here, never in the renderer.
+    serves: list[ModelType] = []
     created_at: datetime
     updated_at: datetime
 

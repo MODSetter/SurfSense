@@ -24,7 +24,7 @@ import { Spinner } from "@/components/ui/spinner"
 import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
 import { useInstall } from "@/features/models/local/installs/use-install"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
-import { useConnections } from "@/features/models/remote/connections/use-connections"
+import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
 import type { YourModelRow } from "@/features/models/your-models/your-model-row"
 import { intl } from "@/i18n/intl"
@@ -75,7 +75,7 @@ export function ModelStep({
   const remove = stepDeletes[modelType]()
   // Remote embedders are not offered yet, so that step has no server.
   const slot = slotOf(modelType)
-  const connections = useConnections()
+  const connections = useConnectionsServing(slot)
   const [onServer, setOnServer] = useState(false)
   // With nothing connected yet there is no server page to show: Connect
   // opens the dialog here, and a server saved from it opens on its models.
@@ -358,6 +358,7 @@ export function ModelStep({
       </CardFooter>
       <ConnectionDialog
         open={connecting}
+        modelType={slot ?? undefined}
         onOpenChange={setConnecting}
         onCreated={(connection) => {
           setOpenServerId(connection.id)

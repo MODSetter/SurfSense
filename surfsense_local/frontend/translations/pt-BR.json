@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "Cancelar",
   "models_connection_form_chatgpt_provider_body": "Entre com sua conta do ChatGPT",
   "models_connection_form_chatgpt_provider_label": "Assinatura do ChatGPT",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {Só chat} image_gen {Só imagens} image_edit {Só edição de imagem} video_gen {Só vídeo} audio_gen {Só áudio} other {Só alguns modelos}}, entre com sua conta do ChatGPT",
   "models_connection_form_clear_key_label": "Remover a chave de API salva",
   "models_connection_form_custom_provider_body": "Qualquer URL compatível com a OpenAI",
   "models_connection_form_custom_provider_label": "Servidor local ou personalizado",

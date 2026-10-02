@@ -21,7 +21,7 @@ Every URL is in one file, [`endpoints.py`](../../surfsense_local/backend/modules
 
 ## Signing in
 
-1. The renderer reads `GET /llm/connections/chatgpt/hosts`, the hosts the sign-in reaches that egress has not allowed, and asks about each in turn. A refused request asks about one host only and cannot tell a declined host from the next one, so the question is put up front ([`egress.md`](egress.md)).
+1. The renderer reads `GET /llm/connections/chatgpt`: `serves`, the slots a ChatGPT connection fills, and `hosts`, the hosts the sign-in reaches that egress has not allowed. It asks about each host in turn. A refused request asks about one host only and cannot tell a declined host from the next one, so the question is put up front ([`egress.md`](egress.md)).
 2. `POST /llm/connections/chatgpt/sign-in` with `{label}` for a new connection or `{connection_id}` to sign one in again. It checks the hosts again, a free label (`409`) or a ChatGPT connection (`404`), then opens a loopback listener on `127.0.0.1` at a random port and answers `201 {flow_id, authorize_url}`. OpenAI allows any port as long as scheme, host and path (`/callback`) match.
 3. The authorize URL asks for `client_id=dynamic_agent_client`, so OpenAI issues a client for this user on first sign-in, with `agent_name_hint=SurfSense`, an `ext_agent_host_id`, scopes `openid profile email offline_access resource.invoke chatgpt.tokens.use.direct`, `resource=https://api.openai.com/v1`, `state`, `nonce` and an S256 PKCE challenge. The host id is `urn:uuid:` over an HMAC of the install secret, so it is stable for the install and stored nowhere ([`host_id.py`](../../surfsense_local/backend/modules/llm/subscriptions/chatgpt/host_id.py)).
 4. The renderer opens it through Electron, which allows `auth.openai.com/api/accounts/authorize` only with a `redirect_uri` of `http://127.0.0.1:<port>/callback`, so a crafted link cannot send the code anywhere else.
@@ -38,7 +38,7 @@ A ChatGPT connection is a `provider_connections` row with `auth_kind = 'chatgpt'
 - `GET /llm/connections` adds `auth_kind`, `signed_in` and `account_email`; no token leaves the API.
 - `PUT` on a ChatGPT connection renames it and changes nothing else.
 - `DELETE /llm/connections/{id}/sign-in` signs out: the tokens go, the connection and its selection stay. Signing in again registers a new client, since the issued one went with the tokens.
-- Only `text_gen` can be chosen from it, even with `allow_unlisted`. The image and speech tests refuse it with `422`, and image and speech resolution refuse it.
+- It serves `text_gen` only. What a connection serves is one rule, [`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py), keyed by `auth_kind`: selection refuses any other slot even with `allow_unlisted`, the image and speech tests answer `422`, image and speech resolution refuse it, and `GET /llm/connections` reports it as `serves`.
 
 ## Tokens
 
@@ -65,7 +65,7 @@ Chat sorts `SignInRequiredError` into `subscription_sign_in`, which offers Model
 
 ## Frontend
 
-The connection form lists **ChatGPT subscription** beside **Local or custom server**. Choosing it hides the URL and key fields and shows **Sign in with ChatGPT**, which asks about the hosts, opens the browser and waits, with **Open the sign-in page again** and Cancel. Editing a ChatGPT connection shows the account, and offers **Sign in again**, **Sign out**, and **Save changes** for a new name. Its provider cannot be changed, and an API-key connection cannot become one. The model groups show the account's email in place of the URL.
+Every model list reads `serves` rather than deciding: the Settings sections, their empty states and onboarding's server steps leave a ChatGPT connection out of every section but chat. The connection form lists **ChatGPT subscription** beside **Local or custom server**, only when the dialog was opened for a slot the sign-in's `serves` includes, with a hint built from that list ("Chat only"). Choosing it hides the URL and key fields and shows **Sign in with ChatGPT**, which asks about the hosts, opens the browser and waits, with **Open the sign-in page again** and Cancel. Editing a ChatGPT connection shows the account, and offers **Sign in again**, **Sign out**, and **Save changes** for a new name. Its provider cannot be changed, and an API-key connection cannot become one. The model groups show the account's email in place of the URL.
 
 ## Known gaps
 

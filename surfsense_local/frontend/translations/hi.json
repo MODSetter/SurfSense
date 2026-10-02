@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "रद्द करें",
   "models_connection_form_chatgpt_provider_body": "अपने ChatGPT खाते से साइन इन करें",
   "models_connection_form_chatgpt_provider_label": "ChatGPT सब्सक्रिप्शन",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {सिर्फ़ चैट} image_gen {सिर्फ़ इमेज} image_edit {सिर्फ़ इमेज एडिटिंग} video_gen {सिर्फ़ वीडियो} audio_gen {सिर्फ़ ऑडियो} other {सिर्फ़ कुछ मॉडल}}, अपने ChatGPT खाते से साइन इन करें",
   "models_connection_form_clear_key_label": "सहेजी गई API कुंजी हटाएं",
   "models_connection_form_custom_provider_body": "कोई भी OpenAI-संगत URL",
   "models_connection_form_custom_provider_label": "लोकल या कस्टम सर्वर",

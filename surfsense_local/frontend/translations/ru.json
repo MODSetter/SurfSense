@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "Отмена",
   "models_connection_form_chatgpt_provider_body": "Войти через аккаунт ChatGPT",
   "models_connection_form_chatgpt_provider_label": "Подписка ChatGPT",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {Только чат} image_gen {Только изображения} image_edit {Только редактирование изображений} video_gen {Только видео} audio_gen {Только аудио} other {Только некоторые модели}}, вход через аккаунт ChatGPT",
   "models_connection_form_clear_key_label": "Удалить сохранённый ключ API",
   "models_connection_form_custom_provider_body": "Любой URL, совместимый с OpenAI",
   "models_connection_form_custom_provider_label": "Локальный или свой сервер",

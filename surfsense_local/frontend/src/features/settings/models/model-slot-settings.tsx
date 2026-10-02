@@ -14,7 +14,7 @@ import { AddModelOptions } from "@/features/models/add-model/add-model-options"
 import type { ModelType } from "@/features/models/model-type"
 import type { Connection } from "@/features/models/remote/connections/api"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
-import { useConnections } from "@/features/models/remote/connections/use-connections"
+import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
 import type { ModelSelection } from "@/features/models/selection/api"
 import { InUseSummary } from "@/features/models/your-models/in-use-summary"
@@ -58,7 +58,8 @@ export function ModelSlotSettings({
   onSelected?: (selection: ModelSelection) => void
   onChatCleared?: () => void
 }) {
-  const connections = useConnections()
+  // Only servers that can fill this slot count, so an empty slot still says so.
+  const connections = useConnectionsServing(modelType)
   const [page, setPage] = useState<Page>("list")
   // Edited in a dialog over the list; saving leaves the list as it was.
   const [editing, setEditing] = useState<Connection | null>(null)
@@ -91,7 +92,11 @@ export function ModelSlotSettings({
         back={back}
         scrollable="all"
       >
-        <AddModelOptions download={download} onConnected={showNewServer} />
+        <AddModelOptions
+          download={download}
+          modelType={modelType}
+          onConnected={showNewServer}
+        />
       </SettingsSection>
     )
   }
@@ -184,6 +189,7 @@ export function ModelSlotSettings({
       )}
       <ConnectionDialog
         open={editOpen}
+        modelType={modelType}
         connection={editing ?? undefined}
         onOpenChange={setEditOpen}
         onOpenChangeComplete={(open) => {

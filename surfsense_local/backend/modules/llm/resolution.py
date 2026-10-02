@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.catalog.remote.reads_images import remote_reads_images
+from modules.llm.connections.serves import connection_serves
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.profile import Tier
@@ -96,7 +97,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
             ),
         )
     connection = _connection(session, selected)
-    _answers_more_than_chat(connection)
+    _require_serves(connection, ModelType.IMAGE_GEN)
     return ResolvedImageGeneration(
         selected,
         OpenAICompatibleImageProvider(
@@ -130,7 +131,7 @@ def speech_selected(session: Session) -> None:
     if selected.provider == audiocpp.PROVIDER:
         local_speech(selected)
     else:
-        _answers_more_than_chat(stored_connection(session, selected))
+        _require_serves(stored_connection(session, selected), ModelType.AUDIO_GEN)
 
 
 def resolve_text_to_speech(session: Session) -> TextToSpeech:
@@ -138,7 +139,7 @@ def resolve_text_to_speech(session: Session) -> TextToSpeech:
     if selected.provider == audiocpp.PROVIDER:
         return local_speech(selected)
     connection = _connection(session, selected)
-    _answers_more_than_chat(connection)
+    _require_serves(connection, ModelType.AUDIO_GEN)
     return _remote_speech(selected, connection)
 
 
@@ -174,9 +175,9 @@ def local_speech(selected: SelectedModel) -> AudioCppSpeech:
     )
 
 
-def _answers_more_than_chat(connection: ProviderConnection) -> None:
-    if connection.auth_kind == CHATGPT:
-        raise ModelResolutionError("a ChatGPT subscription only answers chat")
+def _require_serves(connection: ProviderConnection, model_type: ModelType) -> None:
+    if model_type not in connection_serves(connection):
+        raise ModelResolutionError(f"this connection does not serve {model_type.value}")
 
 
 def _connection(session: Session, selected: SelectedModel) -> ProviderConnection:

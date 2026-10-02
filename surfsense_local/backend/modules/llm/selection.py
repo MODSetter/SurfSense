@@ -9,6 +9,7 @@ from modules.embedding.choose import lock_chosen
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections.listing import connection_models
 from modules.llm.connections.router import allowed_connection
+from modules.llm.connections.serves import connection_serves
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.profile import Fingerprint, from_name
@@ -17,7 +18,6 @@ from modules.llm.providers.openai_compatible import OpenAICompatibleChatProvider
 from modules.llm.providers.openai_responses import SignInRequiredError
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.selectable import selectable_for
-from modules.llm.subscriptions.chatgpt.account import CHATGPT
 
 logger = logging.getLogger(__name__)
 
@@ -237,11 +237,11 @@ async def _validate_remote(
             "remote selections require a connection",
         )
     connection = await transact(session, allowed_connection, connection_id)
-    # Before the unlisted override: no confirmation makes a plan draw or speak.
-    if connection.auth_kind == CHATGPT and model_type is not ModelType.TEXT_GEN:
+    # Before the unlisted override: no confirmation fills a slot it cannot serve.
+    if model_type not in connection_serves(connection):
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
-            f"a ChatGPT subscription does not serve {model_type.value}",
+            f"this connection does not serve {model_type.value}",
         )
     try:
         models = await connection_models(session, connection)

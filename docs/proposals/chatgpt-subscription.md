@@ -68,7 +68,7 @@ The write lock is held across one HTTP call, about once an hour per connection. 
 
 ```
 frontend: connection form ─ "Sign in with ChatGPT" ─ flow status (poll)
-   │ GET …/chatgpt/hosts   POST …/chatgpt/sign-in   GET …/sign-in/{flow}   DELETE …/{id}/sign-in
+   │ GET …/chatgpt   POST …/chatgpt/sign-in   GET …/sign-in/{flow}   DELETE …/{id}/sign-in
    ▼
 electron: opens the authorize URL (allowlisted host)
    ▼

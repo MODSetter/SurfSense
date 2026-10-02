@@ -6,11 +6,13 @@ from sqlalchemy.orm import Session
 from api.dependencies import SessionDep, transact
 from modules.egress import service as egress
 from modules.egress.models import EgressDestination
+from modules.llm.connections.serves import served_by
 from modules.llm.subscriptions.chatgpt import account
 from modules.llm.subscriptions.chatgpt.endpoints import get_endpoints
 from modules.llm.subscriptions.chatgpt.flows import SignInFlows
 from modules.llm.subscriptions.chatgpt.schemas import (
     SignInHost,
+    SignInOption,
     SignInRead,
     SignInStarted,
     SignInWrite,
@@ -45,9 +47,10 @@ def _ready_to_sign_in(session: Session, payload: SignInWrite) -> None:
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
 
 
-@router.get("/chatgpt/hosts")
-def refused_hosts(session: SessionDep) -> list[SignInHost]:
-    """The hosts still off, asked about one by one before the sign-in starts.
+@router.get("/chatgpt")
+def sign_in_option(session: SessionDep) -> SignInOption:
+    """What a ChatGPT connection would serve, and the hosts still off, asked
+    about one by one before the sign-in starts.
 
     `request` asks about one refused host per call, and cannot tell a host
     the user declined from a second one, so the renderer asks from this list.
@@ -61,7 +64,7 @@ def refused_hosts(session: SessionDep) -> list[SignInHost]:
             refused.append(
                 SignInHost(destination=destination, host=egress.host_of(destination))
             )
-    return refused
+    return SignInOption(serves=list(served_by(account.CHATGPT)), hosts=refused)
 
 
 @router.post("/chatgpt/sign-in", status_code=status.HTTP_201_CREATED)

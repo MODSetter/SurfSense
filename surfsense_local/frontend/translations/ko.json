@@ -304,6 +304,7 @@
   "models_connection_form_cancel_button": "취소",
   "models_connection_form_chatgpt_provider_body": "ChatGPT 계정으로 로그인",
   "models_connection_form_chatgpt_provider_label": "ChatGPT 구독",
+  "models_connection_form_chatgpt_provider_only_body": "{type, select, text_gen {채팅 전용} image_gen {이미지 전용} image_edit {이미지 편집 전용} video_gen {동영상 전용} audio_gen {오디오 전용} other {일부 모델 전용}}, ChatGPT 계정으로 로그인",
   "models_connection_form_clear_key_label": "저장된 API 키 제거",
   "models_connection_form_custom_provider_body": "OpenAI 호환 URL이면 모두 가능",
   "models_connection_form_custom_provider_label": "로컬 또는 사용자 지정 서버",
