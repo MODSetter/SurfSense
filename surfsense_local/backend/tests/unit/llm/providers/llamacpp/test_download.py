@@ -12,6 +12,7 @@ import httpx
 import pytest
 
 from modules.llm.providers.llamacpp import download_gguf
+from modules.llm.providers.llamacpp.download import ChecksumMismatchError
 
 pytestmark = pytest.mark.unit
 
@@ -92,10 +93,12 @@ async def test_an_interrupted_download_resumes_instead_of_restarting(tmp_path) -
 @pytest.mark.asyncio
 async def test_a_file_that_does_not_match_its_checksum_is_not_installed(tmp_path) -> None:
     """A truncated or tampered file must never be left where the router will
-    discover it and try to load it."""
-    with pytest.raises(ValueError, match="checksum"):
+    discover it and try to load it, and the error names the file's URL, so an
+    install can tell the user a retry is worth it and the log can say where."""
+    url = "https://hf.invalid/repo/resolve/main/m.gguf"
+    with pytest.raises(ChecksumMismatchError, match="checksum") as mismatch:
         async for _ in download_gguf(
-            "https://hf.invalid/repo/resolve/main/m.gguf",
+            url,
             tmp_path / "m.gguf",
             sha256="0" * 64,
             transport=serving(BODY),
@@ -103,7 +106,9 @@ async def test_a_file_that_does_not_match_its_checksum_is_not_installed(tmp_path
             pass
 
     assert not (tmp_path / "m.gguf").exists()
-
+    assert mismatch.value.url == url
+    assert mismatch.value.expected == "0" * 64
+    assert mismatch.value.actual == DIGEST
 
 @pytest.mark.asyncio
 async def test_a_matching_checksum_installs(tmp_path) -> None:

@@ -1,15 +1,31 @@
 """What one install does, in the order its events say it."""
 
+import logging
 from collections.abc import AsyncIterator, Callable
 
+import httpx
 from sqlalchemy.orm import Session
 
 from modules.llm.catalog.local.install.plan import InstallPlan, InstallRefusedError
 from modules.llm.catalog.local.service import LocalCatalogService
 from modules.llm.model_type import ModelType
+from modules.llm.providers.llamacpp.download import ChecksumMismatchError
 from modules.llm.schemas import SelectionRead
 from modules.llm.selection import choose_model
 
+logger = logging.getLogger(__name__)
+
+# What a pinned file answers once its repo is deleted, gated or made private.
+GONE_STATUSES = frozenset({403, 404})
+
+FILE_GONE = {
+    "type": "error",
+    "message": "This model is no longer available where SurfSense expects it.",
+}
+CHECKSUM_MISMATCH = {
+    "type": "error",
+    "message": "The downloaded file did not match the expected one. Retry the download.",
+}
 
 async def install_steps(
     service: LocalCatalogService,
@@ -26,13 +42,35 @@ async def install_steps(
         yield {"type": "error", "message": str(refused)}
         return
     yield {"type": "starting", "message": "Preparing download"}
-    async for step in service.install(checked):
-        yield {
-            "type": "downloading",
-            "message": step.status,
-            "completed": step.completed,
-            "total": step.total,
-        }
+    try:
+        async for step in service.install(checked):
+            yield {
+                "type": "downloading",
+                "message": step.status,
+                "completed": step.completed,
+                "total": step.total,
+            }
+    except httpx.HTTPStatusError as error:
+        if error.response.status_code not in GONE_STATUSES:
+            raise
+        # A retry cannot help: the manifest needs this file re-pinned.
+        logger.error(
+            "pinned file is gone (HTTP %s): %s",
+            error.response.status_code,
+            error.request.url,
+        )
+        yield FILE_GONE
+        return
+    except ChecksumMismatchError as mismatch:
+        # A retry may help if it keeps happening, something rewrites the file.
+        logger.warning(
+            "checksum mismatch, expected %s, got %s: %s",
+            mismatch.expected,
+            mismatch.actual,
+            mismatch.url,
+        )
+        yield CHECKSUM_MISMATCH
+        return
     yield {"type": "verifying", "message": "Checking the model"}
     engine = service.engine(checked.engine)
     ready = "Model is ready"

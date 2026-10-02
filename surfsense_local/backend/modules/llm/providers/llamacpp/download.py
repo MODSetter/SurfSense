@@ -69,10 +69,7 @@ async def download_gguf(
         actual = _digest(partial)
         if actual != sha256:
             partial.unlink(missing_ok=True)
-            raise ValueError(
-                f"checksum mismatch for {destination.name}: "
-                f"expected {sha256}, got {actual}"
-            )
+            raise ChecksumMismatchError(url, destination.name, sha256, actual)
 
     partial.replace(destination)
     yield DownloadProgress("complete", completed=done, total=total)
