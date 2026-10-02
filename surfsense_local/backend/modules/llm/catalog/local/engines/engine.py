@@ -28,6 +28,8 @@ class LocalEngine(Protocol):
     # and the provider those selections name.
     model_types: tuple[ModelType, ...]
     provider: str
+    # Electron runs its server from the selection, so an empty slot stops it.
+    server_follows_selection: bool
 
     @property
     def folder(self) -> Path | None:
@@ -59,5 +61,10 @@ class LocalEngine(Protocol):
     def after_install(self, model_id: str) -> AsyncIterator[InstallStep]: ...
 
     def after_remove(self) -> None: ...
+
+    async def release(self, model_id: str) -> None:
+        """Make its server let go of `model_id`'s files, after a delete found
+        one held open."""
+        ...
 
     def on_startup(self) -> None: ...

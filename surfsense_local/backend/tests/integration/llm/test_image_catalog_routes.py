@@ -90,6 +90,110 @@ async def test_deleting_an_image_model_from_the_catalog_clears_its_selection(
     assert (await client.get("/llm/selection/image_gen")).status_code == 404
 
 
+async def test_deleting_a_model_its_server_holds_open_keeps_it_installed(
+    client: AsyncClient, images_dir, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Windows refuses to delete a file sd-server has open. The delete says so,
+    the record still names the build whose file is still on disk, and the slot
+    is emptied so that Electron stops the server and a second delete works."""
+    from pathlib import Path
+
+    from modules.llm.catalog.local.installs import (
+        InstalledBuild,
+        read_installs,
+        record_install,
+    )
+
+    weights = images_dir / "v1-5-pruned_Q4_0.gguf"
+    weights.write_bytes(b"GGUF")
+    record_install(
+        images_dir,
+        InstalledBuild(
+            model_id="v1-5-pruned_Q4_0",
+            repo="second-state/stable-diffusion-v1-5-GGUF",
+            revision="main",
+            quantization="Q4_0",
+            weights=(weights.name,),
+        ),
+    )
+    await client.put(
+        "/llm/selection/image_gen",
+        json={"provider": "sdcpp", "connection_id": None, "name": "v1-5-pruned_Q4_0"},
+    )
+    unlink = Path.unlink
+
+    def held_open(self: Path, missing_ok: bool = False) -> None:
+        if self == weights:
+            raise PermissionError(32, "The process cannot access the file", str(self))
+        unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", held_open)
+
+    reply = await client.delete("/llm/models/v1-5-pruned_Q4_0")
+
+    assert reply.status_code == 409, reply.text
+    assert "Delete it again" in reply.json()["detail"]
+    assert weights.exists()
+    assert "v1-5-pruned_Q4_0" in read_installs(images_dir)
+    assert (await client.get("/llm/selection/image_gen")).status_code == 404
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    again = await client.delete("/llm/models/v1-5-pruned_Q4_0")
+
+    assert again.status_code == 200, again.text
+    assert not weights.exists()
+    assert "v1-5-pruned_Q4_0" not in read_installs(images_dir)
+
+
+async def test_a_delete_that_stopped_part_way_is_finished_by_asking_again(
+    client: AsyncClient, images_dir, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A build of several files can lose its weights and keep a held companion.
+    Nothing lists it as installed then, and its record still finds it to delete."""
+    from pathlib import Path
+
+    from modules.llm.catalog.local.installs import (
+        InstalledBuild,
+        read_installs,
+        record_install,
+    )
+
+    weights = images_dir / "flux-2-klein-4b-Q4_0.gguf"
+    companion = images_dir / "flux2-vae.safetensors"
+    weights.write_bytes(b"GGUF")
+    companion.write_bytes(b"VAE")
+    record_install(
+        images_dir,
+        InstalledBuild(
+            model_id="flux-2-klein-4b-Q4_0",
+            repo="leejet/FLUX.2-klein-4B-GGUF",
+            revision="main",
+            quantization="Q4_0",
+            weights=(weights.name,),
+            companions=(companion.name,),
+        ),
+    )
+    unlink = Path.unlink
+
+    def held_open(self: Path, missing_ok: bool = False) -> None:
+        if self == companion:
+            raise PermissionError(32, "The process cannot access the file", str(self))
+        unlink(self, missing_ok=missing_ok)
+
+    monkeypatch.setattr(Path, "unlink", held_open)
+    first = await client.delete("/llm/models/flux-2-klein-4b-Q4_0")
+    monkeypatch.setattr(Path, "unlink", unlink)
+
+    assert first.status_code == 409, first.text
+    assert not weights.exists() and companion.exists()
+
+    again = await client.delete("/llm/models/flux-2-klein-4b-Q4_0")
+
+    assert again.status_code == 200, again.text
+    assert not companion.exists()
+    assert "flux-2-klein-4b-Q4_0" not in read_installs(images_dir)
+
+
 async def test_a_second_install_waits_its_turn_instead_of_failing(
     client: AsyncClient, images_dir, fake_hub
 ) -> None:

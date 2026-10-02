@@ -7,6 +7,10 @@ class ModelBusyError(RuntimeError):
     pass
 
 
+class ModelFileHeldError(ModelBusyError):
+    """A model whose file a running server still has open, so it stays on disk."""
+
+
 def model_key(
     provider: str, name: str, connection_id: int | None = None
 ) -> tuple[str, str, str]:

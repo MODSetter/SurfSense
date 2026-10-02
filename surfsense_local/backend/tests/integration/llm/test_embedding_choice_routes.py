@@ -104,6 +104,47 @@ async def test_an_embedder_downloaded_but_not_chosen_can_be_deleted(
     assert row["builds"][0]["installed_as"] is None
 
 
+async def test_an_embedder_whose_file_is_held_open_is_released_and_kept(
+    client: AsyncClient, fake_hub, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """ONNX Runtime keeps a model's files open in the encoder's cached session,
+    and Windows refuses to delete an open file. The delete drops the cached
+    sessions, keeps the files and the record, and works when asked again."""
+    from pathlib import Path
+
+    from modules.llm.catalog.local.engines.onnxruntime import engine as onnx_engine
+
+    await _install(client, GRANITE)
+    unlink = Path.unlink
+    held: list[Path] = []
+
+    def held_open(self: Path, missing_ok: bool = False) -> None:
+        if GRANITE in self.parts and self.suffix == ".onnx":
+            held.append(self)
+            raise PermissionError(32, "The process cannot access the file", str(self))
+        unlink(self, missing_ok=missing_ok)
+
+    released: list[bool] = []
+    monkeypatch.setattr(onnx_engine, "release_sessions", lambda: released.append(True))
+    monkeypatch.setattr(Path, "unlink", held_open)
+
+    reply = await client.delete(f"/llm/models/{GRANITE}")
+
+    assert reply.status_code == 409, reply.text
+    assert "Delete it again" in reply.json()["detail"]
+    assert held and all(path.exists() for path in held)
+    assert released == [True]
+    rows = (await client.get("/llm/catalog/local")).json()["rows"]
+    (row,) = [r for r in rows if r["id"] == GRANITE]
+    assert row["builds"][0]["installed_as"] is not None
+
+    monkeypatch.setattr(Path, "unlink", unlink)
+    again = await client.delete(f"/llm/models/{GRANITE}")
+
+    assert again.status_code == 200, again.text
+    assert not any(path.exists() for path in held)
+
+
 async def test_the_bundled_embedder_cannot_be_deleted(
     client: AsyncClient, data_dir
 ) -> None:
