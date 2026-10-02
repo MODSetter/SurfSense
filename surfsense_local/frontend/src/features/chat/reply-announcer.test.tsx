@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { cleanup, screen, waitFor } from "@testing-library/react"
+import { cleanup, screen } from "@testing-library/react"
 
 import { render } from "@/test-utils"
 
@@ -10,12 +10,11 @@ afterEach(cleanup)
 const status = () => screen.getByRole("status").textContent
 
 describe("ReplyAnnouncer", () => {
-  it("says the model is working before anything has streamed", async () => {
+  it("leaves the wait to the thinking header's region", () => {
+    // Two regions saying "Thinking" would read it twice.
     render(<ReplyAnnouncer running answerStarted={false} completed={false} />)
 
-    // Mounted empty first: a status region born with text is often not read.
     expect(status()).toBe("")
-    await waitFor(() => expect(status()).toBe("Thinking"))
   })
 
   it("stays quiet while the answer streams, so tokens never interrupt", () => {
@@ -24,14 +23,14 @@ describe("ReplyAnnouncer", () => {
     expect(status()).toBe("")
   })
 
-  it("says once that a reply it watched has finished", async () => {
+  it("says once that a reply it watched has finished", () => {
     const { rerender } = render(
       <ReplyAnnouncer running answerStarted={false} completed={false} />
     )
     rerender(<ReplyAnnouncer running answerStarted completed={false} />)
     rerender(<ReplyAnnouncer running={false} answerStarted completed />)
 
-    await waitFor(() => expect(status()).toBe("Reply finished"))
+    expect(status()).toBe("Reply finished")
   })
 
   it("says nothing for a reply loaded from history", () => {

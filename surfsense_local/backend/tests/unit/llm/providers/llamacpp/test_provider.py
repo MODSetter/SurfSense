@@ -266,7 +266,7 @@ async def test_each_model_is_typed_from_its_own_header(tmp_path) -> None:
 
     assert set(models) == {"chat", "embedder"}
     assert models["chat"].types == (ModelType.TEXT_GEN,)
-    assert models["embedder"].types == ()
+    assert models["embedder"].types == (ModelType.EMBEDDING,)
     assert models["embedder"].known
 
 

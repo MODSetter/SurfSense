@@ -3,9 +3,10 @@ import logging
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document, DocumentStatus
+from modules.embedding.active import require_active_index
 from shared.config import get_storage_settings
 from shared.db import create_db_engine, create_session_factory
-from worker.ingestion import chunking, embedding, indexing, parsing
+from worker.ingestion import chunking, indexing, parsing
 from worker.jobs import JobCancelledError, begin_job, finish_job, raise_if_cancelled
 from worker.notify import notify_document_updates
 
@@ -37,13 +38,14 @@ def _ingest(session: Session, document: Document) -> None:
     notify_document_updates(document)
 
     try:
+        index = require_active_index(session)
+        session.commit()  # the read took the write lock; drop it before parsing
         markdown = parsing.markdown_for(document)
         raise_if_cancelled(session, document)
         passages = chunking.chunk(markdown)
-        texts = [passage.text for passage in passages]
-        vectors = embedding.embed(texts) if texts else []
+        vectors = indexing.embed_passages(index, passages)
         raise_if_cancelled(session, document)
-        indexing.replace_chunks(session, document, passages, vectors)
+        indexing.replace_chunks(session, document, index, passages, vectors)
 
         document.content = markdown
         if not finish_job(session, document, DocumentStatus.READY):

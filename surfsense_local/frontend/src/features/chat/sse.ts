@@ -19,6 +19,8 @@ export type ChatStreamEvent =
     }
   | { type: "thread-title-update"; title: string }
   | { type: "citation-catalog"; items: Citation[] }
+  // Prompt tokens read so far out of those left to read; local runtime only.
+  | { type: "prompt-progress"; processed: number; total: number }
   | { type: "reasoning"; text: string }
   | { type: "reasoning-end"; duration_ms: number }
   | { type: "delta"; text: string }

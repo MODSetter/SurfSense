@@ -1,5 +1,6 @@
 import { Fragment, useState } from "react"
 
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -11,7 +12,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ArrowLeftIcon, ComputerIcon, DotIcon } from "@/components/ui/icons"
+import {
+  ArrowLeftIcon,
+  CircleAlertIcon,
+  ComputerIcon,
+  DotIcon,
+} from "@/components/ui/icons"
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { Separator } from "@/components/ui/separator"
 import { Spinner } from "@/components/ui/spinner"
@@ -19,142 +25,27 @@ import type { LocalBuild, LocalRow } from "@/features/models/local/chat/api"
 import { useInstall } from "@/features/models/local/installs/use-install"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
 import { useConnections } from "@/features/models/remote/connections/use-connections"
-import { useSelect } from "@/features/models/selection/use-selection"
 import { DeleteModelDialog } from "@/features/models/your-models/delete-model-dialog"
 import type { YourModelRow } from "@/features/models/your-models/your-model-row"
 import { intl } from "@/i18n/intl"
 
 import { OfflineState } from "../offline-state"
-import { HuggingFaceSearch } from "./hugging-face-search"
-import { leadBuild, localChoices } from "./local-choices"
-import { LocalModelList } from "./local-model-list"
+import { HuggingFaceSearch } from "./local/hugging-face-search"
+import { leadBuild, localChoices } from "./local/local-choices"
+import { LocalModelList } from "./local/local-model-list"
 import { ModelReady } from "./model-ready"
-import { ServerOption } from "./server-option"
-import { ServerPath } from "./server-path"
-import { LOCAL_PROVIDER, type OnboardingSlot } from "./slot"
-import { slotDeletes } from "./use-slot-delete"
-import { slotModels } from "./use-slot-models"
-
-const COPY: Record<
-  OnboardingSlot,
-  {
-    title: () => string
-    description: () => string
-    noLocal: () => string
-    /** Hugging Face search, for llama.cpp's GGUF models only. */
-    searchable: boolean
-  }
-> = {
-  text_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_title",
-        defaultMessage: "Choose a text generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_body",
-        defaultMessage:
-          "Answers you in chat. Run one on this computer so your chats stay private, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_chat_step_no_local_empty",
-        defaultMessage:
-          "No tested model can run on this computer. Use a server instead.",
-      }),
-    searchable: true,
-  },
-  image_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_title",
-        defaultMessage: "Choose an image generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_body",
-        defaultMessage:
-          "Creates images for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_step_no_local_empty",
-        defaultMessage:
-          "Image models cannot run on this computer. Use a server instead.",
-      }),
-    // sd.cpp has no search: its models are the few the catalog ships.
-    searchable: false,
-  },
-  image_edit: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_title",
-        defaultMessage: "Choose an image editing model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_body",
-        defaultMessage:
-          "Edits images for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_image_edit_step_no_local_empty",
-        defaultMessage:
-          "Image editing models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor has it for editing: the same few models.
-    searchable: false,
-  },
-  video_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_title",
-        defaultMessage: "Choose a video generation model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_body",
-        defaultMessage:
-          "Makes short video clips. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_video_step_no_local_empty",
-        defaultMessage:
-          "Video models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor for video.
-    searchable: false,
-  },
-  audio_gen: {
-    title: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_title",
-        defaultMessage: "Choose an audio model",
-      }),
-    description: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_body",
-        defaultMessage:
-          "Creates podcasts for you. Run one on this computer, or use one from a server.",
-      }),
-    noLocal: () =>
-      intl.formatMessage({
-        id: "onboarding_audio_step_no_local_empty",
-        defaultMessage:
-          "Audio models cannot run on this computer. Use a server instead.",
-      }),
-    // Nor has audio.cpp.
-    searchable: false,
-  },
-}
+import { STEP_COPY } from "./step-copy"
+import { ServerOption } from "./server/server-option"
+import { ServerPath } from "./server/server-path"
+import { slotOf, type OnboardingStepKind } from "./kinds/step-kind"
+import { stepModels } from "./kinds/step-models-table"
+import { stepDeletes } from "./kinds/step-deletes"
 
 /**
- * One onboarding step for one slot. Every local model is listed at once, the
- * recommended one first, with a server one line below: nothing is hidden
- * behind a click. The step is done once the slot has a model.
+ * One onboarding step, for a slot or the embedding model; what differs is in
+ * `kinds/` and `step-copy.ts`. Every local model is listed at once, the
+ * recommended one first, with a server one line below for a slot: nothing is
+ * hidden behind a click. The step is done once it has a model.
  */
 export function ModelStep({
   modelType,
@@ -165,26 +56,25 @@ export function ModelStep({
   onNext,
   onSkip,
 }: {
-  modelType: OnboardingSlot
+  modelType: OnboardingStepKind
   /** The step that ends onboarding: Continue and Skip say they finish. */
   last?: boolean
   finishing?: boolean
   error?: string | null
   /** Absent on the first step: the welcome is not somewhere to go back to. */
   onBack?: () => void
-  onNext: () => void
+  /** Given what finishing from this step sends: the embedding choice, or null. */
+  onNext: (value: string | null) => void
   /** Present only where the slot is optional. */
   onSkip?: () => void
 }) {
-  const copy = COPY[modelType]
-  const models = slotModels[modelType]()
-  // Onboarding selects what it installs, so a first model takes one click.
-  const { jobs, installs, install, cancel } = useInstall({
-    select: true,
-    modelType,
-  })
-  const select = useSelect(modelType)
-  const remove = slotDeletes[modelType]()
+  const copy = STEP_COPY[modelType]
+  const models = stepModels[modelType]()
+  // A slot's download becomes its model, so a first model takes one click.
+  const { jobs, installs, install, cancel } = useInstall(models.install)
+  const remove = stepDeletes[modelType]()
+  // Remote embedders are not offered yet, so that step has no server.
+  const slot = slotOf(modelType)
   const connections = useConnections()
   const [onServer, setOnServer] = useState(false)
   // With nothing connected yet there is no server page to show: Connect
@@ -199,7 +89,7 @@ export function ModelStep({
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   // A download does not block the rest: another one queues behind it.
-  const busy = select.isPending || remove.isPending || finishing
+  const busy = models.choosing || remove.isPending || finishing
   const choices = localChoices(models.rows)
 
   // Neither a download nor Use moves the page: progress and "In use" show on
@@ -209,24 +99,18 @@ export function ModelStep({
     if (build) downloadBuild(build)
   }
 
-  // A searched build installs through the same call: the id is opaque.
+  // A searched build installs through the same call: the id is opaque. One
+  // already on disk offers Use, which chooses it as the list's Use does.
   const downloadBuild = (build: LocalBuild) => {
     if (busy) return
-    void install(build.catalog_id)
+    if (build.installed_as) models.use(build.installed_as)
+    else void install(build.catalog_id)
   }
 
   const use = (row: LocalRow) => {
     const build = leadBuild(row)
     if (!build?.installed_as || busy) return
-    void select
-      .mutateAsync({
-        target: {
-          provider: LOCAL_PROVIDER[modelType],
-          connection_id: null,
-          name: build.installed_as,
-        },
-      })
-      .catch(() => undefined)
+    models.use(build.installed_as)
   }
 
   const askDelete = (row: LocalRow) => {
@@ -269,15 +153,22 @@ export function ModelStep({
   const body = () => {
     if (models.error) return <OfflineState message={models.error.message} />
     if (models.isPending) return null
-    if (onServer) {
+    if (onServer && slot) {
       return (
         // Choosing a model stays here, as in Settings: its group marks it
         // "In use", and the footer says which.
-        <ServerPath modelType={modelType} openServerId={openServerId} />
+        <ServerPath modelType={slot} openServerId={openServerId} />
       )
     }
     return (
       <div className="flex flex-col gap-5">
+        {/* Above the list: read before choosing, not after. */}
+        {copy.notice ? (
+          <Alert variant="secondary">
+            <CircleAlertIcon />
+            <AlertDescription>{copy.notice()}</AlertDescription>
+          </Alert>
+        ) : null}
         <section
           className="flex flex-col gap-3"
           aria-label={intl.formatMessage({
@@ -324,23 +215,31 @@ export function ModelStep({
               {copy.noLocal()}
             </p>
           )}
-          {copy.searchable ? (
+          {copy.search ? (
             <HuggingFaceSearch
               jobs={jobs}
               disabled={busy}
               onInstall={downloadBuild}
               onCancel={cancel}
+              source={copy.search.source}
+              note={copy.search.note?.()}
             />
           ) : null}
         </section>
 
-        <Separator />
-        <ServerOption
-          connections={connections.data ?? []}
-          onOpen={() =>
-            connections.data?.length ? setOnServer(true) : setConnecting(true)
-          }
-        />
+        {slot ? (
+          <>
+            <Separator />
+            <ServerOption
+              connections={connections.data ?? []}
+              onOpen={() =>
+                connections.data?.length
+                  ? setOnServer(true)
+                  : setConnecting(true)
+              }
+            />
+          </>
+        ) : null}
       </div>
     )
   }
@@ -390,9 +289,9 @@ export function ModelStep({
         >
           {body()}
         </ScrollFade>
-        {select.isError ? (
+        {models.chooseError ? (
           <p className="px-(--card-spacing) text-sm text-destructive">
-            {select.error.message}
+            {models.chooseError.message}
           </p>
         ) : null}
         {error ? (
@@ -442,7 +341,7 @@ export function ModelStep({
           <Button
             type="button"
             disabled={!models.inUse || busy}
-            onClick={onNext}
+            onClick={() => onNext(models.value)}
           >
             {finishing ? <Spinner data-icon="inline-start" /> : null}
             {last

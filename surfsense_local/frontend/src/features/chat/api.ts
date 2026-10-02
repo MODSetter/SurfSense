@@ -34,6 +34,8 @@ export type MessageContent = {
   steps?: AgentStep[]
   // Client only: what a turn not yet stored shows in place of `images`.
   previews?: string[]
+  // Client only: how far the model has read the prompt, while it waits.
+  progress?: { processed: number; total: number }
 }
 
 export type ChatMessage = {

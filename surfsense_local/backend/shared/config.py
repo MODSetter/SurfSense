@@ -19,6 +19,12 @@ class StorageSettings(BaseSettings):
         return Path(override) if override else self.data_dir / "models"
 
     @property
+    def embedding_models_dir(self) -> Path:
+        """Downloaded embedders, one folder each. Not `models_dir`, which a
+        packaged app ships read-only."""
+        return self.data_dir / "embeddings"
+
+    @property
     def database_path(self) -> Path:
         return self.data_dir / "surfsense.db"
 
@@ -64,16 +70,6 @@ class StorageSettings(BaseSettings):
     def plugin_data_dir(self, plugin_id: str) -> Path:
         """A plugin's own files, which outlive the versions that wrote them."""
         return self.data_dir / "plugins" / plugin_id / "data"
-
-
-class SearchSettings(BaseSettings):
-    """The index's shape, which both ingest and search have to agree on."""
-
-    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
-
-    # Schema, not preference: a vec0 table declares its width at creation.
-    # 384 is bge-small-en-v1.5, the bundled default.
-    embedding_dimension: int = 384
 
 
 class LLMSettings(BaseSettings):
@@ -131,11 +127,6 @@ def get_agent_settings() -> AgentSettings:
 def get_storage_settings() -> StorageSettings:
     """Cached so the environment is parsed once, not per dependency call."""
     return StorageSettings()
-
-
-@lru_cache
-def get_search_settings() -> SearchSettings:
-    return SearchSettings()
 
 
 @lru_cache

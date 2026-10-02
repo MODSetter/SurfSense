@@ -34,6 +34,7 @@ from modules.llm.gguf.file_kind import FileKind, kind_of
 from modules.llm.profile import Fingerprint, from_llamacpp
 from modules.llm.providers.llamacpp.capabilities import Capabilities, read_capabilities
 from modules.llm.providers.llamacpp.messages import for_template
+from modules.llm.providers.llamacpp.prompt_progress import PROMPT_PROGRESS
 from modules.llm.providers.llamacpp.router_client import RouterClient
 from modules.llm.providers.llamacpp.thinking import THINKING_OFF
 from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
@@ -72,7 +73,10 @@ class LlamaCppProvider:
         # wrong (the idle timer evicted it, or a reprice changed the preset).
         self._capabilities_cache: dict[str, Capabilities] = {}
         self._chat = OpenAICompatibleChatProvider(
-            f"{self._base_url}/v1", transport=transport, thinking_off=THINKING_OFF
+            f"{self._base_url}/v1",
+            transport=transport,
+            thinking_off=THINKING_OFF,
+            prompt_progress=PROMPT_PROGRESS,
         )
 
     async def health(self) -> bool:
@@ -211,7 +215,7 @@ class LlamaCppProvider:
             reasoning=reasoning,
             json_schema=json_schema,
         ):
-            if not delta.reasoning:
+            if not delta.reasoning and delta.progress is None:
                 yield delta.text
 
     async def chat_deltas(

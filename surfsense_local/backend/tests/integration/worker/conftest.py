@@ -1,8 +1,9 @@
+from typing import Any
+
 import pytest
 
 from modules.llm.profile import Tier
 from modules.llm.resolution import ResolvedGeneration, ResolvedImageGeneration
-from shared.config import get_search_settings
 
 
 @pytest.fixture
@@ -14,13 +15,12 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:
     first, a deterministic vector the second. Studio's role lookup is stubbed
     too, so a test fakes only the model call it cares about.
     """
-    width = get_search_settings().embedding_dimension
 
-    def embed(texts: list[str]) -> list[list[float]]:
+    def embed(spec: Any, texts: list[str], _purpose: Any) -> list[list[float]]:
         # Distinct per text, so a misplaced chunk is a mismatched vector.
-        return [[float(len(text) % 97)] * width for text in texts]
+        return [[float(len(text) % 97)] * spec.dimension for text in texts]
 
-    monkeypatch.setattr("worker.ingestion.embedding.embed", embed)
+    monkeypatch.setattr("modules.embedding.encoder.embed", embed)
     monkeypatch.setattr(
         "worker.ingestion.chunking._default_tokenizer", lambda: "character"
     )

@@ -3,9 +3,9 @@ import { useEffect, useRef, useState } from "react"
 import { intl } from "@/i18n/intl"
 
 /**
- * A turn's one status region: "Thinking" until the answer starts, silent while
- * it streams, then that it finished. Feeding it every token would interrupt
- * a screen reader without pause, which is worse than saying nothing.
+ * Says once that a reply finished. The thinking header's own status region
+ * covers the wait; this one stays silent while the answer streams, since
+ * feeding it every token would interrupt a screen reader without pause.
  */
 export function ReplyAnnouncer({
   running,
@@ -20,14 +20,6 @@ export function ReplyAnnouncer({
   // Only a reply seen running finishes here: one loaded from history is not news.
   const sawRunning = useRef(running)
   const [finished, setFinished] = useState(false)
-  // Empty on its first commit: a status region inserted with text already in
-  // it is often not read, so the text lands a tick later.
-  const [listening, setListening] = useState(false)
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => setListening(true), 0)
-    return () => window.clearTimeout(timer)
-  }, [])
 
   useEffect(() => {
     if (running) {
@@ -37,23 +29,15 @@ export function ReplyAnnouncer({
     }
   }, [running, answerStarted, completed])
 
-  const text = !listening
-    ? ""
-    : running && !answerStarted
-      ? intl.formatMessage({
-          id: "chat_reasoning_thinking_label",
-          defaultMessage: "Thinking",
-        })
-      : finished
+  // Mounted empty and filled only later, so the region exists before it speaks.
+  return (
+    <span role="status" className="sr-only">
+      {finished
         ? intl.formatMessage({
             id: "chat_reply_finished_status",
             defaultMessage: "Reply finished",
           })
-        : ""
-
-  return (
-    <span role="status" className="sr-only">
-      {text}
+        : ""}
     </span>
   )
 }

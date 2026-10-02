@@ -267,6 +267,103 @@ def audio_entry(**overrides) -> dict:
     return {**base, **overrides}
 
 
+def embedding_entry(**overrides) -> dict:
+    """granite-97m as the ONNX embedding engine runs it: weights and tokenizer,
+    and what the index's spec needs that no file states."""
+    base = {
+        "id": "granite-embedding-97m-multilingual-r2",
+        "name": "Granite Embedding 97M Multilingual",
+        "family": "Granite Embedding",
+        "publisher": "IBM",
+        "description": "Search across more than 50 languages.",
+        "license": "apache-2.0",
+        "source_repo": "ibm-granite/granite-embedding-97m-multilingual-r2",
+        "evidence": {
+            "architecture": "modernbert",
+            "pipeline_tag": "feature-extraction",
+        },
+        "embedding": {
+            "dimension": 384,
+            "pooling": "cls",
+            "normalize": True,
+            "query_prefix": "",
+            "document_prefix": "",
+            "max_tokens": 512,
+            "semantic_weight": 0.85,
+            "batch": 32,
+        },
+        "builds": [
+            {
+                "quantization": "F32",
+                "files": [
+                    {
+                        **file("weights", "onnx/model.onnx", 390_004_608),
+                        "repo": "onnx-community/granite-embedding-97m-multilingual-r2-ONNX",
+                    },
+                    {
+                        **file("tokenizer", "tokenizer.json", 25_301_671),
+                        "repo": "onnx-community/granite-embedding-97m-multilingual-r2-ONNX",
+                    },
+                ],
+                "validated": {"onnxruntime": "1.29.0"},
+            }
+        ],
+    }
+    return {**base, **overrides}
+
+
+def test_an_embedding_model_carries_what_its_index_needs() -> None:
+    """Width, pooling, prefixes and the measured weight: no file states them all."""
+    (model,) = LocalManifest.model_validate(manifest(embedding_entry())).models
+
+    assert model.embedding is not None
+    assert model.embedding.dimension == 384
+    assert model.embedding.semantic_weight == 0.85
+    roles = [f.role for f in model.builds[0].files]
+    assert roles == [FileRole.WEIGHTS, FileRole.TOKENIZER]
+    assert model.builds[0].validated.onnxruntime == "1.29.0"
+
+
+def _quantised(mean: float, minimum: float) -> dict:
+    model = embedding_entry()
+    model["embedding"] = {
+        **model["embedding"],
+        "parity": {"origin": "eval corpus, 40 passages", "mean": mean, "min": minimum},
+    }
+    return model
+
+
+def test_a_quantised_build_close_to_the_original_is_admitted() -> None:
+    """Pinned from someone else's conversion, so it must match the original."""
+    (model,) = LocalManifest.model_validate(manifest(_quantised(0.990, 0.981))).models
+
+    assert model.embedding is not None
+    assert model.embedding.parity is not None
+    assert model.embedding.parity.mean == 0.990
+
+
+@pytest.mark.parametrize(
+    ("mean", "minimum"),
+    [
+        pytest.param(0.961, 0.947, id="granite-97m's int8 build"),
+        pytest.param(0.995, 0.97, id="close on average, far on one passage"),
+    ],
+)
+def test_a_quantised_build_that_drifts_is_refused(mean: float, minimum: float) -> None:
+    """A different vector space under the original's name."""
+    with pytest.raises(ValidationError):
+        LocalManifest.model_validate(manifest(_quantised(mean, minimum)))
+
+
+def test_an_embedding_build_needs_its_tokenizer() -> None:
+    """The encoder cannot read a passage without the model's own tokenizer."""
+    weights_only = embedding_entry()
+    weights_only["builds"][0]["files"] = weights_only["builds"][0]["files"][:1]
+
+    with pytest.raises(ValidationError):
+        LocalManifest.model_validate(manifest(weights_only))
+
+
 def video_entry(**overrides) -> dict:
     """Wan2.1 1.3B as sd.cpp runs it: the diffusion model, umt5 and its VAE."""
     base = {
@@ -373,6 +470,13 @@ def test_an_image_model_needs_no_chat_fields() -> None:
         ),
         pytest.param(
             entry(video=video_entry()["video"]), id="a chat model with video defaults"
+        ),
+        pytest.param(
+            embedding_entry(embedding=None), id="an embedding model without its spec"
+        ),
+        pytest.param(
+            entry(embedding=embedding_entry()["embedding"]),
+            id="a chat model with an embedding spec",
         ),
     ],
 )

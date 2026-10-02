@@ -3,6 +3,8 @@ from httpx import AsyncClient
 from sqlalchemy import Engine
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.embedding.active import active_index
+from modules.embedding.bundled import BGE
 from modules.llm import providers as registry
 from modules.llm.activity import model_activity, model_key
 from modules.llm.catalog.local.dependencies import get_local_catalog
@@ -88,6 +90,44 @@ async def test_selecting_a_chat_model_does_not_complete_onboarding(
     assert completed.json() == {"completed": True}
 
 
+async def test_the_embedder_cannot_be_selected_like_a_model(
+    client: AsyncClient,
+) -> None:
+    """It is fixed with the index at onboarding; a selection would swap it."""
+    reply = await client.put(
+        "/llm/selection/embedding",
+        json={
+            "provider": "onnxruntime",
+            "name": "granite-embedding-97m-multilingual-r2",
+        },
+    )
+
+    assert reply.status_code == 422
+    assert (await client.get("/llm/selection/embedding")).status_code == 422
+
+
+async def test_finishing_onboarding_fixes_bge_as_the_embedder(
+    unlocked_client: AsyncClient, unlocked_engine: Engine, llamacpp_server: str
+) -> None:
+    """Nothing was chosen, so the bundled model is; finishing twice changes nothing."""
+    client = unlocked_client
+    await client.put(
+        "/llm/selection/text_gen",
+        json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"},
+    )
+
+    await client.post("/llm/onboarding")
+    with create_session_factory(unlocked_engine)() as session:
+        first = active_index(session)
+    assert (await client.post("/llm/onboarding")).status_code == 200
+    with create_session_factory(unlocked_engine)() as session:
+        again = active_index(session)
+
+    assert first is not None
+    assert first.spec == BGE
+    assert again == first
+
+
 async def test_onboarding_cannot_complete_without_a_chat_model(
     client: AsyncClient,
 ) -> None:
@@ -120,7 +160,9 @@ async def test_deleting_the_selected_local_model_clears_only_the_selection(
     # lists the model until its next restart, which the preset rewrite triggers:
     # it scans its directory once at startup and has no way to be told otherwise.
     rows = (await client.get("/llm/catalog/local")).json()["rows"]
-    installed = [b["installed_as"] for row in rows for b in row["builds"] if b["installed_as"]]
+    installed = [
+        b["installed_as"] for row in rows for b in row["builds"] if b["installed_as"]
+    ]
     assert installed == ["Qwen3-4B-Q4_K_M"]
 
 
@@ -199,13 +241,17 @@ async def test_choosing_again_updates_in_place(
 ) -> None:
     """One row per role: the second choice replaces the first, not adds to it."""
     await client.put(
-        "/llm/selection/text_gen", json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"}
+        "/llm/selection/text_gen",
+        json={"provider": "llamacpp", "name": "Qwen3-1.7B-Q4_K_M"},
     )
     await client.put(
-        "/llm/selection/text_gen", json={"provider": "llamacpp", "name": "Qwen3-4B-Q4_K_M"}
+        "/llm/selection/text_gen",
+        json={"provider": "llamacpp", "name": "Qwen3-4B-Q4_K_M"},
     )
 
-    assert (await client.get("/llm/selection/text_gen")).json()["name"] == "Qwen3-4B-Q4_K_M"
+    assert (await client.get("/llm/selection/text_gen")).json()[
+        "name"
+    ] == "Qwen3-4B-Q4_K_M"
 
 
 async def test_a_selection_names_a_known_provider(client: AsyncClient) -> None:

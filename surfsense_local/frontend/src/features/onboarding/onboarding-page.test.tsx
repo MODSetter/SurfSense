@@ -2,6 +2,7 @@ import { cleanup, screen, waitFor, within } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+import { EgressPrompt } from "@/features/egress/egress-prompt"
 import { fakeInstallApi } from "@/features/models/local/installs/fake-install-api"
 import { render } from "@/test-utils"
 import { OnboardingPage } from "./onboarding-page"
@@ -20,12 +21,36 @@ const budget = {
   has_gpu: true,
 }
 
-type Engine = "llamacpp" | "sdcpp" | "audiocpp"
+type Engine = "llamacpp" | "sdcpp" | "audiocpp" | "onnxruntime"
 
 const SLOT: Record<Engine, string> = {
   llamacpp: "text_gen",
   sdcpp: "image_gen",
   audiocpp: "audio_gen",
+  onnxruntime: "embedding",
+}
+
+const BGE = "bge-small-en-v1.5"
+const GRANITE = "granite-embedding-97m-multilingual-r2"
+const E5 = "intfloat/multilingual-e5-small"
+const E5_INSTALLED = "hf--intfloat--multilingual-e5-small"
+
+/** The embedders the catalog lists: bge comes with the app, granite downloads. */
+function embedders() {
+  const bge = row("onnxruntime", "BGE Small (English)", BGE, {
+    description: "Fast search in English. Comes with SurfSense.",
+    lead: { quantization: "F16", why: "installed" },
+  })
+  return [
+    {
+      ...bge,
+      builds: bge.builds.map((build) => ({ ...build, bundled: true })),
+    },
+    row("onnxruntime", "Granite Embedding 97M (Multilingual)", GRANITE, {
+      description: "Search across more than 50 languages.",
+      lead: { quantization: "F32", why: "default" },
+    }),
+  ]
 }
 
 function row(
@@ -43,7 +68,8 @@ function row(
     types: [SLOT[engine]],
     known: true,
     approximate: false,
-    selectable_for: [SLOT[engine]],
+    // An embedder is a catalog type, never a slot.
+    selectable_for: engine === "onnxruntime" ? [] : [SLOT[engine]],
     support: {
       context: null,
       reads_images: false,
@@ -95,9 +121,16 @@ function backend({
   onDisk = [] as string[],
   /** Leave each download running until the test ends it. */
   holdInstalls = false,
+  /** Whether huggingface.co is already allowed; unset lists no destinations. */
+  huggingface = undefined as boolean | undefined,
 } = {}) {
-  const installed = new Set<string>(onDisk)
+  // Every catalog lists the search models, whatever chat rows a test asks for.
+  rows = [...rows, ...embedders()]
+  // bge comes with the app, so it is on disk whatever else a test puts there.
+  const installed = new Set<string>([BGE, ...onDisk])
   const installs = fakeInstallApi()
+  /** The body of each POST that finished onboarding. */
+  const finished: unknown[] = []
   const slotOf = (engine: Engine) => SLOT[engine]
 
   const catalogRows = () =>
@@ -145,9 +178,68 @@ function backend({
         ? Response.json(selections[slot])
         : Response.json({ detail: "not selected" }, { status: 404 })
     }
+    // The embedding search answers in the GGUF search's shapes.
+    if (path.startsWith("/embedding/huggingface/search?")) {
+      const hit = (repo: string, downloads: number) => ({
+        repo,
+        downloads,
+        likes: 0,
+        license: "mit",
+        gated: false,
+        quantized_from: null,
+        last_modified: null,
+        reads_images: false,
+      })
+      return Response.json({
+        results: [hit(E5, 900), hit("someone/chat-model", 10)],
+      })
+    }
+    if (path === `/embedding/huggingface/repo/${E5}`) {
+      const searched = row("onnxruntime", E5, E5, {
+        origin: "search",
+        lead: null,
+      })
+      return Response.json({
+        repo: E5,
+        gated: false,
+        row: {
+          ...searched,
+          builds: searched.builds.map((build) => ({
+            ...build,
+            catalog_id: `opaque-${E5_INSTALLED}`,
+            quantization: "ONNX",
+            footprint_bytes: 135_000_000,
+          })),
+        },
+      })
+    }
+    if (path === "/embedding/huggingface/repo/someone/chat-model") {
+      return Response.json({
+        repo: "someone/chat-model",
+        gated: false,
+        row: {
+          ...row("onnxruntime", "someone/chat-model", "someone/chat-model", {
+            origin: "search",
+            lead: null,
+          }),
+          runnable: false,
+          not_runnable_reason: "This repo has no ONNX build SurfSense can run.",
+          builds: [],
+        },
+      })
+    }
     if (path === "/llm/installs" && init?.method === "POST") {
       const body = JSON.parse(String(init.body))
       const file = String(body.catalog_id).replace("opaque-", "")
+      // A Hugging Face pick appears as a downloaded row once it is on disk.
+      if (file === E5_INSTALLED && !rows.some((r) => r.id === file)) {
+        rows.push(
+          row("onnxruntime", E5, E5_INSTALLED, {
+            origin: "downloaded",
+            lead: { quantization: "ONNX", why: "installed" },
+          })
+        )
+      }
       const entry = rows.find((candidate) => candidate.id === file)
       const engine = (entry?.engine ?? "llamacpp") as Engine
       installed.add(file)
@@ -238,12 +330,26 @@ function backend({
         }),
       })
     }
+    if (path === "/egress" && huggingface !== undefined) {
+      return Response.json([
+        {
+          destination: "host:huggingface.co",
+          host: "huggingface.co",
+          enabled: huggingface,
+          last_call_at: null,
+        },
+      ])
+    }
+    if (path.startsWith("/egress/") && init?.method === "PUT") {
+      return Response.json({})
+    }
     if (path === "/llm/onboarding" && init?.method === "POST") {
+      finished.push(init.body ? JSON.parse(String(init.body)) : null)
       return Response.json({ completed: true })
     }
     return Response.json({ detail: "not found" }, { status: 404 })
   })
-  return Object.assign(serve, { installs })
+  return Object.assign(serve, { installs, finished })
 }
 
 /** The body of each install the screen started. */
@@ -320,6 +426,14 @@ async function toVideoStep(user: ReturnType<typeof userEvent.setup>) {
   })
 }
 
+async function toEmbeddingStep(user: ReturnType<typeof userEvent.setup>) {
+  await toVideoStep(user)
+  await user.click(screen.getByRole("button", { name: "Skip" }))
+  await screen.findByRole("heading", {
+    name: "Choose an embedding model",
+  })
+}
+
 const openRouter = {
   id: 4,
   label: "OpenRouter",
@@ -332,7 +446,7 @@ const openRouter = {
 }
 
 describe("onboarding", () => {
-  it("walks the welcome, then five steps: chat, image, image editing, audio and video models", async () => {
+  it("walks the welcome, then six steps: chat, image, image editing, audio, video and search models", async () => {
     vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={() => undefined} />)
@@ -340,7 +454,7 @@ describe("onboarding", () => {
     // The welcome introduces onboarding; it is not one of its steps.
     expect(screen.queryByLabelText(/Onboarding step/)).toBeNull()
     await toChatStep(user)
-    expect(screen.getByLabelText("Onboarding step 1 of 5")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 1 of 6")).toBeTruthy()
     // The welcome is not somewhere to go back to.
     expect(screen.queryByRole("button", { name: "Back" })).toBeNull()
 
@@ -350,7 +464,7 @@ describe("onboarding", () => {
         name: "Choose an image generation model",
       })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 2 of 5")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 2 of 6")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
 
     // Skipping the image model moves on; it does not end onboarding.
@@ -360,15 +474,13 @@ describe("onboarding", () => {
         name: "Choose an image editing model",
       })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 3 of 5")).toBeTruthy()
-    expect(screen.getByText("Optional")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 3 of 6")).toBeTruthy()
 
     await user.click(screen.getByRole("button", { name: "Skip" }))
     expect(
       await screen.findByRole("heading", { name: "Choose an audio model" })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 4 of 5")).toBeTruthy()
-    expect(screen.getByText("Optional")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 4 of 6")).toBeTruthy()
 
     await user.click(screen.getByRole("button", { name: "Skip" }))
     expect(
@@ -376,35 +488,31 @@ describe("onboarding", () => {
         name: "Choose a video generation model",
       })
     ).toBeTruthy()
-    expect(screen.getByLabelText("Onboarding step 5 of 5")).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 5 of 6")).toBeTruthy()
+
+    await user.click(screen.getByRole("button", { name: "Skip" }))
+    expect(
+      await screen.findByRole("heading", {
+        name: "Choose an embedding model",
+      })
+    ).toBeTruthy()
+    expect(screen.getByLabelText("Onboarding step 6 of 6")).toBeTruthy()
     expect(screen.getByText("Optional")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Finish" })).toBeTruthy()
     // Skipping the last step ends onboarding, so it says so.
     expect(screen.getByRole("button", { name: "Skip and finish" })).toBeTruthy()
     expect(screen.queryByRole("button", { name: "Skip" })).toBeNull()
 
-    await user.click(screen.getByRole("button", { name: "Back" }))
-    expect(
-      await screen.findByRole("heading", { name: "Choose an audio model" })
-    ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Back" }))
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose an image editing model",
-      })
-    ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Back" }))
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose an image generation model",
-      })
-    ).toBeTruthy()
-    await user.click(screen.getByRole("button", { name: "Back" }))
-    expect(
-      await screen.findByRole("heading", {
-        name: "Choose a text generation model",
-      })
-    ).toBeTruthy()
+    for (const heading of [
+      "Choose a video generation model",
+      "Choose an audio model",
+      "Choose an image editing model",
+      "Choose an image generation model",
+      "Choose a text generation model",
+    ]) {
+      await user.click(screen.getByRole("button", { name: "Back" }))
+      expect(await screen.findByRole("heading", { name: heading })).toBeTruthy()
+    }
   })
 
   it("lists only video models on the video step, and fills the video slot", async () => {
@@ -865,7 +973,7 @@ describe("onboarding", () => {
     const onComplete = vi.fn()
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={onComplete} />)
-    await toVideoStep(user)
+    await toEmbeddingStep(user)
     expect(onComplete).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole("button", { name: "Skip and finish" }))
@@ -909,7 +1017,7 @@ describe("onboarding", () => {
     expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it("finishes once a video model is downloaded", async () => {
+  it("moves on to the search step once a video model is downloaded", async () => {
     const fetchMock = backend({
       selections: { ...chatChosen },
       rows: [
@@ -930,22 +1038,25 @@ describe("onboarding", () => {
       await screen.findByRole("button", { name: "Download Wan2.1 1.3B Q4_K_M" })
     )
     await expectReady("Wan2.1 1.3B")
-    const finish = screen.getByRole("button", { name: "Finish" })
-    await waitFor(() => expect(finish.hasAttribute("disabled")).toBe(false))
-    await user.click(finish)
+    const next = screen.getByRole("button", { name: "Continue" })
+    await waitFor(() => expect(next.hasAttribute("disabled")).toBe(false))
+    await user.click(next)
 
-    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
-    // Finishing hands the app its chat model, whichever step ends onboarding.
-    expect(onComplete.mock.calls[0]?.[0]).toMatchObject({ name: "qwen3-4b" })
+    expect(
+      await screen.findByRole("heading", {
+        name: "Choose an embedding model",
+      })
+    ).toBeTruthy()
+    expect(onComplete).not.toHaveBeenCalled()
   })
 
-  it("never finishes onboarding from the chat or image step", async () => {
+  it("never finishes onboarding from a model step", async () => {
     const fetchMock = backend({ selections: { ...chatChosen } })
     vi.stubGlobal("fetch", fetchMock)
     const onComplete = vi.fn()
     const user = userEvent.setup()
     render(<OnboardingPage onComplete={onComplete} />)
-    await toAudioStep(user)
+    await toEmbeddingStep(user)
 
     expect(onComplete).not.toHaveBeenCalled()
     expect(
@@ -953,5 +1064,235 @@ describe("onboarding", () => {
         ([path, init]) => path === "/llm/onboarding" && init?.method === "POST"
       )
     ).toBe(false)
+  })
+})
+
+describe("the embedding model step", () => {
+  /** The list row that names this model. */
+  const listed = (name: RegExp) =>
+    within(screen.getByRole("list", { name: "Models for this computer" }))
+      .getAllByRole("listitem")
+      .find((item) => name.test(item.textContent ?? ""))
+
+  it("ends setup with the model SurfSense ships in use, and says the choice is fixed", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+
+    await toEmbeddingStep(user)
+
+    expect(screen.getByText("Optional")).toBeTruthy()
+    await screen.findByText("Fast search in English. Comes with SurfSense.")
+    const bge = listed(/BGE Small/)
+    expect(bge).toBeTruthy()
+    expect(within(bge!).getByRole("button", { name: "In use" })).toBeTruthy()
+    // It comes with the app, so it has no Delete.
+    expect(
+      screen.queryByRole("button", { name: "Delete BGE Small (English)" })
+    ).toBeNull()
+    expect(
+      screen.getByText("Search across more than 50 languages.")
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("button", { name: /^Download Granite Embedding 97M/ })
+    ).toBeTruthy()
+    expect(
+      screen.getByRole("region", { name: "Model ready" }).textContent
+    ).toContain("BGE Small (English)")
+    expect(
+      screen.getByText(
+        "You can’t change this later. If you’re unsure, the default works well for English."
+      )
+    ).toBeTruthy()
+    // Remote embedders are not offered yet.
+    expect(screen.queryByRole("region", { name: "Use a server" })).toBeNull()
+  })
+
+  it("downloads a multilingual model and finishes setup with it", async () => {
+    const fetchMock = backend({ selections: { ...chatChosen } })
+    vi.stubGlobal("fetch", fetchMock)
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toEmbeddingStep(user)
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: /^Download Granite Embedding 97M/,
+      })
+    )
+    // Downloading the embedding model never picks a chat model.
+    expect(installsStarted(fetchMock).at(-1)).toMatchObject({ select: false })
+    await user.click(
+      await screen.findByRole("button", { name: /^Use Granite Embedding 97M/ })
+    )
+    await expectReady("Granite Embedding 97M (Multilingual)")
+
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(fetchMock.finished).toEqual([{ embedding_model: GRANITE }])
+  })
+
+  it("deletes a downloaded model, and falls back to the one SurfSense ships", async () => {
+    const fetchMock = backend({ selections: { ...chatChosen } })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toEmbeddingStep(user)
+    await user.click(
+      await screen.findByRole("button", {
+        name: /^Download Granite Embedding 97M/,
+      })
+    )
+    await user.click(
+      await screen.findByRole("button", { name: /^Use Granite Embedding 97M/ })
+    )
+
+    await user.click(
+      screen.getByRole("button", {
+        name: "Delete Granite Embedding 97M (Multilingual)",
+      })
+    )
+    await user.click(
+      within(await screen.findByRole("alertdialog")).getByRole("button", {
+        name: "Delete model",
+      })
+    )
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === `/llm/models/${GRANITE}` && init?.method === "DELETE"
+        )
+      ).toBe(true)
+    )
+    await expectReady("BGE Small (English)")
+  })
+
+  it("finishing without touching the list keeps the model SurfSense ships", async () => {
+    const fetchMock = backend({ selections: { ...chatChosen } })
+    vi.stubGlobal("fetch", fetchMock)
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toEmbeddingStep(user)
+    await expectReady("BGE Small (English)")
+
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(fetchMock.finished).toEqual([{ embedding_model: null }])
+  })
+
+  it("skipping it finishes setup with the model SurfSense ships", async () => {
+    const fetchMock = backend({ selections: { ...chatChosen } })
+    vi.stubGlobal("fetch", fetchMock)
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toEmbeddingStep(user)
+
+    await user.click(screen.getByRole("button", { name: "Skip and finish" }))
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(fetchMock.finished).toEqual([{ embedding_model: null }])
+  })
+
+  it("finds a model on Hugging Face, downloads it and finishes setup with it", async () => {
+    const fetchMock = backend({ selections: { ...chatChosen } })
+    vi.stubGlobal("fetch", fetchMock)
+    const onComplete = vi.fn()
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={onComplete} />)
+    await toEmbeddingStep(user)
+
+    await user.click(
+      screen.getByRole("button", { name: "Not listed? Search Hugging Face" })
+    )
+    await user.type(
+      screen.getByRole("searchbox", { name: "Search all models" }),
+      "e5"
+    )
+    await user.click(await screen.findByText(E5))
+    expect(
+      await screen.findByText(
+        "Larger models make adding documents slower and use more memory."
+      )
+    ).toBeTruthy()
+    await user.click(
+      screen.getByRole("button", { name: `Download ${E5} ONNX` })
+    )
+    expect(installsStarted(fetchMock).at(-1)).toMatchObject({
+      catalog_id: `opaque-${E5_INSTALLED}`,
+      select: false,
+    })
+
+    // Checked and on disk, it joins the list, said to be untested.
+    await user.click(
+      await screen.findByRole("button", { name: new RegExp(`^Use ${E5}`) })
+    )
+    expect(listed(new RegExp(E5))?.textContent).toContain(
+      "Not tested by SurfSense"
+    )
+    await user.click(screen.getByRole("button", { name: "Finish" }))
+
+    await waitFor(() => expect(onComplete).toHaveBeenCalledOnce())
+    expect(fetchMock.finished).toEqual([{ embedding_model: E5_INSTALLED }])
+  })
+
+  it("asks to allow huggingface.co when the search is opened", async () => {
+    const fetchMock = backend({
+      selections: { ...chatChosen },
+      huggingface: false,
+    })
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+    render(
+      <>
+        <EgressPrompt />
+        <OnboardingPage onComplete={() => undefined} />
+      </>
+    )
+    await toEmbeddingStep(user)
+
+    await user.click(
+      screen.getByRole("button", { name: "Not listed? Search Hugging Face" })
+    )
+    await screen.findByRole("alertdialog")
+    await user.click(screen.getByRole("button", { name: "Allow" }))
+
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([path, init]) =>
+            path === "/egress/host:huggingface.co" && init?.method === "PUT"
+        )
+      ).toBe(true)
+    )
+  })
+
+  it("says why a Hugging Face repo cannot run here", async () => {
+    vi.stubGlobal("fetch", backend({ selections: { ...chatChosen } }))
+    const user = userEvent.setup()
+    render(<OnboardingPage onComplete={() => undefined} />)
+    await toEmbeddingStep(user)
+
+    await user.click(
+      screen.getByRole("button", { name: "Not listed? Search Hugging Face" })
+    )
+    await user.type(
+      screen.getByRole("searchbox", { name: "Search all models" }),
+      "chat"
+    )
+    await user.click(await screen.findByText("someone/chat-model"))
+
+    expect(
+      await screen.findByText("This repo has no ONNX build SurfSense can run.")
+    ).toBeTruthy()
+    expect(
+      screen.queryByRole("button", { name: /^Download someone\/chat-model/ })
+    ).toBeNull()
   })
 })

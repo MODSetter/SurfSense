@@ -2,6 +2,9 @@ from collections.abc import Iterable
 
 from modules.llm.model_type import ModelType
 
+# Every type but the embedder, which belongs to the index rather than a selection.
+SLOTS = tuple(t for t in ModelType if t is not ModelType.EMBEDDING)
+
 
 def selectable_for(types: Iterable[ModelType], known: bool) -> list[ModelType]:
     """The slots a model can fill, and the one rule selection and every picker share.
@@ -11,6 +14,6 @@ def selectable_for(types: Iterable[ModelType], known: bool) -> list[ModelType]:
     trusting it with a slot.
     """
     if not known:
-        return list(ModelType)
+        return list(SLOTS)
     held = set(types)
-    return [model_type for model_type in ModelType if model_type in held]
+    return [slot for slot in SLOTS if slot in held]

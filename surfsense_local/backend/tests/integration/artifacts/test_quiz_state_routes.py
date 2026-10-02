@@ -1,5 +1,7 @@
 """The quiz-state routes: a real quiz artifact on disk, driven over HTTP."""
 
+from typing import Any
+
 import pytest
 from httpx import AsyncClient
 from sqlalchemy import Engine
@@ -7,7 +9,6 @@ from sqlalchemy.orm import Session
 
 from modules.artifacts.models import Artifact
 from modules.documents.models import Document, DocumentStatus, DocumentType
-from shared.config import get_search_settings
 from shared.db import create_session_factory
 from worker.studio.content.quiz import pipeline as quiz
 from worker.studio.shared import persist
@@ -20,12 +21,11 @@ def stub_model(monkeypatch: pytest.MonkeyPatch) -> None:
     """persist() indexes the quiz's markdown; stand in for the embedder so
     these tests don't need the bundled model on disk (see
     tests/integration/worker/conftest.py's identical fixture)."""
-    width = get_search_settings().embedding_dimension
 
-    def embed(texts: list[str]) -> list[list[float]]:
-        return [[float(len(text) % 97)] * width for text in texts]
+    def embed(spec: Any, texts: list[str], _purpose: Any) -> list[list[float]]:
+        return [[float(len(text) % 97)] * spec.dimension for text in texts]
 
-    monkeypatch.setattr("worker.ingestion.embedding.embed", embed)
+    monkeypatch.setattr("modules.embedding.encoder.embed", embed)
     monkeypatch.setattr(
         "worker.ingestion.chunking._default_tokenizer", lambda: "character"
     )

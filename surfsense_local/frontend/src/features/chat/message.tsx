@@ -29,7 +29,11 @@ import { preprocessCitationMarkdown } from "./citation-markdown"
 import { useCitationContext } from "./citation-context"
 import { CitationProvider, InlineCitation } from "./inline-citation"
 import { ReplyAnnouncer } from "./reply-announcer"
-import { ReplyThinking, type ReplyReasoning } from "./reply-thinking"
+import {
+  ReplyThinking,
+  type ReplyProgress,
+  type ReplyReasoning,
+} from "./reply-thinking"
 import type { Citation } from "./sse"
 
 const streamdownPlugins = {
@@ -75,6 +79,13 @@ function reasoningFrom(custom: unknown): ReplyReasoning | null {
   return null
 }
 
+function progressFrom(custom: unknown): ReplyProgress | null {
+  if (typeof custom === "object" && custom !== null && "progress" in custom) {
+    return (custom.progress as ReplyProgress | null) ?? null
+  }
+  return null
+}
+
 function MessageThinking() {
   const messageId = useAuiState(({ message }) => message.id)
   const completed = useAuiState(
@@ -91,6 +102,9 @@ function MessageThinking() {
   const reasoning = useAuiState(({ message }) =>
     reasoningFrom(message.metadata.custom)
   )
+  const progress = useAuiState(({ message }) =>
+    progressFrom(message.metadata.custom)
+  )
 
   return (
     <>
@@ -106,6 +120,7 @@ function MessageThinking() {
         running={running}
         answerStarted={answerStarted}
         reasoning={reasoning}
+        progress={progress}
       />
     </>
   )

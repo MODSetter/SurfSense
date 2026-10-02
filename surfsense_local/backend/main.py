@@ -12,10 +12,8 @@ def check_retrieval_runtime() -> None:
     import onnxruntime
     from tokenizers import Tokenizer
 
-    # The first-query entry point, imported the way retrieval reaches it: this
-    # walks worker.ingestion's package init through chonkie, whose optional
-    # transformers and pandas imports are what api.spec excludes.
-    from worker.ingestion.embedding import embed
+    # The first-query entry point, imported the way retrieval reaches it.
+    from modules.embedding.encoder import embed
 
     sys.stdout.write(
         f"retrieval imports OK (onnxruntime {onnxruntime.__version__}, "

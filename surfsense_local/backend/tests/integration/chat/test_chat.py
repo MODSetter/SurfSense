@@ -17,6 +17,7 @@ from shared.db import create_session_factory
 from tests.integration.chat.conftest import (
     REPLY_DELTAS,
     set_answer,
+    set_prompt_progress,
     set_props_n_ctx,
     set_reasoning,
     set_tokens_per_word,
@@ -52,7 +53,9 @@ def _seed(
             ids[title] = doc.id
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -67,7 +70,9 @@ def _choose_generation_model(engine: Engine) -> None:
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -299,6 +304,53 @@ async def test_a_thinking_model_shows_its_reasoning_before_the_answer(
     }
 
 
+async def test_reading_a_long_prompt_streams_progress_before_the_answer(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The wait before the first token gets a figure that moves: the tokens
+    read so far out of those left to read, with the cached prefix taken out.
+    It is for the wait only, so it is not stored with the turn."""
+    set_prompt_progress(
+        [
+            {"total": 6144, "cache": 2048, "processed": 2048, "time_ms": 0},
+            {"total": 6144, "cache": 2048, "processed": 4096, "time_ms": 300},
+            {"total": 6144, "cache": 2048, "processed": 6144, "time_ms": 600},
+        ]
+    )
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened to revenue?")
+
+    kinds = [event["type"] for event in events]
+    progress = [event for event in events if event["type"] == "prompt-progress"]
+    assert [(event["processed"], event["total"]) for event in progress] == [
+        (0, 4096),
+        (2048, 4096),
+        (4096, 4096),
+    ]
+    last = max(i for i, kind in enumerate(kinds) if kind == "prompt-progress")
+    assert last < kinds.index("delta")
+    answer = "".join(event["text"] for event in events if event["type"] == "delta")
+    assert answer == "Revenue climbed after the launch [1]."
+
+    stored = (await client.get(f"/chat/threads/{thread_id}/messages")).json()
+    assert stored[1]["content"]["text"].startswith("Revenue climbed")
+    assert "progress" not in stored[1]["content"]
+
+
+async def test_a_reply_with_no_progress_streams_as_it_did(
+    client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
+) -> None:
+    """The frame is optional: an endpoint that reports nothing sends none."""
+    workspace_id, _ids = _seed(engine)
+    thread_id = await _open_thread(client, workspace_id)
+
+    events = await _send(client, thread_id, "what happened to revenue?")
+
+    assert "prompt-progress" not in {event["type"] for event in events}
+
+
 async def test_a_followup_never_hands_the_model_its_earlier_reasoning(
     client: AsyncClient, engine: Engine, real_model: object, llamacpp_server: list[dict]
 ) -> None:
@@ -521,7 +573,9 @@ async def test_missing_embedding_assets_are_an_actionable_503(
     with create_session_factory(engine)() as session:
         session.add(
             SelectedModel(
-                model_type=ModelType.TEXT_GEN, provider="llamacpp", name="Qwen3-1.7B-Q4_K_M"
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
             )
         )
         session.commit()
@@ -537,6 +591,30 @@ async def test_missing_embedding_assets_are_an_actionable_503(
         "local embedding model is not installed; "
         "run `uv run scripts/fetch_embedding_model.py`"
     )
+
+
+async def test_chat_before_an_embedder_is_chosen_is_a_409(
+    unlocked_client: AsyncClient, unlocked_engine: Engine
+) -> None:
+    """The API reached before onboarding finishes: say why, rather than guess a model."""
+    with create_session_factory(unlocked_engine)() as session:
+        session.add(
+            SelectedModel(
+                model_type=ModelType.TEXT_GEN,
+                provider="llamacpp",
+                name="Qwen3-1.7B-Q4_K_M",
+            )
+        )
+        session.commit()
+    workspace = (await unlocked_client.post("/workspaces", json={"name": "w"})).json()
+    thread_id = await _open_thread(unlocked_client, workspace["id"])
+
+    reply = await unlocked_client.post(
+        f"/chat/threads/{thread_id}/messages", json={"text": "hi"}
+    )
+
+    assert reply.status_code == 409
+    assert reply.json()["detail"]["code"] == "embedding_not_chosen"
 
 
 async def test_the_answer_reserves_room_instead_of_taking_the_whole_window(

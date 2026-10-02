@@ -12,6 +12,13 @@ import { ThinkingIndicator } from "./thinking-indicator"
 
 export type ReplyReasoning = { text: string; durationMs: number | null }
 
+/** Prompt tokens read so far, out of those the model had left to read. */
+export type ReplyProgress = { processed: number; total: number }
+
+// How coarsely the live region follows the figure: a polite region fed every
+// update is noise.
+const ANNOUNCED_STEP = 0.25
+
 // Streamdown's default rehype pass is raw, sanitize, then harden with every
 // link and image allowed. The trace is model output from the same stream as
 // the answer, so it takes the answer's harden limits instead (message.tsx),
@@ -59,29 +66,57 @@ function replyStatus(
   return working && reasoning.durationMs === null ? "thinking" : "done"
 }
 
-/** What the model is doing before and while it answers: loading, thinking, or done thinking. */
+/** What the model is doing before and while it answers: loading, reading, thinking, or done thinking. */
 export function ReplyThinking({
   running,
   answerStarted,
   reasoning,
+  progress = null,
 }: {
   running: boolean
   answerStarted: boolean
   reasoning: ReplyReasoning | null
+  progress?: ReplyProgress | null
 }) {
   const status = replyStatus(running, answerStarted, reasoning)
   if (!status) {
     return null
   }
-  return <ReplyHeader status={status} reasoning={reasoning} />
+  return (
+    <ReplyHeader
+      status={status}
+      reasoning={reasoning}
+      read={status === "pending" ? readFraction(progress) : null}
+    />
+  )
+}
+
+/** The part of the prompt read, while there is a part still to read. */
+function readFraction(progress: ReplyProgress | null) {
+  if (!progress || progress.processed <= 0) return null
+  if (progress.processed >= progress.total) return null
+  return progress.processed / progress.total
+}
+
+function readingLabel(fraction: number) {
+  return intl.formatMessage(
+    {
+      id: "chat_reasoning_reading_label",
+      defaultMessage: "Reading {percent, number, ::percent}",
+    },
+    { percent: fraction }
+  )
 }
 
 function ReplyHeader({
   status,
   reasoning,
+  read,
 }: {
   status: ReplyStatus
   reasoning: ReplyReasoning | null
+  // The fraction of the prompt read so far, or null with no figure to show.
+  read: number | null
 }) {
   const working = status !== "done"
   // Open while the trace streams and folded once the answer starts, unless the
@@ -106,15 +141,26 @@ function ReplyHeader({
     }
   }, [reasoning?.text, open])
 
-  const label = working
-    ? intl.formatMessage({
-        id: "chat_reasoning_thinking_label",
-        defaultMessage: "Thinking",
-      })
-    : doneLabel(reasoning?.durationMs ?? null)
+  const thinking = intl.formatMessage({
+    id: "chat_reasoning_thinking_label",
+    defaultMessage: "Thinking",
+  })
+  const label = !working
+    ? doneLabel(reasoning?.durationMs ?? null)
+    : read === null
+      ? thinking
+      : readingLabel(read)
+  const announcedRead =
+    read === null ? 0 : Math.floor(read / ANNOUNCED_STEP) * ANNOUNCED_STEP
+  const announcement =
+    announcedRead > 0 ? readingLabel(announcedRead) : thinking
 
   return (
     <div className="mb-3 w-full">
+      {/* Outside the button, whose contents screen readers flatten. */}
+      <span role="status" className="sr-only">
+        {working ? announcement : ""}
+      </span>
       {/* Disabled, not swapped for a plain element, until there is a trace to
           open: swapping would remount the header and restart its motion. */}
       <button

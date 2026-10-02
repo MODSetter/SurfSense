@@ -188,6 +188,7 @@ function toRuntimeMessage(
               durationMs: message.content.reasoning.duration_ms,
             }
           : null,
+        progress: message.content.progress ?? null,
       },
     },
   }
@@ -536,6 +537,25 @@ export function useChatRuntime({
                           content: {
                             ...message.content,
                             citations: event.items,
+                          },
+                        }
+                      : message
+                  ) ?? null
+              )
+            } else if (event.type === "prompt-progress") {
+              const targetId = assistantId
+              setLiveMessages(
+                (current) =>
+                  current?.map((message) =>
+                    message.id === targetId
+                      ? {
+                          ...message,
+                          content: {
+                            ...message.content,
+                            progress: {
+                              processed: event.processed,
+                              total: event.total,
+                            },
                           },
                         }
                       : message

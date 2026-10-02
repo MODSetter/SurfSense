@@ -6,8 +6,10 @@ from sqlalchemy import Engine, text
 from sqlalchemy.orm import Session
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
+from modules.embedding.active import EmbeddingNotChosenError, active_index
+from modules.embedding.bundled import BGE
 from modules.workspaces.models import Workspace
-from shared.config import get_search_settings, get_storage_settings
+from shared.config import get_storage_settings
 from shared.db import create_session_factory
 from worker.ingestion import run
 
@@ -68,7 +70,7 @@ def test_a_note_becomes_ready_and_searchable(
 
     # The stub embeds each chunk from its content, so search for that vector.
     content = session.scalar(text("SELECT content FROM chunks"))
-    width = get_search_settings().embedding_dimension
+    width = BGE.dimension
     nearest = session.scalar(
         text(
             "SELECT rowid FROM chunk_vectors "
@@ -77,6 +79,33 @@ def test_a_note_becomes_ready_and_searchable(
         {"vector": _stub_vector(content, width)},
     )
     assert nearest == chunk[0]
+
+
+def test_a_ready_note_records_the_index_it_was_embedded_into(
+    session: Session, stub_model: None
+) -> None:
+    """What a later re-embed reads to know which documents it has reached."""
+    note = make_note(session)
+
+    run(note.id)
+
+    session.expire_all()
+    assert note.embedding_index_id == active_index(session).id
+
+
+def test_ingest_before_an_embedder_is_chosen_fails_with_a_reason(
+    unlocked_engine: Engine, stub_model: None
+) -> None:
+    """Onboarding gates the UI, not the API: a queued job must not guess a model."""
+    with create_session_factory(unlocked_engine)() as session:
+        note = make_note(session)
+
+        with pytest.raises(EmbeddingNotChosenError):
+            run(note.id)
+
+        session.expire_all()
+        assert note.status is DocumentStatus.FAILED
+        assert "no embedding model" in (note.error_message or "")
 
 
 def test_a_chunk_points_back_at_its_lines(session: Session, stub_model: None) -> None:
@@ -177,11 +206,11 @@ def test_an_embedding_failure_leaves_a_reason(
     """The model files are missing or corrupt: fail the row, keep no chunks."""
     note = make_note(session)
 
-    def boom(texts: list[str]) -> list[list[float]]:
+    def boom(*_args: object) -> list[list[float]]:
         raise RuntimeError("the model could not be loaded")
 
     # Overrides the deterministic embed stub_model installed.
-    monkeypatch.setattr("worker.ingestion.embedding.embed", boom)
+    monkeypatch.setattr("modules.embedding.encoder.embed", boom)
 
     with pytest.raises(RuntimeError, match="could not be loaded"):
         run(note.id)
@@ -259,7 +288,7 @@ def test_the_bundled_encoder_embeds_a_note_offline(
     assert note.status is DocumentStatus.READY
 
     width = session.scalar(text("SELECT length(embedding) / 4 FROM chunks LIMIT 1"))
-    assert width == get_search_settings().embedding_dimension
+    assert width == BGE.dimension
 
     keyword = session.scalar(
         text("SELECT count(*) FROM chunks_fts WHERE chunks_fts MATCH 'Titan'")
