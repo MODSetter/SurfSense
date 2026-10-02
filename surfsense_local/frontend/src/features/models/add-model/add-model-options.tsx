@@ -4,6 +4,7 @@ import { ComputerIcon } from "@/components/ui/icons"
 import { Separator } from "@/components/ui/separator"
 import { intl } from "@/i18n/intl"
 
+import type { ModelType } from "../model-type"
 import type { Connection } from "../remote/connections/api"
 import { ServerCard } from "./server-card"
 
@@ -14,10 +15,13 @@ import { ServerCard } from "./server-card"
  */
 export function AddModelOptions({
   download,
+  modelType,
   onConnected,
 }: {
   /** The slot's catalog for this computer. */
   download: ReactNode
+  /** The slot being filled, so the connect dialog offers only what fills it. */
+  modelType: ModelType
   /** Absent where the slot offers no server. */
   onConnected?: (connection: Connection) => void
 }) {
@@ -25,7 +29,7 @@ export function AddModelOptions({
     <div className="flex flex-col gap-6">
       {onConnected ? (
         <>
-          <ServerCard onConnected={onConnected} />
+          <ServerCard modelType={modelType} onConnected={onConnected} />
           <Separator />
         </>
       ) : null}

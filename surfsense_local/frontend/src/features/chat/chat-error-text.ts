@@ -38,6 +38,18 @@ const chatErrorText: Record<ChatErrorKind, () => string> = {
       defaultMessage:
         "This conversation is too long for the model’s context window. Start a new chat or pick a model with a larger window.",
     }),
+  subscription_sign_in: () =>
+    intl.formatMessage({
+      id: "chat_error_subscription_sign_in",
+      defaultMessage:
+        "Your ChatGPT account needs to sign in again in Model setup.",
+    }),
+  subscription_limit: () =>
+    intl.formatMessage({
+      id: "chat_error_subscription_limit",
+      defaultMessage:
+        "Your ChatGPT plan’s usage limit is reached. It resets on its own; check your usage in ChatGPT’s settings.",
+    }),
   network: () =>
     intl.formatMessage({
       id: "chat_error_network",

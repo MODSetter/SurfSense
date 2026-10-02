@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from modules.egress import service as egress
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.catalog.remote.reads_images import remote_reads_images
+from modules.llm.connections.serves import connection_serves
 from modules.llm.model_type import ModelType
 from modules.llm.models import ProviderConnection, SelectedModel
 from modules.llm.profile import Tier
@@ -20,6 +21,8 @@ from modules.llm.providers.openai_compatible.speech import RemoteSpeech
 from modules.llm.providers.protocols import Generator, ImageGenerator, TextToSpeech
 from modules.llm.providers.sdcpp import provider as sdcpp
 from modules.llm.providers.sdcpp.generator import LocalImageGenerator
+from modules.llm.subscriptions.chatgpt.account import CHATGPT
+from modules.llm.subscriptions.chatgpt.plan_models import plan_generator
 from shared.config import get_llm_settings
 
 
@@ -54,14 +57,16 @@ def resolve_generation(session: Session) -> ResolvedGeneration:
             raise ModelResolutionError("the local runtime is unavailable")
         return ResolvedGeneration(selected, provider)
     connection = _connection(session, selected)
+    reads_images = remote_reads_images(selected.name, connection.catalog_provider)
+    if connection.auth_kind == CHATGPT:
+        return ResolvedGeneration(
+            selected,
+            plan_generator(session.get_bind(), connection, reads_images=reads_images),
+        )
     return ResolvedGeneration(
         selected,
         OpenAICompatibleChatProvider(
-            connection.base_url,
-            connection.api_key,
-            reads_images=remote_reads_images(
-                selected.name, connection.catalog_provider
-            ),
+            connection.base_url, connection.api_key, reads_images=reads_images
         ),
     )
 
@@ -92,6 +97,7 @@ def resolve_image_generation(session: Session) -> ResolvedImageGeneration:
             ),
         )
     connection = _connection(session, selected)
+    _require_serves(connection, ModelType.IMAGE_GEN)
     return ResolvedImageGeneration(
         selected,
         OpenAICompatibleImageProvider(
@@ -125,14 +131,16 @@ def speech_selected(session: Session) -> None:
     if selected.provider == audiocpp.PROVIDER:
         local_speech(selected)
     else:
-        stored_connection(session, selected)
+        _require_serves(stored_connection(session, selected), ModelType.AUDIO_GEN)
 
 
 def resolve_text_to_speech(session: Session) -> TextToSpeech:
     selected = selected_audio(session)
     if selected.provider == audiocpp.PROVIDER:
         return local_speech(selected)
-    return _remote_speech(selected, _connection(session, selected))
+    connection = _connection(session, selected)
+    _require_serves(connection, ModelType.AUDIO_GEN)
+    return _remote_speech(selected, connection)
 
 
 def _remote_speech(
@@ -165,6 +173,11 @@ def local_speech(selected: SelectedModel) -> AudioCppSpeech:
         base_url=audiocpp.base_url(),
         chat_runtime=llamacpp.RouterClient(get_llm_settings().llamacpp_base_url),
     )
+
+
+def _require_serves(connection: ProviderConnection, model_type: ModelType) -> None:
+    if model_type not in connection_serves(connection):
+        raise ModelResolutionError(f"this connection does not serve {model_type.value}")
 
 
 def _connection(session: Session, selected: SelectedModel) -> ProviderConnection:

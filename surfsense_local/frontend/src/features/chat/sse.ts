@@ -45,6 +45,8 @@ export type ChatErrorKind =
   | "provider_unavailable"
   | "model_cannot_run"
   | "context_too_long"
+  | "subscription_sign_in"
+  | "subscription_limit"
   | "network"
   | "timeout"
   | "unknown"

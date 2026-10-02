@@ -295,6 +295,13 @@ function backend({
         ...JSON.parse(String(init.body)),
         id: 9,
         has_api_key: false,
+        serves: [
+          "text_gen",
+          "image_gen",
+          "image_edit",
+          "video_gen",
+          "audio_gen",
+        ],
       }
       connections = [...connections, created]
       return Response.json(created)
@@ -441,6 +448,7 @@ const openRouter = {
   base_url: "https://openrouter.ai/api/v1",
   catalog_provider: "openrouter",
   has_api_key: true,
+  serves: ["text_gen", "image_gen", "image_edit", "video_gen", "audio_gen"],
   created_at: "2026-09-24T00:00:00Z",
   updated_at: "2026-09-24T00:00:00Z",
 }

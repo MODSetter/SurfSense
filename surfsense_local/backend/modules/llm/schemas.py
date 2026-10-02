@@ -54,6 +54,13 @@ class ConnectionRead(BaseModel):
     base_url: str
     catalog_provider: str
     has_api_key: bool
+    # `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account.
+    auth_kind: str = "api_key"
+    # Only for `chatgpt`: whether it holds tokens, and whose.
+    signed_in: bool = False
+    account_email: str | None = None
+    # The slots this connection can fill; decided here, never in the renderer.
+    serves: list[ModelType] = []
     created_at: datetime
     updated_at: datetime
 

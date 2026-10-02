@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import { PlusIcon } from "@/components/ui/icons"
 import type { Connection } from "@/features/models/remote/connections/api"
 import { ConnectionDialog } from "@/features/models/remote/connections/connection-dialog"
-import { useConnections } from "@/features/models/remote/connections/use-connections"
+import { useConnectionsServing } from "@/features/models/remote/connections/use-connections"
 import { ServerModelPicker } from "@/features/models/remote/models/server-model-picker"
 import { intl } from "@/i18n/intl"
 
@@ -22,7 +22,7 @@ export function ServerPath({
   /** A server added before this page opened, whose models to show first. */
   openServerId: number | null
 }) {
-  const connections = useConnections()
+  const connections = useConnectionsServing(modelType)
   const [dialog, setDialog] = useState<Connection | "new" | null>(null)
   const [dialogOpen, setDialogOpen] = useState(false)
   const openDialog = (target: Connection | "new") => {
@@ -69,6 +69,7 @@ export function ServerPath({
       </Button>
       <ConnectionDialog
         open={dialogOpen}
+        modelType={modelType}
         connection={dialog !== null && dialog !== "new" ? dialog : undefined}
         onOpenChange={setDialogOpen}
         onOpenChangeComplete={(open) => {

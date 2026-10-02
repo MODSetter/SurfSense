@@ -53,6 +53,9 @@ SurfSense, Studio, llama.cpp, GGUF, Hugging Face, API, MCP, and every model and 
 | session log | セッションログ | 세션 로그 | 会话日志 | सेशन लॉग | Sitzungsprotokoll | registro de la sesión | journal de session | log da sessão | журнал сеанса |
 | clipboard | クリップボード | 클립보드 | 剪贴板 | क्लिपबोर्ड | Zwischenablage | portapapeles | presse-papiers | área de transferência | буфер обмена |
 | embedding (the model that turns the library into vectors) | 埋め込み | 임베딩 | 嵌入 | एम्बेडिंग | Embedding | embedding | embedding | embedding | эмбеддинг |
+| sign in (to a ChatGPT account) | サインイン | 로그인 | 登录 | साइन इन | anmelden | iniciar sesión | se connecter | entrar | войти |
+| plan (a ChatGPT plan, Plus or Pro) | プラン | 플랜 | 套餐 | प्लान | Plan | plan | forfait | plano | план |
+| subscription (using a ChatGPT plan instead of a key) | サブスクリプション | 구독 | 订阅 | सब्सक्रिप्शन | Abo | suscripción | abonnement | assinatura | подписка |
 
 ## What the English means
 

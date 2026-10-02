@@ -77,7 +77,22 @@ const klein = onDisk(
   "flux-2-klein-4b-Q4_0"
 )
 
-function serving(rows: unknown[]) {
+const chatOnly = {
+  id: 7,
+  label: "ChatGPT",
+  provider: "openai_compatible",
+  base_url: "https://api.openai.com/v1",
+  catalog_provider: "openai",
+  has_api_key: false,
+  auth_kind: "chatgpt",
+  signed_in: true,
+  account_email: "reader@example.com",
+  serves: ["text_gen"],
+  created_at: "2026-10-02T00:00:00Z",
+  updated_at: "2026-10-02T00:00:00Z",
+}
+
+function serving(rows: unknown[], connections: unknown[] = []) {
   return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const path = String(input)
     if (path === "/llm/catalog/local") {
@@ -98,7 +113,7 @@ function serving(rows: unknown[]) {
     if (path.startsWith("/llm/selection/")) {
       return Response.json({ detail: "not selected" }, { status: 404 })
     }
-    if (path === "/llm/connections") return Response.json([])
+    if (path === "/llm/connections") return Response.json(connections)
     return Response.json({ detail: "not found" }, { status: 404 })
   })
 }
@@ -129,5 +144,15 @@ describe("video model settings", () => {
       })
     })
     expect(screen.queryByText(/FLUX.2 klein/)).toBeNull()
+  })
+
+  it("leaves out a server that cannot make video, and says none is set up", async () => {
+    // Its `serves` is the backend's word: a chat-only plan fills no video slot.
+    vi.stubGlobal("fetch", serving([], [chatOnly]))
+
+    render(<VideoModelsSettings onModelUnavailable={() => undefined} />)
+
+    expect(await screen.findByText("No video model yet")).toBeTruthy()
+    expect(screen.queryByText("ChatGPT")).toBeNull()
   })
 })

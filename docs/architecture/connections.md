@@ -40,6 +40,8 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 | `catalog_provider` | the remote manifest provider this reaches, such as `openai` or `neon`, or `custom` for an endpoint the manifest does not list; stored as chosen, never read from the URL |
 | `base_url` | the exact API root, normally ending in `/v1`, stored without a trailing slash |
 | `api_key_ciphertext` | the Fernet-encrypted key, nullable, never returned by any route |
+| `auth_kind` | `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account, enforced by a CHECK; added in place by `0023`, so existing rows read `api_key` |
+| `oauth_ciphertext`, `token_version` | a `chatgpt` row's encrypted token set and its refresh counter ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
 | `created_at`, `updated_at` | |
 
 A base URL must be `http` or `https` with a host, and may not carry credentials, a query or a fragment. Private, loopback and link-local hosts are valid: the API binds to loopback, and reaching internal endpoints is the point. If the API ever binds externally, this becomes an SSRF boundary and has to be redesigned first.
@@ -50,7 +52,7 @@ A base URL must be `http` or `https` with a host, and may not carry credentials,
 
 | Method | Path | Does |
 |---|---|---|
-| `GET` | `/llm/connections` | list, by label, with `has_api_key` and never the key |
+| `GET` | `/llm/connections` | list, by label, with `has_api_key` and never the key, and `serves`, the slots each can fill |
 | `POST` | `/llm/connections` | create; `201` |
 | `PUT` | `/llm/connections/{connection_id}` | replace |
 | `DELETE` | `/llm/connections/{connection_id}` | delete it and the selections that use it; `204` |
@@ -58,6 +60,8 @@ A base URL must be `http` or `https` with a host, and may not carry credentials,
 | `POST` | `/llm/connections/{connection_id}/chat-test` | one short answer from a chosen model |
 | `POST` | `/llm/connections/{connection_id}/image-test` | one image from a chosen model |
 | `POST` | `/llm/connections/{connection_id}/speech-test` | one spoken line from a chosen model |
+
+A ChatGPT connection is created by signing in, not by this write body, and its own routes are in [`chatgpt-subscription.md`](chatgpt-subscription.md#signing-in).
 
 The write body:
 
@@ -133,6 +137,7 @@ Images go through `OpenAICompatibleImageProvider`:
 ```text
 text_gen          llamacpp                   → the supervised llama-server
                   openai_compatible + id     → load the connection → chat provider
+                                                 (auth_kind chatgpt → the Responses generator)
 image_gen         sdcpp                      → the image provider at sd-server's loopback URL
                   openai_compatible + id     → load the connection → image provider
 ```
@@ -165,7 +170,7 @@ Keys are protected by envelope encryption ([ADR 0018](../adr/0018-keychain-envel
 
 ## Frontend
 
-- Each model section in Settings, Chat and Image, shows every connection as a group under the local models. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; the model in use, if it comes from that server, stays shown above the list whether the group is open or closed. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model's row shows its type chips, and a Vision chip when `reads_images` is true. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page. Adding and editing a connection happen in a dialog over the page. Saving a new connection returns to the list with its group open on its models, since choosing one is why it was added; saving an edit only refreshes.
+- Each model section in Settings shows, as a group under the local models, every connection whose `serves` includes that section's slot. `serves` comes from one backend rule ([`serves.py`](../../surfsense_local/backend/modules/llm/connections/serves.py)): every slot for a key connection, `text_gen` alone for a ChatGPT one. The section's empty state counts only those connections. A group loads its models only when opened, so a slow or failed endpoint does not hold up the others, and lists only those whose `selectable_for` includes that section's slot; the model in use, if it comes from that server, stays shown above the list whether the group is open or closed. Open, its list scrolls inside its own capped-height area rather than lengthening the page. A model's row shows its type chips, and a Vision chip when `reads_images` is true. A model is assigned after an optional test; an exact ID the listing lacks can be typed in. A new connection is added from **Use a server** on the section's **Add model** page. Adding and editing a connection happen in a dialog over the page. Saving a new connection returns to the list with its group open on its models, since choosing one is why it was added; saving an edit only refreshes.
 - Edit and Disconnect sit on each group. Edit opens the same form in that dialog. A connection serves every slot, so Disconnect names each model it will clear, Chat, Image or both, whichever section it is disconnected from.
 - Onboarding's model steps use the same groups and the same dialog; with nothing connected yet, their **Connect** opens the dialog directly, and saving opens the server page on the new connection's models.
 - The connection form picks a provider from the remote manifest, through `GET /llm/catalog/remote`, or "Local or custom server". A ready provider fills its URL, which stays editable so a proxy in front of it still works; a provider that needs account details asks for each field and builds the URL from its template; a provider that needs a URL leaves it to the user; an unreachable one is listed, disabled, with its reason. A provider that takes no key, a loopback server, hides the key field. "Local or custom server" leaves the URL to the user, since its port is whatever its owner set, with `http://localhost:11434/v1` as placeholder text only; a loopback server the manifest lists, such as LM Studio, fills the manifest's URL like any ready provider. The save sends `catalog_provider`.

@@ -262,6 +262,13 @@ describe("SettingsDialog", () => {
               provider: "openai_compatible",
               base_url: "https://openrouter.ai/api/v1",
               has_api_key: true,
+              serves: [
+                "text_gen",
+                "image_gen",
+                "image_edit",
+                "video_gen",
+                "audio_gen",
+              ],
               created_at: "2026-09-09T00:00:00Z",
               updated_at: "2026-09-09T00:00:00Z",
             },
