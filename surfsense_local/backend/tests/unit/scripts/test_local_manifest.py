@@ -205,6 +205,7 @@ def test_the_list_is_most_preferred_first() -> None:
     # bge first: it ships with the app and is the default.
     assert [e.id for e in ENTRIES if isinstance(e, EmbeddingEntry)] == [
         "bge-small-en-v1.5",
+        "multilingual-e5-small",
         "granite-embedding-97m-multilingual-r2",
         "granite-embedding-311m-multilingual-r2",
     ]
