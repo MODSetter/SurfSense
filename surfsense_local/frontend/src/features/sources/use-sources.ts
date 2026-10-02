@@ -7,10 +7,13 @@ import { intl } from "@/i18n/intl"
 
 import {
   cancelDocument,
+  createNote,
   deleteDocument,
+  getDocument,
   isSupportedSourceFile,
   listDocuments,
   retryDocument,
+  updateDocument,
   uploadDocuments,
   type WorkspaceDocument,
 } from "./api"
@@ -240,6 +243,83 @@ export function useSources(workspaceId: number) {
     } catch (cause) {
       setError(messageFrom(cause))
     }
+  }
+
+  const replace = (updated: WorkspaceDocument) =>
+    setDocuments((current) =>
+      current.map((document) =>
+        document.id === updated.id ? updated : document
+      )
+    )
+
+  // Each answers whether it saved, so its dialog closes only then, and says why
+  // not in a toast: the panel's alert sits behind the dialog. An edited note
+  // comes back pending, and the ingestion poll carries it to ready.
+  const noteFailed = (cause: unknown) =>
+    errorToast(
+      intl.formatMessage({
+        id: "sources_note_save_toast",
+        defaultMessage: "Couldn’t save the note",
+      }),
+      { description: messageFrom(cause) }
+    )
+
+  const writeNote = async (title: string, content: string) => {
+    try {
+      const created = await createNote(workspaceId, { title, content })
+      // The server announces the note before it answers, so a refetch may
+      // already hold it.
+      setDocuments((current) => [
+        created,
+        ...current.filter((document) => document.id !== created.id),
+      ])
+      return true
+    } catch (cause) {
+      noteFailed(cause)
+      return false
+    }
+  }
+
+  const rename = async (documentId: number, title: string) => {
+    try {
+      replace(await updateDocument(workspaceId, documentId, { title }))
+      return true
+    } catch (cause) {
+      errorToast(
+        intl.formatMessage({
+          id: "sources_rename_toast",
+          defaultMessage: "Couldn’t rename the source",
+        }),
+        { description: messageFrom(cause) }
+      )
+      return false
+    }
+  }
+
+  // Content only when it changed: sending it re-ingests the note.
+  const editNote = async (
+    documentId: number,
+    title: string,
+    content?: string
+  ) => {
+    try {
+      replace(
+        await updateDocument(
+          workspaceId,
+          documentId,
+          content === undefined ? { title } : { title, content }
+        )
+      )
+      return true
+    } catch (cause) {
+      noteFailed(cause)
+      return false
+    }
+  }
+
+  const loadNote = async (documentId: number) => {
+    const document = await getDocument(workspaceId, documentId)
+    return { title: document.title, content: document.content ?? "" }
   }
 
   const upload = async (files: File[]) => {
@@ -521,6 +601,10 @@ export function useSources(workspaceId: number) {
     revealOriginal,
     retry,
     cancel,
+    rename,
+    writeNote,
+    editNote,
+    loadNote,
     deleteOne,
     deleteSelected,
     setDocumentSelected,

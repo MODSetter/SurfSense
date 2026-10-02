@@ -311,6 +311,12 @@ function WorkspaceDashboard({
                   onDeleteSelected={() => void sources.deleteSelected()}
                   onSelectionChange={sources.setDocumentIncluded}
                   onToggleAll={sources.toggleAllIncluded}
+                  onRename={sources.rename}
+                  notes={{
+                    write: sources.writeNote,
+                    load: sources.loadNote,
+                    edit: sources.editNote,
+                  }}
                 />
               </aside>
             }
