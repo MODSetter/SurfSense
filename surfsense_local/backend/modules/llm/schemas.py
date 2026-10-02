@@ -3,6 +3,7 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field
 
 from modules.llm.connections.service import CapabilitySource
+from modules.llm.image_server_state import ImageServerState
 from modules.llm.model_type import ModelType
 from modules.llm.profile import Tier
 
@@ -84,6 +85,12 @@ class LocalImageRuntimeRead(BaseModel):
 
     files: list[RuntimeFileRead]
     args: list[str]
+
+
+class LocalImageStateRead(BaseModel):
+    """What the screen may say about the chosen local image model's server."""
+
+    state: ImageServerState
 
 
 class ModelTestWrite(BaseModel):

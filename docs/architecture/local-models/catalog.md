@@ -613,8 +613,8 @@ The chat catalog, from the top:
   above the rows, never per row. Download stays offered, because an install
   still downloads while the runtime is down and ends with an honest message
   ([`runtime.md`](runtime.md#failure-behavior)); the notice says so and that a
-  restart of SurfSense starts the runtime. The image and audio pages read no
-  server state; whether sd-server is up is its own gap below.
+  restart of SurfSense starts the runtime. The audio page reads no server
+  state; the image page asks for sd-server's, as its section below says.
 - **Tested by SurfSense**: the curated rows, grouped by family. Each shows the
   star when it is the one for this computer, its name, a badge only when it warns,
   **Vision** when it reads images, the build it leads with and its size, and one
@@ -647,6 +647,13 @@ Rules the screen holds:
   it only downloads without selecting, so a model is chosen with Use once it is
   on disk. Every downloaded model has Delete, the one in use included: the API
   clears every slot that named it, and Electron stops sd-server on its next poll.
+  The row in use says what its server is doing, from `GET
+  /llm/image/local/state?model_type=…`: it starts when Studio needs it, or it is
+  running. The route also answers `missing` when a file the chosen model needs
+  is gone; that build is then no longer installed and has no row, and the
+  in-use summary names it "Not found on this computer". The route asks
+  sd-server's `/sdapi/v1/sd-models` once and never starts it; the screen asks
+  every five seconds, and only while a local model fills the slot.
 - The image editing section is the image section's parts for `image_edit`: only
   models whose entry names `edit`, each marked In use by the build's
   `selected_for`, which lists the slots that chose it, so FLUX.2 klein in use for
@@ -679,6 +686,5 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 - Of `sampling`, chat sends only `temperature` ([`runtime.md`](runtime.md)); `top_p`, `top_k` and `min_p` wait on the `Generator` protocol carrying them. `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
 - A curated file that can no longer be fetched at its pinned commit, because the repo was deleted, gated or made private, gets the generic install error, and so does a checksum mismatch; nothing says which.
-- Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it only when a Studio job needs it. The hard-coded list's route reported that, and went with it.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.

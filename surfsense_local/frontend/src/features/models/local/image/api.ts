@@ -1,3 +1,5 @@
+import { requestJson } from "@/lib/api"
+
 import type { ModelType } from "../../model-type"
 import { deleteLocalModel, getModelCatalog, type LocalRow } from "../chat/api"
 
@@ -32,4 +34,19 @@ export async function getLocalImageRows(
 
 export function deleteLocalImageModel(installedAs: string) {
   return deleteLocalModel(installedAs)
+}
+
+/** What the chosen local model's sd-server is doing. `idle`: it starts when
+ *  Studio needs it; `missing`: a file is gone, so it cannot start. */
+export type ImageServerState = "none" | "idle" | "running" | "missing"
+
+export async function getLocalImageState(
+  slot: SdCppSlot,
+  signal?: AbortSignal
+): Promise<ImageServerState> {
+  const reply = await requestJson<{ state: ImageServerState }>(
+    `/llm/image/local/state?model_type=${slot}`,
+    { signal }
+  )
+  return reply.state
 }

@@ -262,6 +262,15 @@ async def send_message(
                 async for delta in generator.chat_deltas(
                     selected.name, messages, max_tokens=answer_max_tokens(n_ctx)
                 ):
+                    if delta.progress is not None:
+                        yield _frame(
+                            {
+                                "type": "prompt-progress",
+                                "processed": delta.progress.processed,
+                                "total": delta.progress.total,
+                            }
+                        )
+                        continue
                     if delta.reasoning:
                         trace.add(delta.text)
                         yield _frame({"type": "reasoning", "text": delta.text})

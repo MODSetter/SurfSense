@@ -151,6 +151,54 @@ describe("image model settings", () => {
     expect(screen.queryByText(/Qwen3 8B/)).toBeNull()
   })
 
+  it.each([
+    ["idle", "Starts when Studio needs it"],
+    ["running", "Running"],
+  ])(
+    "says what the chosen image model's server is doing: %s",
+    async (state, said) => {
+      vi.stubGlobal(
+        "fetch",
+        serving(
+          [imageRow({ installed_as: "sdxl-turbo-q4_0", selected: true })],
+          (path) =>
+            path === "/llm/image/local/state?model_type=image_gen"
+              ? Response.json({ state })
+              : null
+        )
+      )
+      render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
+
+      expect(await screen.findByText(said)).toBeTruthy()
+    }
+  )
+
+  it("names a chosen image model whose files are gone as not found", async () => {
+    // A missing file leaves the build uninstalled, so it has no row to note.
+    vi.stubGlobal(
+      "fetch",
+      serving([imageRow({ installed_as: null })], (path, init) => {
+        if (path === "/llm/image/local/state?model_type=image_gen") {
+          return Response.json({ state: "missing" })
+        }
+        if (path === "/llm/selection/image_gen" && !init?.method) {
+          return Response.json({
+            model_type: "image_gen",
+            provider: "sdcpp",
+            connection_id: null,
+            name: "sdxl-turbo-q4_0",
+            updated_at: "2026-09-24T00:00:00Z",
+          })
+        }
+        return null
+      })
+    )
+    render(<ImageModelsSettings onModelUnavailable={() => undefined} />)
+
+    expect(await screen.findByText("Not found on this computer")).toBeTruthy()
+    expect(screen.getByText("sdxl-turbo-q4_0")).toBeTruthy()
+  })
+
   it("deletes the image model in use, like chat", async () => {
     const fetchMock = serving(
       [imageRow({ installed_as: "sdxl-turbo-q4_0", selected: true })],

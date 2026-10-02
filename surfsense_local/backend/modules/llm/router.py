@@ -16,6 +16,7 @@ from modules.llm.catalog.local.router import router as local_catalog_router
 from modules.llm.catalog.remote.router import router as remote_catalog_router
 from modules.llm.connections.router import router as connections_router
 from modules.llm.dependencies import ProviderDep
+from modules.llm.local_image_state import local_image_state
 from modules.llm.model_type import ModelType
 from modules.llm.models import OnboardingCompletion, SelectedModel
 from modules.llm.providers import get_provider, llamacpp, provider_names
@@ -27,6 +28,7 @@ from modules.llm.reads_images import (
 from modules.llm.residency import warm_selected
 from modules.llm.schemas import (
     LocalImageRuntimeRead,
+    LocalImageStateRead,
     ModelDeleteRead,
     ModelRead,
     OnboardingComplete,
@@ -249,6 +251,21 @@ def _slot(model_type: ModelType) -> ModelType:
 
 
 SlotDep = Annotated[ModelType, Depends(_slot)]
+
+
+@router.get(
+    "/image/local/state",
+    response_model=LocalImageStateRead,
+    summary="Whether the chosen local image model is running, without starting it",
+)
+async def read_local_image_state(
+    session: SessionDep,
+    service: LocalCatalogDep,
+    model_type: ModelType = ModelType.IMAGE_GEN,
+) -> LocalImageStateRead:
+    return LocalImageStateRead(
+        state=await local_image_state(session, service, model_type)
+    )
 
 
 @router.get(
