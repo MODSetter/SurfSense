@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { cleanup, screen } from "@testing-library/react"
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react"
 
@@ -19,7 +19,13 @@ const MODEL: ModelSelection = {
   updated_at: "2026-09-05T00:00:00Z",
 }
 
-function Harness({ model = MODEL }: { model?: ModelSelection }) {
+function Harness({
+  model = MODEL,
+  onUploadSources,
+}: {
+  model?: ModelSelection
+  onUploadSources?: (files: File[]) => void
+}) {
   const runtime = useLocalRuntime({ run: async () => ({ content: [] }) })
   return (
     <AssistantRuntimeProvider runtime={runtime}>
@@ -32,9 +38,17 @@ function Harness({ model = MODEL }: { model?: ModelSelection }) {
         onModelSetup={() => undefined}
         onModelSelected={() => undefined}
         readsImages={false}
+        onUploadSources={onUploadSources}
       />
     </AssistantRuntimeProvider>
   )
+}
+
+async function openThinking(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByRole("button", { name: "Add images, sources, and more" })
+  )
+  return screen.findByRole("menuitemcheckbox", { name: /^Thinking/ })
 }
 
 afterEach(() => {
@@ -75,12 +89,12 @@ describe("chat composer", () => {
       </TooltipProvider>
     )
 
-    const toggle = screen.getByRole("button", { name: "Thinking" })
-    expect(toggle.getAttribute("aria-pressed")).toBe("true")
+    const toggle = await openThinking(user)
+    expect(toggle.getAttribute("aria-checked")).toBe("true")
     expect(readThinkingOn()).toBe(true)
     await user.click(toggle)
 
-    expect(toggle.getAttribute("aria-pressed")).toBe("false")
+    expect(toggle.getAttribute("aria-checked")).toBe("false")
     expect(readThinkingOn()).toBe(false)
 
     first.unmount()
@@ -89,11 +103,9 @@ describe("chat composer", () => {
         <Harness />
       </TooltipProvider>
     )
-    expect(
-      screen
-        .getByRole("button", { name: "Thinking" })
-        .getAttribute("aria-pressed")
-    ).toBe("false")
+    expect((await openThinking(user)).getAttribute("aria-checked")).toBe(
+      "false"
+    )
   })
 
   it("sends what the switch shows when the choice cannot be stored", async () => {
@@ -113,10 +125,10 @@ describe("chat composer", () => {
       </TooltipProvider>
     )
 
-    const toggle = screen.getByRole("button", { name: "Thinking" })
+    const toggle = await openThinking(user)
     await user.click(toggle)
 
-    expect(toggle.getAttribute("aria-pressed")).toBe("false")
+    expect(toggle.getAttribute("aria-checked")).toBe("false")
     expect(readThinkingOn()).toBe(false)
 
     setItem.mockRestore()
@@ -138,11 +150,49 @@ describe("chat composer", () => {
       </TooltipProvider>
     )
 
-    const toggle = screen.getByRole("button", { name: "Thinking" })
+    const toggle = await openThinking(user)
     expect(toggle.getAttribute("aria-disabled")).toBe("true")
-    expect(toggle.getAttribute("aria-pressed")).toBe("true")
+    expect(toggle.getAttribute("aria-checked")).toBe("true")
+    await user.hover(toggle)
+    await waitFor(() =>
+      expect(
+        screen.getAllByText("Only a local model can answer without thinking")
+      ).toHaveLength(2)
+    )
     await user.click(toggle)
 
     expect(readThinkingOn()).toBe(true)
+  })
+
+  it("uploads sources picked from the add menu", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    const opened: HTMLInputElement[] = []
+    vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(function (
+      this: HTMLInputElement
+    ) {
+      opened.push(this)
+    })
+    const onUploadSources = vi.fn()
+    const user = userEvent.setup()
+    render(
+      <TooltipProvider>
+        <Harness onUploadSources={onUploadSources} />
+      </TooltipProvider>
+    )
+
+    await user.click(
+      screen.getByRole("button", { name: "Add images, sources, and more" })
+    )
+    await user.click(
+      await screen.findByRole("menuitem", { name: /^Upload sources/ })
+    )
+
+    expect(opened).toHaveLength(1)
+    const file = new File(["notes"], "notes.md", { type: "text/markdown" })
+    fireEvent.change(opened[0]!, { target: { files: [file] } })
+    expect(onUploadSources).toHaveBeenCalledWith([file])
   })
 })

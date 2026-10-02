@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import {
+  act,
   cleanup,
   fireEvent,
   screen,
@@ -11,6 +12,7 @@ import userEvent from "@testing-library/user-event"
 import { ThemeProvider } from "@/components/theme-provider"
 import { DETAIL_RAIL_WIDTH, MAIN_RAIL_WIDTH } from "@/components/ui/slide-rail"
 import { TooltipProvider } from "@/components/ui/tooltip"
+import { IssueReportDialog } from "@/features/feedback/issue-report-dialog"
 import { render } from "@/test-utils"
 
 import { readSourcePreview, RIGHT_PANEL_KEY } from "./chrome-prefs"
@@ -333,7 +335,7 @@ describe("dashboard chat", () => {
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
     const addSources = screen.getByRole("button", {
-      name: "Attach images",
+      name: "Add images, sources, and more",
     })
     expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
@@ -359,12 +361,12 @@ describe("dashboard chat", () => {
       expect(bottomComposer?.closest("[data-chat-viewport]")).toBeTruthy()
       expect(
         screen
-          .getByRole("button", { name: "Attach images" })
+          .getByRole("button", { name: "Add images, sources, and more" })
           .closest('[data-composer-placement="bottom"]')
       ).toBeTruthy()
       expect(
         screen.getByRole("button", {
-          name: "Attach images",
+          name: "Add images, sources, and more",
         }).className
       ).toContain("-mr-1.5")
     })
@@ -807,7 +809,7 @@ describe("dashboard chat", () => {
     })
   })
 
-  it("previews a PDF in a left rail and restores the right panel preference", async () => {
+  it("previews a PDF in place of the left sidebar and keeps the right panel open", async () => {
     const pdf = {
       id: 42,
       title: "report.pdf",
@@ -863,7 +865,8 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
     const rightRail = document.querySelector("#workspace-right-panel")
       ?.parentElement?.parentElement as HTMLElement
-    expect(rightRail.style.width).toBe("0px")
+    expect(rightRail.style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
+    expect(screen.queryByRole("button", { name: "New chat" })).toBeNull()
     expect(readSourcePreview(workspace.id)).toBe(42)
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -876,8 +879,87 @@ describe("dashboard chat", () => {
       screen.getByRole("button", { name: "Close source preview" })
     )
     expect(readSourcePreview(workspace.id)).toBeNull()
+    expect(screen.getByRole("button", { name: "New chat" })).toBeTruthy()
     expect(rightRail.style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
     expect(localStorage.getItem(RIGHT_PANEL_KEY)).toBe("open")
+  })
+
+  it("opens Settings on Report issue from the Help menu", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input) === "/llm/providers"
+          ? Response.json([
+              { name: "llamacpp", healthy: true, can_download: true },
+            ])
+          : Response.json([])
+      )
+    )
+    let reportIssue = () => {}
+    window.surfsense = {
+      ...window.surfsense!,
+      help: {
+        onReportIssue: (listener) => {
+          reportIssue = listener
+          return () => {}
+        },
+      },
+    }
+
+    render(
+      <TooltipProvider>
+        <IssueReportDialog />
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={null}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    act(() => reportIssue())
+
+    expect(
+      await screen.findByRole("heading", { level: 2, name: "Report issue" })
+    ).toBeTruthy()
+    expect(screen.queryByRole("dialog", { name: "Report an issue" })).toBeNull()
+    delete window.surfsense?.help
+  })
+
+  it("leaves the Help menu to the popup when there is no workspace", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json([]))
+    )
+    let reportIssue = () => {}
+    window.surfsense = {
+      ...window.surfsense!,
+      help: {
+        onReportIssue: (listener) => {
+          reportIssue = listener
+          return () => {}
+        },
+      },
+    }
+
+    render(
+      <TooltipProvider>
+        <IssueReportDialog />
+        <DashboardPage
+          selection={null}
+          initialWorkspaces={[]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    act(() => reportIssue())
+
+    expect(
+      await screen.findByRole("dialog", { name: "Report an issue" })
+    ).toBeTruthy()
+    delete window.surfsense?.help
   })
 
   it("surfaces a message request failure inside the conversation", async () => {
@@ -1107,7 +1189,13 @@ describe("dashboard chat", () => {
     )
 
     await screen.findByRole("textbox", { name: "Message" })
-    await user.click(screen.getByRole("button", { name: "Thinking" }))
+    await user.click(
+      screen.getByRole("button", { name: "Add images, sources, and more" })
+    )
+    await user.click(
+      await screen.findByRole("menuitemcheckbox", { name: /^Thinking/ })
+    )
+    await user.keyboard("{Escape}")
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Quick one"

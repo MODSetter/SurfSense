@@ -97,10 +97,7 @@ function MachineMeters({
       })}
     </p>
   ) : (
-    <div className="flex flex-col gap-4 py-1">
-      <Skeleton className="h-2 w-full" />
-      <Skeleton className="h-2 w-full" />
-    </div>
+    <Skeleton className="h-24 w-full" />
   )
 }
 

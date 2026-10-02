@@ -2,7 +2,6 @@ import { useState } from "react"
 
 import { Button } from "@/components/ui/button"
 import { DetailPanel } from "@/components/ui/detail-panel"
-import { FolderOpenIcon, ViewIcon } from "@/components/ui/icons"
 import type { WorkspaceDocument } from "@/features/sources/api"
 import { originalDocumentUrl } from "@/features/sources/api"
 import { intl } from "@/i18n/intl"
@@ -12,13 +11,11 @@ export function SourcePreviewPanel({
   workspaceId,
   document,
   onOpen,
-  onReveal,
   onClose,
 }: {
   workspaceId: number
   document: WorkspaceDocument
   onOpen: () => void
-  onReveal: () => void
   onClose: () => void
 }) {
   const [actionsContainer, setActionsContainer] =
@@ -45,36 +42,15 @@ export function SourcePreviewPanel({
         <>
           <div ref={setActionsContainer} className="flex items-center gap-1" />
           <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={intl.formatMessage({
-              id: "source_preview_panel_open_aria",
-              defaultMessage: "Open source",
-            })}
-            title={intl.formatMessage({
-              id: "source_preview_panel_open_tooltip",
-              defaultMessage: "Open source",
-            })}
+            variant="default"
+            size="sm"
+            className="h-6 px-1.5 text-[11px]"
             onClick={onOpen}
           >
-            <ViewIcon />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label={intl.formatMessage({
-              id: "source_preview_panel_reveal_aria",
-              defaultMessage: "Show source in folder",
+            {intl.formatMessage({
+              id: "source_preview_panel_open_file_button",
+              defaultMessage: "Open file",
             })}
-            title={intl.formatMessage({
-              id: "source_preview_panel_reveal_tooltip",
-              defaultMessage: "Show in folder",
-            })}
-            onClick={onReveal}
-          >
-            <FolderOpenIcon />
           </Button>
         </>
       }
