@@ -9,7 +9,8 @@ import { completeOnboarding } from "./api"
 /**
  * Marks onboarding done and hands the app its chat model. Only this may call
  * the route, and only once a chat model is chosen: the image model is optional,
- * so Skip and Finish end the same way.
+ * so Skip and Finish end the same way. The search model passed in is fixed
+ * here, for good; null means the one SurfSense ships.
  */
 export function useFinishOnboarding(
   onComplete: (selection: ModelSelection) => void
@@ -18,7 +19,7 @@ export function useFinishOnboarding(
   const [finishing, setFinishing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const finish = async () => {
+  const finish = async (embeddingModel: string | null = null) => {
     const selection = chat.data
     if (!selection) {
       setError(
@@ -32,7 +33,7 @@ export function useFinishOnboarding(
     setFinishing(true)
     setError(null)
     try {
-      await completeOnboarding()
+      await completeOnboarding(embeddingModel)
       onComplete(selection)
     } catch (cause) {
       setError(

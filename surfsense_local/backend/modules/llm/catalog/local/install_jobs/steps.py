@@ -78,6 +78,10 @@ async def install_steps(
         if step.kind == "complete":
             ready = step.message
             continue
+        # The model is on disk and the engine refused it: say why, and stop.
+        if step.kind == "error":
+            yield {"type": "error", "message": step.message}
+            return
         yield {"type": step.kind, "message": step.message, "progress": step.progress}
     selection = None
     if select:

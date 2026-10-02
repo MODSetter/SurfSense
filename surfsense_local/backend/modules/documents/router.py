@@ -7,6 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import and_, delete, func, or_, select
 
 from api.dependencies import SessionDep
+from api.notify import notify_document_deleted, notify_document_updates
 from modules.chunks.models import Chunk
 from modules.documents.dependencies import DocumentDep
 from modules.documents.models import Document, DocumentStatus, DocumentType
@@ -30,6 +31,8 @@ from modules.documents.storage import (
     validate_upload,
 )
 from modules.documents.tasks import ingest_document
+from modules.embedding.dependencies import EMBEDDER_CHOSEN
+from modules.events.dependencies import EventBrokerDep
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
 from worker.jobs import cancel_ingest_job
@@ -147,11 +150,15 @@ def read_document(document: DocumentDep) -> Document:
 @router.post(
     "",
     response_model=DocumentDetail,
+    dependencies=[EMBEDDER_CHOSEN],
     status_code=status.HTTP_201_CREATED,
     summary="Write a note",
 )
 def create_note(
-    payload: NoteCreate, workspace: WorkspaceDep, session: SessionDep
+    payload: NoteCreate,
+    workspace: WorkspaceDep,
+    session: SessionDep,
+    broker: EventBrokerDep,
 ) -> Document:
     # A note arrives as text, so nothing needs parsing, but it stays pending
     # until the worker has chunked and indexed it: ready means searchable.
@@ -160,22 +167,28 @@ def create_note(
         title=payload.title,
         document_type=DocumentType.NOTE,
         content=payload.content,
+        document_metadata=payload.document_metadata,
     )
     session.add(note)
     session.commit()
 
     ingest_document(note.id)
+    notify_document_updates(broker, note)
     return note
 
 
 @router.post(
     "/upload",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=UploadOutcome,
     status_code=status.HTTP_201_CREATED,
     summary="Upload files",
 )
 def upload_documents(
-    files: list[UploadFile], workspace: WorkspaceDep, session: SessionDep
+    files: list[UploadFile],
+    workspace: WorkspaceDep,
+    session: SessionDep,
+    broker: EventBrokerDep,
 ) -> UploadOutcome:
     storage = get_storage_settings()
     created: list[Document] = []
@@ -257,22 +270,30 @@ def upload_documents(
 
     for document, _, _ in accepted:
         ingest_document(document.id)
+        notify_document_updates(broker, document)
 
     return UploadOutcome(created=created, duplicates=duplicates, rejected=rejected)
 
 
 @router.patch(
     "/{document_id}",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=DocumentRead,
     summary="Edit a document",
 )
 def update_document(
-    document: DocumentDep, payload: DocumentUpdate, session: SessionDep
+    document: DocumentDep,
+    payload: DocumentUpdate,
+    session: SessionDep,
+    broker: EventBrokerDep,
 ) -> Document:
     if payload.title is not None:
         document.title = payload.title
 
     if payload.content is None:
+        # A rename runs no ingest, so no worker would notify of it.
+        session.commit()
+        notify_document_updates(broker, document)
         return document
 
     if document.document_type is not DocumentType.NOTE:
@@ -288,15 +309,19 @@ def update_document(
     session.commit()
 
     ingest_document(document.id)
+    notify_document_updates(broker, document)
     return document
 
 
 @router.post(
     "/{document_id}/retry",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=DocumentRead,
     summary="Requeue a failed or cancelled document",
 )
-def retry_document(document: DocumentDep, session: SessionDep) -> Document:
+def retry_document(
+    document: DocumentDep, session: SessionDep, broker: EventBrokerDep
+) -> Document:
     # Otherwise failed/cancelled is terminal: the same bytes re-uploaded are a duplicate.
     if document.status not in (DocumentStatus.FAILED, DocumentStatus.CANCELLED):
         raise HTTPException(
@@ -309,6 +334,7 @@ def retry_document(document: DocumentDep, session: SessionDep) -> Document:
     session.commit()
 
     ingest_document(document.id)
+    notify_document_updates(broker, document)
     return document
 
 
@@ -317,9 +343,12 @@ def retry_document(document: DocumentDep, session: SessionDep) -> Document:
     response_model=DocumentRead,
     summary="Stop a queued or running ingest",
 )
-def cancel_ingest(document: DocumentDep, session: SessionDep) -> Document:
+def cancel_ingest(
+    document: DocumentDep, session: SessionDep, broker: EventBrokerDep
+) -> Document:
     if not cancel_ingest_job(session, document):
         raise HTTPException(status.HTTP_409_CONFLICT, "nothing is running")
+    notify_document_updates(broker, document)
     return document
 
 
@@ -349,11 +378,14 @@ def read_original(document: DocumentDep) -> FileResponse:
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a document",
 )
-def delete_document(document: DocumentDep, session: SessionDep) -> Response:
+def delete_document(
+    document: DocumentDep, session: SessionDep, broker: EventBrokerDep
+) -> Response:
     # Chunks cascade and their triggers clear both indexes. Only the bytes are
     # beyond the database, and go after the commit a rollback would undo.
     storage = get_storage_settings()
-    directories = [storage.document_dir(document.workspace_id, document.id)]
+    workspace_id, document_id = document.workspace_id, document.id
+    directories = [storage.document_dir(workspace_id, document_id)]
     # A Studio output keeps its rendered blobs under its artifact's own id.
     if document.artifact is not None:
         directories.append(
@@ -376,4 +408,5 @@ def delete_document(document: DocumentDep, session: SessionDep) -> Response:
 
     for directory in directories:
         shutil.rmtree(directory, ignore_errors=True)
+    notify_document_deleted(broker, workspace_id, document_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

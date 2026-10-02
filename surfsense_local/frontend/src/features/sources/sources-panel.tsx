@@ -48,6 +48,7 @@ import {
 import { ScrollFade } from "@/components/ui/scroll-fade"
 import { SkeletonSlabs } from "@/components/ui/skeleton"
 import { SOURCE_FILE_ACCEPT, type WorkspaceDocument } from "./api"
+import { getFileViewer } from "@/features/file-viewers/registry"
 import { useFileDrop } from "./use-file-drop"
 import { useModifierHeld } from "@/hooks/use-modifier-held"
 import { Input } from "@/components/ui/input"
@@ -66,6 +67,7 @@ function SelectableSourceRow({
   highlighted,
   rowRef,
   onOpen,
+  onPreview,
   onReveal,
   onRetry,
   onCancel,
@@ -78,6 +80,7 @@ function SelectableSourceRow({
   highlighted: boolean
   rowRef: (node: HTMLLIElement | null) => void
   onOpen: () => void
+  onPreview: () => void
   onReveal: () => void
   onRetry: () => void
   onCancel: () => void
@@ -93,6 +96,8 @@ function SelectableSourceRow({
     document.status === "pending" || document.status === "processing"
   const processing = document.status === "processing"
   const openable = ready && document.document_type === "FILE"
+  const previewable = getFileViewer(document.mime_type) !== null
+  const titleActionable = previewable || openable
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [rowHovered, setRowHovered] = useState(false)
   // A developer aid: holding Ctrl/Cmd while hovering anywhere on a failed
@@ -201,12 +206,14 @@ function SelectableSourceRow({
             </span>
             <button
               type="button"
-              disabled={!openable}
+              disabled={!titleActionable}
               className={cn(
                 "sidebar-row-title-fade min-w-0 flex-1 overflow-hidden rounded-sm text-left text-sm font-normal whitespace-nowrap outline-none focus-visible:ring-2 focus-visible:ring-ring/50 disabled:cursor-default",
                 dropdownOpen && "sidebar-row-title-fade-actions"
               )}
-              onClick={openable ? onOpen : undefined}
+              onClick={
+                titleActionable ? (previewable ? onPreview : onOpen) : undefined
+              }
             >
               {document.title}
             </button>
@@ -239,6 +246,15 @@ function SelectableSourceRow({
                   className="min-w-40"
                 >
                   <DropdownMenuGroup>
+                    {previewable ? (
+                      <DropdownMenuItem onClick={onPreview}>
+                        <ViewIcon />
+                        {intl.formatMessage({
+                          id: "sources_row_menu_preview_label",
+                          defaultMessage: "Preview",
+                        })}
+                      </DropdownMenuItem>
+                    ) : null}
                     {openable ? (
                       <>
                         <DropdownMenuItem onClick={onOpen}>
@@ -388,6 +404,7 @@ export function SourcesPanel({
   error,
   addAction,
   onOpen,
+  onPreview,
   onReveal,
   onRetry,
   onCancel,
@@ -405,6 +422,7 @@ export function SourcesPanel({
   error: string | null
   addAction?: ReactNode
   onOpen: (documentId: number) => void
+  onPreview?: (documentId: number) => void
   onReveal: (documentId: number) => void
   onRetry: (documentId: number) => void
   onCancel: (documentId: number) => void
@@ -525,6 +543,7 @@ export function SourcesPanel({
                     else sourceRows.current.delete(document.id)
                   }}
                   onOpen={() => onOpen(document.id)}
+                  onPreview={() => onPreview?.(document.id)}
                   onReveal={() => onReveal(document.id)}
                   onRetry={() => onRetry(document.id)}
                   onCancel={() => onCancel(document.id)}

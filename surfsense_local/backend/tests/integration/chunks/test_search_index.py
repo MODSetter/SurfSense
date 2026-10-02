@@ -8,8 +8,8 @@ from sqlalchemy.exc import OperationalError
 
 from modules.chunks.models import Chunk
 from modules.documents.models import Document, DocumentType
+from modules.embedding.bundled import BGE
 from modules.workspaces.models import Workspace
-from shared.config import get_search_settings
 from shared.tokenizer import terms
 
 pytestmark = pytest.mark.integration
@@ -18,7 +18,7 @@ pytestmark = pytest.mark.integration
 @pytest.fixture
 def chunked(engine: Engine) -> Engine:
     """A workspace holding one document of one indexed chunk."""
-    width = get_search_settings().embedding_dimension
+    width = BGE.dimension
 
     with engine.begin() as connection:
         connection.execute(insert(Workspace).values(id=1, name="Research"))

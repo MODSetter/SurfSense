@@ -16,6 +16,13 @@ export const metadata: Metadata = {
 };
 
 /**
+ * The day the purge runs, written out: the page must still read correctly
+ * after it, which a countdown would not. `docs/architecture/sunset.md` is the
+ * source.
+ */
+const DELETION_DATE = "18 October 2026";
+
+/**
  * The move, in the order someone does it.
  *
  * Labels are quoted from the desktop app rather than paraphrased, so the page
@@ -31,7 +38,7 @@ export const metadata: Metadata = {
 const STEPS: GuideStep[] = [
 	{
 		title: "Export your cloud data",
-		body: "Save the ZIP somewhere you will find it again. You need it in step five.",
+		body: `Your cloud data is deleted on ${DELETION_DATE}, and an export made before then is the only copy you keep. Save the ZIP somewhere you will find it again. You need it in step five.`,
 		control: <SunsetExport />,
 	},
 	{
@@ -77,6 +84,10 @@ export default function SunsetPage() {
 			<section className="ss-home-hero ss-home-pad">
 				<div className="mx-auto max-w-2xl text-center">
 					<h1 className="ss-home-display">SurfSense is moving to a local app</h1>
+					<p className="ss-home-lede mx-auto mt-6 max-w-xl">
+						The cloud service is export-only, and everything stored in it is deleted on{" "}
+						<strong className="whitespace-nowrap">{DELETION_DATE}</strong>. Export before then.
+					</p>
 				</div>
 			</section>
 

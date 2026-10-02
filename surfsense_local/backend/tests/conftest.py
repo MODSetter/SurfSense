@@ -15,6 +15,8 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import Engine
 
 from api.main import create_app
+from modules.embedding.bundled import BGE
+from modules.embedding.lock import lock_index
 from shared.config import get_storage_settings
 from shared.db import (
     create_db_engine,
@@ -22,7 +24,7 @@ from shared.db import (
     import_models,
 )
 from shared.migrations import upgrade_to_head
-from shared.queue import ingest_queue, studio_queue
+from shared.queue import ingest_queue, plugins_queue, studio_queue
 
 # A feature missing from Base.metadata is one the drift test cannot check.
 import_models()
@@ -46,20 +48,41 @@ REAL_MODELS = next(
 @pytest.fixture
 async def client(engine: Engine) -> AsyncGenerator[AsyncClient, None]:
     """Drive a fresh app in-process, so tests never bind a port."""
-    app = create_app()
-    app.state.session_factory = create_session_factory(engine)
-
-    transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as async_client:
+    async with _client_over(engine) as async_client:
         yield async_client
 
 
 @pytest.fixture
-def engine(tmp_path: Path) -> Engine:
-    """A database built the way a user's is: by migrations, never create_all."""
+async def unlocked_client(
+    unlocked_engine: Engine,
+) -> AsyncGenerator[AsyncClient, None]:
+    """The app before onboarding has chosen an embedder."""
+    async with _client_over(unlocked_engine) as async_client:
+        yield async_client
+
+
+def _client_over(engine: Engine) -> AsyncClient:
+    app = create_app()
+    app.state.session_factory = create_session_factory(engine)
+    return AsyncClient(transport=ASGITransport(app=app), base_url="http://test")
+
+
+@pytest.fixture
+def unlocked_engine(tmp_path: Path) -> Engine:
+    """A database built the way a user's is, by migrations, before onboarding
+    has chosen an embedder."""
     engine = create_db_engine(tmp_path / "surfsense.db")
     upgrade_to_head(engine)
     return engine
+
+
+@pytest.fixture
+def engine(unlocked_engine: Engine) -> Engine:
+    """A user's database once onboarding has fixed the bundled embedder."""
+    with create_session_factory(unlocked_engine)() as session:
+        lock_index(session, BGE)
+        session.commit()
+    return unlocked_engine
 
 
 @pytest.fixture(autouse=True)
@@ -73,9 +96,11 @@ def data_dir(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Path]:
     monkeypatch.setattr(get_storage_settings(), "data_dir", tmp_path)
     ingest_queue.flush()
     studio_queue.flush()
+    plugins_queue.flush()
     yield tmp_path
     ingest_queue.flush()
     studio_queue.flush()
+    plugins_queue.flush()
 
 
 @pytest.fixture

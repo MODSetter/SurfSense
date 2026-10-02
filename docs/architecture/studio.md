@@ -39,7 +39,7 @@ The catalog is a tuple of twelve `Format` rows in [`formats.py`](../../surfsense
 | `infographic` | Infographic | image_gen, text_gen | `media/visual/infographic/` | the image |
 
 - `requires_model_types` is a tuple in the order the pipeline's `render()` takes its models. A format is available when every required model type has a selection; otherwise the reason names every missing one in a fixed reading order: "Needs a chat model", "Needs an image model", "Needs an audio model", or two of them joined, as "Needs a chat model and an audio model". Naming only the first missing type made selecting it look like the gate moving to the other.
-- `podcast` needs its `audio_gen` model on this computer: an audio model chosen from a server is refused with "Needs an audio model on this computer", because nothing calls a remote speech endpoint yet. Opening a podcast brief without an audio model answers `409` with "Needs an audio model". The app ships Kokoro and chooses it at startup when no audio model is chosen, so that answer needs the choice cleared since the last start, or a build without audio.cpp ([`local-models/selection.md`](local-models/selection.md)).
+- `podcast` runs with an `audio_gen` model on this computer or on a server. The format list and the brief read the model's voices without calling it, so neither needs the server's host allowed; the job does. Opening a podcast brief without an audio model answers `409` with "Needs an audio model". The app ships Kokoro and chooses it at startup when no audio model is chosen, so that answer needs the choice cleared since the last start, or a build without audio.cpp ([`local-models/selection.md`](local-models/selection.md)).
 - Which formats are available is the server's answer to what is selected, so the panel asks again whenever the chat selection changes or the settings dialog closes, since the image model is chosen inside settings and nothing else reports it.
 - An image selection can resolve to the bundled sd-server as well as to a remote connection, so needing an image model does not mean needing a key or a network.
 - [`tests/unit/worker/test_studio_job_router.py`](../../surfsense_local/backend/tests/unit/worker/test_studio_job_router.py) asserts that `job_router.py` names every catalog key and nothing else, that each key has a pipeline, and that each pipeline takes its models, the sources, the prompt and, for a format with options, the options.
@@ -52,7 +52,7 @@ Eight formats follow it:
 
 - **summary**: the model's markdown is the body, titled by its first `# ` heading.
 - **mindmap**: JSON nodes, at most 10 branches, become a markdown outline, an H1 over nested bullets, which Markmap draws on the client and which stays readable as text.
-- **flashcards**: JSON cards, at most 20, become a deck JSON file and a markdown body.
+- **flashcards**: JSON cards, written under a schema ([`schema.py`](../../surfsense_local/backend/worker/studio/content/flashcards/schema.py)), at most 20, become a deck JSON file and a markdown body.
 - **quiz**: JSON questions, written under a schema ([`schema.py`](../../surfsense_local/backend/worker/studio/content/quiz/schema.py)), at most 10, each kept only with exactly four options and an answer among them, become a quiz JSON file and a markdown body.
 - **html**: a JSON title and sections, at most 10. Every value is HTML-escaped into a fixed template, so the page cannot carry a script.
 - **podcast**: the model outlines the episode from the brief, then drafts it segment by segment, each reply capped at 12 tokens per word of the segment's target, and never under a planned 250-word segment's worth. Uncapped, Qwen3 1.7B looped on a 225-word segment until its 40,960-token window was full, and the JSON retry, which replays the failed reply, could not fit. The target is the outline's own guess: Qwen3 1.7B once gave a segment 20 words, wrote past them, and a 240-token cap ended both replies mid-JSON. The chosen audio model voices every line through audio.cpp's server, and the transcript is the body.
@@ -61,7 +61,7 @@ Eight formats follow it:
 
 Four formats break it. DOCX, PPTX, XLSX and PDF go through `office/`: the tier prompt asks the model to "write one standalone Python script" for the format's library (python-docx, python-pptx, xlsxwriter or ReportLab), with a `SKILL.md` of authoring guidance beside each format, and [`office/runner.py`](../../surfsense_local/backend/worker/studio/office/runner.py) runs the reply with `exec()` on a thread in the worker process. The script must leave the file's bytes in `output_bytes` and may set `title` and `summary`. A failing script goes back to the model with its error, for up to three attempts. The 120-second limit is a `thread.join`: it bounds how long the job waits, but it cannot stop a thread that ignores it, and the code runs with the worker's privileges. The module says so and names an out-of-process sandbox runner as the way up.
 
-There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path, and a podcast is one `audio/wav` joined from audio.cpp's WAV for each turn.
+There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is ReportLab through that path, and a podcast is one `audio/wav` joined from each turn's WAV, or one `audio/mpeg` from a server that sends only MP3.
 
 ## Voicing a podcast
 
@@ -73,9 +73,28 @@ There is no Electron `printToPDF` and no ffmpeg in `surfsense_local`. A PDF is R
 - **A turn the server fails ends the episode with the server's own words**: "audio.cpp could not voice turn 3 of 40: unknown Kokoro voice id: nobody". The server was reached, so this is not "The model could not be reached", which stays for a server that does not answer.
 - **The model is unloaded when voicing ends**, with `POST /v1/tasks/unload_all_models`, success or failure, so its memory is back before the chat model's next job. The server's five-minute idle unload is the backstop.
 
+### On a server
+
+[`providers/openai_compatible/speech.py`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/speech.py) voices a podcast with an `audio_gen` model chosen from a connection:
+
+- **The voices are the server's, or the user's, never guessed.** The OpenAI API has no route that lists voices and models.dev carries none, so the server is asked `GET {base}/audio/voices`, Kokoro-FastAPI's route ([`voice_list.py`](../../surfsense_local/backend/modules/llm/providers/openai_compatible/voice_list.py)), held for the process and never stored. A server that lists none, as OpenAI, Groq and OpenRouter do, takes the voices the user adds in Settings › Audio generation models, inside that server's section under its model in use, and in onboarding's server path alike: each is voiced once before it is kept, under `voices` in the selection's `settings`, which is cleared when the slot takes another model. For OpenRouter alone the section links the model's page, whose "Request fields" name its voices; no other provider publishes them at an address the app can build. It opens in the OS browser, which the app allows for OpenRouter pages of that shape only ([`egress.md`](egress.md)). One slice, [`llm/voices/`](../../surfsense_local/backend/modules/llm/voices/), answers which voices the chosen audio model offers, local or server, for the brief and Settings alike. The server is asked only once its host is allowed, and only after the request's transaction has ended, so a slow server never holds the database; the format list never asks.
+- **Nothing says which languages a server's voice speaks**: not the API, not `/audio/voices`, not models.dev. So a voice is heard, in Settings and in the Try dialog, saying a line in the interface's language, the one the user likeliest writes in, and the brief offers a fixed list of script languages. A voice that cannot speak the chosen language reads it anyway, badly: no server reports it as an error.
+- **The brief reads like the local one.** It adds one line, "Voiced by {model} on {server}. Each line is billed by the provider.", and otherwise keeps the local labels; only its lists differ, the voices one plain list with no gender the server did not state. With no voices yet, the brief shows only a Set up voices button, which opens Settings, and Generate is held. The brief response carries `voices_source` (`local`, `server` or `saved`) and `voiced_by`.
+- **No voice is checked before drafting.** A listed voice came from the server and an added one was heard when it was added, so the brief's own check, that each speaker's voice is one of them, is what stands between the user and a voice the server refuses.
+- **Only OpenAI's `/audio/speech` is spoken.** ElevenLabs, Gemini and other providers with their own speech APIs are reached through a gateway that speaks it for them, OpenRouter or a LiteLLM proxy, rather than through an adapter per provider here.
+- **One `POST /audio/speech` per turn**, asking for `wav`, because only WAV takes a pause between speakers. When the first line's `wav` is refused, the episode asks for `mp3` instead: OpenRouter takes only `mp3` or `pcm`, and its `pcm` states no sample rate. The format is read from the bytes, not from what was asked. WAV turns join as audio.cpp's do, and a reply holding several WAVs back to back is one turn. MP3 turns join frame to frame without a pause, each turn's ID3 tag and Xing frame dropped so a player reads the whole episode's length. Anything else ends the episode with "the server answered, but not as WAV or MP3".
+- **Nothing is checked for memory**, since the server spends it.
+- **A failure is not retried.** A refused turn, an unreachable server or an unreadable answer ends the episode with the server's own words, and the job is not retried, because a retry would draft and bill the whole episode again.
+
 ## Grounding
 
-Studio does not call `retrieve()`. [`shared/gather.py`](../../surfsense_local/backend/worker/studio/shared/gather.py) loads the selected documents' markdown in selection order, up to 24,000 characters in total, and [`shared/generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py) sends it as one user message, each document under its title as a heading, after the format's system prompt. The code marks the flat cap as a ceiling, fine for summarising a handful of local documents, with retrieval scoped to the selection as the way up.
+[`shared/gather.py`](../../surfsense_local/backend/worker/studio/shared/gather.py) loads the selected documents' markdown, and [`shared/generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py) sends it as one user message, each document under its title as a heading, after the format's system prompt. The budget is 24,000 characters.
+
+- A selection that fits is sent whole, in selection order, and nothing is searched.
+- A larger one gives every document an even share of the budget. A document shorter than its share is sent whole, and what it leaves goes to the others, so no selected document is left out.
+- With a prompt, each share holds that document's passages that best match it, found by one `retrieve()` call scoped to the selection ([`search.md`](search.md)). They are kept in reading order, with `[...]` where text between them was skipped. A document with no match, and every document when there is no prompt, contributes its start.
+- Summary and mind map read a document's shape rather than answer a focus, so they always take each document from its start (`Grounding.WHOLE` on the format in [`formats.py`](../../surfsense_local/backend/modules/artifacts/formats.py)). The other formats take passages.
+- The search embeds the prompt, which loads the embedding model in the Studio worker, as persisting an artifact already does.
 
 Each format keeps its prompts as markdown beside its code, one file per model tier, loaded for the selected model's tier ([`local-models/selection.md`](local-models/selection.md)). The user's prompt joins the system prompt as a "Focus on:" line.
 
@@ -105,8 +124,9 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 - A failure rolls back and writes `failed` with a reason cut to 500 characters: the error's first line, or for an HTTP error its whole message after "The model could not be reached: ". The job is then re-raised for Huey's one retry, except an image error, since the endpoint may already have generated, and billed, an image, and a podcast refused for memory, since a retry would draft the episode again and refuse again.
 - **Cancel** marks the document `cancelled` and revokes a queued copy. A running job stops at its next check. During a model call it checks every second, while tokens stream and while the model is still reading the prompt, and hangs up; closing the request stops llama-server within 1.5 seconds, measured through the router ([`generate.py`](../../surfsense_local/backend/worker/studio/shared/generate.py)). A podcast checks before voicing each turn, so the rest of the episode is never sent, and an office job checks before each attempt, so a cancelled job asks the model for no retry. The check is a context variable ([`shared/cancellation.py`](../../surfsense_local/backend/shared/cancellation.py)), in `shared/` because the audio.cpp provider reads it too.
 - Every Studio model call turns thinking off. Measured on Qwen3 1.7B: with it on, a mindmap over a 12,000-token prompt thought past 15,000 tokens without answering, holding the runtime's only slot so chat queued behind it.
+- **A job the app quit in the middle of** is failed with `interrupted when the app closed` when the Studio worker next starts, before it takes a job ([`interrupted_documents.py`](../../surfsense_local/backend/worker/interrupted_documents.py)): Huey dropped the job as it started it, so nothing else would end it, and Regenerate would refuse it forever.
 - **Regenerate** refuses a job still `pending` or `processing`, rechecks availability, resets the document to `pending`, clears the error, increments `generation` and re-enqueues with the same sources, prompt and options. The new run replaces the files and the indexed body; the artifact and its document keep their ids.
-- Each transition the Studio worker makes sends an `artifacts` event keyed by artifact id; the API's own changes, to `pending` and `cancelled`, send none. The frontend does not listen yet; the artifact list refetches every 1.5 seconds while one is running ([`overview.md`](overview.md#freshness)).
+- Each transition the Studio worker makes sends an `artifacts` event keyed by artifact id; the API's own changes, to `pending` and `cancelled`, send none. The artifact list reloads on each event, and still refetches every 10 seconds while a job is running, in case a notice was lost ([`overview.md`](overview.md#freshness)).
 
 ## Routes
 
@@ -114,7 +134,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 |---|---|---|
 | `GET` | `/workspaces/{workspace_id}/studio/formats` | the catalog, each format with `available` and `unavailable_reason` |
 | `POST` | `/workspaces/{workspace_id}/studio/jobs` | `{format, document_ids, prompt?, options?}`; `201` with the artifact |
-| `GET` | `/workspaces/{workspace_id}/studio/podcast/brief` | the podcast brief and voices to review before submitting |
+| `GET` | `/workspaces/{workspace_id}/studio/podcast/brief` | the podcast brief to review before submitting, the model's `voices` (`null` when they are typed) and the `languages` it may use |
 | `GET` | `/workspaces/{workspace_id}/artifacts` | the workspace's artifacts, newest first |
 | `GET` | `/artifacts/{artifact_id}` | detail: the body, the files, quiz or flashcard progress |
 | `POST` | `/artifacts/{artifact_id}/regenerate` | run the job again; `202` |
@@ -126,7 +146,8 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 - The artifact routes are keyed on the artifact alone, since a local install has one user. An artifact's `status`, `title` and `error_message` are its document's.
 - A prompt is at most 2,000 characters. A podcast brief holds a `language`, a `style`, a `duration` and one or more `speakers`, each with a name, a role and a voice.
-- Files are served inline so a viewer can render or stream them, except `text/html` and `image/svg+xml`, which are forced to download so a generated page never runs on the API's origin.
+- Files are served inline so a viewer can render or stream them, except `text/html` and `image/svg+xml`, which are forced to download so a generated page never runs on the API's origin. `?download=1` sends any file as an attachment.
+- The file route ends its transaction before the first byte. The request's session closes only once the file has streamed, and a player reads a podcast for minutes, so holding the write lock that long left every other request failing as `database is locked`.
 - Quiz and flashcard progress is stored in `artifact_metadata`, scoped to the artifact's `generation`, so a regenerate starts a clean run.
 - There is no manifest route; the viewer reads `GET /artifacts/{id}` and the file stream.
 - `DELETE /artifacts/{id}` deletes the document, which cascades the sidecar, its file rows and its chunks, then removes `artifacts/<id>/` after the commit. This is ADR 0003's blob-purge obligation, on this route.
@@ -150,7 +171,7 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 | `image`, `infographic` | a shared media viewer |
 
 - The flashcard and quiz viewers are keyed on `id:generation`, so a regenerate remounts them with a clean run.
-- The artifact panel offers a download for each file, except the JSON behind flashcards and quizzes.
+- The artifact panel offers a download for each file, except the JSON behind flashcards and quizzes. It links `?download=1`: the API is another origin than the app's window, where a link's `download` attribute is ignored and an inline file opens in a window instead of being saved.
 
 ## The Studio panel
 
@@ -170,5 +191,4 @@ Every pipeline returns a `Built`: a `title`, the `markdown` that is always the i
 
 - Outside a model call, a cancel stops a job only between steps. The podcast turn being voiced, an office script already running and ingest's parsing and embedding run to their end first, because jobs are threads that cannot be killed; stopping a step in flight means running each job in a process the worker can kill.
 - DOCX, PPTX, XLSX and PDF run model-written Python with `exec()` in the worker process, unsandboxed and without asking the user; the 120-second limit cannot stop a runaway thread.
-- Grounding is the first 24,000 characters of the selected documents in selection order, not retrieval over them, so a large selection is cut off.
 - A podcast is WAV. The design encodes MP3 with a bundled ffmpeg, which is not built.

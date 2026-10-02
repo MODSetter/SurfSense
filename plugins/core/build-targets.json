@@ -1,0 +1,8 @@
+{
+  "python": "3.12",
+  "platforms": {
+    "windows-x64": "x86_64-pc-windows-msvc",
+    "macos-arm64": "aarch64-apple-darwin",
+    "linux-x64": "x86_64-manylinux_2_34"
+  }
+}

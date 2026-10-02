@@ -4,12 +4,16 @@ manifest entry."""
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from modules.llm.catalog.local.engines import audiocpp, sdcpp
+from modules.llm.catalog.local.build import FileRole
+from modules.llm.catalog.local.engines import audiocpp, onnxruntime, sdcpp
 from modules.llm.catalog.local.engines.audiocpp import (
     manifest_fields as audiocpp_fields,
 )
 from modules.llm.catalog.local.engines.llamacpp import (
     manifest_fields as llamacpp_fields,
+)
+from modules.llm.catalog.local.engines.onnxruntime import (
+    manifest_fields as onnxruntime_fields,
 )
 from modules.llm.catalog.local.engines.sdcpp import manifest_fields as sdcpp_fields
 from modules.llm.model_type import ModelType
@@ -24,6 +28,8 @@ class Engine:
     entry_requires: frozenset[str]
     # Exactly one of these must be present, where the engine has such a choice.
     entry_requires_one_of: frozenset[str] = frozenset()
+    # File roles every build must carry beside its weights.
+    build_requires: frozenset[FileRole] = frozenset()
 
 
 ENGINES = (
@@ -45,6 +51,13 @@ ENGINES = (
         (ModelType.AUDIO_GEN,),
         audiocpp_fields.ENTRY_OWNS,
         audiocpp_fields.ENTRY_REQUIRES,
+    ),
+    Engine(
+        onnxruntime.ENGINE,
+        (ModelType.EMBEDDING,),
+        onnxruntime_fields.ENTRY_OWNS,
+        onnxruntime_fields.ENTRY_REQUIRES,
+        build_requires=frozenset({FileRole.TOKENIZER}),
     ),
 )
 

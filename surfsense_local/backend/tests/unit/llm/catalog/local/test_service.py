@@ -36,7 +36,11 @@ def test_the_catalog_renders_before_anything_is_installed(service) -> None:
     """The catalog renders before anything is installed."""
     catalog = service.catalog()
 
-    curated = [r for r in catalog.rows if r.origin is Origin.CURATED]
+    curated = [
+        r
+        for r in catalog.rows
+        if r.origin is Origin.CURATED and r.engine == "llamacpp"
+    ]
     assert curated
     # A badge names a verdict exactly when it warns.
     assert all(

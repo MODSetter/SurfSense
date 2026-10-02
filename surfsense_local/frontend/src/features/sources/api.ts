@@ -1,4 +1,4 @@
-import { requestJson, requestVoid } from "@/lib/api"
+import { apiUrl, requestJson, requestVoid } from "@/lib/api"
 
 export type DocumentStatus =
   "pending" | "processing" | "ready" | "failed" | "cancelled"
@@ -7,6 +7,7 @@ export type WorkspaceDocument = {
   id: number
   title: string
   document_type: "FILE" | "NOTE"
+  mime_type: string | null
   status: DocumentStatus
   error_message: string | null
   created_at: string
@@ -92,6 +93,13 @@ export function listDocuments(
     `/workspaces/${workspaceId}/documents?document_type=FILE&document_type=NOTE`,
     { signal }
   )
+}
+
+export function originalDocumentUrl(
+  workspaceId: number,
+  documentId: number
+): string {
+  return apiUrl(`/workspaces/${workspaceId}/documents/${documentId}/original`)
 }
 
 export function retryDocument(

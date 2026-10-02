@@ -19,6 +19,17 @@ ipcRenderer.on("locale:changed", (_event, next: unknown) => {
   if (typeof next === "string") locale = next
 })
 
+type SidecarCrash = { name: string; code: number | null }
+
+function isSidecarCrash(value: unknown): value is SidecarCrash {
+  if (typeof value !== "object" || value === null) return false
+  const crash = value as Record<string, unknown>
+  return (
+    typeof crash.name === "string" &&
+    (typeof crash.code === "number" || crash.code === null)
+  )
+}
+
 // the renderer talks HTTP to this base and never sees Node or the sidecars
 contextBridge.exposeInMainWorld("surfsense", {
   apiUrl: arg ? arg.slice(FLAG.length) : "http://127.0.0.1:8000",
@@ -57,6 +68,15 @@ contextBridge.exposeInMainWorld("surfsense", {
   },
   sessionLog: {
     read: (): Promise<string[]> => ipcRenderer.invoke("session-log:read"),
+  },
+  sidecars: {
+    onCrash: (listener: (crash: SidecarCrash) => void): (() => void) => {
+      const wrapped = (_event: unknown, crash: unknown) => {
+        if (isSidecarCrash(crash)) listener(crash)
+      }
+      ipcRenderer.on("sidecar:crashed", wrapped)
+      return () => ipcRenderer.removeListener("sidecar:crashed", wrapped)
+    },
   },
   help: {
     onReportIssue: (listener: () => void): (() => void) => {

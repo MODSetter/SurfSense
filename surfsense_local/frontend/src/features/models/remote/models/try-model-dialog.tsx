@@ -19,6 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { Input } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
 import { ApiError } from "@/lib/api"
 import { intl } from "@/i18n/intl"
@@ -29,6 +30,7 @@ import { useSelect } from "../../selection/use-selection"
 import {
   testConnectionChat,
   testConnectionImage,
+  testConnectionSpeech,
   type ConnectionModel,
 } from "./api"
 
@@ -49,6 +51,19 @@ function Explanation({
   model: ConnectionModel
 }) {
   const image = modelType === "image_gen"
+  if (modelType === "audio_gen") {
+    return model.capability_source === "unknown"
+      ? intl.formatMessage({
+          id: "models_try_dialog_speech_unconfirmed_body",
+          defaultMessage:
+            "This endpoint does not publish capabilities, so speech support is unconfirmed. It must implement /audio/speech. Testing voices one short line and may cost money.",
+        })
+      : intl.formatMessage({
+          id: "models_try_dialog_speech_confirmed_body",
+          defaultMessage:
+            "Speech support is confirmed. Testing voices one short line and may cost money.",
+        })
+  }
   if (model.capability_source === "unknown") {
     return image
       ? intl.formatMessage({
@@ -102,6 +117,7 @@ export function TryModelDialog({
   const [reply, setReply] = useState<string | null>(null)
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [voice, setVoice] = useState("")
   const [confirmUnlisted, setConfirmUnlisted] = useState<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -115,12 +131,21 @@ export function TryModelDialog({
   const runTest = () => {
     setTesting(true)
     setError(null)
+    const preview = (blob: Blob) => setPreviewUrl(URL.createObjectURL(blob))
     const attempt =
       modelType === "image_gen"
-        ? testConnectionImage(model.connection_id, model.name).then((blob) =>
-            setPreviewUrl(URL.createObjectURL(blob))
-          )
-        : testConnectionChat(model.connection_id, model.name).then(setReply)
+        ? testConnectionImage(model.connection_id, model.name).then(preview)
+        : modelType === "audio_gen"
+          ? testConnectionSpeech(
+              model.connection_id,
+              model.name,
+              voice,
+              intl.formatMessage({
+                id: "models_try_dialog_voice_trial_body",
+                defaultMessage: "Hello. This is how your podcasts will sound.",
+              })
+            ).then(preview)
+          : testConnectionChat(model.connection_id, model.name).then(setReply)
     void attempt
       .catch((cause: unknown) => setError(messageFrom(cause)))
       .finally(() => setTesting(false))
@@ -182,7 +207,48 @@ export function TryModelDialog({
             <Explanation modelType={modelType} model={model} />
           </DialogDescription>
         </DialogHeader>
-        {previewUrl ? (
+        {modelType === "audio_gen" ? (
+          <div className="space-y-1.5">
+            <Input
+              aria-label={intl.formatMessage({
+                id: "models_try_dialog_voice_aria",
+                defaultMessage: "Voice",
+              })}
+              placeholder={intl.formatMessage({
+                id: "models_try_dialog_voice_placeholder",
+                defaultMessage: "Voice ID (optional)",
+              })}
+              className="select-text"
+              value={voice}
+              maxLength={100}
+              spellCheck={false}
+              autoCapitalize="off"
+              autoCorrect="off"
+              onChange={(event) => setVoice(event.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              {intl.formatMessage({
+                id: "models_try_dialog_voice_body",
+                defaultMessage:
+                  "Empty uses the server’s default voice, if it has one.",
+              })}
+            </p>
+          </div>
+        ) : null}
+        {previewUrl && modelType === "audio_gen" ? (
+          <audio
+            controls
+            src={previewUrl}
+            aria-label={intl.formatMessage(
+              {
+                id: "models_try_dialog_speech_preview_aria",
+                defaultMessage: "Test voiced by {model}",
+              },
+              { model: model.name }
+            )}
+            className="w-full"
+          />
+        ) : previewUrl ? (
           <img
             src={previewUrl}
             alt={intl.formatMessage(
@@ -217,10 +283,15 @@ export function TryModelDialog({
                   id: "models_try_dialog_test_image_button",
                   defaultMessage: "Test image",
                 })
-              : intl.formatMessage({
-                  id: "models_try_dialog_test_chat_button",
-                  defaultMessage: "Test chat",
-                })}
+              : modelType === "audio_gen"
+                ? intl.formatMessage({
+                    id: "models_try_dialog_test_speech_button",
+                    defaultMessage: "Test voice",
+                  })
+                : intl.formatMessage({
+                    id: "models_try_dialog_test_chat_button",
+                    defaultMessage: "Test chat",
+                  })}
           </Button>
           <Button disabled={select.isPending} onClick={() => assign(unlisted)}>
             {select.isPending ? <Spinner data-icon="inline-start" /> : null}

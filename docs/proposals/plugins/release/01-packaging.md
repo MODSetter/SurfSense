@@ -1,6 +1,6 @@
 # Release — packaging
 
-> Owns: `plugins/core/packaging/`, `plugins/core/build-targets.json`, `plugins/core/policy/size-limit-exceptions.txt`, `plugins/core/pyproject.toml` and the `surfsense-plugins` command it defines.
+> Owns: `plugins/core/cli/surfsense_plugin_cli/packaging/`, `plugins/core/build-targets.json`, `plugins/core/policy/size-limit-exceptions.txt`.
 > Contract: [`../01-protocol.md`](../01-protocol.md). Used by: [`02-pull-request-checks.md`](02-pull-request-checks.md), [`03-publishing.md`](03-publishing.md).
 
 ## Goal
@@ -9,7 +9,7 @@ One function turns a plugin folder into its downloadable files, the same way for
 
 ## Work
 
-- `plugins/core/pyproject.toml` makes `plugins/core/` one Python project with one command, `surfsense-plugins`. Each job is a subcommand implemented in the folder named for it: `packaging/`, `checks/`, `release/`, `directory-site/`. Workflows call the command and hold no logic of their own.
+- Packaging is the `packaging/` job of the `surfsense-plugins` command in `plugins/core/cli/` ([`../cli/01-author-commands.md`](../cli/01-author-commands.md)). Workflows call the command and hold no logic of their own. Its install step, `install_requirements(plugin, platform, into)`, is the one `surfsense-plugins invoke` runs for the author's own platform, so an author's machine installs what a release installs.
 - `plugins/core/build-targets.json` as the protocol describes it: the CPython version and each platform's `uv` target. It is read by packaging, the checks and the interpreter fetch script ([`../python/01-interpreter.md`](../python/01-interpreter.md)), so they cannot disagree.
 - For each platform in the plugin's `platforms`, all of `build-targets.json` when absent: `uv pip install --python-version <python> --python-platform <target> --only-binary :all: --require-hashes -r requirements.txt --target <dir>`. A failure names the package and the platform: that version publishes no prebuilt wheel there, so pick another version or package. `uv` fetches the other platforms' wheels from one Linux machine; no platform needs its own runner.
 - Compare the installed files across platforms. The same files make one `any` file; different files make one file per platform. Compare files, not packages: `tqdm` pulls in `colorama` only on Windows, so a pure-Python plugin can still need one file per platform.

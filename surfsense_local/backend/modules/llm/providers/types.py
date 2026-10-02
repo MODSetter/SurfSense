@@ -36,11 +36,21 @@ class Message:
 
 
 @dataclass(frozen=True)
+class PromptProgress:
+    """How much of the prompt the model has read, in tokens it had left to read."""
+
+    processed: int
+    total: int
+
+
+@dataclass(frozen=True)
 class Delta:
-    """One streamed piece of a reply: answer text, or the model's reasoning."""
+    """One streamed piece of a reply: answer text, the model's reasoning, or,
+    with no text, how far it has read the prompt."""
 
     text: str
     reasoning: bool = False
+    progress: PromptProgress | None = None
 
 
 @dataclass(frozen=True)

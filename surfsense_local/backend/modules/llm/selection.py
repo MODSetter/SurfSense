@@ -5,6 +5,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from api.dependencies import transact
+from modules.embedding.choose import lock_chosen
 from modules.llm.catalog.local.dependencies import get_local_catalog
 from modules.llm.connections import discover_models
 from modules.llm.connections.router import allowed_connection
@@ -110,6 +111,13 @@ def _store(
     if selected is None:
         selected = SelectedModel(model_type=model_type, name=model_name)
         session.add(selected)
+    elif (selected.provider, selected.connection_id, selected.name) != (
+        provider_name,
+        connection_id,
+        model_name,
+    ):
+        # Settings are the model's own; another model starts without them.
+        selected.settings = None
     selected.provider = provider_name
     selected.connection_id = connection_id
     selected.name = model_name
@@ -122,12 +130,13 @@ def _store(
     return selected
 
 
-def complete_onboarding(session: Session) -> bool:
+def complete_onboarding(session: Session, embedding_model: str | None = None) -> bool:
     if session.get(SelectedModel, ModelType.TEXT_GEN) is None:
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT,
             "chat model required",
         )
+    lock_chosen(session, embedding_model)
     if session.get(OnboardingCompletion, 1) is None:
         session.add(OnboardingCompletion())
         session.flush()

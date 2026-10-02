@@ -215,6 +215,10 @@ jobs:
         working-directory: surfsense_local/electron
         run: node scripts/fetch-llamacpp.mjs
 
+      - name: Stage opencode
+        working-directory: surfsense_local/electron
+        run: node scripts/opencode/stage.mjs
+
       - name: Fetch the audio.cpp build
         if: runner.os != 'macOS'
         uses: actions/download-artifact@v4

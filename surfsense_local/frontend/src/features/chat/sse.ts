@@ -1,3 +1,5 @@
+import type { AgentStep, PermissionRequest } from "@/features/agent/api"
+
 export type Citation = {
   source_id: number
   chunk_id: number
@@ -10,12 +12,15 @@ export type Citation = {
 export type ChatStreamEvent =
   | {
       type: "accepted"
-      user_message_id: number
-      assistant_message_id: number
+      // An agent thread's ids are opencode's, which are strings.
+      user_message_id: number | string
+      assistant_message_id: number | string
       user_created_at: string
     }
   | { type: "thread-title-update"; title: string }
   | { type: "citation-catalog"; items: Citation[] }
+  // Prompt tokens read so far out of those left to read; local runtime only.
+  | { type: "prompt-progress"; processed: number; total: number }
   | { type: "reasoning"; text: string }
   | { type: "reasoning-end"; duration_ms: number }
   | { type: "delta"; text: string }
@@ -27,6 +32,9 @@ export type ChatStreamEvent =
       message: string
       provider: string
     }
+  | ({ type: "agent-step" } & AgentStep)
+  | ({ type: "permission-request" } & PermissionRequest)
+  | { type: "permission-replied"; id: string; reply: string }
   | { type: "done" }
 
 // Mirrors modules/chat/errors.py's ChatErrorKind — keep the two in sync.

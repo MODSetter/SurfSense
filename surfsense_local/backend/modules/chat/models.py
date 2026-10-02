@@ -24,6 +24,9 @@ class ChatThread(Base):
         ForeignKey("workspaces.id", ondelete="CASCADE")
     )
     title: Mapped[str | None]
+    # Set when the agent answers this thread: its turns live in that opencode
+    # session, not in chat_messages. Chosen when the thread is opened, and kept.
+    opencode_session_id: Mapped[str | None]
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
@@ -33,6 +36,11 @@ class ChatThread(Base):
     messages: Mapped[list["ChatMessage"]] = relationship(
         back_populates="thread", cascade="all, delete-orphan", passive_deletes=True
     )
+
+    @property
+    def uses_agent(self) -> bool:
+        """Whether the agent answers this thread rather than the chat."""
+        return self.opencode_session_id is not None
 
 
 class ChatMessage(Base):

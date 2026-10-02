@@ -1,6 +1,6 @@
 # App — API
 
-> Owns: `surfsense_local/backend/modules/plugins/router.py`, `schemas.py`, the `plugin_secrets` table, and two changes outside the module: provenance on `NoteCreate`, and a list of hosts on the egress refusal.
+> Owns: `surfsense_local/backend/modules/plugins/router.py`, `schemas.py`, the `plugin_secrets` table, and two changes outside the module: `document_metadata` on `NoteCreate`, and a list of hosts on the egress refusal.
 > Routes the screen in [`02-screen.md`](02-screen.md) calls. Runtime: [`../runtime/01-process.md`](../runtime/01-process.md). Install: [`../install/01-install-update-uninstall.md`](../install/01-install-update-uninstall.md).
 
 ## Goal
@@ -28,11 +28,11 @@ The screen can list plugins, install or update one, set a secret, and start a ru
 
 Emit `plugin.run.updated` on the existing events broker when a run's status changes, carrying the run id, so the screen can invalidate.
 
-Provenance: `NoteCreate` in `modules/documents/schemas.py` gains an optional `metadata` object, `{ "plugin_id", "plugin_version", "action", "run_id" }`, stored in the `document_metadata` column that already exists. The SDK's `document.add()` fills it: the id and stamped version from the plugin's packaged `manifest.json`, the action from its arguments, the run id from the environment. Nothing else sets it. It says where a note came from, for the user's benefit; loopback has no auth, so it is not an audit trail.
+A plugin's note names the plugin: `NoteCreate` in `modules/documents/schemas.py` takes an optional `document_metadata` object, stored as given in the column of the same name, and reading the document returns it ([documents](../../../architecture/documents.md#notes)). A new note with a field the app does not know is refused, so the SDK and the app cannot disagree on a name silently. The SDK's `document.add()` fills it with `{ "plugin_id", "plugin_version", "action", "run_id" }`: the id and stamped version from the plugin's packaged `manifest.json`, the action from its arguments, the run id from the environment. Nothing else sets it. It says where a note came from, for the user's benefit; loopback has no auth, so it is not an audit trail.
 
 Several hosts in one refusal: `EgressDeniedError` carries one destination today, and the 403 built by `egress_denied` in `api/main.py` names one `destination` and `host`, which is all the prompt reads. It gains a list. The 403 adds `hosts`, every host the action still needs, and keeps `destination` and `host` as the first of them, so today's callers do not change. The prompt's side is in [`02-screen.md`](02-screen.md). This changes the egress feature, so [`egress.md`](../../../architecture/egress.md) is updated in the same pull request.
 
-Electron writes `http://127.0.0.1:<port>` to `api-url` in its data folder, `~/.surfsense` when packaged and `~/.surfsense-dev` in development (`electron/src/main/index.ts`), where it picks the port, and removes the file on quit. The running app does not need this — the runner passes the URL in the environment — but an author running the harness does, and guessing a dynamic port is not a thing to ask of a contributor. It discloses nothing: loopback already answers a port scan.
+Electron writes `http://127.0.0.1:<port>` to `api-url` in its data folder, `~/.surfsense` when packaged and `~/.surfsense-dev` in development (`electron/src/main/index.ts`), where it picks the port, and removes the file on quit. The running app does not need this — the runner passes the URL in the environment — but an author running `surfsense-plugins invoke` does, and guessing a dynamic port is not a thing to ask of a contributor. It discloses nothing: loopback already answers a port scan.
 
 ## Acceptance
 
@@ -44,7 +44,7 @@ Electron writes `http://127.0.0.1:<port>` to `api-url` in its data folder, `~/.s
 - Run of a `paid` plugin with no license returns 402. With a trial license, it runs.
 - Run of a plugin with two declared hosts, neither allowed, returns 403 naming both, and does not insert a run.
 - Run of an installed version blocked for this app returns 409 `cannot_run` with the reason and an offer, and list shows the same.
-- A successful run of `plugins/example` returns a run id; polling the run reaches `succeeded`; a note exists in the workspace, and its metadata names the plugin, its version and the run.
+- A successful run of `plugins/example` returns a run id; polling the run reaches `succeeded`; a note exists in the workspace, and its `document_metadata` names the plugin, its version and the run.
 - An egress refusal for one host still carries `destination` and `host` as before, plus `hosts` with that one host.
 - `GET` of secrets returns `set: true` after `PUT` and does not contain the value.
 - A run started in one workspace is listed by that workspace's `GET /workspaces/{id}/plugin-runs` and not by another's.

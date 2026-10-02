@@ -52,6 +52,22 @@ def projector_fits_model(
     return width == embedding
 
 
+def projector_identifies_model(
+    projector_kv: dict[str, Any], model_kv: dict[str, Any]
+) -> bool:
+    """Whether both headers state the same width, enough to advise a rename."""
+    width = projector_kv.get(_PROJECTION_DIM)
+    architecture = model_kv.get(_ARCHITECTURE)
+    embedding = (
+        model_kv.get(_EMBEDDING.format(arch=architecture)) if architecture else None
+    )
+    return (
+        isinstance(width, int)
+        and isinstance(embedding, int)
+        and projector_fits_model(projector_kv, model_kv)
+    )
+
+
 def template_support(template: str | None) -> tuple[bool | None, bool | None]:
     """Whether the chat template accepts tools, and whether it can think.
 

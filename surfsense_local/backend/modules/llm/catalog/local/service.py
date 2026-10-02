@@ -8,11 +8,17 @@ from collections.abc import AsyncIterator, Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from modules.embedding.spec import EmbedderSpec
 from modules.llm.catalog.local.build import Build
 from modules.llm.catalog.local.engines.audiocpp.audio_folder.espeak import Espeak
 from modules.llm.catalog.local.engines.audiocpp.engine import AudioCppEngine
 from modules.llm.catalog.local.engines.engine import LocalEngine
 from modules.llm.catalog.local.engines.llamacpp.engine import LlamaCppEngine
+from modules.llm.catalog.local.engines.llamacpp.models_folder.scan import (
+    ProjectorNotice,
+)
+from modules.llm.catalog.local.engines.llamacpp.sampling import publisher_temperature
+from modules.llm.catalog.local.engines.onnxruntime.engine import OnnxRuntimeEngine
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.install import download
 from modules.llm.catalog.local.install.disk_room import refuse_without_room
@@ -37,6 +43,7 @@ from modules.llm.hardware import (
 from modules.llm.hardware.inventory import OsGpu, Probe
 from modules.llm.model_type import ModelType
 from modules.llm.providers.types import DownloadProgress
+from shared.config import get_storage_settings
 
 
 @dataclass(frozen=True)
@@ -48,6 +55,7 @@ class Catalog:
     gpu_status: GpuStatus
     rows: tuple[LocalRow, ...]
     recommended_id: str | None
+    projector_notices: tuple[ProjectorNotice, ...]
 
 
 class LocalCatalogService:
@@ -62,6 +70,7 @@ class LocalCatalogService:
         audio_dir: Path | None = None,
         audio_bundled_dir: Path | None = None,
         audio_espeak: Espeak | None = None,
+        embeddings_dir: Path | None = None,
         probe: Probe = probe_devices,
         os_gpu: OsGpu = os_reports_gpu,
     ) -> None:
@@ -82,6 +91,14 @@ class LocalCatalogService:
             for model in manifest.models
             for build in model.as_builds()
         }
+        # An embedder installs under its catalog id: every ONNX repo names its
+        # weights model.onnx, so the file cannot name the install as a GGUF does.
+        self._curated_entries: dict[tuple[str, str], str] = {
+            (build.weights.repo, build.weights.path): model.id
+            for model in manifest.models
+            if model.embedding is not None
+            for build in model.as_builds()
+        }
         # One pull at a time: two downloads compete for one disk and one bar.
         self._install_lock = asyncio.Lock()
         self._install_jobs = InstallJobs(self._install_lock)
@@ -93,10 +110,14 @@ class LocalCatalogService:
             bundled_dir=audio_bundled_dir,
             espeak=audio_espeak,
         )
+        self.onnxruntime = OnnxRuntimeEngine(
+            embeddings_dir or get_storage_settings().embedding_models_dir
+        )
         self._engines: tuple[LocalEngine, ...] = (
             self.llamacpp,
             self.sdcpp,
             self.audiocpp,
+            self.onnxruntime,
         )
 
     def install_lock(self) -> asyncio.Lock:
@@ -159,7 +180,12 @@ class LocalCatalogService:
         )
         star = next((row.id for row in rows if row.recommended), None)
         return Catalog(
-            self.budget(), inventory.devices, inventory.gpu_status, rows, star
+            self.budget(),
+            inventory.devices,
+            inventory.gpu_status,
+            rows,
+            star,
+            self.llamacpp.projector_notices(),
         )
 
     def _minter(self, engine: str) -> Callable[[Build], str]:
@@ -182,6 +208,10 @@ class LocalCatalogService:
             repo, lambda build, tag: self._tickets.mint(build, pipeline_tag=tag)
         )
 
+    def publisher_temperature(self, model: str, reasoning: bool | None) -> float | None:
+        """What a curated chat model's publisher set for this mode, else None."""
+        return publisher_temperature(self._manifest.models, model, reasoning)
+
     # installing -------------------------------------------------------------
 
     def resolve_install(self, catalog_id: str) -> InstallPlan | None:
@@ -189,19 +219,26 @@ class LocalCatalogService:
         curated = self._curated_ids.get(catalog_id)
         if curated is not None:
             build, engine = curated
-            shape = self._curated_shapes.get((build.weights.repo, build.weights.path))
-            return InstallPlan(build.runtime_name, build, engine, shape=shape)
+            key = (build.weights.repo, build.weights.path)
+            shape = self._curated_shapes.get(key)
+            name = self._curated_entries.get(key, build.runtime_name)
+            return InstallPlan(name, build, engine, shape=shape)
         ticket = self._tickets.resolve(catalog_id)
         if ticket is None:
             return None
-        # Search reaches llama.cpp's catalog only.
         return InstallPlan(
-            ticket.build.runtime_name,
+            ticket.model_id or ticket.build.runtime_name,
             ticket.build,
-            self.llamacpp.name,
-            needs_check=True,
+            ticket.engine,
+            needs_check=ticket.engine == self.llamacpp.name,
             pipeline_tag=ticket.pipeline_tag,
         )
+
+    def offer_embedder(self, build: Build, spec: EmbedderSpec) -> str:
+        """An install id for a Hugging Face embedder, its spec held for the
+        checks after its download."""
+        self.onnxruntime.offer(spec)
+        return self._tickets.mint(build, engine=self.onnxruntime.name, model_id=spec.id)
 
     async def check(self, plan: InstallPlan) -> InstallPlan:
         """The engine's refusals first, then the disk's."""

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react"
 import { toast } from "sonner"
 
 import { errorToast } from "@/features/feedback/error-toast"
+import { useWorkspaceChanges } from "@/features/workspaces/use-workspace-changes"
 import { intl } from "@/i18n/intl"
 
 import {
@@ -13,6 +14,10 @@ import {
   uploadDocuments,
   type WorkspaceDocument,
 } from "./api"
+
+// The worker's notices are best-effort: one lost while a row is in flight would
+// leave it stale, so the list is still re-read now and then until none is.
+const LOST_NOTICE_POLL_MS = 10_000
 
 function isAbort(error: unknown) {
   return error instanceof DOMException && error.name === "AbortError"
@@ -62,6 +67,7 @@ export function useSources(workspaceId: number) {
   const listController = useRef<AbortController | null>(null)
   const uploadController = useRef<AbortController | null>(null)
   const pollController = useRef<AbortController | null>(null)
+  const changeController = useRef<AbortController | null>(null)
   const hasActiveIngestion = documents.some(
     (document) =>
       document.status === "pending" || document.status === "processing"
@@ -88,6 +94,7 @@ export function useSources(workspaceId: number) {
       controller.abort()
       uploadController.current?.abort()
       pollController.current?.abort()
+      changeController.current?.abort()
     }
   }, [workspaceId])
 
@@ -102,7 +109,7 @@ export function useSources(workspaceId: number) {
     void (async () => {
       try {
         while (!controller.signal.aborted) {
-          await wait(1500, controller.signal)
+          await wait(LOST_NOTICE_POLL_MS, controller.signal)
           const next = await listDocuments(workspaceId, controller.signal)
           if (pollController.current !== controller) {
             return
@@ -128,6 +135,23 @@ export function useSources(workspaceId: number) {
 
     return () => controller.abort()
   }, [hasActiveIngestion, workspaceId])
+
+  // Without the loading state: the list is on screen, and only its rows move.
+  useWorkspaceChanges(workspaceId, "documents", () => {
+    changeController.current?.abort()
+    const controller = new AbortController()
+    changeController.current = controller
+    void listDocuments(workspaceId, controller.signal)
+      .then((next) => {
+        if (changeController.current === controller) {
+          setDocuments(next)
+          setError(null)
+        }
+      })
+      .catch(() => {
+        // The next change, or the re-read while something ingests, reloads.
+      })
+  })
 
   const refresh = async () => {
     listController.current?.abort()

@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from sqlalchemy import bindparam, text
 from sqlalchemy.orm import Session
 
+from modules.embedding.active import ActiveIndex, require_active_index
+from modules.embedding.vector_table import checked
 from shared.tokenizer import terms
 
 # Each leg proposes this many for recall; the blend below orders the union.
@@ -50,27 +52,24 @@ def retrieve(
     # Lazy: pulls onnxruntime and the model, which only chat and ingest need.
     from sqlite_vec import serialize_float32
 
-    from worker.ingestion.embedding import embed
+    from modules.embedding import encoder
 
-    vector = serialize_float32(embed([query])[0])
+    # The question is embedded by the index it is searched against, never by a
+    # model configured on its own.
+    index = require_active_index(session)
+    vector = serialize_float32(
+        encoder.embed(index.spec, [query], encoder.Purpose.QUERY)[0]
+    )
     keyword = dict(_keyword_leg(session, workspace_id, query, selected_document_ids))
     candidates = keyword.keys() | set(
-        _vector_leg(session, workspace_id, vector, selected_document_ids)
+        _vector_leg(
+            session, index.vector_table, workspace_id, vector, selected_document_ids
+        )
     )
     if not candidates:
         return []
 
-    return _best(session, keyword, candidates, vector, top_k)
-
-
-# How much of the order meaning owns. Our corpus is flat across 0.6 to 0.65 and
-# falls away either side, so this is the middle of a measured plateau rather
-# than a default: 98% of answers reach the top 5, against 50% for meaning alone.
-# Reciprocal rank fusion was tried first and rejected at 88%; throwing away each
-# leg's strength let a passage sharing only "a" and "in" with the query outrank
-# the one that meant the same thing, because appearing in both legs beats
-# topping one.
-SEMANTIC_WEIGHT = 0.65
+    return _best(session, index, keyword, candidates, vector, top_k)
 
 
 def _keyword_leg(
@@ -142,6 +141,7 @@ def _matching(
 
 def _vector_leg(
     session: Session,
+    vector_table: str,
     workspace_id: int,
     vector: bytes,
     document_ids: Sequence[int] | None,
@@ -156,7 +156,7 @@ def _vector_leg(
     # a workspace's hits start falling outside the global top CANDIDATES.
     sql = (
         "WITH knn AS ("
-        "  SELECT rowid, distance FROM chunk_vectors "
+        f"  SELECT rowid, distance FROM {checked(vector_table)} "
         "  WHERE embedding MATCH :vector AND k = :k"
         ") "
         "SELECT c.id, knn.distance FROM knn "
@@ -180,6 +180,7 @@ def _vector_leg(
 
 def _best(
     session: Session,
+    index: ActiveIndex,
     keyword: dict[int, float],
     candidates: set[int],
     vector: bytes,
@@ -203,18 +204,20 @@ def _best(
     stmt = text(
         f"SELECT {_COLUMNS}, "
         "vec_distance_cosine(v.embedding, :vector) AS distance "
-        "FROM chunks c JOIN chunk_vectors v ON v.rowid = c.id "
+        f"FROM chunks c JOIN {checked(index.vector_table)} v ON v.rowid = c.id "
         "JOIN documents d ON d.id = c.document_id "
         "WHERE c.id IN :ids"
     ).bindparams(bindparam("ids", expanding=True))
     rows = session.execute(stmt, {"vector": vector, "ids": list(candidates)}).all()
 
+    weight = index.spec.semantic_weight
+
     def blended(row) -> float:
         # A passage pointing the other way is no evidence rather than evidence
         # against, so cosine floors at nothing.
-        return SEMANTIC_WEIGHT * max(0.0, 1.0 - row.distance) + (
-            1.0 - SEMANTIC_WEIGHT
-        ) * keyword.get(row.id, 0.0)
+        return weight * max(0.0, 1.0 - row.distance) + (1.0 - weight) * keyword.get(
+            row.id, 0.0
+        )
 
     ordered = sorted(rows, key=lambda row: (-blended(row), row.distance))
     return [

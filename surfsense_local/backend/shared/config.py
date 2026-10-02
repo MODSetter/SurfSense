@@ -19,6 +19,12 @@ class StorageSettings(BaseSettings):
         return Path(override) if override else self.data_dir / "models"
 
     @property
+    def embedding_models_dir(self) -> Path:
+        """Downloaded embedders, one folder each. Not `models_dir`, which a
+        packaged app ships read-only."""
+        return self.data_dir / "embeddings"
+
+    @property
     def database_path(self) -> Path:
         return self.data_dir / "surfsense.db"
 
@@ -48,15 +54,22 @@ class StorageSettings(BaseSettings):
         """Where one artifact's rendered blobs live, keyed by id like documents."""
         return self.workspace_dir(workspace_id) / "artifacts" / str(artifact_id)
 
+    def agent_working_dir(self, workspace_id: int) -> Path:
+        """The folder the agent works in for one workspace, gone with the workspace."""
+        return self.workspace_dir(workspace_id) / "agent"
 
-class SearchSettings(BaseSettings):
-    """The index's shape, which both ingest and search have to agree on."""
+    @property
+    def agent_dir(self) -> Path:
+        """Electron watches here for opencode's configuration and keeps opencode's home."""
+        return self.data_dir / "agent"
 
-    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+    def plugin_dir(self, plugin_id: str, version: str) -> Path:
+        """Where one installed version of a plugin lives."""
+        return self.data_dir / "plugins" / plugin_id / version
 
-    # Schema, not preference: a vec0 table declares its width at creation.
-    # 384 is bge-small-en-v1.5, the bundled default.
-    embedding_dimension: int = 384
+    def plugin_data_dir(self, plugin_id: str) -> Path:
+        """A plugin's own files, which outlive the versions that wrote them."""
+        return self.data_dir / "plugins" / plugin_id / "data"
 
 
 class LLMSettings(BaseSettings):
@@ -89,15 +102,31 @@ class LLMSettings(BaseSettings):
     audio_espeak_data: Path | None = None
 
 
+class AgentSettings(BaseSettings):
+    """Where opencode will listen and its password, chosen by Electron at boot.
+
+    Both unset where no opencode is staged, and then the agent is not offered.
+    """
+
+    model_config = SettingsConfigDict(env_prefix="SURFSENSE_LOCAL_")
+
+    opencode_url: str | None = None
+    opencode_password: str | None = None
+    # The tested list starts empty; while it is, this lets any model run the agent.
+    # A developer's switch: SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1.
+    agent_untested_models: bool = False
+
+
+@lru_cache
+def get_agent_settings() -> AgentSettings:
+    """Cached so the environment is parsed once, not per turn."""
+    return AgentSettings()
+
+
 @lru_cache
 def get_storage_settings() -> StorageSettings:
     """Cached so the environment is parsed once, not per dependency call."""
     return StorageSettings()
-
-
-@lru_cache
-def get_search_settings() -> SearchSettings:
-    return SearchSettings()
 
 
 @lru_cache

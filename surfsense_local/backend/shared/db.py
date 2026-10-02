@@ -69,8 +69,10 @@ def import_models() -> None:
     import modules.chunks.models
     import modules.documents.models
     import modules.egress.models
+    import modules.embedding.models
     import modules.license.models
     import modules.llm.models
+    import modules.plugins.models
     import modules.workspaces.models
 
 

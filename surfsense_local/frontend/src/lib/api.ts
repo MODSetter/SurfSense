@@ -36,6 +36,10 @@ declare global {
       sessionLog?: {
         read: () => Promise<string[]>
       }
+      // Unexpected sidecar exits pushed by main. Mirrors electron/src/preload/index.ts.
+      sidecars?: {
+        onCrash: (listener: (crash: SidecarCrash) => void) => () => void
+      }
       // The app menu's Help › Report Issue…. Mirrors electron/src/preload/index.ts.
       help?: {
         onReportIssue: (listener: () => void) => () => void
@@ -78,10 +82,18 @@ export type UpdateState =
   | { status: "ready"; version: string }
   | { status: "error"; message: string }
 
-// Packaged (Electron) exposes the sidecar's dynamic origin; a bare dev browser
-// leaves it empty so root-relative paths still hit the Vite proxy.
+export type SidecarCrash = {
+  name: string
+  code: number | null
+}
+
+// Packaged (Electron) exposes the sidecar's dynamic origin. A browser build
+// with no bridge (Docker) reaches the API under VITE_API_BASE. A bare dev
+// browser leaves both empty so root-relative paths still hit the Vite proxy.
 const apiBase =
-  typeof window !== "undefined" ? (window.surfsense?.apiUrl ?? "") : ""
+  (typeof window !== "undefined" ? window.surfsense?.apiUrl : undefined) ??
+  import.meta.env.VITE_API_BASE ??
+  ""
 
 function withBase(input: RequestInfo | URL): RequestInfo | URL {
   return typeof input === "string" && input.startsWith("/")

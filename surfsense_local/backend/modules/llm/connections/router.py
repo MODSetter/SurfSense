@@ -23,6 +23,11 @@ from modules.llm.providers.openai_compatible import (
     OpenAICompatibleChatProvider,
     OpenAICompatibleImageProvider,
 )
+from modules.llm.providers.openai_compatible.speech import (
+    NonRetryableSpeechError,
+    RemoteSpeech,
+)
+from modules.llm.providers.protocols import SpokenTurn
 from modules.llm.providers.types import Message
 from modules.llm.schemas import (
     ChatTestRead,
@@ -36,6 +41,7 @@ from modules.llm.selectable import selectable_for
 router = APIRouter(prefix="/connections")
 
 DEFAULT_IMAGE_TEST_PROMPT = "A simple blue circle centered on a plain white background."
+DEFAULT_SPEECH_TEST_TEXT = "Hello. This is how your podcasts will sound."
 DEFAULT_CHAT_TEST_PROMPT = "Reply with one short sentence confirming you can answer."
 # Enough that a thinking model reaches its answer, and still little enough that
 # testing cannot run a bill up. A plain answer never approaches this, because the
@@ -275,8 +281,18 @@ async def test_connection_image(
     connection_id: int, payload: ModelTestWrite, session: SessionDep
 ) -> Response:
     connection = await transact(session, allowed_connection, connection_id)
+
+    async def allow_url_host(url: str) -> None:
+        # A 403 like the connection's own, so the renderer asks about this host.
+        refused = await transact(session, egress.refused_named_host, url)
+        if refused is not None:
+            raise refused
+
     provider = OpenAICompatibleImageProvider(
-        connection.id, connection.base_url, connection.api_key
+        connection.id,
+        connection.base_url,
+        connection.api_key,
+        allow_url_host=allow_url_host,
     )
     model = _requested_model(payload)
     try:
@@ -288,5 +304,33 @@ async def test_connection_image(
     return Response(
         content=image.content,
         media_type=image.media_type,
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+@router.post("/{connection_id}/speech-test")
+async def test_connection_speech(
+    connection_id: int, payload: ModelTestWrite, session: SessionDep
+) -> Response:
+    """One line in the typed voice, or the server's default, so an audio model
+    can be heard before it is chosen."""
+    connection = await transact(session, allowed_connection, connection_id)
+    model = _requested_model(payload)
+    speech = RemoteSpeech(
+        model,
+        base_url=connection.base_url,
+        api_key=connection.api_key,
+    )
+    # Empty leaves the voice to the server's default, where it has one.
+    voice = (payload.voice or "").strip()
+    line = SpokenTurn(voice, payload.prompt or DEFAULT_SPEECH_TEST_TEXT)
+    try:
+        # Only audio.cpp reads the language; a server infers it from the text.
+        audio = await speech.synthesize([line], "")
+    except NonRetryableSpeechError as error:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(error)) from error
+    return Response(
+        content=audio.content,
+        media_type=audio.media_type,
         headers={"Cache-Control": "no-store"},
     )

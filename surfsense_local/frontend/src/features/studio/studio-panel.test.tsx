@@ -13,6 +13,7 @@ const readyDocument = {
   id: 4,
   title: "Saturn facts",
   document_type: "NOTE" as const,
+  mime_type: null,
   status: "ready" as const,
   error_message: null,
   created_at: "2026-09-05T00:00:00Z",
@@ -33,8 +34,10 @@ const pendingArtifact = {
 
 function StudioHarness({
   documents = [readyDocument],
+  onSetUpVoices = () => undefined,
 }: {
   documents?: (typeof readyDocument)[]
+  onSetUpVoices?: () => void
 }) {
   const studio = useStudio(1)
   // The panel is told what is selected; the page owns it. Mirror useSources,
@@ -69,6 +72,7 @@ function StudioHarness({
         isCreating={studio.isCreating}
         error={studio.error}
         onGenerate={studio.create}
+        onSetUpVoices={onSetUpVoices}
       />
       <ArtifactList
         workspaceId={1}
@@ -83,10 +87,13 @@ function StudioHarness({
   )
 }
 
-function renderStudio(documents: (typeof readyDocument)[] = [readyDocument]) {
+function renderStudio(
+  documents: (typeof readyDocument)[] = [readyDocument],
+  onSetUpVoices?: () => void
+) {
   return render(
     <TooltipProvider>
-      <StudioHarness documents={documents} />
+      <StudioHarness documents={documents} onSetUpVoices={onSetUpVoices} />
     </TooltipProvider>
   )
 }
@@ -121,6 +128,7 @@ describe("studio panel", () => {
           isCreating={false}
           error={null}
           onGenerate={async () => false}
+          onSetUpVoices={() => undefined}
         />
       </TooltipProvider>
     )
@@ -269,7 +277,13 @@ describe("studio panel", () => {
         }
         if (path === "/workspaces/1/studio/podcast/brief") {
           await briefGate
-          return Response.json({ brief, voices })
+          return Response.json({
+            brief,
+            voices,
+            voices_source: "local",
+            voiced_by: null,
+            languages: ["en-US"],
+          })
         }
         if (path === "/workspaces/1/studio/jobs" && init?.method === "POST") {
           return Response.json(
@@ -416,6 +430,7 @@ describe("studio panel", () => {
           isCreating={false}
           error={null}
           onGenerate={async () => false}
+          onSetUpVoices={() => undefined}
         />
       </TooltipProvider>
     )
@@ -462,5 +477,51 @@ describe("studio panel", () => {
         "Generate an AI interactive quiz based on your sources"
       )
     ).toBeTruthy()
+  })
+
+  it("holds a podcast on a server model with no voices, and points to setting them up", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = String(input)
+        if (path === "/workspaces/1/studio/formats") {
+          return Response.json([
+            {
+              key: "podcast",
+              label: "Podcast",
+              requires_model_types: ["text_gen", "audio_gen"],
+              available: true,
+              unavailable_reason: null,
+            },
+          ])
+        }
+        if (path === "/workspaces/1/studio/podcast/brief") {
+          return Response.json({
+            brief: {
+              language: "en",
+              style: "conversational",
+              duration: "standard",
+              speakers: [{ name: "Host", role: "host", voice: "" }],
+            },
+            voices: [],
+            voices_source: "saved",
+            voiced_by: { server: "OpenRouter", model: "seed-audio-1-0" },
+            languages: ["en"],
+          })
+        }
+        if (path === "/workspaces/1/artifacts") return Response.json([])
+        return Response.json({ detail: "not found" }, { status: 404 })
+      })
+    )
+    const setUp = vi.fn()
+    const user = userEvent.setup()
+
+    renderStudio([readyDocument], setUp)
+    await user.click(await screen.findByRole("button", { name: "Podcast" }))
+
+    await user.click(
+      await screen.findByRole("button", { name: "Set up voices" })
+    )
+    expect(setUp).toHaveBeenCalledOnce()
   })
 })

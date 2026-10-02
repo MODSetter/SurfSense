@@ -24,6 +24,8 @@ jobs:
     outputs:
       manifest_rules_changed: ${{ steps.changed_paths.outputs.manifest_rules_changed }}
       sdk_changed: ${{ steps.changed_paths.outputs.sdk_changed }}
+      sdk_or_app_changed: ${{ steps.changed_paths.outputs.sdk_or_app_changed }}
+      cli_changed: ${{ steps.changed_paths.outputs.cli_changed }}
 
     steps:
       - name: Checkout code
@@ -41,6 +43,17 @@ jobs:
               - '.github/workflows/plugins-pull-request-checks.yml'
             sdk_changed:
               - 'plugins/core/sdk/**'
+              - '.github/workflows/plugins-pull-request-checks.yml'
+            # Either side can break the other: a route the SDK calls, or the SDK.
+            sdk_or_app_changed:
+              - 'plugins/core/sdk/**'
+              - 'surfsense_local/backend/**'
+              - '.github/workflows/plugins-pull-request-checks.yml'
+            # invoke runs the SDK and the example against the real app.
+            cli_changed:
+              - 'plugins/core/**'
+              - 'plugins/example/**'
+              - 'surfsense_local/backend/**'
               - '.github/workflows/plugins-pull-request-checks.yml'
 
   check-manifest-rules:
@@ -113,3 +126,69 @@ jobs:
       - name: Run unit tests
         working-directory: plugins/core/sdk
         run: uv run pytest -m unit
+
+  check-sdk-against-the-app:
+    name: Check SDK against the app
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.sdk_or_app_changed == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      # The contract tests start the real backend, so it needs its own packages.
+      - name: Install the app's dependencies
+        working-directory: surfsense_local/backend
+        run: uv sync
+
+      - name: Install the SDK's dependencies
+        working-directory: plugins/core/sdk
+        run: uv sync
+
+      - name: Run contract tests
+        working-directory: plugins/core/sdk
+        run: uv run pytest -m contract
+
+  check-cli:
+    name: Check CLI
+    runs-on: ubuntu-latest
+    needs: detect-changes
+    if: github.event_name == 'workflow_dispatch' || needs.detect-changes.outputs.cli_changed == 'true'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v10.2.0
+        with:
+          enable-cache: true
+          python-version: '3.12'
+
+      # invoke's tests run plugins against the real backend.
+      - name: Install the app's dependencies
+        working-directory: surfsense_local/backend
+        run: uv sync
+
+      - name: Install dependencies
+        working-directory: plugins/core/cli
+        run: uv sync
+
+      - name: Lint
+        working-directory: plugins/core/cli
+        run: uv run ruff check .
+
+      - name: Check formatting
+        working-directory: plugins/core/cli
+        run: uv run ruff format --check .
+
+      - name: Run tests
+        working-directory: plugins/core/cli
+        run: uv run pytest

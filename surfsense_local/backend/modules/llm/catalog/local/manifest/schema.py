@@ -18,6 +18,9 @@ from modules.llm.catalog.local.engines.llamacpp.manifest_fields import (
     ShapeSpec,
     Template,
 )
+from modules.llm.catalog.local.engines.onnxruntime.manifest_fields import (
+    EmbeddingDefaults,
+)
 from modules.llm.catalog.local.engines.registry import ENGINE_ENTRY_FIELDS, engine_for
 from modules.llm.catalog.local.engines.sdcpp.manifest_fields import (
     ImageDefaults,
@@ -70,6 +73,7 @@ class Validated(BaseModel):
     llama_cpp: str | None = None
     sd_cpp: str | None = None
     audio_cpp: str | None = None
+    onnxruntime: str | None = None
 
 
 class ManifestBuild(BaseModel):
@@ -77,6 +81,8 @@ class ManifestBuild(BaseModel):
 
     quantization: str = Field(min_length=1)
     files: list[ManifestFile] = Field(min_length=1)
+    # sd-server's launch flags. Empty on every llama.cpp build and unread there:
+    # the router ignores per-model load arguments (runtime.md).
     run: RunArgs = Field(default_factory=RunArgs)
     validated: Validated = Field(default_factory=Validated)
 
@@ -120,6 +126,7 @@ class CuratedModel(BaseModel):
     image: ImageDefaults | None = None
     video: VideoDefaults | None = None
     audio: AudioDefaults | None = None
+    embedding: EmbeddingDefaults | None = None
     # Text models only: an image model is not priced by the llama.cpp estimator.
     shape: ShapeSpec | None = None
     builds: list[ManifestBuild] = Field(min_length=1)
@@ -144,6 +151,13 @@ class CuratedModel(BaseModel):
         choice = engine.entry_requires_one_of
         if choice and len(present & choice) != 1:
             raise ValueError(f"{self.id}: {engine.name} needs one of {sorted(choice)}")
+        for build in self.builds:
+            roles = {f.role for f in build.files}
+            if missing_roles := engine.build_requires - roles:
+                raise ValueError(
+                    f"{self.id} {build.quantization}: {engine.name} needs "
+                    f"{sorted(missing_roles)}"
+                )
         return self
 
     @model_validator(mode="after")

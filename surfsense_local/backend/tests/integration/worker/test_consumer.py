@@ -11,6 +11,8 @@ from sqlalchemy import Engine, text
 
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from modules.documents.tasks import ingest_document
+from modules.embedding.bundled import BGE
+from modules.embedding.lock import lock_index
 from modules.workspaces.models import Workspace
 from shared.db import create_db_engine, create_session_factory
 from shared.migrations import upgrade_to_head
@@ -55,6 +57,7 @@ def test_the_worker_ingests_a_job_the_api_enqueued() -> None:
     upgrade_to_head(engine)
 
     with create_session_factory(engine)() as session:
+        lock_index(session, BGE)  # as finishing onboarding would
         workspace = Workspace(name="Saturn")
         session.add(workspace)
         session.flush()

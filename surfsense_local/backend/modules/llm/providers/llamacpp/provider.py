@@ -23,7 +23,7 @@ concern; this adapter answers questions and reports what is on disk.
 """
 
 import logging
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 from pathlib import Path
 
 import httpx
@@ -34,6 +34,7 @@ from modules.llm.gguf.file_kind import FileKind, kind_of
 from modules.llm.profile import Fingerprint, from_llamacpp
 from modules.llm.providers.llamacpp.capabilities import Capabilities, read_capabilities
 from modules.llm.providers.llamacpp.messages import for_template
+from modules.llm.providers.llamacpp.prompt_progress import PROMPT_PROGRESS
 from modules.llm.providers.llamacpp.router_client import RouterClient
 from modules.llm.providers.llamacpp.thinking import THINKING_OFF
 from modules.llm.providers.openai_compatible.chat import OpenAICompatibleChatProvider
@@ -58,9 +59,12 @@ class LlamaCppProvider:
         models_dir: Path | None = None,
         *,
         transport: httpx.BaseTransport | None = None,
+        publisher_temperature: Callable[[str, bool | None], float | None] | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._models_dir = models_dir
+        # A curated model's reviewed setting, for a caller that chose none.
+        self._publisher_temperature = publisher_temperature
         self._router = RouterClient(self._base_url, transport=transport)
         # `/props` describes a resident model and nothing about it changes
         # between turns, so it is read once per load rather than once per
@@ -69,7 +73,10 @@ class LlamaCppProvider:
         # wrong (the idle timer evicted it, or a reprice changed the preset).
         self._capabilities_cache: dict[str, Capabilities] = {}
         self._chat = OpenAICompatibleChatProvider(
-            f"{self._base_url}/v1", transport=transport, thinking_off=THINKING_OFF
+            f"{self._base_url}/v1",
+            transport=transport,
+            thinking_off=THINKING_OFF,
+            prompt_progress=PROMPT_PROGRESS,
         )
 
     async def health(self) -> bool:
@@ -208,7 +215,7 @@ class LlamaCppProvider:
             reasoning=reasoning,
             json_schema=json_schema,
         ):
-            if not delta.reasoning:
+            if not delta.reasoning and delta.progress is None:
                 yield delta.text
 
     async def chat_deltas(
@@ -224,6 +231,8 @@ class LlamaCppProvider:
         # Downgrade at the seam: `modules/chat` assembles one conversation and
         # never learns that templates differ.
         shaped = for_template(messages, await self.capabilities(model))
+        if temperature is None and self._publisher_temperature is not None:
+            temperature = self._publisher_temperature(model, reasoning)
         try:
             async for delta in self._chat.chat_deltas(
                 model,

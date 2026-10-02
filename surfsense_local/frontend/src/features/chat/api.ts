@@ -1,3 +1,4 @@
+import type { AgentStep } from "@/features/agent/api"
 import { request, requestJson, requestVoid } from "@/lib/api"
 
 import { parseSseStream, type ChatStreamEvent, type Citation } from "./sse"
@@ -6,6 +7,8 @@ export type ChatThread = {
   id: number
   workspace_id: number
   title: string | null
+  // The agent answers this thread, chosen when it was opened.
+  uses_agent: boolean
   created_at: string
   updated_at: string
 }
@@ -27,8 +30,12 @@ export type MessageContent = {
   // A thinking model's trace, shown folded above the answer.
   reasoning?: { text: string; duration_ms: number | null }
   images?: StoredImage[]
+  // An agent reply's tool calls, in the order it made them.
+  steps?: AgentStep[]
   // Client only: what a turn not yet stored shows in place of `images`.
   previews?: string[]
+  // Client only: how far the model has read the prompt, while it waits.
+  progress?: { processed: number; total: number }
 }
 
 export type ChatMessage = {

@@ -36,12 +36,17 @@ sd.cpp nor audio.cpp has a fit estimate, so the row states the download size and
 nothing about this machine, and nothing blocks its install. The screen renders these fields and computes none
 of them.
 
-`GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's and audio.cpp's.
+`GET /llm/catalog/local` returns llama.cpp's rows, then sd.cpp's, audio.cpp's and onnxruntime's.
 sd.cpp's are the six curated image models and two video models, only when Electron handed the API an
 images folder, which it does only when it staged sd-server, in dev or packaged
 ([`index.ts`](../../../surfsense_local/electron/src/main/index.ts); [packaging](../packaging.md)).
 audio.cpp's are the three curated audio models, only when Electron handed the API
 an audio folder, which it does only when it staged audio.cpp's server.
+onnxruntime's are the curated embedders, then any Hugging Face embedder
+downloaded and checked ([embedding](../embedding.md)), always: they run in the API and the
+workers, so no runtime has to be staged. An embedder row adds `description`, what
+it is for, which onboarding's search step shows; it has no fit, and can be
+selected for nothing ([selection](selection.md)).
 
 ## One slice per engine
 
@@ -63,6 +68,7 @@ catalog/local/
                             builds/, rows/, images_folder/
     audiocpp/               engine.py, manifest_fields.py, evidence.py,
                             builds/, rows/, audio_folder/
+    onnxruntime/            engine.py, manifest_fields.py, rows.py, spec.py
   service.py  router.py  schemas.py  dependencies.py
 ```
 
@@ -74,17 +80,20 @@ the model; sd.cpp has nothing to do, since sd-server takes its model at launch,
 for the Studio job that needs it;
 audio.cpp rewrites `server.json`), what to settle `after_remove` (audio.cpp
 rewrites `server.json`), and what to do `on_startup` (llama.cpp writes the
-preset; sd.cpp records legacy downloads; audio.cpp writes `server.json`). The selection an install fills is the
-engine's `model_type` and `provider`.
+preset; sd.cpp records legacy downloads; audio.cpp writes `server.json`).
+When a catalog read finds a readable llama.cpp model copied into the folder
+that the preset does not name, it rewrites the preset once; later reads with no
+new model leave it alone, so Electron does not restart the router repeatedly.
+The selection an install fills is the engine's `model_type` and `provider`.
 
-| | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) |
-|---|---|---|---|
-| Evidence | GGUF metadata keys | tensor names, as sd.cpp dispatches on them (`evidence.py`) | the family key, read from the header's front (`evidence.py`) |
-| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio`: voices, languages, sample rate, measured memory (required) |
-| Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | a GGUF at the repo's root, with the VAE and text encoder the entry names from their own repos (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) |
-| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) |
-| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed models, `server.json` |
-| Also | support, pricing, the recommended build, the lead build, the star, search | | |
+| | [`engines/llamacpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/) | [`engines/sdcpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/sdcpp/) | [`engines/audiocpp/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/audiocpp/) | [`engines/onnxruntime/`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/onnxruntime/) |
+|---|---|---|---|---|
+| Evidence | GGUF metadata keys | tensor names, as sd.cpp dispatches on them (`evidence.py`) | the family key, read from the header's front (`evidence.py`) | the repo config's `model_type`, and its pipeline tag |
+| Manifest fields | `context` (required), `shape`, `template`, `sampling` | `image` defaults, or `video` ones for a video model: one of them (required) | `audio`: voices, languages, sample rate, measured memory (required) | `embedding`: width, pooling, normalisation, prefixes, `max_tokens`, `semantic_weight`, `batch`, and `parity` for a converted build (required) |
+| Which files make a build | every build a repo offers, each with the repo's projector (`builds/in_repo.py`) | a GGUF at the repo's root, with the VAE and text encoder the entry names from their own repos (`builds/in_repo.py`) | every GGUF in the model's own folder of a shared repo, alone (`builds/in_repo.py`) | the ONNX weights the entry names, with the repo's `tokenizer.json`, which every build must carry |
+| Default build | the first in a preference order led by `UD-Q4_K_XL` (`builds/choice/`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | the first the entry pins, in its reviewed order (`builds/choice.py`) | its only build: another would be another vector space |
+| Its folder | `models_folder/`: the scan, the preset, readiness | `images_folder/`: its files, where each lands, legacy downloads, the installed image; `launch.py`: its flags | `audio_folder/`: its files, the installed models, `server.json` | `embeddings/<id>/` under the data directory, not the models pack, which a packaged app ships read-only; bge-small is read in place from the pack |
+| Also | support, pricing, the recommended build, the lead build, the star, search | | | `spec_for`: an entry as the spec an index stores |
 
 A slice holds what the catalog knows about a runtime. Running it stays outside
 `catalog/`: the clients in `providers/`, and `fit/`, which prices llama.cpp.
@@ -200,9 +209,9 @@ engine's `refresh.py`, is the other. For each repo the script reads the
 commit sha, the file listing at that commit (sizes and `lfs.oid` hashes) and the
 repo's `params` file, then the default build's header and its projector's header
 over HTTP range requests. No weights are downloaded. Each engine reads its own
-entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
-`local_manifest/audiocpp/` each hold a `refresh.py` (the network) and an
-`assemble.py` (pure, the written entry).
+entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/`,
+`local_manifest/audiocpp/` and `local_manifest/onnxruntime/` each hold a
+`refresh.py` (the network) and an `assemble.py` (pure, the written entry).
 
 - **An image entry's evidence comes from its tensors**, the only thing an sd.cpp
   file reliably states, and what a person reviews comes from the entry: the
@@ -219,6 +228,12 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
   64 KiB: audio.cpp writes it before the files it embeds, which make Kokoro's
   header 38.6 MB and Supertonic's 57 MB. The entry names the model's folder in
   the shared repo, its builds most preferred first, and the reviewed `audio` block.
+- **An embedder entry pins the weights it names with the repo's tokenizer**, and
+  the reviewed `embedding` block: the ranking weight the retrieval eval measured
+  for that model, and for a build converted by someone else, how close its
+  vectors are to the original's. The schema refuses a build under 0.99 mean or
+  0.98 minimum cosine. A file kept in git rather than LFS lists no sha256, so the
+  refresh downloads and hashes it when it is small; a tokenizer is.
 - **It pins every chat build in the quantization preference order**
   ([`builds/choice/preference.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/builds/choice/preference.py)),
   and nothing outside it: no imatrix files, drafters, big endian builds, or
@@ -241,7 +256,8 @@ entries: `local_manifest/llamacpp/`, `local_manifest/sdcpp/` and
 The script's assembly is tested over recorded input, with no network
 ([`test_local_manifest.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest.py),
 [`test_local_manifest_sdcpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_sdcpp.py),
-[`test_local_manifest_audiocpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_audiocpp.py)).
+[`test_local_manifest_audiocpp.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_audiocpp.py),
+[`test_local_manifest_onnxruntime.py`](../../../surfsense_local/backend/tests/unit/scripts/test_local_manifest_onnxruntime.py)).
 
 ## Which files make a build
 
@@ -315,7 +331,8 @@ recommended one. A light spill is described quietly in the reason line instead.
 turns an architecture and a pipeline tag into a type. It names what is not a chat
 model and calls everything else `TEXT_GEN`, because llama.cpp gains
 architectures faster than any list is updated: embedders, rerankers, speech
-recognisers, labellers, OCR, drafters and projectors are known and typeless;
+recognisers, labellers, OCR, drafters and projectors are known and typeless,
+except embedders, which are `EMBEDDING`, a type onnxruntime runs and no slot holds;
 diffusion architectures are `IMAGE_GEN`, video `VIDEO_GEN`, text to speech
 `AUDIO_GEN`, audio.cpp's voice families among them (`kokoro_tts`, `supertonic`,
 `kitten_tts`). Every audio.cpp file declares `general.architecture = audiocpp`,
@@ -372,12 +389,15 @@ says **Vision**, once per row.
   ([`installs.py`](../../../surfsense_local/backend/modules/llm/catalog/local/installs.py)),
   naming each model's weights and projector, and saves the projector as
   `mmproj-<model>.gguf` so two vision models never share or overwrite one. A file
-  copied in by hand pairs under that name too. A projector merely sitting beside a
-  model is never attached to it. The record is written as each file lands, with
-  the files still to come under `pending`, so an install cut off between the
-  weights and the projector is a build the catalog knows is unfinished: its row
-  keeps offering Download rather than reading installed by name and loading as
-  text only, and the retry fetches only what is missing.
+  copied in by hand pairs under that name too. A projector merely sitting beside
+  a model is never attached to it. When its projection width identifies exactly
+  one model in the folder, that model's row says what to rename the projector;
+  no match or several matches is reported without guessing. The record is
+  written as each file lands, with the files still to come under `pending`, so
+  an install cut off between the weights and the projector is a build the
+  catalog knows is unfinished: its row keeps offering Download rather than
+  reading installed by name and loading as text only, and the retry fetches only
+  what is missing.
 - **Both halves download, price and load together.** The footprint includes the
   projector, `estimate()` charges it, and the preset names it ([`runtime.md`](runtime.md)).
 - **Chat reads the same answer.** The composer offers images for an installed
@@ -410,7 +430,10 @@ Hugging Face's parsed architecture, ignored when it names a projector, and is
 marked approximate. An estimated fit never refuses, because the exact answer
 comes before any bytes move. If that check refuses, its reason remains under the
 build as well as appearing in the error toast. A repo whose type is not
-`TEXT_GEN` gets no install ids, so none of its builds can be downloaded.
+`TEXT_GEN` gets no install ids, so none of its builds can be downloaded. A
+gated repo still lists its builds, but the app has no Hugging Face credential
+to fetch them: the screen explains that limitation and the server issues no
+install ids.
 
 **Installing a searched build reads it exactly.**
 [`exact_check.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/search/exact_check.py)
@@ -554,7 +577,7 @@ delete is in `modules/llm/router.py` beside the selection routes.
 | `GET /llm/installs/{id}` | one job | none |
 | `GET /llm/installs/events` | NDJSON: every job, now and on each change | none |
 | `DELETE /llm/installs/{id}` | `204`; `404` when it is unknown or already over | none |
-| `DELETE /llm/models/{model_name:path}` | `ModelDeleteRead`, with `selection_cleared` | none |
+| `DELETE /llm/models/{model_name:path}` | `ModelDeleteRead`, with `selection_cleared`; `409` for a model the app ships, or the embedder that made the library's vectors | none |
 
 Search, repo reads and downloads share one consent, `host:huggingface.co`
 ([`../egress.md`](../egress.md)). A destination that is off is a `403` with
@@ -594,8 +617,8 @@ The chat catalog, from the top:
   above the rows, never per row. Download stays offered, because an install
   still downloads while the runtime is down and ends with an honest message
   ([`runtime.md`](runtime.md#failure-behavior)); the notice says so and that a
-  restart of SurfSense starts the runtime. The image and audio pages read no
-  server state; whether sd-server is up is its own gap below.
+  restart of SurfSense starts the runtime. The audio page reads no server
+  state; the image page asks for sd-server's, as its section below says.
 - **Tested by SurfSense**: the curated rows, grouped by family. Each shows the
   star when it is the one for this computer, its name, a badge only when it warns,
   **Vision** when it reads images, the build it leads with and its size, and one
@@ -628,6 +651,13 @@ Rules the screen holds:
   it only downloads without selecting, so a model is chosen with Use once it is
   on disk. Every downloaded model has Delete, the one in use included: the API
   clears every slot that named it, and Electron stops sd-server on its next poll.
+  The row in use says what its server is doing, from `GET
+  /llm/image/local/state?model_type=…`: it starts when Studio needs it, or it is
+  running. The route also answers `missing` when a file the chosen model needs
+  is gone; that build is then no longer installed and has no row, and the
+  in-use summary names it "Not found on this computer". The route asks
+  sd-server's `/sdapi/v1/sd-models` once and never starts it; the screen asks
+  every five seconds, and only while a local model fills the slot.
 - The image editing section is the image section's parts for `image_edit`: only
   models whose entry names `edit`, each marked In use by the build's
   `selected_for`, which lists the slots that chose it, so FLUX.2 klein in use for
@@ -655,13 +685,9 @@ and the screen in `download-chat-models.test.tsx`, `install-view.test.tsx` and t
 
 ## Known gaps
 
-- Adding a `.gguf` from disk has no screen. A file copied into the models folder by hand shows on the next catalog fetch, with Use, but the router does not list it until it restarts, so choosing it fails until the next start, or until an install or delete rewrites the preset and Electron restarts the router ([`runtime.md`](runtime.md)).
 - Deleting the image or audio model in use removes its file while sd-server or audiocpp_server may still have it open. Untested on Windows, which refuses to delete an open file, so there the delete may fail until that server is stopped first.
-- A projector copied in by hand under its upstream name, such as `mmproj-F16.gguf`, pairs with nothing, and nothing says to rename it `mmproj-<model>.gguf`, so its model loads as text only.
 - Only the three audio defaults are validated; `validated` is empty on every other build.
-- `sampling`, `template.system_role` and llama.cpp's `run.args` are committed but nothing reads them, so chat does not use the publisher's sampling yet. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
-- A gated repo is marked "Needs an account", but the app sends no Hugging Face credential, so installing one of its builds fails with the generic install error.
+- Of `sampling`, chat sends only `temperature` ([`runtime.md`](runtime.md)); `top_p`, `top_k` and `min_p` wait on the `Generator` protocol carrying them. `template.system_role` and llama.cpp's `run.args` are committed but unread: chat asks the loaded template for its system role, and the router ignores per-model load arguments. sd.cpp's `image` defaults and `run.args` reach sd-server as launch flags. `template.tools` and `template.reasoning` reach a row's support, which the screen does not show.
 - The API does not cache search and nothing debounces typing: once the query has two characters, every keystroke sends a request, unless the renderer's 300 s cache holds that exact query.
-- Nothing on the screen says whether sd-server is up: an image row reads In use as soon as it is chosen, while Electron starts sd-server on it only when a Studio job needs it. The hard-coded list's route reported that, and went with it.
 - The `audio` block's `chunk_steps` are committed but nothing reads them: short of memory at the default chunk, a podcast refuses rather than stepping down, until a listening test clears the smaller chunks.
 - Browsing is still split by source, a catalog on the Add model page and one group per server, not the one list with Source and Capability filters the proposal describes.

@@ -81,6 +81,7 @@ function row(overrides: Record<string, unknown> = {}, builds = [build()]) {
 
 function serving({
   rows = [] as unknown[],
+  projectorNotices = [] as unknown[],
   selection = null as Record<string, unknown> | null,
   connections = [] as unknown[],
   extra = (() => null) as (path: string, init?: RequestInit) => Response | null,
@@ -95,6 +96,7 @@ function serving({
         gpu_status: "present",
         rows,
         recommended_id: null,
+        projector_notices: projectorNotices,
       })
     }
     if (path === "/llm/selection/text_gen" && init?.method === "PUT") {
@@ -239,6 +241,52 @@ describe("chat model settings", () => {
       provider: "llamacpp",
       name: "some-searched-model",
     })
+  })
+
+  it("explains how to pair a hand-copied projector without guessing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      serving({
+        rows: [
+          row(
+            {
+              id: "vision",
+              origin: "downloaded",
+              name: "vision",
+              family: "",
+            },
+            [build({ catalog_id: "", installed_as: "vision" })]
+          ),
+        ],
+        projectorNotices: [
+          {
+            kind: "rename",
+            projector: "mmproj-F16.gguf",
+            model_id: "vision",
+            rename_to: "mmproj-vision.gguf",
+          },
+          {
+            kind: "no_match",
+            projector: "mmproj-other.gguf",
+            model_id: null,
+            rename_to: null,
+          },
+        ],
+      })
+    )
+
+    renderSettings()
+
+    expect(
+      await screen.findByText(
+        "Rename mmproj-F16.gguf to mmproj-vision.gguf to enable vision for this model."
+      )
+    ).toBeTruthy()
+    expect(
+      screen.getByText(
+        "mmproj-other.gguf does not match any model in this folder."
+      )
+    ).toBeTruthy()
   })
 
   it("leaves an image model on disk to the image page", async () => {

@@ -17,7 +17,8 @@ from .admin import suspend_licenses_for_customer
 from .checkout import resolve_license_plan
 from .email.deliver import deliver_licenses
 from .issue import fulfill_license_session
-from .models import LicenseIssueError
+from .models import LicenseIssueError, LicenseNotFoundError
+from .records import find_license_by_checkout_session
 
 logger = logging.getLogger(__name__)
 
@@ -77,35 +78,78 @@ async def _fulfill(
     return StripeWebhookResponse()
 
 
-async def _suspend_refunded(charge: Any, **_: Any) -> StripeWebhookResponse:
-    """Suspend a refunded buyer's licenses.
+async def _suspend_refunded(
+    charge: Any, *, stripe_client: Any = None, **_: Any
+) -> StripeWebhookResponse:
+    """Suspend the licence a fully refunded charge paid for, and no other.
 
     Suspend rather than revoke: reversible, still listable for support, and
     ``validate-key`` then reports SUSPENDED, which contract 2 maps to the
-    ``revoked`` reason.
+    ``revoked`` reason. A partial refund suspends nothing: it is a goodwill or
+    seat adjustment, and the rest of the purchase is still paid for.
     """
     customer = getattr(charge, "customer", None)
     customer_id = (
         customer if isinstance(customer, str) else getattr(customer, "id", None)
     )
-    if not customer_id:
+    if not customer_id or not _fully_refunded(charge):
         return StripeWebhookResponse()
 
     try:
-        suspended = await suspend_licenses_for_customer(str(customer_id))
+        license_id = await _license_paid_by(charge, stripe_client)
+        if license_id is None:
+            # A wrong suspension is silent (resend skips suspended licences), so
+            # a refund that cannot be traced to one licence is left to support.
+            logger.warning(
+                "Refund for customer %s traces to no single license; not suspending",
+                customer_id,
+            )
+            return StripeWebhookResponse()
+        await suspend_licenses_for_customer(
+            str(customer_id), keygen_license_id=license_id
+        )
     except Exception:
+        # Swallowed on purpose: a 500 makes Stripe retry, and a retry would
+        # re-run the suspension.
         logger.exception(
             "Could not suspend licenses for refunded customer %s", customer_id
         )
         return StripeWebhookResponse()
 
-    if suspended:
-        logger.info(
-            "Suspended %d license(s) after refund for customer %s",
-            suspended,
-            customer_id,
-        )
+    logger.info(
+        "Suspended license %s after refund for customer %s", license_id, customer_id
+    )
     return StripeWebhookResponse()
+
+
+def _fully_refunded(charge: Any) -> bool:
+    if getattr(charge, "refunded", False):
+        return True
+    amount = getattr(charge, "amount", None)
+    refunded = getattr(charge, "amount_refunded", None)
+    return isinstance(amount, int) and isinstance(refunded, int) and refunded >= amount
+
+
+async def _license_paid_by(charge: Any, stripe_client: Any) -> str | None:
+    """The one licence the charge's checkout session issued, through Stripe."""
+    payment_intent = getattr(charge, "payment_intent", None)
+    payment_intent_id = (
+        payment_intent
+        if isinstance(payment_intent, str)
+        else getattr(payment_intent, "id", None)
+    )
+    if not payment_intent_id or stripe_client is None:
+        return None
+    sessions = stripe_client.v1.checkout.sessions.list(
+        params={"payment_intent": payment_intent_id, "limit": 1}
+    )
+    if not sessions.data:
+        return None
+    try:
+        record = await find_license_by_checkout_session(sessions.data[0].id)
+    except LicenseNotFoundError:
+        return None
+    return record.keygen_license_id or None
 
 
 registry.claims_checkout("license", _claims_checkout, _fulfill)

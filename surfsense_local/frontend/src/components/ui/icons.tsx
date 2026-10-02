@@ -9,6 +9,7 @@ import {
   ArrowLeftIcon as ArrowLeftIconData,
   ArrowRightIcon as ArrowRightIconData,
   ArrowUp02Icon as ArrowUp02IconData,
+  ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
   BotIcon as BotIconData,
   BrainCircuitIcon as BrainCircuitIconData,
@@ -50,6 +51,7 @@ import {
   PencilEdit02Icon as PencilEdit02IconData,
   Pdf01Icon as Pdf01IconData,
   PencilIcon as PencilIconData,
+  PlayIcon as PlayIconData,
   PlusIcon as PlusIconData,
   PodcastIcon as PodcastIconData,
   Presentation02Icon as Presentation02IconData,
@@ -149,6 +151,7 @@ export const FilterIcon = createIcon(FilterIconData)
 export const FolderOpenIcon = createIcon(FolderOpenIconData)
 export const Image01Icon = createIcon(Image01IconData)
 export const AudioWaveformIcon = createIcon(AudioWaveformIconData)
+export const PlayIcon = createIcon(PlayIconData)
 export const InformationCircleIcon = createIcon(InformationCircleIconData)
 export const LayoutGridIcon = createIcon(LayoutGridIconData)
 export const LicenseIcon = createIcon(LicenseIconData)
@@ -167,6 +170,8 @@ export const Presentation02Icon = createIcon(Presentation02IconData)
 export const Quiz02Icon = createIcon(Quiz02IconData)
 export const RefreshCwIcon = createIcon(RefreshCwIconData)
 export const SearchIcon = createIcon(Search01Icon)
+// Points in a space, nearby meaning similar: what an embedding is.
+export const EmbeddingIcon = createIcon(ChartScatterIconData)
 export const ServerIcon = createIcon(ServerIconData)
 export const ServerOffIcon = createIcon(ServerOffIconData)
 export const DownloadCircle02Icon = createIcon(DownloadCircle02IconData)

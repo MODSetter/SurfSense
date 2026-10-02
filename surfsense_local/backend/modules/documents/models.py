@@ -55,6 +55,10 @@ class Document(Base):
     content_hash: Mapped[str | None]
     dedup_key: Mapped[str | None]
     document_metadata: Mapped[dict[str, Any] | None] = mapped_column(JSON)
+    # The index its chunks were embedded into; what a re-embed has not reached.
+    embedding_index_id: Mapped[int | None] = mapped_column(
+        ForeignKey("embedding_indexes.id")
+    )
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         server_default=func.now(), onupdate=func.now()
@@ -67,3 +71,10 @@ class Document(Base):
     artifact: Mapped["Artifact | None"] = relationship(
         back_populates="document", cascade="all, delete-orphan", passive_deletes=True
     )
+
+    @property
+    def mime_type(self) -> str | None:
+        if self.document_type is not DocumentType.FILE:
+            return None
+        mime_type = (self.document_metadata or {}).get("mime_type")
+        return mime_type if isinstance(mime_type, str) else None

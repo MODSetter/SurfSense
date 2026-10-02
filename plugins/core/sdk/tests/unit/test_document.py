@@ -42,7 +42,7 @@ def echo(text: str) -> None:
     assert request.body == {
         "title": "Note hi",
         "content": "hi",
-        "metadata": {
+        "document_metadata": {
             "plugin_id": "example",
             "plugin_version": None,
             "action": "echo",
@@ -146,7 +146,7 @@ def test_a_refusal_fails_with_what_the_app_said(
 
 
 def test_a_verb_run_without_the_app_says_how_to_reach_one(plugin) -> None:
-    """Outside the app, the fix is the harness and its flag, not a connection error."""
+    """Outside the app, the fix is invoke and its flag, not a connection error."""
     plugin.write(UPDATES_A_FILE)
 
     finished = plugin.run("echo", {"text": "hi"})

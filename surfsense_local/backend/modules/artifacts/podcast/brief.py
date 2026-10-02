@@ -5,10 +5,17 @@ from pydantic import BaseModel, Field, StringConstraints, ValidationError
 from sqlalchemy.orm import Session
 
 from modules.llm.providers.protocols import Voice
-from modules.llm.resolution import resolve_text_to_speech
+from modules.llm.voices.roster import speech_voices
 
 MAX_SPEAKERS = 6
 DEFAULT_LANGUAGE = "en-US"
+# What a script may be written in when no voice states its languages, as a
+# server's voices never do. The product's choice of languages to offer, not a
+# claim about the model.
+SCRIPT_LANGUAGES = (
+    "en", "ar", "de", "es", "fr", "hi", "id", "it", "ja", "ko", "nl", "pl",
+    "pt", "ru", "sv", "tr", "uk", "vi", "zh",
+)  # fmt: skip
 
 
 class Style(StrEnum):
@@ -44,10 +51,14 @@ Name = Annotated[
 ]
 
 
+# A voice id as the model takes it: from its roster, or a server's.
+VoiceId = Annotated[str, StringConstraints(strip_whitespace=True, max_length=100)]
+
+
 class Speaker(BaseModel):
     name: Name
     role: Role
-    voice: str
+    voice: VoiceId
 
 
 class PodcastBrief(BaseModel):
@@ -59,10 +70,22 @@ class PodcastBrief(BaseModel):
     speakers: list[Speaker] = Field(min_length=1, max_length=MAX_SPEAKERS)
 
 
+def languages(voices: list[Voice]) -> list[str]:
+    """What the brief may be written in: what the roster speaks, in its order,
+    or the script languages when no voice says."""
+    stated = [lang for voice in voices for lang in voice.languages]
+    return list(dict.fromkeys(stated)) if stated else list(SCRIPT_LANGUAGES)
+
+
+def _speaks(voice: Voice, language: str) -> bool:
+    """A voice that states no language is not refused one."""
+    return not voice.languages or language in voice.languages
+
+
 def default_language(voices: list[Voice]) -> str:
     """American English where a voice speaks it, else any English, else the
     first language the model's roster names: Kitten lists English as `en`."""
-    spoken = [language for voice in voices for language in voice.languages]
+    spoken = languages(voices)
     if DEFAULT_LANGUAGE in spoken:
         return DEFAULT_LANGUAGE
     english = [language for language in spoken if language.split("-")[0] == "en"]
@@ -70,27 +93,29 @@ def default_language(voices: list[Voice]) -> str:
 
 
 def proposed(voices: list[Voice], language: str | None = None) -> PodcastBrief:
-    """The defaults the form opens with: two speakers in a language they speak."""
+    """The defaults the form opens with: two speakers in a language they speak.
+    A server model with no voices yet opens with one voiceless speaker, which
+    the form shows as voices to set up."""
     language = language or default_language(voices)
-    spoken = [voice for voice in voices if language in voice.languages][:2]
+    chosen = [v.id for v in voices if _speaks(v, language)][:2] or [""]
     return PodcastBrief(
         language=language,
         speakers=[
-            Speaker(name=_default_name(slot), role=_ROLE_BY_SLOT[slot], voice=voice.id)
-            for slot, voice in enumerate(spoken)
+            Speaker(name=_default_name(slot), role=_ROLE_BY_SLOT[slot], voice=voice)
+            for slot, voice in enumerate(chosen)
         ],
     )
 
 
 def validate_options(session: Session, raw: dict | None) -> dict:
     """The Format hook: the brief, checked against the chosen model's voices."""
-    return validated(resolve_text_to_speech(session).voices(), raw).model_dump(
-        mode="json"
-    )
+    return validated(speech_voices(session).voices, raw).model_dump(mode="json")
 
 
 def validated(voices: list[Voice], raw: dict | None) -> PodcastBrief:
     """The brief a job may run with; raises ValueError with one readable line."""
+    if not voices:
+        raise ValueError("add voices for the audio model in Settings first")
     if raw is None:
         return proposed(voices)
     try:
@@ -100,10 +125,12 @@ def validated(voices: list[Voice], raw: dict | None) -> PodcastBrief:
         location = ".".join(str(part) for part in first["loc"])
         raise ValueError(f"{location}: {first['msg']}") from error
 
+    if brief.language not in languages(voices):
+        raise ValueError(f"language: {brief.language} is not one to write in")
     by_id = {voice.id: voice for voice in voices}
     for speaker in brief.speakers:
         voice = by_id.get(speaker.voice)
-        if voice is None or brief.language not in voice.languages:
+        if voice is None or not _speaks(voice, brief.language):
             raise ValueError(f"{speaker.name}: pick a {brief.language} voice")
     if len({speaker.voice for speaker in brief.speakers}) < len(brief.speakers):
         raise ValueError("each speaker needs their own voice")

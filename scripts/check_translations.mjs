@@ -85,15 +85,16 @@ function readCatalog(locale) {
 const catalogs = Object.fromEntries(LOCALES.map((l) => [l, readCatalog(l)]))
 
 const features = new Set([
-  ...readdirSync(FEATURES).filter((name) =>
-    statSync(join(FEATURES, name)).isDirectory()
-  ),
+  ...readdirSync(FEATURES)
+    .filter((name) => statSync(join(FEATURES, name)).isDirectory())
+    .map((name) => name.replaceAll("-", "_")),
   ...EXTRA_PREFIXES,
 ])
 
 // A deleted feature folder leaves its ids behind with a prefix nothing owns.
+// Match the whole folder prefix: feature names may contain underscores.
 for (const key of Object.keys(catalogs.en)) {
-  if (!features.has(key.split("_")[0])) {
+  if (![...features].some((feature) => key.startsWith(`${feature}_`))) {
     fail("translations/en.json", `${key} does not start with a feature folder or app`)
   }
 }

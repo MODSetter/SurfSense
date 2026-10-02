@@ -194,18 +194,22 @@ flash-attn = on
   back to the CPU silently. An `f16` plan writes none of them.
 
 The file is `models.ini` in the models directory, named once on each side
-(`PRESET_FILE`). `write_presets()` writes a sibling `.tmp` and renames it, so a
-half-written INI never loads.
+(`PRESET_FILE`). `write_presets()` leaves the existing file and its mtime alone
+when the rendered text is unchanged. A real change is written to a sibling
+`.tmp` and renamed, so a half-written INI never loads.
 
 ## From download to answerable
 
 llama.cpp's catalog engine, `LlamaCppEngine.reprice()` ([`models_folder/preset.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/models_folder/preset.py)), writes the preset for every `.gguf` in the models
 directory, at API startup (on the warm thread, after the device probe), after
-every install and after every delete. At startup, because a model placed in the
-directory by hand would otherwise load at llama.cpp's default window, and a stale
-section would keep advertising a model whose file is gone; after a delete,
-because the router serves a stale section as a real entry (`source: preset`) that
-fails when chosen.
+every install and after every delete. A catalog read also rewrites it when the
+folder contains a readable model that the preset does not name. Later catalog
+reads find its section and do not keep moving the file's modification time and
+restarting the router. At startup, because a model placed in the directory by
+hand would otherwise load at llama.cpp's default window, and a stale section
+would keep advertising a model whose file is gone; after a delete, because the
+router serves a stale section as a real entry (`source: preset`) that fails when
+chosen.
 
 For each file it reads the header and skips anything the header does not name a
 model, such as a vision projector, which has a header and a size like any model.
@@ -248,9 +252,9 @@ wanted and nobody is waiting yet:
   model is resident ([`selection.md`](selection.md)).
 - **At startup**, on the catalog warm thread after `reprice()`, because the
   preset decides the window the load will use. Nothing is resident after a
-  restart. `reprice()` always rewrites the preset, though, and Electron restarts
-  the sidecar on any rewrite within 5 seconds, so this load most likely lands on
-  a router that is about to be replaced (Known gaps).
+  restart. An unchanged catalog leaves the preset's mtime alone, so Electron
+  keeps the sidecar that receives this load. A changed catalog still rewrites
+  the preset and restarts the sidecar so its model list stays current.
 
 `residency.warm_selected()` gates the last two on the selection's provider being
 `llamacpp`, so choosing a remote model, or starting up with one selected, loads
@@ -288,6 +292,35 @@ on the command line applies to the whole router, and setting it at all makes the
 server ignore `thinking_budget_tokens`, whose handler runs only while the flag is
 at its `-1` default. The sidecar never passes it.
 
+## Prompt progress
+
+The wait before the first token is a model load, then the prompt being read.
+llama.cpp reports the second. Measured at `b11050` in router mode with the
+sidecar's flags, `Qwen3-0.6B-Q4_K_M` and a 12,505-token prompt: a streamed chat
+sent `return_progress` answers, before any token, with chunks whose
+`delta.content` is null and that carry
+
+```json
+{"prompt_progress": {"total": 12505, "cache": 0, "processed": 2048, "time_ms": 334}}
+```
+
+one per 2,048-token batch, from `processed: 0` to `processed: total`. Three
+things follow from what was seen:
+
+- Nothing is sent while the model loads. The first chunk arrived once it was up.
+- `processed` starts at `cache`. The same prompt again reported
+  `cache: 12504, processed: 12504` and finished in 30 ms, so the work is
+  `total - cache`, and that is what the provider passes on.
+- Without the field no such chunk is sent.
+
+The local provider adds `PROMPT_PROGRESS` from `prompt_progress.py` to every
+streamed chat, and a `Delta` with no text carries the figure up. `chat()` drops
+it, so titles and Studio never see it; the chat router sends it as a
+`prompt-progress` frame ([`chat.md`](../chat.md#the-stream)). A remote endpoint
+is never sent the field. A batch can take longer than the 30 s allowed between
+tokens, so a progress chunk restarts the first-token budget and does not start
+the tight one. Not measured: a CPU-only build, where a batch is far slower.
+
 ## The provider
 
 `LlamaCppProvider` satisfies the same `Generator` protocol as a remote endpoint,
@@ -315,6 +348,11 @@ unconstrained, because losing a whole Studio format to a template quirk is worse
 than an answer the parser can still repair. Before sending, `for_template()`
 folds the system prompt into the first non-system turn for a template with no
 system role ([`selection.md`](selection.md)).
+A request that sets no temperature carries the one its curated entry commits
+for the mode it answers in: the `thinking` set when the template reasons and
+thinking is not turned off, else `non_thinking`, and nothing when that mode has
+no set, rather than the other mode's ([`sampling.py`](../../../surfsense_local/backend/modules/llm/catalog/local/engines/llamacpp/sampling.py)).
+A caller's own temperature, such as the title's zero, wins.
 
 There is no `pull()`. Fetching weights by name made sense when the runtime owned
 the download; here SurfSense fetches the GGUF itself, because an in-process fetch
@@ -420,7 +458,9 @@ The rest of the installer is in [`../packaging.md`](../packaging.md).
   because resolving it never touches the sidecar. An install still downloads and
   ends with "Downloaded. It becomes available once the runtime restarts."
 - **No Vulkan loader.** `dlopen` fails, ggml skips the backend silently, and the
-  CPU runs.
+  CPU runs. The `.deb` recommends `libvulkan1`, so apt installs the loader by
+  default on Debian and Ubuntu; a user who declines recommends, or runs the
+  AppImage, which carries no dependency metadata, gets this.
 - **A GPU exists and ggml cannot see it.** Reported as `broken_install` rather
   than badged as a CPU-only machine ([`fit.md`](fit.md)).
 - **A quantized cache without a working flash-attention kernel.** llama.cpp falls
@@ -458,6 +498,4 @@ layer count, of `--reasoning-budget` and of `--sleep-idle-seconds`.
 
 ## Known gaps
 
-- The Linux `.deb` declares no dependency on the Vulkan loader (`electron-builder.yml` has no `deb` section), though `libggml-vulkan.so` needs `libvulkan.so.1` from the host; without it the app runs on the CPU.
-- The startup warm most likely loads into a router that is about to restart: `reprice()` rewrites the preset on every start, `watchGenerationPreset()` starts watching before the API is healthy and restarts the sidecar within 5 seconds of the rewrite, and `warm_selected()` sends the load straight after `reprice()` returns. This is from reading the code, not a measurement.
 - Release CI runs the packaged `llama-server --list-devices` on Linux only; the macOS and Windows builds are checked only in the staging directory by `fetch-llamacpp.mjs`.

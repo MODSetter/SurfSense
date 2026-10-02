@@ -23,4 +23,4 @@ if __name__ == "__main__":
     elif len(sys.argv) == 2:
         consume(sys.argv[1])
     else:
-        sys.exit("usage: worker.py <ingest|studio>")
+        sys.exit("usage: worker.py <ingest|studio|plugins>")

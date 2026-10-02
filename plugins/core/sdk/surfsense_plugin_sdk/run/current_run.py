@@ -30,6 +30,6 @@ def current_run() -> CurrentRun:
     if _current is None:
         raise RuntimeError(
             "this works only while a plugin runs, started by the app or by"
-            " python -m surfsense_plugin_sdk.harness"
+            " surfsense-plugins invoke"
         )
     return _current

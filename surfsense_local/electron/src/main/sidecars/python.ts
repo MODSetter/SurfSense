@@ -70,7 +70,15 @@ export function apiSpec(ctx: SidecarContext): SidecarSpec {
     ...pythonCmd(ctx, "api", "main.py"),
     env: {
       ...pythonEnv(ctx),
-      },
+      // The usage panel counts everything under this process as the app.
+      SURFSENSE_LOCAL_SHELL_PID: String(process.pid),
+      // The API alone talks to opencode; a worker's environment is where plugins start.
+      ...(ctx.opencodeUrl &&
+        ctx.opencodePassword && {
+          SURFSENSE_LOCAL_OPENCODE_URL: ctx.opencodeUrl,
+          SURFSENSE_LOCAL_OPENCODE_PASSWORD: ctx.opencodePassword,
+        }),
+    },
   }
 }
 

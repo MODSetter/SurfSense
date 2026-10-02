@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react"
+import { ApprovalDialog } from "@/features/agent/approval-dialog"
 import { toast } from "sonner"
 import {
   BugIcon,
@@ -47,6 +48,8 @@ import {
   SourcesPanel,
 } from "@/features/sources/sources-panel"
 import { useSources } from "@/features/sources/use-sources"
+import { getFileViewer } from "@/features/file-viewers/registry"
+import { SourcePreviewPanel } from "@/features/source-preview/source-preview-panel"
 import { ArtifactList } from "@/features/studio/artifact-list"
 import { ArtifactPanel } from "@/features/studio/artifact-panel"
 import { StudioPanel } from "@/features/studio/studio-panel"
@@ -56,7 +59,12 @@ import type { Workspace } from "@/features/workspaces/api"
 import { useWorkspaces } from "@/features/workspaces/use-workspaces"
 import { intl } from "@/i18n/intl"
 import { WorkspaceRail } from "@/features/workspaces/workspace-rail"
-import { readRightPanelOpen, writeRightPanelOpen } from "./chrome-prefs"
+import {
+  readRightPanelOpen,
+  readSourcePreview,
+  writeRightPanelOpen,
+  writeSourcePreview,
+} from "./chrome-prefs"
 import { LeftSidebar } from "./left-sidebar"
 import { RightPanel } from "./right-panel"
 import { SidebarFooter } from "./sidebar-footer"
@@ -82,6 +90,7 @@ function WorkspaceDashboard({
   onModelRequired,
   onModelSelected,
   onOpenLicense,
+  onOpenAudioSettings,
   modelsVisited,
 }: {
   workspace: Workspace
@@ -94,10 +103,14 @@ function WorkspaceDashboard({
   onModelRequired: () => void
   onModelSelected: (selection: ModelSelection) => void
   onOpenLicense: () => void
+  onOpenAudioSettings: () => void
   modelsVisited: number
 }) {
   const [inspect, setInspect] = useState<Inspect>(null)
   const [rightPanelOpen, setRightPanelOpen] = useState(readRightPanelOpen)
+  const [sourcePreviewId, setSourcePreviewId] = useState<number | null>(() =>
+    readSourcePreview(workspace.id)
+  )
   const sources = useSources(workspace.id)
   // Which formats Studio offers is the server's answer to what is selected,
   // so it has to be asked again when that changes. The chat model is named
@@ -114,11 +127,37 @@ function WorkspaceDashboard({
     readsImages: selection?.reads_images === true,
     onModelRequired,
   })
+  const sourcePreview = sources.documents.find(
+    (document) => document.id === sourcePreviewId
+  )
+  const sourcePreviewOpen =
+    sourcePreview?.document_type === "FILE" &&
+    getFileViewer(sourcePreview.mime_type) !== null
+
+  useEffect(() => {
+    if (sourcePreviewId === null || sources.isLoading) return
+    if (
+      !sourcePreview ||
+      sourcePreview.document_type !== "FILE" ||
+      !getFileViewer(sourcePreview.mime_type)
+    ) {
+      writeSourcePreview(workspace.id, null)
+    }
+  }, [sourcePreview, sourcePreviewId, sources.isLoading, workspace.id])
 
   const composerHold =
     modelIssue && needsConsent ? consentPlaceholder(modelIssue) : undefined
 
   const closeInspect = () => setInspect(null)
+  const closeSourcePreview = () => {
+    setSourcePreviewId(null)
+    writeSourcePreview(workspace.id, null)
+  }
+  const toggleSourcePreview = (documentId: number) => {
+    const next = sourcePreviewId === documentId ? null : documentId
+    setSourcePreviewId(next)
+    writeSourcePreview(workspace.id, next)
+  }
   const toggleRightPanel = () => {
     setRightPanelOpen((open) => {
       const next = !open
@@ -264,6 +303,7 @@ function WorkspaceDashboard({
                       : (files) => void sources.upload(files)
                   }
                   onOpen={(id) => void sources.openOriginal(id)}
+                  onPreview={toggleSourcePreview}
                   onReveal={(id) => void sources.revealOriginal(id)}
                   onRetry={(id) => void sources.retry(id)}
                   onCancel={(id) => void sources.cancel(id)}
@@ -277,7 +317,27 @@ function WorkspaceDashboard({
             footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
           />
         </div>
+        <SlideRail
+          open={sourcePreviewOpen}
+          side="start"
+          width={MAIN_RAIL_WIDTH}
+        >
+          {sourcePreview ? (
+            <SourcePreviewPanel
+              workspaceId={workspace.id}
+              document={sourcePreview}
+              onOpen={() => void sources.openOriginal(sourcePreview.id)}
+              onReveal={() => void sources.revealOriginal(sourcePreview.id)}
+              onClose={closeSourcePreview}
+            />
+          ) : null}
+        </SlideRail>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
+          <ApprovalDialog
+            request={chat.approvals[0] ?? null}
+            othersWaiting={Math.max(0, chat.approvals.length - 1)}
+            onAnswer={chat.answerApproval}
+          />
           <ThreadPanel
             runtime={chat.runtime}
             thread={chat.activeThread}
@@ -315,7 +375,7 @@ function WorkspaceDashboard({
           />
         </div>
         <SlideRail
-          open={rightPanelOpen}
+          open={rightPanelOpen && !sourcePreviewOpen}
           side="end"
           width={inspect ? DETAIL_RAIL_WIDTH : MAIN_RAIL_WIDTH}
         >
@@ -347,6 +407,7 @@ function WorkspaceDashboard({
                   isCreating={studio.isCreating}
                   error={studio.error}
                   onGenerate={studio.create}
+                  onSetUpVoices={onOpenAudioSettings}
                 />
               }
               artifacts={
@@ -564,6 +625,7 @@ export function DashboardPage({
         onModelRequired={() => openSettings("chat-models")}
         onModelSelected={onModelSelected}
         onOpenLicense={() => openSettings("license")}
+        onOpenAudioSettings={() => openSettings("audio-models")}
         modelsVisited={modelsVisited}
       />
       <SettingsDialog

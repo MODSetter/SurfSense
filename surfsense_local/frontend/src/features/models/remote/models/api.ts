@@ -49,6 +49,28 @@ export async function testConnectionChat(
   return reply
 }
 
+/** `text` spoken once. `voice` is sent only when typed; without one the
+ *  server speaks in its own default, where it has one. */
+export async function testConnectionSpeech(
+  id: number,
+  model: string,
+  voice: string,
+  text: string,
+  signal?: AbortSignal
+): Promise<Blob> {
+  const typed = voice.trim()
+  const body = typed
+    ? { model, voice: typed, prompt: text }
+    : { model, prompt: text }
+  const response = await request(`/llm/connections/${id}/speech-test`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  })
+  return response.blob()
+}
+
 export async function testConnectionImage(
   id: number,
   model: string,

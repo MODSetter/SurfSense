@@ -26,7 +26,6 @@
 		"test:unit": "tsx --test tests/unit/*.test.ts tests/unit/**/*.test.ts"
 	},
 	"dependencies": {
-		"@ai-sdk/react": "^1.2.12",
 		"@ariakit/react": "^0.4.21",
 		"@assistant-ui/react": "^0.14.14",
 		"@assistant-ui/react-markdown": "^0.14.1",
@@ -95,7 +94,6 @@
 		"@types/mdx": "^2.0.13",
 		"@types/react-syntax-highlighter": "^15.5.13",
 		"@udecode/cn": "^52.0.11",
-		"ai": "^4.3.19",
 		"canvas-confetti": "^1.9.3",
 		"class-variance-authority": "^0.7.1",
 		"clsx": "^2.1.1",
@@ -118,13 +116,13 @@
 		"lucide-react": "^1.40.0",
 		"markmap-lib": "^0.18.12",
 		"markmap-view": "^0.18.12",
-		"mermaid": "^11.15.0",
+		"mermaid": "^11.16.1",
 		"monaco-editor": "^0.55.1",
 		"motion": "^12.23.22",
-		"next": "^16.2.12",
+		"next": "^16.3.6",
 		"next-intl": "^4.13.4",
 		"next-themes": "^0.4.6",
-		"pdfjs-dist": "5.6.205",
+		"pdfjs-dist": "6.2.108",
 		"pg": "^8.16.3",
 		"platejs": "^52.0.17",
 		"posthog-js": "^1.336.1",
@@ -184,6 +182,6 @@
 		"tailwindcss": "^4.1.11",
 		"tsx": "^4.20.6",
 		"typescript": "^5.8.3",
-		"vite": "^7.3.1"
+		"vite": "^7.3.5"
 	}
 }

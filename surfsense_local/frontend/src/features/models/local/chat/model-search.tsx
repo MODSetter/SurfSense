@@ -19,15 +19,11 @@ import {
 } from "@/features/egress/api"
 import { askEgress } from "@/features/egress/ask-egress"
 import { intl } from "@/i18n/intl"
-import {
-  getRepoDetail,
-  searchModels,
-  type LocalBuild,
-  type SearchRow,
-} from "./api"
+import type { LocalBuild, SearchRow } from "./api"
 import { BuildAction } from "./build-action"
 import { FitBadge, FitReason } from "./fit-badge"
 import { InstallProgress } from "./install-progress"
+import { GGUF_SEARCH, type SearchSource } from "./search-source"
 import type { InstallJob } from "../installs/api"
 import { jobFor } from "../installs/job-state"
 
@@ -74,20 +70,24 @@ function latestJobFor(jobs: readonly InstallJob[], catalogId: string) {
  */
 function RepoBuilds({
   repo,
+  source,
+  note,
   onInstall,
   onCancel,
   jobs,
   disabled,
 }: {
   repo: string
+  source: SearchSource
+  note: string | undefined
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
   jobs: readonly InstallJob[]
   disabled: boolean
 }) {
   const detail = useQuery({
-    queryKey: ["llm", "search", repo],
-    queryFn: ({ signal }) => getRepoDetail(repo, signal),
+    queryKey: ["llm", "search", source.key, repo],
+    queryFn: ({ signal }) => source.repo(repo, signal),
     staleTime: STALE_MS,
   })
 
@@ -113,23 +113,38 @@ function RepoBuilds({
     )
   }
 
-  const { row } = detail.data
+  const { gated, row } = detail.data
   if (row.builds.length === 0) {
     return (
       <p className="px-3 py-2 text-xs text-muted-foreground">
-        {intl.formatMessage({
-          id: "models_search_builds_empty",
-          defaultMessage: "This repo has no build SurfSense can run.",
-        })}
+        {row.not_runnable_reason ??
+          intl.formatMessage({
+            id: "models_search_builds_empty",
+            defaultMessage: "This repo has no build SurfSense can run.",
+          })}
       </p>
     )
   }
 
   return (
     <>
+      {gated ? (
+        <p className="px-3 pt-2 text-xs text-muted-foreground">
+          {intl.formatMessage({
+            id: "models_search_builds_gated_body",
+            defaultMessage:
+              "This gated repository requires Hugging Face authentication, which SurfSense does not support yet.",
+          })}
+        </p>
+      ) : null}
       {!row.runnable ? (
         <p className="px-3 pt-2 text-xs text-muted-foreground">
           {row.not_runnable_reason}
+        </p>
+      ) : null}
+      {note ? (
+        <p className="px-3 pt-2 text-xs text-pretty text-muted-foreground">
+          {note}
         </p>
       ) : null}
       <ul
@@ -206,6 +221,8 @@ export function ModelSearch({
   jobs,
   disabled,
   autoFocus = false,
+  source = GGUF_SEARCH,
+  note,
 }: {
   onInstall: (build: LocalBuild) => void
   onCancel: (jobId: string) => void
@@ -214,6 +231,9 @@ export function ModelSearch({
   /** Only where the search was just asked for; a page that merely lists it
    *  must not focus it, since focusing raises the egress question. */
   autoFocus?: boolean
+  source?: SearchSource
+  /** Said above an opened repo's builds, such as what a download commits to. */
+  note?: string
 }) {
   const headingId = useId()
   const [query, setQuery] = useState("")
@@ -248,8 +268,8 @@ export function ModelSearch({
   }, [reached, huggingface])
 
   const results = useQuery({
-    queryKey: ["llm", "search", "list", trimmed],
-    queryFn: ({ signal }) => searchModels(trimmed, signal),
+    queryKey: ["llm", "search", source.key, "list", trimmed],
+    queryFn: ({ signal }) => source.search(trimmed, signal),
     enabled: trimmed.length > 1,
     staleTime: STALE_MS,
   })
@@ -428,6 +448,8 @@ export function ModelSearch({
                       <div className="border-t bg-muted/20">
                         <RepoBuilds
                           repo={hit.repo}
+                          source={source}
+                          note={note}
                           onInstall={onInstall}
                           onCancel={onCancel}
                           jobs={jobs}

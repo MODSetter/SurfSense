@@ -2,6 +2,7 @@
 reachable: Electron restarts the router on every change.
 """
 
+import configparser
 import logging
 from collections.abc import Sequence
 from pathlib import Path
@@ -18,6 +19,16 @@ from modules.llm.hardware import fit_target_mib
 from modules.llm.providers.llamacpp import PRESET_FILE, ModelPreset, write_presets
 
 logger = logging.getLogger(__name__)
+
+
+def preset_model_ids(models_dir: Path) -> frozenset[str]:
+    """The models already named in the runtime preset."""
+    parser = configparser.ConfigParser(interpolation=None, default_section="")
+    try:
+        parser.read(models_dir / PRESET_FILE)
+    except configparser.Error:
+        return frozenset()
+    return frozenset(parser.sections())
 
 
 def write_preset(

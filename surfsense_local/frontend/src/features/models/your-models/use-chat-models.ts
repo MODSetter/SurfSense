@@ -14,6 +14,14 @@ export function useChatModels(): YourModels {
   const catalog = useLocalChatCatalog()
   const selection = useSelection("text_gen")
   const connections = useConnections()
+  const projectorNotices = catalog.data?.projector_notices ?? []
+  const projectorRenames = new Map(
+    projectorNotices.flatMap((notice) =>
+      notice.kind === "rename" && notice.model_id && notice.rename_to
+        ? [[notice.model_id, notice] as const]
+        : []
+    )
+  )
 
   // Curated or not: for a model installed from search this is the only place
   // it appears. Image and audio rows are not chat models.
@@ -21,41 +29,82 @@ export function useChatModels(): YourModels {
     (row) => row.engine === "llamacpp"
   )
   const local: YourModelRow[] = rows.flatMap((row) =>
-    row.builds.flatMap((build) =>
-      build.installed_as === null
-        ? []
-        : [
-            {
-              key: build.installed_as,
-              name:
-                row.origin === "curated"
-                  ? `${row.name} ${build.quantization}`
-                  : row.name,
-              selected: build.selected,
-              badges: build.reads_images
-                ? [
-                    intl.formatMessage({
-                      id: "models_your_models_vision_label",
-                      defaultMessage: "Vision",
-                    }),
-                  ]
-                : [],
-              note: row.runnable ? null : row.not_runnable_reason,
-              target: row.selectable_for.includes("text_gen")
-                ? {
-                    provider: "llamacpp",
-                    connection_id: null,
-                    name: build.installed_as,
+    row.builds.flatMap((build) => {
+      if (build.installed_as === null) return []
+      const rename = projectorRenames.get(build.installed_as)
+      return [
+        {
+          key: build.installed_as,
+          name:
+            row.origin === "curated"
+              ? `${row.name} ${build.quantization}`
+              : row.name,
+          selected: build.selected,
+          badges: build.reads_images
+            ? [
+                intl.formatMessage({
+                  id: "models_your_models_vision_label",
+                  defaultMessage: "Vision",
+                }),
+              ]
+            : [],
+          note: !row.runnable
+            ? row.not_runnable_reason
+            : rename
+              ? intl.formatMessage(
+                  {
+                    id: "models_your_models_projector_rename_body",
+                    defaultMessage:
+                      "Rename {projector} to {renameTo} to enable vision for this model.",
+                  },
+                  {
+                    projector: rename.projector,
+                    renameTo: rename.rename_to,
                   }
-                : null,
-              removeId: build.installed_as,
-            },
-          ]
-    )
+                )
+              : null,
+          target: row.selectable_for.includes("text_gen")
+            ? {
+                provider: "llamacpp",
+                connection_id: null,
+                name: build.installed_as,
+              }
+            : null,
+          removeId: build.installed_as,
+        },
+      ]
+    })
   )
 
   return {
     local,
+    notices: projectorNotices.flatMap((notice) => {
+      if (notice.kind === "no_match") {
+        return [
+          intl.formatMessage(
+            {
+              id: "models_your_models_projector_no_match_body",
+              defaultMessage:
+                "{projector} does not match any model in this folder.",
+            },
+            { projector: notice.projector }
+          ),
+        ]
+      }
+      if (notice.kind === "ambiguous") {
+        return [
+          intl.formatMessage(
+            {
+              id: "models_your_models_projector_ambiguous_body",
+              defaultMessage:
+                "SurfSense cannot safely determine how {projector} should be paired in this folder.",
+            },
+            { projector: notice.projector }
+          ),
+        ]
+      }
+      return []
+    }),
     inUse: describeInUse(selection.data, local, connections.data),
     isPending: catalog.isPending || selection.isPending,
     error: catalog.error ?? selection.error,

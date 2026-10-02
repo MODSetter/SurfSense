@@ -11,7 +11,6 @@ from collections.abc import Sequence
 import sqlalchemy as sa
 
 from alembic import op
-from shared.config import get_search_settings
 
 revision: str = "0001"
 down_revision: str | Sequence[str] | None = None
@@ -43,12 +42,9 @@ def _create_search_index() -> None:
         "CREATE VIRTUAL TABLE chunks_fts USING fts5("
         "content, content='chunks', content_rowid='id')"
     )
-    # Fixed at this width forever; upgrade_to_head refuses a database that
-    # no longer matches the setting.
-    op.execute(
-        "CREATE VIRTUAL TABLE chunk_vectors USING vec0("
-        f"embedding float[{get_search_settings().embedding_dimension}])"
-    )
+    # bge-small's width. A fresh install's table is rebuilt at the chosen
+    # model's width when onboarding locks it (modules/embedding/lock.py).
+    op.execute("CREATE VIRTUAL TABLE chunk_vectors USING vec0(embedding float[384])")
 
     op.execute("""
         CREATE TRIGGER chunks_after_insert AFTER INSERT ON chunks BEGIN

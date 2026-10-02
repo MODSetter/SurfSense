@@ -87,6 +87,7 @@ class Plugin:
         return subprocess.run(
             [
                 sys.executable,
+                "-S",
                 "-m",
                 "surfsense_plugin_sdk.run",
                 str(self.folder),

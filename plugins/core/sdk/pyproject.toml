@@ -22,7 +22,11 @@ packages = ["surfsense_plugin_sdk"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short -ra --strict-markers --import-mode=importlib"
-markers = ["unit: runs a plugin against a stub app, never the real one"]
+markers = [
+    "unit: runs a plugin against a stub app, never the real one",
+    "contract: runs the SDK against the real app, started for the test",
+    "covers(verb): the public verb a contract test calls, such as document.add",
+]
 
 [tool.pyright]
 include = ["surfsense_plugin_sdk"]

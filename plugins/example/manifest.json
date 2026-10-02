@@ -1,0 +1,18 @@
+{
+  "id": "example",
+  "name": "Word counter",
+  "description": "Counts the words in a text and keeps the count as a note.",
+  "author": "SurfSense",
+  "access": "free",
+  "hosts": [],
+  "actions": [
+    {
+      "name": "count-words",
+      "title": "Count words",
+      "inputs": [
+        { "name": "text", "title": "Text", "kind": "string", "required": true },
+        { "name": "top", "title": "How many words to list", "kind": "number" }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "refreshed_at": "2026-09-25",
+  "refreshed_at": "2026-10-01",
   "models": [
     {
       "id": "qwen3-32b",
@@ -4546,6 +4546,221 @@
           ],
           "validated": {
             "audio_cpp": "v0.8.2"
+          }
+        }
+      ]
+    },
+    {
+      "id": "bge-small-en-v1.5",
+      "name": "BGE Small (English)",
+      "family": "BGE",
+      "publisher": "BAAI",
+      "description": "Fast search in English. Comes with SurfSense.",
+      "license": "mit",
+      "source_repo": "BAAI/bge-small-en-v1.5",
+      "aliases": [
+        "BAAI/bge-small-en-v1.5"
+      ],
+      "evidence": {
+        "architecture": "bert",
+        "pipeline_tag": "sentence-similarity"
+      },
+      "embedding": {
+        "dimension": 384,
+        "pooling": "cls",
+        "normalize": true,
+        "max_tokens": 512,
+        "semantic_weight": 0.65,
+        "batch": 32
+      },
+      "builds": [
+        {
+          "quantization": "F16",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "Qdrant/bge-small-en-v1.5-onnx-Q",
+              "upstream_repo": null,
+              "revision": "aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+              "path": "model_optimized.onnx",
+              "size_bytes": 66465124,
+              "sha256": "51f1bd0addd6e859e42c2c8021a5e5461385bb676a649f4b269aa445449f2431"
+            },
+            {
+              "role": "tokenizer",
+              "repo": "Qdrant/bge-small-en-v1.5-onnx-Q",
+              "upstream_repo": null,
+              "revision": "aa8f8b060edb00e03bfdd08813a2949946c8ba55",
+              "path": "tokenizer.json",
+              "size_bytes": 711396,
+              "sha256": "d241a60d5e8f04cc1b2b3e9ef7a4921b27bf526d9f6050ab90f9267a1f9e5c66"
+            }
+          ],
+          "validated": {
+            "onnxruntime": "1.29.0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "multilingual-e5-small",
+      "name": "Multilingual E5 Small",
+      "family": "E5",
+      "publisher": "Microsoft",
+      "description": "A smaller multilingual model, for machines with less memory.",
+      "license": "mit",
+      "source_repo": "intfloat/multilingual-e5-small",
+      "aliases": [
+        "intfloat/multilingual-e5-small"
+      ],
+      "evidence": {
+        "architecture": "bert",
+        "pipeline_tag": "feature-extraction"
+      },
+      "embedding": {
+        "dimension": 384,
+        "pooling": "mean",
+        "normalize": true,
+        "max_tokens": 512,
+        "query_prefix": "query: ",
+        "document_prefix": "passage: ",
+        "semantic_weight": 0.65,
+        "batch": 32
+      },
+      "builds": [
+        {
+          "quantization": "INT8",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "Xenova/multilingual-e5-small",
+              "upstream_repo": "intfloat/multilingual-e5-small",
+              "revision": "761b726dd34fb83930e26aab4e9ac3899aa1fa78",
+              "path": "onnx/model_int8.onnx",
+              "size_bytes": 118054593,
+              "sha256": "4d24e2bc01a447951524466ef533e52944bf48509e6552810bcee1a2711cb02c"
+            },
+            {
+              "role": "tokenizer",
+              "repo": "Xenova/multilingual-e5-small",
+              "upstream_repo": "intfloat/multilingual-e5-small",
+              "revision": "761b726dd34fb83930e26aab4e9ac3899aa1fa78",
+              "path": "tokenizer.json",
+              "size_bytes": 17082730,
+              "sha256": "0b44a9d7b51c3c62626640cda0e2c2f70fdacdc25bbbd68038369d14ebdf4c39"
+            }
+          ],
+          "validated": {
+            "onnxruntime": "1.29.0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "granite-embedding-97m-multilingual-r2",
+      "name": "Granite Embedding 97M (Multilingual)",
+      "family": "Granite Embedding",
+      "publisher": "IBM",
+      "description": "Search across more than 50 languages.",
+      "license": "apache-2.0",
+      "source_repo": "ibm-granite/granite-embedding-97m-multilingual-r2",
+      "aliases": [
+        "ibm-granite/granite-embedding-97m-multilingual-r2"
+      ],
+      "evidence": {
+        "architecture": "modernbert",
+        "pipeline_tag": "feature-extraction"
+      },
+      "embedding": {
+        "dimension": 384,
+        "pooling": "cls",
+        "normalize": true,
+        "max_tokens": 512,
+        "semantic_weight": 0.85,
+        "batch": 32
+      },
+      "builds": [
+        {
+          "quantization": "F32",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "onnx-community/granite-embedding-97m-multilingual-r2-ONNX",
+              "upstream_repo": "ibm-granite/granite-embedding-97m-multilingual-r2",
+              "revision": "536a9f241cb3f02a9c5995a1e708c784bd274859",
+              "path": "onnx/model.onnx",
+              "size_bytes": 390004608,
+              "sha256": "68e592b160673d30250824c1116bc6ab33f70efb22b97c9e1d7ce1e69c1c9d70"
+            },
+            {
+              "role": "tokenizer",
+              "repo": "onnx-community/granite-embedding-97m-multilingual-r2-ONNX",
+              "upstream_repo": "ibm-granite/granite-embedding-97m-multilingual-r2",
+              "revision": "536a9f241cb3f02a9c5995a1e708c784bd274859",
+              "path": "tokenizer.json",
+              "size_bytes": 25301671,
+              "sha256": "51947676cae1f991fa51c6b9a24e14ee5460e5f0b9f692f13bb3159829d1592a"
+            }
+          ],
+          "validated": {
+            "onnxruntime": "1.29.0"
+          }
+        }
+      ]
+    },
+    {
+      "id": "granite-embedding-311m-multilingual-r2",
+      "name": "Granite Embedding 311M (Multilingual)",
+      "family": "Granite Embedding",
+      "publisher": "IBM",
+      "description": "The larger multilingual model, for machines with more memory.",
+      "license": "apache-2.0",
+      "source_repo": "ibm-granite/granite-embedding-311m-multilingual-r2",
+      "aliases": [
+        "ibm-granite/granite-embedding-311m-multilingual-r2"
+      ],
+      "evidence": {
+        "architecture": "modernbert",
+        "pipeline_tag": "feature-extraction"
+      },
+      "embedding": {
+        "dimension": 768,
+        "pooling": "cls",
+        "normalize": true,
+        "max_tokens": 512,
+        "semantic_weight": 0.85,
+        "batch": 16,
+        "parity": {
+          "origin": "retrieval eval corpus, 23 passages, against onnx/model.onnx",
+          "mean": 0.992,
+          "min": 0.987
+        }
+      },
+      "builds": [
+        {
+          "quantization": "INT8",
+          "files": [
+            {
+              "role": "weights",
+              "repo": "onnx-community/granite-embedding-311m-multilingual-r2-ONNX",
+              "upstream_repo": "ibm-granite/granite-embedding-311m-multilingual-r2",
+              "revision": "8f039f21d4181327268271bea4b11ddcc7eef88d",
+              "path": "onnx/model_int8.onnx",
+              "size_bytes": 312556945,
+              "sha256": "54d33d10f865516eda6770d7b0bbf5eaece861058907da0ad095c62e52958c3d"
+            },
+            {
+              "role": "tokenizer",
+              "repo": "onnx-community/granite-embedding-311m-multilingual-r2-ONNX",
+              "upstream_repo": "ibm-granite/granite-embedding-311m-multilingual-r2",
+              "revision": "8f039f21d4181327268271bea4b11ddcc7eef88d",
+              "path": "tokenizer.json",
+              "size_bytes": 33384821,
+              "sha256": "0087c868b33bad550a78a08d19798cfd7f713cde4f020803b8f51f405503e15f"
+            }
+          ],
+          "validated": {
+            "onnxruntime": "1.29.0"
           }
         }
       ]
