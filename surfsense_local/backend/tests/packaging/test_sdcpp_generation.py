@@ -10,6 +10,8 @@ SURFSENSE_TEST_IMAGE_MODELS names a folder holding the curated model's weights
 under their published name, checked against the manifest's sha256. Once it
 does, a missing server (`pnpm build:sdcpp`, or SURFSENSE_TEST_SDCPP_DIR) fails
 the run: CI sets the folder, and a skip there would pass unseen.
+SURFSENSE_TEST_SDCPP_BACKEND forces a backend, for a machine whose graphics card
+the server cannot use.
 """
 
 import asyncio
@@ -24,8 +26,9 @@ import time
 from collections.abc import Iterator
 from pathlib import Path
 
+import httpx
 import pytest
-from PIL import Image
+from PIL import Image, ImageStat
 
 from modules.llm.catalog.local.engines.sdcpp.engine import SdCppEngine
 from modules.llm.catalog.local.engines.sdcpp.images_folder.installed import (
@@ -33,6 +36,7 @@ from modules.llm.catalog.local.engines.sdcpp.images_folder.installed import (
 )
 from modules.llm.catalog.local.installs import InstalledBuild, record_install
 from modules.llm.catalog.local.manifest import load_local_manifest
+from modules.llm.providers.openai_compatible import image as image_client
 from modules.llm.providers.openai_compatible.image import (
     OpenAICompatibleImageProvider,
 )
@@ -48,6 +52,10 @@ SERVER = STAGED / ("sd-server.exe" if sys.platform == "win32" else "sd-server")
 # The cheapest curated image model: one 3 GB file that carries its own VAE and
 # text encoder.
 MODEL_ID = "stable-diffusion-1.5"
+# Set to `cpu` where the graphics card cannot be used: a hosted macOS runner's
+# is virtual, and Metal's buffers come back nil on it. Unset, the server picks
+# its backend as it does in the app.
+BACKEND = os.environ.get("SURFSENSE_TEST_SDCPP_BACKEND")
 # Not the entry's: enough steps for a picture, few enough for a runner with no
 # graphics card. Everything else on the command line is what the app passes.
 STEPS = 4
@@ -124,6 +132,7 @@ def server(installed: tuple[Path, InstalledImage], server_log: Path) -> Iterator
             *image.args,
             "--steps",
             str(STEPS),
+            *(["--backend", BACKEND] if BACKEND else []),
         ],
         cwd=STAGED,
         stdout=log,
@@ -145,10 +154,17 @@ async def _refuse_any_host(url: str) -> None:
 
 
 def test_the_staged_server_generates_a_picture(
-    installed: tuple[Path, InstalledImage], server: str, server_log: Path
+    installed: tuple[Path, InstalledImage],
+    server: str,
+    server_log: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A PNG of the size the entry asks for that is not one flat colour."""
+    """An image of the size the entry asks for, with the prompt's subject in it."""
     _images, image = installed
+    # The app waits 180 s for an image, on a machine with a graphics card. A
+    # hosted runner has none and took 134 s; the gate is on the picture, not
+    # on the runner's speed.
+    monkeypatch.setattr(image_client, "TIMEOUT", httpx.Timeout(600.0, connect=5.0))
     client = OpenAICompatibleImageProvider(
         0, f"{server}/v1", allow_url_host=_refuse_any_host
     )
@@ -157,7 +173,7 @@ def test_the_staged_server_generates_a_picture(
         await wait_until_serving(server, image.served_file, timeout=180.0)
         made = await client.generate(
             image.model_id,
-            "a green parrot on a branch, blue sky, yellow flowers, photograph",
+            "a red apple on a wooden table, photograph",
         )
         return made.content
 
@@ -177,11 +193,20 @@ def test_the_staged_server_generates_a_picture(
     picture = Image.open(io.BytesIO(content))
     picture.load()  # decodes every pixel, not only the header
     assert picture.size == (side, side)
-    # A blank canvas decodes and has the right size too. A picture has many
-    # colours, spread across the frame: count them, and ask that no single one
-    # covers most of it.
-    colours = picture.convert("RGB").getcolors(maxcolors=side * side)
+    # A blank canvas decodes and has the right size too, and so does noise. The
+    # prompt is a red apple, so ask for that much of it: the frame is red, and
+    # its middle is brighter than its border, which is an object on a
+    # background. Measured at 4 steps on Metal and on the CPU: the middle's red
+    # is 218, the border's 143, and green and blue stay under 10. An unfinished
+    # frame of noise or of one flat wash has neither property.
+    rgb = picture.convert("RGB")
+    colours = rgb.getcolors(maxcolors=side * side)
     assert colours is not None
     assert len(colours) > 1000, f"only {len(colours)} colours"
-    most_common = max(count for count, _colour in colours)
-    assert most_common < 0.5 * side * side, "one colour covers most of the image"
+    red, green, blue = ImageStat.Stat(rgb).mean
+    assert red > 100 and red > 3 * max(green, blue), (red, green, blue)
+    quarter = side // 4
+    middle = ImageStat.Stat(rgb.crop((quarter, quarter, 3 * quarter, 3 * quarter)))
+    # The middle is a quarter of the frame, so the border's mean follows.
+    border_red = (4 * red - middle.mean[0]) / 3
+    assert middle.mean[0] - border_red > 40, (middle.mean[0], border_red)

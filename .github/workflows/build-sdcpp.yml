@@ -126,6 +126,9 @@ jobs:
         env:
           SURFSENSE_TEST_SDCPP_DIR: ${{ github.workspace }}/surfsense_local/electron/sdcpp
           SURFSENSE_TEST_IMAGE_MODELS: ${{ runner.temp }}/image-models
+          # The hosted macOS runner's graphics card is virtual: Metal's buffers
+          # come back nil on it and the server dies on its first image.
+          SURFSENSE_TEST_SDCPP_BACKEND: ${{ runner.os == 'macOS' && 'cpu' || '' }}
         run: |
           uv sync
           uv run python - <<'EOF'
