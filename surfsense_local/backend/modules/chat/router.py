@@ -195,6 +195,7 @@ async def send_message(
         len(citations),
     )
     n_ctx = await _context_tokens_or_none(generator, selected.name)
+    _refuse_images_past_window(len(images), n_ctx)
     found = await _source_images(session, hits, sees, n_ctx, len(images))
     messages = await build_messages(
         context,
@@ -402,6 +403,21 @@ async def _accepted_images(
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_CONTENT, str(error)
         ) from error
+
+
+def _refuse_images_past_window(attached: int, n_ctx: int | None) -> None:
+    """Refuse before anything is stored: trimming history cannot make room
+    for the turn's own images, so the model would only fail it later as
+    `context_too_long`. An unknown window lets the turn through."""
+    if n_ctx is None:
+        return
+    room = history_budget(n_ctx) // IMAGE_TOKENS
+    if attached > room:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"This model's context window has room for {room} images. "
+            "Send fewer, or choose a model with a larger window.",
+        )
 
 
 async def _source_images(
