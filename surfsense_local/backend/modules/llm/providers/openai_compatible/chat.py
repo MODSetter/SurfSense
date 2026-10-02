@@ -8,7 +8,7 @@ from modules.llm.connections.key_headers import key_headers
 from modules.llm.connections.service import parse_models
 from modules.llm.profile import Fingerprint, from_remote
 from modules.llm.providers.stream_deadline import with_deadlines
-from modules.llm.providers.types import Delta, Message, Model
+from modules.llm.providers.types import Delta, Message, Model, PromptProgress
 
 # Waiting for the first token is waiting for a model to load, which on a cold
 # file is tens of seconds and on a large one more. Once tokens are flowing, a
@@ -41,6 +41,7 @@ class OpenAICompatibleChatProvider:
         *,
         transport: httpx.BaseTransport | None = None,
         thinking_off: dict[str, object] | None = None,
+        prompt_progress: dict[str, object] | None = None,
         reads_images: bool = False,
     ) -> None:
         self._base_url = base_url.rstrip("/")
@@ -52,6 +53,9 @@ class OpenAICompatibleChatProvider:
         # strict endpoint rejects a field it does not recognise, so a caller
         # that cannot name one gets today's behaviour: the flag is ignored.
         self._thinking_off = thinking_off
+        # The fields that ask an endpoint to report prompt progress, where it
+        # has any; None sends nothing, since a strict endpoint rejects them.
+        self._prompt_progress = prompt_progress
         # Decided by whoever resolved this endpoint, from the manifest; the
         # endpoint itself is never asked.
         self._reads_images = reads_images
@@ -130,7 +134,7 @@ class OpenAICompatibleChatProvider:
             reasoning=reasoning,
             json_schema=json_schema,
         ):
-            if not delta.reasoning:
+            if not delta.reasoning and delta.progress is None:
                 yield delta.text
 
     async def chat_deltas(
@@ -164,11 +168,16 @@ class OpenAICompatibleChatProvider:
             # and a thinking model spends that cap before its first answer
             # token, so this is what keeps a short request from returning "".
             body.update(self._thinking_off)
+        if self._prompt_progress is not None:
+            body.update(self._prompt_progress)
         async for delta in with_deadlines(
             self._stream(body),
             first_item_seconds=FIRST_TOKEN_SECONDS,
             between_items_seconds=BETWEEN_TOKENS_SECONDS,
             subject="the model",
+            # A batch of prompt can take longer than the gap allowed between
+            # tokens, so progress keeps the start budget.
+            started=lambda delta: delta.progress is None,
         ):
             yield delta
 
@@ -238,7 +247,10 @@ def _delta(line: str) -> Delta | None:
     payload = line[len("data:") :].strip()
     if not payload or payload == "[DONE]":
         return None
-    choices = json.loads(payload).get("choices")
+    chunk = json.loads(payload)
+    if progress := _prompt_progress(chunk.get("prompt_progress")):
+        return Delta("", progress=progress)
+    choices = chunk.get("choices")
     if not choices:
         return None
     delta = choices[0].get("delta", {})
@@ -250,3 +262,17 @@ def _delta(line: str) -> Delta | None:
     if isinstance(trace, str) and trace:
         return Delta(trace, reasoning=True)
     return None
+
+
+def _prompt_progress(reported: object) -> PromptProgress | None:
+    """llama.cpp counts the cached prefix as processed; the work is what lies past it."""
+    if not isinstance(reported, dict):
+        return None
+    total, cache, processed = (
+        reported.get(key) for key in ("total", "cache", "processed")
+    )
+    if not all(isinstance(n, int) for n in (total, cache, processed)):
+        return None
+    if total <= cache:
+        return None
+    return PromptProgress(max(processed - cache, 0), total - cache)

@@ -10,7 +10,7 @@ export function SettingsSection({
   children,
   footer,
   back,
-  scrollable = true,
+  scrollable = "all",
 }: {
   title: string
   description?: string
@@ -18,10 +18,9 @@ export function SettingsSection({
   footer?: ReactNode
   /** A sub-page names the page it returns to. */
   back?: { label: string; onClick: () => void }
-  // true: header fixed, only the content below it scrolls (most sections).
+  // "all": header and content scroll together as one region (every section).
+  // true: header fixed, only the content below it scrolls.
   // false: nothing here scrolls — the content manages its own scroll area(s).
-  // "all": header and content scroll together as one region, for content
-  // whose height varies too much for a fixed header to make sense.
   scrollable?: boolean | "all"
 }) {
   const heading = (

@@ -87,10 +87,13 @@ export type SidecarCrash = {
   code: number | null
 }
 
-// Packaged (Electron) exposes the sidecar's dynamic origin; a bare dev browser
-// leaves it empty so root-relative paths still hit the Vite proxy.
+// Packaged (Electron) exposes the sidecar's dynamic origin. A browser build
+// with no bridge (Docker) reaches the API under VITE_API_BASE. A bare dev
+// browser leaves both empty so root-relative paths still hit the Vite proxy.
 const apiBase =
-  typeof window !== "undefined" ? (window.surfsense?.apiUrl ?? "") : ""
+  (typeof window !== "undefined" ? window.surfsense?.apiUrl : undefined) ??
+  import.meta.env.VITE_API_BASE ??
+  ""
 
 function withBase(input: RequestInfo | URL): RequestInfo | URL {
   return typeof input === "string" && input.startsWith("/")

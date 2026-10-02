@@ -10,7 +10,7 @@ from sqlalchemy import Engine, inspect, text
 
 from alembic import command
 from shared.db import Base, create_db_engine
-from shared.migrations import upgrade_to_head
+from shared.migrations import is_migrated, upgrade_to_head
 
 pytestmark = pytest.mark.integration
 
@@ -42,6 +42,23 @@ def test_migrations_are_idempotent(engine: Engine) -> None:
     upgrade_to_head(engine)
 
     assert _drift_from_models(engine) == []
+
+
+def test_a_database_behind_the_code_is_not_migrated(tmp_path: Path) -> None:
+    """What the workers wait on: Electron starts them beside the API, which
+    alone migrates, and a job read against the old schema fails."""
+    engine = create_db_engine(tmp_path / "surfsense.db")
+    config = Config()
+    config.set_main_option(
+        "script_location", str(Path(__file__).parents[2] / "alembic")
+    )
+    config.attributes["engine"] = engine
+
+    assert not is_migrated(engine)
+    command.upgrade(config, "0020")
+    assert not is_migrated(engine)
+    upgrade_to_head(engine)
+    assert is_migrated(engine)
 
 
 def test_a_failed_migration_leaves_nothing_behind(tmp_path: Path) -> None:

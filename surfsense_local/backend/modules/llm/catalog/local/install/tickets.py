@@ -21,6 +21,10 @@ class Ticket:
     # The repo's own tag, which the exact check reads beside the header.
     pipeline_tag: str | None
     issued_at: float
+    # Search reaches llama.cpp's catalog, and onnxruntime's for an embedder,
+    # which installs under a name of its own rather than its weights' file.
+    engine: str = "llamacpp"
+    model_id: str | None = None
 
 
 class TicketStore:
@@ -29,12 +33,22 @@ class TicketStore:
         self._tickets: dict[str, Ticket] = {}
 
     def mint(
-        self, build: Build, *, pipeline_tag: str | None = None, now: float | None = None
+        self,
+        build: Build,
+        *,
+        pipeline_tag: str | None = None,
+        now: float | None = None,
+        engine: str = "llamacpp",
+        model_id: str | None = None,
     ) -> str:
         self._expire(now)
         token = secrets.token_urlsafe(18)
         self._tickets[token] = Ticket(
-            build, pipeline_tag, now if now is not None else time.monotonic()
+            build,
+            pipeline_tag,
+            now if now is not None else time.monotonic(),
+            engine,
+            model_id,
         )
         return token
 

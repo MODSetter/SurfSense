@@ -1,12 +1,12 @@
 # Resource usage
 
-The Resources panel at the top of the right column shows the machine's CPU, RAM, graphics memory and GPU load, with the app's share of each in the brand color. When the machine is full, a user can tell whether SurfSense is the cause or something else is, and see which runtime holds what. It reads the process table and the operating system's own counters. Nothing leaves the machine.
+Settings › Resources shows the machine's CPU, RAM, graphics memory and GPU load, with the app's share of each in the brand color. When the machine is full, a user can tell whether SurfSense is the cause or something else is, and see which runtime holds what. It reads the process table and the operating system's own counters. Nothing leaves the machine.
 
 **Code:** [`surfsense_local/backend/modules/resource_usage/`](../../surfsense_local/backend/modules/resource_usage/), [`surfsense_local/frontend/src/features/resources/`](../../surfsense_local/frontend/src/features/resources/), [`surfsense_local/electron/src/main/sidecars/python.ts`](../../surfsense_local/electron/src/main/sidecars/python.ts)
 **Decisions:** [ADR 0016](../adr/0016-no-telemetry.md)
 
 ```text
-  panel ────── GET /system/usage every 2 s, only while the right panel is open
+  panel ────── GET /system/usage every 2 s, only while Settings › Resources is open
      ▼
   sampler ──── parent_map()          one snapshot of the process table
      │         branches(shell pid)   every process under Electron's main process
@@ -48,9 +48,9 @@ On every platform a card with under 1 GiB of its own memory is not listed: that 
 
 ## The panel
 
-One row each for CPU, RAM, and each card's VRAM and GPU load. A bar is split into the app's share (`chart-1`), other apps (`chart-3`) and free, and beside it are the machine's figure and the app's. RAM or VRAM at 90% or more turns the machine figure amber. Each bar is a `meter` whose value text is the whole reading as a sentence. The chevron opens a table of each engine's CPU, RAM and VRAM, with "Not running" for a runtime that is not up; whether it is open is kept in `localStorage`.
+Three headed sections. **This computer** has one row each for CPU, RAM, and each card's VRAM and GPU load. A bar is split into the app's share (`chart-1`), other apps (`chart-3`) and free, and beside it are the machine's figure and the app's. RAM or VRAM at 90% or more turns the machine figure amber. Each bar is a `meter` whose value text is the whole reading as a sentence. **By engine** is a table of each engine's CPU, RAM and VRAM, with "Not running" for a runtime that is not up. **Graphics** names each card with its own memory, or says it shares the CPU's; with two or more it carries the same "GPU 1", "GPU 2" as the rows, so a name can be matched to its bars. A machine with no listed card has no Graphics section.
 
-It polls every 2 seconds through TanStack Query, which stops while the window is hidden. The right panel stays mounted when it is closed, so the query is disabled then too. An inspected citation or artifact replaces the whole column, and the panel with it.
+It polls every 2 seconds through TanStack Query, which stops while the window is hidden. The settings dialog mounts only the open section, so the query runs only while Resources is showing.
 
 ## Known gaps
 

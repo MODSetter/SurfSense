@@ -3,7 +3,7 @@
 Everything the desktop app knows lives in one SQLite file, `surfsense.db`, and in the files under `data/`; the job queues live apart in `huey.db`. The schema is a subset of the hosted SurfSense domain model, keeping the words users know (workspace, document, chunk, chat thread, artifact) and fixing the names that had drifted. The models are the source of truth, Alembic is the only thing that creates schema, and every revision is written by hand, because the database is one user's only copy.
 
 **Code:** [`shared/db.py`](../../surfsense_local/backend/shared/db.py), [`shared/migrations.py`](../../surfsense_local/backend/shared/migrations.py), [`alembic/versions/`](../../surfsense_local/backend/alembic/versions/), the `models.py` in each folder of [`modules/`](../../surfsense_local/backend/modules/)
-**Decisions:** [ADR 0005](../adr/0005-hand-written-migrations.md), [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0007](../adr/0007-bundled-embeddings.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
+**Decisions:** [ADR 0005](../adr/0005-hand-written-migrations.md), [ADR 0003](../adr/0003-artifacts-as-documents.md), [ADR 0006](../adr/0006-hybrid-retrieval.md), [ADR 0007](../adr/0007-bundled-embeddings.md), [ADR 0036](../adr/0036-the-index-records-its-embedder.md), [ADR 0018](../adr/0018-keychain-envelope-encryption.md)
 
 ## Principles
 
@@ -62,6 +62,7 @@ The API seeds one workspace, "My Workspace", at startup when none exists. Deleti
 | `content_hash` | declared but never written |
 | `dedup_key` | SHA-256 of an uploaded or imported file's bytes; null for notes and artifacts |
 | `document_metadata` | JSON: `mime_type`, `size_bytes`, `suffix` for files; import adds `folder_path`, `source` and the hosted ids |
+| `embedding_index_id` | foreign key to `embedding_indexes`: the index its chunks were embedded into; null until its first ingest |
 | `created_at`, `updated_at` | |
 
 `documents_workspace` indexes `workspace_id`. `documents_workspace_dedup_key` is unique on `(workspace_id, dedup_key)` where `dedup_key IS NOT NULL`, so dedup is per workspace and rows without a key stay out of it. Routes and behaviour are in [`documents.md`](documents.md).
@@ -81,17 +82,29 @@ The API seeds one workspace, "My Workspace", at startup when none exists. Deleti
 | Table | Kind | Purpose |
 |---|---|---|
 | `chunks_fts` | FTS5, external content over `chunks` (`content_rowid='id'`) | the BM25 keyword leg; stores no text of its own |
-| `chunk_vectors` | sqlite-vec `vec0(embedding float[D])`, rowid = `chunks.id` | the nearest-neighbour leg |
+| `chunk_vectors` | sqlite-vec `vec0(embedding float[D])`, rowid = `chunks.id` | the nearest-neighbour leg; named by the active row of `embedding_indexes` |
 
 Three triggers on `chunks` keep the keyword index in step. `chunks_after_insert` adds the text to `chunks_fts`; `chunks_after_update` deletes the old text and adds the new; `chunks_after_delete` deletes the text from `chunks_fts` and the row from `chunk_vectors`. An external-content table keeps no copy, so a delete must hand it the old text or it goes on matching. The triggers fire on cascade too, which is how every real delete arrives, since the user removes a document or a workspace, never a chunk. Nothing else could reach these tables: a virtual table takes no foreign key.
 
-Ingest writes the `chunk_vectors` row itself, because only ingest holds the vector. `D` is `SURFSENSE_LOCAL_EMBEDDING_DIMENSION`, 384 for the bundled bge-small-en-v1.5, fixed when `0001` creates the table. `upgrade_to_head()` reads the declared width back from `sqlite_master` and refuses to start when it differs from the setting: vectors from another model are unrelated numbers, not merely the wrong shape, so the database has to be reindexed. How the two legs are queried is in [`search.md`](search.md).
+Ingest writes the `chunk_vectors` row itself, because only ingest holds the vector. `0001` creates the table at 384, bge-small-en-v1.5's width; on a fresh install, finishing onboarding drops the still empty table and creates it again at the chosen model's width ([`lock.py`](../../surfsense_local/backend/modules/embedding/lock.py)), the one place outside migrations that emits DDL. `upgrade_to_head()` reads the declared width back from `sqlite_master` and refuses to start when it differs from the active index's spec: vectors from another model are unrelated numbers, not merely the wrong shape. How the two legs are queried is in [`search.md`](search.md).
+
+### `embedding_indexes`
+
+| Column | Notes |
+|---|---|
+| `id` | |
+| `spec` | JSON snapshot of the embedder's spec: repo, pinned revision and file hashes, width, pooling, normalisation, prefixes, `max_tokens`, `semantic_weight`. A later edit to the app's copy of a spec cannot change what an existing index means |
+| `vector_table` | the vec0 table holding this index's vectors; checked against a fixed name pattern before it reaches SQL |
+| `state` | `active`; `building` and `retired` are reserved for changing the model, which is not built |
+| `created_at` | |
+
+One `active` row, enforced in code rather than by a singleton constraint, because a second row is how changing the model would start ([proposal](../proposals/embedding-model-change.md)). A fresh install has no row until onboarding finishes; `0022` writes a bge-small row for a library that already existed, pointing at its `chunk_vectors`, and stamps every document with chunks. Nothing is re-embedded.
 
 ### `chat_threads` and `chat_messages`
 
 | Table | Columns | Notes |
 |---|---|---|
-| `chat_threads` | `id`, `workspace_id`, `title`, `created_at`, `updated_at` | `title` is nullable; the API defaults it to "New chat" |
+| `chat_threads` | `id`, `workspace_id`, `title`, `opencode_session_id`, `created_at`, `updated_at` | `title` is nullable; the API defaults it to "New chat". `opencode_session_id`, from `0021`, is set on a thread the agent answers, whose turns live in that opencode session rather than in `chat_messages` ([`chat.md`](chat.md#agent-threads)) |
 | `chat_messages` | `id`, `chat_thread_id`, `role`, `content`, `created_at`, `completed_at` | `role` is `user`, `assistant` or `system`; `completed_at` arrived in `0002` |
 
 `content` is JSON: `{"text"}` for a user turn, plus `images: [{"key", "mime", "size_bytes", "sha256"}]` when it carried any, and `{"text", "citations"}` for an assistant turn, whose text carries `[citation:<chunk_id>]` markers. The server reads `text` to build the model's history, and a user turn's `images` for the newest turn that carried some; the citations are for the UI. Imported user turns also carry an empty `citations` list. Messages are indexed on `(chat_thread_id, created_at)` and cascade with their thread. Visibility, authorship, cloning, turn ids, token usage and LangGraph checkpoints are left out. See [`chat.md`](chat.md).
@@ -180,6 +193,7 @@ erDiagram
   documents ||--o| artifacts : "body of"
   chunks ||--|| chunks_fts : "rowid, by trigger"
   chunks ||--|| chunk_vectors : "rowid, by ingest"
+  embedding_indexes |o--o{ documents : "embedded"
   chat_threads ||--o{ chat_messages : contains
   chat_threads |o--o{ artifacts : "produced, set null"
   artifacts ||--o{ artifact_files : stores
@@ -203,8 +217,16 @@ erDiagram
     text content_hash
     text dedup_key
     json document_metadata
+    int embedding_index_id FK
     datetime created_at
     datetime updated_at
+  }
+  embedding_indexes {
+    int id PK
+    json spec
+    text vector_table
+    text state "active, building, retired"
+    datetime created_at
   }
   chunks {
     int id PK
@@ -219,7 +241,7 @@ erDiagram
     text content "FTS5, external content"
   }
   chunk_vectors {
-    blob embedding "vec0, 384 floats by default"
+    blob embedding "vec0, the active spec's width"
   }
   chat_threads {
     int id PK
@@ -334,6 +356,7 @@ erDiagram
 | `0016` | `0016_local_audio_provider.py` | `selected_models` rebuilt so `audiocpp` may hold `audio_gen`, and only that, without a connection; downgrading drops an `audiocpp` selection |
 | `0019` | `0019_selection_settings.py` | `selected_models.settings`, a nullable JSON column added in place; its first entry is a server audio model's `voices` |
 | `0020` | `0020_plugin_runs.py` | `plugin_runs` |
+| `0022` | `0022_embedding_indexes.py` | `embedding_indexes` and `documents.embedding_index_id`; an existing library gets a bge-small row and its documents are stamped. The column is added by a plain `ALTER TABLE`, since a batch rebuild of `documents` would cascade to every chunk |
 
 - Migrations run on every API start and are idempotent. Autogenerate is off: it renders a rename as a drop plus an add, which deletes a column's data silently, and `env.py` carries no `target_metadata`, so it cannot be used by accident.
 - SQLite cannot alter a CHECK constraint in place, so `0004`, `0009`, `0012` and `0013` copy `selected_models` into a new table.

@@ -67,7 +67,7 @@ Fulfilment also writes the license's Keygen id onto the Stripe customer as `keyg
 | `stripeCustomerId` | Stripe purchases | the Stripe customer a refund comes from |
 | `checkoutSessionId` | Stripe purchases | the success page, support corrections, refund → suspend |
 
-Keygen camelCases metadata keys in filter queries, and a misspelled filter returns an empty list rather than an error, which reads as "no license". The spellings live in `app/license/models.py`, except that `create_license()` in `keygen.py` writes `plan` and `email` as literals.
+Keygen snake-cases metadata keys when it stores them and when it filters on them, and camelCases them in responses ([`jsonapi.rb`](https://github.com/keygen-sh/keygen-api/blob/v1.7.2/config/initializers/jsonapi.rb#L5-L11), [`license.rb`](https://github.com/keygen-sh/keygen-api/blob/v1.7.2/app/models/license.rb#L337-L338)), so `checkoutSessionId` and `checkout_session_id` are one key. A key with a different word is what goes wrong: it returns an empty list rather than an error, which reads as "no license". The spellings live in `app/license/models.py`, except that `create_license()` in `keygen.py` writes `plan` and `email` as literals.
 
 Certificates are never stored. Every delivery, whether success page, purchase mail or resend, checks out a fresh file with `{"meta": {"ttl": null}}`, so two files for one license differ in `meta.issued` and share a key. `ttl: null` matters because the app never refreshes, and Keygen's default 30-day TTL would kill every file a month after purchase.
 

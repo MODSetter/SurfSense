@@ -16,11 +16,10 @@ ENTRY = """\
 import struct, sys, tempfile
 from pathlib import Path
 
-from shared.config import get_search_settings
 from shared.db import create_db_engine
 from shared.migrations import upgrade_to_head
 
-dim = get_search_settings().embedding_dimension
+dim = 384  # chunk_vectors as migration 0001 creates it
 path = Path(tempfile.gettempdir()) / "surfsense-frozen-check.db"
 path.unlink(missing_ok=True)
 

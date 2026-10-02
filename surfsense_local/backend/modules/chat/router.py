@@ -14,6 +14,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from api.dependencies import SessionDep, transact
+from modules.agent.agent_threads.forget_sessions import forget_sessions
+from modules.agent.agent_threads.open_session import open_agent_session
+from modules.agent.agent_threads.thread_messages import agent_thread_messages
+from modules.agent.agent_threads.turn import agent_turn
+from modules.agent.dependencies import LaunchKeyDep
+from modules.agent.engine_choice import agent_answers
 from modules.chat.budget import IMAGE_TOKENS, answer_max_tokens, history_budget
 from modules.chat.dependencies import ThreadDep
 from modules.chat.errors import classify_chat_error, empty_reply_error
@@ -38,6 +44,7 @@ from modules.chat.schemas import (
 )
 from modules.chat.title import generate_title
 from modules.documents.sources import load_selected_sources
+from modules.embedding.active import require_active_index
 from modules.llm.activity import ModelBusyError, model_activity, model_key
 from modules.llm.providers.protocols import Generator
 from modules.llm.resolution import (
@@ -58,12 +65,21 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_201_CREATED,
     summary="Open a chat thread",
 )
-def create_thread(
-    workspace: WorkspaceDep, payload: ThreadCreate, session: SessionDep
+async def create_thread(
+    workspace: WorkspaceDep,
+    payload: ThreadCreate,
+    session: SessionDep,
+    launch_key: LaunchKeyDep,
 ) -> ChatThread:
-    thread = ChatThread(workspace_id=workspace.id, title=payload.title)
-    session.add(thread)
-    session.flush()  # The id and timestamps come from the database.
+    """Open a thread, and give it to the agent when the selected model may run it.
+
+    Chosen here and kept: the thread's turns live with whichever engine got it.
+    """
+    thread = await transact(session, _new_thread, workspace.id, payload.title)
+    if await transact(session, agent_answers):
+        session_id = await open_agent_session(session, thread, launch_key)
+        if session_id is not None:
+            await transact(session, _give_to_agent, thread, session_id)
     return thread
 
 
@@ -95,12 +111,12 @@ def update_thread(thread: ThreadDep, payload: ThreadUpdate) -> ChatThread:
     response_model=list[MessageRead],
     summary="Read a thread's messages",
 )
-def list_messages(thread: ThreadDep, session: SessionDep) -> Sequence[ChatMessage]:
-    return session.scalars(
-        select(ChatMessage)
-        .where(ChatMessage.chat_thread_id == thread.id)
-        .order_by(ChatMessage.created_at)
-    ).all()
+async def list_messages(
+    thread: ThreadDep, session: SessionDep, launch_key: LaunchKeyDep
+) -> Sequence[ChatMessage] | list[dict]:
+    if thread.uses_agent:
+        return await agent_thread_messages(session, thread, launch_key)
+    return await transact(session, _stored_turns, thread)
 
 
 @router.delete(
@@ -108,13 +124,22 @@ def list_messages(thread: ThreadDep, session: SessionDep) -> Sequence[ChatMessag
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Delete a thread and its messages",
 )
-def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
+async def delete_thread(thread: ThreadDep, session: SessionDep) -> Response:
     workspace_id, thread_id = thread.workspace_id, thread.id
-    session.delete(thread)
-    # Files go after the commit a rollback would undo, as a workspace's do.
-    session.commit()
+    if thread.opencode_session_id is not None:
+        await forget_sessions(workspace_id, [thread.opencode_session_id])
+    await transact(session, _delete_thread, thread)
     store.remove_thread(workspace_id, thread_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _delete_thread(session: Session, thread: ChatThread) -> None:
+    """Delete the row; its messages cascade and its artifacts are kept.
+
+    `transact` commits before the caller removes the files, which a rollback
+    would otherwise leave pointing at nothing.
+    """
+    session.delete(thread)
 
 
 @router.get(
@@ -145,8 +170,13 @@ def read_message_image(
     summary="Send a message and stream the grounded reply",
 )
 async def send_message(
-    thread: ThreadDep, payload: MessageCreate, session: SessionDep
+    thread: ThreadDep,
+    payload: MessageCreate,
+    session: SessionDep,
+    launch_key: LaunchKeyDep,
 ) -> StreamingResponse:
+    if thread.uses_agent:
+        return await agent_turn(session, thread, payload, launch_key)
     resolved, history, hits = await transact(session, _ground, thread, payload)
     selected = resolved.selection
     generator = resolved.generator
@@ -232,6 +262,15 @@ async def send_message(
                 async for delta in generator.chat_deltas(
                     selected.name, messages, max_tokens=answer_max_tokens(n_ctx)
                 ):
+                    if delta.progress is not None:
+                        yield _frame(
+                            {
+                                "type": "prompt-progress",
+                                "processed": delta.progress.processed,
+                                "total": delta.progress.total,
+                            }
+                        )
+                        continue
                     if delta.reasoning:
                         trace.add(delta.text)
                         yield _frame({"type": "reasoning", "text": delta.text})
@@ -396,6 +435,35 @@ def _normalised(uploads: list[ImageUpload]) -> list[NormalisedImage]:
 # The stream's session work, each piece one short transaction off the event loop.
 
 
+def _new_thread(session: Session, workspace_id: int, title: str) -> ChatThread:
+    """Insert the thread; the id and timestamps come from the database."""
+    thread = ChatThread(workspace_id=workspace_id, title=title)
+    session.add(thread)
+    session.flush()
+    session.refresh(thread)
+    return thread
+
+
+def _give_to_agent(session: Session, thread: ChatThread, session_id: str) -> None:
+    """Record the opencode session that will hold the thread's turns.
+
+    Reloaded here, off the event loop: the write moves `updated_at`, which the
+    response reads.
+    """
+    thread.opencode_session_id = session_id
+    session.flush()
+    session.refresh(thread)
+
+
+def _stored_turns(session: Session, thread: ChatThread) -> Sequence[ChatMessage]:
+    """A chat thread's turns, oldest first."""
+    return session.scalars(
+        select(ChatMessage)
+        .where(ChatMessage.chat_thread_id == thread.id)
+        .order_by(ChatMessage.created_at)
+    ).all()
+
+
 def _ground(
     session: Session, thread: ChatThread, payload: MessageCreate
 ) -> tuple[ResolvedGeneration, Sequence[ChatMessage], list[Hit]]:
@@ -407,9 +475,9 @@ def _ground(
     if payload.document_ids is not None:
         load_selected_sources(session, thread.workspace_id, payload.document_ids)
     # Keep numpy/onnxruntime lazy: only chat and ingestion need this module.
-    from worker.ingestion.embedding import missing_embedding_files
+    from modules.embedding.encoder import missing_files
 
-    if missing_embedding_files():
+    if missing_files(require_active_index(session).spec):
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
             "local embedding model is not installed; "

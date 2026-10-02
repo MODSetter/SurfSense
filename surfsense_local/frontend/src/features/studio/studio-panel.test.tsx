@@ -13,6 +13,7 @@ const readyDocument = {
   id: 4,
   title: "Saturn facts",
   document_type: "NOTE" as const,
+  mime_type: null,
   status: "ready" as const,
   error_message: null,
   created_at: "2026-09-05T00:00:00Z",

@@ -1,7 +1,7 @@
 ---
 status: proposed
 code:
-  - surfsense_local/backend/worker/ingestion/embedding.py
+  - surfsense_local/backend/modules/embedding/
   - surfsense_local/backend/shared/search.py
   - surfsense_local/backend/alembic/versions/
 ---
@@ -32,7 +32,7 @@ bge scores Hindi **backwards**: an unrelated Hindi sentence sits closer to the E
 
 ## The candidate
 
-`ibm-granite/granite-embedding-97m-multilingual-r2`. Apache-2.0, ungated, 52 languages, int8 ONNX. It is a drop-in: `hidden_size` 384 so `vec0` keeps its width and [ADR 0007](../adr/0007-bundled-embeddings.md)'s width check still passes, CLS pooling like bge, and no query prefix — [`embedding.py`](../../surfsense_local/backend/worker/ingestion/embedding.py) needs no change beyond the repo constants.
+`ibm-granite/granite-embedding-97m-multilingual-r2`. Apache-2.0, ungated, 52 languages, int8 ONNX. It is a drop-in: `hidden_size` 384 so `vec0` keeps its width and [ADR 0007](../adr/0007-bundled-embeddings.md)'s width check still passes, CLS pooling like bge, and no query prefix — it needs a spec of its own and no change to [`encoder.py`](../../surfsense_local/backend/modules/embedding/encoder.py).
 
 Swept on `dev`, because `SEMANTIC_WEIGHT` is defined as a plateau measured per embedder and judging a candidate at the incumbent's tuned weight is not a fair test:
 

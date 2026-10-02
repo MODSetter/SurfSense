@@ -26,10 +26,18 @@ const pendingDocument = {
   id: 7,
   title: "guide.txt",
   document_type: "FILE" as const,
+  mime_type: null,
   status: "pending" as const,
   error_message: null,
   created_at: "2026-09-05T00:00:00Z",
   updated_at: "2026-09-05T00:00:00Z",
+}
+
+const pendingPdf = {
+  ...pendingDocument,
+  id: 9,
+  title: "report.pdf",
+  mime_type: "application/pdf",
 }
 
 function SourceHarness() {
@@ -90,6 +98,41 @@ afterEach(() => {
 })
 
 describe("source upload", () => {
+  it("previews a PDF source before ingestion finishes", async () => {
+    const user = userEvent.setup()
+    const onPreview = vi.fn()
+    render(
+      <TooltipProvider>
+        <SourcesPanel
+          documents={[pendingPdf]}
+          selectedDocumentIds={[]}
+          highlightedDocumentId={null}
+          isLoading={false}
+          isDeleting={false}
+          error={null}
+          onOpen={vi.fn()}
+          onPreview={onPreview}
+          onReveal={vi.fn()}
+          onRetry={vi.fn()}
+          onCancel={vi.fn()}
+          onDelete={vi.fn()}
+          onDeleteSelected={vi.fn()}
+          onSelectionChange={vi.fn()}
+          onToggleAll={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await user.click(screen.getByRole("button", { name: "report.pdf" }))
+    expect(onPreview).toHaveBeenCalledWith(9)
+
+    await user.click(
+      screen.getByRole("button", { name: "Actions for report.pdf" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Preview" }))
+    expect(onPreview).toHaveBeenCalledTimes(2)
+  })
+
   it("uses selection, processing, and retry controls in the icon slot", () => {
     const ready = {
       ...pendingDocument,
@@ -407,11 +450,23 @@ describe("source upload", () => {
     )
   })
 
-  it("uploads multipart files, reports duplicates, and polls until ready", async () => {
+  it("uploads multipart files, reports duplicates, and shows the source ready when the workspace reports it", async () => {
     let uploaded = false
+    let events!: ReadableStreamDefaultController<Uint8Array>
+    const stream = new Response(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          events = controller
+        },
+      }),
+      { headers: { "Content-Type": "text/event-stream" } }
+    )
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         const path = String(input)
+        if (path === "/workspaces/1/events") {
+          return stream
+        }
         if (
           path ===
             "/workspaces/1/documents?document_type=FILE&document_type=NOTE" &&
@@ -465,6 +520,14 @@ describe("source upload", () => {
     expect(
       await screen.findByRole("status", { name: "Processing guide.txt" })
     ).toBeTruthy()
+    events.enqueue(
+      new TextEncoder().encode(
+        `: connected\n\nevent: documents\ndata: ${JSON.stringify({
+          ids: [pendingDocument.id],
+          status: "ready",
+        })}\n\n`
+      )
+    )
     await waitFor(() =>
       expect(toast.success).toHaveBeenCalledWith("1 source added", {
         id: "source-upload-outcome",

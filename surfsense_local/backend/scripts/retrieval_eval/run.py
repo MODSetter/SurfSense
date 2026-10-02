@@ -6,7 +6,12 @@ so chunking, embedding and both retrieval legs are the app's own.
 
 from dataclasses import asdict, dataclass
 
+from sqlalchemy import update
+
 from modules.documents.models import Document, DocumentType
+from modules.embedding.lock import lock_index
+from modules.embedding.models import EmbeddingIndex
+from modules.embedding.spec import EmbedderSpec
 from modules.workspaces.models import Workspace
 from retrieval_eval.cases import Corpus
 from retrieval_eval.score import Ranking, score
@@ -29,13 +34,19 @@ class Result:
     titles: list[str]
 
 
-def open_index():
-    """The workspace in an index built by an earlier run, or None."""
+def open_index(spec: EmbedderSpec):
+    """The workspace in an index built by an earlier run, or None.
+
+    The stored spec is replaced by `spec`, which differs from it at most in its
+    ranking weight: the index is keyed by everything else.
+    """
     database = get_storage_settings().database_path
     if not database.exists():
         return None
     engine = create_db_engine(database)
     session = create_session_factory(engine)()
+    session.execute(update(EmbeddingIndex).values(spec=spec.model_dump(mode="json")))
+    session.commit()
     workspace = session.query(Workspace).first()
     if workspace is None:
         session.close()
@@ -44,7 +55,7 @@ def open_index():
     return session, workspace.id, engine
 
 
-def index(corpus: Corpus):
+def index(corpus: Corpus, spec: EmbedderSpec):
     """A workspace holding the corpus, every document ingested to ready.
 
     The database is the configured one, which the entry script points at a
@@ -58,6 +69,7 @@ def index(corpus: Corpus):
     engine = create_db_engine(get_storage_settings().database_path)
     upgrade_to_head(engine)
     session = create_session_factory(engine)()
+    lock_index(session, spec)  # as finishing onboarding would
     workspace = Workspace(name="Retrieval eval")
     session.add(workspace)
     session.flush()

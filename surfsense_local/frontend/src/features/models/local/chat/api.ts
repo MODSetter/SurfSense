@@ -108,7 +108,9 @@ export type LocalRow = {
   /** The one model starred for this computer. Curated models only. */
   recommended: boolean
   /** The engine that offered the row and would run it. */
-  engine: "llamacpp" | "sdcpp" | "audiocpp"
+  engine: "llamacpp" | "sdcpp" | "audiocpp" | "onnxruntime"
+  /** What the model is for; an embedder's only. */
+  description?: string | null
   /** An audio model's memory while voicing, voices and languages. */
   voicing?: Voicing | null
   /**

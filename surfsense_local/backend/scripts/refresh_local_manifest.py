@@ -27,6 +27,8 @@ from local_manifest.entries import ENTRIES
 from local_manifest.guard import losses
 from local_manifest.licence import refused
 from local_manifest.llamacpp import refresh as llamacpp
+from local_manifest.onnxruntime import refresh as onnxruntime
+from local_manifest.onnxruntime.entry import EmbeddingEntry
 from local_manifest.sdcpp import refresh as sdcpp
 from local_manifest.sdcpp.entry import ImageEntry
 from local_manifest.unreadable import UnreadableBuildError
@@ -41,6 +43,8 @@ from modules.llm.catalog.local.manifest import (
 def _engine(entry):
     if isinstance(entry, AudioEntry):
         return audiocpp
+    if isinstance(entry, EmbeddingEntry):
+        return onnxruntime
     return sdcpp if isinstance(entry, ImageEntry) else llamacpp
 
 

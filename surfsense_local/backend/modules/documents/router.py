@@ -31,6 +31,7 @@ from modules.documents.storage import (
     validate_upload,
 )
 from modules.documents.tasks import ingest_document
+from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.events.dependencies import EventBrokerDep
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
@@ -149,6 +150,7 @@ def read_document(document: DocumentDep) -> Document:
 @router.post(
     "",
     response_model=DocumentDetail,
+    dependencies=[EMBEDDER_CHOSEN],
     status_code=status.HTTP_201_CREATED,
     summary="Write a note",
 )
@@ -177,6 +179,7 @@ def create_note(
 
 @router.post(
     "/upload",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=UploadOutcome,
     status_code=status.HTTP_201_CREATED,
     summary="Upload files",
@@ -274,6 +277,7 @@ def upload_documents(
 
 @router.patch(
     "/{document_id}",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=DocumentRead,
     summary="Edit a document",
 )
@@ -311,6 +315,7 @@ def update_document(
 
 @router.post(
     "/{document_id}/retry",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=DocumentRead,
     summary="Requeue a failed or cancelled document",
 )

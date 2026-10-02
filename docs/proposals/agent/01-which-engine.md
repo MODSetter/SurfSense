@@ -54,8 +54,25 @@ A rule based only on tool support would give Qwen3-0.6B, at 3.62% on multi-turn 
 - **Fixed workflows** ([`04-workflows.md`](04-workflows.md)) run every other model. The formatting step uses the model's own structured output where it has one. For a remote model without it, a local model does the formatting step. With no local text model installed, the workflow parses the reply the way Studio does today.
 - Nanbeige4-3B-Thinking and xLAM-2 are not candidates for the list.
 
+## When a thread gets its engine
+
+- The agent sits in the chat panel: same thread list, same composer, no separate entry. With the list empty and most local models off it, a separate entry would do nothing for most users, and the engine is the model's to decide, not the user's.
+- A thread gets its engine when it is created, from the model selected then, and keeps it. The text model is one setting for the whole app ([selection](../../architecture/local-models/selection.md)), so a thread cannot follow it: half its turns would sit in `chat_messages` and half in opencode's session, and neither engine would see the other half ([`03-opencode.md`](03-opencode.md), The conversation).
+- In a thread that uses opencode, choosing another model on the list continues the thread, because opencode takes the model with each prompt ([`groups/session.ts`](https://github.com/anomalyco/opencode/blob/v1.18.34/packages/opencode/src/server/routes/instance/httpapi/groups/session.ts)). Choosing a model that is not on the list makes the composer say this thread cannot continue with it, and offer a new thread.
+- An agent turn shows its steps, such as searched, read and created, as lines the user can expand, and the permission dialog opens over the thread.
+- With a model on the list, a quick question also goes through the agent: a few model calls instead of one.
+
+## What tested means
+
+- A model is tested, and runs opencode, at a window of 32,768 tokens or more. At 8,192, opencode starts compacting at 6,144 tokens ([`03-opencode.md`](03-opencode.md), Configuration), and its prompt and tool descriptions alone are about 20,000 characters.
+- The test runs with a fixed seed and temperature 0, one instruction per turn. A model passes when it:
+  - answers a one-word reply;
+  - carries out a two-turn task through `search_sources` and `create_artifact`;
+  - shows on its second turn that llama-server reused its prompt cache.
+- Each run has a wall-clock limit, and a run that passes it has opencode's process group killed and counts as failed.
+
 ## Open questions
 
-- Where the tested list lives, what counts as tested, and who maintains it.
+- Where the tested list lives and who maintains it.
 - How a remote model's support is confirmed when models.dev says nothing, or when the user's endpoint differs from what models.dev lists.
 - Whether the prompt tiers matter here. A remote model whose listing has no `hugging_face_id` is always classified `frontier` ([selection](../../architecture/local-models/selection.md), Known gaps), so every Featherless model gets frontier prompts today.

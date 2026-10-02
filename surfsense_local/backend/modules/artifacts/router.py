@@ -40,6 +40,7 @@ from modules.artifacts.service import (
     regenerate_artifact,
 )
 from modules.documents.models import Document, DocumentType
+from modules.embedding.dependencies import EMBEDDER_CHOSEN
 from modules.workspaces.dependencies import WorkspaceDep
 from shared.config import get_storage_settings
 
@@ -61,6 +62,7 @@ def studio_formats(workspace: WorkspaceDep, session: SessionDep) -> list[FormatR
 
 @router.post(
     "/workspaces/{workspace_id}/studio/jobs",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=ArtifactRead,
     status_code=status.HTTP_201_CREATED,
     summary="Generate an artifact from documents",
@@ -103,6 +105,7 @@ def read_artifact(artifact: ArtifactDep) -> ArtifactDetail:
 
 @router.post(
     "/artifacts/{artifact_id}/regenerate",
+    dependencies=[EMBEDDER_CHOSEN],
     response_model=ArtifactRead,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Generate a finished or failed artifact again",

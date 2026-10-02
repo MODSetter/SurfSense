@@ -5,6 +5,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 import uvicorn
+from sqlalchemy import Engine
 
 from api.main import create_app
 
@@ -16,8 +17,9 @@ def _free_port() -> int:
 
 
 @pytest.fixture
-async def base_url(data_dir: object) -> AsyncIterator[str]:
-    """Serve a migrated app on a free port; data_dir points it at this test's DB."""
+async def base_url(data_dir: object, engine: Engine) -> AsyncIterator[str]:
+    """Serve a migrated app on a free port; data_dir points it at this test's DB,
+    which `engine` has already built with the embedder fixed, as onboarding would."""
     port = _free_port()
     server = uvicorn.Server(
         uvicorn.Config(create_app(), host="127.0.0.1", port=port, log_level="warning")
