@@ -138,13 +138,13 @@ async def test_a_remote_model_that_calls_tools_gets_the_agent(session: Session) 
     assert await selected_model_can_run_agent(session) is True
 
 
-async def test_a_remote_model_the_catalog_does_not_know_gets_the_chat(
+async def test_with_the_switch_a_model_the_catalog_does_not_know_gets_the_agent(
     session: Session,
 ) -> None:
-    """A user's own endpoint may serve anything: support that is not stated is not confirmed."""
-    select_remote(session, "stub-model", "custom")
+    """A model released after the packaged catalog is the one most worth trying; only a stated no keeps it out."""
+    select_remote(session, "anthropic/claude-sonnet-99", "openrouter")
 
-    assert await selected_model_can_run_agent(session) is False
+    assert await selected_model_can_run_agent(session) is True
 
 
 async def test_without_the_switch_even_a_model_that_calls_tools_gets_the_chat(

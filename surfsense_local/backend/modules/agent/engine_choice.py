@@ -22,18 +22,22 @@ TESTED_MODELS: frozenset[str] = frozenset()
 
 
 async def selected_model_can_run_agent(session: Session) -> bool:
-    """Whether the selected text model may run the agent: tested, and known to call tools."""
+    """Whether the selected text model may run the agent: tested, and known to call tools.
+
+    Under the developer switch a remote model the catalog says nothing of is let in.
+    """
     found = await transact(session, _selected)
     if found is None:
         return False
     selected, catalog_provider = found
-    if not (
-        selected.name in TESTED_MODELS or get_agent_settings().agent_untested_models
-    ):
+    switch = get_agent_settings().agent_untested_models
+    if not (selected.name in TESTED_MODELS or switch):
         return False
     if selected.provider == llamacpp.PROVIDER:
         return await _local_calls_tools(selected.name)
-    return _catalog_calls_tools(selected.name, catalog_provider)
+    stated = _catalog_tool_call(selected.name, catalog_provider)
+    # The packaged catalog lags the providers; under the switch only a stated no keeps a model out.
+    return stated is True or (stated is None and switch)
 
 
 def _selected(session: Session) -> tuple[SelectedModel, str | None] | None:
@@ -61,8 +65,8 @@ async def _local_calls_tools(name: str) -> bool:
         return False
 
 
-def _catalog_calls_tools(name: str, catalog_provider: str | None) -> bool:
-    """Whether the remote catalog says the model calls tools; one it says nothing of does not."""
+def _catalog_tool_call(name: str, catalog_provider: str | None) -> bool | None:
+    """What the remote catalog says of the model's tool calls; None when it says nothing."""
     provider = None if catalog_provider in (None, CUSTOM) else catalog_provider
     found = remote_lookup().classify(name, provider=provider)
-    return found.supports is not None and found.supports.tool_call is True
+    return found.supports.tool_call if found.supports is not None else None
