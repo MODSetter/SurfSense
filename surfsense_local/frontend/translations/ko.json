@@ -131,6 +131,7 @@
   "chat_model_picker_trigger_aria": "모델 {model}. 모델을 변경합니다.",
   "chat_reasoning_done_label": "{seconds, plural, other {#초}} 동안 생각함",
   "chat_reasoning_done_untimed_label": "생각 완료",
+  "chat_reasoning_reading_label": "읽는 중 {percent, number, ::percent}",
   "chat_reasoning_thinking_label": "생각 중",
   "chat_rename_dialog_body": "이 대화를 알아볼 수 있는 짧은 이름을 지정하세요.",
   "chat_rename_dialog_cancel_button": "취소",

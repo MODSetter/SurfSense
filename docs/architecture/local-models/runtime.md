@@ -292,6 +292,35 @@ on the command line applies to the whole router, and setting it at all makes the
 server ignore `thinking_budget_tokens`, whose handler runs only while the flag is
 at its `-1` default. The sidecar never passes it.
 
+## Prompt progress
+
+The wait before the first token is a model load, then the prompt being read.
+llama.cpp reports the second. Measured at `b11050` in router mode with the
+sidecar's flags, `Qwen3-0.6B-Q4_K_M` and a 12,505-token prompt: a streamed chat
+sent `return_progress` answers, before any token, with chunks whose
+`delta.content` is null and that carry
+
+```json
+{"prompt_progress": {"total": 12505, "cache": 0, "processed": 2048, "time_ms": 334}}
+```
+
+one per 2,048-token batch, from `processed: 0` to `processed: total`. Three
+things follow from what was seen:
+
+- Nothing is sent while the model loads. The first chunk arrived once it was up.
+- `processed` starts at `cache`. The same prompt again reported
+  `cache: 12504, processed: 12504` and finished in 30 ms, so the work is
+  `total - cache`, and that is what the provider passes on.
+- Without the field no such chunk is sent.
+
+The local provider adds `PROMPT_PROGRESS` from `prompt_progress.py` to every
+streamed chat, and a `Delta` with no text carries the figure up. `chat()` drops
+it, so titles and Studio never see it; the chat router sends it as a
+`prompt-progress` frame ([`chat.md`](../chat.md#the-stream)). A remote endpoint
+is never sent the field. A batch can take longer than the 30 s allowed between
+tokens, so a progress chunk restarts the first-token budget and does not start
+the tight one. Not measured: a CPU-only build, where a batch is far slower.
+
 ## The provider
 
 `LlamaCppProvider` satisfies the same `Generator` protocol as a remote endpoint,

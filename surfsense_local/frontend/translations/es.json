@@ -131,6 +131,7 @@
   "chat_model_picker_trigger_aria": "Modelo {model}. Cambiar de modelo.",
   "chat_reasoning_done_label": "Pensó durante {seconds, plural, one {# segundo} many {# segundos} other {# segundos}}",
   "chat_reasoning_done_untimed_label": "Pensó",
+  "chat_reasoning_reading_label": "Leyendo {percent, number, ::percent}",
   "chat_reasoning_thinking_label": "Pensando",
   "chat_rename_dialog_body": "Elige un nombre corto que identifique esta conversación.",
   "chat_rename_dialog_cancel_button": "Cancelar",

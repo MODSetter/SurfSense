@@ -33,6 +33,88 @@ describe("ReplyThinking", () => {
     expect(container.querySelector("svg")).toBe(indicator)
   })
 
+  it("shows how much of a long prompt has been read while it waits", () => {
+    const { rerender } = render(
+      <ReplyThinking
+        running
+        answerStarted={false}
+        reasoning={null}
+        progress={{ processed: 2048, total: 4096 }}
+      />
+    )
+    const header = screen.getByRole("button", { name: "Reading 50%" })
+
+    rerender(
+      <ReplyThinking
+        running
+        answerStarted={false}
+        reasoning={null}
+        progress={{ processed: 3072, total: 4096 }}
+      />
+    )
+
+    // The same header, so its motion never restarts as the figure moves.
+    expect(screen.getByRole("button", { name: "Reading 75%" })).toBe(header)
+  })
+
+  it("has no figure to show before reading starts or once it is done", () => {
+    const { rerender } = render(
+      <ReplyThinking
+        running
+        answerStarted={false}
+        reasoning={null}
+        progress={{ processed: 0, total: 4096 }}
+      />
+    )
+    expect(screen.getByRole("button", { name: "Thinking" })).toBeTruthy()
+
+    rerender(
+      <ReplyThinking
+        running
+        answerStarted={false}
+        reasoning={null}
+        progress={{ processed: 4096, total: 4096 }}
+      />
+    )
+    expect(screen.getByRole("button", { name: "Thinking" })).toBeTruthy()
+  })
+
+  it("announces reading by quarters, not at every update", () => {
+    const at = (processed: number) => (
+      <ReplyThinking
+        running
+        answerStarted={false}
+        reasoning={null}
+        progress={{ processed, total: 1000 }}
+      />
+    )
+    const { rerender } = render(at(100))
+    const status = screen.getByRole("status")
+    expect(status.textContent).toBe("Thinking")
+
+    rerender(at(300))
+    expect(status.textContent).toBe("Reading 25%")
+    rerender(at(450))
+    expect(status.textContent).toBe("Reading 25%")
+    rerender(at(600))
+    expect(status.textContent).toBe("Reading 50%")
+    expect(screen.getByRole("button", { name: "Reading 60%" })).toBeTruthy()
+  })
+
+  it("drops the figure once the trace starts", () => {
+    render(
+      <ReplyThinking
+        running
+        answerStarted={false}
+        reasoning={{ text: "First step.", durationMs: null }}
+        progress={{ processed: 2048, total: 4096 }}
+      />
+    )
+
+    expect(screen.getByRole("button", { name: "Thinking" })).toBeTruthy()
+    expect(screen.getByRole("status").textContent).toBe("Thinking")
+  })
+
   it("shows nothing for a reply that answered without thinking", () => {
     const { container } = render(
       <ReplyThinking running answerStarted reasoning={null} />

@@ -969,6 +969,87 @@ describe("dashboard chat", () => {
     expect(screen.queryByRole("button", { name: "Model setup" })).toBeNull()
   })
 
+  it("shows how far the model has read while the stream has no token yet", async () => {
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = String(input)
+        if (path === "/llm/providers") {
+          return Response.json([
+            { name: "llamacpp", healthy: true, can_download: true },
+          ])
+        }
+        if (path === "/llm/catalog/local") {
+          return Response.json({ rows: [], recommended_id: null })
+        }
+        if (path === "/workspaces/1/chat/threads" && init?.method === "POST") {
+          return Response.json(
+            {
+              id: 10,
+              workspace_id: 1,
+              title: "Long read",
+              created_at: "2026-09-05T00:00:00Z",
+              updated_at: "2026-09-05T00:00:00Z",
+            },
+            { status: 201 }
+          )
+        }
+        if (path === "/license/status") {
+          return Response.json({ state: "none" })
+        }
+        if (path === "/chat/threads/10/messages" && init?.method === "POST") {
+          const frames =
+            'data: {"type":"accepted","user_message_id":100,"assistant_message_id":101,"user_created_at":"2026-09-05T00:00:00Z"}\n\ndata: {"type":"prompt-progress","processed":0,"total":8192}\n\ndata: {"type":"prompt-progress","processed":2048,"total":8192}\n\n'
+          // Held open on the progress frame, as a model still reading does.
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.enqueue(new TextEncoder().encode(frames))
+                init.signal?.addEventListener("abort", () =>
+                  controller.error(new DOMException("Aborted", "AbortError"))
+                )
+              },
+            }),
+            { headers: { "Content-Type": "text/event-stream" } }
+          )
+        }
+        return Response.json([])
+      }
+    )
+    vi.stubGlobal("fetch", fetchMock)
+    const user = userEvent.setup()
+
+    render(
+      <TooltipProvider>
+        <DashboardPage
+          initialProviderAvailable={true}
+          selection={{
+            model_type: "text_gen",
+            provider: "llamacpp",
+            connection_id: null,
+            name: "Qwen3-1.7B-Q4_K_M",
+            updated_at: "2026-09-05T00:00:00Z",
+          }}
+          initialWorkspaces={[workspace]}
+          onModelSelected={vi.fn()}
+        />
+      </TooltipProvider>
+    )
+
+    await screen.findByRole("textbox", { name: "Message" })
+    await user.type(
+      screen.getByRole("textbox", { name: "Message" }),
+      "Long read"
+    )
+    await user.click(screen.getByRole("button", { name: "Send message" }))
+
+    expect(
+      await screen.findByRole("button", { name: "Reading 25%" })
+    ).toBeTruthy()
+    await user.click(
+      await screen.findByRole("button", { name: "Stop generating" })
+    )
+  })
+
   it("offers no Retry for a context-too-long failure it cannot fix", async () => {
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
