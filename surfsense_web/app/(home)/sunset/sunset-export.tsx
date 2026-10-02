@@ -10,6 +10,7 @@ import { authenticatedFetch } from "@/lib/auth-fetch";
 import { redirectToLogin } from "@/lib/auth-utils";
 import { buildBackendUrl } from "@/lib/env-config";
 import { trackLoginAttempt } from "@/lib/posthog/events";
+import { exportWaitMessage } from "./export-wait";
 
 /**
  * Step one of the guide on `/sunset`, rendered inside that step rather than in
@@ -47,6 +48,18 @@ export function SunsetExport() {
 	const session = useSession();
 	const isGoogleAuth = useIsGoogleAuth();
 	const [isExporting, setIsExporting] = useState(false);
+	const [waitedSeconds, setWaitedSeconds] = useState(0);
+
+	// The build sends nothing until it is done, so count the wait here.
+	useEffect(() => {
+		if (!isExporting) return;
+		const startedAt = Date.now();
+		setWaitedSeconds(0);
+		const timer = window.setInterval(() => {
+			setWaitedSeconds((Date.now() - startedAt) / 1000);
+		}, 1000);
+		return () => window.clearInterval(timer);
+	}, [isExporting]);
 
 	// Google-only deployments have nothing to choose on /login: it renders a
 	// lone Google button. Export is the one thing this page exists for, so
@@ -109,6 +122,7 @@ export function SunsetExport() {
 	const sessionLoading = session.status === "loading";
 	const busy = mounted && (sessionLoading || isExporting);
 	const signedIn = mounted && session.status === "authenticated";
+	const waitMessage = isExporting ? exportWaitMessage(waitedSeconds) : null;
 
 	return (
 		<div className="mt-6 flex flex-col items-start">
@@ -124,6 +138,12 @@ export function SunsetExport() {
 				</span>
 				{busy ? <Spinner size="sm" className="absolute" /> : null}
 			</HomeButton>
+			{/* Always in the page, so a screen reader hears the line when it appears. */}
+			<output
+				className={waitMessage ? "ss-home-body mt-3 block max-w-xl text-sm text-pretty" : "sr-only"}
+			>
+				{waitMessage}
+			</output>
 			<p className="ss-home-body mt-4 max-w-xl text-sm text-pretty">
 				The ZIP holds every workspace you can access: ready documents as markdown, the folder
 				structure, and your chat threads. It does not carry original uploads, generated artifacts,

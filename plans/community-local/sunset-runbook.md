@@ -226,7 +226,10 @@ Watch for, in this order of likelihood:
 
 1. **410s on something users need.** Grep the access log for 410 and check nothing unexpected is in
    it. The allowlist covers `/auth/*` except register, `/api/v1/license/*`, and the Stripe webhook.
-2. **Export failures.** Large accounts export synchronously; a timeout looks like a hang.
+2. **Export failures.** Large accounts export synchronously. Past `ACCOUNT_EXPORT_TIMEOUT_SECONDS`
+   (600 by default) the route answers 504 with a sentence the page shows, and logs
+   `account export for user … stopped`; if the proxy's own timeout is shorter than that setting,
+   the user still sees a dropped connection, so set it below the proxy's.
 3. **Stripe webhooks failing.** A licence purchase that 410s would be a miswired allowlist.
 4. **Support saying "the app just errors"** — stage 2's fail-open clients. Tell them to restart.
 
