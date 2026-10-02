@@ -20,6 +20,14 @@ export function ReplyAnnouncer({
   // Only a reply seen running finishes here: one loaded from history is not news.
   const sawRunning = useRef(running)
   const [finished, setFinished] = useState(false)
+  // Empty on its first commit: a status region inserted with text already in
+  // it is often not read, so the text lands a tick later.
+  const [listening, setListening] = useState(false)
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setListening(true), 0)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   useEffect(() => {
     if (running) {
@@ -29,8 +37,9 @@ export function ReplyAnnouncer({
     }
   }, [running, answerStarted, completed])
 
-  const text =
-    running && !answerStarted
+  const text = !listening
+    ? ""
+    : running && !answerStarted
       ? intl.formatMessage({
           id: "chat_reasoning_thinking_label",
           defaultMessage: "Thinking",
