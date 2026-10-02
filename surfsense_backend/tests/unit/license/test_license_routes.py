@@ -301,6 +301,18 @@ async def test_trial_is_503_when_keygen_is_down_and_points_at_resend(
     assert "resend" in reply.json()["detail"]
 
 
+async def test_trial_is_400_when_the_mail_server_refuses_the_address(
+    mailer: Mailer, keygen_store: FakeKeygen
+) -> None:
+    """The caller typed the address, so a refusal is theirs to correct."""
+    mailer.error = MailerRejectedError("550 no such user")
+
+    reply = await post("/license/trial", "new@example.com")
+
+    assert reply.status_code == 400
+    assert "refused" in reply.json()["detail"]
+
+
 async def test_trial_is_503_when_mail_is_down_and_says_the_trial_exists(
     mailer: Mailer, keygen_store: FakeKeygen
 ) -> None:
