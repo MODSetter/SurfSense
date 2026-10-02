@@ -22,7 +22,7 @@ A chat thread can be the agent's. opencode, bundled in the installer and started
 
 ## Which threads get it
 
-A new thread is the agent's when the selected text model is in `TESTED_MODELS` or `SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` is set in the environment Electron starts the API from ([`engine_choice.py`](../../surfsense_local/backend/modules/agent/engine_choice.py)). `TESTED_MODELS` is empty: a model goes on it once it passes the agent test at a window of 32,768 tokens or more ([proposal](../proposals/agent/01-which-engine.md#what-tested-means)). When opencode is not staged, or does not become ready, the thread opens as a chat. A thread keeps its engine; its row stores the opencode session that holds its turns ([data model](data-model.md)).
+A new thread is the agent's when the selected text model is in `TESTED_MODELS`, or `SURFSENSE_LOCAL_AGENT_UNTESTED_MODELS=1` is set in the environment Electron starts the API from, and the model is known to call tools: llama-server reports `supports_tool_calls` for a local model's template, or the remote catalog records `tool_call: true` for the model under its connection's catalog provider. A catalog that says nothing, or a runtime that cannot be read, counts as no ([`engine_choice.py`](../../surfsense_local/backend/modules/agent/engine_choice.py)). `TESTED_MODELS` is empty: a model goes on it once it passes the agent test at a window of 32,768 tokens or more ([proposal](../proposals/agent/01-which-engine.md#what-tested-means)). When opencode is not staged, or does not become ready, the thread opens as a chat. A thread keeps its engine; its row stores the opencode session that holds its turns ([data model](data-model.md)). Once the selected model changes to one that fails the check, a turn sent to the thread is refused with `409` before any prompt is sent: the user chooses another model or starts a new chat.
 
 ## From a thread to a running opencode
 
@@ -96,7 +96,7 @@ opencode needs no host beyond loopback: its model is the model endpoint, and its
 ## Known gaps
 
 - No model is on the tested list, and no agent test exists to put one there; only the developer switch lets a model in.
-- The engine choice does not check that the model can call tools. With the switch on, a model whose template has no tool support gets the agent, llama.cpp drops its tools without a warning, and the agent can take no step.
+- A turn refused because the selected model cannot run the agent shows as an error with Retry; the composer does not offer a new thread, as the [proposal](../proposals/agent/01-which-engine.md#when-a-thread-gets-its-engine) has it.
 - The model endpoint neither simplifies tool schemas to what llama.cpp's grammar takes nor turns a tool call a model writes as text into a real one, so small local models stall where a remote one would not.
 - The agent has none of SurfSense's own tools: it cannot use hybrid search or start a Studio job, and a file it writes to `outputs/` does not become an artifact.
 - A configuration rewrite, which a change of model or window causes, ends every running agent turn in every workspace.

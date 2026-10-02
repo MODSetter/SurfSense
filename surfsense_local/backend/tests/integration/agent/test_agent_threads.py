@@ -99,6 +99,34 @@ async def test_a_message_streams_the_agents_reply(agent_api: AgentAPI) -> None:
     assert frames[-1] == {"type": "done"}
 
 
+async def test_a_thread_cannot_continue_with_a_model_that_cannot_call_tools(
+    agent_api: AgentAPI,
+) -> None:
+    """The thread stays the agent's, and opencode would take no step with that model."""
+    thread = await open_thread(agent_api)
+    current = (await agent_api.http.get("/llm/selection/text_gen")).json()
+    chosen = await agent_api.http.put(
+        "/llm/selection/text_gen",
+        json={
+            "provider": "openai_compatible",
+            "connection_id": current["connection_id"],
+            "name": "gpt-3.5-turbo",
+            "allow_unlisted": True,
+        },
+    )
+    chosen.raise_for_status()
+
+    reply = await agent_api.http.post(
+        f"/chat/threads/{thread['id']}/messages", json={"text": "What happened in Q3?"}
+    )
+
+    assert reply.status_code == 409
+    assert "new chat" in reply.json()["detail"]
+    assert agent_api.model.requests == []
+    turns = await agent_api.http.get(f"/chat/threads/{thread['id']}/messages")
+    assert turns.json() == []
+
+
 async def test_the_sources_are_in_the_folder_before_the_turn(
     agent_api: AgentAPI,
 ) -> None:

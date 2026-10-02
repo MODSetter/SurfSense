@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from api.dependencies import transact
 from modules.agent.agent_threads.replies import turn_reply
 from modules.agent.agent_threads.turn_frames import TurnFrames
+from modules.agent.engine_choice import selected_model_can_run_agent
 from modules.agent.opencode_client import OpencodeVersionError
 from modules.agent.opencode_runtime import (
     AgentUnavailableError,
@@ -60,6 +61,14 @@ async def agent_turn(
         raise HTTPException(status.HTTP_409_CONFLICT, str(error)) from error
     except (AgentUnavailableError, OpencodeVersionError) as error:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(error)) from error
+    # Checked once the model resolves, so a thread left with no model still asks for one.
+    if not await selected_model_can_run_agent(session):
+        await ready.client.close()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            "The selected model cannot run the agent. Choose another model, "
+            "or start a new chat to use this one.",
+        )
     folder = await transact(session, sync_sources_folder, thread.workspace_id)
     title = _first_title(thread, payload.text)
     if title is not None:

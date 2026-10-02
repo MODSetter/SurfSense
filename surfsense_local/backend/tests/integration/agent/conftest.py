@@ -29,6 +29,10 @@ from tests.integration.agent.opencode_harness import (
     wait_until_healthy,
 )
 
+# The catalog records it as calling tools for the provider the connection names,
+# so a thread opened with it is the agent's; the scripted model answers in its place.
+AGENT_MODEL = "gpt-4o-mini"
+
 
 @dataclass
 class Received:
@@ -173,6 +177,7 @@ async def agent_api(
             label="Remote",
             provider="openai_compatible",
             base_url=f"{scripted_model.url}/v1",
+            catalog_provider="openai",
         )
         connection.api_key = "remote-key"
         session.add(connection)
@@ -182,7 +187,7 @@ async def agent_api(
                 model_type=ModelType.TEXT_GEN,
                 provider="openai_compatible",
                 connection_id=connection.id,
-                name=MODEL,
+                name=AGENT_MODEL,
             )
         )
         session.commit()
