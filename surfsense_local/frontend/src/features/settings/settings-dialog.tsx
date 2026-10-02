@@ -48,7 +48,7 @@ import { SettingsSection } from "./settings-section"
 
 type SettingsNavItem = {
   id: SettingsSectionId
-  group: "settings" | "app"
+  group: "settings" | "models" | "system" | "app"
   icon: ComponentType<{ className?: string; strokeWidth?: number }>
 }
 
@@ -198,15 +198,15 @@ function GeneralSettings({
 // Add future settings pages here; the dialog navigation is generated from this list.
 const SETTINGS_SECTIONS = [
   { id: "general", group: "settings", icon: Settings2Icon },
-  { id: "chat-models", group: "settings", icon: Chat01Icon },
-  { id: "image-models", group: "settings", icon: Image01Icon },
-  { id: "image-edit-models", group: "settings", icon: AiImageEditIcon },
-  { id: "audio-models", group: "settings", icon: AudioWaveformIcon },
-  { id: "video-models", group: "settings", icon: Video01Icon },
-  { id: "embedding-model", group: "settings", icon: EmbeddingIcon },
-  { id: "resources", group: "settings", icon: CpuIcon },
-  { id: "network", group: "settings", icon: ComputerEthernetIcon },
   { id: "license", group: "settings", icon: LicenseIcon },
+  { id: "chat-models", group: "models", icon: Chat01Icon },
+  { id: "image-models", group: "models", icon: Image01Icon },
+  { id: "image-edit-models", group: "models", icon: AiImageEditIcon },
+  { id: "audio-models", group: "models", icon: AudioWaveformIcon },
+  { id: "video-models", group: "models", icon: Video01Icon },
+  { id: "embedding-model", group: "models", icon: EmbeddingIcon },
+  { id: "resources", group: "system", icon: CpuIcon },
+  { id: "network", group: "system", icon: ComputerEthernetIcon },
   { id: "about", group: "app", icon: InformationCircleIcon },
 ] satisfies SettingsNavItem[]
 
@@ -215,6 +215,16 @@ const GROUP_LABELS: Record<SettingsNavItem["group"], () => string> = {
     intl.formatMessage({
       id: "settings_nav_title",
       defaultMessage: "Settings",
+    }),
+  models: () =>
+    intl.formatMessage({
+      id: "settings_nav_models_title",
+      defaultMessage: "Models",
+    }),
+  system: () =>
+    intl.formatMessage({
+      id: "settings_nav_system_title",
+      defaultMessage: "System",
     }),
   app: () =>
     intl.formatMessage({
@@ -321,7 +331,7 @@ export function SettingsDialog({
         </DialogHeader>
 
         <div className="grid h-full min-h-0 grid-cols-[184px_minmax(0,1fr)]">
-          <aside className="border-r bg-sidebar p-3 text-sidebar-foreground">
+          <aside className="min-h-0 overflow-y-auto overscroll-contain border-r bg-sidebar p-3 text-sidebar-foreground">
             {(Object.keys(GROUP_LABELS) as SettingsNavItem["group"][]).map(
               (group, index) => (
                 <div key={group} className={cn(index > 0 && "mt-4")}>
