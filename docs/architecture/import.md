@@ -26,12 +26,19 @@ The rest runs as a FastAPI `BackgroundTasks` job in the API process, with its ow
 The local schema has no folder table, so the hierarchy is kept as data. Markdown is in `TEXT_SUFFIXES`, so ingest reads the file directly and never starts Docling: an import is chunking and embedding only. The staged bundle is deleted when the job ends.
 
 Threads from `chats.json` become ordinary local threads. Each message is stored as `{"text": ..., "citations": []}`, and a message that carried citation titles gains `\n\nSources: A, B`. Local citations point at chunks and imported ones have none, so they become text rather than dead chips.
+The hosted thread id is kept as `cloud_id`. A thread already carrying that id
+is left exactly as it is; a missing one and all of its messages are created.
 
 ## Running it again
 
-Re-importing a bundle is safe for documents. The workspaces are found by `cloud_id` and every document whose `dedup_key` is already there is skipped, so an interrupted import is finished by running it again, and documents already enqueued wait on the persistent queue. A re-export after edits lands each edited document as a second copy, not an update.
-
-Threads carry no dedup key, so only the run that creates a workspace imports its threads. The `ponytail:` comment in `service.py` names the cost, a later export's new threads never arrive, and the upgrade, a cloud thread id column on `chat_threads`.
+Re-importing a bundle is safe for documents and threads. The workspaces are
+found by `cloud_id`, every document whose `dedup_key` is already there is
+skipped, and every thread whose `cloud_id` is already there is skipped. Running
+an interrupted import again therefore fills the missing documents and threads;
+documents already enqueued wait on the persistent queue. A thread renamed
+locally keeps that name, while a thread newly present in a later export is
+added. A re-export after document edits lands each edited document as a second
+copy, not an update.
 
 ## Entry points
 
@@ -42,5 +49,4 @@ After the 202 the dashboard reloads its workspaces and opens the first imported 
 
 ## Known gaps
 
-- An import interrupted before its threads were written never imports them: the re-run finds the workspace and skips threads.
 - There is no summary or progress endpoint: the button reads "Importing…" only while the upload is in flight, and after the 202 each document's own ingest status is the only progress.

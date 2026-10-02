@@ -68,16 +68,13 @@ def start_import(
         request.app.state.session_factory,
         staged.path,
         manifest,
-        {
-            workspace.cloud_id: (workspace.id, created)
-            for workspace, created in workspaces
-        },
+        {workspace.cloud_id: workspace.id for workspace in workspaces},
     )
     return ImportAccepted(
         workspaces=[
             ImportedWorkspace(
                 id=workspace.id, cloud_id=workspace.cloud_id, name=workspace.name
             )
-            for workspace, _ in workspaces
+            for workspace in workspaces
         ]
     )

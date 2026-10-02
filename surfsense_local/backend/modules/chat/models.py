@@ -23,6 +23,8 @@ class ChatThread(Base):
     workspace_id: Mapped[int] = mapped_column(
         ForeignKey("workspaces.id", ondelete="CASCADE")
     )
+    # The hosted thread this one was imported from, so a re-import finds it.
+    cloud_id: Mapped[int | None] = mapped_column(unique=True)
     title: Mapped[str | None]
     # Set when the agent answers this thread: its turns live in that opencode
     # session, not in chat_messages. Chosen when the thread is opened, and kept.
