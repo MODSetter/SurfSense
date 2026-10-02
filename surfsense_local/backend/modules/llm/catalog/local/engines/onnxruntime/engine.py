@@ -21,7 +21,11 @@ from modules.llm.catalog.local.engines.onnxruntime.rows import (
     embedding_catalog,
 )
 from modules.llm.catalog.local.install.plan import InstallPlan
-from modules.llm.catalog.local.installs import forget_install, read_installs
+from modules.llm.catalog.local.installs import (
+    forget_install,
+    install_files,
+    read_installs,
+)
 from modules.llm.catalog.local.manifest import CuratedModel
 from modules.llm.catalog.local.rows import LocalRow
 from modules.llm.model_type import ModelType
@@ -113,8 +117,9 @@ class OnnxRuntimeEngine:
         yield InstallStep("complete", "Model is ready")
 
     def _discard(self, model_id: str) -> None:
-        for name in forget_install(self._folder, model_id):
+        for name in install_files(self._folder, model_id):
             (self._folder / name).unlink(missing_ok=True)
+        forget_install(self._folder, model_id)
         shutil.rmtree(self._folder / model_id, ignore_errors=True)
 
     def after_remove(self) -> None:
