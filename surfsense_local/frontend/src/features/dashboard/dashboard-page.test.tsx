@@ -807,7 +807,7 @@ describe("dashboard chat", () => {
     })
   })
 
-  it("previews a PDF in a left rail and restores the right panel preference", async () => {
+  it("previews a PDF in place of the left sidebar and keeps the right panel open", async () => {
     const pdf = {
       id: 42,
       title: "report.pdf",
@@ -863,7 +863,8 @@ describe("dashboard chat", () => {
     ).toBeTruthy()
     const rightRail = document.querySelector("#workspace-right-panel")
       ?.parentElement?.parentElement as HTMLElement
-    expect(rightRail.style.width).toBe("0px")
+    expect(rightRail.style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
+    expect(screen.queryByRole("button", { name: "New chat" })).toBeNull()
     expect(readSourcePreview(workspace.id)).toBe(42)
     await waitFor(() => {
       expect(fetchMock).toHaveBeenCalledWith(
@@ -876,6 +877,7 @@ describe("dashboard chat", () => {
       screen.getByRole("button", { name: "Close source preview" })
     )
     expect(readSourcePreview(workspace.id)).toBeNull()
+    expect(screen.getByRole("button", { name: "New chat" })).toBeTruthy()
     expect(rightRail.style.width).toBe(`${MAIN_RAIL_WIDTH}px`)
     expect(localStorage.getItem(RIGHT_PANEL_KEY)).toBe("open")
   })

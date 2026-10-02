@@ -80,6 +80,9 @@ type Inspect =
   | { kind: "artifact"; artifactId: number }
   | null
 
+// The left sidebar's resting width, w-68.
+const SIDEBAR_WIDTH = 272
+
 function WorkspaceDashboard({
   workspace,
   selection,
@@ -218,128 +221,134 @@ function WorkspaceDashboard({
         </div>
       </div>
       <section className="my-2 mr-2 flex min-h-0 min-w-0 overflow-hidden rounded-[16px] border bg-background shadow-sm">
-        <div className="flex h-full min-h-0 w-68 min-w-58 shrink-0 flex-col">
-          <LeftSidebar
-            threads={chat.threads}
-            activeThreadId={chat.activeThreadId}
-            autoNamingThreadId={chat.autoNamingThreadId}
-            animatingTitleThreadId={chat.animatingTitleThreadId}
-            isLoadingThreads={chat.isLoadingThreads}
-            onNewChat={() => {
-              closeInspect()
-              chat.startNewChat()
-            }}
-            onSelectThread={(threadId) => {
-              if (threadId !== chat.activeThreadId) closeInspect()
-              chat.selectThread(threadId)
-            }}
-            onRenameThread={chat.rename}
-            onDeleteThread={async (threadId) => {
-              if (threadId === chat.activeThreadId) closeInspect()
-              await chat.removeThread(threadId)
-            }}
-            onTitleAnimationComplete={chat.finishTitleAnimation}
-            actions={[
-              {
-                key: "plugins",
-                label: intl.formatMessage({
-                  id: "dashboard_sidebar_plugins_button",
-                  defaultMessage: "Plugins",
-                }),
-                icon: UnplugIcon,
-                badge: intl.formatMessage({
-                  id: "dashboard_sidebar_plugins_soon_label",
-                  defaultMessage: "Coming soon",
-                }),
-                // TODO: open the plugins panel once it exists.
-                onClick: () =>
-                  toast.info(
-                    intl.formatMessage({
-                      id: "dashboard_plugins_soon_toast",
-                      defaultMessage: "Plugins are coming soon",
-                    }),
-                    {
-                      description: intl.formatMessage({
-                        id: "dashboard_plugins_soon_body",
-                        defaultMessage:
-                          "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
-                      }),
-                    }
-                  ),
-              },
-              {
-                key: "report-issue",
-                label: intl.formatMessage({
-                  id: "dashboard_sidebar_report_issue_button",
-                  defaultMessage: "Report issue",
-                }),
-                icon: BugIcon,
-                onClick: () => openIssueReport(),
-              },
-            ]}
-            sources={
-              <aside
-                id={LEFT_SOURCES_ID}
-                aria-label={intl.formatMessage({
-                  id: "dashboard_sources_aria",
-                  defaultMessage: "Workspace sources",
-                })}
-                className="flex h-full min-h-0 min-w-0 flex-col"
-              >
-                <SourcesPanel
-                  documents={sources.documents}
-                  selectedDocumentIds={sources.includedDocumentIds}
-                  highlightedDocumentId={null}
-                  isLoading={sources.isLoading}
-                  isDeleting={sources.isDeleting}
-                  error={sources.error}
-                  addAction={
-                    <SourcesAddButton
-                      isUploading={sources.isUploading}
-                      onUpload={(files) => void sources.upload(files)}
-                    />
-                  }
-                  onDropFiles={
-                    sources.isUploading
-                      ? undefined
-                      : (files) => void sources.upload(files)
-                  }
-                  onOpen={(id) => void sources.openOriginal(id)}
-                  onPreview={toggleSourcePreview}
-                  onReveal={(id) => void sources.revealOriginal(id)}
-                  onRetry={(id) => void sources.retry(id)}
-                  onCancel={(id) => void sources.cancel(id)}
-                  onDelete={(id) => void sources.deleteOne(id)}
-                  onDeleteSelected={() => void sources.deleteSelected()}
-                  onSelectionChange={sources.setDocumentIncluded}
-                  onToggleAll={sources.toggleAllIncluded}
-                  onRename={sources.rename}
-                  notes={{
-                    write: sources.writeNote,
-                    load: sources.loadNote,
-                    edit: sources.editNote,
-                  }}
-                />
-              </aside>
-            }
-            footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
-          />
-        </div>
-        <SlideRail
-          open={sourcePreviewOpen}
-          side="start"
-          width={MAIN_RAIL_WIDTH}
+        {/* A preview takes over the left column and widens it, as an
+            inspected artifact does the right one; the right panel stays put. */}
+        <div
+          className="flex h-full min-h-0 min-w-58 shrink-0 flex-col transition-[width] duration-[240ms] ease-[cubic-bezier(0.4,0,0.2,1)] motion-reduce:transition-none"
+          style={{
+            width: sourcePreviewOpen ? DETAIL_RAIL_WIDTH : SIDEBAR_WIDTH,
+          }}
         >
-          {sourcePreview ? (
+          {sourcePreviewOpen && sourcePreview ? (
             <SourcePreviewPanel
               workspaceId={workspace.id}
               document={sourcePreview}
               onOpen={() => void sources.openOriginal(sourcePreview.id)}
-              onReveal={() => void sources.revealOriginal(sourcePreview.id)}
               onClose={closeSourcePreview}
             />
           ) : null}
-        </SlideRail>
+          {/* Hidden, not unmounted, so the sources list keeps its scroll. */}
+          <div
+            hidden={sourcePreviewOpen}
+            className="flex h-full min-h-0 flex-col"
+          >
+            <LeftSidebar
+              threads={chat.threads}
+              activeThreadId={chat.activeThreadId}
+              autoNamingThreadId={chat.autoNamingThreadId}
+              animatingTitleThreadId={chat.animatingTitleThreadId}
+              isLoadingThreads={chat.isLoadingThreads}
+              onNewChat={() => {
+                closeInspect()
+                chat.startNewChat()
+              }}
+              onSelectThread={(threadId) => {
+                if (threadId !== chat.activeThreadId) closeInspect()
+                chat.selectThread(threadId)
+              }}
+              onRenameThread={chat.rename}
+              onDeleteThread={async (threadId) => {
+                if (threadId === chat.activeThreadId) closeInspect()
+                await chat.removeThread(threadId)
+              }}
+              onTitleAnimationComplete={chat.finishTitleAnimation}
+              actions={[
+                {
+                  key: "plugins",
+                  label: intl.formatMessage({
+                    id: "dashboard_sidebar_plugins_button",
+                    defaultMessage: "Plugins",
+                  }),
+                  icon: UnplugIcon,
+                  badge: intl.formatMessage({
+                    id: "dashboard_sidebar_plugins_soon_label",
+                    defaultMessage: "Coming soon",
+                  }),
+                  // TODO: open the plugins panel once it exists.
+                  onClick: () =>
+                    toast.info(
+                      intl.formatMessage({
+                        id: "dashboard_plugins_soon_toast",
+                        defaultMessage: "Plugins are coming soon",
+                      }),
+                      {
+                        description: intl.formatMessage({
+                          id: "dashboard_plugins_soon_body",
+                          defaultMessage:
+                            "Connect external tools to extend what SurfSense can do. We’re still polishing this.",
+                        }),
+                      }
+                    ),
+                },
+                {
+                  key: "report-issue",
+                  label: intl.formatMessage({
+                    id: "dashboard_sidebar_report_issue_button",
+                    defaultMessage: "Report issue",
+                  }),
+                  icon: BugIcon,
+                  onClick: () => openIssueReport(),
+                },
+              ]}
+              sources={
+                <aside
+                  id={LEFT_SOURCES_ID}
+                  aria-label={intl.formatMessage({
+                    id: "dashboard_sources_aria",
+                    defaultMessage: "Workspace sources",
+                  })}
+                  className="flex h-full min-h-0 min-w-0 flex-col"
+                >
+                  <SourcesPanel
+                    documents={sources.documents}
+                    selectedDocumentIds={sources.includedDocumentIds}
+                    highlightedDocumentId={null}
+                    isLoading={sources.isLoading}
+                    isDeleting={sources.isDeleting}
+                    error={sources.error}
+                    addAction={
+                      <SourcesAddButton
+                        isUploading={sources.isUploading}
+                        onUpload={(files) => void sources.upload(files)}
+                      />
+                    }
+                    onDropFiles={
+                      sources.isUploading
+                        ? undefined
+                        : (files) => void sources.upload(files)
+                    }
+                    onOpen={(id) => void sources.openOriginal(id)}
+                    onPreview={toggleSourcePreview}
+                    onReveal={(id) => void sources.revealOriginal(id)}
+                    onRetry={(id) => void sources.retry(id)}
+                    onCancel={(id) => void sources.cancel(id)}
+                    onDelete={(id) => void sources.deleteOne(id)}
+                    onDeleteSelected={() => void sources.deleteSelected()}
+                    onSelectionChange={sources.setDocumentIncluded}
+                    onToggleAll={sources.toggleAllIncluded}
+                    onRename={sources.rename}
+                    notes={{
+                      write: sources.writeNote,
+                      load: sources.loadNote,
+                      edit: sources.editNote,
+                    }}
+                  />
+                </aside>
+              }
+              footer={<SidebarFooter onOpenLicense={onOpenLicense} />}
+            />
+          </div>
+        </div>
         <div className="flex min-h-0 min-w-[520px] flex-1 flex-col">
           <ApprovalDialog
             request={chat.approvals[0] ?? null}
@@ -385,7 +394,7 @@ function WorkspaceDashboard({
           />
         </div>
         <SlideRail
-          open={rightPanelOpen && !sourcePreviewOpen}
+          open={rightPanelOpen}
           side="end"
           width={inspect ? DETAIL_RAIL_WIDTH : MAIN_RAIL_WIDTH}
         >
