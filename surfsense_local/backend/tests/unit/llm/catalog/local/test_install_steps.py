@@ -15,6 +15,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.asyncio]
 
 REFUSAL = "This build is too big for this computer. Pick a smaller one."
 URL = "https://huggingface.co/r/m/resolve/s/m-Q4_K_M.gguf"
+MIRROR = "https://cas-bridge.invalid/m-Q4_K_M.gguf?X-Amz-Signature=secret"
 
 class RefusingService:
     """A catalog whose check refuses, and whose downloader must never run."""
@@ -94,6 +95,23 @@ async def test_a_pinned_file_that_is_gone_ends_the_job_without_the_retry_message
     assert "retry" not in end["message"].lower()
     assert URL in caplog.text
 
+async def test_a_redirected_dead_pin_logs_the_pinned_url_not_the_mirror(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Hugging Face redirects a resolve URL to a mirror; when the mirror says
+    404, the log still names the repo and commit, and never the signed URL."""
+    caplog.set_level(logging.WARNING)
+    pinned = httpx.Request("GET", URL)
+    redirect = httpx.Response(302, request=pinned, headers={"location": MIRROR})
+    mirror = httpx.Request("GET", MIRROR)
+    response = httpx.Response(404, request=mirror, history=[redirect])
+    error = httpx.HTTPStatusError("404", request=mirror, response=response)
+
+    events = await _events(FailingDownloadService(error))
+
+    assert events[-1]["type"] == "error"
+    assert URL in caplog.text
+    assert "X-Amz-Signature" not in caplog.text
 
 async def test_a_checksum_mismatch_ends_the_job_saying_a_retry_is_worth_it(
     caplog: pytest.LogCaptureFixture,

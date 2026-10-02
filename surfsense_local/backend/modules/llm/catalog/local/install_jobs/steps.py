@@ -27,6 +27,11 @@ CHECKSUM_MISMATCH = {
     "message": "The downloaded file did not match the expected one. Retry the download.",
 }
 
+def _pinned_url(error: httpx.HTTPStatusError) -> httpx.URL:
+    """The URL the download asked for, not the mirror a redirect reached,
+    which names no repo or commit and may carry a signed token."""
+    history = error.response.history
+    return history[0].request.url if history else error.request.url
 
 async def install_steps(
     service: LocalCatalogService,
@@ -58,7 +63,7 @@ async def install_steps(
         logger.error(
             "pinned file is gone (HTTP %s): %s",
             error.response.status_code,
-            error.request.url,
+            _pinned_url(error),
         )
         yield FILE_GONE
         return
