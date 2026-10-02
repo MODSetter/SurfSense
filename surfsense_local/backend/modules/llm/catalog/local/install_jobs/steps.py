@@ -27,6 +27,7 @@ CHECKSUM_MISMATCH = {
     "message": "The downloaded file did not match the expected one. Retry the download.",
 }
 
+
 async def install_steps(
     service: LocalCatalogService,
     plan: InstallPlan,
