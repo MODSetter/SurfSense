@@ -28,6 +28,7 @@ from modules.agent.opencode_runtime import (
     ready_opencode,
 )
 from modules.agent.sources_folder import sync_sources_folder
+from modules.agent.tool_endpoint.registration import register_workspace_tools
 from modules.chat.models import ChatThread
 from modules.chat.schemas import MessageCreate
 from modules.llm.resolution import ModelResolutionError
@@ -70,6 +71,9 @@ async def agent_turn(
             "or start a new chat to use this one.",
         )
     folder = await transact(session, sync_sources_folder, thread.workspace_id)
+    await register_workspace_tools(
+        ready.client, folder, thread.workspace_id, launch_key
+    )
     title = _first_title(thread, payload.text)
     if title is not None:
         await transact(session, _rename, thread, title)

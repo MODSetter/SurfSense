@@ -5,13 +5,14 @@ import json
 from collections.abc import Awaitable, Callable
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import Engine, select
 
 from modules.chat.models import ChatThread
 from modules.documents.models import Document, DocumentStatus, DocumentType
 from shared.config import get_agent_settings, get_storage_settings
 from shared.db import create_db_engine, create_session_factory
 from tests.integration.agent.conftest import AgentAPI
+from worker.ingestion import run
 
 pytestmark = pytest.mark.integration
 
@@ -150,6 +151,35 @@ async def test_the_sources_are_in_the_folder_before_the_turn(
 
     source = working_folder(agent_api.workspace_id) / "sources" / f"Plan [{note_id}].md"
     assert source.read_text(encoding="utf-8") == "Ship on Friday."
+
+
+async def test_the_agent_searches_the_sources_through_surfsense(
+    agent_api: AgentAPI, engine: Engine, real_model: object
+) -> None:
+    """The model is offered SurfSense's search, calls it, and reads what it found."""
+    with create_session_factory(engine)() as session:
+        note = Document(
+            workspace_id=agent_api.workspace_id,
+            title="Plan 2026",
+            document_type=DocumentType.NOTE,
+            content="We ship on Friday 14 November.",
+        )
+        session.add(note)
+        session.commit()
+        note_id = note.id
+    run(note_id)
+    search = {"name": "surfsense_search_sources", "arguments": {"query": "ship date"}}
+    agent_api.model.replies = [("call", json.dumps(search)), ("text", "On Friday.")]
+    thread = await open_thread(agent_api)
+
+    await send(agent_api, thread["id"], "When do we ship?")
+
+    offered, answered = agent_api.model.requests[:2]
+    assert "surfsense_search_sources" in [
+        tool["function"]["name"] for tool in offered["tools"]
+    ]
+    results = [m for m in answered["messages"] if m["role"] == "tool"]
+    assert "We ship on Friday 14 November." in json.dumps(results)
 
 
 async def test_a_shell_command_waits_for_the_users_yes(agent_api: AgentAPI) -> None:

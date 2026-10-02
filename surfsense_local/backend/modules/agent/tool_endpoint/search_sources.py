@@ -7,11 +7,16 @@ from sqlalchemy.orm import Session
 
 from modules.agent.sources_folder import SOURCES, source_file_names
 from modules.agent.tool_endpoint.tool import Tool, ToolCallError
-from modules.embedding.active import require_active_index
+from modules.embedding.active import EmbeddingNotChosenError, require_active_index
 from shared.search import Hit, retrieve
 
 # A source's own text must not open or close a passage, or it could forge a label.
 _PASSAGE_TAGS = re.compile(r"</?passage\b[^>]*>", re.IGNORECASE)
+
+# Before onboarding chooses an embedder, or while its files are missing.
+_NOT_READY = (
+    f"SurfSense's search is not ready on this computer. Use grep on {SOURCES}/ instead."
+)
 
 # Written out flat: small local models garble a schema that refers to definitions.
 LISTING: dict[str, Any] = {
@@ -42,11 +47,12 @@ def search(session: Session, workspace_id: int, arguments: dict[str, Any]) -> st
     # Keep numpy/onnxruntime lazy, as the chat does.
     from modules.embedding.encoder import missing_files
 
-    if missing_files(require_active_index(session).spec):
-        raise ToolCallError(
-            "SurfSense's search is not ready: its embedding model is not installed. "
-            f"Use grep on {SOURCES}/ instead."
-        )
+    try:
+        index = require_active_index(session)
+    except EmbeddingNotChosenError as error:
+        raise ToolCallError(_NOT_READY) from error
+    if missing_files(index.spec):
+        raise ToolCallError(_NOT_READY)
     files = source_file_names(session, workspace_id)
     hits = retrieve(session, workspace_id, query, document_ids=list(files))
     if not hits:

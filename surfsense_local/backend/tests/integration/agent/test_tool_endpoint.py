@@ -1,6 +1,7 @@
 """SurfSense's tools as opencode's MCP client reaches them: one route per workspace."""
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -86,6 +87,13 @@ def ingest(
 @pytest.fixture
 async def tools(engine: Engine) -> AsyncIterator[ToolEndpoint]:
     """A fresh app on this test's database, driven in-process."""
+    async with _endpoint_over(engine) as endpoint:
+        yield endpoint
+
+
+@asynccontextmanager
+async def _endpoint_over(engine: Engine) -> AsyncIterator[ToolEndpoint]:
+    """The tool endpoint of a fresh app on `engine`'s database."""
     app = create_app()
     app.state.session_factory = create_session_factory(engine)
     transport = ASGITransport(app=app)
@@ -296,3 +304,20 @@ async def test_a_protocol_this_server_does_not_speak_is_refused(
 
     assert spoken.status_code == 200
     assert unknown.status_code == 400
+
+
+async def test_a_search_before_onboarding_says_why_it_cannot_run(
+    unlocked_engine: Engine,
+) -> None:
+    """Until an embedder is chosen nothing is indexed; the model can still grep."""
+    async with _endpoint_over(unlocked_engine) as tools:
+        workspace_id = await tools.workspace()
+
+        reply = await tools.request(
+            workspace_id,
+            "tools/call",
+            {"name": "search_sources", "arguments": {"query": "When do we ship?"}},
+        )
+
+    assert reply["result"]["isError"] is True
+    assert "grep" in reply["result"]["content"][0]["text"]

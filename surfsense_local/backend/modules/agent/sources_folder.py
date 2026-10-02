@@ -38,6 +38,7 @@ def sync_sources_folder(session: Session, workspace_id: int) -> Path:
     sources.mkdir(parents=True, exist_ok=True)
     (folder / OUTPUTS).mkdir(exist_ok=True)
 
+    # Every source's text is read to compare, on every turn (agent.md, Known gaps).
     wanted = {
         file_name(document.title, document.id): document.content.encode("utf-8")
         for document in _ready_sources(session, workspace_id)

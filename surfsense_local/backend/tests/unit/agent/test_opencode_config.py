@@ -146,3 +146,12 @@ def test_an_unchanged_configuration_is_not_rewritten(tmp_path: Path) -> None:
     assert write_opencode_config(path, setup()) is False
     assert path.stat().st_mtime_ns == before
     assert write_opencode_config(path, setup(window=16384)) is True
+
+
+def test_the_prompt_names_the_search_as_opencode_shows_it(tmp_path: Path) -> None:
+    """opencode prefixes each MCP tool with its server; a prompt naming another tool teaches nothing."""
+    path = tmp_path / "opencode.json"
+    write_opencode_config(path, setup())
+
+    config = written(path)
+    assert "surfsense_search_sources" in config["agent"][config["default_agent"]]["prompt"]
