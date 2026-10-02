@@ -16,6 +16,7 @@ import {
   type StudioFormat,
   type StudioJobCreate,
 } from "./api"
+import { translatedStudioError } from "./studio-error-text"
 
 // The worker's notices are best-effort: one lost while a job runs would leave
 // its row stale, so the list is still re-read now and then until none does.
@@ -26,6 +27,8 @@ function isAbort(error: unknown) {
 }
 
 export function messageFrom(error: unknown) {
+  const translated = translatedStudioError(error)
+  if (translated !== null) return translated
   return error instanceof Error
     ? error.message
     : intl.formatMessage({

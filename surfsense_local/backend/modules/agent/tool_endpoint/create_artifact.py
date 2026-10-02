@@ -110,7 +110,12 @@ def start(session: Session, workspace_id: int, arguments: dict[str, Any]) -> str
 
 
 def _sentence(detail: object) -> str:
-    """Studio's reason, ended as a sentence."""
+    """Studio's reason, ended as a sentence.
+
+    A refusal the interface translates carries its reason as
+    ``{"message", "code"}``; the model reads the message."""
+    if isinstance(detail, dict) and isinstance(detail.get("message"), str):
+        detail = detail["message"]
     text = str(detail).strip()
     return text if text.endswith(".") else f"{text}."
 
