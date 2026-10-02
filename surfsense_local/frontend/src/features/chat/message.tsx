@@ -76,6 +76,10 @@ function reasoningFrom(custom: unknown): ReplyReasoning | null {
 }
 
 function MessageThinking() {
+  const messageId = useAuiState(({ message }) => message.id)
+  const completed = useAuiState(
+    ({ message }) => message.status?.type === "complete"
+  )
   const running = useAuiState(
     ({ message }) => message.status?.type === "running"
   )
@@ -90,7 +94,14 @@ function MessageThinking() {
 
   return (
     <>
-      <ReplyAnnouncer running={running} answerStarted={answerStarted} />
+      {/* Keyed by message: messages render by index, so an instance would
+          otherwise watch one thread's reply and announce another's. */}
+      <ReplyAnnouncer
+        key={messageId}
+        running={running}
+        answerStarted={answerStarted}
+        completed={completed}
+      />
       <ReplyThinking
         running={running}
         answerStarted={answerStarted}

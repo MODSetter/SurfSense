@@ -126,6 +126,7 @@ export function ChatComposer({
   onModelSetup,
   onModelSelected,
   readsImages,
+  describedBy,
 }: {
   placement: "center" | "bottom"
   model: ModelSelection | null
@@ -140,6 +141,8 @@ export function ChatComposer({
   onModelSelected: (selection: ModelSelection) => void
   // Attach and paste take images only while the selected model reads them.
   readsImages: boolean
+  // The conversation the composer writes into, named for a screen reader.
+  describedBy?: string
 }) {
   // Said only once the cap is reached: that is the moment typing, or the tail
   // of a paste, stops landing, and the one moment it needs explaining.
@@ -187,6 +190,7 @@ export function ChatComposer({
         <ComposerPrimitive.Input
           autoFocus
           unstable_focusOnThreadSwitched
+          aria-describedby={describedBy}
           // Held whenever a send could not go anywhere: no model, a model that
           // can't be used, or egress to it still off.
           disabled={

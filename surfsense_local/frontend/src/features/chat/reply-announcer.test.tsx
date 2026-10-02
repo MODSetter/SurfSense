@@ -11,29 +11,29 @@ const status = () => screen.getByRole("status").textContent
 
 describe("ReplyAnnouncer", () => {
   it("says the model is working before anything has streamed", () => {
-    render(<ReplyAnnouncer running answerStarted={false} />)
+    render(<ReplyAnnouncer running answerStarted={false} completed={false} />)
 
     expect(status()).toBe("Thinking")
   })
 
   it("stays quiet while the answer streams, so tokens never interrupt", () => {
-    render(<ReplyAnnouncer running answerStarted />)
+    render(<ReplyAnnouncer running answerStarted completed={false} />)
 
     expect(status()).toBe("")
   })
 
   it("says once that a reply it watched has finished", () => {
     const { rerender } = render(
-      <ReplyAnnouncer running answerStarted={false} />
+      <ReplyAnnouncer running answerStarted={false} completed={false} />
     )
-    rerender(<ReplyAnnouncer running answerStarted />)
-    rerender(<ReplyAnnouncer running={false} answerStarted />)
+    rerender(<ReplyAnnouncer running answerStarted completed={false} />)
+    rerender(<ReplyAnnouncer running={false} answerStarted completed />)
 
     expect(status()).toBe("Reply finished")
   })
 
   it("says nothing for a reply loaded from history", () => {
-    render(<ReplyAnnouncer running={false} answerStarted />)
+    render(<ReplyAnnouncer running={false} answerStarted completed />)
 
     expect(status()).toBe("")
   })
@@ -41,9 +41,21 @@ describe("ReplyAnnouncer", () => {
   it("says nothing when a turn ends with no answer", () => {
     // A failed or empty turn is announced by its error, not as a reply.
     const { rerender } = render(
-      <ReplyAnnouncer running answerStarted={false} />
+      <ReplyAnnouncer running answerStarted={false} completed={false} />
     )
-    rerender(<ReplyAnnouncer running={false} answerStarted={false} />)
+    rerender(
+      <ReplyAnnouncer running={false} answerStarted={false} completed={false} />
+    )
+
+    expect(status()).toBe("")
+  })
+
+  it("says nothing for a reply stopped or failed after it started", () => {
+    // Its alert, or the stop the person chose, already says so.
+    const { rerender } = render(
+      <ReplyAnnouncer running answerStarted completed={false} />
+    )
+    rerender(<ReplyAnnouncer running={false} answerStarted completed={false} />)
 
     expect(status()).toBe("")
   })

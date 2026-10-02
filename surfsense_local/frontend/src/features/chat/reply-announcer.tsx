@@ -10,9 +10,12 @@ import { intl } from "@/i18n/intl"
 export function ReplyAnnouncer({
   running,
   answerStarted,
+  completed,
 }: {
   running: boolean
   answerStarted: boolean
+  // False for a reply that failed or was stopped: its alert, not this, says so.
+  completed: boolean
 }) {
   // Only a reply seen running finishes here: one loaded from history is not news.
   const sawRunning = useRef(running)
@@ -21,10 +24,10 @@ export function ReplyAnnouncer({
   useEffect(() => {
     if (running) {
       sawRunning.current = true
-    } else if (sawRunning.current && answerStarted) {
+    } else if (sawRunning.current && answerStarted && completed) {
       setFinished(true)
     }
-  }, [running, answerStarted])
+  }, [running, answerStarted, completed])
 
   const text =
     running && !answerStarted
