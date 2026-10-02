@@ -560,6 +560,11 @@ delete again in a few seconds. What lets go differs by server:
   API rewrites it unchanged. The new server opens a model on its first request.
 - **llama-server** never unloads a model on its own and is restarted only by a
   changed preset, so the API asks the router to unload the model.
+- **The embedding encoder** is not a server: ONNX Runtime holds a model's files
+  open inside the API process for as long as its session is cached, including
+  the one the checks on a Hugging Face pick loaded. The API drops the encoder's
+  cached sessions. The worker has a cache of its own that this does not reach,
+  but it embeds only with the active embedder, which cannot be deleted.
 
 The audio and chat selections stay until the delete works. A delete that removed
 only some files of a build is finished by repeating it.
