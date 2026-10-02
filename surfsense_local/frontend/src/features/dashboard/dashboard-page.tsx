@@ -373,6 +373,8 @@ function WorkspaceDashboard({
             onModelSelected={onModelSelected}
             onRetry={chat.retry}
             sourceCount={sources.includedDocumentIds.length}
+            onUploadSources={(files) => void sources.upload(files)}
+            isUploadingSources={sources.isUploading}
             onTitleAnimationComplete={chat.finishTitleAnimation}
             autoNamingThreadId={chat.autoNamingThreadId}
             onRename={chat.rename}

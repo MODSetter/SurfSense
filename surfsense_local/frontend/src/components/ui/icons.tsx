@@ -12,7 +12,6 @@ import {
   ChartScatterIcon as ChartScatterIconData,
   AudioWaveformIcon as AudioWaveformIconData,
   BotIcon as BotIconData,
-  BrainCircuitIcon as BrainCircuitIconData,
   Bug01Icon as Bug01IconData,
   CancelCircleHalfDotIcon as CancelCircleHalfDotIconData,
   Cards01Icon as Cards01IconData,
@@ -68,6 +67,7 @@ import {
   SquareDashedMousePointerIcon as SquareDashedMousePointerIconData,
   StopCircleIcon,
   Sun03Icon as Sun03IconData,
+  ThoughtBubbleIcon as ThoughtBubbleIconData,
   UnplugIcon as UnplugIconData,
   Upload01Icon as Upload01IconData,
   Video01Icon as Video01IconData,
@@ -121,7 +121,6 @@ export const ArrowLeftIcon = createIcon(ArrowLeftIconData)
 export const ArrowRightIcon = createIcon(ArrowRightIconData)
 export const ArrowUp02Icon = createIcon(ArrowUp02IconData)
 export const BotIcon = createIcon(BotIconData)
-export const BrainCircuitIcon = createIcon(BrainCircuitIconData)
 export const BugIcon = createIcon(Bug01IconData)
 export const CancelCircleHalfDotIcon = createIcon(CancelCircleHalfDotIconData)
 export const Cards01Icon = createIcon(Cards01IconData)
@@ -188,6 +187,7 @@ export const ComputerIcon = createIcon(ComputerIconData)
 export const SquareDashedMousePointerIcon = createIcon(
   SquareDashedMousePointerIconData
 )
+export const ThoughtBubbleIcon = createIcon(ThoughtBubbleIconData)
 export const Trash2Icon = createIcon(Delete02Icon)
 export const ViewIcon = createIcon(ViewIconData)
 export const WebDesign01Icon = createIcon(WebDesign01IconData)

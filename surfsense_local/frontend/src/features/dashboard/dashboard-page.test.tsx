@@ -333,7 +333,7 @@ describe("dashboard chat", () => {
     resolveThreads(Response.json([]))
     const input = await screen.findByRole("textbox", { name: "Message" })
     const addSources = screen.getByRole("button", {
-      name: "Attach images",
+      name: "Add images, sources, and more",
     })
     expect(screen.queryByRole("heading", { name: "New chat" })).toBeNull()
     expect(input.closest('[data-composer-placement="center"]')).toBeTruthy()
@@ -359,12 +359,12 @@ describe("dashboard chat", () => {
       expect(bottomComposer?.closest("[data-chat-viewport]")).toBeTruthy()
       expect(
         screen
-          .getByRole("button", { name: "Attach images" })
+          .getByRole("button", { name: "Add images, sources, and more" })
           .closest('[data-composer-placement="bottom"]')
       ).toBeTruthy()
       expect(
         screen.getByRole("button", {
-          name: "Attach images",
+          name: "Add images, sources, and more",
         }).className
       ).toContain("-mr-1.5")
     })
@@ -1107,7 +1107,13 @@ describe("dashboard chat", () => {
     )
 
     await screen.findByRole("textbox", { name: "Message" })
-    await user.click(screen.getByRole("button", { name: "Thinking" }))
+    await user.click(
+      screen.getByRole("button", { name: "Add images, sources, and more" })
+    )
+    await user.click(
+      await screen.findByRole("menuitemcheckbox", { name: /^Thinking/ })
+    )
+    await user.keyboard("{Escape}")
     await user.type(
       screen.getByRole("textbox", { name: "Message" }),
       "Quick one"
