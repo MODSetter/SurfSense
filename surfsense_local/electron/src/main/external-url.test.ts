@@ -62,3 +62,24 @@ test("refuses other schemes and hosts", () => {
   assert.equal(allowedExternalUrl("https://evil.surfsense.com.example"), null)
   assert.equal(allowedExternalUrl("not a url"), null)
 })
+
+test("opens OpenAI's sign-in page only when it redirects back to this machine", () => {
+  const authorize = "https://auth.openai.com/api/accounts/authorize"
+  const back = encodeURIComponent("http://127.0.0.1:53111/callback")
+  const signIn = `${authorize}?client_id=dynamic_agent_client&redirect_uri=${back}`
+  assert.equal(allowedExternalUrl(signIn), signIn)
+  assert.equal(
+    allowedExternalUrl(
+      `${authorize}?redirect_uri=${encodeURIComponent("https://evil.example/callback")}`
+    ),
+    null
+  )
+  assert.equal(
+    allowedExternalUrl(
+      `${authorize}?redirect_uri=${encodeURIComponent("http://127.0.0.1:53111/other")}`
+    ),
+    null
+  )
+  assert.equal(allowedExternalUrl(`${authorize}`), null)
+  assert.equal(allowedExternalUrl("https://auth.openai.com/log-in"), null)
+})

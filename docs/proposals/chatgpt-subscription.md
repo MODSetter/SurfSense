@@ -1,13 +1,11 @@
 ---
-status: proposed
+status: in-progress
 code:
   - surfsense_local/backend/modules/llm/subscriptions/chatgpt/
   - surfsense_local/backend/modules/llm/providers/openai_responses/
   - surfsense_local/backend/modules/llm/models.py
   - surfsense_local/backend/modules/llm/resolution.py
   - surfsense_local/backend/modules/llm/connections/
-  - surfsense_local/backend/modules/llm/catalog/remote/
-  - surfsense_local/backend/scripts/remote_manifest/
   - surfsense_local/backend/alembic/versions/
   - surfsense_local/electron/src/main/external-url.ts
   - surfsense_local/frontend/src/features/models/remote/connections/
@@ -17,21 +15,23 @@ code:
 
 > A user with ChatGPT Plus or Pro signs in with their ChatGPT account instead of pasting an API key, and picks a model their plan includes. It is a connection like any other: it appears in the remote catalog, holds the chat slot, and is reached by chat, titles and Studio. What differs is how it signs in (OAuth, refreshed tokens) and how it is called (the Responses API, not `/chat/completions`).
 
-Today every remote model is an OpenAI-compatible connection with a static key, called at `{base_url}/chat/completions` ([connections](../architecture/connections.md), [ADR 0015](../adr/0015-openai-compatible-connections.md)). Nothing in the app does OAuth, and nothing speaks the Responses API, so the 50 OpenAI models the [manifest](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/models.json) marks `call.route: "responses"` are unusable even with a key.
+Built as described in [ChatGPT subscription](../architecture/chatgpt-subscription.md); what remains is running it against a real account. Where OpenAI's open-source docs differed from the first draft, the docs won: dynamic client registration, a loopback redirect on any port and no device-code flow, `api.openai.com` for inference, and a request body that may not carry `instructions`, `reasoning`, `text.format`, `max_output_tokens` or `tools`.
+
+Before this, every remote model was an OpenAI-compatible connection with a static key, called at `{base_url}/chat/completions` ([connections](../architecture/connections.md), [ADR 0015](../adr/0015-openai-compatible-connections.md)). Nothing in the app does OAuth, and nothing speaks the Responses API, so the 50 OpenAI models the [manifest](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/models.json) marks `call.route: "responses"` are unusable even with a key.
 
 ## Decisions
 
 - **Text generation only.** A subscription connection can hold the `text_gen` slot. Image, edit, video, audio and embedding selections refuse it with a reason.
-- **Our own client ID, through OpenAI's [Sign in with ChatGPT](https://developers.openai.com/siwc/quickstart).** It is OAuth 2.0 with PKCE and plan-usage scopes for the Responses API. The alternative, reusing the Codex CLI's public client ID against `chatgpt.com/backend-api/codex`, works today and is how Unsloth Studio does it. It was rejected: it presents SurfSense as the Codex CLI to an endpoint OpenAI never published for other apps, and OpenAI can break it for every user at once. The client ID, the authorize and token URLs, and the inference host live in one constants file, so the source is a one-file change.
+- **OpenAI's [Sign in with ChatGPT for open-source apps](https://developers.openai.com/siwc/token-sharing-open-source).** OAuth 2.0 with PKCE and the `chatgpt.tokens.use.direct` scope. The first sign-in sends `client_id=dynamic_agent_client` and OpenAI issues a client for that user, so there is nothing to apply for; every request names a stable `ext_agent_host_id`, derived from the install secret. The alternative, reusing the Codex CLI's public client ID against `chatgpt.com/backend-api/codex`, works today and is how Unsloth Studio does it. It was rejected: it presents SurfSense as the Codex CLI to an endpoint OpenAI never published for other apps, and OpenAI can break it for every user at once. The authorize, token and inference URLs live in one file.
 - **The API sidecar owns sign-in and tokens; the renderer never sees a token.** It returns an opaque flow id and a status. The workers read tokens from the database; they never sign in.
-- **Two ways to sign in**, both from the start:
-  - **Browser.** The API opens a short-lived loopback listener on a fixed port registered with OpenAI, separate from the API's own port, which is random ([`index.ts`](../../surfsense_local/electron/src/main/index.ts), `getFreePort`). Electron opens the authorize URL in the system browser. The listener closes on the callback or after five minutes.
-  - **Device code.** No callback, so it works when the port is taken or the browser is on another machine.
+- **One way to sign in: the browser.** The API opens a short-lived loopback listener on `127.0.0.1` at a random port, separate from its own; OpenAI allows any port as long as scheme, host and path match. Electron opens the authorize URL in the system browser. The listener closes on the callback or after five minutes. OpenAI's open-source flow has no device code.
 - **SQLite stays the store.** Tokens sit next to API keys in `surfsense.db`, encrypted with the per-install secret ([ADR 0018](../adr/0018-keychain-envelope-encryption.md)). The keychain alone would not reach the workers.
 - **One process refreshes at a time.** The API and both workers call [`resolve_generation`](../../surfsense_local/backend/modules/llm/resolution.py) and can find the same token expired at once. A refresh token is single-use, so two concurrent refreshes can sign the user out. SQLite's write lock serializes them; no file lock.
 - **A dead refresh token clears the tokens.** `invalid_grant` sets the ciphertext to `NULL`, and a `chatgpt` connection with no tokens is the "Reconnect" state. No separate flag can drift from the tokens.
-- **A plan's usage limit is terminal.** A 429 that says the plan limit is reached fails the request with that reason and is not retried. Other 429s and 5xxs retry as today.
-- **The Responses generator is not ChatGPT-specific.** Given an API key instead of a token getter, it also serves the OpenAI models the manifest marks `responses`. That is a follow-up, not part of this work.
+- **A plan's usage limit is terminal.** A 429 that says the plan limit is reached fails the request with that reason, and chat offers no retry. Other failures surface as they do for any connection.
+- **The plan's body is minimal.** `{model, input, store: false, stream: true}`: the endpoint refuses `instructions`, `reasoning`, `text.format`, `max_output_tokens` and `tools`, so a system prompt goes as a `developer` turn and the caller's token cap, reasoning switch and JSON schema are dropped. Studio already parses replies an endpoint did not constrain.
+- **The manifest describes the plan's models through `openai`.** A ChatGPT connection names `catalog_provider = 'openai'`, so which models read images comes from the entries already there; no hand-written provider is added to the generated manifest.
+- **The Responses generator is not yet used with an API key.** Given a key instead of a token getter, it could serve the OpenAI models the manifest marks `responses`, but the API-key `/responses` endpoint takes the fields the plan refuses, so it is a follow-up.
 
 ## Schema
 
@@ -42,7 +42,7 @@ One revision, `0023`. It adds columns with plain `ALTER TABLE … ADD COLUMN`, n
 | Column on `provider_connections` | Type | Default | Holds |
 |---|---|---|---|
 | `auth_kind` | `TEXT NOT NULL`, `CHECK (auth_kind IN ('api_key', 'chatgpt'))` | `'api_key'` | how the connection signs in, and so which generator `resolution.py` builds |
-| `oauth_ciphertext` | `BLOB NULL` | `NULL` | encrypted JSON `{access_token, refresh_token, expires_at, account_id}` |
+| `oauth_ciphertext` | `BLOB NULL` | `NULL` | encrypted JSON `{client_id, access_token, refresh_token, id_token, expires_at, account, email, earliest_refresh_at}` |
 | `token_version` | `INTEGER NOT NULL` | `0` | bumped on each refresh, so a process that lost the race uses the winner's token |
 
 - One blob, not a column per field, mirroring `api_key_ciphertext`. Decrypting is cheap, and the account and expiry stay off disk in clear.
@@ -68,14 +68,14 @@ The write lock is held across one HTTP call, about once an hour per connection. 
 
 ```
 frontend: connection form ─ "Sign in with ChatGPT" ─ flow status (poll)
-   │ POST /llm/connections/chatgpt/sign-in    GET …/sign-in/{flow}    DELETE …/{id}/sign-in
+   │ GET …/chatgpt/hosts   POST …/chatgpt/sign-in   GET …/sign-in/{flow}   DELETE …/{id}/sign-in
    ▼
 electron: opens the authorize URL (allowlisted host)
    ▼
 api: modules/llm/subscriptions/chatgpt/
-       sign_in.py   PKCE and device code, loopback listener, flow state in memory
+       flows.py     the sign-in: PKCE, loopback listener, ID token, flow state in memory
        tokens.py    the token getter: read, refresh under the write lock, clear on invalid_grant
-       models.py    the plan's live model list, falling back to the manifest's
+       plan_models.py  the plan's live model list
        router.py    sign-in, flow status, disconnect
      modules/llm/providers/openai_responses/
        chat.py      a Generator over POST …/responses (SSE)
@@ -92,25 +92,20 @@ workers: resolve_generation() → the same generator and token getter
   - No tools: SurfSense's chat sends none today.
   - `context_tokens` and `sees_images` come from the plan's model list. `token_count` is `None`.
 - **Auth headers.** The generator takes a token getter, not a key. [`key_headers.py`](../../surfsense_local/backend/modules/llm/connections/key_headers.py) stays for static keys.
-- **Catalog.** The manifest generator adds one reviewed provider, `chatgpt`, with a new `connect.status` of `sign_in` ([`schema.py`](../../surfsense_local/backend/modules/llm/catalog/remote/manifest/schema.py)) and a curated model list. `/llm/connections/{id}/models` asks the plan for its live list and falls back to the manifest's. A model the plan stops listing shows as unavailable rather than vanishing from a saved selection.
-- **Egress.** Signing in asks consent for the auth host and the inference host, one `host:` row each ([ADR 0027](../adr/0027-egress-consent-per-host.md)).
+- **Catalog.** `/llm/connections/{id}/models` asks the plan for its live list. A model the plan stops listing is a selection the availability check reports as gone, as for any connection.
+- **Egress.** Before signing in, the renderer asks consent for the auth host and the inference host, one `host:` row each, from a list the API gives ([ADR 0027](../adr/0027-egress-consent-per-host.md)).
 - **Electron.** [`external-url.ts`](../../surfsense_local/electron/src/main/external-url.ts) allows OpenAI's authorize and device-verification URLs, and nothing else from those hosts.
-- **Frontend.** For the `sign_in` status, [`connection-form.tsx`](../../surfsense_local/frontend/src/features/models/remote/connections/connection-form.tsx) shows Sign in, the device code when that path is taken, and Reconnect on a connection with no tokens, in place of the URL and key fields.
+- **Frontend.** [`connection-form.tsx`](../../surfsense_local/frontend/src/features/models/remote/connections/connection-form.tsx) offers **ChatGPT subscription** beside **Local or custom server**, and shows Sign in, then Sign in again and Sign out on an existing one, in place of the URL and key fields.
 
 ## Open questions
 
-- **Getting a client ID.** OpenAI's quickstart says open-source developers register themselves; its [request page](https://developers.openai.com/siwc/request-client-id) says Sign in with ChatGPT is for "a select group of commercial partners". Which applies decides when this can ship.
-- **The plan-usage endpoint's exact shape**: its host, required headers, model-list call, and whether it takes `max_output_tokens`. The design assumes the Responses API; the details come with the client ID.
-- **The loopback port** to register.
+- **Running it against a real ChatGPT account.** Everything is tested against a fake built from OpenAI's docs. The first live sign-in confirms the callback's `client_id`, the token response's `scope` and `earliest_refresh_at`, and the plan's `/v1/models` shape.
 
 ## Work
 
-1. The Responses generator against an API key, which unlocks the manifest's `responses` models and needs no OAuth.
-2. Revision `0023`, the token getter and its refresh, with a test that two processes refreshing at once both end with the same valid token.
-3. Sign-in: both flows, the routes, the Electron allowlist, egress consent.
-4. Catalog entry and live model list; the connection form's sign-in state.
+Built: the Responses generator, revision `0023`, the token getter and its refresh, sign-in and its routes, the Electron allowlist, egress consent, the connection form, and the two chat error kinds. Left: the live run above, then folding this into ADRs.
 
-The change that ships this amends [ADR 0015](../adr/0015-openai-compatible-connections.md), which says every remote model is an OpenAI-compatible connection, and updates [connections](../architecture/connections.md) and [data model](../architecture/data-model.md).
+The change that ships this amends [ADR 0015](../adr/0015-openai-compatible-connections.md), which says every remote model is an OpenAI-compatible connection, and deletes this proposal. [Connections](../architecture/connections.md) and [data model](../architecture/data-model.md) already describe the code.
 
 ## Not in scope
 

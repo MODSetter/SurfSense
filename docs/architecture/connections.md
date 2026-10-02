@@ -40,6 +40,8 @@ Out of scope: a standalone OpenRouter provider or its legacy Chat Completions im
 | `catalog_provider` | the remote manifest provider this reaches, such as `openai` or `neon`, or `custom` for an endpoint the manifest does not list; stored as chosen, never read from the URL |
 | `base_url` | the exact API root, normally ending in `/v1`, stored without a trailing slash |
 | `api_key_ciphertext` | the Fernet-encrypted key, nullable, never returned by any route |
+| `auth_kind` | `api_key`, or `chatgpt` for a connection signed in with a ChatGPT account, enforced by a CHECK; added in place by `0023`, so existing rows read `api_key` |
+| `oauth_ciphertext`, `token_version` | a `chatgpt` row's encrypted token set and its refresh counter ([`chatgpt-subscription.md`](chatgpt-subscription.md)) |
 | `created_at`, `updated_at` | |
 
 A base URL must be `http` or `https` with a host, and may not carry credentials, a query or a fragment. Private, loopback and link-local hosts are valid: the API binds to loopback, and reaching internal endpoints is the point. If the API ever binds externally, this becomes an SSRF boundary and has to be redesigned first.
@@ -58,6 +60,8 @@ A base URL must be `http` or `https` with a host, and may not carry credentials,
 | `POST` | `/llm/connections/{connection_id}/chat-test` | one short answer from a chosen model |
 | `POST` | `/llm/connections/{connection_id}/image-test` | one image from a chosen model |
 | `POST` | `/llm/connections/{connection_id}/speech-test` | one spoken line from a chosen model |
+
+A ChatGPT connection is created by signing in, not by this write body, and its own routes are in [`chatgpt-subscription.md`](chatgpt-subscription.md#signing-in).
 
 The write body:
 
@@ -133,6 +137,7 @@ Images go through `OpenAICompatibleImageProvider`:
 ```text
 text_gen          llamacpp                   → the supervised llama-server
                   openai_compatible + id     → load the connection → chat provider
+                                                 (auth_kind chatgpt → the Responses generator)
 image_gen         sdcpp                      → the image provider at sd-server's loopback URL
                   openai_compatible + id     → load the connection → image provider
 ```

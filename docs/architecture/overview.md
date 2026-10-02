@@ -118,6 +118,7 @@ The rules that keep the processes out of each other's way:
 - [Agent](agent.md): a thread opencode answers in steps, and how it is kept to loopback.
 - [Studio](studio.md): artifact formats, jobs, viewers.
 - [Connections](connections.md): OpenAI-compatible endpoints and where keys live.
+- [ChatGPT subscription](chatgpt-subscription.md): a connection signed in with a ChatGPT account, answered through the Responses API.
 - Local models: [runtime](local-models/runtime.md), [fit](local-models/fit.md), [catalog](local-models/catalog.md), [selection and onboarding](local-models/selection.md).
 - [Localization](localization.md): the interface in English, Japanese and German.
 - [Egress](egress.md), [import](import.md), [license in the app](license/app.md), [license portal](license/portal.md), [updates](updates.md), [about](about.md), [issue reports](issue-reports.md), [resource usage](resource-usage.md), [packaging](packaging.md), [sunset](sunset.md).

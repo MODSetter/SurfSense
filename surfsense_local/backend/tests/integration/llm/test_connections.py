@@ -308,7 +308,7 @@ async def test_model_discovery_does_not_hold_the_write_lock(
         return []
 
     monkeypatch.setattr(
-        "modules.llm.connections.router.discover_models", slow_discovery
+        "modules.llm.connections.listing.discover_models", slow_discovery
     )
     discovery = asyncio.create_task(
         client.get(f"/llm/connections/{connection['id']}/models")

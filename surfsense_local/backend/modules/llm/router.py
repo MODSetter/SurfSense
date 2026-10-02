@@ -40,6 +40,7 @@ from modules.llm.schemas import (
 )
 from modules.llm.selectable import SLOTS, selectable_for
 from modules.llm.selection import choose_model, complete_onboarding
+from modules.llm.subscriptions.chatgpt.router import router as chatgpt_router
 from modules.llm.voices.router import router as voices_router
 from shared.config import get_llm_settings
 
@@ -47,6 +48,8 @@ router = APIRouter(prefix="/llm", tags=["llm"])
 router.include_router(local_catalog_router)
 router.include_router(install_jobs_router)
 router.include_router(remote_catalog_router)
+# Before the connections router, so `chatgpt` is never read as a connection id.
+router.include_router(chatgpt_router)
 router.include_router(connections_router)
 router.include_router(voices_router)
 
