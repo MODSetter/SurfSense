@@ -20,7 +20,11 @@ import { MAX_SOURCE_TITLE, cleanSourceTitle } from "./source-title"
 export type NoteActions = {
   write: (title: string, content: string) => Promise<boolean>
   load: (documentId: number) => Promise<{ title: string; content: string }>
-  edit: (documentId: number, title: string, content: string) => Promise<boolean>
+  edit: (
+    documentId: number,
+    title: string,
+    content?: string
+  ) => Promise<boolean>
 }
 
 /** A new note, or the note with this id reopened with its text. */
@@ -65,12 +69,16 @@ export function NoteEditorDialog({
     event.preventDefault()
     if (!cleanTitle) return
     setSaving(true)
-    const saved =
+    const stored =
       documentId === null
         ? await notes.write(cleanTitle, content)
-        : await notes.edit(documentId, cleanTitle, content)
+        : await notes.edit(
+            documentId,
+            cleanTitle,
+            content === (saved.data?.content ?? "") ? undefined : content
+          )
     setSaving(false)
-    if (saved) onOpenChange(false)
+    if (stored) onOpenChange(false)
   }
 
   return (

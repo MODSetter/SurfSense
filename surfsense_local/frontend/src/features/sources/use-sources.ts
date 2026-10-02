@@ -248,10 +248,19 @@ export function useSources(workspaceId: number) {
       )
     )
 
-  // Each answers whether it saved, so its dialog closes only then. An edited
-  // note comes back pending, and the ingestion poll carries it to ready.
+  // Each answers whether it saved, so its dialog closes only then, and says why
+  // not in a toast: the panel's alert sits behind the dialog. An edited note
+  // comes back pending, and the ingestion poll carries it to ready.
+  const noteFailed = (cause: unknown) =>
+    errorToast(
+      intl.formatMessage({
+        id: "sources_note_save_toast",
+        defaultMessage: "Couldn’t save the note",
+      }),
+      { description: messageFrom(cause) }
+    )
+
   const writeNote = async (title: string, content: string) => {
-    setError(null)
     try {
       const created = await createNote(workspaceId, { title, content })
       // The server announces the note before it answers, so a refetch may
@@ -262,33 +271,44 @@ export function useSources(workspaceId: number) {
       ])
       return true
     } catch (cause) {
-      setError(messageFrom(cause))
+      noteFailed(cause)
       return false
     }
   }
 
   const rename = async (documentId: number, title: string) => {
-    setError(null)
     try {
       replace(await updateDocument(workspaceId, documentId, { title }))
       return true
     } catch (cause) {
-      setError(messageFrom(cause))
+      errorToast(
+        intl.formatMessage({
+          id: "sources_rename_toast",
+          defaultMessage: "Couldn’t rename the source",
+        }),
+        { description: messageFrom(cause) }
+      )
       return false
     }
   }
 
+  // Content only when it changed: sending it re-ingests the note.
   const editNote = async (
     documentId: number,
     title: string,
-    content: string
+    content?: string
   ) => {
-    setError(null)
     try {
-      replace(await updateDocument(workspaceId, documentId, { title, content }))
+      replace(
+        await updateDocument(
+          workspaceId,
+          documentId,
+          content === undefined ? { title } : { title, content }
+        )
+      )
       return true
     } catch (cause) {
-      setError(messageFrom(cause))
+      noteFailed(cause)
       return false
     }
   }

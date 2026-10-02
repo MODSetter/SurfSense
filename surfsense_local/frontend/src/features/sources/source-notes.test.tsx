@@ -2,6 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { cleanup, screen, waitFor } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 
+import { toast } from "sonner"
+
 import { TooltipProvider } from "@/components/ui/tooltip"
 import { render } from "@/test-utils"
 
@@ -64,7 +66,7 @@ function NotesHarness() {
 }
 
 /** The workspace's documents, and every write the panel sends. */
-function serving(documents: object[]) {
+function serving(documents: object[], { failWrites = false } = {}) {
   const writes: { method: string; path: string; body: unknown }[] = []
   const fetchMock = vi.fn(
     async (input: RequestInfo | URL, init?: RequestInit) => {
@@ -81,6 +83,9 @@ function serving(documents: object[]) {
       if (method === "GET") return Response.json([])
       const body = init?.body ? JSON.parse(String(init.body)) : null
       writes.push({ method, path, body })
+      if (failWrites) {
+        return Response.json({ detail: "database is locked" }, { status: 503 })
+      }
       if (method === "POST" && path === "/workspaces/1/documents") {
         return Response.json(
           {
@@ -224,5 +229,59 @@ describe("notes and renaming in the sources panel", () => {
         .disabled
     ).toBe(true)
     expect(writes).toEqual([])
+  })
+
+  it("sends no content when only a note's title changed", async () => {
+    // Content puts the note back to pending and re-ingests it for nothing.
+    const writes = serving([note])
+    const user = userEvent.setup()
+    render(<NotesHarness />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for Ideas" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Edit note" }))
+    const body = await screen.findByRole("textbox", { name: "Note" })
+    await waitFor(() =>
+      expect((body as HTMLTextAreaElement).value).toBe("First draft")
+    )
+    const title = screen.getByRole("textbox", { name: "Title" })
+    await user.clear(title)
+    await user.type(title, "Plans")
+    await user.click(screen.getByRole("button", { name: "Save note" }))
+
+    await waitFor(() =>
+      expect(writes).toEqual([
+        {
+          method: "PATCH",
+          path: "/workspaces/1/documents/8",
+          body: { title: "Plans" },
+        },
+      ])
+    )
+  })
+
+  it("says why a rename failed where it can be seen, and keeps the dialog", async () => {
+    // The panel's own alert sits behind the dialog's backdrop.
+    serving([file], { failWrites: true })
+    const user = userEvent.setup()
+    render(<NotesHarness />)
+
+    await user.click(
+      await screen.findByRole("button", { name: "Actions for guide.txt" })
+    )
+    await user.click(await screen.findByRole("menuitem", { name: "Rename" }))
+    const name = await screen.findByRole("textbox", { name: "Name" })
+    await user.clear(name)
+    await user.type(name, "Field guide")
+    await user.click(screen.getByRole("button", { name: "Rename" }))
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        "Couldn’t rename the source",
+        expect.anything()
+      )
+    )
+    expect(screen.getByRole("textbox", { name: "Name" })).toBeTruthy()
   })
 })
