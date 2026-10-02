@@ -111,6 +111,19 @@ A turn can carry images, and a model that reads them receives them; every other 
 - It runs before the answer starts, so the first reply in a new thread waits for it.
 - The title is announced mid-stream as `thread-title-update`, but the rename commits only in the branch that keeps the turn, so a turn that is discarded never renames its thread.
 
+## The thinking switch
+
+`thinking` is a field of the turn, on unless the request says `false`; chat has no settings route to hold it. Off, the router passes `reasoning=False` to `chat_deltas`, as title generation does, and the local runtime adds its two request fields ([`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off)), so a thinking model answers with no trace and none is stored. On, nothing is added and the model keeps its own default.
+
+Only the local runtime has a way to be told. A remote endpoint has no portable field for it, so `thinking: false` changes nothing there, and an agent thread does not read the field.
+
+The composer's Thinking button, beside the model name ([`thinking-toggle.tsx`](../../surfsense_local/frontend/src/features/chat/thinking-toggle.tsx)), holds the preference in `localStorage` under `surfsense:chat-thinking:v1`, for every thread and workspace, the way the last open thread is remembered. It is read when a message is sent, and only an off preference with a `llamacpp` selection puts `thinking: false` in the request. With any other selection the button stays in place, pressed and disabled, and its tooltip says "Only a local model can answer without thinking", as the "+" does for a model that cannot read images.
+
+What it does not do:
+
+- It does not change how a thinking model samples beyond that. A curated Qwen3 commits a temperature for thinking only, so with thinking off it answers at llama-server's default: a mode with no set of its own is not given the other mode's ([`local-models/runtime.md`](local-models/runtime.md)).
+- On a local model that never thinks, such as Gemma 3, the button is enabled and changes nothing: the request carries `thinking: false` and the model answers as it would have.
+
 ## Frontend runtime
 
 - [`use-chat-runtime.ts`](../../surfsense_local/frontend/src/features/chat/use-chat-runtime.ts) uses assistant-ui's `useExternalStoreRuntime`. FastAPI is already the source of truth for threads and messages, and a local-runtime history adapter would add a second persistence path that could write a message twice.
@@ -135,14 +148,6 @@ A turn can carry images, and a model that reads them receives them; every other 
 - Citations are buttons, not clickable `div`s.
 - A failed turn shows in an alert, which assistive technology announces.
 - The composer follows assistant-ui's keyboard behaviour.
-
-### The thinking switch
-
-`thinking` is a field of the turn, on unless the request says `false`; chat has no settings route to hold it. Off, the router passes `reasoning=False` to `chat_deltas`, as title generation does, and the local runtime adds its two request fields ([`local-models/runtime.md`](local-models/runtime.md#turning-thinking-off)), so a thinking model answers with no trace and none is stored. On, nothing is added and the model keeps its own default.
-
-Only the local runtime has a way to be told. A remote endpoint has no portable field for it, so `thinking: false` changes nothing there, and an agent thread does not read the field.
-
-The composer's Thinking button, beside the model name ([`thinking-toggle.tsx`](../../surfsense_local/frontend/src/features/chat/thinking-toggle.tsx)), holds the preference in `localStorage` under `surfsense:chat-thinking:v1`, for every thread and workspace, the way the last open thread is remembered. It is read when a message is sent, and only an off preference with a `llamacpp` selection puts `thinking: false` in the request. With any other selection the button stays in place, pressed and disabled, and its tooltip says "Only a local model can answer without thinking", as the "+" does for a model that cannot read images.
 - The startup loader and the typed-in thread title respect `prefers-reduced-motion`.
 
 ## Agent threads
