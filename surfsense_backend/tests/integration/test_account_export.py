@@ -324,9 +324,9 @@ async def test_account_export_compresses_off_the_event_loop(
     threads: list[threading.Thread] = []
     real = export_service._manifest_first_zip
 
-    def recording(staging_path, manifest):
+    def recording(*args):
         threads.append(threading.current_thread())
-        return real(staging_path, manifest)
+        return real(*args)
 
     monkeypatch.setattr(export_service, "_manifest_first_zip", recording)
 
@@ -358,3 +358,83 @@ async def test_a_cancelled_account_export_leaves_no_archive_behind(
         await build_account_export_zip(db_session, db_user.id)
 
     assert list(tmp_path.iterdir()) == []
+
+
+async def test_an_export_cancelled_while_it_compresses_leaves_no_archive_behind(
+    db_session: AsyncSession,
+    db_user: User,
+    db_workspace: Workspace,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    """The deadline cancels the await, not the worker thread: the thread goes
+    on to finish the final ZIP, and nobody is left to delete it."""
+    await _many_docs(db_session, db_workspace, db_user, 3)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    compressing = threading.Event()
+    release = threading.Event()
+    real_read = zipfile.ZipFile.read
+
+    def held(self, name, *args, **kwargs):
+        # Inside the pass, with the staging archive already open: removing
+        # that file from under it does not stop the thread.
+        compressing.set()
+        release.wait(timeout=10)
+        return real_read(self, name, *args, **kwargs)
+
+    monkeypatch.setattr(zipfile.ZipFile, "read", held)
+
+    build = asyncio.ensure_future(build_account_export_zip(db_session, db_user.id))
+    while not compressing.is_set():
+        await asyncio.sleep(0.01)
+    build.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await build
+    release.set()
+
+    for _ in range(200):
+        if not list(tmp_path.iterdir()):
+            break
+        await asyncio.sleep(0.02)
+    assert list(tmp_path.iterdir()) == []
+
+
+async def test_an_export_cancelled_mid_batch_stops_writing_and_cleans_up(
+    db_session: AsyncSession,
+    db_user: User,
+    db_workspace: Workspace,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    """Cancelled while a worker thread is writing a batch into the staging
+    archive: the thread stops at its next entry and the file is removed."""
+    await _many_docs(db_session, db_workspace, db_user, 5)
+    monkeypatch.setattr(tempfile, "tempdir", str(tmp_path))
+    writing = threading.Event()
+    release = threading.Event()
+    written: list[str] = []
+    real_writestr = zipfile.ZipFile.writestr
+
+    def held(self, name, *args, **kwargs):
+        writing.set()
+        release.wait(timeout=10)
+        written.append(str(name))
+        return real_writestr(self, name, *args, **kwargs)
+
+    monkeypatch.setattr(zipfile.ZipFile, "writestr", held)
+
+    build = asyncio.ensure_future(build_account_export_zip(db_session, db_user.id))
+    while not writing.is_set():
+        await asyncio.sleep(0.01)
+    build.cancel()
+    release.set()
+    with pytest.raises(asyncio.CancelledError):
+        await build
+
+    for _ in range(200):
+        if not list(tmp_path.iterdir()):
+            break
+        await asyncio.sleep(0.02)
+    assert list(tmp_path.iterdir()) == []
+    # The entry it was in the middle of, and no more of the batch.
+    assert len(written) == 1
